@@ -49,7 +49,7 @@ struct LibraryBrowseScreen: View {
                 }
 
                 NavigationLink(value: RouterDestination.playableLibraryList(title: "Imported Playlists", items: $browseService.importedPlaylists, action: { offset in
-                    await browseService.updateImportedPlaylists()
+                    await browseService.updateImportedPlaylists(offset: offset)
                 })) {
                     Label("Imported Playlists", systemImage: "rectangle.stack.badge.play")
                 }

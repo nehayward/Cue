@@ -42,8 +42,10 @@ public final class SonosService {
     @ObservationIgnored private lazy var api = SonosAPI()
     @ObservationIgnored private lazy var mediaServerHandler = MediaServerHandler()
 
+    // The shared instance, not a private one: all uses here are stateless
+    // catalog lookups, and a second instance duplicates auth/session setup.
     @MainActor
-    @ObservationIgnored private lazy var musicSearch = MusicSearchService()
+    @ObservationIgnored private lazy var musicSearch = MusicSearchService.shared
     @ObservationIgnored private var isGroupingTask: Task<Void, Error> = Task { }
 
     public var systemState = SonosSystemState()
@@ -2581,9 +2583,14 @@ public final class SonosService {
     }
 
     // MARK: - Alarms
-    public func listAlarms() async -> [Alarm] {
-        guard let ip = prioritizedIP() else { return [] }
-        return await api.listAlarms(IP: ip).sorted(by: { $0.startTime.compare($1.startTime) == .orderedAscending })
+    /// Returns the household's alarms sorted by start time, or `nil` if the
+    /// request failed (no reachable speaker, transport error, non-200). An
+    /// empty array means the request succeeded and there are genuinely no
+    /// alarms — callers should not retry on that.
+    public func listAlarms() async -> [Alarm]? {
+        guard let ip = prioritizedIP() else { return nil }
+        guard let alarms = await api.listAlarms(IP: ip) else { return nil }
+        return alarms.sorted(by: { $0.startTime.compare($1.startTime) == .orderedAscending })
     }
 
     public func editAlarm(alarm: Alarm, content: PlayableContent?) async  {

@@ -32,10 +32,16 @@ struct MenuInfoView: View {
                     } label: {
                         Label("View Artist", systemImage: "music.mic")
                     }
-                    if !group.TVMode {
-                        AddToLastPlaylistButton(itemToAdd: group.coordinatorRoom.track.toPlayable)
-                        AddToPlaylistMenu(itemToAdd: group.coordinatorRoom.track.toPlayable)
+                }
+                if !group.TVMode {
+                    Divider()
+                    AddToLastPlaylistButton(itemToAdd: group.coordinatorRoom.track.toPlayable)
+                    Button {
+                        router.sheet(to: .addToPlaylist(content: group.coordinatorRoom.track.toPlayable))
+                    } label: {
+                        Label("Add to Playlist…", systemImage: "text.badge.plus")
                     }
+                    Divider()
                 }
                 
                 if group.coordinatorRoom.track.musicService.supportsRadio, group.coordinatorRoom.track.toPlayable.content.type != .libraryTrack {

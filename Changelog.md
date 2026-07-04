@@ -6,6 +6,47 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ## 2026.6
 
+### Playlist management across music services
+First-class playlist management for Apple Music, Spotify, Plex, and Deezer alongside Sonos.
+
+**Add to playlist**
+- New `AddToPlaylistSheet` (replaces the old single-track Sonos `AddToPlaylistMenu`): share-sheet-style, segmented between the track's own service and Sonos, with multi-select + one Done, search, a "New Playlist" action, a "Recently Added" quick-pick (top 3), and a confirmation toast that deep-links to the target playlist
+- Wired into every track-menu surface: `PlayableMenuView` (search/library/detail), `MenuInfoView` (Large Player), the queue menus (`QueueCellView`/`QueueScreen`/`UpNextContentView`), and the macOS native `UIMenu` (now lists the track's service playlists + Sonos)
+- One-tap "Add to last playlist" shortcut (`AddToLastPlaylistButton`) with the destination service icon, gated to service-compatible tracks; last-used playlist (id/title/service) and recents tracked centrally in `LastPlaylist`
+- `MusicSearchService` gains create/add/remove/delete wrappers + service-agnostic dispatch (`addToServicePlaylist`/`removeFromServicePlaylist`/`reorderServicePlaylist`); `SpotifyAPI`/`PlexAPI`/`DeezerAPI`/`AppleMusicAPI` gain the underlying mutation endpoints
+
+**Edit playlists** (`MediaDetailView` + `PlaylistEditCoordinator`)
+- Swipe-, menu-, and bulk-remove; drag-to-reorder; delete playlist — all optimistic with rollback on failure. Sonos and streaming edits both route through `PlaylistEditCoordinator`, which owns the track list so edits survive view rebuilds
+- Undo/Redo for add/remove via an owned undo/redo stack on the coordinator (replaces `UndoManager`): one stack drives the tap-to-undo toast, the iOS ⌘Z / ⌘⇧Z keyboard shortcuts, and a native Catalyst Edit ▸ Undo/Redo menu. Sonos edits aren't undoable (its add appends — no positional re-add)
+- Editing gated to playlists the user can actually modify: Spotify via owner/collaborative from a `fields`-filtered `/playlists/{id}` lookup (cached user id + membership fallback); Deezer via per-playlist owner check; Plex always (server-owned); Apple never
+
+**Create playlists**
+- Create playlists per service from the browse screens ("+") and the add sheet, including **empty** playlists for Apple, Spotify, Deezer, Plex, and Sonos. Plex empty creation posts `type=audio` with no seed (with a title-based fallback when the create response omits the new id)
+- `DeletePlaylistConfirmationView` and `NewPlaylistView` follow the app's sheet pattern — top ✕ dismiss, single prominent action button
+
+**Service coverage:** Sonos (full); Spotify / Plex / Deezer (add, remove, reorder, delete, create); Apple Music (add + create only — no public remove/reorder API). Deezer reorder is intentionally excluded (its reorder endpoint takes a full track-id list, unsafe for a paginated playlist); Deezer writes require the `manage_library` OAuth scope.
+
+**Catalyst menu**
+- Native Edit ▸ Undo/Redo wired to the playlist editor through the app delegate / responder chain (`PlaylistUndoMenuBridge`); enable/disable follows the undo stack via `canPerformAction`
+- Removed the auto-injected AutoFill / Start Dictation / Emoji & Symbols items from the Edit menu (`NSDisabledDictationMenuItem` / `NSDisabledCharacterPaletteMenuItem` + `.autoFill` builder removal)
+
+**Fixes**
+- Removing a track from a Spotify playlist now deletes only the selected occurrence, not every copy. The remove request now sends the track's playlist position (`positions`) instead of just its URI, which Spotify treats as "remove all occurrences." Multi-select removals run sequentially (highest position first) so the positional indices stay valid. Plex was already safe (unique per-row id); Deezer's API only removes by track id, so a duplicated Deezer track still removes all copies (upstream limitation).
+- Adding a Spotify album with more than 50 tracks now adds the whole album. `addToSpotifyPlaylist` pages through the album's tracks (50 per page) instead of taking only the first page, and posts them in chunks of 100 (the add-tracks request cap) — previously the overflow was silently dropped while still reporting success.
+- "Recently Added" in the Add-to-Playlist sheet is now keyed by service (`<service>:<id>`), matching the selection logic, so a recent id from one service can no longer surface a same-id playlist in the other segment.
+- Deezer "Add to Playlist" now lists only playlists you own. `userPlaylists(for: .deezer)` filters `/user/me/playlists` to `creator == me` (new `deezerEditablePlaylists()`), mirroring Spotify — previously followed playlists were offered as targets and the add silently failed. Browse still shows all playlists.
+- Service playlist browse grids gain a toolbar refresh button (`PlayableGridScreen`), so creates/deletes can be pulled in on Mac/Catalyst where SwiftUI pull-to-refresh doesn't fire.
+- `PlaylistEditCoordinator`'s undo/redo history is extracted into a pure, unit-tested `UndoRedoStack` (SonosKit) covering push/undo/redo, redo invalidation on a fresh edit, and clearing.
+- Viewing a Plex artist from a track (e.g. "View Artist" on a song in `MediaDetailView`) now shows the artist's albums. `ArtistDetailView.loadPlexArtistData` always populates `albums` and picks the first non-empty category (`albumType = .firstAvailable(...)`) like the direct-artist path — previously the track path passed `setAlbums: false` and never selected a category, so the Albums section rendered with the picker stuck on an empty "Album" tab.
+
+### Queue shuffle animation
+- Tapping the shuffle button in the queue now animates the Up Next and Full Queue lists reordering into their shuffled positions instead of snapping. Move and delete also animate as a side effect.
+- Reworked queue row identity: rows are now keyed by `content.id` + *occurrence index* (the Nth copy of a song in the loaded window) via `keyedByOccurrence()`, instead of `trackID` (`content.id` + position). Occurrence keys are unique (handles duplicate songs) and stable under reorder, so SwiftUI animates rows *moving* rather than cross-fading. The shuffle action is now just an animated `withAnimation` swap of the fetched order — no identity-preserving workaround needed.
+- List selection, context menus, and delete now resolve the selected occurrence keys back to tracks (`tracks(forKeys:)`); scroll-to-now-playing resolves the row's occurrence key (`occurrenceKey(forPosition:)`) since `ScrollViewReader` matches `ForEach` identity.
+- Shuffle/repeat state (`group.playMode`) is now loaded in `onAppear` for both queue modes; previously it was only fetched in the full-queue view's task, so the shuffle/repeat buttons didn't reflect the speaker state when opening the default Up Next view. Their active color is also now driven via `.tint` on the button (iOS toolbars override `.foregroundStyle` on the label with the bar tint, so the highlight didn't show on iOS).
+- Now-playing row highlight now compares queue position via a shared `GroupRoom.isNowPlaying(_:)` (gated on playing from the queue) instead of `currentTrackID`. `currentTrackID` was only populated in full-queue code paths, so the playing track never highlighted in the default Up Next view; the position check works in both modes and live-updates as the track changes. Both the row number and the cell use the one helper so they can't drift. The first-load scroll sentinel is now a plain `hasScrolledToNowPlaying` flag (the old `currentTrackID` string value was never read).
+- No-op when the returned order is unchanged, so there's no regression for sources that don't reorder `Q:0`.
+
 ### Deezer integration
 - Added `DeezerAPI` client in `MusicSearchKit` — no auth required, hits public `api.deezer.com` endpoints
 - Full search: tracks, albums, artists, playlists (concurrent `async let` in `MusicSearchService.searchDeezer`)
@@ -42,6 +83,13 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 - `"Play:5"` kept; the 2026 portable "Play" matched by exact last-token comparison so its siblings are excluded
 - `"Era"` left broad (Era 100/100 SL/300 all support line-in via the USB-C adapter); `"Move 2"`, `"Five"`, `"Amp"`, `"Connect"`, `"Port"` unchanged
 
+### Sonos library pagination
+- Library browse lists made a single fixed-size `Browse` request and relied on a one-shot `.task`-fired indicator that never re-triggered, so libraries larger than one page were silently truncated — Albums stopped ~mid-"D" (first 500); Artists only looked complete because there were fewer than 500
+- `LibraryBrowseService.updateSongs` / `updateAlbum` / `updateArtists` / `updateGenres` now fetch one page at `offset` and return whether a full page came back (`count >= pageSize`); callers request the next page at `offset == current count`, deduped via `updateOrAppend`. All `update*` methods are `@MainActor` so observed-state writes stay on the main actor
+- `PlayableContentList`: replaced the one-shot `.task` load-more indicator with an `.onAppear` sentinel gated by a single in-flight `isLoading` flag plus `hasMoreContent`, so pages load as the user nears the bottom without racing the initial load; a bottom spinner shows only while a next page is actively fetching
+- `GenreListView`: added a guarded near-the-end paging trigger (`isLoadingMore` / `hasMoreGenres`); `FolderBrowseView`: added offset paging for Sonos folder contents via `browseFolder(folderID:offset:)`, Apple Music folders keep their single-request path
+- `LibraryBrowseScreen`: Imported Playlists load-more closure now forwards `offset` to `updateImportedPlaylists(offset:)` instead of discarding it (was always re-fetching page 0)
+- Alphabetical grouping moved out of `PlayableContentList` (where a computed dictionary was re-grouped once per section header and again per letter subscript — O(letters × items) every render) into cached `LibrarySection` arrays on `LibraryBrowseService` (`albumSections` / `artistSections` / `playlistSections`), recomputed only when the underlying set changes; the view now renders the prebuilt sections, so non-data re-renders do zero grouping work. Playlist deletion routed through `removePlaylist(id:)` so the cache stays in sync
 
 ---
 

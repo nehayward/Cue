@@ -33,6 +33,27 @@ import SonosKit
         }
     }
 
+    @MainActor private static var lastInspectorToggle: ContinuousClock.Instant?
+
+    /// Toggles an inspector destination on or off, deduplicating immediate
+    /// repeats: Catalyst can deliver a bare-key menu shortcut (S/B/Q) twice
+    /// for a single press, which made the toggle open the inspector and
+    /// instantly close it again.
+    @MainActor
+    func toggleInspector(_ destination: InspectorDestination) {
+        let now = ContinuousClock.now
+        if let last = Self.lastInspectorToggle, now - last < .milliseconds(250) {
+            return
+        }
+        Self.lastInspectorToggle = now
+
+        if inspectorSheet != destination {
+            inspectorSheet = destination
+        } else {
+            inspectorSheet = nil
+        }
+    }
+
     func sheet(to: SheetDestination?) {
         presentedSheet = to
     }

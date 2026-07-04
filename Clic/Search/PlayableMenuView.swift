@@ -14,6 +14,8 @@ struct PlayableMenuView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService: AppleMusicBrowseService?
     var item: PlayableContent
+    /// When set (track shown inside an editable playlist), adds a "Remove from Playlist" action.
+    var onRemoveFromPlaylist: (() -> Void)? = nil
 
     var body: some View {
         VStack {
@@ -64,6 +66,14 @@ struct PlayableMenuView: View {
                         router.sheet(to: .renamePlaylist(content: item))
                     } label: {
                         Label("Rename", systemImage: "textformat")
+                    }
+                }
+
+                if [.spotify, .plex, .deezer].contains(item.content.service) {
+                    Button(role: .destructive) {
+                        router.sheet(to: .confirmDeletePlaylist(content: item))
+                    } label: {
+                        Label("Delete Playlist", systemImage: "trash")
                     }
                 }
             case .album, .track, .libraryTrack, .libraryAlbum:
@@ -121,6 +131,15 @@ struct PlayableMenuView: View {
                     }
                 }
 
+                Divider()
+                AddToLastPlaylistButton(itemToAdd: item)
+                Button {
+                    router.sheet(to: .addToPlaylist(content: item))
+                } label: {
+                    Label("Add to Playlist…", systemImage: "text.badge.plus")
+                }
+                Divider()
+              
                 // Library songs map to a catalog track behind the scenes, so the
                 // album/artist we open is the Apple Music catalog version — label
                 // it as such to distinguish it from the on-device library album.
@@ -133,9 +152,6 @@ struct PlayableMenuView: View {
                         Label("Apple Artist", systemImage: "music.mic")
                     }
                 }
-
-                AddToLastPlaylistButton(itemToAdd: item)
-                AddToPlaylistMenu(itemToAdd: item)
 
                 if [.spotify, .soundcloud, .apple, .plex].contains(item.content.service), [.track, .libraryTrack].contains(item.content.type) {
                     FavoriteMenuButton(item: item)
@@ -181,9 +197,7 @@ struct PlayableMenuView: View {
         
         if item.content.service == .library, item.content.type == .playlist {
             Button(role: .destructive) {
-                Task {
-                    await sonosService.delete(playlistID: item.id)
-                }
+                router.sheet(to: .confirmDeletePlaylist(content: item))
             } label: {
                 Label("Delete from Library", systemImage: "trash")
             }
@@ -194,6 +208,14 @@ struct PlayableMenuView: View {
                 playHistoryService.history.remove(item)
             } label: {
                 Label("Remove from History", systemImage: "trash")
+            }
+        }
+
+        if let onRemoveFromPlaylist {
+            Button(role: .destructive) {
+                onRemoveFromPlaylist()
+            } label: {
+                Label("Remove from Playlist", systemImage: "trash")
             }
         }
     }

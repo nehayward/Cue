@@ -485,6 +485,40 @@ extension PlayableContent {
     public var isSonosPlaylist: Bool {
         content.type == .playlist && content.service == .library
     }
+
+    public var isSpotifyPlaylist: Bool {
+        content.type.isPlaylist && content.service == .spotify
+    }
+
+    public var isPlexPlaylist: Bool {
+        content.type.isPlaylist && content.service == .plex
+    }
+
+    public var isDeezerPlaylist: Bool {
+        content.type.isPlaylist && content.service == .deezer
+    }
+
+    /// Streaming playlists whose tracks Clic can remove in place (Spotify, Plex, Deezer).
+    public var isEditableServicePlaylist: Bool {
+        isSpotifyPlaylist || isPlexPlaylist || isDeezerPlaylist
+    }
+
+    /// Streaming playlists whose tracks Clic can reorder. Excludes Apple Music (no reorder API) and
+    /// Deezer (its reorder takes a full track-id list, unsafe for a paginated playlist).
+    public var isReorderableServicePlaylist: Bool {
+        isSpotifyPlaylist || isPlexPlaylist
+    }
+
+    /// Playlists whose tracks Clic can remove (Sonos + the editable streaming services). Pair with a
+    /// confirmed-ownership check before exposing editing for the streaming case.
+    public var isRemovablePlaylist: Bool {
+        isSonosPlaylist || isEditableServicePlaylist
+    }
+
+    /// Playlists whose tracks Clic can reorder (Sonos + the reorderable streaming services).
+    public var isReorderablePlaylist: Bool {
+        isSonosPlaylist || isReorderableServicePlaylist
+    }
 }
 
 /// TODO: ADD

@@ -63,6 +63,9 @@ public struct SpotifyAlbumDetails: Decodable, Sendable {
 
 public struct SpotifyAlbumTracks: Decodable, Sendable {
     public let items: [SpotifyAlbumTrackItems]
+    /// Spotify's paging metadata for the album's tracks (used to walk albums past the first page).
+    public let total: Int?
+    public let next: String?
 }
 
 public struct SpotifyAlbumTrackItems: Decodable, Identifiable, Sendable {

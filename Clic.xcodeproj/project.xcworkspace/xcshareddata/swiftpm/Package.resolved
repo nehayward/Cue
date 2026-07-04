@@ -1,5 +1,5 @@
 {
-  "originHash" : "4ebdfad5724aea34c5e7de6cbc4991f967011e94a92d1fc8badc2c68cbde4998",
+  "originHash" : "8a721f9be79669fc9d3af930c8d78aba6003ef2decd41be406bc51c6af5db7fb",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/onevcat/Kingfisher",
       "state" : {
-        "revision" : "c152c1915f60c51e4afa0752656993ee5b3c63db",
-        "version" : "8.8.1"
+        "revision" : "ac632bd26a1c00f139ff62fd01806f21cf67325e",
+        "version" : "8.10.0"
       }
     },
     {
@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RevenueCat/purchases-ios.git",
       "state" : {
-        "revision" : "a06accc1543fcedc3094d4b5b9a40b84e2213e8e",
-        "version" : "5.69.0"
+        "revision" : "e89cb027a472e5cf1c15435c4e690b9a3c170cdc",
+        "version" : "5.80.0"
       }
     },
     {
@@ -87,8 +87,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections/",
       "state" : {
-        "revision" : "6675bc0ff86e61436e615df6fc5174e043e57924",
-        "version" : "1.4.1"
+        "revision" : "a0cb0954ecb21e4e31b0070e6ed5674e8556685a",
+        "version" : "1.6.0"
       }
     },
     {

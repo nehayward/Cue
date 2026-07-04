@@ -12,10 +12,19 @@ struct PlayableListView: View {
     @State private var isLoading: Bool = false
     @State private var hasReachedEnd: Bool = false
     @State var items: OrderedSet<PlayableContent> = []
+    @State private var showCreatePlaylist = false
 
     var playAllItem: PlayableContent? = nil
     var showSectionIndex: Bool = true
     var action: ((Int) async -> ([PlayableContent]))? = nil
+
+    /// When this list is a service's playlists, the service to create a new playlist on.
+    private var createPlaylistService: MusicService? {
+        guard let service = items.first?.content.service,
+              items.first?.content.type.isPlaylist == true,
+              MusicSearchService.supportsEmptyPlaylistCreation(service) else { return nil }
+        return service
+    }
 
     var body: some View {
         List {
@@ -26,9 +35,32 @@ struct PlayableListView: View {
         .miniPlayerOnScrollHandler()
         .foregroundStyle(.foreground)
         .listStyle(.plain)
+        .toolbar {
+            if createPlaylistService != nil {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        showCreatePlaylist = true
+                    } label: {
+                        Label("New Playlist", systemImage: "plus")
+                            .labelStyle(.iconOnly)
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showCreatePlaylist, onDismiss: { Task { await reload() } }) {
+            NewPlaylistView(service: createPlaylistService ?? .library)
+                .withEnvironments()
+        }
         .task {
             await initialLoad()
         }
+    }
+
+    /// Re-fetch from scratch (used after creating a playlist, since `items` is a snapshot).
+    private func reload() async {
+        items.removeAll()
+        hasReachedEnd = false
+        await initialLoad()
     }
 
     @ViewBuilder

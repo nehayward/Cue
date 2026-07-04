@@ -9,12 +9,42 @@ struct AlarmListView: View {
     @State var alarms: [Alarm] = []
     @State var isLoaded: Bool = false
 
+    /// Groups the household's alarms for display.
+    ///
+    /// `listAlarms()` returns alarms for the *entire* household, but a speaker
+    /// may not be present in `sortedRooms` right now — it can be powered off,
+    /// not yet discovered, or invisible (a stereo-pair secondary, bonded
+    /// surround, or sub). Previously we iterated `sortedRooms` and matched
+    /// `roomID == room.id`, so any alarm whose room wasn't currently visible
+    /// was silently dropped. Here we group by the alarms themselves: known
+    /// rooms keep their named sections (in sorted-room order), and anything
+    /// left over is collected into a single trailing section so it is never
+    /// hidden.
+    private var alarmSections: [(id: String, name: String, alarms: [Alarm])] {
+        let byRoom = Dictionary(grouping: alarms, by: { $0.roomID })
+        var sections: [(id: String, name: String, alarms: [Alarm])] = []
+        var matchedRoomIDs: Set<String> = []
+
+        for room in sonosService.sortedRooms {
+            guard let roomAlarms = byRoom[room.id], !roomAlarms.isEmpty else { continue }
+            sections.append((id: room.id, name: room.name, alarms: roomAlarms))
+            matchedRoomIDs.insert(room.id)
+        }
+
+        let orphanAlarms = alarms.filter { !matchedRoomIDs.contains($0.roomID) }
+        if !orphanAlarms.isEmpty {
+            sections.append((id: "__other__", name: "Other Speakers", alarms: orphanAlarms))
+        }
+
+        return sections
+    }
+
     var body: some View {
         List {
-            ForEach(sonosService.sortedRooms) { room in
-                let roomAlarms = alarms.filter { $0.roomID == room.id }
+            ForEach(alarmSections, id: \.id) { section in
+                let roomAlarms = section.alarms
                 if !roomAlarms.isEmpty {
-                    Section(room.name) {
+                    Section(section.name) {
                         ForEach(roomAlarms) { alarm in
                             let enabledBinding = Binding<Bool>(
                                 get: { alarms.first(where: { $0.id == alarm.id })?.enabled ?? alarm.enabled },
@@ -72,11 +102,29 @@ struct AlarmListView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .refreshable {
+            if let fetched = await sonosService.listAlarms() {
+                alarms = fetched
+            }
+            isLoaded = true
+        }
         .onAppear {
             isLoaded = false
             Task {
                 try? await Task.sleep(for: .milliseconds(300))
-                alarms = await sonosService.listAlarms()
+                var fetched = await sonosService.listAlarms()
+                // Retry only when the request itself failed (nil) — e.g. a
+                // speaker that's still being discovered. A successful response
+                // with no alarms ([]) is authoritative, so we don't keep hitting
+                // the network or stall the empty state for genuinely-empty
+                // households.
+                var attempt = 0
+                while fetched == nil, attempt < 2 {
+                    try? await Task.sleep(for: .milliseconds(500))
+                    fetched = await sonosService.listAlarms()
+                    attempt += 1
+                }
+                alarms = fetched ?? []
                 isLoaded = true
             }
         }

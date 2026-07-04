@@ -13,7 +13,8 @@ public struct SpotifyArtistAlbums: Decodable {
         public let albumGroup: String
         public let albumType: String
         public let artists: [SpotifyArtistsInfo]?
-        public let availableMarkets: [String]
+        // Absent from market-aware responses (SpotifyAPI passes market=from_token).
+        public let availableMarkets: [String]?
         public let externalUrls: ExternalUrls
         public let href: String
         public let id: String

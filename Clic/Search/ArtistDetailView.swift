@@ -971,21 +971,21 @@ struct ArtistDetailView: View {
     
     private func loadPlexTrackArtist() async {
         if let artistID = playableContent.metadata?.artistID {
-            await loadPlexArtistData(id: artistID, setAlbums: false)
+            await loadPlexArtistData(id: artistID)
         } else {
             guard let id = playableContent.id.removingPercentEncoding?.components(separatedBy: ":").last,
                   let artistID = await MusicSearchService.shared.lookupPlexSong(with: id)?.metadata?.artistID
             else { return }
-            
-            await loadPlexArtistData(id: artistID, setAlbums: true)
+
+            await loadPlexArtistData(id: artistID)
         }
     }
-    
+
     private func loadPlexAlbumArtist() async {
         artworkURL = playableContent.artwork
-        
+
         guard let artistID = playableContent.metadata?.artistID else { return }
-        await loadPlexArtistData(id: artistID, setAlbums: true)
+        await loadPlexArtistData(id: artistID)
     }
     
     private func loadPlexArtist() async {
@@ -1014,7 +1014,7 @@ struct ArtistDetailView: View {
         artistContent = playableContent
     }
 
-    private func loadPlexArtistData(id: String, setAlbums: Bool) async {
+    private func loadPlexArtistData(id: String) async {
         let artistName = playableContent.metadata?.artist ?? playableContent.title
         async let albumsTask = MusicSearchService.shared.lookupPlexArtistAlbums(id: id)
         async let allTask = MusicSearchService.shared.getPlexArtistAllAlbums(id: id)
@@ -1024,9 +1024,7 @@ struct ArtistDetailView: View {
             albumsTask, allTask, artistTask
         )
 
-        if setAlbums {
-            albums = albumsResult
-        }
+        albums = albumsResult
         allAlbums = albumsResult + liveResult + singlesResult + othersResult
         liveAlbums = liveResult
         singles = singlesResult
@@ -1035,6 +1033,8 @@ struct ArtistDetailView: View {
             let plexTracks = await MusicSearchService.shared.lookupPlexTracks(id: id)
             tracks = await PopularTracksService.shared.matchLastFM(artistName: artistName, songs: plexTracks)
         }
+
+        albumType = .firstAvailable(albums: albums, live: liveAlbums, singles: singles, all: allAlbums)
 
         if let artistResult {
             artistContent = artistResult

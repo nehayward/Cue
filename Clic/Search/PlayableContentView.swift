@@ -27,10 +27,16 @@ struct PlayableContentView: View {
     var index: Int? = nil
     var dismissOnComplete: Bool = false
     var total: Int = 1
+    /// When set (track shown inside an editable playlist), adds a "Remove from Playlist" menu action.
+    var onRemoveFromPlaylist: (() -> Void)? = nil
     
     private var isCurrentlyPlaying: Bool {
         guard let trackID = selectedGroupService?.group?.coordinatorRoom.track.trackID else { return false }
-        return trackID == item.content.id.removingPercentEncoding
+        // Compare both IDs decoded. The now-playing trackID is percent-encoded for some
+        // services (e.g. Plex, whose ID is `clientID%3A3%3AratingKey` — the parser re-encodes
+        // the colons via `.urlPathAllowed`), while `content.id` is already decoded here, so an
+        // encoded-vs-decoded compare never matched and the Plex row never highlighted.
+        return trackID.removingPercentEncoding == item.content.id.removingPercentEncoding
     }
     
     private var subtitleText: String {
@@ -151,7 +157,7 @@ struct PlayableContentView: View {
                     // disable it while previewing (so taps fall through to the cell's
                     // stop handler) and overlay the stop icon on top.
                     Menu {
-                        PlayableMenuView(item: item)
+                        PlayableMenuView(item: item, onRemoveFromPlaylist: onRemoveFromPlaylist)
                     } label: {
                         Image(systemName: "ellipsis")
                             .frame(width: 44, height: 44)
@@ -209,7 +215,7 @@ struct PlayableContentView: View {
         }
         .contextMenu {
             if adding == nil, !hideDetails {
-                PlayableMenuView(item: item)
+                PlayableMenuView(item: item, onRemoveFromPlaylist: onRemoveFromPlaylist)
             }
         }
         .draggable(item) {
@@ -236,7 +242,7 @@ struct PlayableContentView: View {
         .fontDesign(.rounded)
         .contextMenu {
             if adding == nil, !hideDetails {
-                PlayableMenuView(item: item)
+                PlayableMenuView(item: item, onRemoveFromPlaylist: onRemoveFromPlaylist)
             }
         }
     }

@@ -18,8 +18,14 @@ public struct SpotifyUserPlaylists: Decodable {
    public let id: String
    public let images: [SpotifyImage]?
    public let name: String
+   public let owner: Owner?
    public let snapshotId: String
    public let tracks: PlaylistTracks
    public let type: String
    public let uri: String
+
+   /// Whether the authenticated user can add/remove tracks: they own it or it's collaborative.
+   public func isEditable(by userID: String) -> Bool {
+       collaborative || owner?.id == userID
+   }
 }

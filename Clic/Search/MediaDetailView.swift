@@ -17,12 +17,14 @@ struct MediaDetailView: View {
     @Environment(AlertService.self) private var alertService
     @Environment(MusicSearchService.self) private var musicSearchService: MusicSearchService
     @Environment(MiniPlayerManger.self) private var miniPlayerManager
+
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
 
     let playableContent: PlayableContent
     @State private var content: PlayableContent?
     @State private var editMode: EditMode = .inactive
-    @State private var tracks: [PlayableContent] = []
+    /// Owns the track list so playlist edits can participate in native Undo/Redo.
+    @State private var editor = PlaylistEditCoordinator()
     @State private var isLoaded: Bool = false
     @State private var isLoadingMore: Bool = true
     @State private var isFetchingPage: Bool = false
@@ -39,9 +41,30 @@ struct MediaDetailView: View {
     @State private var selection: Set<Int> = []
     @State private var nextCursor: String?
     @State private var showNavigationTitle: Bool = false
-    
+
+    /// Proxies the view's existing `tracks` usage onto the coordinator (the source of truth),
+    /// so native undo/redo mutations are reflected in the UI.
+    private var tracks: [PlayableContent] {
+        get { editor.tracks }
+        nonmutating set { editor.tracks = newValue }
+    }
+
     var maxHeight: Double {
         UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
+    }
+
+    /// For a non-Sonos service playlist, whether the user can actually edit it (owns it or it's
+    /// collaborative). Confirmed at load — streaming services let you browse playlists you can't edit.
+    @State private var serviceEditable = false
+
+    /// `serviceEditable` is true for Sonos (always yours) and ownership-confirmed for streaming, so
+    /// these are just the capability AND that flag.
+    private var isEditablePlaylist: Bool {
+        playableContent.isRemovablePlaylist && serviceEditable
+    }
+
+    private var canReorderTracks: Bool {
+        playableContent.isReorderablePlaylist && serviceEditable
     }
     
     var body: some View {
@@ -56,16 +79,14 @@ struct MediaDetailView: View {
                                         hideContentType: true,
                                         index: index + 1,
                                         dismissOnComplete: true,
-                                        total: totalSongs ?? tracks.count)
+                                        total: totalSongs ?? tracks.count,
+                                        onRemoveFromPlaylist: isEditablePlaylist ? { removeTrack(at: index) } : nil)
                 }
                 .tag(index)
                 .swipeActions(edge: .trailing) {
-                    if playableContent.isSonosPlaylist {
+                    if isEditablePlaylist {
                         Button(role: .destructive) {
-                            Task {
-                                try await SonosService.shared.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)
-                                tracks.remove(at: index)
-                            }
+                            removeTrack(at: index)
                         } label: {
                             Label("Remove", systemImage: "trash")
                         }
@@ -92,7 +113,7 @@ struct MediaDetailView: View {
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
             }
-            .onMove(perform: playableContent.isSonosPlaylist ? move : nil)
+            .onMove(perform: canReorderTracks ? move : nil)
             if tracks.isEmpty {
                 if !isLoaded {
                     ProgressView()
@@ -125,26 +146,19 @@ struct MediaDetailView: View {
         .listStyle(.plain)
         .contentMargins(.top, 0, for: .scrollContent)
         .safeAreaInset(edge: .bottom) {
-            if playableContent.isSonosPlaylist && !selection.isEmpty {
+            if isEditablePlaylist && !selection.isEmpty {
                 Button(role: .destructive) {
-                    Task {
-                        for index in Array(selection).sorted(by: >) {
-                            try await SonosService.shared.removeTrackFromPlaylist(
-                                playlistID: playableContent.id,
-                                index: index
-                            )
-                            tracks.remove(at: index)
-                        }
-                        selection.removeAll()
-                    }
+                    editor.removeSelected(Array(selection))
+                    selection.removeAll()
                 } label: {
-                    Text("Delete Selected (\(selection.count))")
+                    Text("Remove (\(selection.count))")
                         .frame(maxWidth: .infinity)
                         .monospacedDigit()
                         .bold()
                         .geometryGroup()
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(.red)
                 .padding(.horizontal)
 #if targetEnvironment(macCatalyst)
                 .padding(.bottom)
@@ -152,6 +166,13 @@ struct MediaDetailView: View {
             }
         }
         .task {
+            editor.configure(playlist: playableContent)
+            // Point the Catalyst Edit-menu bridge at this editor so native Edit ▸ Undo/Redo can
+            // drive playlist undo through the responder chain.
+            PlaylistUndoMenuBridge.shared.editor = editor
+            // Resolve edit permission independently so the Edit affordance isn't gated on track
+            // loading (instant for Sonos, an ownership lookup for streaming).
+            Task { serviceEditable = await confirmServiceEditable() }
             await updateTracks(offset: loadedItemCount)
         }
         .contentMargins(.bottom, 120, for: .scrollContent)
@@ -176,12 +197,17 @@ struct MediaDetailView: View {
             }
             
             ToolbarItemGroup(placement: .topBarTrailing) {
-                if playableContent.isSonosPlaylist {
-                    Button(editMode.isEditing ? "Done" : "Edit") {
+                if isEditablePlaylist {
+                    Button {
                         withAnimation {
                             editMode = editMode.isEditing ? .inactive : .active
                         }
+                    } label: {
+                        Label(editMode.isEditing ? "Done" : "Edit",
+                              systemImage: editMode.isEditing ? "checkmark" : "pencil")
+                            .labelStyle(.iconOnly)
                     }
+                    .keyboardShortcut("e", modifiers: [])
                 }
             }
         }
@@ -572,12 +598,22 @@ struct MediaDetailView: View {
         }
     }
     
+    /// Removes the track at `index` from the playlist. The editor dispatches to Sonos or the
+    /// streaming service and keeps its track list in sync.
+    private func removeTrack(at index: Int) {
+        editor.removeTrack(at: index)
+    }
+
+    /// Whether the playlist is editable: Sonos playlists always are; streaming playlists require
+    /// confirmed ownership (owned/collaborative).
+    private func confirmServiceEditable() async -> Bool {
+        if playableContent.isSonosPlaylist { return true }
+        guard playableContent.isEditableServicePlaylist else { return false }
+        return await musicSearchService.canEditServicePlaylist(playableContent)
+    }
+
     private func move(from source: IndexSet, to destination: Int) {
-        tracks.move(fromOffsets: source, toOffset: destination)
-        Task {
-            guard let sourceIndex = source.first else { return }
-            try await SonosService.shared.reorderPlaylist(playlistID: playableContent.id, from: sourceIndex, to: destination)
-        }
+        editor.moveTrack(from: source, to: destination, playlist: playableContent)
     }
 }
 

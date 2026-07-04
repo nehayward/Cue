@@ -11,14 +11,18 @@ extension View {
     func withSheetDestinations(sheetDestinations: Binding<SheetDestination?>, onDismiss: (() -> Void)? = nil) -> some View {
         sheet(item: sheetDestinations, onDismiss: onDismiss) { destination in
             switch destination {
-            case let .newPlaylist(group: group):
-                NewPlaylistView(group: group)
+            case let .newPlaylist(group, service):
+                NewPlaylistView(group: group, service: service)
                     .withEnvironments()
-                    .presentationSizingFitted()
-                    .frame(minWidth: 200, idealWidth: 300, maxWidth: 500, minHeight: 100, maxHeight: 600)
-                    .presentationDragIndicator(.hidden)
             case let .customSleepTimer(recentTimers, onSelect):
                 SleepTimerCustomView(recentTimers: recentTimers, onSelect: onSelect)
+            case let .confirmDeletePlaylist(content):
+                DeletePlaylistConfirmationView(content: content)
+                    .withEnvironments()
+            case let .addToPlaylist(content):
+                AddToPlaylistSheet(content: content)
+                    .presentationDragIndicator(.hidden)
+                    .withEnvironments()
             default:
                 Group {
                     switch destination {
@@ -52,7 +56,7 @@ extension View {
                             }
                     case let .sceneSearchAdd(adding):
                         let searchRouter = Router.search
-                        @State var selectedGroupService = SelectedGroupService()
+                        let selectedGroupService = SelectedGroupService()
                         
                         SearchScreen()
                             .environment(adding)
@@ -78,7 +82,7 @@ extension View {
                     case .scenes:
                         SceneView()
                     case let .mediaDetail(content, group):
-                        @State var router = Router.secondary
+                        @Bindable var router = Router.secondary
                         let selectedGroupService = SelectedGroupService(group: group)
 
                         NavigationStack(path: $router.path) {
@@ -102,9 +106,10 @@ extension View {
                         .environment(router)
                         .environment(selectedGroupService)
                         .customizeWindowSizeForMacOS15()
+                        .withAlert()
                     case let .artistDetail(content, group):
                         let router = Router.secondary
-                        @State var selectedGroupService = SelectedGroupService(group: group)
+                        let selectedGroupService = SelectedGroupService(group: group)
                         
                         NavigationStack {
                             ArtistDetailView(playableContent: content)
@@ -128,8 +133,8 @@ extension View {
                         
                     case let .searchAdd(adding):
                         let searchRouter = Router.search
-                        @State var selectedGroupService = SelectedGroupService()
-                        
+                        let selectedGroupService = SelectedGroupService()
+
                         SearchScreen(isAlarmSearch: true)
                             .environment(adding)
                             .environment(searchRouter)
@@ -142,13 +147,18 @@ extension View {
                                     Router.main.presentedSheet = nil
                                 }
                         }
-                    case let .customSleepTimer(recentTimers, onSelect):
+                    case .customSleepTimer:
+                        // Handled above, before the shared sheet chrome.
                         EmptyView()
                     case let .browse(group: group):
                         let selectedGroupService = SelectedGroupService(group: group)
                         BrowseScreen()
                             .environment(selectedGroupService)
                     case .newPlaylist:
+                        EmptyView()
+                    case .confirmDeletePlaylist:
+                        EmptyView()
+                    case .addToPlaylist:
                         EmptyView()
                     case let .renamePlaylist(content: content):
                         NewPlaylistView(playlist: content)
@@ -253,7 +263,7 @@ extension View {
                         }
                 case let .sceneSearchAdd(adding):
                     let searchRouter = Router.search
-                    @State var selectedGroupService = SelectedGroupService()
+                    let selectedGroupService = SelectedGroupService()
                     
                     SearchScreen()
                         .environment(adding)
@@ -291,8 +301,8 @@ extension View {
                     .environment(selectedGroupService)
                     
                 case let .artistDetail(content, group):
-                    @State var router = Router()
-                    @State var selectedGroupService = SelectedGroupService(group: group)
+                    @Bindable var router = Router()
+                    let selectedGroupService = SelectedGroupService(group: group)
                     
                     NavigationStack(path: $router.path) {
                         ArtistDetailView(playableContent: content)
@@ -308,8 +318,8 @@ extension View {
                     .environment(router)
                     .environment(selectedGroupService)
                 case let .searchAdd(adding):
-                    @State var router = Router()
-                    @State var selectedGroupService = SelectedGroupService()
+                    let router = Router()
+                    let selectedGroupService = SelectedGroupService()
                     
                     SearchScreen(isAlarmSearch: true)
                         .environment(adding)
@@ -326,11 +336,11 @@ extension View {
                 case let .customSleepTimer(recentTimers, onSelect):
                     SleepTimerCustomView(recentTimers: recentTimers, onSelect: onSelect)
                 case let .browse(group: group):
-                    @State var selectedGroupService = SelectedGroupService(group: group)
+                    let selectedGroupService = SelectedGroupService(group: group)
                     BrowseScreen()
                         .environment(selectedGroupService)
-                case let .newPlaylist(group: group):
-                    NewPlaylistView(group: group)
+                case let .newPlaylist(group, service):
+                    NewPlaylistView(group: group, service: service)
                 case let .renamePlaylist(content: content):
                     NewPlaylistView(playlist: content)
                 case let .volumeControlsScreen(groupID: groupID):
@@ -433,38 +443,7 @@ extension View {
     
     func withInspector(inspectorDestination: Binding<InspectorDestination?>) -> some View {
 #if !os(visionOS)
-        inspector(isPresented: .constant(inspectorDestination.wrappedValue != nil)) {
-            VStack {
-                switch inspectorDestination.wrappedValue {
-                case let .search(group):
-                    SearchScreen {
-                        inspectorDestination.wrappedValue = nil
-                    }
-                    .environment(SelectedGroupService(group: group))
-                case let .queue(group):
-                    QueueScreen(group: group) {
-                        inspectorDestination.wrappedValue = nil
-                    }
-                case let .browse(group):
-                    BrowseScreen {
-                        inspectorDestination.wrappedValue = nil
-                    }
-                    .environment(SelectedGroupService(group: group))
-                default:
-                    EmptyView()
-                        .onAppear {
-                            inspectorDestination.wrappedValue = nil
-                        }
-                }
-            }
-            .withEnvironments()
-#if targetEnvironment(macCatalyst)
-            .inspectorColumnWidth(min: 360, ideal: 450, max: 450)
-#else
-            .inspectorColumnWidth(min: 260, ideal: 360, max: 500)
-            .presentationBackgroundInteraction(.disabled)
-#endif
-        }
+        modifier(InspectorDestinationModifier(destination: inspectorDestination))
 #else
         self
 #endif
@@ -513,3 +492,171 @@ extension View {
         .frame(idealWidth: 600, idealHeight: 800)
     }
 }
+
+#if !os(visionOS)
+private struct InspectorDestinationModifier: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Binding var destination: InspectorDestination?
+
+    /// Local mirror of `destination != nil`. `inspector(isPresented:)` wants
+    /// a Bool it *owns* and can freely write during presentation churn;
+    /// giving it real @State (instead of a computed Binding whose setter has
+    /// to guess which writes to trust) lets the system settle, and the two
+    /// onChange handlers below reconcile mirror ↔ source of truth
+    /// explicitly.
+    @State private var isPresented = false
+    @State private var openedAt: ContinuousClock.Instant?
+    @State private var sizeClassChangedAt: ContinuousClock.Instant?
+    /// What was open when the window collapsed to compact. The inspector
+    /// closes rather than converting to a full-height sheet, and this brings
+    /// it back when the window is widened again.
+    @State private var stashedForCompact: InspectorDestination?
+
+    func body(content: Content) -> some View {
+        content
+            .inspector(isPresented: $isPresented) {
+                // A dedicated view rather than inline content: the inspector
+                // hosts its content in its own column/sheet and doesn't
+                // reliably re-invoke this closure when the destination is
+                // reassigned — e.g. .queue(oldGroup) → .queue(newGroup) when
+                // the selected group changes. A view whose own body reads
+                // the binding registers the Observation dependency on the
+                // hosted view itself, so it updates in place.
+                InspectorContentView(destination: $destination)
+            }
+            // Source of truth → mirror. `initial: true` covers a destination
+            // that was set before this modifier first rendered (state
+            // restoration at launch).
+            .onChange(of: destination != nil, initial: true) { _, hasDestination in
+                if hasDestination {
+                    openedAt = ContinuousClock.now
+                }
+                isPresented = hasDestination
+            }
+            // Crossing the compact boundary: rather than letting the system
+            // convert the column into a full-height sheet (or fighting its
+            // dismissal), close the inspector on collapse and remember what
+            // was open, then restore it when the window is widened again.
+            .onChange(of: horizontalSizeClass) { _, newValue in
+                sizeClassChangedAt = ContinuousClock.now
+                if newValue == .compact {
+                    if destination != nil {
+                        stashedForCompact = destination
+                        destination = nil
+                    }
+                } else {
+                    if let stashed = stashedForCompact {
+                        if destination == nil {
+                            destination = stashed
+                        }
+                        stashedForCompact = nil
+                    }
+                    // Heal any divergence left by the conversion churn
+                    // (presented with no destination shows an empty panel).
+                    let hasDestination = destination != nil
+                    if isPresented != hasDestination {
+                        isPresented = hasDestination
+                    }
+                }
+            }
+            // Mirror → source of truth. Only a system-initiated dismissal
+            // lands here (our own writes go through `destination` above).
+            .onChange(of: isPresented) { _, newValue in
+                guard !newValue, destination != nil else { return }
+
+                let now = ContinuousClock.now
+                let settling = openedAt.map { now - $0 < .seconds(1) } ?? false
+                let resizing = sizeClassChangedAt.map { now - $0 < .seconds(1.5) } ?? false
+
+                if horizontalSizeClass != .compact || settling || resizing {
+                    // Presentation churn, not user intent: the regular-width
+                    // column has no dismiss gesture; a compact sheet that's
+                    // still settling (keyboard summoning) or mid column↔sheet
+                    // conversion (window resize) wasn't dragged away.
+                    // The destination is the source of truth — re-present.
+                    isPresented = true
+                } else {
+                    // A real drag-to-dismiss of the compact sheet — also
+                    // drop the stash so widening doesn't resurrect what the
+                    // user just closed.
+                    destination = nil
+                    stashedForCompact = nil
+                }
+            }
+    }
+}
+
+private struct InspectorContentView: View {
+    @Environment(SonosService.self) private var sonosService
+    @Environment(Router.self) private var router
+    @Binding var destination: InspectorDestination?
+
+    /// The destination enum captures the group at the moment the inspector
+    /// was opened, but the inspector is meant to track the *selected* group.
+    /// Resolve it live here (reads registered on this view's body), instead
+    /// of relying on ClicApp's selectedID onChange to reassign the enum.
+    private func currentGroup(_ fallback: GroupRoom?) -> GroupRoom? {
+        if let id = router.selectedID,
+           let live = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+            return live
+        }
+        return fallback
+    }
+
+    var body: some View {
+        VStack {
+            switch destination {
+            case let .search(group):
+                // Router.search, matching the sheet registry. SearchScreen
+                // reads Router from the environment and attaches its own
+                // sheet host to `router.presentedSheet`; without this it
+                // inherits Router.main, whose presentedSheet the app-level
+                // host already binds. Two hosts on one binding: whichever
+                // loses the presentation race writes nil back and
+                // dismisses the sheet that just appeared.
+                SearchScreen {
+                    destination = nil
+                }
+                .environment(Router.search)
+                .environment(SelectedGroupService(group: currentGroup(group)))
+                .onDisappear {
+                    Router.search.path.removeAll()
+                    Router.search.presentedSheet = nil
+                }
+            case let .queue(group):
+                let current = currentGroup(group) ?? group
+                QueueScreen(group: current) {
+                    destination = nil
+                }
+                // Remount per group: QueueScreen's loading is appear-driven
+                // (selectedGroupService sync, playMode fetch, queue/scroll
+                // state in @State), so a param-only group change leaves the
+                // previous group's queue on screen. Keyed by coordinatorID,
+                // so topology refreshes that replace the GroupRoom instance
+                // don't reset it.
+                .id(current.coordinatorID)
+            case let .browse(group):
+                BrowseScreen {
+                    destination = nil
+                }
+                .environment(SelectedGroupService(group: currentGroup(group)))
+            default:
+                // No onAppear-nil here: a late-firing onAppear from this
+                // branch (built during a close, appearing during the next
+                // open's transition) wrote nil over a freshly-set
+                // destination and dismissed the inspector right after it
+                // opened. Unsupported destinations are never assigned, so
+                // showing nothing is enough.
+                EmptyView()
+            }
+        }
+        .withEnvironments()
+#if targetEnvironment(macCatalyst)
+        .inspectorColumnWidth(min: 360, ideal: 450, max: 450)
+#else
+        .inspectorColumnWidth(min: 260, ideal: 360, max: 500)
+        .presentationBackgroundInteraction(.disabled)
+#endif
+    }
+}
+#endif
