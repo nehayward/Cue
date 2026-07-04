@@ -1158,8 +1158,18 @@ public final class SonosService {
                 // Bonjour fallback for genuinely unknown networks (or when every
                 // stored IP was reassigned). performDiscovery resolves and adopts
                 // the correct household internally when this wins.
+                //
+                // Started LAZILY: give the known-IP probes a short head start
+                // first. On an unchanged network a stored IP wins in well under
+                // this window, cancelAll() cancels this task mid-sleep, and Bonjour
+                // never runs — so a routine foreground doesn't briefly flash the
+                // "Discovering Devices" state (getFirstIP flips `isSearching`).
+                // Only when no known IP answers quickly — i.e. the network really
+                // changed — does discovery kick in, where that state is warranted.
                 group.addTask { [weak self] in
                     guard let self else { return .failure(SonosServiceError.sonosSystemNotFound) }
+                    try? await Task.sleep(for: .milliseconds(600))
+                    if Task.isCancelled { return .failure(SonosServiceError.sonosSystemNotFound) }
                     do {
                         let ip = try await self.sonosSystemDiscoverService.getFirstIP(useCache: false)
                         let groups = try await self.api.getGroups(ipAddress: ip)
