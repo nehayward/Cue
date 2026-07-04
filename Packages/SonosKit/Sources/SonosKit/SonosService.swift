@@ -2120,8 +2120,9 @@ public final class SonosService {
         if level == 0 {
             try await api.setSpeechEnhanceEnabled(IP: ip, enabled: false)
         } else {
-            try await api.setSpeechEnhanceEnabled(IP: ip, enabled: true)
-            try await api.setDialogLevelValue(IP: ip, value: level)
+            async let enable: Void = api.setSpeechEnhanceEnabled(IP: ip, enabled: true)
+            async let setLevel: Void = api.setDialogLevelValue(IP: ip, value: level)
+            _ = try await (enable, setLevel)
         }
     }
 

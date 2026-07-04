@@ -9,7 +9,6 @@ struct TVModeViewCell: View {
     var body: some View {
         let settings = group.tvSettings
         let nightMode = settings?.nightMode ?? false
-        let speechLevel = settings?.speechLevel ?? 0
 
         VStack(spacing: 4) {
             Text(settings?.audioInputFormat.description ?? " ")
@@ -42,42 +41,7 @@ struct TVModeViewCell: View {
                 MuteButton(group: group)
 
                 if group.isArcUltra {
-                    VStack(spacing: 4) {
-                        Menu {
-                            ForEach([0, 1, 2, 3, 4], id: \.self) { level in
-                                Button {
-                                    Task {
-                                        HapticManager.shared.fireHaptic(.buttonPress)
-                                        // Optimistic update so the label changes immediately
-                                        group.tvSettings?.speechEnhanceEnabled = level > 0
-                                        if level > 0 { group.tvSettings?.dialogLevelValue = level }
-                                        try? await SonosService.shared.setArcUltraSpeechLevel(group.coordinatorRoom.ip, level: level)
-                                        if let updated = try? await SonosService.shared.getTVSettings(group: group) {
-                                            group.tvSettings = updated
-                                        }
-                                    }
-                                } label: {
-                                    let labels = ["Off", "Low", "Medium", "High", "Max"]
-                                    if speechLevel == level {
-                                        Label(labels[level], systemImage: "checkmark")
-                                    } else {
-                                        Text(labels[level])
-                                    }
-                                }
-                            }
-                        } label: {
-                            Label("Speech Enhancement", systemImage: "person.wave.2.fill")
-                                .font(.title)
-                                .symbolRenderingMode(.hierarchical)
-                                .labelStyle(.iconOnly)
-                                .foregroundStyle(speechLevel > 0 ? .accent : .secondary.opacity(0.8))
-                                .frame(width: 40, height: 36)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(speechLevel > 0 ? .accent : nil)
-                        .animation(.spring, value: speechLevel)
-                        .disabled(settings == nil)
-                    }
+                    SpeechEnhancementMenu(group: group)
                 } else {
                     let dialogLevel = settings?.dialogLevel ?? false
                     Button {

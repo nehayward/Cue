@@ -162,7 +162,6 @@ private struct MiniTVControlsView: View {
     var body: some View {
         let settings = group.tvSettings
         let nightMode = settings?.nightMode ?? false
-        let speechLevel = settings?.speechLevel ?? 0
 
         HStack(spacing: 8) {
             Button {
@@ -199,32 +198,7 @@ private struct MiniTVControlsView: View {
             .animation(.spring, value: group.isMuted)
 
             if group.isArcUltra {
-                Menu {
-                    ForEach([0, 1, 2, 3, 4], id: \.self) { level in
-                        Button {
-                            Task {
-                                HapticManager.shared.fireHaptic(.buttonPress)
-                                try? await SonosService.shared.setArcUltraSpeechLevel(group.coordinatorRoom.ip, level: level)
-                                group.tvSettings = try? await SonosService.shared.getTVSettings(group: group)
-                            }
-                        } label: {
-                            let labels = ["Off", "Low", "Medium", "High", "Max"]
-                            if speechLevel == level {
-                                Label(labels[level], systemImage: "checkmark")
-                            } else {
-                                Text(labels[level])
-                            }
-                        }
-                    }
-                } label: {
-                    Image(systemName: "person.wave.2.fill")
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(speechLevel > 0 ? .accent : .secondary.opacity(0.8))
-                }
-                .buttonStyle(.bordered)
-                .tint(speechLevel > 0 ? .accent : nil)
-                .animation(.spring, value: speechLevel)
-                .disabled(settings == nil)
+                SpeechEnhancementMenu(group: group, compact: true)
             } else {
                 let dialogLevel = settings?.dialogLevel ?? false
                 Button {
