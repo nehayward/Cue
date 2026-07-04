@@ -1083,6 +1083,15 @@ public final class SonosService {
         }
     }
 
+    // Outcome of a single task in the getGroups reconnect race. `grace` is a
+    // timer sentinel used to give a still-reachable preferred household a brief
+    // head start over other reachable households (see getGroups).
+    private enum GroupsRaceOutcome {
+        case win(groups: [GroupRoom], ip: String, householdID: String)
+        case failure(Error)
+        case grace
+    }
+
     @MainActor
     public func getGroups(useCache: Bool) async throws -> [GroupRoom] {
         // Build an IP → household-ID map across ALL known households so the race
@@ -1093,6 +1102,7 @@ public final class SonosService {
         for h in knownHouseholds {
             for ip in h.knownIPs { ipToHouseholdID[ip] = h.id }
         }
+        let preferred = sonosSystemDiscoverService.preferredHouseHold
 
         // Fast path: IP verified good this session — use it directly.
         if useCache && cachedIPVerified,
@@ -1103,17 +1113,19 @@ public final class SonosService {
         cachedIPVerified = false
 
         // Race path: known IPs available — try every household's IPs in parallel
-        // plus Bonjour discovery. The first response determines the active household,
-        // updating preferredHouseHold automatically when the network has changed.
+        // plus Bonjour discovery. The first response determines the active
+        // household, switching preferredHouseHold automatically when the network
+        // has changed. `URLSession.data(for:)` is cancellation-aware, so the
+        // losing requests to unreachable IPs are torn down the moment a winner
+        // calls cancelAll() — no launch delay from far-away households.
         if !ipToHouseholdID.isEmpty {
-            typealias RaceWinner = (groups: [GroupRoom], ip: String, householdID: String)
-            let result = await withTaskGroup(of: Result<RaceWinner, Error>.self) { group in
+            let outcome: GroupsRaceOutcome = await withTaskGroup(of: GroupsRaceOutcome.self) { group in
                 for (ip, householdID) in ipToHouseholdID {
                     group.addTask { [weak self] in
                         guard let self else { return .failure(SonosServiceError.sonosSystemNotFound) }
                         do {
                             let groups = try await self.api.getGroups(ipAddress: ip)
-                            return .success((groups, ip, householdID))
+                            return .win(groups: groups, ip: ip, householdID: householdID)
                         } catch {
                             return .failure(error)
                         }
@@ -1126,31 +1138,67 @@ public final class SonosService {
                     do {
                         let ip = try await self.sonosSystemDiscoverService.getFirstIP(useCache: false)
                         let groups = try await self.api.getGroups(ipAddress: ip)
-                        return .success((groups, ip, ""))
+                        return .win(groups: groups, ip: ip, householdID: "")
                     } catch {
                         return .failure(error)
                     }
                 }
+
+                var fallback: GroupsRaceOutcome?
                 var lastError: Error = SonosServiceError.sonosSystemNotFound
                 while let r = await group.next() {
                     switch r {
-                    case .success(let winner):
-                        group.cancelAll()
-                        return .success(winner)
+                    case .win(_, _, let householdID):
+                        // Take immediately when there's no manual preference, the
+                        // winner IS the preferred household, or Bonjour won (it
+                        // already resolved preferred-vs-widening internally).
+                        if preferred == nil || householdID == preferred || householdID.isEmpty {
+                            group.cancelAll()
+                            return r
+                        }
+                        // A DIFFERENT known household answered while a manual
+                        // preference is set. Both may be reachable on this LAN, so
+                        // give the preferred one a short grace window to answer too
+                        // before widening to this one — don't thrash the user's
+                        // explicit choice.
+                        if fallback == nil {
+                            fallback = r
+                            group.addTask {
+                                try? await Task.sleep(for: .milliseconds(400))
+                                return .grace
+                            }
+                        }
+                    case .grace:
+                        if let fallback {
+                            group.cancelAll()
+                            return fallback
+                        }
                     case .failure(let error):
                         lastError = error
                     }
                 }
-                return .failure(lastError)
+                return fallback ?? .failure(lastError)
             }
-            let winner = try result.get()
-            // When a known-IP task won, adopt its household as preferred so future
-            // polls use it on the fast path without Bonjour.
-            if !winner.householdID.isEmpty {
-                sonosSystemDiscoverService.adoptHousehold(id: winner.householdID, ip: winner.ip)
+
+            switch outcome {
+            case .win(let groups, let ip, let householdID):
+                if householdID.isEmpty {
+                    // Bonjour winner already adopted its household internally.
+                } else if householdID == preferred {
+                    // Preferred household reachable — just refresh its IP.
+                    sonosSystemDiscoverService.recordDiscoveredHousehold(id: householdID, ip: ip)
+                } else {
+                    // No prior preference, or the preferred household was
+                    // unreachable — widen to this reachable one and make it active.
+                    sonosSystemDiscoverService.adoptHousehold(id: householdID, ip: ip)
+                }
+                cachedIPVerified = true
+                return groups
+            case .failure(let error):
+                throw error
+            case .grace:
+                throw SonosServiceError.sonosSystemNotFound
             }
-            cachedIPVerified = true
-            return winner.groups
         }
 
         // No known IPs at all — first launch or all households removed. Full discovery.
@@ -2391,7 +2439,7 @@ public final class SonosService {
 
         var householdMap = [String: String]()
         var savedIPs = Set<String>()
-        
+
         await withTaskGroup(of: (String, String).self) { taskGroup in
             for ip in ips {
                 taskGroup.addTask { [weak self] in
@@ -2411,6 +2459,43 @@ public final class SonosService {
 
         print(householdMap)
         return savedIPs
+    }
+
+    /// Scans the current network (Bonjour) for every reachable Sonos household and
+    /// records any not already in `knownHouseholds`, so a home you've never
+    /// connected to (a friend's system) shows up in the Households list. Does NOT
+    /// change the active selection — it only surfaces homes for the user to pick.
+    /// Returns the updated known-households list. Safe to call on-appear: the
+    /// screen shows stored homes instantly while this fills in newly-found ones.
+    @MainActor
+    public func discoverHouseholds() async -> [SonosHousehold] {
+        guard let ips = try? await sonosSystemDiscoverService.getAllIPs() else {
+            return sonosSystemDiscoverService.knownHouseholds
+        }
+
+        // Map each reachable IP → its household ID in parallel, keeping the first
+        // IP seen per household (dedupes multi-speaker systems).
+        let pairs: [(id: String, ip: String)] = await withTaskGroup(of: (String, String).self) { taskGroup in
+            for ip in ips {
+                taskGroup.addTask { [weak self] in
+                    guard let self else { return ("", "") }
+                    return (await self.api.getHouseHoldID(for: ip), ip)
+                }
+            }
+            var seen = Set<String>()
+            var found: [(id: String, ip: String)] = []
+            for await (id, ip) in taskGroup where !id.isEmpty && !ip.isEmpty {
+                if seen.insert(id).inserted {
+                    found.append((id, ip))
+                }
+            }
+            return found
+        }
+
+        for pair in pairs {
+            sonosSystemDiscoverService.recordDiscoveredHousehold(id: pair.id, ip: pair.ip)
+        }
+        return sonosSystemDiscoverService.knownHouseholds
     }
 
     public func librarySearch(query: String) async -> [PlayableContent] {

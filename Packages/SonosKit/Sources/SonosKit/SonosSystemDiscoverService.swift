@@ -158,6 +158,14 @@ final class SonosSystemDiscoverService {
         recordHousehold(id: id, ip: ip)
     }
 
+    // Records a household discovered on the network WITHOUT changing the active
+    // selection. Used by the Households screen's scan to surface newly-found homes
+    // (e.g. a friend's system you haven't switched to yet).
+    @MainActor
+    func recordDiscoveredHousehold(id: String, ip: String) {
+        recordHousehold(id: id, ip: ip)
+    }
+
     /// Gets household ID with caching and fast timeout (2 seconds max)
     private func getHouseholdIDWithCache(for ip: String) async -> String {
         // Check cache first (valid for 5 minutes)

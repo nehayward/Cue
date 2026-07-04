@@ -25,7 +25,7 @@ struct HouseholdScreen: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    Task { await scanForNew() }
+                    Task { await scanForNew(announce: true) }
                 } label: {
                     if isScanning {
                         ProgressView()
@@ -42,7 +42,13 @@ struct HouseholdScreen: View {
             renameSheet(for: household)
         }
         .onAppear {
+            // Show stored homes instantly, no waiting on the network.
             refreshHouseholds()
+        }
+        .task {
+            // Then scan the current network for any new homes (e.g. a friend's
+            // system) and merge them in. Runs once when the screen appears.
+            await scanForNew()
         }
     }
 
@@ -164,7 +170,7 @@ struct HouseholdScreen: View {
             Text("Tap Scan to find Sonos systems on your network.")
         } actions: {
             Button {
-                Task { await scanForNew() }
+                Task { await scanForNew(announce: true) }
             } label: {
                 Text("Scan for Sonos")
             }
@@ -179,16 +185,25 @@ struct HouseholdScreen: View {
             .sorted { $0.lastConnected > $1.lastConnected }
     }
 
+    /// Scans the current network for Sonos systems and merges any newly-found
+    /// homes into the list. `announce` is true only for the manual refresh button
+    /// so the on-appear auto-scan stays silent.
     @MainActor
-    private func scanForNew() async {
+    private func scanForNew(announce: Bool = false) async {
+        guard !isScanning else { return }
         isScanning = true
         defer { isScanning = false }
-        _ = try? await sonosService.getGroups(useCache: false)
-        refreshHouseholds()
-        if households.isEmpty {
+        let before = Set(households.map(\.id))
+        let updated = await sonosService.discoverHouseholds()
+        households = updated.sorted { $0.lastConnected > $1.lastConnected }
+        guard announce else { return }
+        let newCount = households.filter { !before.contains($0.id) }.count
+        if newCount > 0 {
+            alertService.showAlert(with: newCount == 1 ? "Found a new home" : "Found \(newCount) new homes")
+        } else if households.isEmpty {
             alertService.showAlert(with: "No Sonos systems found")
         } else {
-            alertService.showAlert(with: "Scan complete")
+            alertService.showAlert(with: "No new homes found")
         }
     }
 }
