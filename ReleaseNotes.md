@@ -16,6 +16,13 @@
 - Fixed "Switch to Line In" appearing on speakers that don't support line-in
 - Fixed the library Albums list stopping partway through the alphabet — albums, songs, and artists now load your entire library as you scroll
 - Fixed Genres, Imported Playlists, and folder contents being cut off in large libraries — these now load fully as you scroll
+- Improved Spotify responsiveness — search, albums, and playlists load noticeably faster and start showing results sooner
+- Fixed Spotify albums with more than 50 tracks not showing every track, and an album sometimes showing the previous album's tracks when navigating back and forth
+- Fixed the Spotify Albums library list shrinking and reshuffling each time you reopened it — it now loads your full library and stays put
+- Fixed sheets like Add to Playlist unexpectedly closing on iPad and Mac when the Queue was open in the side panel; the Queue now also stays with the speaker you have selected as you resize or rotate
+- Fixed the now-playing track not being highlighted in Plex albums and playlists
+- Fixed opening a Plex artist from a song's "View Artist" showing no albums
+- Shuffling the queue now animates tracks sliding into their new order instead of jumping
 
 # 2026.5
 

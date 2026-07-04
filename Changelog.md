@@ -91,6 +91,24 @@ First-class playlist management for Apple Music, Spotify, Plex, and Deezer along
 - `LibraryBrowseScreen`: Imported Playlists load-more closure now forwards `offset` to `updateImportedPlaylists(offset:)` instead of discarding it (was always re-fetching page 0)
 - Alphabetical grouping moved out of `PlayableContentList` (where a computed dictionary was re-grouped once per section header and again per letter subscript — O(letters × items) every render) into cached `LibrarySection` arrays on `LibraryBrowseService` (`albumSections` / `artistSections` / `playlistSections`), recomputed only when the underlying set changes; the view now renders the prebuilt sections, so non-data re-renders do zero grouping work. Playlist deletion routed through `removePlaylist(id:)` so the cache stays in sync
 
+### Spotify performance
+- `SpotifyAPI` now passes `market=from_token` on search, track/album lookups, saved tracks/albums, playlist, and artist top-tracks/albums endpoints. With a market specified Spotify returns its slim payload — a single `is_playable` flag replaces the deprecated `available_markets` array (~185 country codes on every track and album object) — so responses are much smaller with no change to availability
+- Playlist endpoints additionally use the `fields` filter: `/playlists/{id}` drops the inlined first-100 `tracks.items` (callers only read name/owner/images/count), and `/playlists/{id}/tracks` returns only `total,items(uid,track)` — exactly what `SpotifyPlaylistsFullContainer` decodes. `SpotifyArtistAlbums.AlbumItem.availableMarkets` became optional since market-aware responses omit the key
+- Halved the album browse-list page size (50 → 25) in both `SpotifyLibraryScreen` and `SpotifySearchScreen` so the first batch paints sooner; 25 stays clear of `PlayableListView`'s "within 10 of the end" prefetch trigger so paging stays smooth
+
+### Spotify album loading fixes
+- Spotify album detail (`MediaDetailView`) now keys its load on `content.id` via `.task(id:)` and runs a `loadInitialTracks()` that resets pagination from a clean slate, so a reused view re-fires for a different album instead of showing the previous album's tracks. Cancelled first-page loads no longer mark the view permanently "loaded" with no tracks, and cancelled loads bail before appending so a stale response can't pollute a freshly-reset list
+- Spotify albums over 50 tracks now paginate: decode the tracks paging metadata (`total`/`next`/`limit`/`offset`) on `SpotifyAlbumDetails` and page through `offset` (Spotify caps album track pages at 50), stopping at `total`; a `supportsPagination` helper drives both the prefetch trigger and the offset guard
+- Fixed the Spotify Albums browse list shrinking/reshuffling on re-entry: the offset-less fallback used `playlists.count` instead of `albums.count`, and the `offset == 0` refresh branch pruned `albums.prefix(10)` while re-fetching only 5, deleting already-paged albums. Prune only within the window actually re-fetched (`prefix(newAlbums.count)`) and page `/me/albums` in 50s. New browse additions surface at the top and stay stable on revisit instead of resorting
+
+### iPad / Catalyst sheet + inspector presentation
+- Fixed sheets self-dismissing on iPad/Catalyst when the inspector (Queue) was open. `withInspector` drove `inspector(isPresented:)` with a `.constant` binding — in compact widths (Split View / Stage Manager / narrow Catalyst windows) the inspector falls back to a sheet presentation, and when the system dismissed it SwiftUI couldn't record that in a constant, so it re-presented the inspector and tore down the sheet the user had just opened. Now uses a real two-way binding that clears `router.inspectorSheet` on dismissal
+- `.sheet`/`.fullScreenCover` were applied inside `.inspector` (modifiers apply inside-out), so an inspector restructuring between column and sheet presentation (rotation, size-class change, Catalyst resize) rebuilt the subtree hosting the sheet and dismissed it. `withInspector` is now applied first so sheets are hosted outside it. The inspector is also stashed and restored across compact collapses and size-class transitions
+- Fixed the queue inspector not following the selected group, and deduped the Sonos topology subscription while sharing a single `MusicSearchService`
+
+### Plex now-playing highlight
+- Fixed the now-playing row highlight never matching for Plex in `MediaDetailView` (and the search/library rows). The highlight compared the coordinator's `track.trackID` against `content.id.removingPercentEncoding`, but Plex now-playing trackIDs are percent-encoded (`clientID%3A3%3AratingKey` — the parser re-encodes the colons via `.urlPathAllowed`), so an encoded-vs-decoded comparison never matched. Both sides are now decoded before comparing — a no-op for services whose IDs carry no percent-encoding (Apple/Spotify/Tidal/Deezer)
+
 ---
 
 ## 2026.5
