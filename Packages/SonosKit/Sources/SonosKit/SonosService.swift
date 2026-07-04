@@ -81,6 +81,12 @@ public final class SonosService {
         sonosSystemDiscoverService.knownHouseholds
     }
 
+    /// The household currently being monitored (or the most-recently-connected
+    /// one when no explicit preference is set).
+    public var activeHousehold: SonosHousehold? {
+        sonosSystemDiscoverService.activeHousehold
+    }
+
     /// Switches the active household, resets all state, and restarts monitoring.
     /// The race in getGroups will test the household's last known IP immediately
     /// while Bonjour discovery runs in parallel in case the IP has changed.
@@ -1062,55 +1068,75 @@ public final class SonosService {
 
     @MainActor
     public func getGroups(useCache: Bool) async throws -> [GroupRoom] {
-        let household = sonosSystemDiscoverService.activeHousehold
-        let knownIPs = household.map { Array($0.knownIPs) } ?? []
-        if useCache && !knownIPs.isEmpty {
-            if cachedIPVerified {
-                // IP confirmed good this session — use lastKnownIP directly.
-                let ip = household?.lastKnownIP ?? knownIPs[0]
-                return try await api.getGroups(ipAddress: ip)
-            }
-            // First load or post-error: race ALL known IPs for this household
-            // plus fresh Bonjour discovery. Whichever responds first wins.
-            // Racing multiple IPs handles the case where one speaker is removed
-            // or got a new DHCP address — another speaker in the same household
-            // still answers immediately.
-            let result = await withTaskGroup(of: Result<[GroupRoom], Error>.self) { group in
-                for ip in knownIPs {
-                    let ipCopy = ip
+        // Build an IP → household-ID map across ALL known households so the race
+        // can switch to any household on the current network automatically —
+        // e.g. home → friend's house → home works without manual switching.
+        let knownHouseholds = sonosSystemDiscoverService.knownHouseholds
+        var ipToHouseholdID: [String: String] = [:]
+        for h in knownHouseholds {
+            for ip in h.knownIPs { ipToHouseholdID[ip] = h.id }
+        }
+
+        // Fast path: IP verified good this session — use it directly.
+        if useCache && cachedIPVerified,
+           let ip = sonosSystemDiscoverService.activeHousehold?.lastKnownIP {
+            return try await api.getGroups(ipAddress: ip)
+        }
+
+        cachedIPVerified = false
+
+        // Race path: known IPs available — try every household's IPs in parallel
+        // plus Bonjour discovery. The first response determines the active household,
+        // updating preferredHouseHold automatically when the network has changed.
+        if !ipToHouseholdID.isEmpty {
+            typealias RaceWinner = (groups: [GroupRoom], ip: String, householdID: String)
+            let result = await withTaskGroup(of: Result<RaceWinner, Error>.self) { group in
+                for (ip, householdID) in ipToHouseholdID {
                     group.addTask { [weak self] in
                         guard let self else { return .failure(SonosServiceError.sonosSystemNotFound) }
-                        do { return .success(try await self.api.getGroups(ipAddress: ipCopy)) }
-                        catch { return .failure(error) }
+                        do {
+                            let groups = try await self.api.getGroups(ipAddress: ip)
+                            return .success((groups, ip, householdID))
+                        } catch {
+                            return .failure(error)
+                        }
                     }
                 }
+                // Bonjour fallback for genuinely unknown networks. performDiscovery
+                // handles its own household adoption internally when this wins.
                 group.addTask { [weak self] in
                     guard let self else { return .failure(SonosServiceError.sonosSystemNotFound) }
                     do {
                         let ip = try await self.sonosSystemDiscoverService.getFirstIP(useCache: false)
-                        return .success(try await self.api.getGroups(ipAddress: ip))
+                        let groups = try await self.api.getGroups(ipAddress: ip)
+                        return .success((groups, ip, ""))
                     } catch {
                         return .failure(error)
                     }
                 }
                 var lastError: Error = SonosServiceError.sonosSystemNotFound
                 while let r = await group.next() {
-                    if case .success(let groups) = r {
+                    switch r {
+                    case .success(let winner):
                         group.cancelAll()
-                        return Result.success(groups)
-                    } else if case .failure(let error) = r {
+                        return .success(winner)
+                    case .failure(let error):
                         lastError = error
                     }
                 }
-                return Result.failure(lastError)
+                return .failure(lastError)
             }
-            let groups = try result.get()
+            let winner = try result.get()
+            // When a known-IP task won, adopt its household as preferred so future
+            // polls use it on the fast path without Bonjour.
+            if !winner.householdID.isEmpty {
+                sonosSystemDiscoverService.adoptHousehold(id: winner.householdID, ip: winner.ip)
+            }
             cachedIPVerified = true
-            return groups
+            return winner.groups
         }
-        // useCache: false — a prior error invalidated the cache; reset so the
-        // next useCache: true call races again with fresh discovery.
-        cachedIPVerified = false
+
+        // No known IPs at all — first launch or all households removed. Full discovery.
         let ip = try await sonosSystemDiscoverService.getFirstIP(useCache: useCache)
         let groups = try await api.getGroups(ipAddress: ip)
         cachedIPVerified = true

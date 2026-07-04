@@ -150,6 +150,14 @@ final class SonosSystemDiscoverService {
         preferredHouseHold = id
     }
 
+    // Adopts a household as preferred and records the responding IP. Called when a
+    // known-household IP wins the getGroups race, switching networks without Bonjour.
+    @MainActor
+    func adoptHousehold(id: String, ip: String) {
+        preferredHouseHold = id
+        recordHousehold(id: id, ip: ip)
+    }
+
     /// Gets household ID with caching and fast timeout (2 seconds max)
     private func getHouseholdIDWithCache(for ip: String) async -> String {
         // Check cache first (valid for 5 minutes)
