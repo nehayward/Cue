@@ -152,18 +152,17 @@ struct SpeakerSettingsView: View {
                             }
                         }
 
-                        if room.theaterSettings.speechEnhanceEnabled == true {
-                            Picker("Dialog Level", selection: $room.theaterSettings.dialogLevelValue) {
-                                Text("Low").tag(1)
-                                Text("Medium").tag(2)
-                                Text("High").tag(3)
-                                Text("Max").tag(4)
-                            }
-                            .onChange(of: room.theaterSettings.dialogLevelValue) { oldValue, newValue in
-                                if oldValue != newValue {
-                                    Task {
-                                        try? await sonosService.setDialogLevelValue(room.ip, value: newValue)
-                                    }
+                        Picker("Dialog Level", selection: $room.theaterSettings.dialogLevelValue) {
+                            Text("Low").tag(1)
+                            Text("Medium").tag(2)
+                            Text("High").tag(3)
+                            Text("Max").tag(4)
+                        }
+                        .disabled(room.theaterSettings.speechEnhanceEnabled != true)
+                        .onChange(of: room.theaterSettings.dialogLevelValue) { oldValue, newValue in
+                            if oldValue != newValue {
+                                Task {
+                                    try? await sonosService.setDialogLevelValue(room.ip, value: newValue)
                                 }
                             }
                         }

@@ -143,7 +143,7 @@ public struct SonosDevice: Identifiable {
     }
 
     public var isArcUltra: Bool {
-        info?.modelDisplayName.lowercased().hasSuffix("arc ultra") ?? false
+        info?.modelDisplayName.lowercased().contains("arc ultra") ?? false
     }
 
     public var sonosAlbumARTURL: URL? {

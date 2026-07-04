@@ -293,7 +293,7 @@ public final class SonosMiniService {
                     newSettings = SonosTVSettings(
                         nightMode: nightMode,
                         dialogLevel: false,
-                        speechEnhanceEnabled: renderingControl.speechEnhanceEnabled,
+                        speechEnhanceEnabled: renderingControl.speechEnhanceEnabled ?? device.TVSettings?.speechEnhanceEnabled,
                         dialogLevelValue: renderingControl.dialogLevel ?? device.TVSettings?.dialogLevelValue ?? 1,
                         audioInputFormat: nil
                     )
