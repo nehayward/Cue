@@ -29,7 +29,7 @@ struct SearchScreen: View {
     @Environment(MiniPlayerManger.self) private var miniPlayerManager
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
-    @AppStorage(AppStorageKeys.searchAlsoServices) private var searchAlsoServicesRaw: String = ""
+    @AppStorage(AppStorageKeys.searchAlsoServices) private var searchAlsoServices: AlsoSearchServices = []
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
     @AppStorage(AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     var favorites: Bool = false
@@ -76,7 +76,7 @@ struct SearchScreen: View {
     /// extras from a previous primary must not merge radio with catalogs.
     private var selectedSearchServices: Set<MediaSearchService> {
         guard musicSearchSelection != .tuneIn else { return [.tuneIn] }
-        return MediaSearchService.set(fromRawList: searchAlsoServicesRaw)
+        return searchAlsoServices.services
             .filter { coreFeatures.enabledServices($0).wrappedValue }
             .union([musicSearchSelection])
     }
@@ -230,13 +230,13 @@ struct SearchScreen: View {
                         MediaServiceMenu(
                             musicSearchSelection: $musicSearchSelection,
                             filters: $filters,
-                            searchAlsoServicesRaw: $searchAlsoServicesRaw
+                            searchAlsoServices: $searchAlsoServices
                         )
                     }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .task(id: musicSearchService.query + musicSearchSelection.rawValue + searchAlsoServicesRaw) {
+            .task(id: musicSearchService.query + musicSearchSelection.rawValue + searchAlsoServices.rawValue) {
                 isLoading = true
                 if suggestion == nil {
                     searchCompletionTapped = false
@@ -326,7 +326,7 @@ struct SearchScreen: View {
             keyboardSelectedIndex = nil
             musicSearchService.results = []
         }
-        .onChange(of: searchAlsoServicesRaw) {
+        .onChange(of: searchAlsoServices) {
             keyboardSelectedIndex = nil
             musicSearchService.results = []
         }
@@ -597,17 +597,17 @@ private struct MacCatalystSuggestionsList: View {
 private struct MediaServiceMenu: View {
     @Binding var musicSearchSelection: MediaSearchService
     @Binding var filters: [FilterSelection]
-    @Binding var searchAlsoServicesRaw: String
+    @Binding var searchAlsoServices: AlsoSearchServices
 
     @Environment(Router.self) private var router
     @State private var coreFeatures = CoreFeatures.shared
 
-    /// Matches SearchScreen.selectedSearchServices: disabled services don't
-    /// count (no phantom badge for a service the search skips), and a TuneIn
-    /// primary always searches alone.
-    private var alsoSearchServices: Set<MediaSearchService> {
+    /// The extras actually in effect: matches SearchScreen.selectedSearchServices
+    /// — disabled services don't count (no phantom badge for a service the
+    /// search skips), and a TuneIn primary always searches alone.
+    private var activeExtras: Set<MediaSearchService> {
         guard musicSearchSelection != .tuneIn else { return [] }
-        return MediaSearchService.set(fromRawList: searchAlsoServicesRaw)
+        return searchAlsoServices.services
             .filter { coreFeatures.enabledServices($0).wrappedValue }
             .subtracting([musicSearchSelection])
     }
@@ -619,12 +619,10 @@ private struct MediaServiceMenu: View {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         musicSearchSelection = service
-                        // The new primary can't also be an extra. Subtract from
-                        // the raw set so extras hidden right now (disabled
-                        // service, TuneIn primary) survive in storage.
-                        searchAlsoServicesRaw = MediaSearchService.set(fromRawList: searchAlsoServicesRaw)
-                            .subtracting([service])
-                            .rawList
+                        // The new primary can't also be an extra. Mutate the
+                        // stored set directly so extras hidden right now
+                        // (disabled service, TuneIn primary) survive in storage.
+                        searchAlsoServices.services.remove(service)
                         Analytics.shared.track(.selectedMusicService, with: ["MusicService": service.rawValue])
                         Analytics.shared.setSelection(metadata: ["MusicService": service.rawValue])
 
@@ -660,8 +658,8 @@ private struct MediaServiceMenu: View {
                 .contentShape(.circle)
                 .toolbarBackground(in: .circle)
                 .overlay(alignment: .topTrailing) {
-                    if !alsoSearchServices.isEmpty {
-                        Text("+\(alsoSearchServices.count)")
+                    if !activeExtras.isEmpty {
+                        Text("+\(activeExtras.count)")
                             .font(.system(size: 9, weight: .bold))
                             .padding(3)
                             .background(.thinMaterial, in: .circle)
@@ -695,34 +693,39 @@ private struct MediaServiceMenu: View {
 
     private func alsoSearchBinding(for service: MediaSearchService) -> Binding<Bool> {
         Binding(
-            get: { alsoSearchServices.contains(service) },
+            get: { activeExtras.contains(service) },
             set: { include in
                 HapticManager.shared.fireHaptic(.buttonPress)
-                // Mutate the raw set so extras hidden right now (disabled
-                // services) aren't dropped from storage as a side effect.
-                var services = MediaSearchService.set(fromRawList: searchAlsoServicesRaw)
                 if include {
-                    services.insert(service)
+                    searchAlsoServices.services.insert(service)
                 } else {
-                    services.remove(service)
+                    searchAlsoServices.services.remove(service)
                 }
-                searchAlsoServicesRaw = services.subtracting([musicSearchSelection]).rawList
+                // The primary is never stored as an extra.
+                searchAlsoServices.services.remove(musicSearchSelection)
             }
         )
     }
 }
 
-extension MediaSearchService {
-    static func set(fromRawList raw: String) -> Set<MediaSearchService> {
-        Set(raw.split(separator: ",").compactMap { MediaSearchService(rawValue: String($0)) })
-    }
-}
+/// The "Also Search" extras, stored in `@AppStorage` as a typed set instead
+/// of a bare `String`. `RawRepresentable` lets `@AppStorage` persist it as the
+/// same sorted comma-separated raw-value string (so existing stored values
+/// keep working with no migration), while call sites work with a real `Set`
+/// and never re-parse the string themselves. Sorting keeps the search
+/// `.task(id:)` stable across set-order changes.
+struct AlsoSearchServices: RawRepresentable, Equatable, ExpressibleByArrayLiteral {
+    var services: Set<MediaSearchService>
 
-extension Collection where Element == MediaSearchService {
-    /// Stable comma-separated form for AppStorage (sorted so the search
-    /// `.task(id:)` string doesn't churn on set-order changes).
-    var rawList: String {
-        map(\.rawValue).sorted().joined(separator: ",")
+    init(_ services: Set<MediaSearchService> = []) { self.services = services }
+    init(arrayLiteral elements: MediaSearchService...) { self.services = Set(elements) }
+
+    init(rawValue: String) {
+        services = Set(rawValue.split(separator: ",").compactMap { MediaSearchService(rawValue: String($0)) })
+    }
+
+    var rawValue: String {
+        services.map(\.rawValue).sorted().joined(separator: ",")
     }
 }
 
