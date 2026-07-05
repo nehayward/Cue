@@ -15,6 +15,12 @@ public struct SonosTVSettings: Codable, Hashable, Equatable, Sendable {
     public var dialogLevelValue: Int
     public var audioInputFormat: AudioInputFormat?
 
+    /// Combined speech enhancement level for Arc Ultra.
+    public var speechLevel: SpeechLevel {
+        guard speechEnhanceEnabled == true else { return .off }
+        return SpeechLevel(rawValue: max(1, min(4, dialogLevelValue))) ?? .low
+    }
+
     public init(nightMode: Bool, dialogLevel: Bool, speechEnhanceEnabled: Bool? = nil, dialogLevelValue: Int = 1, audioInputFormat: AudioInputFormat?) {
         self.nightMode = nightMode
         self.dialogLevel = dialogLevel

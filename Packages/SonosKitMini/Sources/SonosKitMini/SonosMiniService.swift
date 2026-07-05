@@ -1906,6 +1906,16 @@ public final class SonosMiniService {
         try await api.setDialogLevel(IP: IP, enabled: enabled)
     }
 
+    public func setArcUltraSpeechLevel(_ ip: String, level: SpeechLevel) async throws {
+        if level == .off {
+            try await api.setSpeechEnhanceEnabled(IP: ip, enabled: false)
+        } else {
+            async let enable: Void = api.setSpeechEnhanceEnabled(IP: ip, enabled: true)
+            async let setLevel: Void = api.setDialogLevelValue(IP: ip, value: level.rawValue)
+            _ = try await (enable, setLevel)
+        }
+    }
+
     public func setSpeechEnhanceEnabled(_ IP: String, enabled: Bool) async throws {
         try await api.setSpeechEnhanceEnabled(IP: IP, enabled: enabled)
     }
