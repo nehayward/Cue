@@ -40,16 +40,21 @@ struct SetSpeechEnhancementIntent: LiveActivityIntent {
         }
 
         do {
-            if mode == .toggle {
-                let current = try await Self.sonosService.getTVSettings(ip: room.ip)
-                try await Self.sonosService.setDialogLevel(room.ip, enabled: !current.dialogLevel)
+            // Try Arc Ultra path first; getTVSettings(isArcUltra:true) throws on
+            // non-Arc-Ultra devices (unsupported EQ type returns SOAP 500).
+            if let arcSettings = try? await Self.sonosService.getTVSettings(ip: room.ip, isArcUltra: true) {
+                let enable = mode == .toggle ? !arcSettings.speechLevel.isActive : speechEnhancement
+                let level = enable ? max(1, arcSettings.dialogLevelValue) : 0
+                try await Self.sonosService.setArcUltraSpeechLevel(room.ip, level: level)
             } else {
-                try await Self.sonosService.setDialogLevel(room.ip, enabled: speechEnhancement)
+                let current = try await Self.sonosService.getTVSettings(ip: room.ip)
+                let enable = mode == .toggle ? !current.dialogLevel : speechEnhancement
+                try await Self.sonosService.setDialogLevel(room.ip, enabled: enable)
             }
         } catch {
-            throw IntentError.message("Night Mode not supported")
+            throw IntentError.message("Speech Enhancement not supported")
         }
-        
+
         try? await Task.sleep(for: .milliseconds(100))
         await Self.liveActivityManager.refresh()
         return .result(value: speechEnhancement)

@@ -15,6 +15,11 @@ public struct SonosTVSettings: Codable, Hashable, Equatable, Sendable {
     public var dialogLevelValue: Int
     public var audioInputFormat: AudioInputFormat?
 
+    /// True when speech enhancement is active on either device type.
+    public var speechIsActive: Bool {
+        speechEnhanceEnabled != nil ? speechLevel.isActive : dialogLevel
+    }
+
     /// Combined speech enhancement level for Arc Ultra.
     public var speechLevel: SpeechLevel {
         guard speechEnhanceEnabled == true else { return .off }
