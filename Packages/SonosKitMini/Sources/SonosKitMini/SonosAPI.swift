@@ -1058,25 +1058,14 @@ final class SonosAPI {
 //        }
 //    }
 //
-//    func deviceInfo(IP: String) async -> DeviceInfo? {
-//        guard let url = URL(string: "http://\(IP):1400/info") else { return nil }
-//        let request = URLRequest(url: url)
-//        guard let (data, response) = try? await session.data(for: request) else { return nil }
-//        if (response as? HTTPURLResponse)?.statusCode != 200 {
-//            print("Failed")
-//        }
-//        
-//        do {
-//            let discoveryInfo = try decoder.decode(DiscoveryInfo.self, from: data)
-//            return discoveryInfo.device
-//        } catch {
-//            print(String(decoding: data, as: UTF8.self))
-//            print("Error decoding JSON: \(error)")
-//        }
-//        
-//        return nil
-//    }
-//
+    func deviceInfo(IP: String) async -> DeviceInfo? {
+        guard let url = URL(string: "http://\(IP):1400/info") else { return nil }
+        let request = URLRequest(url: url)
+        guard let (data, _) = try? await session.data(for: request) else { return nil }
+        return try? decoder.decode(DiscoveryInfo.self, from: data).device
+    }
+
+
     func createSoapRequest(ip: String, action: String, arguments: [(key: String, value: Any)], endpoint: String) -> URLRequest? {
         var schemas = "schemas-upnp-org"
         let service = "\(endpoint.components(separatedBy: "/").last!)"

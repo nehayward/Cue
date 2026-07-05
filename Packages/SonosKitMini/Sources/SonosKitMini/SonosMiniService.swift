@@ -432,6 +432,18 @@ public final class SonosMiniService {
 
         applyDevicesCacheIfMatching()
 
+        // Fetch device info in parallel so isArcUltra resolves correctly
+        await withDiscardingTaskGroup { group in
+            for device in devices where device.info == nil {
+                group.addTask { [weak self] in
+                    guard let self else { return }
+                    if let info = await api.deviceInfo(IP: device.ip) {
+                        await updateDevice(device, keyPath: \.info, value: info)
+                    }
+                }
+            }
+        }
+
         // MARK: Update Devices Info
         try await updateWatchDevices(from: devices)
         await updateRoomVolumes()
