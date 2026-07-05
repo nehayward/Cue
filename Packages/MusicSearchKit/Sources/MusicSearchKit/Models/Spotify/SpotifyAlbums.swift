@@ -55,10 +55,25 @@ public struct SpotifyAlbumDetails: Decodable, Sendable {
     public var allArtists: String? { artists?.compactMap(\.name).joined(separator: ", ") }
     public let durationMs: Int?
     public let explicit: Bool?
+    /// Only present on full album objects (the search API returns simplified
+    /// albums without it).
+    public let popularity: Int?
 
     public var releaseDateFormatted: String? {
         return releaseDate.components(separatedBy: "-").first
     }
+
+    /// Albums have no explicit flag of their own; derive it from the tracks
+    /// the full album object includes (first page is plenty).
+    public var containsExplicitTracks: Bool {
+        tracks.items.contains(where: \.explicit)
+    }
+}
+
+/// Response envelope for the batch `/v1/albums?ids=` endpoint. Spotify
+/// returns `null` entries for unknown ids.
+public struct SpotifyAlbumsBatch: Decodable, Sendable {
+    public let albums: [SpotifyAlbumDetails?]
 }
 
 public struct SpotifyAlbumTracks: Decodable, Sendable {

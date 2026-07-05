@@ -133,6 +133,34 @@ public final class SpotifyAPI {
         }
     }
 
+    /// Full album objects (with popularity and per-track explicit flags) for
+    /// the given ids. Search returns simplified albums without popularity, so
+    /// results are enriched via this batch lookup. Chunks by Spotify's
+    /// 20-ids-per-request cap; failed chunks are skipped.
+    public func albums(ids: [String]) async -> [SpotifyAlbumDetails] {
+        var albums: [SpotifyAlbumDetails] = []
+        for chunk in stride(from: 0, to: ids.count, by: 20).map({ Array(ids[$0..<min($0 + 20, ids.count)]) }) {
+            var components = URLComponents()
+            components.scheme = "https"
+            components.host = "api.spotify.com"
+            components.path = "/v1/albums"
+            components.queryItems = [
+                URLQueryItem(name: "ids", value: chunk.joined(separator: ",")),
+                Self.marketFilter
+            ]
+
+            guard let url = components.url else { continue }
+
+            do {
+                let batch: SpotifyAlbumsBatch = try await authorizedRequest(url)
+                albums.append(contentsOf: batch.albums.compactMap { $0 })
+            } catch {
+                logger.error("\(error.localizedDescription)")
+            }
+        }
+        return albums
+    }
+
     public func newReleases() async -> SpotifyResult? {
         var components = URLComponents()
         components.scheme = "https"

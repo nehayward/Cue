@@ -618,7 +618,7 @@ extension PlexTrack {
         }
         return PlayableContent(
             title: title,
-            subtitle: [artist, audioCodec?.uppercased()].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artist, audioCodec?.uppercased() ?? ""].filter { !$0.isEmpty }.joined(separator: " • "),
             // TODO: Add Thumbnail
             thumbnail: imageURL,
             artwork: imageURL,
@@ -648,7 +648,7 @@ extension PlexAlbum {
     public var toPlayable: PlayableContent {
         PlayableContent(
             title: title,
-            subtitle: "\(artist) • \(year)",
+            subtitle: [artist, year].filter { !$0.isEmpty }.joined(separator: " • "),
             thumbnail: imageURL,
             artwork: imageURL,
             content: .init(

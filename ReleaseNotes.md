@@ -21,6 +21,8 @@
 - Search now forgives typos and punctuation — "beyonse" finds Beyoncé, "dont stop me now" finds Don't Stop Me Now
 - Plex tracks you've loved now show their heart in search results
 - Search now shows a "No Results" screen when nothing matches instead of a blank list
+- Fixed Plex songs missing from search — tracks are no longer dropped when the server omits optional details like media info or artwork from search responses
+- Spotify albums now rank by popularity, so searching an album like Frozen surfaces it near the top instead of below every song — and albums containing explicit tracks now show the explicit badge
 
 # 2026.5
 

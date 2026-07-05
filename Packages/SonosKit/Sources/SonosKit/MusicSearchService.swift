@@ -646,7 +646,39 @@ public final class MusicSearchService {
             playableContent.append(contentsOf: tracks.compactMap { $0?.toPlayable })
         }
 
+        playableContent = await enrichSpotifyAlbums(playableContent)
+
         return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+    }
+
+    /// Spotify's search API returns simplified albums with no popularity and
+    /// no explicit flag, which buried albums below every popular track
+    /// (searching "frozen" ranked the soundtrack far down). A batch full-album
+    /// lookup fills in popularity for ranking and derives the explicit badge
+    /// from the album's tracks.
+    private func enrichSpotifyAlbums(_ playableContent: [PlayableContent]) async -> [PlayableContent] {
+        let albumIDs = playableContent
+            .filter { $0.content.service == .spotify && $0.content.type == .album }
+            .map(\.id)
+        guard !albumIDs.isEmpty else { return playableContent }
+
+        let details = await spotifySearchAPI.albums(ids: albumIDs)
+        guard !details.isEmpty else { return playableContent }
+        let detailsByID = Dictionary(details.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+
+        return playableContent.map { item in
+            guard item.content.type == .album, let detail = detailsByID[item.id] else { return item }
+            var enriched = item
+            enriched.metadata = PlayableContentMetadata(
+                popularity: detail.popularity,
+                artist: item.metadata?.artist,
+                artistID: item.metadata?.artistID,
+                album: item.metadata?.album,
+                albumYear: item.metadata?.albumYear,
+                isExplicit: detail.containsExplicitTracks
+            )
+            return enriched
+        }
     }
 
     public func searchSpotifyPlayableContent(query: String) async -> [PlayableContent] {

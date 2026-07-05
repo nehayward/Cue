@@ -113,6 +113,13 @@ First-class playlist management for Apple Music, Spotify, Plex, and Deezer along
 ### Search "No Results" empty state
 - `SearchScreen` shows the standard `ContentUnavailableView.search(text:)` when a query finishes loading with no matching results (`!isLoading && currentFilteredResults.isEmpty`) — previously the list was simply blank. Gated on `isLoading` so it never flashes while provider results are still streaming in
 
+### Plex search parsing resilience
+- `PlexParser` required 13 attributes per track (`Media` audio details, `Part` file, `parentThumb`, all rating keys, `librarySectionID`, …) and silently dropped any track missing one — servers that omit optional detail from `/hubs/search` responses returned zero songs while albums/artists still showed. Tracks, albums, and artists now require only `title` + `ratingKey` (all the Sonos play URI needs); everything else is optional with the track's own `thumb` as an artwork fallback
+- `PlexTrack.container`/`file` (never consumed) and the `parentRatingKey`/`grandparentRatingKey` keys are now optionals; Plex subtitles skip empty components instead of rendering dangling "•" separators
+
+### Spotify album popularity + explicit badge
+- Spotify's search API returns simplified album objects with no `popularity` and no explicit flag, so albums ranked on text alone and sat below every popular track ("frozen" buried the soundtrack; a same-named song outranked "Radical Optimism"). `searchSpotify` now enriches result albums through the batch `/v1/albums?ids=` endpoint (new `SpotifyAPI.albums(ids:)`, chunked at Spotify's 20-id cap): `popularity` feeds the ranking's quality signal and the explicit badge is derived from the album's tracks (`containsExplicitTracks`)
+
 ---
 
 ## 2026.5
