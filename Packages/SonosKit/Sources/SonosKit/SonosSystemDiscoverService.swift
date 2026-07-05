@@ -23,7 +23,19 @@ extension NWBrowser.State {
 }
 
 class SonosStorageIP: ObservableObject {
-    @CloudStorage("sonos_ip") var sonosIP = ""
+    /// Legacy `sonos_ip` key. The main app's source of truth is now
+    /// `knownHouseholds`, but we still MIRROR the active household's IP here
+    /// (write-only) so external consumers that read this key directly — Clic Mini
+    /// and the Watch app — keep following the active system. Also read once on
+    /// first launch to migrate a pre-household install (see getFirstIP).
+    @CloudStorage("sonos_ip") var legacyIP = ""
+    @CloudStorage("sonos_known_households") var knownHouseholds: [SonosHousehold] = []
+    /// Households the user explicitly removed. Kept in the SAME synced store as
+    /// `knownHouseholds` (not device-local UserDefaults) so it is visible to the
+    /// widget/intent extension processes that also run getGroups — otherwise they
+    /// would re-adopt a deleted home and write it back into the synced list — and
+    /// so a deletion on one device doesn't get resurrected by another.
+    @CloudStorage("sonos_removed_households") var removedHouseholds: [String] = []
 }
 
 @Observable
@@ -40,6 +52,61 @@ final class SonosSystemDiscoverService {
         }
     }
 
+    /// Households the user explicitly removed. Blocked IDs are never auto-recorded
+    /// or auto-adopted, so a home you delete while standing in front of it doesn't
+    /// reappear on the next pulse or screen revisit. Backed by synced CloudStorage
+    /// (see SonosStorageIP.removedHouseholds) so extensions and other devices honour
+    /// it too. Cleared per-household by an explicit re-add (switch or manual scan).
+    var removedHouseholdIDs: Set<String> {
+        get { Set(sonosStorageIP.removedHouseholds) }
+        set { sonosStorageIP.removedHouseholds = Array(newValue) }
+    }
+
+    func isBlocked(_ id: String) -> Bool { removedHouseholdIDs.contains(id) }
+
+    @MainActor
+    func blockHousehold(id: String) {
+        var ids = removedHouseholdIDs
+        ids.insert(id)
+        removedHouseholdIDs = ids
+    }
+
+    @MainActor
+    func unblockHousehold(id: String) {
+        var ids = removedHouseholdIDs
+        ids.remove(id)
+        removedHouseholdIDs = ids
+    }
+
+    var knownHouseholds: [SonosHousehold] {
+        get { sonosStorageIP.knownHouseholds }
+        set { sonosStorageIP.knownHouseholds = newValue }
+    }
+
+    /// Known households ordered most-recently-connected first — the order the
+    /// Households list shows and the tiebreak `activeHousehold` uses when unpinned,
+    /// kept in one place so the list order and the active pick can't diverge.
+    var householdsByRecency: [SonosHousehold] {
+        knownHouseholds.sorted { $0.lastConnected > $1.lastConnected }
+    }
+
+    /// The household currently being monitored, or the most recently connected
+    /// one when no explicit preference is set. Falls back to recency when the
+    /// pinned household is no longer known — e.g. it was removed on another device
+    /// and the removal synced — so a stale pin can't strand this device with no
+    /// active system.
+    var activeHousehold: SonosHousehold? {
+        if let id = preferredHouseHold,
+           let pinned = knownHouseholds.first(where: { $0.id == id }) {
+            return pinned
+        }
+        return householdsByRecency.first
+    }
+
+    /// IP to use for the fast-path (no discovery needed). Derived from the
+    /// active household so there is a single source of truth.
+    var cachedIP: String { activeHousehold?.lastKnownIP ?? "" }
+
     @ObservationIgnored var sonosStorageIP = SonosStorageIP()
     @ObservationIgnored private var api = SonosAPI()
     @ObservationIgnored private var browser: NWBrowser?
@@ -53,6 +120,11 @@ final class SonosSystemDiscoverService {
     private var permissionsDenied: Bool = false
     private var connections: [NWConnection?] = []
     private var allIPs: Set<String> = []
+    // Guards the shared NWBrowser/allIPs/connections state so the reconnect
+    // discovery and the Households-screen scan don't run concurrent browses that
+    // reset each other mid-flight. Ownership-tracked + cancellation-aware (see
+    // acquireExclusiveBrowse) so it can never deadlock.
+    @ObservationIgnored private var browseBusy = false
     private var householdIDCache: [String: (id: String, timestamp: Date)] = [:] // IP -> (HouseholdID, Timestamp)
 
     var lastKnownIP: String = ""
@@ -96,6 +168,126 @@ final class SonosSystemDiscoverService {
         }
     }
 
+    // Ownership-tracked gate around the shared browser state (browser/allIPs/
+    // connections). Returns true only if THIS caller acquired it; the caller must
+    // release iff it acquired. The wait bound (12s) is deliberately longer than the
+    // longest browse it guards (performDiscovery caps at 10s, getAllIPs at 8s) so a
+    // legitimate holder is waited out rather than stomped mid-scan. On cancellation
+    // it returns false WITHOUT acquiring, so a cancelled non-owner never releases a
+    // gate a real holder still owns. It can't deadlock: browses are self-bounded and
+    // release via defer; the 12s ceiling is only a stuck-holder backstop.
+    @MainActor
+    private func acquireExclusiveBrowse() async -> Bool {
+        var waited = 0
+        while browseBusy {
+            if Task.isCancelled { return false }
+            try? await Task.sleep(for: .milliseconds(50))
+            waited += 50
+            if waited >= 12000 { break }
+        }
+        if Task.isCancelled { return false }
+        browseBusy = true
+        return true
+    }
+
+    @MainActor
+    private func releaseExclusiveBrowse() {
+        browseBusy = false
+    }
+
+    // Mirrors the active household's IP into the legacy `sonos_ip` key for
+    // external consumers (Clic Mini, Watch) that still read it directly. The main
+    // app never reads it except for first-launch migration. Writes the active
+    // household's IP, or clears the key when no household remains (so removing the
+    // active home doesn't leave those consumers pointed at the deleted system).
+    // Normal callers (record/switch) always have an active household; only
+    // removeHousehold reaches the empty/clear case. No-op when unchanged.
+    @MainActor
+    private func mirrorLegacyIP() {
+        let ip = cachedIP
+        if sonosStorageIP.legacyIP != ip { sonosStorageIP.legacyIP = ip }
+    }
+
+    // Re-mirror after a mutation that changes the active household without going
+    // through record/switch (i.e. removeHousehold).
+    @MainActor
+    func refreshLegacyMirror() {
+        mirrorLegacyIP()
+    }
+
+    // Directly pins a raw IP into the legacy key. Used by manual Connect-by-IP as
+    // a discovery-independent bootstrap: getFirstIP falls back to this so a
+    // hand-entered IP connects even when household identity can't be resolved and
+    // Bonjour is blocked.
+    @MainActor
+    func pinLegacyIP(_ ip: String) {
+        if sonosStorageIP.legacyIP != ip { sonosStorageIP.legacyIP = ip }
+    }
+
+    // Household ID for an IP with a 2s timeout + short cache. The reconnect race
+    // uses this (not the raw api call) so a device that serves getGroups but stalls
+    // on its household endpoint can't hold the race open for the full URLSession
+    // timeout.
+    func householdID(for ip: String) async -> String {
+        await getHouseholdIDWithCache(for: ip)
+    }
+
+    // Records or updates a household in the persistent known-households list.
+    // Accumulates all known IPs so the race in getGroups can probe them all.
+    // Skips households the user explicitly removed so they don't silently return.
+    @MainActor
+    private func recordHousehold(id: String, ip: String) {
+        guard !isBlocked(id) else { return }
+        var households = knownHouseholds
+        if let idx = households.firstIndex(where: { $0.id == id }) {
+            let unchanged = households[idx].lastKnownIP == ip && households[idx].knownIPs.contains(ip)
+            guard !unchanged else { return }
+            households[idx].lastKnownIP = ip
+            households[idx].knownIPs.insert(ip)
+            households[idx].lastConnected = .now
+        } else {
+            // Use the highest ordinal seen so far to avoid re-using a name after removal.
+            let maxOrdinal = households.compactMap { h -> Int? in
+                if h.name == "Home" { return 1 }
+                guard h.name.hasPrefix("Home "), let n = Int(h.name.dropFirst(5)) else { return nil }
+                return n
+            }.max() ?? 0
+            let next = maxOrdinal + 1
+            let name = next == 1 ? "Home" : "Home \(next)"
+            households.append(SonosHousehold(id: id, lastKnownIP: ip, name: name))
+        }
+        knownHouseholds = households
+        mirrorLegacyIP()
+    }
+
+    // Switches the active household. cachedIP is derived from knownHouseholds so
+    // no separate IP write is needed — the next getFirstIP(useCache:) call will
+    // race all of the household's known IPs against fresh Bonjour discovery.
+    @MainActor
+    func switchToHousehold(id: String) {
+        guard knownHouseholds.contains(where: { $0.id == id }) else { return }
+        preferredHouseHold = id
+        mirrorLegacyIP()
+    }
+
+    // Adopts a household as preferred and records the responding IP. Called when a
+    // known-household IP wins the getGroups race, switching networks without Bonjour.
+    // A blocked (user-removed) household is never adopted.
+    @MainActor
+    func adoptHousehold(id: String, ip: String) {
+        guard !isBlocked(id) else { return }
+        preferredHouseHold = id
+        recordHousehold(id: id, ip: ip)
+    }
+
+    // Records a household discovered on the network WITHOUT changing the active
+    // selection. Used by the Households screen's scan to surface newly-found homes
+    // (e.g. a friend's system you haven't switched to yet).
+    @MainActor
+    func recordDiscoveredHousehold(id: String, ip: String) {
+        recordHousehold(id: id, ip: ip)
+    }
+
     /// Gets household ID with caching and fast timeout (2 seconds max)
     private func getHouseholdIDWithCache(for ip: String) async -> String {
         // Check cache first (valid for 5 minutes)
@@ -136,8 +328,12 @@ final class SonosSystemDiscoverService {
 
     @MainActor
     func getFirstIP(useCache: Bool) async throws -> String {
-        if useCache && !sonosStorageIP.sonosIP.isEmpty {
-            return sonosStorageIP.sonosIP
+        if useCache {
+            // Primary: derive from the active household (single source of truth).
+            if !cachedIP.isEmpty { return cachedIP }
+            // Migration: first launch after upgrading from a version that stored
+            // only the raw IP without the household model.
+            if !sonosStorageIP.legacyIP.isEmpty { return sonosStorageIP.legacyIP }
         }
 
         // Skip discovery on cellular - Sonos devices are only reachable on local network
@@ -145,49 +341,49 @@ final class SonosSystemDiscoverService {
             throw SonosServiceError.sonosSystemNotFound
         }
 
+        let acquiredBrowse = await acquireExclusiveBrowse()
+        // Cancelled while waiting for the gate (e.g. a known-IP task already won the
+        // getGroups race): don't start a browse or flip the discovery state.
+        guard acquiredBrowse else { throw CancellationError() }
         defer {
             isSearching = false
             stopBrowsing()
+            releaseExclusiveBrowse()
         }
         isSearching = true
 
         return try await performDiscovery()
     }
 
-    /// Performs the actual device discovery
+    /// Performs the actual device discovery.
+    @MainActor
     private func performDiscovery() async throws -> String {
         startBrowseAll()
 
-        // Streaming discovery: check IPs as they arrive
         return try await withThrowingTaskGroup(of: (String, String).self, returning: String.self) { taskGroup in
             var processedIPs = Set<String>()
-            var fallbackIP: String?
+            // Best IP+ID for the preferred household, and for any household (widening fallback).
+            var preferredFallback: (ip: String, id: String)?
+            var anyFallback: (ip: String, id: String)?
             let startTime = Date.now
-            let maxDiscoveryTime: TimeInterval = 10 
+            let maxDiscoveryTime: TimeInterval = 10
 
-            // Minimal initial delay to let Bonjour browser start
             try? await Task.sleep(for: .milliseconds(100))
 
             while true {
-                // Check for timeout
-                if Date.now > startTime.addingTimeInterval(maxDiscoveryTime) {
-                    break
-                }
+                if Task.isCancelled { break }
+                if Date.now > startTime.addingTimeInterval(maxDiscoveryTime) { break }
 
-                // Check for permission denied
                 if permissionsDenied {
                     taskGroup.cancelAll()
                     throw SonosServiceError.permissionDenied
                 }
 
-                // Get newly discovered IPs
                 let currentIPs = lock.withLock { allIPs }
                 let newIPs = currentIPs.subtracting(processedIPs)
-
-                // Start checking household IDs for new IPs immediately
                 for ip in newIPs {
                     processedIPs.insert(ip)
-                    let ipCopy = ip // Capture for task
+                    let ipCopy = ip
                     taskGroup.addTask { [weak self] in
                         guard let self else { return ("", "") }
                         let id = await self.getHouseholdIDWithCache(for: ipCopy)
@@ -195,61 +391,78 @@ final class SonosSystemDiscoverService {
                     }
                 }
 
-                // Check if any household ID checks have completed (non-blocking)
                 if let result = try? await taskGroup.next() {
                     let (resultIP, householdID) = result
-                    guard !resultIP.isEmpty else { continue }
+                    guard !resultIP.isEmpty, !householdID.isEmpty else { continue }
+                    // A household the user removed must not auto-reconnect.
+                    if isBlocked(householdID) { continue }
 
-                    // Store first valid IP as fallback
-                    if fallbackIP == nil && !householdID.isEmpty {
-                        fallbackIP = resultIP
-                    }
+                    // Keep a widening fallback in case the preferred household is never found.
+                    if anyFallback == nil { anyFallback = (resultIP, householdID) }
 
-                    // If preferred household matches, return immediately
-                    if let preferredHouseHold = preferredHouseHold {
-                        if householdID == preferredHouseHold {
+                    if let preferred = preferredHouseHold {
+                        if householdID == preferred {
                             logger.trace("Found preferred household: \(householdID) at IP: \(resultIP)")
-                            sonosStorageIP.sonosIP = resultIP
+                            recordHousehold(id: householdID, ip: resultIP)
                             taskGroup.cancelAll()
                             return resultIP
                         }
-                    } else if !householdID.isEmpty {
-                        // No preference set - use first device found
+                        if preferredFallback == nil { preferredFallback = (resultIP, householdID) }
+                    } else {
+                        // No preference set — adopt the first device found.
                         logger.trace("No preferred household, using first found: \(householdID) at IP: \(resultIP)")
-                        sonosStorageIP.sonosIP = resultIP
                         preferredHouseHold = householdID
+                        recordHousehold(id: householdID, ip: resultIP)
                         taskGroup.cancelAll()
                         return resultIP
                     }
                 }
 
-                // If all IPs have been processed and checked, we can exit early
                 let totalConnections = lock.withLock { connections.count }
-                if processedIPs.count >= totalConnections && processedIPs.count > 0 {
-                    // Give a bit more time in case more devices appear
-                    if Date.now > startTime.addingTimeInterval(0.5) {
-                        break
-                    }
+                if processedIPs.count >= totalConnections && processedIPs.count > 0,
+                   Date.now > startTime.addingTimeInterval(0.5) {
+                    break
                 }
 
                 try? await Task.sleep(for: .milliseconds(25))
             }
 
-            // Drain remaining results
-            while let (resultIP, householdID) = try? await taskGroup.next() {
-                if !resultIP.isEmpty && !householdID.isEmpty {
-                    fallbackIP = resultIP
+            // Drain remaining results.
+            while !Task.isCancelled, let (resultIP, householdID) = try? await taskGroup.next() {
+                guard !resultIP.isEmpty, !householdID.isEmpty else { continue }
+                if isBlocked(householdID) { continue }
+                if anyFallback == nil { anyFallback = (resultIP, householdID) }
+                if let preferred = preferredHouseHold, householdID == preferred {
+                    preferredFallback = (resultIP, householdID)
                     break
                 }
             }
 
             taskGroup.cancelAll()
 
-            // Return fallback IP if we found any device
-            if let fallbackIP = fallbackIP {
-                logger.trace("Returning fallback IP: \(fallbackIP)")
-                sonosStorageIP.sonosIP = fallbackIP
-                return fallbackIP
+            // If this discovery was cancelled — e.g. it ran as the Bonjour arm of
+            // the getGroups race and a known-IP task already won — do NOT apply the
+            // terminal fallbacks. They mutate preferredHouseHold, which would
+            // clobber the selection the winner just made (or the one switchHousehold
+            // set). The caller's result is discarded on cancellation anyway.
+            if Task.isCancelled { throw CancellationError() }
+
+            // Use the preferred household's IP if we found it.
+            if let (ip, id) = preferredFallback {
+                logger.trace("Returning preferred-household fallback IP: \(ip)")
+                recordHousehold(id: id, ip: ip)
+                return ip
+            }
+
+            // Widening fallback: the preferred household wasn't on this network
+            // (e.g. stale preference after a factory reset). Connect to whatever
+            // Sonos system is available and update the preference so future
+            // launches are fast again.
+            if let (ip, id) = anyFallback {
+                logger.trace("Preferred household not found; widening to \(id) at \(ip)")
+                preferredHouseHold = id
+                recordHousehold(id: id, ip: ip)
+                return ip
             }
 
             throw SonosServiceError.sonosSystemNotFound
@@ -297,10 +510,13 @@ final class SonosSystemDiscoverService {
             return []
         }
 
+        let acquiredBrowse = await acquireExclusiveBrowse()
+        guard acquiredBrowse else { return [] }
         startBrowseAll()
 
         defer {
             stopBrowsing()
+            releaseExclusiveBrowse()
         }
 
         let startTime = Date.now

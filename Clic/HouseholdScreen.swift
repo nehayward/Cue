@@ -7,90 +7,115 @@ struct HouseholdScreen: View {
     @Environment(SonosService.self) var sonosService
     @Environment(AlertService.self) var alertService
 
-    @State private var isLoaded: Bool = false
-    @State private var houseHoldsIPs: Set<String> = []
-    @State private var roomsForIP: [String: [Room]] = [:]
-    /// `swGen` per household IP — 2 for Sonos S2 systems, 1 for S1. Populated
-    /// alongside `roomsForIP` in `loadHouseholds`. Nil if the device info
-    /// fetch fails (legacy speaker, network blip).
-    @State private var swGenForIP: [String: Int] = [:]
-    @State private var selectedIP: String?
+    @State private var households: [SonosHousehold] = []
+    @State private var isScanning: Bool = false
+    @State private var editingHousehold: SonosHousehold? = nil
+    @State private var renameText: String = ""
 
-    private var sortedHouseholdIPs: [String] {
-        Array(houseHoldsIPs).sorted()
-    }
+    /// Speaker rooms per household id, fetched lazily from each household's last
+    /// known IP so the row can show which speakers it contains. Reachable homes
+    /// populate; an offline home just shows its name + last-connected.
+    @State private var roomsByHousehold: [String: [Room]] = [:]
+    /// swGen per household id — 2 for Sonos S2, 1 for S1. Nil until the deviceInfo
+    /// fetch lands (or if it fails for an offline home).
+    @State private var swGenByHousehold: [String: Int] = [:]
 
     var body: some View {
         Group {
-            if !isLoaded {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if houseHoldsIPs.isEmpty {
+            if households.isEmpty && !isScanning {
                 emptyStateView
             } else {
                 householdList
             }
         }
-        .task {
-            await loadHouseholds()
-        }
         .navigationTitle("Households")
         .navigationBarTitleDisplayMode(.inline)
-        .fontDesign(.rounded)
-    }
-
-    private var emptyStateView: some View {
-        ContentUnavailableView {
-            Label("No Sonos Systems Found", systemImage: "house.slash")
-        } description: {
-            Text("Make sure your Sonos speakers are powered on and on the same Wi-Fi.")
-        } actions: {
-            Button {
-                Task { await loadHouseholds() }
-            } label: {
-                Text("Try Again")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    Task { await scanForNew(announce: true) }
+                } label: {
+                    if isScanning {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+                .disabled(isScanning)
             }
-            .buttonStyle(.bordered)
-            .tint(.accentColor)
+        }
+        .fontDesign(.rounded)
+        .sheet(item: $editingHousehold) { household in
+            renameSheet(for: household)
+        }
+        .onAppear {
+            // Show stored homes instantly, no waiting on the network.
+            refreshHouseholds()
+        }
+        .task {
+            // Enrich stored rows with speaker names / S1-S2, then scan the network
+            // for any new homes (e.g. a friend's system) and merge them in.
+            await enrichHouseholds(households)
+            await scanForNew()
         }
     }
 
     private var householdList: some View {
-        List {
+        // Resolve the active household once (it sorts knownHouseholds) rather than
+        // per row.
+        let activeID = sonosService.activeHousehold?.id
+        return List {
             Section {
-                ForEach(Array(sortedHouseholdIPs.enumerated()), id: \.element) { index, ip in
-                    householdRow(for: ip, index: index + 1)
+                ForEach(households) { household in
+                    householdRow(for: household, activeID: activeID)
+                        .contextMenu {
+                            Button {
+                                beginRename(household)
+                            } label: {
+                                Label("Rename", systemImage: "pencil")
+                            }
+                            Button(role: .destructive) {
+                                delete(household)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                delete(household)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            Button {
+                                beginRename(household)
+                            } label: {
+                                Label("Rename", systemImage: "pencil")
+                            }
+                            .tint(.orange)
+                        }
                 }
             } footer: {
-                Text("Tap to switch Sonos systems. The selected one drives playback and discovery.")
+                Text("Tap to switch Sonos systems. Long-press or swipe for rename and remove. Tap \(Image(systemName: "arrow.clockwise")) to scan for new systems on this network.")
             }
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
     }
 
-    /// Single household row — house glyph + "Household N" + "N speakers"
-    /// subtitle, matching the layout used by `SpeakerSettingsListView`.
-    /// A green checkmark marks the currently-selected household.
-    private func householdRow(for ip: String, index: Int) -> some View {
-        let rooms = roomsForIP[ip] ?? []
-        let isCurrent = sonosService.preferredHouseHold != nil && selectedIP == ip
+    private func householdRow(for household: SonosHousehold, activeID: String?) -> some View {
+        let isActive = household.id == activeID
+        let rooms = roomsByHousehold[household.id] ?? []
 
         return Button {
-            guard !isCurrent else { return }
-            Task {
-                selectedIP = ip
-                sonosService.preferredHouseHold = await sonosService.getHouseID(for: ip)
-                alertService.showAlert(with: "Switched Sonos system")
-                try? await sonosService.load(useCache: false)
-            }
+            guard !isActive else { return }
+            sonosService.switchHousehold(to: household.id)
+            refreshHouseholds()
+            alertService.showAlert(with: "Switched to \(household.name)")
         } label: {
             HStack(spacing: 14) {
-                // Tile shows the S1/S2 label once we know it; falls back to
-                // the gradient home icon while the deviceInfo fetch is in
-                // flight. Black-on-white treatment for the version label
-                // reads cleaner than the blue gradient.
+                // S1/S2 badge tile once known; otherwise the gradient home glyph.
                 ZStack {
-                    if let badge = systemBadge(for: ip) {
+                    if let badge = systemBadge(for: household.id) {
                         RoundedRectangle(cornerRadius: 8)
                             .fill(Color.black)
                         Text(badge)
@@ -114,25 +139,23 @@ struct HouseholdScreen: View {
                 .frame(width: 32, height: 32)
                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
 
-                // Speaker names ARE the household identifier — Sonos doesn't
-                // expose a user-set household name, so listing the rooms is
-                // the most recognizable thing we can show. The subtitle
-                // doubles as a tap-affordance hint ("Switch system" /
-                // "Current system") so the row's action is obvious.
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(speakerNamesSummary(for: rooms))
+                    Text(household.name)
                         .font(.headline)
                         .foregroundStyle(.primary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    Text(isCurrent ? "Current system" : "Switch system")
+                        .lineLimit(1)
+                    // Speaker names when we have them (identifies which system this
+                    // is), otherwise fall back to the last-connected timestamp.
+                    Text(subtitle(for: household, rooms: rooms))
                         .font(.caption)
-                        .foregroundStyle(isCurrent ? .secondary : Color.accentColor)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
 
                 Spacer()
 
-                if isCurrent {
+                if isActive {
                     Image(systemName: "checkmark")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.green)
@@ -144,49 +167,141 @@ struct HouseholdScreen: View {
         .buttonStyle(.plain)
     }
 
-    /// Returns "S2" or "S1" for the given household, based on the swGen
-    /// reported by the household's first reachable speaker. Returns nil while
-    /// the deviceInfo lookup is still pending or if it failed.
-    private func systemBadge(for ip: String) -> String? {
-        guard let gen = swGenForIP[ip] else { return nil }
+    /// "S2"/"S1" for the household once its swGen is known, else nil.
+    private func systemBadge(for id: String) -> String? {
+        guard let gen = swGenByHousehold[id] else { return nil }
         return gen >= 2 ? "S2" : "S1"
     }
 
-    /// Comma-joined speaker names for the household. Caps at 4 names + a
-    /// "+N more" suffix so the subtitle stays readable on small screens
-    /// when a single household has many speakers.
-    private func speakerNamesSummary(for rooms: [Room]) -> String {
-        guard !rooms.isEmpty else { return "No speakers" }
-        let names = rooms.map(\.name).sorted()
-        let displayLimit = 4
-        if names.count <= displayLimit {
-            return names.formatted(.list(type: .and))
+    private func subtitle(for household: SonosHousehold, rooms: [Room]) -> String {
+        if !rooms.isEmpty {
+            return speakerNamesSummary(for: rooms)
         }
-        let visible = names.prefix(displayLimit).joined(separator: ", ")
-        let remaining = names.count - displayLimit
-        return "\(visible) +\(remaining) more"
+        return "Last connected \(household.lastConnected.formatted(.relative(presentation: .named)))"
     }
 
-    private func loadHouseholds() async {
-        isLoaded = false
-        defer { isLoaded = true }
+    /// "(7) Living Room, Kitchen, …" — the total speaker count always leads (so it
+    /// stays visible), followed by the names. The cell truncates to a single line.
+    private func speakerNamesSummary(for rooms: [Room]) -> String {
+        let names = rooms.map(\.name).sorted()
+        guard !names.isEmpty else { return "No speakers" }
+        return "(\(names.count)) \(names.joined(separator: ", "))"
+    }
 
-        self.houseHoldsIPs = await SonosService.shared.getAllHouseholdsIPs()
-
-        for ip in houseHoldsIPs {
-            guard let groups = try? await SonosService.shared.getGroups(with: ip) else {
-                continue
-            }
-            roomsForIP[ip] = groups.flatMap(\.rooms)
-
-            // One deviceInfo fetch per household to pick up `swGen` (S1 vs S2).
-            // Runs in parallel with whatever else loadHouseholds is doing in
-            // the next iteration, so it doesn't block the list from rendering.
-            Task { @MainActor in
-                if let info = await SonosService.shared.deviceInfo(for: ip) {
-                    swGenForIP[ip] = info.swGen
+    @ViewBuilder
+    private func renameSheet(for household: SonosHousehold) -> some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Name", text: $renameText)
+                        .autocorrectionDisabled()
                 }
             }
+            .navigationTitle("Rename Household")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { editingHousehold = nil }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        let name = renameText.trimmingCharacters(in: .whitespaces)
+                        if !name.isEmpty {
+                            sonosService.renameHousehold(id: household.id, name: name)
+                            refreshHouseholds()
+                        }
+                        editingHousehold = nil
+                    }
+                    .disabled(renameText.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private var emptyStateView: some View {
+        ContentUnavailableView {
+            Label("No Known Households", systemImage: "house.slash")
+        } description: {
+            Text("Tap Scan to find Sonos systems on your network.")
+        } actions: {
+            Button {
+                Task { await scanForNew(announce: true) }
+            } label: {
+                Text("Scan for Sonos")
+            }
+            .buttonStyle(.bordered)
+            .tint(.accentColor)
+        }
+    }
+
+    private func beginRename(_ household: SonosHousehold) {
+        renameText = household.name
+        editingHousehold = household
+    }
+
+    private func delete(_ household: SonosHousehold) {
+        sonosService.removeHousehold(id: household.id)
+        roomsByHousehold[household.id] = nil
+        swGenByHousehold[household.id] = nil
+        refreshHouseholds()
+        alertService.showAlert(with: "Household removed")
+    }
+
+    @MainActor
+    private func refreshHouseholds() {
+        households = sonosService.householdsByRecency
+    }
+
+    /// Fetches speaker names + S1/S2 for the given households from each one's last
+    /// known IP, in parallel. Best-effort: offline homes simply don't populate.
+    /// Scoped to a subset so the on-appear enrich (stored homes) and the post-scan
+    /// enrich (only newly-found homes) don't re-fetch the same homes twice.
+    @MainActor
+    private func enrichHouseholds(_ toEnrich: [SonosHousehold]) async {
+        await withTaskGroup(of: Void.self) { group in
+            for household in toEnrich {
+                let id = household.id
+                let ip = household.lastKnownIP
+                guard !ip.isEmpty else { continue }
+                group.addTask { @MainActor in
+                    if let groups = try? await SonosService.shared.getGroups(with: ip) {
+                        roomsByHousehold[id] = groups.flatMap(\.rooms)
+                    }
+                }
+                group.addTask { @MainActor in
+                    if let info = await SonosService.shared.deviceInfo(for: ip) {
+                        swGenByHousehold[id] = info.swGen
+                    }
+                }
+            }
+        }
+    }
+
+    /// Scans the current network for Sonos systems and merges any newly-found
+    /// homes into the list. `announce` is true only for the manual refresh button
+    /// so the on-appear auto-scan stays silent; the manual scan also re-adds a
+    /// reachable home the user previously removed (an explicit "look again").
+    @MainActor
+    private func scanForNew(announce: Bool = false) async {
+        guard !isScanning else { return }
+        isScanning = true
+        defer { isScanning = false }
+        let before = Set(households.map(\.id))
+        _ = await sonosService.discoverHouseholds(includeRemoved: announce)
+        households = sonosService.householdsByRecency
+        // Enrich only the newly-discovered homes; the stored ones were already
+        // enriched on appear, so this avoids re-fetching (and re-stalling on
+        // offline homes) every one of them.
+        await enrichHouseholds(households.filter { !before.contains($0.id) })
+        guard announce else { return }
+        let newCount = households.filter { !before.contains($0.id) }.count
+        if newCount > 0 {
+            alertService.showAlert(with: newCount == 1 ? "Found a new home" : "Found \(newCount) new homes")
+        } else if households.isEmpty {
+            alertService.showAlert(with: "No Sonos systems found")
+        } else {
+            alertService.showAlert(with: "No new homes found")
         }
     }
 }
