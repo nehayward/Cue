@@ -98,6 +98,12 @@ public final class SonosService {
         sonosSystemDiscoverService.knownHouseholds
     }
 
+    /// `knownHouseholds` ordered most-recently-connected first — the canonical
+    /// display order for the Households list.
+    public var householdsByRecency: [SonosHousehold] {
+        sonosSystemDiscoverService.householdsByRecency
+    }
+
     /// The household currently being monitored (or the most-recently-connected
     /// one when no explicit preference is set).
     public var activeHousehold: SonosHousehold? {
@@ -2481,40 +2487,8 @@ public final class SonosService {
         }
     }
 
-    public func getHouseID() async -> String? {
-        guard let ip = prioritizedIP() else { return nil }
-        return await api.getHouseHoldID(for: ip)
-    }
-
     public func getHouseID(for ip: String) async -> String? {
         return await api.getHouseHoldID(for: ip)
-    }
-
-    public func getAllHouseholdsIPs() async -> Set<String> {
-        guard let ips = try? await sonosSystemDiscoverService.getAllIPs() else { return [] }
-
-        var householdMap = [String: String]()
-        var savedIPs = Set<String>()
-
-        await withTaskGroup(of: (String, String).self) { taskGroup in
-            for ip in ips {
-                taskGroup.addTask { [weak self] in
-                    guard let self else { return ("", "") }
-                    let householdID = await self.api.getHouseHoldID(for: ip)
-                    return (householdID, ip)
-                }
-            }
-
-            for await (householdID, ip) in taskGroup {
-                if householdMap[householdID] == nil {
-                    householdMap[householdID] = ip
-                    savedIPs.insert(ip)
-                }
-            }
-        }
-
-        print(householdMap)
-        return savedIPs
     }
 
     /// Scans the current network (Bonjour) for every reachable Sonos household and

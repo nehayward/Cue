@@ -83,6 +83,13 @@ final class SonosSystemDiscoverService {
         set { sonosStorageIP.knownHouseholds = newValue }
     }
 
+    /// Known households ordered most-recently-connected first — the order the
+    /// Households list shows and the tiebreak `activeHousehold` uses when unpinned,
+    /// kept in one place so the list order and the active pick can't diverge.
+    var householdsByRecency: [SonosHousehold] {
+        knownHouseholds.sorted { $0.lastConnected > $1.lastConnected }
+    }
+
     /// The household currently being monitored, or the most recently connected
     /// one when no explicit preference is set. Falls back to recency when the
     /// pinned household is no longer known — e.g. it was removed on another device
@@ -93,7 +100,7 @@ final class SonosSystemDiscoverService {
            let pinned = knownHouseholds.first(where: { $0.id == id }) {
             return pinned
         }
-        return knownHouseholds.sorted { $0.lastConnected > $1.lastConnected }.first
+        return householdsByRecency.first
     }
 
     /// IP to use for the fast-path (no discovery needed). Derived from the

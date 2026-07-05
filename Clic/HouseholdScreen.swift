@@ -62,10 +62,13 @@ struct HouseholdScreen: View {
     }
 
     private var householdList: some View {
-        List {
+        // Resolve the active household once (it sorts knownHouseholds) rather than
+        // per row.
+        let activeID = sonosService.activeHousehold?.id
+        return List {
             Section {
                 ForEach(households) { household in
-                    householdRow(for: household)
+                    householdRow(for: household, activeID: activeID)
                         .contextMenu {
                             Button {
                                 beginRename(household)
@@ -99,8 +102,8 @@ struct HouseholdScreen: View {
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
     }
 
-    private func householdRow(for household: SonosHousehold) -> some View {
-        let isActive = household.id == sonosService.activeHousehold?.id
+    private func householdRow(for household: SonosHousehold, activeID: String?) -> some View {
+        let isActive = household.id == activeID
         let rooms = roomsByHousehold[household.id] ?? []
 
         return Button {
@@ -247,8 +250,7 @@ struct HouseholdScreen: View {
 
     @MainActor
     private func refreshHouseholds() {
-        households = sonosService.knownHouseholds
-            .sorted { $0.lastConnected > $1.lastConnected }
+        households = sonosService.householdsByRecency
     }
 
     /// Fetches speaker names + S1/S2 for the given households from each one's last
@@ -286,8 +288,8 @@ struct HouseholdScreen: View {
         isScanning = true
         defer { isScanning = false }
         let before = Set(households.map(\.id))
-        let updated = await sonosService.discoverHouseholds(includeRemoved: announce)
-        households = updated.sorted { $0.lastConnected > $1.lastConnected }
+        _ = await sonosService.discoverHouseholds(includeRemoved: announce)
+        households = sonosService.householdsByRecency
         // Enrich only the newly-discovered homes; the stored ones were already
         // enriched on appear, so this avoids re-fetching (and re-stalling on
         // offline homes) every one of them.
