@@ -91,6 +91,29 @@ First-class playlist management for Apple Music, Spotify, Plex, and Deezer along
 - `LibraryBrowseScreen`: Imported Playlists load-more closure now forwards `offset` to `updateImportedPlaylists(offset:)` instead of discarding it (was always re-fetching page 0)
 - Alphabetical grouping moved out of `PlayableContentList` (where a computed dictionary was re-grouped once per section header and again per letter subscript — O(letters × items) every render) into cached `LibrarySection` arrays on `LibraryBrowseService` (`albumSections` / `artistSections` / `playlistSections`), recomputed only when the underlying set changes; the view now renders the prebuilt sections, so non-data re-renders do zero grouping work. Playlist deletion routed through `removePlaylist(id:)` so the cache stays in sync
 
+### Multiple households & instant multi-network reconnect
+Clic now models every Sonos system it has connected to as a `SonosHousehold` and reconnects by racing known addresses against Bonjour, so moving between networks (home ↔ a friend's house) is instant once a home is known.
+
+**Model & storage**
+- New `SonosHousehold` (`id`, `lastKnownIP`, `knownIPs: Set<String>`, `name`, `lastConnected`) persisted as `sonos_known_households` in `@CloudStorage` (iCloud-synced). Custom `init(from:)` migrates older records that predate `knownIPs` by seeding it from `lastKnownIP`
+- `cachedIP`/`lastKnownIP` are now derived from the active household (single source of truth). The old `sonos_ip` key is read once for first-launch migration and otherwise kept as a **write-only mirror** (`mirrorLegacyIP`) so external readers — Clic Mini, the Watch app, the Connect-by-IP indicator — keep following the active system
+- `activeHousehold` = the pinned `preferredHouseHold` when set, else the most-recently-connected home
+
+**Reconnect race (`SonosService.getGroups`)**
+- When the session-cached IP isn't yet verified, races a deduped `Set` of every known household's IPs plus a Bonjour discovery task; first responder wins and `cancelAll()` tears down the losers (`URLSession.data` is cancellation-aware). `cachedIPVerified` gates the fast path so steady-state polls stay a single request
+- Identity is always resolved from the responding device (`getGroups` + `getHouseHoldID` fired concurrently via `async let`) — an IP is never treated as a stable household id (DHCP reassignment, colliding `192.168.x.x` across LANs). Only a verified, still-known household is adopted; anything else falls through to Bonjour
+- A 400ms grace window lets a still-reachable *preferred* household win over other reachable systems before widening, so a second Sonos on the same LAN can't hijack the manual selection
+- `invalidateVerifiedConnection()` is called on foreground (`ClicApp` scenePhase) so a network change while backgrounded re-races instead of stalling on a now-stale IP
+
+**Household management (`SonosService`)**
+- `switchHousehold`, `removeHousehold`, `renameHousehold`, `discoverHouseholds(includeRemoved:)`. Removal writes a synced `sonos_removed_households` blocklist honoured by `recordHousehold`/`adoptHousehold`/`performDiscovery`, so a deleted home isn't re-adopted by the pulse, a scan, or a widget/intent extension process (the blocklist lives in the same synced store as the household list, not device-local `UserDefaults`). Removing the active home also `clearDevices()` to stop the pulse
+- `performDiscovery`'s terminal widening fallback is guarded by `Task.isCancelled` so a cancelled Bonjour arm can't clobber the race winner's (or a switch's) selection
+- Manual Connect-by-IP (`setStaticIP`/`setPriorityDevice`) resolves and adopts the household at the entered IP through the model — the sole bootstrap on Bonjour-blocked networks
+- Concurrent browses (reconnect discovery vs. the Households scan) are serialized by a bounded, cancellation-safe `waitForExclusiveBrowse` gate so they don't reset each other's shared `NWBrowser`/`allIPs` state
+
+**Households screen** (`HouseholdScreen`)
+- Shows stored homes instantly, then lazily enriches each row with its speaker names and an S1/S2 badge (`getGroups(with:)` + `deviceInfo(for:)` per home). Tap to switch, long-press context menu or swipe to rename/remove, toolbar button to rescan the current network (which un-blocks a previously-removed reachable home)
+
 ### Search relevance overhaul (SearchRanking)
 - Ranking extracted from `MusicSearchService` into a pure, unit-tested `SearchRanking` engine (SonosKit) — the old scoring counted an in-order character subsequence, so "Love" and "Lyrics of Vengeance" tied for the query "love", and popularity carried the dominant weight (0.5)
 - Tiered text matching: exact (1.0) > prefix (0.9) > whole-word substring (0.8) > all query words present (0.75, typo-tolerant words discounted) > mid-word substring (0.55) > length-penalized subsequence (≤ 0.4). Normalization is case-, diacritic- and punctuation-insensitive ("beyonce" == "Beyoncé", "dont" == "Don't", "Mr. Brightside" == "mr brightside")

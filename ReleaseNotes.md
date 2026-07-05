@@ -1,6 +1,7 @@
 # 2026.6
 
 –– New Features ––
+- Multiple Homes: Clic now remembers every Sonos system you connect to. Manage them under Preferences ▸ Households — each home shows its speakers and whether it's an S1 or S2 system so they're easy to tell apart. Switch systems with a tap, and long-press or swipe to rename or remove a home. Open the screen anywhere and Clic scans for new systems on that network (like a friend's house) and adds them automatically
 - Playlist Management: Add any song to your Apple Music, Spotify, Plex, or Deezer playlists — not just Sonos. The new Add to Playlist sheet lets you pick several playlists at once, create a new one, search, and jump to a recently-used playlist; tap the confirmation to open the playlist you added to
 - Edit Playlists: Open a Spotify, Plex, Deezer, or Sonos playlist you own and tap Edit to remove tracks (swipe, menu, or multi-select), drag to reorder, or delete the playlist — with Undo (⌘Z on Mac)
 - Create Playlists: Make a new playlist for Apple Music, Spotify, Deezer, Plex, or Sonos from its browse screen — including an empty one you fill in later
@@ -10,6 +11,8 @@
 - Also Search: Search several services at once — toggle extra services in the search service menu (like your Library alongside Apple Music) and get one combined, ranked list of results
 
 –– Bug Fixes & Improvements ––
+- Faster reconnect on a new network: when you move between Wi-Fi networks — or return to the app at a different location — Clic now finds your speakers right away instead of waiting through a timeout. Once a home is known, switching to it is instant
+- Fixed the app briefly stalling on the last-used speaker after switching networks, before falling back to discovery
 - Fixed removing one track from a Spotify playlist also deleting other copies of the same song — only the track you remove is removed now
 - Fixed adding a large album (more than 50 tracks) to a Spotify playlist only adding the first batch — every track is added now
 - Fixed the Deezer "Add to Playlist" list showing playlists you follow but don't own — only your own playlists are offered now, so the add no longer silently fails
