@@ -23,6 +23,7 @@
 - Search now shows a "No Results" screen when nothing matches instead of a blank list
 - Fixed Plex songs missing from search — tracks are no longer dropped when the server omits optional details like media info or artwork from search responses
 - Spotify albums now rank by popularity, so searching an album like Frozen surfaces it near the top instead of below every song — and albums containing explicit tracks now show the explicit badge
+- Apple Music search now uses Apple's own Top Results to rank its hits higher, matching the ordering you see in the Music app
 
 # 2026.5
 

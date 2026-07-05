@@ -117,6 +117,10 @@ First-class playlist management for Apple Music, Spotify, Plex, and Deezer along
 - `PlexParser` required 13 attributes per track (`Media` audio details, `Part` file, `parentThumb`, all rating keys, `librarySectionID`, …) and silently dropped any track missing one — servers that omit optional detail from `/hubs/search` responses returned zero songs while albums/artists still showed. Tracks, albums, and artists now require only `title` + `ratingKey` (all the Sonos play URI needs); everything else is optional with the track's own `thumb` as an artwork fallback
 - `PlexTrack.container`/`file` (never consumed) and the `parentRatingKey`/`grandparentRatingKey` keys are now optionals; Plex subtitles skip empty components instead of rendering dangling "•" separators
 
+### Apple Music Top Results as the popularity signal
+- MusicKit exposes no popularity, so Apple results ranked on text tiers alone. `searchAppleMusic` now requests `includeTopResults = true` and grants Apple's editorial Top Results descending synthetic popularity (90, 85, …) via `PlayableContentMetadata.replacing(popularity:isExplicit:)` — Apple's picks rank like the other services' hits, and an Apple artist in Top Results qualifies for the full top-artist bonus (the bonus scales with popularity)
+- Apple already supported the other new signals: `contentRating` drives the explicit badge on songs *and* albums, and `releaseDate` feeds the new-release boost
+
 ### Spotify album popularity + explicit badge
 - Spotify's search API returns simplified album objects with no `popularity` and no explicit flag, so albums ranked on text alone and sat below every popular track ("frozen" buried the soundtrack; a same-named song outranked "Radical Optimism"). `searchSpotify` now enriches result albums through the batch `/v1/albums?ids=` endpoint (new `SpotifyAPI.albums(ids:)`, chunked at Spotify's 20-id cap): `popularity` feeds the ranking's quality signal and the explicit badge is derived from the album's tracks (`containsExplicitTracks`)
 

@@ -669,14 +669,8 @@ public final class MusicSearchService {
         return playableContent.map { item in
             guard item.content.type == .album, let detail = detailsByID[item.id] else { return item }
             var enriched = item
-            enriched.metadata = PlayableContentMetadata(
-                popularity: detail.popularity,
-                artist: item.metadata?.artist,
-                artistID: item.metadata?.artistID,
-                album: item.metadata?.album,
-                albumYear: item.metadata?.albumYear,
-                isExplicit: detail.containsExplicitTracks
-            )
+            enriched.metadata = item.metadata?.replacing(popularity: detail.popularity, isExplicit: detail.containsExplicitTracks)
+                ?? PlayableContentMetadata(popularity: detail.popularity, isExplicit: detail.containsExplicitTracks)
             return enriched
         }
     }
@@ -699,7 +693,7 @@ public final class MusicSearchService {
         async let radioResults = apple.searchRadioStations(term: query, limit: 5)
 
         var request = MusicCatalogSearchRequest(term: query, types: [Song.self, Album.self, Playlist.self, Artist.self])
-        request.includeTopResults = false
+        request.includeTopResults = true
         request.limit = 20
 
         if let results = try? await request.response() {
@@ -707,6 +701,25 @@ public final class MusicSearchService {
             playableContent.append(contentsOf: results.albums.map(\.toPlayable))
             playableContent.append(contentsOf: results.artists.map(\.toPlayable))
             playableContent.append(contentsOf: results.playlists.map { $0.toPlayable(isUserPlaylist: false) })
+
+            // MusicKit reports no popularity; Apple's editorial Top Results
+            // are the equivalent signal. Grant them descending synthetic
+            // popularity so ranking treats Apple's picks like the other
+            // services' hits (and the top-artist slot can trust them).
+            let topResultRanks = Dictionary(
+                results.topResults.prefix(5).enumerated().map { ($0.element.id.description, $0.offset) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            if !topResultRanks.isEmpty {
+                playableContent = playableContent.map { item in
+                    guard let rank = topResultRanks[item.id], (item.metadata?.popularity ?? 0) == 0 else { return item }
+                    var boosted = item
+                    let popularity = 90 - rank * 5
+                    boosted.metadata = item.metadata?.replacing(popularity: popularity, isExplicit: item.metadata?.isExplicit)
+                        ?? PlayableContentMetadata(popularity: popularity)
+                    return boosted
+                }
+            }
         }
 
         if let stations = try? await radioResults {
