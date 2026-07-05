@@ -152,7 +152,7 @@ final class SearchRankingTests: XCTestCase {
                 item(title: "The Queen Collection", subtitle: "Various Artists", type: .album),
                 item(title: "Bohemian Rhapsody", subtitle: "Queen", popularity: 95),
                 item(title: "Queen", subtitle: "Jessie J", popularity: 70),
-                item(title: "Queen", subtitle: "Artist", type: .artist),
+                item(title: "Queen", subtitle: "Artist", type: .artist, popularity: 89),
             ],
             query: "queen"
         )
@@ -228,6 +228,19 @@ final class SearchRankingTests: XCTestCase {
 
         let results = SearchRanking.sort([old, fresh], query: "comeback", now: now)
         XCTAssertEqual(results.map(\.id), ["fresh", "old"])
+    }
+
+    func testSongTitleQueryDoesNotCrownObscureArtist() {
+        // "just dance" means the Lady Gaga song — an unknown artist who
+        // happens to share the name must not take the top slot.
+        let results = SearchRanking.sort(
+            [
+                item(title: "Just Dance", subtitle: "Artist", type: .artist, popularity: 20, id: "obscure-artist"),
+                item(title: "Just Dance", subtitle: "Lady Gaga, Colby O'Donis", popularity: 80, id: "hit-song"),
+            ],
+            query: "just dance"
+        )
+        XCTAssertEqual(results.first?.id, "hit-song")
     }
 
     func testSongPlusArtistQueryFindsTheTrack() {

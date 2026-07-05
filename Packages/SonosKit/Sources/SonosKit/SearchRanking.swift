@@ -55,7 +55,14 @@ enum SearchRanking {
         if let topArtist {
             let text = textScore(item: entries[topArtist].item, query: query)
             if text >= topArtistMinimumText {
-                entries[topArtist].score += topArtistBonus * text
+                // Scale the bonus by the artist's own popularity (half
+                // strength when unknown): a song-title query must not crown
+                // a nobody who happens to share the name — "just dance"
+                // means the Lady Gaga song, not an obscure artist named
+                // "Just Dance". A genuinely popular artist still tops their
+                // own hit tracks.
+                let artistQuality = min(Double(entries[topArtist].item.metadata?.popularity ?? 0) / 100, 1)
+                entries[topArtist].score += topArtistBonus * text * (0.5 + 0.5 * artistQuality)
 
                 // Spotify's search API reports popularity for tracks and
                 // artists but not albums, which buried the focused artist's
@@ -63,7 +70,6 @@ enum SearchRanking {
                 // inherit its popularity as their quality signal so they
                 // surface alongside the artist's tracks.
                 let artistName = normalized(entries[topArtist].item.title)
-                let artistQuality = min(Double(entries[topArtist].item.metadata?.popularity ?? 0) / 100, 1)
                 if !artistName.isEmpty, artistQuality > 0 {
                     for index in entries.indices {
                         let candidate = entries[index].item
