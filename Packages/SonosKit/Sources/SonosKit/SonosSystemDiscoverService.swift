@@ -84,10 +84,14 @@ final class SonosSystemDiscoverService {
     }
 
     /// The household currently being monitored, or the most recently connected
-    /// one when no explicit preference is set.
+    /// one when no explicit preference is set. Falls back to recency when the
+    /// pinned household is no longer known — e.g. it was removed on another device
+    /// and the removal synced — so a stale pin can't strand this device with no
+    /// active system.
     var activeHousehold: SonosHousehold? {
-        if let id = preferredHouseHold {
-            return knownHouseholds.first(where: { $0.id == id })
+        if let id = preferredHouseHold,
+           let pinned = knownHouseholds.first(where: { $0.id == id }) {
+            return pinned
         }
         return knownHouseholds.sorted { $0.lastConnected > $1.lastConnected }.first
     }
@@ -111,8 +115,8 @@ final class SonosSystemDiscoverService {
     private var allIPs: Set<String> = []
     // Guards the shared NWBrowser/allIPs/connections state so the reconnect
     // discovery and the Households-screen scan don't run concurrent browses that
-    // reset each other mid-flight. Bounded + cancellation-aware (see
-    // waitForExclusiveBrowse) so it can never deadlock.
+    // reset each other mid-flight. Ownership-tracked + cancellation-aware (see
+    // acquireExclusiveBrowse) so it can never deadlock.
     @ObservationIgnored private var browseBusy = false
     private var householdIDCache: [String: (id: String, timestamp: Date)] = [:] // IP -> (HouseholdID, Timestamp)
 
@@ -157,17 +161,26 @@ final class SonosSystemDiscoverService {
         }
     }
 
-    // Bounded, cancellation-aware gate around the shared browser state. Not a
-    // hard lock: on timeout or cancellation it proceeds anyway (never worse than
-    // the previous always-concurrent behaviour) so it cannot hang a task.
+    // Ownership-tracked gate around the shared browser state (browser/allIPs/
+    // connections). Returns true only if THIS caller acquired it; the caller must
+    // release iff it acquired. The wait bound (12s) is deliberately longer than the
+    // longest browse it guards (performDiscovery caps at 10s, getAllIPs at 8s) so a
+    // legitimate holder is waited out rather than stomped mid-scan. On cancellation
+    // it returns false WITHOUT acquiring, so a cancelled non-owner never releases a
+    // gate a real holder still owns. It can't deadlock: browses are self-bounded and
+    // release via defer; the 12s ceiling is only a stuck-holder backstop.
     @MainActor
-    private func waitForExclusiveBrowse() async {
+    private func acquireExclusiveBrowse() async -> Bool {
         var waited = 0
-        while browseBusy, waited < 6000, !Task.isCancelled {
+        while browseBusy {
+            if Task.isCancelled { return false }
             try? await Task.sleep(for: .milliseconds(50))
             waited += 50
+            if waited >= 12000 { break }
         }
+        if Task.isCancelled { return false }
         browseBusy = true
+        return true
     }
 
     @MainActor
@@ -177,11 +190,39 @@ final class SonosSystemDiscoverService {
 
     // Mirrors the active household's IP into the legacy `sonos_ip` key for
     // external consumers (Clic Mini, Watch) that still read it directly. The main
-    // app never reads it except for first-launch migration. No-op when unchanged.
+    // app never reads it except for first-launch migration. Writes the active
+    // household's IP, or clears the key when no household remains (so removing the
+    // active home doesn't leave those consumers pointed at the deleted system).
+    // Normal callers (record/switch) always have an active household; only
+    // removeHousehold reaches the empty/clear case. No-op when unchanged.
     @MainActor
     private func mirrorLegacyIP() {
         let ip = cachedIP
-        if !ip.isEmpty, sonosStorageIP.legacyIP != ip { sonosStorageIP.legacyIP = ip }
+        if sonosStorageIP.legacyIP != ip { sonosStorageIP.legacyIP = ip }
+    }
+
+    // Re-mirror after a mutation that changes the active household without going
+    // through record/switch (i.e. removeHousehold).
+    @MainActor
+    func refreshLegacyMirror() {
+        mirrorLegacyIP()
+    }
+
+    // Directly pins a raw IP into the legacy key. Used by manual Connect-by-IP as
+    // a discovery-independent bootstrap: getFirstIP falls back to this so a
+    // hand-entered IP connects even when household identity can't be resolved and
+    // Bonjour is blocked.
+    @MainActor
+    func pinLegacyIP(_ ip: String) {
+        if sonosStorageIP.legacyIP != ip { sonosStorageIP.legacyIP = ip }
+    }
+
+    // Household ID for an IP with a 2s timeout + short cache. The reconnect race
+    // uses this (not the raw api call) so a device that serves getGroups but stalls
+    // on its household endpoint can't hold the race open for the full URLSession
+    // timeout.
+    func householdID(for ip: String) async -> String {
+        await getHouseholdIDWithCache(for: ip)
     }
 
     // Records or updates a household in the persistent known-households list.
@@ -293,7 +334,10 @@ final class SonosSystemDiscoverService {
             throw SonosServiceError.sonosSystemNotFound
         }
 
-        await waitForExclusiveBrowse()
+        let acquiredBrowse = await acquireExclusiveBrowse()
+        // Cancelled while waiting for the gate (e.g. a known-IP task already won the
+        // getGroups race): don't start a browse or flip the discovery state.
+        guard acquiredBrowse else { throw CancellationError() }
         defer {
             isSearching = false
             stopBrowsing()
@@ -459,7 +503,8 @@ final class SonosSystemDiscoverService {
             return []
         }
 
-        await waitForExclusiveBrowse()
+        let acquiredBrowse = await acquireExclusiveBrowse()
+        guard acquiredBrowse else { return [] }
         startBrowseAll()
 
         defer {

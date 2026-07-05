@@ -130,6 +130,9 @@ public final class SonosService {
         if sonosSystemDiscoverService.preferredHouseHold == id {
             sonosSystemDiscoverService.preferredHouseHold = nil
         }
+        // Re-point (or clear) the legacy sonos_ip mirror so Clic Mini / the Watch
+        // don't keep controlling the system that was just removed.
+        sonosSystemDiscoverService.refreshLegacyMirror()
         if wasActive {
             clearDevices()
         }
@@ -1146,7 +1149,10 @@ public final class SonosService {
                         // would let a reassigned/colliding IP silently drive a stranger's
                         // system and poison the stored household record.
                         async let groupsResult = self.api.getGroups(ipAddress: ip)
-                        async let verifiedID = self.api.getHouseHoldID(for: ip)
+                        // Bounded (2s) + cached identity lookup so a device that
+                        // serves groups but stalls on its household endpoint can't
+                        // hold the race open for the full URLSession timeout.
+                        async let verifiedID = self.sonosSystemDiscoverService.householdID(for: ip)
                         do {
                             let groups = try await groupsResult
                             return .knownWin(groups: groups, ip: ip, verifiedID: await verifiedID)
@@ -2811,25 +2817,27 @@ public final class SonosService {
         return sortedRooms.first ?? allRooms.first
     }
     
+    /// Prioritise the best current speaker (wired/newer, non-portable) by pinning
+    /// its IP through the same path as manual Connect-by-IP, so it resolves and
+    /// adopts the correct household even when there isn't one yet. Returns the
+    /// chosen room (nil if none available).
     @MainActor
-    public func setPriorityDevice() -> Room? {
+    public func setPriorityDevice() async -> Room? {
         guard let device = priorityDevice() else { return nil }
-        // Pin this speaker's IP as the active household's preferred address so
-        // reconnects favour it (wired/newer, non-portable). Derived state flows
-        // through the household model; no separate IP key to write.
-        if let id = sonosSystemDiscoverService.activeHousehold?.id {
-            sonosSystemDiscoverService.recordDiscoveredHousehold(id: id, ip: device.ip)
-            cachedIPVerified = false
-        }
+        await setStaticIP(ip: device.ip)
         return device
     }
 
     /// Manually connect to a Sonos speaker by IP. This is the ONLY bootstrap path
-    /// on networks where Bonjour/mDNS discovery is blocked, so it must populate the
-    /// household model directly: resolve the household living at `ip` and adopt it
-    /// as the active one, then reconnect.
+    /// on networks where Bonjour/mDNS discovery is blocked, so it must work even
+    /// when household identity can't be resolved: it pins the raw IP into the
+    /// legacy key first (getFirstIP falls back to it, discovery-independent), then
+    /// resolves + adopts the household when possible, then reconnects.
     @MainActor
     public func setStaticIP(ip: String) async {
+        // Discovery-independent pin so a hand-entered IP connects regardless of
+        // whether identity resolution or Bonjour succeed.
+        sonosSystemDiscoverService.pinLegacyIP(ip)
         let householdID = await api.getHouseHoldID(for: ip)
         if !householdID.isEmpty {
             // Explicit user action — unblock in case it was previously removed.

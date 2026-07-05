@@ -56,7 +56,7 @@ struct HouseholdScreen: View {
         .task {
             // Enrich stored rows with speaker names / S1-S2, then scan the network
             // for any new homes (e.g. a friend's system) and merge them in.
-            await enrichHouseholds()
+            await enrichHouseholds(households)
             await scanForNew()
         }
     }
@@ -251,12 +251,14 @@ struct HouseholdScreen: View {
             .sorted { $0.lastConnected > $1.lastConnected }
     }
 
-    /// Fetches speaker names + S1/S2 for each known household from its last known
-    /// IP, in parallel. Best-effort: offline homes simply don't populate.
+    /// Fetches speaker names + S1/S2 for the given households from each one's last
+    /// known IP, in parallel. Best-effort: offline homes simply don't populate.
+    /// Scoped to a subset so the on-appear enrich (stored homes) and the post-scan
+    /// enrich (only newly-found homes) don't re-fetch the same homes twice.
     @MainActor
-    private func enrichHouseholds() async {
+    private func enrichHouseholds(_ toEnrich: [SonosHousehold]) async {
         await withTaskGroup(of: Void.self) { group in
-            for household in households {
+            for household in toEnrich {
                 let id = household.id
                 let ip = household.lastKnownIP
                 guard !ip.isEmpty else { continue }
@@ -286,8 +288,10 @@ struct HouseholdScreen: View {
         let before = Set(households.map(\.id))
         let updated = await sonosService.discoverHouseholds(includeRemoved: announce)
         households = updated.sorted { $0.lastConnected > $1.lastConnected }
-        // Pull speaker names / S1-S2 for anything newly discovered.
-        await enrichHouseholds()
+        // Enrich only the newly-discovered homes; the stored ones were already
+        // enriched on appear, so this avoids re-fetching (and re-stalling on
+        // offline homes) every one of them.
+        await enrichHouseholds(households.filter { !before.contains($0.id) })
         guard announce else { return }
         let newCount = households.filter { !before.contains($0.id) }.count
         if newCount > 0 {
