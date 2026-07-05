@@ -56,15 +56,17 @@ public struct SpotifyAlbumDetails: Decodable, Sendable {
     public let durationMs: Int?
     public let explicit: Bool?
     /// Only present on full album objects (the search API returns simplified
-    /// albums without it).
+    /// albums without it). Marked deprecated in Spotify's docs but still
+    /// served; ranking degrades gracefully if it ever disappears (nil).
     public let popularity: Int?
 
     public var releaseDateFormatted: String? {
         return releaseDate.components(separatedBy: "-").first
     }
 
-    /// Albums have no explicit flag of their own; derive it from the tracks
-    /// the full album object includes (first page is plenty).
+    /// Albums carry no explicit flag at any level in the Web API — per-track
+    /// `explicit` on the embedded first page of tracks is the only source,
+    /// so this zero-extra-requests derivation is the minimal one.
     public var containsExplicitTracks: Bool {
         tracks.items.contains(where: \.explicit)
     }
