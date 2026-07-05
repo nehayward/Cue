@@ -110,6 +110,9 @@ First-class playlist management for Apple Music, Spotify, Plex, and Deezer along
 ### Plex hearts in search results
 - `PlexParser` now reads the `userRating` attribute for tracks and albums (`PlexTrack`/`PlexAlbum` → `PlayableContentMetadata.userRating`), so the heart `PlayableContentView` already renders appears in Plex search rows — and rated tracks feed the ranking's quality signal
 
+### Search "No Results" empty state
+- `SearchScreen` shows the standard `ContentUnavailableView.search(text:)` when a query finishes loading with no matching results (`!isLoading && currentFilteredResults.isEmpty`) — previously the list was simply blank. Gated on `isLoading` so it never flashes while provider results are still streaming in
+
 ---
 
 ## 2026.5

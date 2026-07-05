@@ -20,6 +20,7 @@
 - Smarter search: results now rank like Spotify and Apple Music — the artist you're looking for lands on top with their albums and hits right below, popular and new releases rank higher, songs you play often get a boost, and close matches beat loose ones
 - Search now forgives typos and punctuation — "beyonse" finds Beyoncé, "dont stop me now" finds Don't Stop Me Now
 - Plex tracks you've loved now show their heart in search results
+- Search now shows a "No Results" screen when nothing matches instead of a blank list
 
 # 2026.5
 
