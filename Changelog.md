@@ -91,6 +91,11 @@ First-class playlist management for Apple Music, Spotify, Plex, and Deezer along
 - `LibraryBrowseScreen`: Imported Playlists load-more closure now forwards `offset` to `updateImportedPlaylists(offset:)` instead of discarding it (was always re-fetching page 0)
 - Alphabetical grouping moved out of `PlayableContentList` (where a computed dictionary was re-grouped once per section header and again per letter subscript — O(letters × items) every render) into cached `LibrarySection` arrays on `LibraryBrowseService` (`albumSections` / `artistSections` / `playlistSections`), recomputed only when the underlying set changes; the view now renders the prebuilt sections, so non-data re-renders do zero grouping work. Playlist deletion routed through `removePlaylist(id:)` so the cache stays in sync
 
+### Music library share location in Preferences
+- New `SonosService.libraryShares()` browses the `S:` container (the same `getLibraryItems(IP:type:)` call the Library → Folders screen uses) and returns the configured share paths (e.g. `//nas/Music`) by mapping item titles
+- `PreferenceScreen` fetches the shares in its existing `.task` and shows them as secondary caption text under the "Refresh Sonos Library" label, one per line — hidden when no shares are configured or no speaker has been discovered yet
+- Motivated by Sonos's S1 desktop controller being Intel-only (unusable once Rosetta goes away): the share path is now visible in Clic, alongside the existing local `RefreshShareIndex` re-index action
+
 ---
 
 ## 2026.5
