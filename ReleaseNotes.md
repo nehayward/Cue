@@ -7,6 +7,8 @@
 - Add to Last Playlist: A one-tap shortcut — in the track menu and the Mac File menu — to drop the current song into the playlist you used last
 - Song Previews: Long-press an Apple Music or Spotify track and tap Preview Song to hear a quick clip — or swipe right on a track in a list. A progress bar fills as the clip plays, and you can tap the track to stop it
 - Library Song Actions: Long-press a song in your Apple Music library to open its Apple Album or Apple Artist, or start a Song Radio — Clic resolves the matching catalog track behind the scenes
+- Plex Setup in Onboarding: If you use Plex, setup now walks you through signing in and choosing your music library right away — with artist artwork previews so libraries are easy to tell apart
+- Automatic Plex Connection: A new Auto connection type uses your fast local network at home and switches to remote access when you're away — pick it, Remote, or Local from the redesigned connection switch in Plex settings
 
 –– Bug Fixes & Improvements ––
 - Fixed removing one track from a Spotify playlist also deleting other copies of the same song — only the track you remove is removed now
@@ -16,6 +18,7 @@
 - Fixed "Switch to Line In" appearing on speakers that don't support line-in
 - Fixed the library Albums list stopping partway through the alphabet — albums, songs, and artists now load your entire library as you scroll
 - Fixed Genres, Imported Playlists, and folder contents being cut off in large libraries — these now load fully as you scroll
+- Improved Plex speed and reliability — Clic picks the fastest way to reach your server, automatically switches connection when you change networks, and no longer hangs on an unreachable server
 
 # 2026.5
 
