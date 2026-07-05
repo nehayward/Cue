@@ -107,6 +107,26 @@ final class SearchRankingTests: XCTestCase {
         XCTAssertEqual(SearchRanking.normalized("Don't Stop Me Now"), "dont stop me now")
         XCTAssertEqual(SearchRanking.normalized("Beyoncé"), "beyonce")
         XCTAssertEqual(SearchRanking.normalized("  AC/DC  "), "ac dc")
+        // Fullwidth characters (common in Japanese catalog titles) fold to
+        // their ASCII forms.
+        XCTAssertEqual(SearchRanking.normalized("ＡＢＢＡ"), "abba")
+    }
+
+    func testWordStartMatchDetectedAtAnyOccurrence() {
+        // The first occurrence is mid-word; the later word-start occurrence
+        // must still earn the whole-word tier.
+        XCTAssertEqual(SearchRanking.textMatchScore(source: "Supermarket Market", query: "market"), 0.8)
+    }
+
+    func testMisspelledArtistQueryStillCrownsTheArtist() {
+        let results = SearchRanking.sort(
+            [
+                item(title: "Halo", subtitle: "Beyoncé", popularity: 85),
+                item(title: "Beyoncé", subtitle: "Artist", type: .artist, popularity: 95, id: "artist"),
+            ],
+            query: "beyonse"
+        )
+        XCTAssertEqual(results.first?.id, "artist")
     }
 
     // MARK: Weighting

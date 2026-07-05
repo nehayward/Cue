@@ -117,6 +117,11 @@ First-class playlist management for Apple Music, Spotify, Plex, and Deezer along
 - `PlexParser` required 13 attributes per track (`Media` audio details, `Part` file, `parentThumb`, all rating keys, `librarySectionID`, …) and silently dropped any track missing one — servers that omit optional detail from `/hubs/search` responses returned zero songs while albums/artists still showed. Tracks, albums, and artists now require only `title` + `ratingKey` (all the Sonos play URI needs); everything else is optional with the track's own `thumb` as an artwork fallback
 - `PlexTrack.container`/`file` (never consumed) and the `parentRatingKey`/`grandparentRatingKey` keys are now optionals; Plex subtitles skip empty components instead of rendering dangling "•" separators
 
+### Search ranking review hardening
+- Word-boundary detection now checks every occurrence via padded containment instead of only the first range — "Supermarket Market" earns the whole-word tier for "market", and top-artist album attribution no longer misses later whole-word occurrences
+- Normalization folds width too (fullwidth "ＡＢＢＡ" matches "abba"); the query is normalized once per sort instead of ~4× per item
+- Top-artist floor lowered to the typo tier (0.6) so a misspelled artist query ("beyonse") still crowns the artist — safe now that the bonus scales with artist popularity
+
 ### Apple Music Top Results as the popularity signal
 - MusicKit exposes no popularity, so Apple results ranked on text tiers alone. `searchAppleMusic` now requests `includeTopResults = true` and grants Apple's editorial Top Results descending synthetic popularity (90, 85, …) via `PlayableContentMetadata.replacing(popularity:isExplicit:)` — Apple's picks rank like the other services' hits, and an Apple artist in Top Results qualifies for the full top-artist bonus (the bonus scales with popularity)
 - Apple already supported the other new signals: `contentRating` drives the explicit badge on songs *and* albums, and `releaseDate` feeds the new-release boost

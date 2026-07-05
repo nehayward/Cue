@@ -25,10 +25,12 @@ enum SearchRanking {
         recentlyPlayedIDs: Set<String> = [],
         now: Date = Date()
     ) -> [PlayableContent] {
+        // Normalized once here; every per-item comparison reuses it.
+        let normalizedQuery = normalized(query)
         var uniqueItems: [String: (item: PlayableContent, score: Double, index: Int)] = [:]
 
         for (index, item) in playableContent.enumerated() {
-            let itemScore = score(item: item, query: query, recentlyPlayedIDs: recentlyPlayedIDs, now: now)
+            let itemScore = score(item: item, normalizedQuery: normalizedQuery, recentlyPlayedIDs: recentlyPlayedIDs, now: now)
             let key = "\(item.id)-\(item.title)-\(item.subtitle)"
             if let existing = uniqueItems[key] {
                 if itemScore > existing.score {
@@ -53,7 +55,7 @@ enum SearchRanking {
                 return entries[lhs].index > entries[rhs].index
             }
         if let topArtist {
-            let text = textScore(item: entries[topArtist].item, query: query)
+            let text = textScore(item: entries[topArtist].item, normalizedQuery: normalizedQuery)
             if text >= topArtistMinimumText {
                 // Scale the bonus by the artist's own popularity (half
                 // strength when unknown): a song-title query must not crown
@@ -107,8 +109,11 @@ enum SearchRanking {
     /// Extra lift for the single best-matching artist (applied in `sort`),
     /// so the artist the user is likely typing lands on top.
     private static let topArtistBonus = 0.2
-    /// An artist must actually match this well before it can take the top slot.
-    private static let topArtistMinimumText = 0.75
+    /// An artist must actually match this well before it can take the top
+    /// slot. Set at the typo tier (0.75 × 0.8) so a misspelled artist query
+    /// ("beyonse") still crowns the artist — the popularity scaling on the
+    /// bonus is what keeps junk artists out of the slot.
+    private static let topArtistMinimumText = 0.6
     /// Matches that need title + subtitle combined ("rhapsody queen").
     private static let combinedFactor = 0.9
     /// Matching the title with its version suffix stripped ("Love Story
@@ -128,7 +133,16 @@ enum SearchRanking {
         recentlyPlayedIDs: Set<String> = [],
         now: Date = Date()
     ) -> Double {
-        let text = textScore(item: item, query: query)
+        score(item: item, normalizedQuery: normalized(query), recentlyPlayedIDs: recentlyPlayedIDs, now: now)
+    }
+
+    private static func score(
+        item: PlayableContent,
+        normalizedQuery: String,
+        recentlyPlayedIDs: Set<String>,
+        now: Date
+    ) -> Double {
+        let text = textScore(item: item, normalizedQuery: normalizedQuery)
 
         // Spotify reports popularity (0-100); Plex and the local library
         // report user star ratings (0-10) instead. Either works as the
@@ -170,13 +184,17 @@ enum SearchRanking {
     /// The best text relevance across the item's title (with and without a
     /// version suffix), subtitle, and combined title + subtitle.
     static func textScore(item: PlayableContent, query: String) -> Double {
-        var titleScore = textMatchScore(source: item.title, query: query)
+        textScore(item: item, normalizedQuery: normalized(query))
+    }
+
+    private static func textScore(item: PlayableContent, normalizedQuery: String) -> Double {
+        var titleScore = textMatchScore(source: item.title, normalizedQuery: normalizedQuery)
         let primary = primaryTitle(of: item.title)
         if primary != item.title {
-            titleScore = max(titleScore, textMatchScore(source: primary, query: query) * primaryTitleFactor)
+            titleScore = max(titleScore, textMatchScore(source: primary, normalizedQuery: normalizedQuery) * primaryTitleFactor)
         }
-        let subtitleScore = textMatchScore(source: item.subtitle, query: query)
-        let combinedScore = textMatchScore(source: "\(item.title) \(item.subtitle)", query: query)
+        let subtitleScore = textMatchScore(source: item.subtitle, normalizedQuery: normalizedQuery)
+        let combinedScore = textMatchScore(source: "\(item.title) \(item.subtitle)", normalizedQuery: normalizedQuery)
 
         return max(titleScore, subtitleScore * subtitleFactor, combinedScore * combinedFactor)
     }
@@ -192,16 +210,22 @@ enum SearchRanking {
     /// subsequence, so "Love" and "Lyrics of Vengeance" tied for the query
     /// "love".
     static func textMatchScore(source: String, query: String) -> Double {
+        textMatchScore(source: source, normalizedQuery: normalized(query))
+    }
+
+    private static func textMatchScore(source: String, normalizedQuery: String) -> Double {
         let source = normalized(source)
-        let query = normalized(query)
+        let query = normalizedQuery
         guard !source.isEmpty, !query.isEmpty else { return 0 }
 
         if source == query { return 1 }
         if source.hasPrefix(query) { return 0.9 }
 
-        if let range = source.range(of: query) {
-            let startsWord = range.lowerBound == source.startIndex
-                || source[source.index(before: range.lowerBound)] == " "
+        if source.range(of: query) != nil {
+            // Word-start occurrences can appear after a mid-word one
+            // ("Supermarket Market" for "market"), so check via padding
+            // instead of only inspecting the first range.
+            let startsWord = (" " + source).contains(" " + query)
             return startsWord ? 0.8 : 0.55
         }
 
@@ -236,11 +260,12 @@ enum SearchRanking {
         return 0.4 * coverage * lengthPenalty
     }
 
-    /// Case- and diacritic-insensitive ("beyonce" == "Beyoncé"), apostrophes
-    /// removed ("dont" == "Don't"), other punctuation treated as a word break
-    /// ("Mr. Brightside" == "mr brightside").
+    /// Case-, diacritic-, and width-insensitive ("beyonce" == "Beyoncé",
+    /// fullwidth "ＡＢＢＡ" == "abba"), apostrophes removed ("dont" ==
+    /// "Don't"), other punctuation treated as a word break ("Mr. Brightside"
+    /// == "mr brightside").
     static func normalized(_ text: String) -> String {
-        let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
         var result = ""
         var lastWasSpace = true
         for character in folded {
@@ -259,15 +284,11 @@ enum SearchRanking {
     }
 
     /// Whether `phrase` appears in `text` bounded by word breaks on both
-    /// sides — "dua" matches "dua lipa jun 2024" but not "duality". Both
-    /// strings must already be normalized.
+    /// sides — "dua" matches "dua lipa jun 2024" but not "duality". Padded
+    /// containment checks every occurrence, not just the first. Both strings
+    /// must already be normalized.
     private static func matchesWholeWords(_ text: String, phrase: String) -> Bool {
-        guard let range = text.range(of: phrase) else { return false }
-        let startsWord = range.lowerBound == text.startIndex
-            || text[text.index(before: range.lowerBound)] == " "
-        let endsWord = range.upperBound == text.endIndex
-            || text[range.upperBound] == " "
-        return startsWord && endsWord
+        (" " + text + " ").contains(" " + phrase + " ")
     }
 
     /// The title with a trailing version/remix suffix removed:
