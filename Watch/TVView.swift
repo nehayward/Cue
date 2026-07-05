@@ -59,18 +59,36 @@ struct TVView: View {
                     .buttonBorderShape(.roundedRectangle)
                     .opacity(!device.groupIsMuted ? 0.5 : 1)
                     
-                    Button {
-                        Task {
-                            try? await sonosService.setDialogLevel(device.ip, enabled:  !speachEnhancement)
-                            try? await sonosService.updateWatchDevices(from: [device])
+                    if device.isArcUltra {
+                        let speechLevel = device.TVSettings?.speechLevel ?? .off
+                        Button {
+                            Task {
+                                let all = SpeechLevel.allCases
+                                let next = all[(all.firstIndex(of: speechLevel)! + 1) % all.count]
+                                try? await sonosService.setArcUltraSpeechLevel(device.ip, level: next)
+                                try? await sonosService.updateWatchDevices(from: [device])
+                            }
+                        } label: {
+                            Label("Speech: \(speechLevel.title)", systemImage: "person.wave.2.fill")
+                                .symbolRenderingMode(.hierarchical)
+                                .labelStyle(.iconOnly)
                         }
-                    } label: {
-                        Label("Dialog Mode", systemImage: "person.wave.2.fill")
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
+                        .buttonBorderShape(.roundedRectangle)
+                        .opacity(speechLevel.isActive ? 1 : 0.5)
+                    } else {
+                        Button {
+                            Task {
+                                try? await sonosService.setDialogLevel(device.ip, enabled: !speachEnhancement)
+                                try? await sonosService.updateWatchDevices(from: [device])
+                            }
+                        } label: {
+                            Label("Dialog Mode", systemImage: "person.wave.2.fill")
+                                .symbolRenderingMode(.hierarchical)
+                                .labelStyle(.iconOnly)
+                        }
+                        .buttonBorderShape(.roundedRectangle)
+                        .opacity(speachEnhancement ? 1 : 0.5)
                     }
-                    .buttonBorderShape(.roundedRectangle)
-                    .opacity(speachEnhancement ? 1 : 0.5)
                 }
                 
                 HStack(spacing: 0) {
