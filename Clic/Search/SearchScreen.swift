@@ -322,11 +322,10 @@ struct SearchScreen: View {
                 lastNonEmptyQuery = musicSearchService.query
             }
         }
-        .onChange(of: musicSearchSelection) {
-            keyboardSelectedIndex = nil
-            musicSearchService.results = []
-        }
-        .onChange(of: searchAlsoServices) {
+        // Switching the primary service or the "Also Search" set changes the
+        // result set entirely, so drop the stale results immediately (a query
+        // edit deliberately keeps old results to avoid flicker while typing).
+        .onChange(of: selectedSearchServices) {
             keyboardSelectedIndex = nil
             musicSearchService.results = []
         }
@@ -680,10 +679,21 @@ private struct MediaServiceMenu: View {
                 if service != musicSearchSelection,
                    service != .tuneIn,
                    coreFeatures.enabledServices(service).wrappedValue {
-                    Toggle(isOn: alsoSearchBinding(for: service)) {
-                        HStack {
-                            Text(service.title)
-                            service.iconForMusicService
+                    // A Button mutating the set directly avoids a hand-rolled
+                    // Binding; in a Menu the checkmark icon renders as the
+                    // standard selected-row indicator.
+                    Button {
+                        toggleExtra(service)
+                    } label: {
+                        Label {
+                            HStack {
+                                Text(service.title)
+                                service.iconForMusicService
+                            }
+                        } icon: {
+                            if activeExtras.contains(service) {
+                                Image(systemName: "checkmark")
+                            }
                         }
                     }
                 }
@@ -691,20 +701,15 @@ private struct MediaServiceMenu: View {
         }
     }
 
-    private func alsoSearchBinding(for service: MediaSearchService) -> Binding<Bool> {
-        Binding(
-            get: { activeExtras.contains(service) },
-            set: { include in
-                HapticManager.shared.fireHaptic(.buttonPress)
-                if include {
-                    searchAlsoServices.services.insert(service)
-                } else {
-                    searchAlsoServices.services.remove(service)
-                }
-                // The primary is never stored as an extra.
-                searchAlsoServices.services.remove(musicSearchSelection)
-            }
-        )
+    private func toggleExtra(_ service: MediaSearchService) {
+        HapticManager.shared.fireHaptic(.buttonPress)
+        if activeExtras.contains(service) {
+            searchAlsoServices.services.remove(service)
+        } else {
+            searchAlsoServices.services.insert(service)
+        }
+        // The primary is never stored as an extra.
+        searchAlsoServices.services.remove(musicSearchSelection)
     }
 }
 
