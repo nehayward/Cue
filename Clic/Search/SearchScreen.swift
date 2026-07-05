@@ -134,6 +134,12 @@ struct SearchScreen: View {
                             filters: $filters,
                             plexLibrariesFilters: $plexLibrariesFilters
                         )
+
+                        if !isLoading, currentFilteredResults.isEmpty {
+                            ContentUnavailableView.search(text: musicSearchService.query)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                        }
                     }
 
                     if isLoading {
