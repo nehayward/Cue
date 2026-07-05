@@ -19,8 +19,7 @@ struct PlayableCardView: View {
     var item: PlayableContent
     var hideArtwork: Bool = false
     var hideAction: Bool = false
-    
-    
+
     var body: some View {
         VStack {
             if let add = adding?.add, add {
@@ -117,19 +116,19 @@ struct PlayableCardView: View {
     private func play(position: QueuePosition? = nil) {
         hideKeyboard()
         Task { @MainActor in
-            let queueSong: ((GroupRoom) async throws -> Void) = { [replaceQueueByDefault] group in
-                let finalPosition = position ?? QueuePosition.defaultPosition(
-                    for: item.content.type,
-                    replaceQueueByDefault: replaceQueueByDefault
-                )
-                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: finalPosition))
+            let defaultPosition = position ?? QueuePosition.defaultPosition(
+                for: item.content.type,
+                replaceQueueByDefault: replaceQueueByDefault
+            )
+            let queueSong: ((GroupRoom, QueuePosition) async throws -> Void) = { group, selectedPosition in
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: selectedPosition))
                 router.show(destination: .player(groupID: group.coordinatorID))
             }
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: item))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queueSong, defaultPosition: defaultPosition, content: item))
                 return
             }
-            try await queueSong(group)
+            try await queueSong(group, defaultPosition)
         }
     }
 }

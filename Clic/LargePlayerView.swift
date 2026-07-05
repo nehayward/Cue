@@ -367,11 +367,11 @@ fileprivate struct SongTitleButton: View {
 
     @State private var isHovering: Bool = false
 
-    private static let supportedServices: Set<MusicService> = [.spotify, .apple, .library, .tidal, .plex]
+    private var isSupported: Bool { group.coordinatorRoom.track.musicService.supportsViewArtistAlbum }
 
     var body: some View {
         Button {
-            guard Self.supportedServices.contains(group.coordinatorRoom.track.musicService) else { return }
+            guard isSupported else { return }
             HapticManager.shared.fireHaptic(.buttonPress)
             router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
         } label: {
@@ -385,7 +385,7 @@ fileprivate struct SongTitleButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            guard Self.supportedServices.contains(group.coordinatorRoom.track.musicService) else { return }
+            guard isSupported else { return }
             withAnimation(.interactiveSpring) {
                 isHovering = hovering
             }
@@ -401,11 +401,11 @@ fileprivate struct ArtistButton: View {
 
     @State private var isHovering: Bool = false
 
-    private static let supportedServices: Set<MusicService> = [.spotify, .apple, .library, .tidal, .plex]
+    private var isSupported: Bool { group.coordinatorRoom.track.musicService.supportsViewArtistAlbum }
 
     var body: some View {
         Button {
-            guard Self.supportedServices.contains(group.coordinatorRoom.track.musicService) else { return }
+            guard isSupported else { return }
             HapticManager.shared.fireHaptic(.buttonPress)
             router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
         } label: {
@@ -421,7 +421,7 @@ fileprivate struct ArtistButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            guard Self.supportedServices.contains(group.coordinatorRoom.track.musicService) else { return }
+            guard isSupported else { return }
             withAnimation(.interactiveSpring) {
                 isHovering = hovering
             }

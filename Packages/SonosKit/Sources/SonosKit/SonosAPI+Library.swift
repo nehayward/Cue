@@ -25,15 +25,15 @@ extension SonosAPI {
         return xmlParser.parseLibrarySearch(IP: IP, xml: xml)
     }
 
-    func libraryLookup(IP: String, id: String) async -> [PlayableContent] {
+    func libraryLookup(IP: String, id: String, offset: Int = 0, requestedCount: Int = 100) async -> [PlayableContent] {
         guard let objectID = id.components(separatedBy: "#").last else { return [] }
-        
+
         let arguments: OrderedKeys = [
             ("ObjectID", objectID),
             ("BrowseFlag", "BrowseDirectChildren"),
             ("Filter", "*"),
-            ("StartingIndex", 0),
-            ("RequestedCount", 100),
+            ("StartingIndex", offset),
+            ("RequestedCount", requestedCount),
             ("SortCriteria", "")
         ]
 

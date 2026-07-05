@@ -13,6 +13,7 @@ struct PlayableContentList: View {
     @Environment(Router.self) var router
 
     @State private var isLoading: Bool = false
+    @State private var hasMoreContent: Bool = true
     @State private var navigationTitle: String = ""
     
     var type: ContentType
@@ -60,37 +61,37 @@ struct PlayableContentList: View {
 
     @ViewBuilder
     private var albumSections: some View {
-        ForEach(groupedAlbums.keys.sorted(), id: \.self) { letter in
-            Section(header: Text(letter)) {
-                ForEach(groupedAlbums[letter] ?? []) { item in
+        ForEach(browseService.albumSections) { section in
+            Section(header: Text(section.letter)) {
+                ForEach(section.items) { item in
                     VStack {
                         PlayableContentView(item: item)
                     }
                 }
             }
-            .sectionIndex(letter)
+            .sectionIndex(section.letter)
         }
     }
 
     @ViewBuilder
     private var artistSections: some View {
-        ForEach(groupedArtists.keys.sorted(), id: \.self) { letter in
-            Section(header: Text(letter)) {
-                ForEach(groupedArtists[letter] ?? []) { item in
+        ForEach(browseService.artistSections) { section in
+            Section(header: Text(section.letter)) {
+                ForEach(section.items) { item in
                     VStack {
                         PlayableContentView(item: item)
                     }
                 }
             }
-            .sectionIndex(letter)
+            .sectionIndex(section.letter)
         }
     }
 
     @ViewBuilder
     private var playlistSections: some View {
-        ForEach(groupedPlaylists.keys.sorted(), id: \.self) { letter in
-            Section(header: Text(letter)) {
-                ForEach(groupedPlaylists[letter] ?? []) { item in
+        ForEach(browseService.playlistSections) { section in
+            Section(header: Text(section.letter)) {
+                ForEach(section.items) { item in
                     VStack {
                         PlayableContentView(item: item)
                     }
@@ -98,32 +99,60 @@ struct PlayableContentList: View {
                         Button("Delete", role: .destructive) {
                             Task {
                                 await sonosService.delete(playlistID: item.id)
-                                browseService.playlists.removeAll { $0.id == item.id }
+                                browseService.removePlaylist(id: item.id)
                             }
                         }
                     }
                 }
             }
-            .sectionIndex(letter)
+            .sectionIndex(section.letter)
         }
     }
     
+    @ViewBuilder
     private var loadMoreIndicator: some View {
-        ProgressView()
+        if hasMoreContent {
+            // A near-invisible row keeps the paging trigger alive; the spinner
+            // only appears while a next page is actually being fetched (not on
+            // the initial load, which has its own full-screen overlay).
+            VStack {
+                if isLoading && !isCurrentListEmpty {
+                    ProgressView()
+                        .padding(.vertical, 8)
+                } else {
+                    Color.clear.frame(height: 1)
+                }
+            }
             .frame(maxWidth: .infinity, alignment: .center)
             .listRowBackground(Color.clear)
-            .opacity(0.01)
-            .task { await loadMoreContent() }
             .listRowSeparator(.hidden)
+            .onAppear { Task { await loadMoreContent() } }
+        }
     }
     
+    @ViewBuilder
     private var loadingOverlay: some View {
-        Group {
-            if isLoading {
-                ProgressView()
-                    .padding()
-                    .background(.thickMaterial)
-            }
+        // Only the initial load shows the full-screen spinner; paging more
+        // pages happens silently in the background.
+        if isLoading && isCurrentListEmpty {
+            ProgressView()
+                .padding()
+                .background(.thickMaterial)
+        }
+    }
+
+    private var isCurrentListEmpty: Bool {
+        switch type {
+        case .track:
+            return browseService.songs.isEmpty
+        case .album:
+            return browseService.albums.isEmpty
+        case .artist:
+            return browseService.artists.isEmpty
+        case .playlist:
+            return browseService.playlists.isEmpty
+        default:
+            return true
         }
     }
     
@@ -134,7 +163,8 @@ struct PlayableContentList: View {
                     Button {
                         router.presentedSheet = .newPlaylist()
                     } label: {
-                        Image(systemName: "plus")
+                        Label("Add", systemImage: "plus")
+                            .labelStyle(.iconOnly)
                     }
                 }
             }
@@ -187,74 +217,36 @@ struct PlayableContentList: View {
     private func loadInitialContent() async {
         isLoading = true
         defer { isLoading = false }
-        
+
         switch type {
         case .track:
-            await browseService.updateSongs()
+            hasMoreContent = await browseService.updateSongs()
         case .album:
-            await browseService.updateAlbum()
+            hasMoreContent = await browseService.updateAlbum()
         case .artist:
-            await browseService.updateArtists()
+            hasMoreContent = await browseService.updateArtists()
         case .playlist:
             await browseService.updatePlaylists()
+            hasMoreContent = false
         default:
-            break
+            hasMoreContent = false
         }
     }
-    
+
     private func loadMoreContent() async {
+        guard !isLoading, hasMoreContent else { return }
+        isLoading = true
+        defer { isLoading = false }
+
         switch type {
         case .track:
-            await browseService.updateSongs(offset: browseService.songs.count - 1)
+            hasMoreContent = await browseService.updateSongs(offset: browseService.songs.count)
         case .album:
-            await browseService.updateAlbum(offset: browseService.albums.count - 1)
+            hasMoreContent = await browseService.updateAlbum(offset: browseService.albums.count)
         case .artist:
-            await browseService.updateArtists(offset: browseService.artists.count - 1)
-        case .playlist:
-            await browseService.updatePlaylists()
+            hasMoreContent = await browseService.updateArtists(offset: browseService.artists.count)
         default:
-            break
-        }
-    }
-
-    // MARK: - Alphabetical Grouping
-
-    private var groupedAlbums: [String: [PlayableContent]] {
-        Dictionary(grouping: browseService.albums) { item in
-            guard let scalar = item.title
-                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-                .unicodeScalars
-                .first,
-                  CharacterSet.letters.contains(scalar)
-            else { return "#" }
-            
-            return String(scalar).uppercased()
-        }
-    }
-
-    private var groupedArtists: [String: [PlayableContent]] {
-        Dictionary(grouping: browseService.artists) { item in
-            guard let scalar = item.title
-                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-                .unicodeScalars
-                .first,
-                  CharacterSet.letters.contains(scalar)
-            else { return "#" }
-            
-            return String(scalar).uppercased()
-        }
-    }
-
-    private var groupedPlaylists: [String: [PlayableContent]] {
-        Dictionary(grouping: browseService.playlists) { item in
-            guard let scalar = item.title
-                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-                .unicodeScalars
-                .first,
-                  CharacterSet.letters.contains(scalar)
-            else { return "#" }
-            
-            return String(scalar).uppercased()
+            hasMoreContent = false
         }
     }
 }

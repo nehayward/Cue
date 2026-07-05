@@ -63,6 +63,9 @@ public struct SpotifyAlbumDetails: Decodable, Sendable {
 
 public struct SpotifyAlbumTracks: Decodable, Sendable {
     public let items: [SpotifyAlbumTrackItems]
+    /// Spotify's paging metadata for the album's tracks (used to walk albums past the first page).
+    public let total: Int?
+    public let next: String?
 }
 
 public struct SpotifyAlbumTrackItems: Decodable, Identifiable, Sendable {
@@ -77,5 +80,6 @@ public struct SpotifyAlbumTrackItems: Decodable, Identifiable, Sendable {
     public let explicit: Bool
     public let durationMs: Int
     public let album: SpotifyAlbumItem?
+    public let previewUrl: String?
     public var allArtists: String { artists.map(\.name).joined(separator: ", ") }
 }

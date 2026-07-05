@@ -1,22 +1,46 @@
+# 2026.6
+
+–– New Features ––
+- Playlist Management: Add any song to your Apple Music, Spotify, Plex, or Deezer playlists — not just Sonos. The new Add to Playlist sheet lets you pick several playlists at once, create a new one, search, and jump to a recently-used playlist; tap the confirmation to open the playlist you added to
+- Edit Playlists: Open a Spotify, Plex, Deezer, or Sonos playlist you own and tap Edit to remove tracks (swipe, menu, or multi-select), drag to reorder, or delete the playlist — with Undo (⌘Z on Mac)
+- Create Playlists: Make a new playlist for Apple Music, Spotify, Deezer, Plex, or Sonos from its browse screen — including an empty one you fill in later
+- Add to Last Playlist: A one-tap shortcut — in the track menu and the Mac File menu — to drop the current song into the playlist you used last
+- Song Previews: Long-press an Apple Music or Spotify track and tap Preview Song to hear a quick clip — or swipe right on a track in a list. A progress bar fills as the clip plays, and you can tap the track to stop it
+- Library Song Actions: Long-press a song in your Apple Music library to open its Apple Album or Apple Artist, or start a Song Radio — Clic resolves the matching catalog track behind the scenes
+
+–– Bug Fixes & Improvements ––
+- Fixed removing one track from a Spotify playlist also deleting other copies of the same song — only the track you remove is removed now
+- Fixed adding a large album (more than 50 tracks) to a Spotify playlist only adding the first batch — every track is added now
+- Fixed the Deezer "Add to Playlist" list showing playlists you follow but don't own — only your own playlists are offered now, so the add no longer silently fails
+- Fixed some alarms not appearing in the Alarms list — alarms for speakers that are grouped, part of a stereo pair, or temporarily offline are now always shown, and music alarms (Apple Music, Spotify, radio stations) no longer occasionally go missing. Pull down to refresh the list
+- Fixed "Switch to Line In" appearing on speakers that don't support line-in
+- Fixed the library Albums list stopping partway through the alphabet — albums, songs, and artists now load your entire library as you scroll
+- Fixed Genres, Imported Playlists, and folder contents being cut off in large libraries — these now load fully as you scroll
+
 # 2026.5
 
 –– New Features ––
+- Deezer: Full Deezer integration — search tracks, albums, artists, and playlists, browse Deezer charts, view album and artist pages, start a Mix from any track or artist, and open content directly in the Deezer app
 - Listen with Clic: A second share sheet action that appears in the Actions row — share any song, album, or playlist link and queue it to any room without leaving your current app
 - Queue Position: Choose how a shared link is queued — Play Now, Play Next, Add to Last, or Replace Queue — right from the share sheet; playlists default to Replace
 - TV Mode Controls: Night mode, speech enhancement, and mute buttons now appear in the mini player when a Sonos soundbar is in TV mode — artwork swaps to a TV icon and the audio input format is shown in place of the track name
 - Favorite Albums: Save a Spotify album or love an Apple Music album directly from search results or the album detail page
 - Volume Buttons: Use the iPhone's physical volume buttons to control your Sonos speaker volume on the player screen — enable the toggle in Playback preferences
-- Mac Dock Menu: Reordered menu items — transport controls and Now Playing are at the bottom (closest to the Dock icon), with Sleep Timer at the top; Repeat, Shuffle, and Crossfade grouped under a "Playback" section; Favorite moved into the Now Playing group
 - Plex Track Ratings: Rate Plex tracks with a heart from the player or the track menu — the heart fills based on your 1–5 star rating and a badge appears on rated tracks in your library
 - Popular Tracks: Artist pages for Plex and library artists now show a Popular Tracks section ordered by global popularity, sourced from Last.fm and powered by Audioscrobbler
 - Start Live Activity Shortcut: New shortcut and Control Center widget (iOS 18+) to start a Live Activity for any speaker — configure a speaker once and tap to get Now Playing on your Lock Screen instantly
 
 –– Bug Fixes & Improvements ––
+- Mac Dock Menu: Reordered menu items — transport controls and Now Playing are at the bottom (closest to the Dock icon), with Sleep Timer at the top; Repeat, Shuffle, and Crossfade grouped under a "Playback" section; Favorite moved into the Now Playing group
+- Fixed speaker discovery incorrectly reporting "On Cellular" and refusing to connect when Wi-Fi Assist is enabled — the app now connects whenever Wi-Fi or Ethernet is available
 - Apple Music artwork now loads as a square crop instead of a letterboxed image with white padding
 - Play Folder: Playing an Apple Music playlist folder now queues all playlists in order — first replaces the queue, the rest append automatically
 - Fixed a crash that could occur when play history or queue data stored by a different app version contained an unrecognized music service
 - Fixed artwork flickering when skipping between tracks on the same Spotify album, including albums with featured artists
 - Right-clicking or long-pressing a single queue track now offers the full set of actions — Add to Playlist, View Album, View Artist, and Play Next — in both Up Next and Full Queue on iPhone, iPad, and Mac
+- Fixed the music service icon in the search and library menus being hard to tap on iOS 26, and restored its brand color and size
+- Search and library results now lay out in a two-column grid, so you see more at a glance
+- SoundCloud Library: Liked Songs and Playlists now lay out in a two-column grid with a filter button to reorder or hide sections, matching the Apple Music and Spotify libraries
 
 # 2026.4
 
@@ -39,6 +63,7 @@
 - Restored Live Activity to its former glory with 5 volume steps
 - Dock Menu: Volume Up / Down now adjusts by 2% by default; hold Option for a 5% jump
 - Clic Mini: Menu bar window now smoothly grows and shrinks when expanding a group's per-speaker volume controls
+- Improved Player screen performance: reduced unnecessary view updates on foreground, inspector toggle, hover, and resize for smoother behavior on Mac
 - Fixed Custom Sleep Timer not showing
 - Fixed Apple Music links without a slug (e.g. `music.apple.com/us/album/<id>`) failing to open
 - Fixed Apple Music station links not parsing in the share sheet, Shortcuts, or "Open in Clic" — station name is now derived from the URL when richer metadata isn't available

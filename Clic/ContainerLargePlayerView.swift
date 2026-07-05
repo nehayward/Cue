@@ -19,14 +19,11 @@ struct ContainerLargePlayerView: View {
                             if UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .vision, horizontalSizeClass != .compact {
                                 Button {
                                     if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                                        if router.inspectorSheet != .search(group: sonosService.sorted[group]) {
-                                            router.inspectorSheet = .search(group: sonosService.sorted[group])
-                                        } else {
-                                            router.inspectorSheet = nil
-                                        }
+                                        router.toggleInspector(.search(group: sonosService.sorted[group]))
                                     }
                                 } label: {
                                     Label("Search", systemImage: "magnifyingglass")
+                                        .labelStyle(.iconOnly)
                                 }
                                 .id(refreshID)
                                 .help("Search")
@@ -34,14 +31,11 @@ struct ContainerLargePlayerView: View {
                                 
                                 Button {
                                     if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                                        if router.inspectorSheet != .browse(group: sonosService.sorted[group]) {
-                                            router.inspectorSheet = .browse(group: sonosService.sorted[group])
-                                        } else {
-                                            router.inspectorSheet = nil
-                                        }
+                                        router.toggleInspector(.browse(group: sonosService.sorted[group]))
                                     }
                                 } label: {
                                     Label("Browse", image: "home.fill")
+                                        .labelStyle(.iconOnly)
                                 }
                                 .id(refreshID)
                                 .help("Browse")
@@ -49,11 +43,7 @@ struct ContainerLargePlayerView: View {
                                 
                                 Button {
                                     if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                                        if router.inspectorSheet != .queue(group: sonosService.sorted[group]) {
-                                            router.inspectorSheet = .queue(group: sonosService.sorted[group])
-                                        } else {
-                                            router.inspectorSheet = nil
-                                        }
+                                        router.toggleInspector(.queue(group: sonosService.sorted[group]))
                                     }
                                 } label: {
                                     if let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {

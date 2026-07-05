@@ -20,28 +20,31 @@ struct MenuInfoView: View {
                         Label("Open in NowPlaying…", image: .nowPlayingAppIcon)
                     }
                 }
-                if [.spotify, .apple, .library, .tidal, .plex].contains(group.coordinatorRoom.track.musicService) {
+                if group.coordinatorRoom.track.musicService.supportsViewArtistAlbum {
                     Button {
                         router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
                     } label: {
                         Label("View Album", systemImage: "smallcircle.circle.fill")
-//                        Text(group.coordinatorRoom.track.album)
                     }
                     
                     Button {
                         router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
                     } label: {
                         Label("View Artist", systemImage: "music.mic")
-//                        Text(group.coordinatorRoom.track.artist)
-                    }
-                    //                let playable = group.coordinatorRoom.track.toPlayable
-                    //                ShareLink(item: playable)
-                    if !group.TVMode {
-                        AddToLastPlaylistButton(itemToAdd: group.coordinatorRoom.track.toPlayable)
-                        AddToPlaylistMenu(itemToAdd: group.coordinatorRoom.track.toPlayable)
                     }
                 }
-                if [.spotify, .apple].contains(group.coordinatorRoom.track.musicService), group.coordinatorRoom.track.toPlayable.content.type != .libraryTrack {
+                if !group.TVMode {
+                    Divider()
+                    AddToLastPlaylistButton(itemToAdd: group.coordinatorRoom.track.toPlayable)
+                    Button {
+                        router.sheet(to: .addToPlaylist(content: group.coordinatorRoom.track.toPlayable))
+                    } label: {
+                        Label("Add to Playlist…", systemImage: "text.badge.plus")
+                    }
+                    Divider()
+                }
+                
+                if group.coordinatorRoom.track.musicService.supportsRadio, group.coordinatorRoom.track.toPlayable.content.type != .libraryTrack {
                     Button {
                         QueueManager.shared.addToQueue(item: QueueItem(playableContent: group.coordinatorRoom.track.toPlayable.toRadio, group: group, position: .now, title: "Playing radio"))
                     } label: {
@@ -145,16 +148,9 @@ struct MenuInfoView: View {
                 }
             }
         } label: {
-#if os(visionOS)
-            Image(systemName: "ellipsis")
-            
-#elseif targetEnvironment(macCatalyst)
             Label("Menu", systemImage: "ellipsis")
+                .labelStyle(.iconOnly)
                 .padding(.vertical)
-#else
-            Image(systemName: "ellipsis")
-                .padding(.vertical)
-#endif
         }
         .id(group.coordinatorID)
         .accessibilityLabel("Menu")

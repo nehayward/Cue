@@ -15,10 +15,11 @@ public final class PlexBrowseService {
     public init() { }
 
     public func updateUserPlaylists(offset: Int? = 0) async {
-        let playlists = await plexAPI.playlists()
-        let newUserPlaylists = playlists.map(\.toPlayable)
-        for newUserPlaylist in newUserPlaylists {
-            userPlaylists.updateOrAppend(newUserPlaylist)
+        // Merge in the server's playlists (additive) so a just-created playlist is never dropped —
+        // Plex can briefly omit a brand-new empty playlist from this list. Deletions are reflected
+        // explicitly by the delete flow (`removeUserPlaylist`), not by clearing here.
+        for playlist in await plexAPI.playlists().map(\.toPlayable) {
+            userPlaylists.updateOrAppend(playlist)
         }
     }
     

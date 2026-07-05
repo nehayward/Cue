@@ -23,9 +23,8 @@ struct FavoritesView: View {
                 .miniPlayerOnScrollHandler()
             } label: {
                 Text("Sonos Favorites")
-                    .foregroundStyle(.secondary)
                     .fontDesign(.rounded)
-                    .bold()
+                    .fontWeight(.semibold)
             }
             .listRowSeparator(.hidden)
             

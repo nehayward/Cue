@@ -122,29 +122,56 @@ public final class AppleMusicAPI {
         return false
     }
     
-    public func addSongToPlaylist(songId: String, playlistID: String) async throws {
-        let ratingURL = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(playlistID)/tracks")!
-        var urlRequest = URLRequest(url: ratingURL)
-        
+    /// Adds a song to a user library playlist.
+    /// - Parameters:
+    ///   - songId: The identifier of the song.
+    ///   - type: The Apple Music resource type — `"songs"` for catalog tracks, `"library-songs"` for items already in the user's library.
+    ///   - playlistID: The library playlist identifier.
+    @discardableResult
+    public func addSongToPlaylist(songId: String, type: String = "songs", playlistID: String) async throws -> Bool {
+        let tracksURL = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(playlistID)/tracks")!
+        var urlRequest = URLRequest(url: tracksURL)
+
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         let body: [String: Any] = [
             "data": [
                 [
-                    "id": "i.\(songId)",
-                    "type": "songs"
+                    "id": songId,
+                    "type": type
                 ]
             ]
         ]
-        
+
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
-        
+
         let request = MusicDataRequest(urlRequest: urlRequest)
         guard let response = try? await request.response() else {
-            return
+            return false
         }
-        print(String(decoding: response.data, as: UTF8.self))
+        // Apple Music returns 2xx (typically 201) on success.
+        return (200..<300).contains(response.urlResponse.statusCode)
+    }
+
+    /// Creates a new playlist in the user's library and returns its identifier.
+    public func createLibraryPlaylist(name: String, description: String? = nil) async throws -> String? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/playlists")!
+        var urlRequest = URLRequest(url: playlistsURL)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        var attributes: [String: Any] = ["name": name]
+        if let description { attributes["description"] = description }
+        let body: [String: Any] = ["attributes": attributes]
+        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let request = MusicDataRequest(urlRequest: urlRequest)
+        guard let response = try? await request.response() else { return nil }
+        guard let container = try? decoder.decode(AppleLibraryContainer.self, from: response.data) else { return nil }
+        return container.data.first?.id
     }
     
     public func getUserPlaylist(with id: String) async throws -> AppleLibraryContainer? {
@@ -256,7 +283,7 @@ public final class AppleMusicAPI {
     public func getUserSongs(offset: Int = 0) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/songs?offset=\(offset)&limit=25")!
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/songs?offset=\(offset)&limit=25&include=catalog")!
         let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }
@@ -278,7 +305,7 @@ public final class AppleMusicAPI {
 
     public func lookupUsersLibraryPlaylist(id: String, offset: Int) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(id)/tracks?offset=\(offset)")!
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(id)/tracks?offset=\(offset)&include=catalog")!
         let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }
@@ -292,7 +319,7 @@ public final class AppleMusicAPI {
 
     public func lookupUsersLibraryAlbum(id: String) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/albums/\(id)/tracks")!
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/albums/\(id)/tracks?include=catalog")!
         let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }

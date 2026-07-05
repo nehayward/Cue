@@ -32,9 +32,20 @@ public struct AppleLibraryItem: Codable {
     public let href: String
     public let type: String
     public let attributes: Attributes
+    public let relationships: Relationships?
 
     public var songURL: URL? {
         return URL(string: "https://music.apple.com/us/song/\(id)")
+    }
+
+    /// A short preview clip for the track. Catalog items carry `previews`
+    /// directly; library items only carry them via the included `catalog`
+    /// relationship (requested with `include=catalog`), since the library API
+    /// itself omits previews.
+    public var previewURL: URL? {
+        let previews = attributes.previews ?? relationships?.catalog?.data.first?.attributes.previews
+        guard let urlString = previews?.first?.url else { return nil }
+        return URL(string: urlString)
     }
 }
 
@@ -52,7 +63,8 @@ extension AppleLibraryItem {
         public let artistName: String?
         public let contentRating: String?
         public let isLive: Bool?
-        
+        public let previews: [Preview]?
+
         public var releaseDateFormatted: String? {
             if let releaseDate {
                 return releaseDate.components(separatedBy: "-").first
@@ -72,7 +84,11 @@ extension AppleLibraryItem {
     }
 
     public struct Relationships: Codable {
-        public let catalog: AppleLibraryContainer
+        public let catalog: AppleLibraryContainer?
+    }
+
+    public struct Preview: Codable {
+        public let url: String
     }
 }
 

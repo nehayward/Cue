@@ -5,10 +5,11 @@ import MusicSearchKit
 extension PlayableContent {
     public var toRadio: PlayableContent {
         let type: ContentType = content.type == .artist ? .artistRadio : .songRadio
+        let radioTitle = content.service == .deezer ? "Mix \(title)" : title
         let content = MediaContent(service: content.service, id: content.id + ".radio", type: type, location: nil)
         var metadata = metadata ?? PlayableContentMetadata()
         metadata.radioStation = true
-        return PlayableContent(title: title, subtitle: title, thumbnail: thumbnail, artwork: artwork, content: content, metadata: metadata)
+        return PlayableContent(title: radioTitle, subtitle: radioTitle, thumbnail: thumbnail, artwork: artwork, content: content, metadata: metadata)
     }
 }
 
@@ -79,12 +80,19 @@ extension MusicKit.Track {
         artworkURL = processURL(artworkURL)
         thumbnailURL = processURL(thumbnailURL)
 
+        let previewURL: URL?
+        switch self {
+        case .song(let song): previewURL = song.previewAssets?.first?.url
+        default: previewURL = nil
+        }
+
         return PlayableContent(
             title: title,
             subtitle: artistName,
             thumbnail: thumbnailURL,
             artwork: artworkURL,
             content: MediaContent(service: .apple, id: id.description, type: .track, location: url),
+            previewURL: previewURL,
             metadata: PlayableContentMetadata(
                 duration: durationSeconds,
                 artist: artistName,
@@ -232,6 +240,9 @@ extension AppleLibraryItem {
                 type: resolvedType,
                 location: nil
             ),
+            // Library items only carry a preview via the included catalog
+            // relationship (see AppleLibraryItem.previewURL).
+            previewURL: previewURL,
             metadata: .init(
                 duration: trackDuration,
                 popularity: 50,
@@ -546,6 +557,7 @@ extension SpotifyAlbumTrackItems {
             thumbnail: thumbnail,
             artwork: artwork,
             content: MediaContent(service: .spotify, id: id, type: .track, location: URL(string: externalUrls?.spotify ?? "")),
+            previewURL: URL(string: previewUrl ?? ""),
             metadata: PlayableContentMetadata(
                 duration: Duration.milliseconds(
                     durationMs
@@ -755,6 +767,9 @@ extension PlexMetadata {
                 type: ContentType(type)!,
                 location: nil
             ),
+            // Plex has no short preview clip — this is the full track streamed
+            // from the user's server (see AudioPlaybackService streaming path).
+            previewURL: streamURL,
             metadata: .init(
                 duration: Duration.milliseconds(duration ?? 0),
                 popularity: ratingCount,
@@ -763,7 +778,8 @@ extension PlexMetadata {
                 album: album,
                 albumID: albumID,
                 audioCodec: audioCodec,
-                userRating: userRating
+                userRating: userRating,
+                playlistItemID: playlistItemID.map(String.init)
             )
         )
     }
