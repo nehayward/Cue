@@ -72,10 +72,21 @@ struct SearchScreen: View {
 
     /// The primary service plus any "Also Search" services from the menu.
     /// Extras only count while their service is enabled in Settings.
+    /// TuneIn is a radio directory and always searches alone — leftover
+    /// extras from a previous primary must not merge radio with catalogs.
     private var selectedSearchServices: Set<MediaSearchService> {
-        MediaSearchService.set(fromRawList: searchAlsoServicesRaw)
+        guard musicSearchSelection != .tuneIn else { return [.tuneIn] }
+        return MediaSearchService.set(fromRawList: searchAlsoServicesRaw)
             .filter { coreFeatures.enabledServices($0).wrappedValue }
             .union([musicSearchSelection])
+    }
+
+    /// Mirrors AppleMusicSearchScreen: a single-service Apple search without
+    /// authorization renders the permissions prompt instead of results.
+    private var showsApplePermissionsPrompt: Bool {
+        musicSearchSelection == .apple
+            && selectedSearchServices.count == 1
+            && appleMusicAuthorized != .authorized
     }
 
     private var currentFilteredResults: [PlayableContent] {
@@ -106,6 +117,7 @@ struct SearchScreen: View {
                 List(selection: .constant(selectedItemID)) {
                     SearchFilterRow(
                         musicSearchSelection: $musicSearchSelection,
+                        isMultiService: selectedSearchServices.count > 1,
                         filters: $filters,
                         plexLibrariesFilters: $plexLibrariesFilters
                     )
@@ -135,7 +147,7 @@ struct SearchScreen: View {
                             plexLibrariesFilters: $plexLibrariesFilters
                         )
 
-                        if !isLoading, currentFilteredResults.isEmpty {
+                        if !isLoading, currentFilteredResults.isEmpty, !showsApplePermissionsPrompt {
                             ContentUnavailableView.search(text: musicSearchService.query)
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
@@ -233,6 +245,10 @@ struct SearchScreen: View {
                 // SonosKit stays free of app-side play-history state.
                 musicSearchService.recentlyPlayedIDs = Set(playHistoryService.history.prefix(50).map(\.id))
                 await musicSearchService.search(for: selectedSearchServices)
+                // A cancelled task (query/service changed) must not clear
+                // isLoading under the replacement search — that briefly
+                // showed "No Results" while the real search was in flight.
+                if Task.isCancelled { return }
                 suggestion = nil
                 isLoading = false
                 playlistsContainer.playlists = await sonosService.sonosPlaylists()
@@ -433,6 +449,7 @@ struct SearchScreen: View {
 
 private struct SearchFilterRow: View {
     @Binding var musicSearchSelection: MediaSearchService
+    let isMultiService: Bool
     @Binding var filters: [FilterSelection]
     @Binding var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>]
 
@@ -452,7 +469,9 @@ private struct SearchFilterRow: View {
         }
         .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
         .overlay(alignment: .trailing) {
-            if musicSearchSelection == .plex {
+            // The per-library filter only applies in the Plex-only view;
+            // merged multiservice results would silently ignore it.
+            if musicSearchSelection == .plex, !isMultiService {
                 ZStack(alignment: .trailing) {
                     // Transparent hit area to block taps below
                     Color.black.opacity(0.001)
@@ -583,8 +602,13 @@ private struct MediaServiceMenu: View {
     @Environment(Router.self) private var router
     @State private var coreFeatures = CoreFeatures.shared
 
+    /// Matches SearchScreen.selectedSearchServices: disabled services don't
+    /// count (no phantom badge for a service the search skips), and a TuneIn
+    /// primary always searches alone.
     private var alsoSearchServices: Set<MediaSearchService> {
-        MediaSearchService.set(fromRawList: searchAlsoServicesRaw)
+        guard musicSearchSelection != .tuneIn else { return [] }
+        return MediaSearchService.set(fromRawList: searchAlsoServicesRaw)
+            .filter { coreFeatures.enabledServices($0).wrappedValue }
             .subtracting([musicSearchSelection])
     }
 
@@ -595,8 +619,12 @@ private struct MediaServiceMenu: View {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         musicSearchSelection = service
-                        // The new primary can't also be an extra.
-                        searchAlsoServicesRaw = alsoSearchServices.subtracting([service]).rawList
+                        // The new primary can't also be an extra. Subtract from
+                        // the raw set so extras hidden right now (disabled
+                        // service, TuneIn primary) survive in storage.
+                        searchAlsoServicesRaw = MediaSearchService.set(fromRawList: searchAlsoServicesRaw)
+                            .subtracting([service])
+                            .rawList
                         Analytics.shared.track(.selectedMusicService, with: ["MusicService": service.rawValue])
                         Analytics.shared.setSelection(metadata: ["MusicService": service.rawValue])
 
@@ -616,7 +644,9 @@ private struct MediaServiceMenu: View {
                     .id(service)
                 }
             }
-            alsoSearchSection
+            if musicSearchSelection != .tuneIn {
+                alsoSearchSection
+            }
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 router.presentedSheet = .settings(destination: .servicePreferenceScreen)
@@ -668,13 +698,15 @@ private struct MediaServiceMenu: View {
             get: { alsoSearchServices.contains(service) },
             set: { include in
                 HapticManager.shared.fireHaptic(.buttonPress)
-                var services = alsoSearchServices
+                // Mutate the raw set so extras hidden right now (disabled
+                // services) aren't dropped from storage as a side effect.
+                var services = MediaSearchService.set(fromRawList: searchAlsoServicesRaw)
                 if include {
                     services.insert(service)
                 } else {
                     services.remove(service)
                 }
-                searchAlsoServicesRaw = services.rawList
+                searchAlsoServicesRaw = services.subtracting([musicSearchSelection]).rawList
             }
         )
     }
