@@ -2,9 +2,14 @@ import Foundation
 import SWXMLHash
 
 public final class PlexParser {
-    func parseXML(xmlData: Data, plexServer: PlexServer, connectionPreference: PlexAPI.ConnectionPreference = .nonLocal) -> PlexResults? {
+    /// - Parameter baseURL: The connection actually used to fetch the data
+    ///   (e.g. the resolved LAN connection under `.auto`). Image URLs are built
+    ///   against it so artwork loads over the same connection as the results;
+    ///   falls back to the preference-based URL when nil.
+    func parseXML(xmlData: Data, plexServer: PlexServer, connectionPreference: PlexAPI.ConnectionPreference = .nonLocal, baseURL: URL? = nil) -> PlexResults? {
         let xml = XMLHash.parse(xmlData)
         guard let accessToken = plexServer.accessToken, let id = plexServer.clientIdentifier else { return nil }
+        let imageBase = baseURL ?? plexServer.baseURL(preferring: connectionPreference)
 
         let tracks: [PlexTrack] = xml["MediaContainer"]["Hub"].all.filter { $0.element?.attribute(by: "type")?.text == "track" }.flatMap { hub in
             hub["Track"].all.compactMap { track in
@@ -26,7 +31,7 @@ public final class PlexParser {
                     return nil
                 }
 
-                let imageURL = plexServer.baseURL(preferring: connectionPreference)?.appending(path: parentThumbnail).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
+                let imageURL = imageBase?.appending(path: parentThumbnail).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
 
                 return PlexTrack(
                     title: title,
@@ -63,7 +68,7 @@ public final class PlexParser {
                 }
 
                 let art = track.element?.attribute(by: "art")?.text ?? ""
-                let imageURL = plexServer.baseURL(preferring: connectionPreference)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
+                let imageURL = imageBase?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
 
                 return PlexAlbum(
                     title: title,
@@ -91,7 +96,7 @@ public final class PlexParser {
                     return nil
                 }
 
-                let imageURL = plexServer.baseURL(preferring: connectionPreference)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
+                let imageURL = imageBase?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
 
                 return PlexArtist(
                     name: name,
@@ -113,7 +118,7 @@ public final class PlexParser {
                 }
 
                 let thumb = track.element?.attribute(by: "thumb")?.text ?? ""
-                let imageURL = plexServer.baseURL(preferring: connectionPreference)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
+                let imageURL = imageBase?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
 
                 return PlexPlaylist(
                     title: title,

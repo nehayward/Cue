@@ -114,6 +114,19 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 **Households screen** (`HouseholdScreen`)
 - Shows stored homes instantly, then lazily enriches each row with its speaker names and an S1/S2 badge (`getGroups(with:)` + `deviceInfo(for:)` per home). Tap to switch, long-press context menu or swipe to rename/remove, toolbar button to rescan the current network (which un-blocks a previously-removed reachable home)
 
+### Plex onboarding + automatic connection
+
+**Onboarding Plex step** (`PlexStep`)
+- New onboarding step, inserted after the services screen when Plex is among the user's authorized Sonos services (`WelcomeScreen.Step.plex`); signs into Plex, then for a fresh setup auto-selects the first server with a music library and its first library so Plex works out of the box
+- Library rows show a cluster of up to three overlapping circular artist thumbnails, fetched in the background after the list renders (`PlexAPI.getArtists(server:sectionKey:limit:)`, a server-specific fetch that doesn't depend on the selected library) with white separator rings
+- Shared `PlexConnectionPicker` — a segmented Auto / Remote / Local control with a sliding pill and a floating "Recommended" badge on Auto — used by both `PlexStep` and `PlexManagementView` (replacing that screen's stacked cards and ~237 lines of dead code); `OnboardingEvent.viewedPlex` added
+
+**Automatic (hybrid) connection** (`PlexAPI` / `PlexServer`)
+- New `.auto` `ConnectionPreference`, now the default: `resolveBaseURL(for:)` races the server's local + remote connections with `/identity` probes and uses whichever responds first (fast LAN at home, remote away); `.local` / `.nonLocal` force a single connection. Relay connections deprioritized in `PlexServer.nonLocalURIs`
+- Resolved connection cached per server and reused across `getMusicLibraries(server:)`/`getArtists`; browse path caches via `getPlexServer`. All connection-cache state (`plexServer`, `resolvedBaseURL`, `resolvedBaseURLByServer`) guarded by an `NSLock` (`withCacheLock`) so concurrent browse/self-heal tasks don't race, while keeping `getBaseURL` synchronous
+- `loadData` self-heal: on a connection-level failure it re-resolves the retained server (no extra plex.tv round trip) and retries once against a *different* connection (local↔remote failover via `URL.rebasing(to:)`), only when re-resolution yields a different URL. Request timeouts added (10s fetch, 4s probe)
+- Search-result image URLs built from the connection the data was actually fetched over (`parseXML(..., baseURL:)`) so artwork loads over the same host as the results under `.auto`
+
 ### Music library share location in Preferences
 - New `SonosService.libraryShare()` browses the `S:` container (the same `getLibraryItems(IP:type:)` call the Library → Folders screen uses) with `RequestedCount = 1` and returns the first configured share path (e.g. `//nas/Music`)
 - `PreferenceScreen` fetches the share in its existing `.task` and shows it as a single-line caption (middle-truncated) under the "Refresh Sonos Library" label — hidden when no share is configured or no speaker has been discovered yet

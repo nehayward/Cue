@@ -12,6 +12,7 @@ import SwiftUI
 ///  - `WelcomeStep.swift` — splash + Get Started
 ///  - `DiscoveryStep.swift` — Local Network permission, searching, found/denied/notFound
 ///  - `ServicesStep.swift` — list of music services with checkmarks
+///  - `PlexStep.swift` — Plex sign-in + default library pick (only when Plex found)
 ///  - `PaywallStep.swift` — ClicPaywall wrapper (skipped when already subscribed)
 ///  - `EmailStep.swift` — optional newsletter capture (final step)
 ///
@@ -21,7 +22,7 @@ import SwiftUI
 /// launch-arg helpers are in `OnboardingDebug.swift`.
 struct WelcomeScreen: View {
     enum Step: Int, CaseIterable {
-        case welcome, discovery, services, paywall, email
+        case welcome, discovery, services, plex, paywall, email
     }
 
     @Environment(SonosService.self) private var sonosService
@@ -123,6 +124,10 @@ struct WelcomeScreen: View {
             ServicesStep(installed: installedServices, advance: advanceFromServices)
                 .id(Step.services)
                 .transition(slideTransition)
+        case .plex:
+            PlexStep(advance: advanceFromPlex)
+                .id(Step.plex)
+                .transition(slideTransition)
         case .paywall:
             PaywallStep()
                 .id(Step.paywall)
@@ -210,9 +215,26 @@ struct WelcomeScreen: View {
         #endif
     }
 
-    /// Services → next. Subscribed users skip the paywall entirely and land
-    /// straight on the newsletter step; everyone else gets the paywall first.
+    /// Services → next. When the user has Plex among their authorized Sonos
+    /// services, route through the Plex setup step first so it's ready to use;
+    /// otherwise skip straight to the paywall / email handoff.
     private func advanceFromServices() {
+        if installedServices.contains(.plex) {
+            goTo(.plex)
+        } else {
+            advanceToPostServices()
+        }
+    }
+
+    /// Plex setup → next. Same paywall / email handoff as everyone else.
+    private func advanceFromPlex() {
+        advanceToPostServices()
+    }
+
+    /// Shared post-services routing. Subscribed users skip the paywall entirely
+    /// and land straight on the newsletter step; everyone else gets the paywall
+    /// first.
+    private func advanceToPostServices() {
         if subscriptionService.subscription.isActive {
             goTo(.email)
         } else {
@@ -226,6 +248,7 @@ struct WelcomeScreen: View {
         // started/succeeded/notFound/denied events itself.
         switch next {
         case .services: Analytics.shared.track(OnboardingEvent.viewedServices)
+        case .plex:     Analytics.shared.track(OnboardingEvent.viewedPlex)
         // Reuse the existing top-level `viewedPaywall` event (which fires
         // for paywall views anywhere in the app) instead of creating an
         // onboarding-specific duplicate.
