@@ -322,12 +322,18 @@ struct SearchScreen: View {
                 lastNonEmptyQuery = musicSearchService.query
             }
         }
-        // Switching the primary service or the "Also Search" set changes the
-        // result set entirely, so drop the stale results immediately (a query
-        // edit deliberately keeps old results to avoid flicker while typing).
-        .onChange(of: selectedSearchServices) {
+        // A new primary service is a different result set — drop stale results
+        // immediately (a query edit deliberately keeps old results to avoid
+        // flicker while typing).
+        .onChange(of: musicSearchSelection) {
             keyboardSelectedIndex = nil
             musicSearchService.results = []
+        }
+        // Toggling an extra does NOT clear results: the merged search updates
+        // them in place, so the list doesn't flash empty behind the still-open
+        // menu (which read as flicker / the menu "closing").
+        .onChange(of: searchAlsoServices) {
+            keyboardSelectedIndex = nil
         }
         .onChange(of: filters) {
             keyboardSelectedIndex = nil
@@ -611,6 +617,12 @@ private struct MediaServiceMenu: View {
             .subtracting([musicSearchSelection])
     }
 
+    /// Active extras in a stable display order (the enum's case order), for the
+    /// overlapping-icon badge.
+    private var activeExtrasOrdered: [MediaSearchService] {
+        MediaSearchService.allCases.filter { activeExtras.contains($0) }
+    }
+
     var body: some View {
         Menu {
             ForEach(MediaSearchService.allCases, id: \.self) { service in
@@ -656,14 +668,12 @@ private struct MediaServiceMenu: View {
                 .frame(width: 24, height: 24)
                 .contentShape(.circle)
                 .toolbarBackground(in: .circle)
+                // Always present (empty when no extras) so toggling doesn't add
+                // or remove a subview from the menu's label — a structural
+                // change that made the menu dismiss.
                 .overlay(alignment: .topTrailing) {
-                    if !activeExtras.isEmpty {
-                        Text("+\(activeExtras.count)")
-                            .font(.system(size: 9, weight: .bold))
-                            .padding(3)
-                            .background(.thinMaterial, in: .circle)
-                            .offset(x: 8, y: -8)
-                    }
+                    ActiveServicesBadge(services: activeExtrasOrdered)
+                        .offset(x: 10, y: -7)
                 }
         }
         .popoverTip(AppTip.mediaService)
@@ -713,6 +723,48 @@ private struct MediaServiceMenu: View {
         }
         // The primary is never stored as an extra.
         searchAlsoServices.services.remove(musicSearchSelection)
+    }
+}
+
+/// Up to three overlapping service icons — the active-multi-search indicator on
+/// the menu button (replaces the "+N" text). Each icon behind the frontmost is
+/// bitten out where the next overlaps it, for the stacked "avatar pile" look.
+/// Renders nothing when there are no extras.
+private struct ActiveServicesBadge: View {
+    let services: [MediaSearchService]
+
+    private let diameter: CGFloat = 16
+    private let overlap: CGFloat = 6
+
+    var body: some View {
+        let shown = Array(services.prefix(3))
+        HStack(spacing: -overlap) {
+            ForEach(Array(shown.enumerated()), id: \.element) { index, service in
+                service.iconForMusicService
+                    .frame(width: diameter * 0.52, height: diameter * 0.52)
+                    .frame(width: diameter, height: diameter)
+                    .background(Circle().fill(.background))
+                    .mask(alignment: .center) {
+                        if index == shown.count - 1 {
+                            Circle()
+                        } else {
+                            // Cut out where the next (trailing, on-top) icon overlaps.
+                            Circle()
+                                .overlay(alignment: .center) {
+                                    Circle()
+                                        .frame(width: diameter, height: diameter)
+                                        .offset(x: diameter - overlap)
+                                        .blendMode(.destructiveOut)
+                                }
+                                .compositingGroup()
+                        }
+                    }
+            }
+        }
+        // Don't inherit the menu's primary brand-color gradient — template
+        // service icons should read in the neutral foreground.
+        .foregroundStyle(.primary)
+        .shadow(color: .black.opacity(0.15), radius: 0.5)
     }
 }
 
