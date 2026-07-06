@@ -314,11 +314,12 @@ public final class PlexAPI {
         return parser.parseXML(xmlData: data, plexServer: plexServer, connectionPreference: connectionPreference, baseURL: getBaseURL(for: plexServer))
     }
 
-    /// Batch media lookup, keyed by ratingKey. Some servers omit the `Media`
-    /// element (codec/bitrate) from `/hubs/search` responses, so search
-    /// results are enriched from `/library/metadata/{id,id,...}` — one
-    /// request for all tracks — which always includes it.
-    public func trackMedia(ratingKeys: [String]) async -> [String: PlexMedia] {
+    /// Batch metadata lookup, keyed by ratingKey — one request for any mix of
+    /// tracks and albums. Some servers omit detail from `/hubs/search`
+    /// responses (a track's `Media` element with codec/bitrate, an album's
+    /// `leafCount`), so search results are enriched from
+    /// `/library/metadata/{id,id,...}`, which always includes it.
+    public func batchMetadata(ratingKeys: [String]) async -> [String: PlexMetadata] {
         guard !ratingKeys.isEmpty,
               let plexServer = await getPlexServer(),
               let token = plexServer.accessToken,
@@ -337,13 +338,11 @@ public final class PlexAPI {
             return [:]
         }
 
-        var mediaByKey: [String: PlexMedia] = [:]
+        var metadataByKey: [String: PlexMetadata] = [:]
         for item in container.metadata ?? [] {
-            if let media = item.media?.first {
-                mediaByKey[item.ratingKey] = media
-            }
+            metadataByKey[item.ratingKey] = item
         }
-        return mediaByKey
+        return metadataByKey
     }
 
     /// Minimal container for the batch metadata endpoint: unlike

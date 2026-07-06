@@ -137,7 +137,8 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 
 ### Plex duplicate editions distinguishable (bitrate + per-edition artwork)
 - A Plex library holding the same album from several rips (FLAC vs 320 kbps) rendered them as identical rows with identical artwork. Track rows now show the media bitrate after the codec ("FLAC • 1411 kbps") — `PlexParser` reads the `Media` element's `bitrate` into `PlexTrack`
-- Servers that omit the `Media` element from `/hubs/search` responses (the same omission that used to drop tracks entirely) never surfaced codec/bitrate at all — `searchPlex` now fills the gaps with one batch `/library/metadata/{id,id,…}` lookup (`PlexAPI.trackMedia(ratingKeys:)`) for all tracks that came back without media info
+- Album rows show their track count ("12 songs") — the standard-vs-deluxe distinction — via the album's `leafCount`; Plex puts no media info on album containers, so count + artwork + year are the available album-level distinguishers
+- Servers that omit detail from `/hubs/search` responses (a track's `Media` element, an album's `leafCount` — the same omission that used to drop tracks entirely) never surfaced any of this — `searchPlex` now fills the gaps with one batch `/library/metadata/{id,id,…}` lookup (`PlexAPI.batchMetadata(ratingKeys:)`) covering every track and album that came back without
 - The artwork cache key (`PlayableContent.imageKey`) was album title + artist, so every edition shared one cached image — whichever edition's art was fetched first showed on all of them. Plex artwork is now keyed by the album's unique `ratingKey` (`PlexAlbum` carries its own key as `albumID`, matching the track mapping's `parentRatingKey`), so each edition displays its own art while a track still shares its album's cache entry
 
 ### Plex hearts in search results

@@ -80,7 +80,8 @@ public final class PlexParser {
                     imageURL: imageURL,
                     id: "\(id)%3A3%3A\(ratingKey)",
                     librarySectionID: (track.element?.attribute(by: "librarySectionID")?.text).flatMap(Int.init),
-                    userRating: userRating
+                    userRating: userRating,
+                    leafCount: (track.element?.attribute(by: "leafCount")?.text).flatMap(Int.init)
                 )
             }
         }

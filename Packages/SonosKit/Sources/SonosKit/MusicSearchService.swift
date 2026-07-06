@@ -1062,25 +1062,30 @@ public final class MusicSearchService {
         var playableContent: [PlayableContent] = []
         guard let results = await plex.search(for: query) else { return playableContent }
 
-        // Some servers omit the Media element from hub-search responses, so
-        // codec/bitrate — which tell duplicate editions of a track apart —
-        // never made it into the rows. Fill the gaps with one batch
-        // metadata lookup for all tracks that came back without media info.
+        // Some servers omit detail from hub-search responses — a track's
+        // Media element (codec/bitrate) and an album's leafCount — which is
+        // exactly what tells duplicate editions apart. Fill the gaps with one
+        // batch metadata lookup covering every item that came back without.
         var tracks = results.tracks
-        let missingMedia = tracks.filter { $0.audioCodec == nil && $0.bitrate == nil }.map(\.ratingKey)
-        if !missingMedia.isEmpty {
-            let mediaByKey = await plex.trackMedia(ratingKeys: missingMedia)
+        var albums = results.album
+        let tracksMissingMedia = tracks.filter { $0.audioCodec == nil && $0.bitrate == nil }.map(\.ratingKey)
+        let albumsMissingCount = albums.filter { $0.leafCount == nil }.map(\.ratingKey)
+        if !tracksMissingMedia.isEmpty || !albumsMissingCount.isEmpty {
+            let metadataByKey = await plex.batchMetadata(ratingKeys: tracksMissingMedia + albumsMissingCount)
             for index in tracks.indices {
-                guard let media = mediaByKey[tracks[index].ratingKey] else { continue }
+                guard let media = metadataByKey[tracks[index].ratingKey]?.media?.first else { continue }
                 tracks[index].audioCodec = tracks[index].audioCodec ?? media.audioCodec
                 tracks[index].bitrate = tracks[index].bitrate ?? media.bitrate
                 tracks[index].audioChannels = tracks[index].audioChannels ?? media.audioChannels
                 tracks[index].duration = tracks[index].duration ?? media.duration
             }
+            for index in albums.indices {
+                albums[index].leafCount = albums[index].leafCount ?? metadataByKey[albums[index].ratingKey]?.leafCount
+            }
         }
 
         playableContent.append(contentsOf: tracks.map(\.toPlayable))
-        playableContent.append(contentsOf: results.album.map(\.toPlayable))
+        playableContent.append(contentsOf: albums.map(\.toPlayable))
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
         playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
 

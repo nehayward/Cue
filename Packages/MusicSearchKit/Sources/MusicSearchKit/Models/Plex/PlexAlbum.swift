@@ -13,4 +13,7 @@ public struct PlexAlbum {
     public var librarySectionID: Int?
     /// Plex star rating 0-10 (10 = loved); drives the heart in search rows.
     public var userRating: Double? = nil
+    /// Number of tracks; distinguishes editions of the same album
+    /// (standard vs deluxe) in search rows.
+    public var leafCount: Int? = nil
 }

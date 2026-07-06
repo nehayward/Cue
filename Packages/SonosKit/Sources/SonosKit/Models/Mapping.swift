@@ -651,7 +651,15 @@ extension PlexAlbum {
     public var toPlayable: PlayableContent {
         PlayableContent(
             title: title,
-            subtitle: [artist, year].filter { !$0.isEmpty }.joined(separator: " • "),
+            // Track count tells editions of the same album apart (standard vs
+            // deluxe rips share title, artist, and year). Plex puts no media
+            // info on album containers, so count + artwork are the available
+            // distinguishers.
+            subtitle: [
+                artist,
+                year,
+                leafCount.map { $0 == 1 ? "1 song" : "\($0) songs" } ?? ""
+            ].filter { !$0.isEmpty }.joined(separator: " • "),
             thumbnail: imageURL,
             artwork: imageURL,
             content: .init(
