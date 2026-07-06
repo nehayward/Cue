@@ -36,7 +36,9 @@ struct TVView: View {
                     Button {
                         Task {
                             try? await sonosService.setNightMode(device.ip, enabled: !nightMode)
-                            try? await sonosService.updateWatchDevices(from: [device])
+                            if let updated = try? await sonosService.getTVSettings(ip: device.ip, isArcUltra: device.isArcUltra) {
+                                await sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
+                            }
                         }
                     } label: {
                         Label("Night Mode", systemImage: "moon.zzz.fill")
@@ -66,7 +68,9 @@ struct TVView: View {
                                 let all = SpeechLevel.allCases
                                 let next = all[(all.firstIndex(of: speechLevel)! + 1) % all.count]
                                 try? await sonosService.setArcUltraSpeechLevel(device.ip, level: next)
-                                try? await sonosService.updateWatchDevices(from: [device])
+                                if let updated = try? await sonosService.getTVSettings(ip: device.ip, isArcUltra: true) {
+                                    await sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
+                                }
                             }
                         } label: {
                             Label("Speech: \(speechLevel.title)", systemImage: "person.wave.2.fill")
@@ -79,7 +83,9 @@ struct TVView: View {
                         Button {
                             Task {
                                 try? await sonosService.setDialogLevel(device.ip, enabled: !speachEnhancement)
-                                try? await sonosService.updateWatchDevices(from: [device])
+                                if let updated = try? await sonosService.getTVSettings(ip: device.ip) {
+                                    await sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
+                                }
                             }
                         } label: {
                             Label("Dialog Mode", systemImage: "person.wave.2.fill")

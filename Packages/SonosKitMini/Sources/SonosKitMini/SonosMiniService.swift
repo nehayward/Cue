@@ -113,7 +113,7 @@ public final class SonosMiniService {
     }
     
     @MainActor
-    internal func updateDevice<T: Equatable>(_ device: SonosDevice, keyPath: WritableKeyPath<SonosDevice, T>, value: T) {
+    public func updateDevice<T: Equatable>(_ device: SonosDevice, keyPath: WritableKeyPath<SonosDevice, T>, value: T) {
         guard let index = devices.firstIndex(where: { $0.id == device.id }) else { return }
         if devices[index][keyPath: keyPath] != value {
             devices[index][keyPath: keyPath] = value
