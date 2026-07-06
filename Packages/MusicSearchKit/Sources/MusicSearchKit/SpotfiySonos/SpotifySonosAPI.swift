@@ -13,7 +13,7 @@ public final class SpotifySonosAPI {
     
     // MARK: - Public API Methods
     
-    public func refreshTokenIfNeeded(credentials: Credentials? = nil) async throws -> (String, String)? {
+    public func refreshTokenIfNeeded(credentials: Credentials? = nil) async throws -> (String, String) {
         let currentCredentials: Credentials
         if let providedCredentials = credentials {
             currentCredentials = providedCredentials
@@ -21,13 +21,13 @@ public final class SpotifySonosAPI {
             guard let handler = tokenRefreshHandler else {
                 throw SpotifyMetadataError.missingTokenHandler
             }
-            
+
             guard let handlerCredentials = try await handler.getCredentials() else {
                 throw SpotifyMetadataError.tokenRefreshFailed
             }
             currentCredentials = handlerCredentials
         }
-        
+
         // Try a simple request to test if the current token is valid
         let testRequest = MetadataRequest(
             deviceId: currentCredentials.deviceId,
@@ -38,35 +38,29 @@ public final class SpotifySonosAPI {
             index: 0,
             count: 1
         )
-        
-        do {
-            // Make the request directly to check for token refresh
-            let request = createRequest(testRequest)
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw SpotifyMetadataError.invalidResponse
-            }
-            
-            let responseString = String(data: data, encoding: .utf8) ?? ""
-            
-            // Check if token refresh is required
-            if responseString.contains("Client.TokenRefreshRequired") {
-                let refreshResponse = try parseTokenRefreshResponse(responseString)
-                return (refreshResponse.authToken, refreshResponse.privateKey)
-            }
-            
-            // If we get here, the token is still valid
-            guard httpResponse.statusCode == 200 else {
-                throw SpotifyMetadataError.serverError(httpResponse.statusCode)
-            }
-            
-            return (currentCredentials.token, currentCredentials.key)
-            
-        } catch {
-            // Re-throw any other errors
-            throw error
+
+        // Make the request directly to check for token refresh
+        let request = createRequest(testRequest)
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SpotifyMetadataError.invalidResponse
         }
+
+        let responseString = String(data: data, encoding: .utf8) ?? ""
+
+        // Check if token refresh is required
+        if responseString.contains("Client.TokenRefreshRequired") {
+            let refreshResponse = try parseTokenRefreshResponse(responseString)
+            return (refreshResponse.authToken, refreshResponse.privateKey)
+        }
+
+        // If we get here, the token is still valid
+        guard httpResponse.statusCode == 200 else {
+            throw SpotifyMetadataError.serverError(httpResponse.statusCode)
+        }
+
+        return (currentCredentials.token, currentCredentials.key)
     }
     
     public func getMetadata(
@@ -94,6 +88,12 @@ public final class SpotifySonosAPI {
                 do {
                     let responseString = try await performRequest(request)
                     return try parseSpotifyTracks(from: responseString)
+                } catch SpotifyMetadataError.parsingError {
+                    // Deterministic — the same response fails the same way.
+                    throw SpotifyMetadataError.parsingError
+                } catch SpotifyMetadataError.tokenRefreshFailed {
+                    // performRequest already spent its refresh budget.
+                    throw SpotifyMetadataError.tokenRefreshFailed
                 } catch {
                     retryCount += 1
                     if retryCount == maxRetries {
@@ -136,6 +136,12 @@ public final class SpotifySonosAPI {
                 do {
                     let responseString = try await performRequest(request)
                     return try parsePlaylists(from: responseString)
+                } catch SpotifyMetadataError.parsingError {
+                    // Deterministic — the same response fails the same way.
+                    throw SpotifyMetadataError.parsingError
+                } catch SpotifyMetadataError.tokenRefreshFailed {
+                    // performRequest already spent its refresh budget.
+                    throw SpotifyMetadataError.tokenRefreshFailed
                 } catch {
                     retryCount += 1
                     if retryCount == maxRetries {
@@ -728,31 +734,37 @@ public final class SpotifySonosAPI {
         return String(match)
     }
     
-    private func performRequest(_ metadataRequest: MetadataRequest) async throws -> String {
+    private func performRequest(_ metadataRequest: MetadataRequest, refreshAttempts: Int = 0) async throws -> String {
         let request = createRequest(metadataRequest)
         let (data, response) = try await URLSession.shared.data(for: request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse else {
             throw SpotifyMetadataError.invalidResponse
         }
-        
+
         let responseString = String(data: data, encoding: .utf8) ?? ""
-        
+
         if responseString.contains("Client.TokenRefreshRequired") {
-            // Use the unified coordinator to prevent race conditions
+            // Two attempts ride out a refresh that returned an unchanged or
+            // already-superseded token; beyond that, refreshing won't help —
+            // bail out instead of recursing forever.
+            guard refreshAttempts < 2 else {
+                throw SpotifyMetadataError.tokenRefreshFailed
+            }
+
+            // The coordinator dedupes concurrent refreshes for the household
+            // and persists the new token through the handler before returning.
             let credentials = Credentials(
                 deviceId: metadataRequest.deviceId,
                 householdId: metadataRequest.householdId,
                 token: metadataRequest.token,
                 key: metadataRequest.key
             )
-            
-            guard let (token, key) = try await TokenRefreshCoordinator.shared.refreshToken(credentials: credentials) else {
-                throw SpotifyMetadataError.tokenRefreshFailed
-            }
-            
-            try await tokenRefreshHandler?.handleTokenRefresh(householdId: metadataRequest.householdId, token: token, key: key)
-            
+            let (token, key) = try await TokenRefreshCoordinator.shared.refreshToken(
+                credentials: credentials,
+                handler: tokenRefreshHandler
+            )
+
             // Retry with new tokens
             let newRequest = MetadataRequest(
                 deviceId: metadataRequest.deviceId,
@@ -763,7 +775,7 @@ public final class SpotifySonosAPI {
                 index: metadataRequest.index,
                 count: metadataRequest.count
             )
-            return try await performRequest(newRequest)
+            return try await performRequest(newRequest, refreshAttempts: refreshAttempts + 1)
         }
         
         guard httpResponse.statusCode == 200 else {

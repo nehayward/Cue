@@ -27,6 +27,7 @@
 - Fixed Plex songs missing from search — tracks are no longer dropped when the server omits optional details like media info or artwork from search responses
 - Spotify albums now rank by popularity, so searching an album like Frozen surfaces it near the top instead of below every song — and albums containing explicit tracks now show the explicit badge
 - Apple Music search now uses Apple's own Top Results to rank its hits higher, matching the ordering you see in the Music app
+- The Refresh Sonos Library button in Preferences now shows your music library's shared folder location underneath, so you can see where Sonos is reading your music from
 
 # 2026.5
 
