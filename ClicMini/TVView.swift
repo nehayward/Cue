@@ -29,29 +29,11 @@ struct TVView: View {
 
                     if device.isArcUltra {
                         let speechLevel = settings.speechLevel
-                        TVSettingsMenu(
-                            isActive: speechLevel.isActive,
-                            label: speechLevel.title,
-                            systemImage: "person.wave.2.fill"
-                        ) {
-                            ForEach(SpeechLevel.allCases, id: \.self) { level in
-                                Button {
-                                    Task {
-                                        try? await sonosService.setArcUltraSpeechLevel(device.ip, level: level)
-                                        if let updated = try? await sonosService.getTVSettings(ip: device.ip, isArcUltra: true) {
-                                            sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
-                                        }
-                                    }
-                                } label: {
-                                    if speechLevel == level {
-                                        Label(level.title, systemImage: "checkmark")
-                                    } else {
-                                        Text(level.title)
-                                    }
-                                }
-                            }
-                        }
-                        .animation(.spring(response: 0.3), value: speechLevel)
+                        ArcUltraSpeechButton(
+                            device: device,
+                            speechLevel: speechLevel,
+                            sonosService: sonosService
+                        )
                     } else {
                         TVSettingsButton(
                             isActive: settings.dialogLevel,
@@ -89,32 +71,47 @@ private struct TVSettingsButton: View {
     }
 }
 
-private struct TVSettingsMenu<Items: View>: View {
-    let isActive: Bool
-    let label: String
-    let systemImage: String
-    @ViewBuilder let items: () -> Items
+private struct ArcUltraSpeechButton: View {
+    let device: SonosDevice
+    let speechLevel: SpeechLevel
+    let sonosService: SonosMiniService
+    @State private var showPopover = false
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isActive ? Color.accentColor.opacity(0.15) : Color(nsColor: .controlBackgroundColor))
-                .frame(width: 44, height: 44)
-            Menu(content: items) {
-                VStack(spacing: 4) {
-                    Image(systemName: systemImage)
-                        .symbolRenderingMode(.hierarchical)
-                        .font(.system(size: 16))
-                        .foregroundColor(isActive ? .accentColor : .secondary)
-                    Text(label)
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(isActive ? .accentColor : .secondary)
+        Button { showPopover = true } label: {
+            tvTileContent(systemImage: "person.wave.2.fill", label: speechLevel.title, isActive: speechLevel.isActive)
+        }
+        .buttonStyle(.plain)
+        .animation(.spring(response: 0.3), value: speechLevel)
+        .popover(isPresented: $showPopover, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(SpeechLevel.allCases, id: \.self) { level in
+                    Button {
+                        showPopover = false
+                        Task {
+                            try? await sonosService.setArcUltraSpeechLevel(device.ip, level: level)
+                            if let updated = try? await sonosService.getTVSettings(ip: device.ip, isArcUltra: true) {
+                                sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(level.title)
+                            Spacer()
+                            if speechLevel == level {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.accentColor)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
                 }
-                .frame(width: 44, height: 44)
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .frame(width: 44, height: 44)
+            .padding(.vertical, 6)
+            .frame(minWidth: 120)
         }
     }
 }
