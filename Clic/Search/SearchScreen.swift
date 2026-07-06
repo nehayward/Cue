@@ -51,6 +51,10 @@ struct SearchScreen: View {
 
     @State private var recentQueries = RecentQueriesStorage.shared
     @State private var lastNonEmptyQuery: String = ""
+    /// Query+services of the last search that ran to completion; lets the
+    /// `.task` below skip an identical re-search when it re-fires on
+    /// navigation back from a detail.
+    @State private var lastCompletedSearchKey: String?
     @State private var isLoading: Bool = false
     @State private var keyboardSelectedIndex: Int?
 
@@ -249,6 +253,17 @@ struct SearchScreen: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .task(id: musicSearchService.query + musicSearchSelection.rawValue + searchAlsoServices.rawValue) {
+                // Pushing a detail cancels this task and popping back restarts
+                // it — same id, but `.task` re-fires on reappear. Re-running
+                // the identical search re-streams providers into the list and
+                // re-sorts it, visibly reshuffling results on every return.
+                // If nothing changed since the last completed search, keep
+                // what's on screen.
+                let searchKey = musicSearchService.query + musicSearchSelection.rawValue + searchAlsoServices.rawValue
+                if searchKey == lastCompletedSearchKey, !musicSearchService.results.isEmpty {
+                    isLoading = false
+                    return
+                }
                 isLoading = true
                 if suggestion == nil {
                     searchCompletionTapped = false
@@ -261,6 +276,7 @@ struct SearchScreen: View {
                 // isLoading under the replacement search — that briefly
                 // showed "No Results" while the real search was in flight.
                 if Task.isCancelled { return }
+                lastCompletedSearchKey = searchKey
                 suggestion = nil
                 isLoading = false
                 playlistsContainer.playlists = await sonosService.sonosPlaylists()
