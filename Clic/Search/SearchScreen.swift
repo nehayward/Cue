@@ -678,19 +678,23 @@ private struct MediaServiceMenu: View {
     }
 
     // One flat list of services — tap to check/uncheck, up to three. No header
-    // ("Search" is implied) and no row separators.
+    // ("Search" is implied) and no row separators. A ScrollView + VStack rather
+    // than a List: a List in a fixed-size popover crashes / mis-sizes on Mac
+    // Catalyst, and a VStack has no separators to hide anyway.
     private var servicePicker: some View {
-        List {
-            ForEach(enabledServices, id: \.self) { service in
-                Button { toggleService(service) } label: {
-                    serviceRow(service)
+        ScrollView {
+            VStack(spacing: 0) {
+                ForEach(enabledServices, id: \.self) { service in
+                    Button { toggleService(service) } label: {
+                        serviceRow(service)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isAtLimit && !isSelected(service))
                 }
-                .tint(.primary)
-                .disabled(isAtLimit && !isSelected(service))
-                .listRowSeparator(.hidden)
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
         }
-        .listStyle(.plain)
         .frame(minWidth: 260, idealWidth: 280, minHeight: 420, idealHeight: 520)
     }
 
