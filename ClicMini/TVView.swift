@@ -16,6 +16,7 @@ struct TVView: View {
                 if let settings = device.TVSettings {
                     TVSettingsButton(
                         isActive: settings.nightMode,
+                        label: settings.nightMode ? "On" : "Off",
                         systemImage: "moon.zzz.fill",
                         accessibilityLabel: "Night Mode"
                     ) {
@@ -29,7 +30,11 @@ struct TVView: View {
 
                     if device.isArcUltra {
                         let speechLevel = settings.speechLevel
-                        Menu {
+                        TVSettingsMenu(
+                            isActive: speechLevel.isActive,
+                            label: speechLevel.title,
+                            systemImage: "person.wave.2.fill"
+                        ) {
                             ForEach(SpeechLevel.allCases, id: \.self) { level in
                                 Button {
                                     Task {
@@ -46,24 +51,12 @@ struct TVView: View {
                                     }
                                 }
                             }
-                        } label: {
-                            Label("Speech Enhancement", systemImage: "person.wave.2.fill")
-                                .symbolRenderingMode(.hierarchical)
-                                .labelStyle(.iconOnly)
-                                .foregroundColor(speechLevel.isActive ? .accentColor : .secondary)
-                                .padding(8)
-                                .background(speechLevel.isActive ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
-                                .cornerRadius(6)
                         }
-                        .menuStyle(.borderlessButton)
-                        .menuIndicator(.hidden)
-                        .contentShape(Rectangle())
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
                         .animation(.spring(response: 0.3), value: speechLevel)
                     } else {
                         TVSettingsButton(
                             isActive: settings.dialogLevel,
+                            label: settings.dialogLevel ? "On" : "Off",
                             systemImage: "person.wave.2.fill",
                             accessibilityLabel: "Dialog Mode"
                         ) {
@@ -85,19 +78,14 @@ struct TVView: View {
 
 private struct TVSettingsButton: View {
     let isActive: Bool
+    let label: String
     let systemImage: String
     let accessibilityLabel: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Label(accessibilityLabel, systemImage: systemImage)
-                .symbolRenderingMode(.hierarchical)
-                .labelStyle(.iconOnly)
-                .foregroundColor(isActive ? .accentColor : .secondary)
-                .padding(8)
-                .background(isActive ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
-                .cornerRadius(6)
+            tvButtonContent(systemImage: systemImage, label: label, isActive: isActive)
         }
         .contentShape(Rectangle())
         .padding(.horizontal, 4)
@@ -105,4 +93,38 @@ private struct TVSettingsButton: View {
         .buttonStyle(.plain)
         .animation(.spring(response: 0.3), value: isActive)
     }
+}
+
+private struct TVSettingsMenu<Items: View>: View {
+    let isActive: Bool
+    let label: String
+    let systemImage: String
+    @ViewBuilder let items: () -> Items
+
+    var body: some View {
+        Menu(content: items) {
+            tvButtonContent(systemImage: systemImage, label: label, isActive: isActive)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+    }
+}
+
+private func tvButtonContent(systemImage: String, label: String, isActive: Bool) -> some View {
+    ZStack(alignment: .bottom) {
+        Image(systemName: systemImage)
+            .symbolRenderingMode(.hierarchical)
+            .foregroundColor(isActive ? .accentColor : .secondary)
+            .padding(8)
+            .padding(.bottom, 10)
+        Text(label)
+            .font(.system(size: 9, weight: .medium))
+            .foregroundColor(isActive ? .accentColor : .secondary)
+            .padding(.bottom, 4)
+    }
+    .background(isActive ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
+    .cornerRadius(6)
 }
