@@ -62,7 +62,7 @@ struct ConnectByIPScreen: View {
                 VStack(spacing: 8) {
                      Button {
                          Task {
-                             guard let device = sonosService.setPriorityDevice() else { return }
+                             guard let device = await sonosService.setPriorityDevice() else { return }
                              alertService.showAlert(with: "Assigning Priority to \(device.name)", imageName: "1.circle.fill")
                          }
                      } label: {
@@ -128,9 +128,11 @@ struct ConnectByIPScreen: View {
         
         if isValidIP {
             Task {
-                await sonosService.setStaticIP(ip: ip)
-                // Check if the IP matches any room
-                deviceFound = sonosService.rooms.contains { $0.ip == ip }
+                // Probe reachability only — do NOT adopt/pin a household from a
+                // transient, still-being-typed IP. Adoption happens on an explicit
+                // tap (a room row, or Set Priority Device).
+                let groups = (try? await sonosService.getGroups(with: ip)) ?? []
+                deviceFound = !groups.isEmpty
             }
         } else {
             deviceFound = false

@@ -6,7 +6,7 @@ public struct Credentials {
     public let householdId: String
     public let token: String
     public let key: String
-    
+
     public init(deviceId: String, householdId: String, token: String, key: String) {
         self.deviceId = deviceId
         self.householdId = householdId
@@ -32,53 +32,88 @@ public struct SpotifyTokenRefreshResponse {
 // Unified token refresh coordinator to prevent race conditions
 public final class TokenRefreshCoordinator {
     public static let shared = TokenRefreshCoordinator()
-    
-    private var refreshInProgress: [String: Bool] = [:]
+
+    private typealias RefreshTask = Task<(String, String), Error>
+    private var refreshTasks: [String: RefreshTask] = [:]
     private let lock = OSAllocatedUnfairLock()
-    
+
     private init() {}
-    
-    public func refreshToken(credentials: Credentials) async throws -> (String, String)? {
-        let key = "\(credentials.token):\(credentials.key)"
-        
-        // Check if refresh is already in progress
-        let shouldStartRefresh = lock.withLock {
-            if refreshInProgress[key] == true {
-                return false // Refresh already in progress
-            } else {
-                refreshInProgress[key] = true
-                return true // Start new refresh
+
+    /// Refreshes the SMAPI token for the household in `credentials`, persisting
+    /// the result through `handler` before any caller resumes.
+    ///
+    /// Concurrent callers for the same household share one in-flight refresh —
+    /// a second network refresh would invalidate the token the first one just
+    /// obtained. Keying on the household (not the stale token pair) also
+    /// coalesces callers that hold different stale token generations.
+    public func refreshToken(credentials: Credentials, handler: TokenRefreshHandler? = nil) async throws -> (String, String) {
+        let key = credentials.householdId
+
+        let task = lock.withLock { () -> RefreshTask in
+            if let existing = refreshTasks[key] {
+                return existing
+            }
+            let task = RefreshTask {
+                // Removed only after the refreshed token has been persisted, so
+                // a caller that misses the join window reads fresh credentials
+                // from the handler instead of re-refreshing with dead ones.
+                defer {
+                    self.lock.withLock { _ = self.refreshTasks.removeValue(forKey: key) }
+                }
+                let (token, tokenKey) = try await SpotifySonosAPI.shared.refreshTokenIfNeeded(credentials: credentials)
+                if token != credentials.token || tokenKey != credentials.key {
+                    try await handler?.handleTokenRefresh(householdId: credentials.householdId, token: token, key: tokenKey)
+                }
+                return (token, tokenKey)
+            }
+            refreshTasks[key] = task
+            return task
+        }
+
+        return try await value(of: task)
+    }
+
+    /// Awaits the shared task while staying responsive to cancellation of the
+    /// caller. `task.value` alone suspends until the refresh finishes even if
+    /// the awaiting task is cancelled; this bridge lets a cancelled caller bail
+    /// out immediately while the refresh keeps running for the other waiters.
+    private func value(of task: RefreshTask) async throws -> (String, String) {
+        typealias Continuation = CheckedContinuation<(String, String), Error>
+        let state = OSAllocatedUnfairLock<(continuation: Continuation?, isResumed: Bool)>(initialState: (nil, false))
+
+        let takeContinuation: @Sendable () -> Continuation? = {
+            state.withLock { state in
+                guard !state.isResumed else { return nil }
+                state.isResumed = true
+                let continuation = state.continuation
+                state.continuation = nil
+                return continuation
             }
         }
-        
-        if !shouldStartRefresh {
-            // Wait for the existing refresh to complete by polling
-            while true {
-                try await Task.sleep(for: .milliseconds(10)) // 10ms - much faster
-                let isStillInProgress = lock.withLock {
-                    refreshInProgress[key] == true
+
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: Continuation) in
+                let alreadyCancelled = state.withLock { state -> Bool in
+                    guard !state.isResumed else { return true }
+                    state.continuation = continuation
+                    return false
                 }
-                if !isStillInProgress {
-                    break
+                if alreadyCancelled {
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                Task {
+                    let result: Result<(String, String), Error>
+                    do {
+                        result = .success(try await task.value)
+                    } catch {
+                        result = .failure(error)
+                    }
+                    takeContinuation()?.resume(with: result)
                 }
             }
-            
-            // Try to get fresh credentials after the refresh completed
-            return try await SpotifySonosAPI.shared.refreshTokenIfNeeded(credentials: credentials)
-        }
-        
-        // Perform the actual refresh
-        do {
-            let result = try await SpotifySonosAPI.shared.refreshTokenIfNeeded(credentials: credentials)
-            lock.withLock {
-                refreshInProgress[key] = false
-            }
-            return result
-        } catch {
-            lock.withLock {
-                refreshInProgress[key] = false
-            }
-            throw error
+        } onCancel: {
+            takeContinuation()?.resume(throwing: CancellationError())
         }
     }
 }
