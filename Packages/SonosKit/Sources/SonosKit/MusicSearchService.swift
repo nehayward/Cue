@@ -103,7 +103,14 @@ public final class MusicSearchService {
         // With several providers selected, results accumulate into one
         // merged, deduplicated, re-ranked list instead of last-writer-wins.
         let isMultiServiceSearch = providers.count > 1
-        var mergedResults: [PlayableContent] = []
+        // Keyed by provider (not appended in arrival order) so the merged input
+        // is rebuilt in a stable service order every time a provider drains.
+        // Network timing decides which provider returns first; feeding the
+        // ranking in that order made the tie-break — which preserves input
+        // order for equally-scoring items — reshuffle the artist's many
+        // same-ranked albums on each republish, so the list appeared to
+        // rebuild itself as results came in or when the view re-rendered.
+        var resultsByProvider: [MediaSearchService: [PlayableContent]] = [:]
 
         await withTaskGroup(of: (MediaSearchService, [PlayableContent]?).self) { group in
             for provider in providers {
@@ -152,7 +159,14 @@ public final class MusicSearchService {
                     self.suggestions.removeAll()
                 }
                 if isMultiServiceSearch {
-                    mergedResults.append(contentsOf: providerResults)
+                    resultsByProvider[provider] = providerResults
+                    // Rebuild the merged list in a fixed service order (the enum's
+                    // case order), not the order providers happened to finish, so
+                    // the ranking receives the same input sequence every time and
+                    // its order stays stable across republishes.
+                    let mergedResults = MediaSearchService.allCases
+                        .compactMap { resultsByProvider[$0] }
+                        .flatMap { $0 }
                     // Group all matching artists at the top: the same artist
                     // appears once per service, and clustering their rows reads
                     // better than lifting a single copy above its twins.
