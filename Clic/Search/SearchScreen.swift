@@ -604,7 +604,6 @@ private struct MediaServiceMenu: View {
     @Binding var filters: [FilterSelection]
     @Binding var searchAlsoServices: AlsoSearchServices
 
-    @Environment(Router.self) private var router
     @State private var coreFeatures = CoreFeatures.shared
 
     /// The extras actually in effect: matches SearchScreen.selectedSearchServices
@@ -631,29 +630,34 @@ private struct MediaServiceMenu: View {
 
     @State private var showPicker = false
 
+    private let maxSelectable = 3
+
     private var enabledServices: [MediaSearchService] {
         MediaSearchService.allCases.filter { coreFeatures.enabledServices($0).wrappedValue }
     }
 
-    /// Extra services offered as toggles — everything enabled except the
-    /// primary and TuneIn (a radio directory doesn't mix into a catalog search).
-    private var offeredExtras: [MediaSearchService] {
-        enabledServices.filter { $0 != musicSearchSelection && $0 != .tuneIn }
+    /// A service is included in the search when it's the primary or an extra.
+    private func isSelected(_ service: MediaSearchService) -> Bool {
+        service == musicSearchSelection || activeExtras.contains(service)
     }
+
+    private var selectedCount: Int { 1 + activeExtras.count }
+    private var isAtLimit: Bool { selectedCount >= maxSelectable }
 
     var body: some View {
         // A Button + popover, not a Menu: a Menu dismisses whenever its label
         // changes, and the label (the overlapping icons) changes on every
-        // toggle — so toggling an extra kept closing the menu. A popover's
-        // visibility is bound to `showPicker`, so the label updates freely.
+        // toggle. The popover's visibility is bound to `showPicker`, so the
+        // label updates freely and toggling never closes it.
         Button {
             HapticManager.shared.fireHaptic(.buttonPress)
             showPicker = true
         } label: {
             OverlappingServiceIcons(services: selectedServicesOrdered)
-                .frame(height: 24)
-                .contentShape(.rect)
+                .frame(height: 22)
         }
+        .buttonBorderShape(.capsule)
+        .glassButton()
         .popoverTip(AppTip.mediaService)
         .popover(isPresented: $showPicker) {
             servicePicker
@@ -661,87 +665,80 @@ private struct MediaServiceMenu: View {
         }
     }
 
+    // One flat list of services — tap to check/uncheck, up to three. No header
+    // ("Search" is implied) and no row separators.
     private var servicePicker: some View {
         List {
-            Section("Search") {
-                ForEach(enabledServices, id: \.self) { service in
-                    Button { selectPrimary(service) } label: {
-                        serviceRow(service, checked: service == musicSearchSelection)
-                    }
-                    .tint(.primary)
-                }
-            }
-
-            if musicSearchSelection != .tuneIn, !offeredExtras.isEmpty {
-                Section("Also search in") {
-                    ForEach(offeredExtras, id: \.self) { service in
-                        Toggle(isOn: extraBinding(for: service)) {
-                            serviceRow(service, checked: nil)
-                        }
-                    }
-                }
-            }
-
-            Section {
-                Button {
-                    showPicker = false
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    router.presentedSheet = .settings(destination: .servicePreferenceScreen)
-                } label: {
-                    Label("Settings…", systemImage: "gear")
+            ForEach(enabledServices, id: \.self) { service in
+                Button { toggleService(service) } label: {
+                    serviceRow(service)
                 }
                 .tint(.primary)
+                .disabled(isAtLimit && !isSelected(service))
+                .listRowSeparator(.hidden)
             }
         }
         .listStyle(.plain)
-        .frame(minWidth: 260, idealWidth: 280, minHeight: 300, idealHeight: 380)
+        .frame(minWidth: 300, idealWidth: 320, minHeight: 380, idealHeight: 460)
     }
 
-    private func serviceRow(_ service: MediaSearchService, checked: Bool?) -> some View {
-        HStack(spacing: 10) {
+    private func serviceRow(_ service: MediaSearchService) -> some View {
+        HStack(spacing: 14) {
             service.iconForMusicService
-                .frame(width: 18, height: 18)
+                .frame(width: 24, height: 24)
                 .foregroundStyle(service.brandColor.gradient)
             Text(service.title)
+                .font(.title3)
             Spacer(minLength: 8)
-            if checked == true {
-                Image(systemName: "checkmark")
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.tint)
-            }
+            Image(systemName: "checkmark")
+                .fontWeight(.semibold)
+                .foregroundStyle(.tint)
+                .opacity(isSelected(service) ? 1 : 0)
+        }
+        .padding(.vertical, 8)
+        .contentShape(.rect)
+        // Dim rows that can't be added because the 3-service limit is reached.
+        .opacity(isAtLimit && !isSelected(service) ? 0.35 : 1)
+    }
+
+    /// Toggle a service in/out of the search set (max 3). Primary + extras are
+    /// kept internally; the primary is just the first selected. TuneIn is
+    /// exclusive — a radio directory doesn't mix into a catalog search.
+    private func toggleService(_ service: MediaSearchService) {
+        HapticManager.shared.fireHaptic(.buttonPress)
+
+        if service == .tuneIn {
+            setPrimary(.tuneIn, clearingExtras: true)
+            for filter in filters { filter.isFiltered = false }
+            return
+        }
+        if musicSearchSelection == .tuneIn {
+            // Leaving TuneIn: the tapped service becomes the sole primary.
+            setPrimary(service, clearingExtras: true)
+            return
+        }
+
+        if service == musicSearchSelection {
+            // Uncheck the primary by promoting an extra; no-op if it's the last.
+            guard let next = activeExtrasOrdered.first else { return }
+            searchAlsoServices.services.remove(next)
+            setPrimary(next, clearingExtras: false)
+        } else if activeExtras.contains(service) {
+            searchAlsoServices.services.remove(service)
+        } else if selectedCount < maxSelectable {
+            searchAlsoServices.services.insert(service)
         }
     }
 
-    private func selectPrimary(_ service: MediaSearchService) {
-        HapticManager.shared.fireHaptic(.buttonPress)
+    private func setPrimary(_ service: MediaSearchService, clearingExtras: Bool) {
         musicSearchSelection = service
-        // The new primary can't also be an extra. Mutate the stored set
-        // directly so extras hidden right now (disabled service, TuneIn
-        // primary) survive in storage.
-        searchAlsoServices.services.remove(service)
+        if clearingExtras {
+            searchAlsoServices.services.removeAll()
+        } else {
+            searchAlsoServices.services.remove(service)
+        }
         Analytics.shared.track(.selectedMusicService, with: ["MusicService": service.rawValue])
         Analytics.shared.setSelection(metadata: ["MusicService": service.rawValue])
-        if service == .tuneIn {
-            for filter in filters {
-                filter.isFiltered = false
-            }
-        }
-    }
-
-    private func extraBinding(for service: MediaSearchService) -> Binding<Bool> {
-        Binding(
-            get: { activeExtras.contains(service) },
-            set: { isOn in
-                HapticManager.shared.fireHaptic(.buttonPress)
-                if isOn {
-                    searchAlsoServices.services.insert(service)
-                } else {
-                    searchAlsoServices.services.remove(service)
-                }
-                // The primary is never stored as an extra.
-                searchAlsoServices.services.remove(musicSearchSelection)
-            }
-        )
     }
 }
 
@@ -754,7 +751,7 @@ private struct OverlappingServiceIcons: View {
     var diameter: CGFloat = 24
 
     private var shown: [MediaSearchService] { Array(services.prefix(3)) }
-    private var overlap: CGFloat { diameter * 0.38 }
+    private var overlap: CGFloat { diameter * 0.42 }
 
     var body: some View {
         HStack(spacing: -overlap) {
@@ -766,10 +763,13 @@ private struct OverlappingServiceIcons: View {
 
     private func icon(_ service: MediaSearchService, isFront: Bool) -> some View {
         service.iconForMusicService
-            .frame(width: diameter * 0.55, height: diameter * 0.55)
+            .frame(width: diameter * 0.58, height: diameter * 0.58)
             .foregroundStyle(service.brandColor.gradient)
             .frame(width: diameter, height: diameter)
-            .background(Circle().fill(.regularMaterial))
+            // A solid circle chip reads cleaner on the glass button than a
+            // translucent material; the cutout below reveals the glass between
+            // stacked icons.
+            .background(Circle().fill(.background))
             .mask { iconMask(isFront: isFront) }
     }
 
