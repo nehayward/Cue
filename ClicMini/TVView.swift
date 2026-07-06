@@ -96,12 +96,26 @@ private struct TVSettingsMenu<Items: View>: View {
     @ViewBuilder let items: () -> Items
 
     var body: some View {
-        Menu(content: items) {
-            tvTileContent(systemImage: systemImage, label: label, isActive: isActive)
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isActive ? Color.accentColor.opacity(0.15) : Color(nsColor: .controlBackgroundColor))
+                .frame(width: 44, height: 44)
+            Menu(content: items) {
+                VStack(spacing: 4) {
+                    Image(systemName: systemImage)
+                        .symbolRenderingMode(.hierarchical)
+                        .font(.system(size: 16))
+                        .foregroundColor(isActive ? .accentColor : .secondary)
+                    Text(label)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(isActive ? .accentColor : .secondary)
+                }
+                .frame(width: 44, height: 44)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .frame(width: 44, height: 44)
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
     }
 }
 
