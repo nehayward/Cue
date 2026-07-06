@@ -153,10 +153,14 @@ public final class MusicSearchService {
                 }
                 if isMultiServiceSearch {
                     mergedResults.append(contentsOf: providerResults)
+                    // Group all matching artists at the top: the same artist
+                    // appears once per service, and clustering their rows reads
+                    // better than lifting a single copy above its twins.
                     self.results = SearchRanking.sort(
                         mergedResults,
                         query: capturedQuery,
-                        recentlyPlayedIDs: recentlyPlayedIDs
+                        recentlyPlayedIDs: recentlyPlayedIDs,
+                        groupArtists: true
                     )
                 } else {
                     self.results = providerResults

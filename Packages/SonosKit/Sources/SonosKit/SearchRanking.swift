@@ -23,6 +23,7 @@ enum SearchRanking {
         _ playableContent: [PlayableContent],
         query: String,
         recentlyPlayedIDs: Set<String> = [],
+        groupArtists: Bool = false,
         now: Date = Date()
     ) -> [PlayableContent] {
         // Normalized once here; every per-item comparison reuses it.
@@ -43,44 +44,55 @@ enum SearchRanking {
 
         var entries = Array(uniqueItems.values)
 
-        // Spotify-style top result: exactly one artist — the best-scoring,
-        // genuinely matching one — gets the top-slot boost. Boosting every
-        // matching artist walls off tracks and albums behind a run of
-        // same-named artists (searching "dua" must rank Dua Lipa and her
-        // popular songs above ten obscure artists named "Dua").
-        let topArtist = entries.indices
-            .filter { entries[$0].item.content.type == .artist }
-            .max { lhs, rhs in
-                if entries[lhs].score != entries[rhs].score { return entries[lhs].score < entries[rhs].score }
-                return entries[lhs].index > entries[rhs].index
-            }
-        if let topArtist {
-            let text = textScore(item: entries[topArtist].item, normalizedQuery: normalizedQuery)
-            if text >= topArtistMinimumText {
-                // Scale the bonus by the artist's own popularity (half
-                // strength when unknown): a song-title query must not crown
-                // a nobody who happens to share the name — "just dance"
-                // means the Lady Gaga song, not an obscure artist named
-                // "Just Dance". A genuinely popular artist still tops their
-                // own hit tracks.
-                let artistQuality = min(Double(entries[topArtist].item.metadata?.popularity ?? 0) / 100, 1)
-                entries[topArtist].score += topArtistBonus * text * (0.5 + 0.5 * artistQuality)
+        // Artist boost: lift matching artists toward the top like Spotify's
+        // top result. Single-service search boosts only the best-matching
+        // artist — a flat boost would wall tracks and albums behind a run of
+        // same-named artists (searching "dua" must rank Dua Lipa and her hits
+        // above ten obscure artists named "Dua"). A merged multi-service
+        // search instead groups every matching artist, since the same artist
+        // legitimately appears once per service; popularity scaling keeps
+        // obscure same-named artists from riding along.
+        let matchingArtists = entries.indices
+            .filter { entries[$0].item.content.type.isArtist }
+            .map { (index: $0, text: textScore(item: entries[$0].item, normalizedQuery: normalizedQuery)) }
+            .filter { $0.text >= topArtistMinimumText }
 
-                // Spotify's search API reports popularity for tracks and
-                // artists but not albums, which buried the focused artist's
-                // albums below every popular track. Albums by the top artist
-                // inherit its popularity as their quality signal so they
-                // surface alongside the artist's tracks.
-                let artistName = normalized(entries[topArtist].item.title)
-                if !artistName.isEmpty, artistQuality > 0 {
-                    for index in entries.indices {
-                        let candidate = entries[index].item
-                        guard candidate.content.type == .album || candidate.content.type == .libraryAlbum,
-                              (candidate.metadata?.popularity ?? 0) == 0,
-                              matchesWholeWords(normalized(candidate.metadata?.artist ?? candidate.subtitle), phrase: artistName)
-                        else { continue }
-                        entries[index].score += artistQuality * popularityWeight
+        let boostedArtists: [(index: Int, text: Double)]
+        if groupArtists {
+            boostedArtists = matchingArtists
+        } else {
+            boostedArtists = matchingArtists
+                .max { lhs, rhs in
+                    if entries[lhs.index].score != entries[rhs.index].score {
+                        return entries[lhs.index].score < entries[rhs.index].score
                     }
+                    return lhs.index > rhs.index
+                }
+                .map { [$0] } ?? []
+        }
+
+        for (index, text) in boostedArtists {
+            let artistQuality = min(Double(entries[index].item.metadata?.popularity ?? 0) / 100, 1)
+            // Single mode uses a 0.5 floor so the one chosen artist reliably
+            // beats hit tracks even when only moderately popular. Grouping
+            // scales purely by popularity so a nobody sharing the name isn't
+            // lifted — "just dance" still means the Lady Gaga song.
+            let scale = groupArtists ? artistQuality : (0.5 + 0.5 * artistQuality)
+            entries[index].score += topArtistBonus * text * scale
+
+            // Spotify's search API reports popularity for tracks and artists
+            // but not albums, which buried the artist's albums below every
+            // popular track. Albums by this artist inherit its popularity as
+            // their quality signal so they surface alongside the tracks.
+            let artistName = normalized(entries[index].item.title)
+            if !artistName.isEmpty, artistQuality > 0 {
+                for albumIndex in entries.indices {
+                    let candidate = entries[albumIndex].item
+                    guard candidate.content.type == .album || candidate.content.type == .libraryAlbum,
+                          (candidate.metadata?.popularity ?? 0) == 0,
+                          matchesWholeWords(normalized(candidate.metadata?.artist ?? candidate.subtitle), phrase: artistName)
+                    else { continue }
+                    entries[albumIndex].score += artistQuality * popularityWeight
                 }
             }
         }

@@ -337,6 +337,41 @@ final class SearchRankingTests: XCTestCase {
         XCTAssertEqual(titles(results), ["Rated Track", "Unrated Track"])
     }
 
+    // MARK: Multi-service artist grouping
+
+    func testMultiServiceGroupsMatchingArtistsAtTop() {
+        // The same artist appears once per service; grouping lifts every copy
+        // above tracks that only match on the artist line, even the
+        // lower-popularity copy.
+        let spotifyArtist = item(title: "Adele", subtitle: "Artist", type: .artist, service: .spotify, popularity: 90, id: "sp-artist")
+        let appleArtist = item(title: "Adele", subtitle: "Artist", type: .artist, service: .apple, popularity: 45, id: "ap-artist")
+        let track = item(title: "Hello", subtitle: "Adele", service: .spotify, popularity: 95, id: "hello")
+        let items = [spotifyArtist, track, appleArtist]
+
+        let grouped = SearchRanking.sort(items, query: "adele", groupArtists: true)
+        XCTAssertEqual(grouped.map(\.content.type), [.artist, .artist, .track])
+        XCTAssertEqual(grouped.first?.id, "sp-artist")
+
+        // Single-service mode boosts only the best artist, so the
+        // lower-popularity copy falls below the popular track.
+        let single = SearchRanking.sort(items, query: "adele")
+        XCTAssertEqual(single.map(\.id), ["sp-artist", "hello", "ap-artist"])
+    }
+
+    func testGroupingStillKeepsObscureSameNamedArtistsDown() {
+        // Grouping scales purely by popularity, so a nobody sharing a song's
+        // name can't ride to the top — the hit song stays first.
+        let results = SearchRanking.sort(
+            [
+                item(title: "Just Dance", subtitle: "Artist", type: .artist, service: .apple, popularity: 20, id: "obscure-artist"),
+                item(title: "Just Dance", subtitle: "Lady Gaga, Colby O'Donis", service: .spotify, popularity: 80, id: "hit-song"),
+            ],
+            query: "just dance",
+            groupArtists: true
+        )
+        XCTAssertEqual(results.first?.id, "hit-song")
+    }
+
     // MARK: Dedup & stability
 
     func testSameContentFromDifferentSourcesIsNotDeduplicated() {
