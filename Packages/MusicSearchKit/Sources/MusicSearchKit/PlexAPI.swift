@@ -1,4 +1,5 @@
 import Foundation
+import os
 import SwiftyBeaver
 
 @Observable
@@ -15,14 +16,12 @@ public final class PlexAPI {
     // self-heal path, onboarding fan-out). They're guarded by `cacheLock` so
     // access is race-free while keeping `getBaseURL` synchronous. Never hold the
     // lock across an `await`.
-    @ObservationIgnored private let cacheLock = NSLock()
+    @ObservationIgnored private let cacheLock = OSAllocatedUnfairLock()
     @ObservationIgnored private var plexServer: PlexServer?
     @ObservationIgnored private var resolvedBaseURLByServer: [String: URL] = [:]
 
     private func withCacheLock<T>(_ body: () -> T) -> T {
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
-        return body()
+        cacheLock.withLock(body)
     }
 
     private let authenticator: PlexAuthenticator

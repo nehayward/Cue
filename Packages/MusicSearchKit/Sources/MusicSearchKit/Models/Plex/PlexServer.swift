@@ -36,17 +36,17 @@ public struct PlexServer: Codable {
         connections
             .filter { !$0.local }
             .filter { !$0.address.lowercased().contains("quick") }
-            .sorted {
-                // Relay connections proxy through plex.tv at a throttled
-                // bandwidth cap, so always prefer direct remote connections.
-                let r0 = $0.relay ?? false
-                let r1 = $1.relay ?? false
-                if r0 != r1 { return !r0 }
-                let p0 = Self.preferredPorts.firstIndex(of: $0.port ?? -1) ?? Int.max
-                let p1 = Self.preferredPorts.firstIndex(of: $1.port ?? -1) ?? Int.max
-                return p0 < p1
-            }
+            .sorted { Self.remoteRank($0) < Self.remoteRank($1) }
             .map(\.uri)
+    }
+
+    /// Ordering key for remote connections (lower sorts first): direct
+    /// connections before relays — relays proxy through plex.tv at a throttled
+    /// bandwidth cap — then by preferred-port order.
+    private static func remoteRank(_ connection: PlexConnection) -> (relayRank: Int, portRank: Int) {
+        let relayRank = (connection.relay ?? false) ? 1 : 0
+        let portRank = preferredPorts.firstIndex(of: connection.port ?? -1) ?? Int.max
+        return (relayRank, portRank)
     }
 
     func baseURL(preferring connectionType: PlexAPI.ConnectionPreference) -> URL? {
