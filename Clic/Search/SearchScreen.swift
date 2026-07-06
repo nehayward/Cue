@@ -640,8 +640,6 @@ private struct MediaServiceMenu: View {
         [musicSearchSelection] + activeExtrasOrdered
     }
 
-    @State private var showPicker = false
-
     private let maxSelectable = 3
 
     private var enabledServices: [MediaSearchService] {
@@ -657,64 +655,34 @@ private struct MediaServiceMenu: View {
     private var isAtLimit: Bool { selectedCount >= maxSelectable }
 
     var body: some View {
-        // A Button + popover, not a Menu: a Menu dismisses whenever its label
-        // changes, and the label (the overlapping icons) changes on every
-        // toggle. The popover's visibility is bound to `showPicker`, so the
-        // label updates freely and toggling never closes it.
-        Button {
-            HapticManager.shared.fireHaptic(.buttonPress)
-            showPicker = true
+        // A native Menu (not a popover): popovers with a List/ScrollView crash
+        // on Mac Catalyst. Each service is a Toggle (checkmark) that stays put
+        // via .menuActionDismissBehavior(.disabled), so several can be toggled
+        // in one pass — up to three, then the rest disable.
+        Menu {
+            ForEach(enabledServices, id: \.self) { service in
+                Toggle(isOn: selectionBinding(for: service)) {
+                    HStack {
+                        Text(service.title)
+                        service.iconForMusicService
+                    }
+                }
+                .menuActionDismissBehavior(.disabled)
+                .disabled(isAtLimit && !isSelected(service))
+            }
         } label: {
             OverlappingServiceIcons(services: selectedServicesOrdered)
                 .frame(height: 26)
                 .contentShape(.rect)
         }
-        .buttonStyle(.plain)
         .popoverTip(AppTip.mediaService)
-        .popover(isPresented: $showPicker) {
-            servicePicker
-                .presentationCompactAdaptation(.popover)
-        }
     }
 
-    // One flat list of services — tap to check/uncheck, up to three. No header
-    // ("Search" is implied) and no row separators. A ScrollView + VStack rather
-    // than a List: a List in a fixed-size popover crashes / mis-sizes on Mac
-    // Catalyst, and a VStack has no separators to hide anyway.
-    private var servicePicker: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                ForEach(enabledServices, id: \.self) { service in
-                    Button { toggleService(service) } label: {
-                        serviceRow(service)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isAtLimit && !isSelected(service))
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-        }
-        .frame(minWidth: 260, idealWidth: 280, minHeight: 420, idealHeight: 520)
-    }
-
-    private func serviceRow(_ service: MediaSearchService) -> some View {
-        HStack(spacing: 14) {
-            service.iconForMusicService
-                .frame(width: 24, height: 24)
-                .foregroundStyle(service.brandColor.gradient)
-            Text(service.title)
-                .font(.title3)
-            Spacer(minLength: 8)
-            Image(systemName: "checkmark")
-                .fontWeight(.semibold)
-                .foregroundStyle(.tint)
-                .opacity(isSelected(service) ? 1 : 0)
-        }
-        .padding(.vertical, 8)
-        .contentShape(.rect)
-        // Dim rows that can't be added because the 3-service limit is reached.
-        .opacity(isAtLimit && !isSelected(service) ? 0.35 : 1)
+    private func selectionBinding(for service: MediaSearchService) -> Binding<Bool> {
+        Binding(
+            get: { isSelected(service) },
+            set: { _ in toggleService(service) }
+        )
     }
 
     /// Toggle a service in/out of the search set (max 3). Primary + extras are
