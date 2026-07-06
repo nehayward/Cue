@@ -12,13 +12,12 @@ struct TVView: View {
                     .bold()
             }
             .foregroundStyle(.primary)
-            HStack {
+            HStack(spacing: 8) {
                 if let settings = device.TVSettings {
                     TVSettingsButton(
                         isActive: settings.nightMode,
                         label: settings.nightMode ? "On" : "Off",
-                        systemImage: "moon.zzz.fill",
-                        accessibilityLabel: "Night Mode"
+                        systemImage: "moon.zzz.fill"
                     ) {
                         Task {
                             try? await sonosService.setNightMode(device.ip, enabled: !settings.nightMode)
@@ -57,8 +56,7 @@ struct TVView: View {
                         TVSettingsButton(
                             isActive: settings.dialogLevel,
                             label: settings.dialogLevel ? "On" : "Off",
-                            systemImage: "person.wave.2.fill",
-                            accessibilityLabel: "Dialog Mode"
+                            systemImage: "person.wave.2.fill"
                         ) {
                             Task {
                                 try? await sonosService.setDialogLevel(device.ip, enabled: !settings.dialogLevel)
@@ -80,16 +78,12 @@ private struct TVSettingsButton: View {
     let isActive: Bool
     let label: String
     let systemImage: String
-    let accessibilityLabel: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            tvButtonContent(systemImage: systemImage, label: label, isActive: isActive)
+            tvTileContent(systemImage: systemImage, label: label, isActive: isActive)
         }
-        .contentShape(Rectangle())
-        .padding(.horizontal, 4)
-        .padding(.vertical, 2)
         .buttonStyle(.plain)
         .animation(.spring(response: 0.3), value: isActive)
     }
@@ -103,28 +97,25 @@ private struct TVSettingsMenu<Items: View>: View {
 
     var body: some View {
         Menu(content: items) {
-            tvButtonContent(systemImage: systemImage, label: label, isActive: isActive)
+            tvTileContent(systemImage: systemImage, label: label, isActive: isActive)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .padding(.horizontal, 4)
-        .padding(.vertical, 2)
     }
 }
 
-private func tvButtonContent(systemImage: String, label: String, isActive: Bool) -> some View {
-    ZStack(alignment: .bottom) {
+private func tvTileContent(systemImage: String, label: String, isActive: Bool) -> some View {
+    VStack(spacing: 4) {
         Image(systemName: systemImage)
             .symbolRenderingMode(.hierarchical)
+            .font(.system(size: 16))
             .foregroundColor(isActive ? .accentColor : .secondary)
-            .padding(8)
-            .padding(.bottom, 10)
         Text(label)
             .font(.system(size: 9, weight: .medium))
             .foregroundColor(isActive ? .accentColor : .secondary)
-            .padding(.bottom, 4)
     }
-    .background(isActive ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
-    .cornerRadius(6)
+    .frame(width: 44, height: 44)
+    .background(isActive ? Color.accentColor.opacity(0.15) : Color(nsColor: .controlBackgroundColor))
+    .cornerRadius(8)
 }
