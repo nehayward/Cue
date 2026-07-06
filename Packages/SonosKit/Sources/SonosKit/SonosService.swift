@@ -2117,6 +2117,7 @@ public final class SonosService {
     }
 
     public func setArcUltraSpeechLevel(_ ip: String, level: Int) async throws {
+
         if level == 0 {
             try await api.setSpeechEnhanceEnabled(IP: ip, enabled: false)
         } else {
@@ -2126,11 +2127,20 @@ public final class SonosService {
         }
     }
 
-    public func getTVSettings(ip: String, isArcUltra: Bool = false) async throws -> TVSettings {
+    /// `isArcUltra`: pass `true`/`false` when the device type is already known to skip the probe.
+    /// Pass `nil` (default) to auto-detect — tries Arc Ultra first, falls back to standard on failure.
+    public func getTVSettings(ip: String, isArcUltra: Bool? = nil) async throws -> TVSettings {
         async let audioInputFormat = api.getAudioInputFormat(IP: ip)
         async let nightMode = api.getNightMode(IP: ip)
 
-        if isArcUltra {
+        let arcUltra: Bool
+        if let known = isArcUltra {
+            arcUltra = known
+        } else {
+            arcUltra = (try? await api.getSpeechEnhanceEnabled(IP: ip)) != nil
+        }
+
+        if arcUltra {
             async let speechEnhanceEnabled = api.getSpeechEnhanceEnabled(IP: ip)
             async let dialogLevelValue = api.getDialogLevelValue(IP: ip)
             return try await TVSettings(
@@ -2153,18 +2163,13 @@ public final class SonosService {
     /// Unified speech enhancement setter. Probes for Arc Ultra support first;
     /// falls back to standard dialog level for all other soundbars.
     public func setSpeechEnhancement(ip: String, enabled: Bool, toggle: Bool = false) async throws {
-        if let arcSettings = try? await getTVSettings(ip: ip, isArcUltra: true) {
-            let enable = toggle ? !arcSettings.speechLevel.isActive : enabled
-            let level = enable ? max(1, arcSettings.dialogLevelValue) : 0
+        let current = try await getTVSettings(ip: ip)
+        if current.speechEnhanceEnabled != nil {
+            let enable = toggle ? !current.speechLevel.isActive : enabled
+            let level = enable ? max(1, current.dialogLevelValue) : 0
             try await setArcUltraSpeechLevel(ip, level: level)
         } else {
-            let enable: Bool
-            if toggle {
-                let current = try await getTVSettings(ip: ip)
-                enable = !current.dialogLevel
-            } else {
-                enable = enabled
-            }
+            let enable = toggle ? !current.dialogLevel : enabled
             try await api.setDialogLevel(IP: ip, enabled: enable)
         }
     }

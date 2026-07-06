@@ -36,7 +36,7 @@ struct TVView: View {
                     Button {
                         Task {
                             try? await sonosService.setNightMode(device.ip, enabled: !nightMode)
-                            if let updated = try? await sonosService.getTVSettings(ip: device.ip, isArcUltra: device.isArcUltra) {
+                            if let updated = try? await sonosService.getTVSettings(ip: device.ip) {
                                 await sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
                             }
                         }
@@ -167,7 +167,7 @@ struct TVView: View {
             if scenePhase == .active {
                 Task {
                     try? await sonosService.updateWatchDevices(from: [device])
-                    if let updated = try? await sonosService.getTVSettings(ip: device.ip, isArcUltra: device.isArcUltra) {
+                    if let updated = try? await sonosService.getTVSettings(ip: device.ip) {
                         await sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
                     }
                 }

@@ -1890,11 +1890,20 @@ public final class SonosMiniService {
     //    }
     //
     //    // MARK: TV
-    public func getTVSettings(ip: String, isArcUltra: Bool = false) async throws -> SonosTVSettings {
+    /// `isArcUltra`: pass `true`/`false` when the device type is already known to skip the probe.
+    /// Pass `nil` (default) to auto-detect — tries Arc Ultra first, falls back to standard on failure.
+    public func getTVSettings(ip: String, isArcUltra: Bool? = nil) async throws -> SonosTVSettings {
         async let audioInputFormat = api.getAudioInputFormat(IP: ip)
         async let nightMode = api.getNightMode(IP: ip)
 
-        if isArcUltra {
+        let arcUltra: Bool
+        if let known = isArcUltra {
+            arcUltra = known
+        } else {
+            arcUltra = (try? await api.getSpeechEnhanceEnabled(IP: ip)) != nil
+        }
+
+        if arcUltra {
             async let speechEnhanceEnabled = api.getSpeechEnhanceEnabled(IP: ip)
             async let dialogLevelValue = api.getDialogLevelValue(IP: ip)
             return try await SonosTVSettings(
