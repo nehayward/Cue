@@ -135,13 +135,13 @@ struct LiveActivityNowPlayingViewPre27: View {
                     .frame(width: 32, height: 28)
                     .foregroundStyle(context.state.isMuted ? Color.primary : .secondary.opacity(0.8))
                     
-                    Toggle(isOn: settings.dialogLevel, intent: SetSpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
+                    Toggle(isOn: settings.speechIsActive, intent: SetSpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.speechIsActive)) {
                         Label("Speech Enhancement", systemImage: "person.wave.2.fill")
                     }
                     .symbolRenderingMode(.hierarchical)
                     .labelStyle(.iconOnly)
                     .toggleStyle(.button)
-                    .foregroundStyle(settings.dialogLevel ? Color.primary : .secondary.opacity(0.8))
+                    .foregroundStyle(settings.speechIsActive ? Color.primary : .secondary.opacity(0.8))
                     .frame(width: 32, height: 28)
                 }
                 .tint(.black)

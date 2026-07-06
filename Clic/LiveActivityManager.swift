@@ -64,7 +64,7 @@ final class LiveActivityManager: LiveActivityManageable {
             }
 
             if group.TVMode {
-                group.tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
+                group.tvSettings = try? await sonosService.getTVSettings(group: group)
             }
             
             let contentState = group.toContentState
@@ -101,7 +101,7 @@ final class LiveActivityManager: LiveActivityManageable {
                                                                                             ip: group.coordinatorRoom.ip,
                                                                                             name: group.nameWithCount))
                 if group.TVMode {
-                    group.tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
+                    group.tvSettings = try? await sonosService.getTVSettings(group: group)
                 }
 
                 let contentState = group.toContentState
@@ -138,7 +138,7 @@ final class LiveActivityManager: LiveActivityManageable {
         )
 
         if group.TVMode {
-            group.tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
+            group.tvSettings = try? await sonosService.getTVSettings(group: group)
         }
 
         let contentState = group.toContentState

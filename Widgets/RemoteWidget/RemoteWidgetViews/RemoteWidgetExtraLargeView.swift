@@ -74,17 +74,17 @@ struct RemoteWidgetExtraLargeView: View {
                         .tint(.secondary)
                         .background(theater.nightMode ? .primary : .tertiary, in: Capsule())
 
-                        Toggle(isOn: theater.dialogLevel, intent: SetSpeechEnhancementIntent(room: room, speechEnhancement: !theater.dialogLevel)) {
+                        Toggle(isOn: theater.speechIsActive, intent: SetSpeechEnhancementIntent(room: room, speechEnhancement: !theater.speechIsActive)) {
                             Label("Speech Enhancement", systemImage: "person.wave.2")
                         }
-                        .symbolVariant(theater.dialogLevel ? .fill : .none)
+                        .symbolVariant(theater.speechIsActive ? .fill : .none)
                         .labelStyle(.iconOnly)
                         .toggleStyle(.button)
                         .contentShape(.circle)
                         .foregroundStyle(.thickMaterial)
                         .frame(width: 40, height: 40)
                         .tint(.secondary)
-                        .background(theater.dialogLevel ? .primary : .tertiary, in: Capsule())
+                        .background(theater.speechIsActive ? .primary : .tertiary, in: Capsule())
                     }
                     VibeNumberSlider(value: .constant(Double(entry.volume))) { number in
                         Button(intent: SetVolumeIntent(room: room, volume: Double(number))) {

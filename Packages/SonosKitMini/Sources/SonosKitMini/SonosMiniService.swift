@@ -113,7 +113,7 @@ public final class SonosMiniService {
     }
     
     @MainActor
-    internal func updateDevice<T: Equatable>(_ device: SonosDevice, keyPath: WritableKeyPath<SonosDevice, T>, value: T) {
+    public func updateDevice<T: Equatable>(_ device: SonosDevice, keyPath: WritableKeyPath<SonosDevice, T>, value: T) {
         guard let index = devices.firstIndex(where: { $0.id == device.id }) else { return }
         if devices[index][keyPath: keyPath] != value {
             devices[index][keyPath: keyPath] = value
@@ -286,13 +286,30 @@ public final class SonosMiniService {
                 changed = true
             }
             
-            if let nightMode = renderingControl.nightMode,
-               let dialogLevel = renderingControl.dialogLevel {
-                let newSettings = SonosTVSettings(
-                    nightMode: nightMode,
-                    dialogLevel: dialogLevel == 1,
-                    audioInputFormat: nil
-                )
+            if let nightMode = renderingControl.nightMode {
+                let isArcUltra = device.isArcUltra
+                let newSettings: SonosTVSettings
+                if isArcUltra {
+                    newSettings = SonosTVSettings(
+                        nightMode: nightMode,
+                        dialogLevel: false,
+                        speechEnhanceEnabled: renderingControl.speechEnhanceEnabled ?? device.TVSettings?.speechEnhanceEnabled,
+                        dialogLevelValue: renderingControl.dialogLevel ?? device.TVSettings?.dialogLevelValue ?? 1,
+                        audioInputFormat: nil
+                    )
+                } else if let dialogLevel = renderingControl.dialogLevel {
+                    newSettings = SonosTVSettings(
+                        nightMode: nightMode,
+                        dialogLevel: dialogLevel == 1,
+                        audioInputFormat: nil
+                    )
+                } else {
+                    newSettings = SonosTVSettings(
+                        nightMode: nightMode,
+                        dialogLevel: device.TVSettings?.dialogLevel ?? false,
+                        audioInputFormat: nil
+                    )
+                }
                 if device.TVSettings != newSettings {
                     device.TVSettings = newSettings
                     changed = true
@@ -414,6 +431,18 @@ public final class SonosMiniService {
         }
 
         applyDevicesCacheIfMatching()
+
+        // Fetch device info in parallel so isArcUltra resolves correctly
+        await withDiscardingTaskGroup { group in
+            for device in devices where device.info == nil {
+                group.addTask { [weak self] in
+                    guard let self else { return }
+                    if let info = await api.deviceInfo(IP: device.ip) {
+                        await updateDevice(device, keyPath: \.info, value: info)
+                    }
+                }
+            }
+        }
 
         // MARK: Update Devices Info
         try await updateWatchDevices(from: devices)
@@ -1861,20 +1890,59 @@ public final class SonosMiniService {
     //    }
     //
     //    // MARK: TV
-    public func getTVSettings(ip: String) async throws -> SonosTVSettings {
+    /// `isArcUltra`: pass `true`/`false` when the device type is already known to skip the probe.
+    /// Pass `nil` (default) to auto-detect — tries Arc Ultra first, falls back to standard on failure.
+    public func getTVSettings(ip: String, isArcUltra: Bool? = nil) async throws -> SonosTVSettings {
         async let audioInputFormat = api.getAudioInputFormat(IP: ip)
-        async let dialogLevel = api.getDialogLevel(IP: ip)
         async let nightMode = api.getNightMode(IP: ip)
-        
-        return try await SonosTVSettings(
-            nightMode: nightMode,
-            dialogLevel: dialogLevel,
-            audioInputFormat: audioInputFormat
-        )
+
+        let arcUltra: Bool
+        if let known = isArcUltra {
+            arcUltra = known
+        } else {
+            arcUltra = (try? await api.getSpeechEnhanceEnabled(IP: ip)) != nil
+        }
+
+        if arcUltra {
+            async let speechEnhanceEnabled = api.getSpeechEnhanceEnabled(IP: ip)
+            async let dialogLevelValue = api.getDialogLevelValue(IP: ip)
+            return try await SonosTVSettings(
+                nightMode: nightMode,
+                dialogLevel: false,
+                speechEnhanceEnabled: speechEnhanceEnabled,
+                dialogLevelValue: dialogLevelValue,
+                audioInputFormat: audioInputFormat
+            )
+        } else {
+            async let dialogLevel = api.getDialogLevel(IP: ip)
+            return try await SonosTVSettings(
+                nightMode: nightMode,
+                dialogLevel: dialogLevel,
+                audioInputFormat: audioInputFormat
+            )
+        }
     }
-    
+
     public func setDialogLevel(_ IP: String, enabled: Bool) async throws {
         try await api.setDialogLevel(IP: IP, enabled: enabled)
+    }
+
+    public func setArcUltraSpeechLevel(_ ip: String, level: SpeechLevel) async throws {
+        if level == .off {
+            try await api.setSpeechEnhanceEnabled(IP: ip, enabled: false)
+        } else {
+            async let enable: Void = api.setSpeechEnhanceEnabled(IP: ip, enabled: true)
+            async let setLevel: Void = api.setDialogLevelValue(IP: ip, value: level.rawValue)
+            _ = try await (enable, setLevel)
+        }
+    }
+
+    public func setSpeechEnhanceEnabled(_ IP: String, enabled: Bool) async throws {
+        try await api.setSpeechEnhanceEnabled(IP: IP, enabled: enabled)
+    }
+
+    public func setDialogLevelValue(_ IP: String, value: Int) async throws {
+        try await api.setDialogLevelValue(IP: IP, value: value)
     }
     
     public func setNightMode(_ IP: String, enabled: Bool) async throws {

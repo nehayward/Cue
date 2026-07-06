@@ -10,10 +10,13 @@ public enum EQType: String {
     case heightChannelLevel = "HeightChannelLevel"
     case subGain = "SubGain"
     case subEnable = "SubEnable"
+    case speechEnhanceEnabled = "SpeechEnhanceEnabled"
 
     public var range: ClosedRange<Double> {
         switch self {
         case .dialogLevel:
+            0...1
+        case .speechEnhanceEnabled:
             0...1
         case .nightMode:
             0...1

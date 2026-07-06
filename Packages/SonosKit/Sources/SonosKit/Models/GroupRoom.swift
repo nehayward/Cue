@@ -11,6 +11,10 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public var TVMode: Bool { playbackService == .tv }
     public var isCrossfaded: Bool? = nil
     public var tvSettings: TVSettings?
+
+    public var isArcUltra: Bool {
+        rooms.first(where: \.isSoundbar)?.isArcUltra ?? coordinatorRoom.isArcUltra
+    }
     public var playMode: PlayMode = .normal
     public var isMuted: Bool = false
     public var ip: String { coordinatorRoom.ip }
