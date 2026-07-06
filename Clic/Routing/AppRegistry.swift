@@ -513,6 +513,30 @@ private struct InspectorDestinationModifier: ViewModifier {
     @State private var stashedForCompact: InspectorDestination?
 
     func body(content: Content) -> some View {
+#if targetEnvironment(macCatalyst)
+        // Catalyst hosts `.inspector` in a UIKit split view. Driving it through
+        // the `isPresented` @State mirror (below) lands the flip to `true` a
+        // frame after `destination` is set — via onChange — and Catalyst does
+        // not present off that deferred follow-up pass, so the column stayed
+        // hidden until a second click nudged another layout (the button's tint
+        // tracks `destination` directly, so it read as selected-but-not-shown).
+        //
+        // None of the mirror/stash/settling machinery applies here: Catalyst is
+        // always regular width, with no compact sheet conversion and no
+        // drag-to-dismiss. Bind presentation straight to the destination so it
+        // opens in the same update that sets it — one click. `destination` stays
+        // the single source of truth; closes route through it (the toolbar
+        // toggle and the screens set it to nil), so a system-reported dismissal
+        // is ignored — which also keeps a settling `false` from re-triggering
+        // the old show-then-dismiss.
+        content
+            .inspector(isPresented: Binding(
+                get: { destination != nil },
+                set: { _ in }
+            )) {
+                InspectorContentView(destination: $destination)
+            }
+#else
         content
             .inspector(isPresented: $isPresented) {
                 // A dedicated view rather than inline content: the inspector
@@ -583,6 +607,7 @@ private struct InspectorDestinationModifier: ViewModifier {
                     stashedForCompact = nil
                 }
             }
+#endif
     }
 }
 
