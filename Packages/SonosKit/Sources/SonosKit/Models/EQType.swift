@@ -11,6 +11,7 @@ public enum EQType: String {
     case subGain = "SubGain"
     case subEnable = "SubEnable"
     case speechEnhanceEnabled = "SpeechEnhanceEnabled"
+    case audioDelay = "AudioDelay"
 
     public var range: ClosedRange<Double> {
         switch self {
@@ -34,6 +35,8 @@ public enum EQType: String {
             0...1
         case .heightChannelLevel:
             -10...10
+        case .audioDelay:
+            0...5
         }
     }
 }
