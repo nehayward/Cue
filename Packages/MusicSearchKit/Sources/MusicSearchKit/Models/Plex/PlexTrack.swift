@@ -7,6 +7,9 @@ public struct PlexTrack {
     public var duration: Int?
     public var audioChannels: Int?
     public var audioCodec: String?
+    /// Media bitrate in kbps; distinguishes duplicate editions of a track
+    /// (the same album ripped at different qualities) in search results.
+    public var bitrate: Int?
     public var container: String?
     public var file: String?
     public var parentThumbnail: String?

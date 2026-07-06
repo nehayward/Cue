@@ -126,9 +126,18 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 - First regression tests for ranking: `SearchRankingTests` in SonosKitTests (tiers, weights, typo tolerance, top-artist, recency, dedup)
 
 ### Multiservice search (Also Search)
-- The search service menu (`MediaServiceMenu`) gains an "Also Search" section: toggle extra services to search alongside the primary one (e.g. Library + Apple Music); persisted as a sorted raw-value list in `AppStorageKeys.searchAlsoServices`, shown as a "+N" badge on the menu icon. Picking a new primary strips it from the extras; extras only apply while enabled in Settings; TuneIn stays single-service
+- The search service menu (`MediaServiceMenu`) is now one checkmark list — pick up to three services to search together (e.g. Library + Apple Music), the first selected acting as the primary; persisted as a sorted raw-value set in `AppStorageKeys.searchAlsoServices` (typed `AlsoSearchServices` wrapper). Toggles stay open via `.menuActionDismissBehavior(.disabled)`; extras only apply while enabled in Settings; TuneIn stays single-service (a radio directory doesn't merge into catalog results)
+- The toolbar button shows the selected services as up to three overlapping brand-colored chips (`OverlappingServiceIcons`) on a bare toolbar (`.sharedBackgroundVisibility(.hidden)`); deliberately plain overlapping circles — a masked cutout seam between chips glitched/clipped while the stack animated between selection sizes
 - `MusicSearchService.search` accumulates multi-provider results into one merged, re-ranked list as each provider completes (previously last-writer-wins overwrote `results` per provider); merged results render through the generic `ServiceSearchView` as a single ranked list, single-service searches keep their per-service views
 - TuneIn results now go through ranking too — safe now that ties preserve the API's order (exact station-name matches float, the rest stay put)
+
+### Stable search results across navigation
+- Merged multi-service results were appended in provider-completion (network) order; since the ranking's tie-break preserves input order, equally-scoring items (an artist's many same-ranked albums) reshuffled every republish. Provider results are now keyed per service and the merged input rebuilt in a fixed service order before each sort, making the ranking reproducible
+- Navigating back from a detail re-fired the search `.task(id:)` (push cancels it, pop restarts it — same id) and re-ran the whole search, re-streaming providers into the visible list. `SearchScreen` now remembers the last *completed* query+services key and skips the identical re-search, keeping the on-screen results untouched
+
+### Plex duplicate editions distinguishable (bitrate + per-edition artwork)
+- A Plex library holding the same album from several rips (FLAC vs 320 kbps) rendered them as identical rows with identical artwork. Track rows now show the media bitrate after the codec ("FLAC • 1411 kbps") — `PlexParser` reads the `Media` element's `bitrate` into `PlexTrack`
+- The artwork cache key (`PlayableContent.imageKey`) was album title + artist, so every edition shared one cached image — whichever edition's art was fetched first showed on all of them. Plex artwork is now keyed by the album's unique `ratingKey` (`PlexAlbum` carries its own key as `albumID`, matching the track mapping's `parentRatingKey`), so each edition displays its own art while a track still shares its album's cache entry
 
 ### Plex hearts in search results
 - `PlexParser` now reads the `userRating` attribute for tracks and albums (`PlexTrack`/`PlexAlbum` → `PlayableContentMetadata.userRating`), so the heart `PlayableContentView` already renders appears in Plex search rows — and rated tracks feed the ranking's quality signal

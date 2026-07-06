@@ -618,7 +618,10 @@ extension PlexTrack {
         }
         return PlayableContent(
             title: title,
-            subtitle: [artist, audioCodec?.uppercased() ?? ""].filter { !$0.isEmpty }.joined(separator: " • "),
+            // Codec and bitrate tell duplicate editions apart: a Plex library
+            // can hold the same track from several rips (FLAC vs 320 kbps),
+            // which otherwise render as identical rows.
+            subtitle: [artist, audioCodec?.uppercased() ?? "", bitrate.map { "\($0) kbps" } ?? ""].filter { !$0.isEmpty }.joined(separator: " • "),
             // TODO: Add Thumbnail
             thumbnail: imageURL,
             artwork: imageURL,
@@ -662,6 +665,10 @@ extension PlexAlbum {
                 artist: artist,
                 artistID: parentRatingKey,
                 album: title,
+                // The album's own ratingKey: pairs with the track mapping's
+                // parentRatingKey so a track and its album share an artwork
+                // cache entry, while different editions of the album don't.
+                albumID: ratingKey,
                 albumYear: nil,
                 librarySectionID: librarySectionID.map(String.init),
                 userRating: userRating

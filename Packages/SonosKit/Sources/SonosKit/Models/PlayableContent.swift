@@ -54,6 +54,19 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     }
     
     public var imageKey: String {
+        // A Plex library can hold several editions of the same album
+        // (different rips/bitrates) with different artwork; the title+artist
+        // key below made every edition share one cached image, so all
+        // duplicates showed whichever edition's art was cached first. Key
+        // Plex artwork by the album's unique ratingKey instead (tracks carry
+        // their album's key as albumID, albums carry their own), so each
+        // edition caches its own art while a track still shares its album's.
+        if content.service == .plex {
+            if let albumID = metadata?.albumID, !albumID.isEmpty {
+                return "plex.\(albumID)"
+            }
+            return "plex.\(id)"
+        }
         if let albumID = metadata?.album, !albumID.isEmpty {
             let artist = metadata?.artist
             return [albumID, artist].compactMap { $0 }.joined(separator: ".")

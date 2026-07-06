@@ -687,10 +687,7 @@ private struct MediaServiceMenu: View {
                 .disabled(isAtLimit && !isSelected(service))
             }
         } label: {
-            // fixedSize so the toolbar doesn't compress/clip the stack (and its
-            // mask compositing layer) while it resizes on selection changes.
             OverlappingServiceIcons(services: selectedServicesOrdered)
-                .fixedSize()
                 .contentShape(.rect)
         }
         .popoverTip(AppTip.mediaService)
@@ -745,53 +742,29 @@ private struct MediaServiceMenu: View {
 }
 
 /// Up to three overlapping, brand-colored service icons — the search menu's
-/// toolbar button. With a single service it's just that icon; with extras it
-/// stacks them "avatar pile" style, each behind the frontmost bitten out where
-/// the next overlaps.
+/// toolbar button. With a single service it's just that icon; with extras
+/// they stack "avatar pile" style, the trailing (primary-most-recent) chip on
+/// top. Deliberately plain: an earlier version cut a masked seam between the
+/// chips, but the mask's compositing layer glitched and clipped while the
+/// stack animated between selection sizes, so the chips simply overlap.
 private struct OverlappingServiceIcons: View {
     let services: [MediaSearchService]
-    var diameter: CGFloat = 30
+    var diameter: CGFloat = 26
 
     private var shown: [MediaSearchService] { Array(services.prefix(3)) }
-    private var overlap: CGFloat { diameter * 0.46 }
 
     var body: some View {
-        HStack(spacing: -overlap) {
-            ForEach(Array(shown.enumerated()), id: \.element) { index, service in
-                icon(service, isFront: index == shown.count - 1)
+        HStack(spacing: -diameter * 0.45) {
+            ForEach(shown, id: \.self) { service in
+                service.iconForMusicService
+                    .frame(width: diameter * 0.55, height: diameter * 0.55)
+                    .foregroundStyle(service.brandColor.gradient)
+                    .frame(width: diameter, height: diameter)
+                    // A material chip with a hairline outline so each icon
+                    // reads against both the bare toolbar and the chip below.
+                    .background(Circle().fill(.regularMaterial))
+                    .overlay(Circle().strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
             }
-        }
-    }
-
-    private func icon(_ service: MediaSearchService, isFront: Bool) -> some View {
-        service.iconForMusicService
-            .frame(width: diameter * 0.5, height: diameter * 0.5)
-            .foregroundStyle(service.brandColor.gradient)
-            .frame(width: diameter, height: diameter)
-            // A material chip so the icons read on the bare toolbar, with a
-            // hairline outline; the cutout below reveals the toolbar between
-            // stacked icons for the "avatar pile" separation.
-            .background(Circle().fill(.regularMaterial))
-            .overlay(Circle().strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
-            .mask { iconMask(isFront: isFront) }
-    }
-
-    @ViewBuilder
-    private func iconMask(isFront: Bool) -> some View {
-        if isFront {
-            Circle()
-        } else {
-            // Cut out where the next (trailing, on-top) icon overlaps, a couple
-            // points wider than that icon so there's a clean seam between the
-            // stacked chips rather than touching edges.
-            Circle()
-                .overlay(alignment: .center) {
-                    Circle()
-                        .frame(width: diameter + 4, height: diameter + 4)
-                        .offset(x: diameter - overlap)
-                        .blendMode(.destinationOut)
-                }
-                .compositingGroup()
         }
     }
 }

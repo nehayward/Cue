@@ -38,6 +38,7 @@ public final class PlexParser {
                     duration: (track.element?.attribute(by: "duration")?.text).flatMap(Int.init),
                     audioChannels: (track["Media"].element?.attribute(by: "audioChannels")?.text).flatMap(Int.init),
                     audioCodec: track["Media"].element?.attribute(by: "audioCodec")?.text,
+                    bitrate: (track["Media"].element?.attribute(by: "bitrate")?.text).flatMap(Int.init),
                     container: track["Media"].element?.attribute(by: "container")?.text,
                     file: track["Media"]["Part"].element?.attribute(by: "file")?.text,
                     parentThumbnail: thumb,
