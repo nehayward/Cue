@@ -258,10 +258,12 @@ struct PreferenceScreen: View {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Refresh Sonos Library")
-                                if !libraryShares.isEmpty {
-                                    Text(libraryShares.joined(separator: "\n"))
+                                if let share = libraryShares.first {
+                                    Text(share)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
                                 }
                             }
                         } icon: {

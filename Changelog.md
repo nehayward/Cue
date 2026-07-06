@@ -116,7 +116,7 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 
 ### Music library share location in Preferences
 - New `SonosService.libraryShares()` browses the `S:` container (the same `getLibraryItems(IP:type:)` call the Library → Folders screen uses) and returns the configured share paths (e.g. `//nas/Music`) by mapping item titles
-- `PreferenceScreen` fetches the shares in its existing `.task` and shows them as secondary caption text under the "Refresh Sonos Library" label, one per line — hidden when no shares are configured or no speaker has been discovered yet
+- `PreferenceScreen` fetches the shares in its existing `.task` and shows the first one as a single-line caption (middle-truncated) under the "Refresh Sonos Library" label — hidden when no shares are configured or no speaker has been discovered yet
 - Motivated by Sonos's S1 desktop controller being Intel-only (unusable once Rosetta goes away): the share path is now visible in Clic, alongside the existing local `RefreshShareIndex` re-index action
 
 ---
