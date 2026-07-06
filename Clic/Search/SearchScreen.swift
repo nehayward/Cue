@@ -226,12 +226,24 @@ struct SearchScreen: View {
                     }
                     #endif
 
-                    ToolbarItem(placement: .topBarTrailing) {
-                        MediaServiceMenu(
-                            musicSearchSelection: $musicSearchSelection,
-                            filters: $filters,
-                            searchAlsoServices: $searchAlsoServices
-                        )
+                    if #available(iOS 26.0, *) {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            MediaServiceMenu(
+                                musicSearchSelection: $musicSearchSelection,
+                                filters: $filters,
+                                searchAlsoServices: $searchAlsoServices
+                            )
+                        }
+                        // Just the overlapping icons — no toolbar chrome behind them.
+                        .sharedBackgroundVisibility(.hidden)
+                    } else {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            MediaServiceMenu(
+                                musicSearchSelection: $musicSearchSelection,
+                                filters: $filters,
+                                searchAlsoServices: $searchAlsoServices
+                            )
+                        }
                     }
                 }
             }
@@ -654,10 +666,10 @@ private struct MediaServiceMenu: View {
             showPicker = true
         } label: {
             OverlappingServiceIcons(services: selectedServicesOrdered)
-                .frame(height: 22)
+                .frame(height: 26)
+                .contentShape(.rect)
         }
-        .buttonBorderShape(.capsule)
-        .glassButton()
+        .buttonStyle(.plain)
         .popoverTip(AppTip.mediaService)
         .popover(isPresented: $showPicker) {
             servicePicker
@@ -679,7 +691,7 @@ private struct MediaServiceMenu: View {
             }
         }
         .listStyle(.plain)
-        .frame(minWidth: 300, idealWidth: 320, minHeight: 380, idealHeight: 460)
+        .frame(minWidth: 260, idealWidth: 280, minHeight: 420, idealHeight: 520)
     }
 
     private func serviceRow(_ service: MediaSearchService) -> some View {
@@ -748,10 +760,10 @@ private struct MediaServiceMenu: View {
 /// the next overlaps.
 private struct OverlappingServiceIcons: View {
     let services: [MediaSearchService]
-    var diameter: CGFloat = 24
+    var diameter: CGFloat = 26
 
     private var shown: [MediaSearchService] { Array(services.prefix(3)) }
-    private var overlap: CGFloat { diameter * 0.42 }
+    private var overlap: CGFloat { diameter * 0.48 }
 
     var body: some View {
         HStack(spacing: -overlap) {
