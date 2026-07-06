@@ -91,7 +91,7 @@ struct TVView: View {
                     } else {
                         Button {
                             Task {
-                                try? await sonosService.setDialogLevel(device.ip, enabled: !speachEnhancement)
+                                try? await sonosService.setDialogLevel(device.ip, enabled: !speechEnhancement)
                                 if let updated = try? await sonosService.getTVSettings(ip: device.ip) {
                                     await sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
                                 }
@@ -100,12 +100,12 @@ struct TVView: View {
                             VStack(spacing: 2) {
                                 Image(systemName: "person.wave.2.fill")
                                     .symbolRenderingMode(.hierarchical)
-                                Text(speachEnhancement ? "On" : "Off")
+                                Text(speechEnhancement ? "On" : "Off")
                                     .font(.system(size: 9))
                             }
                         }
                         .buttonBorderShape(.roundedRectangle)
-                        .tint(speachEnhancement ? .accentColor : nil)
+                        .tint(speechEnhancement ? .accentColor : nil)
                     }
                 }
                 
@@ -186,7 +186,7 @@ struct TVView: View {
     }
     
     
-    var speachEnhancement: Bool {
+    var speechEnhancement: Bool {
         guard let deviceIndex = sonosService.devices.firstIndex(where: { $0.id == id }),
               let tvSettings = sonosService.devices[deviceIndex].TVSettings else {
             return false
