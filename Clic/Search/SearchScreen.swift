@@ -623,6 +623,12 @@ private struct MediaServiceMenu: View {
         MediaSearchService.allCases.filter { activeExtras.contains($0) }
     }
 
+    /// Every service being searched — primary first, then active extras in
+    /// stable order — for the overlapping toolbar icon.
+    private var selectedServicesOrdered: [MediaSearchService] {
+        [musicSearchSelection] + activeExtrasOrdered
+    }
+
     var body: some View {
         Menu {
             ForEach(MediaSearchService.allCases, id: \.self) { service in
@@ -663,21 +669,13 @@ private struct MediaServiceMenu: View {
                 Label("Settings…", systemImage: "gear")
             }
         } label: {
-            musicSearchSelection
-                .iconForMusicService
-                .frame(width: 24, height: 24)
-                .contentShape(.circle)
-                .toolbarBackground(in: .circle)
-                // Always present (empty when no extras) so toggling doesn't add
-                // or remove a subview from the menu's label — a structural
-                // change that made the menu dismiss.
-                .overlay(alignment: .topTrailing) {
-                    ActiveServicesBadge(services: activeExtrasOrdered)
-                        .offset(x: 10, y: -7)
-                }
+            // The button is the overlapping stack of every selected service
+            // (primary + extras) — a single icon when nothing extra is on.
+            OverlappingServiceIcons(services: selectedServicesOrdered)
+                .frame(height: 24)
+                .contentShape(.rect)
         }
         .popoverTip(AppTip.mediaService)
-        .foregroundStyle(musicSearchSelection.brandColor.gradient)
     }
 
     /// Extra services searched together with the primary one, merged into a
@@ -689,21 +687,11 @@ private struct MediaServiceMenu: View {
                 if service != musicSearchSelection,
                    service != .tuneIn,
                    coreFeatures.enabledServices(service).wrappedValue {
-                    // A Button mutating the set directly avoids a hand-rolled
-                    // Binding; in a Menu the checkmark icon renders as the
-                    // standard selected-row indicator.
-                    Button {
-                        toggleExtra(service)
-                    } label: {
-                        Label {
-                            HStack {
-                                Text(service.title)
-                                service.iconForMusicService
-                            }
-                        } icon: {
-                            if activeExtras.contains(service) {
-                                Image(systemName: "checkmark")
-                            }
+                    // A Toggle renders the standard menu checkmark for on/off.
+                    Toggle(isOn: extraBinding(for: service)) {
+                        HStack {
+                            Text(service.title)
+                            service.iconForMusicService
                         }
                     }
                     // Keep the menu open so several services can be toggled in
@@ -714,46 +702,48 @@ private struct MediaServiceMenu: View {
         }
     }
 
-    private func toggleExtra(_ service: MediaSearchService) {
-        HapticManager.shared.fireHaptic(.buttonPress)
-        if activeExtras.contains(service) {
-            searchAlsoServices.services.remove(service)
-        } else {
-            searchAlsoServices.services.insert(service)
-        }
-        // The primary is never stored as an extra.
-        searchAlsoServices.services.remove(musicSearchSelection)
+    private func extraBinding(for service: MediaSearchService) -> Binding<Bool> {
+        Binding(
+            get: { activeExtras.contains(service) },
+            set: { isOn in
+                HapticManager.shared.fireHaptic(.buttonPress)
+                if isOn {
+                    searchAlsoServices.services.insert(service)
+                } else {
+                    searchAlsoServices.services.remove(service)
+                }
+                // The primary is never stored as an extra.
+                searchAlsoServices.services.remove(musicSearchSelection)
+            }
+        )
     }
 }
 
-/// Up to three overlapping service icons — the active-multi-search indicator on
-/// the menu button (replaces the "+N" text). Each icon behind the frontmost is
-/// bitten out where the next overlaps it, for the stacked "avatar pile" look.
-/// Renders nothing when there are no extras.
-private struct ActiveServicesBadge: View {
+/// Up to three overlapping, brand-colored service icons — the search menu's
+/// toolbar button. With a single service it's just that icon; with extras it
+/// stacks them "avatar pile" style, each behind the frontmost bitten out where
+/// the next overlaps.
+private struct OverlappingServiceIcons: View {
     let services: [MediaSearchService]
+    var diameter: CGFloat = 24
 
-    private let diameter: CGFloat = 16
-    private let overlap: CGFloat = 6
+    private var shown: [MediaSearchService] { Array(services.prefix(3)) }
+    private var overlap: CGFloat { diameter * 0.38 }
 
     var body: some View {
-        let shown = Array(services.prefix(3))
         HStack(spacing: -overlap) {
             ForEach(Array(shown.enumerated()), id: \.element) { index, service in
                 icon(service, isFront: index == shown.count - 1)
             }
         }
-        // Don't inherit the menu's primary brand-color gradient — template
-        // service icons should read in the neutral foreground.
-        .foregroundStyle(.primary)
-        .shadow(color: .black.opacity(0.15), radius: 0.5)
     }
 
     private func icon(_ service: MediaSearchService, isFront: Bool) -> some View {
         service.iconForMusicService
-            .frame(width: diameter * 0.52, height: diameter * 0.52)
+            .frame(width: diameter * 0.55, height: diameter * 0.55)
+            .foregroundStyle(service.brandColor.gradient)
             .frame(width: diameter, height: diameter)
-            .background(Circle().fill(.background))
+            .background(Circle().fill(.regularMaterial))
             .mask { iconMask(isFront: isFront) }
     }
 
@@ -768,7 +758,7 @@ private struct ActiveServicesBadge: View {
                     Circle()
                         .frame(width: diameter, height: diameter)
                         .offset(x: diameter - overlap)
-                        .blendMode(.destructiveOut)
+                        .blendMode(.destinationOut)
                 }
                 .compositingGroup()
         }
