@@ -740,31 +740,38 @@ private struct ActiveServicesBadge: View {
         let shown = Array(services.prefix(3))
         HStack(spacing: -overlap) {
             ForEach(Array(shown.enumerated()), id: \.element) { index, service in
-                service.iconForMusicService
-                    .frame(width: diameter * 0.52, height: diameter * 0.52)
-                    .frame(width: diameter, height: diameter)
-                    .background(Circle().fill(.background))
-                    .mask(alignment: .center) {
-                        if index == shown.count - 1 {
-                            Circle()
-                        } else {
-                            // Cut out where the next (trailing, on-top) icon overlaps.
-                            Circle()
-                                .overlay(alignment: .center) {
-                                    Circle()
-                                        .frame(width: diameter, height: diameter)
-                                        .offset(x: diameter - overlap)
-                                        .blendMode(.destructiveOut)
-                                }
-                                .compositingGroup()
-                        }
-                    }
+                icon(service, isFront: index == shown.count - 1)
             }
         }
         // Don't inherit the menu's primary brand-color gradient — template
         // service icons should read in the neutral foreground.
         .foregroundStyle(.primary)
         .shadow(color: .black.opacity(0.15), radius: 0.5)
+    }
+
+    private func icon(_ service: MediaSearchService, isFront: Bool) -> some View {
+        service.iconForMusicService
+            .frame(width: diameter * 0.52, height: diameter * 0.52)
+            .frame(width: diameter, height: diameter)
+            .background(Circle().fill(.background))
+            .mask { iconMask(isFront: isFront) }
+    }
+
+    @ViewBuilder
+    private func iconMask(isFront: Bool) -> some View {
+        if isFront {
+            Circle()
+        } else {
+            // Cut out where the next (trailing, on-top) icon overlaps.
+            Circle()
+                .overlay(alignment: .center) {
+                    Circle()
+                        .frame(width: diameter, height: diameter)
+                        .offset(x: diameter - overlap)
+                        .blendMode(.destructiveOut)
+                }
+                .compositingGroup()
+        }
     }
 }
 
