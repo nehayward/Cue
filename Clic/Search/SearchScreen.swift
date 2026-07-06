@@ -672,7 +672,7 @@ private struct MediaServiceMenu: View {
             }
         } label: {
             OverlappingServiceIcons(services: selectedServicesOrdered)
-                .frame(height: 26)
+                .frame(height: 30)
                 .contentShape(.rect)
         }
         .popoverTip(AppTip.mediaService)
@@ -732,10 +732,10 @@ private struct MediaServiceMenu: View {
 /// the next overlaps.
 private struct OverlappingServiceIcons: View {
     let services: [MediaSearchService]
-    var diameter: CGFloat = 26
+    var diameter: CGFloat = 30
 
     private var shown: [MediaSearchService] { Array(services.prefix(3)) }
-    private var overlap: CGFloat { diameter * 0.48 }
+    private var overlap: CGFloat { diameter * 0.46 }
 
     var body: some View {
         HStack(spacing: -overlap) {
@@ -747,13 +747,14 @@ private struct OverlappingServiceIcons: View {
 
     private func icon(_ service: MediaSearchService, isFront: Bool) -> some View {
         service.iconForMusicService
-            .frame(width: diameter * 0.58, height: diameter * 0.58)
+            .frame(width: diameter * 0.5, height: diameter * 0.5)
             .foregroundStyle(service.brandColor.gradient)
             .frame(width: diameter, height: diameter)
-            // A solid circle chip reads cleaner on the glass button than a
-            // translucent material; the cutout below reveals the glass between
-            // stacked icons.
-            .background(Circle().fill(.background))
+            // A material chip so the icons read on the bare toolbar, with a
+            // hairline outline; the cutout below reveals the toolbar between
+            // stacked icons for the "avatar pile" separation.
+            .background(Circle().fill(.regularMaterial))
+            .overlay(Circle().strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
             .mask { iconMask(isFront: isFront) }
     }
 
