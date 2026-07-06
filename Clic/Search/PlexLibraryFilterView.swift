@@ -27,17 +27,12 @@ struct PlexLibraryFilterView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 24, height: 24)
-                // Icon contrasts against the accent fill when active, mirroring
-                // the songs/albums FilterView chips.
-                .foregroundStyle(hasActiveFilters ? AnyShapeStyle(.ultraThickMaterial) : AnyShapeStyle(.primary))
-                .padding(8)
-                .background(
-                    Circle().fill(hasActiveFilters ? AnyShapeStyle(.accent.gradient) : AnyShapeStyle(.thickMaterial))
-                )
+                // White reads against the accent glass fill; primary on clear glass.
+                .foregroundStyle(hasActiveFilters ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
                 .allowsHitTesting(false)
         }
-        .buttonStyle(.plain)
         .buttonBorderShape(.circle)
+        .accentGlassButton(active: hasActiveFilters)
         .id(plexLibrariesFilters.count)
     }
 }

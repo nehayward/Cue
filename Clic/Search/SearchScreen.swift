@@ -696,6 +696,9 @@ private struct MediaServiceMenu: View {
                             }
                         }
                     }
+                    // Keep the menu open so several services can be toggled in
+                    // one pass, like the Plex library filter.
+                    .menuActionDismissBehavior(.disabled)
                 }
             }
         }
