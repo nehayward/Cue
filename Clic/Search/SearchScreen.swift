@@ -674,7 +674,7 @@ private struct MediaServiceMenu: View {
     /// single ranked result list. TuneIn stays single-service — a radio
     /// directory doesn't mix into a catalog search.
     private var alsoSearchSection: some View {
-        Section("Also Search") {
+        Section("Also search in") {
             ForEach(MediaSearchService.allCases, id: \.self) { service in
                 if service != musicSearchSelection,
                    service != .tuneIn,
