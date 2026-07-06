@@ -53,6 +53,10 @@ struct SearchScreen: View {
     @State private var lastNonEmptyQuery: String = ""
     @State private var isLoading: Bool = false
     @State private var keyboardSelectedIndex: Int?
+    /// Backs the List's selection. A real @State (not `.constant`) so tapping a
+    /// NavigationLink row doesn't fight a forced binding — that conflict made
+    /// the selection highlight jump when returning from a pushed detail.
+    @State private var listSelection: String?
 
     private var showAlert: Bool {
 #if targetEnvironment(macCatalyst)
@@ -114,7 +118,7 @@ struct SearchScreen: View {
 
         NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in
-                List(selection: .constant(selectedItemID)) {
+                List(selection: $listSelection) {
                     SearchFilterRow(
                         musicSearchSelection: $musicSearchSelection,
                         isMultiService: selectedSearchServices.count > 1,
@@ -179,6 +183,8 @@ struct SearchScreen: View {
                 .scrollDismissesKeyboard(.immediately)
 #endif
                 .onChange(of: keyboardSelectedIndex) {
+                    // Keyboard arrow-nav drives the highlight and scroll.
+                    listSelection = selectedItemID
                     if let id = selectedItemID {
                         withAnimation { proxy.scrollTo(id, anchor: .center) }
                     }
