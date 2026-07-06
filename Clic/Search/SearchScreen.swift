@@ -629,75 +629,101 @@ private struct MediaServiceMenu: View {
         [musicSearchSelection] + activeExtrasOrdered
     }
 
-    var body: some View {
-        Menu {
-            ForEach(MediaSearchService.allCases, id: \.self) { service in
-                if coreFeatures.enabledServices(service).wrappedValue {
-                    Button {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        musicSearchSelection = service
-                        // The new primary can't also be an extra. Mutate the
-                        // stored set directly so extras hidden right now
-                        // (disabled service, TuneIn primary) survive in storage.
-                        searchAlsoServices.services.remove(service)
-                        Analytics.shared.track(.selectedMusicService, with: ["MusicService": service.rawValue])
-                        Analytics.shared.setSelection(metadata: ["MusicService": service.rawValue])
+    @State private var showPicker = false
 
-                        if service == .tuneIn {
-                            for filter in filters {
-                                filter.isFiltered = false
-                            }
-                        }
-                    } label: {
-                        HStack {
-                            Text(service.title)
-                            service.iconForMusicService
-                        }
-                        .tag(service)
-                    }
-                    .tint(service.brandColor.gradient)
-                    .id(service)
-                }
-            }
-            if musicSearchSelection != .tuneIn {
-                alsoSearchSection
-            }
-            Button {
-                HapticManager.shared.fireHaptic(.buttonPress)
-                router.presentedSheet = .settings(destination: .servicePreferenceScreen)
-            } label: {
-                Label("Settings…", systemImage: "gear")
-            }
+    private var enabledServices: [MediaSearchService] {
+        MediaSearchService.allCases.filter { coreFeatures.enabledServices($0).wrappedValue }
+    }
+
+    /// Extra services offered as toggles — everything enabled except the
+    /// primary and TuneIn (a radio directory doesn't mix into a catalog search).
+    private var offeredExtras: [MediaSearchService] {
+        enabledServices.filter { $0 != musicSearchSelection && $0 != .tuneIn }
+    }
+
+    var body: some View {
+        // A Button + popover, not a Menu: a Menu dismisses whenever its label
+        // changes, and the label (the overlapping icons) changes on every
+        // toggle — so toggling an extra kept closing the menu. A popover's
+        // visibility is bound to `showPicker`, so the label updates freely.
+        Button {
+            HapticManager.shared.fireHaptic(.buttonPress)
+            showPicker = true
         } label: {
-            // The button is the overlapping stack of every selected service
-            // (primary + extras) — a single icon when nothing extra is on.
             OverlappingServiceIcons(services: selectedServicesOrdered)
                 .frame(height: 24)
                 .contentShape(.rect)
         }
         .popoverTip(AppTip.mediaService)
+        .popover(isPresented: $showPicker) {
+            servicePicker
+                .presentationCompactAdaptation(.popover)
+        }
     }
 
-    /// Extra services searched together with the primary one, merged into a
-    /// single ranked result list. TuneIn stays single-service — a radio
-    /// directory doesn't mix into a catalog search.
-    private var alsoSearchSection: some View {
-        Section("Also search in") {
-            ForEach(MediaSearchService.allCases, id: \.self) { service in
-                if service != musicSearchSelection,
-                   service != .tuneIn,
-                   coreFeatures.enabledServices(service).wrappedValue {
-                    // A Toggle renders the standard menu checkmark for on/off.
-                    Toggle(isOn: extraBinding(for: service)) {
-                        HStack {
-                            Text(service.title)
-                            service.iconForMusicService
+    private var servicePicker: some View {
+        List {
+            Section("Search") {
+                ForEach(enabledServices, id: \.self) { service in
+                    Button { selectPrimary(service) } label: {
+                        serviceRow(service, checked: service == musicSearchSelection)
+                    }
+                    .tint(.primary)
+                }
+            }
+
+            if musicSearchSelection != .tuneIn, !offeredExtras.isEmpty {
+                Section("Also search in") {
+                    ForEach(offeredExtras, id: \.self) { service in
+                        Toggle(isOn: extraBinding(for: service)) {
+                            serviceRow(service, checked: nil)
                         }
                     }
-                    // Keep the menu open so several services can be toggled in
-                    // one pass, like the Plex library filter.
-                    .menuActionDismissBehavior(.disabled)
                 }
+            }
+
+            Section {
+                Button {
+                    showPicker = false
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    router.presentedSheet = .settings(destination: .servicePreferenceScreen)
+                } label: {
+                    Label("Settings…", systemImage: "gear")
+                }
+                .tint(.primary)
+            }
+        }
+        .listStyle(.plain)
+        .frame(minWidth: 260, idealWidth: 280, minHeight: 300, idealHeight: 380)
+    }
+
+    private func serviceRow(_ service: MediaSearchService, checked: Bool?) -> some View {
+        HStack(spacing: 10) {
+            service.iconForMusicService
+                .frame(width: 18, height: 18)
+                .foregroundStyle(service.brandColor.gradient)
+            Text(service.title)
+            Spacer(minLength: 8)
+            if checked == true {
+                Image(systemName: "checkmark")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.tint)
+            }
+        }
+    }
+
+    private func selectPrimary(_ service: MediaSearchService) {
+        HapticManager.shared.fireHaptic(.buttonPress)
+        musicSearchSelection = service
+        // The new primary can't also be an extra. Mutate the stored set
+        // directly so extras hidden right now (disabled service, TuneIn
+        // primary) survive in storage.
+        searchAlsoServices.services.remove(service)
+        Analytics.shared.track(.selectedMusicService, with: ["MusicService": service.rawValue])
+        Analytics.shared.setSelection(metadata: ["MusicService": service.rawValue])
+        if service == .tuneIn {
+            for filter in filters {
+                filter.isFiltered = false
             }
         }
     }
