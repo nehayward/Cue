@@ -40,17 +40,11 @@ struct SetSpeechEnhancementIntent: LiveActivityIntent {
         }
 
         do {
-            // Try Arc Ultra path first; getTVSettings(isArcUltra:true) throws on
-            // non-Arc-Ultra devices (unsupported EQ type returns SOAP 500).
-            if let arcSettings = try? await Self.sonosService.getTVSettings(ip: room.ip, isArcUltra: true) {
-                let enable = mode == .toggle ? !arcSettings.speechLevel.isActive : speechEnhancement
-                let level = enable ? max(1, arcSettings.dialogLevelValue) : 0
-                try await Self.sonosService.setArcUltraSpeechLevel(room.ip, level: level)
-            } else {
-                let current = try await Self.sonosService.getTVSettings(ip: room.ip)
-                let enable = mode == .toggle ? !current.dialogLevel : speechEnhancement
-                try await Self.sonosService.setDialogLevel(room.ip, enabled: enable)
-            }
+            try await Self.sonosService.setSpeechEnhancement(
+                ip: room.ip,
+                enabled: speechEnhancement,
+                toggle: mode == .toggle
+            )
         } catch {
             throw IntentError.message("Speech Enhancement not supported")
         }

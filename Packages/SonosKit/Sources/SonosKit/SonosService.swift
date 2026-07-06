@@ -2150,6 +2150,25 @@ public final class SonosService {
         }
     }
 
+    /// Unified speech enhancement setter. Probes for Arc Ultra support first;
+    /// falls back to standard dialog level for all other soundbars.
+    public func setSpeechEnhancement(ip: String, enabled: Bool, toggle: Bool = false) async throws {
+        if let arcSettings = try? await getTVSettings(ip: ip, isArcUltra: true) {
+            let enable = toggle ? !arcSettings.speechLevel.isActive : enabled
+            let level = enable ? max(1, arcSettings.dialogLevelValue) : 0
+            try await setArcUltraSpeechLevel(ip, level: level)
+        } else {
+            let enable: Bool
+            if toggle {
+                let current = try await getTVSettings(ip: ip)
+                enable = !current.dialogLevel
+            } else {
+                enable = enabled
+            }
+            try await api.setDialogLevel(IP: ip, enabled: enable)
+        }
+    }
+
     public func setDialogLevel(_ IP: String, enabled: Bool) async throws {
         try await api.setDialogLevel(IP: IP, enabled: enabled)
     }
