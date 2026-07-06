@@ -746,15 +746,22 @@ public final class SpotifyAPI {
                     }
 
                     logger.warning("Received 401 Unauthorized, refreshing token (attempt \(retryCount) of \(self.maxRetries))")
-                    guard let token = try? await TokenRefreshCoordinator.shared.refreshToken(credentials: credentials) else {
-                        throw AuthError.invalidToken
+                    do {
+                        // The coordinator persists the refreshed token through the
+                        // handler (invalidating its credential cache) before
+                        // returning, so the next loop iteration reads the new
+                        // token instead of the stale one.
+                        _ = try await TokenRefreshCoordinator.shared.refreshToken(credentials: credentials, handler: handler)
+                    } catch let error as CancellationError {
+                        throw error
+                    } catch {
+                        // A failure of the shared refresh is delivered to every
+                        // coalesced caller at once; treat it as transient and
+                        // spend a remaining attempt on a fresh refresh instead
+                        // of failing them all on one error.
+                        logger.warning("Token refresh failed, retrying: \(error)")
+                        try await Task.sleep(for: .milliseconds(200 * retryCount))
                     }
-
-                    // Persist the refreshed token. handleTokenRefresh invalidates the cached
-                    // credentials, so the next loop iteration reads the new token instead of the
-                    // stale one. Without this retry the request fails even though the refresh
-                    // succeeded, which left the browse screen blank until a manual pull-to-refresh.
-                    try await handler.handleTokenRefresh(householdId: credentials.householdId, token: token.0, key: token.1)
 
                     // Retry the request with the freshly refreshed credentials.
                     continue

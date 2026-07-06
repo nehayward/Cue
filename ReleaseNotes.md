@@ -22,6 +22,7 @@
 - Fixed the library Albums list stopping partway through the alphabet — albums, songs, and artists now load your entire library as you scroll
 - Fixed Genres, Imported Playlists, and folder contents being cut off in large libraries — these now load fully as you scroll
 - Improved Plex speed and reliability — Clic picks the fastest way to reach your server, automatically switches connection when you change networks, and no longer hangs on an unreachable server
+- The Refresh Sonos Library button in Preferences now shows your music library's shared folder location underneath, so you can see where Sonos is reading your music from
 
 # 2026.5
 

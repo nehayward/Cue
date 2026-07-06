@@ -127,6 +127,11 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 - `loadData` self-heal: on a connection-level failure it re-resolves the retained server (no extra plex.tv round trip) and retries once against a *different* connection (local↔remote failover via `URL.rebasing(to:)`), only when re-resolution yields a different URL. Request timeouts added (10s fetch, 4s probe)
 - Search-result image URLs built from the connection the data was actually fetched over (`parseXML(..., baseURL:)`) so artwork loads over the same host as the results under `.auto`
 
+### Music library share location in Preferences
+- New `SonosService.libraryShare()` browses the `S:` container (the same `getLibraryItems(IP:type:)` call the Library → Folders screen uses) with `RequestedCount = 1` and returns the first configured share path (e.g. `//nas/Music`)
+- `PreferenceScreen` fetches the share in its existing `.task` and shows it as a single-line caption (middle-truncated) under the "Refresh Sonos Library" label — hidden when no share is configured or no speaker has been discovered yet
+- Motivated by Sonos's S1 desktop controller being Intel-only (unusable once Rosetta goes away): the share path is now visible in Clic, alongside the existing local `RefreshShareIndex` re-index action
+
 ---
 
 ## 2026.5
