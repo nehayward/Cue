@@ -14,24 +14,18 @@ struct TVView: View {
             .foregroundStyle(.primary)
             HStack {
                 if let settings = device.TVSettings {
-                    Button {
+                    TVSettingsButton(
+                        isActive: settings.nightMode,
+                        systemImage: "moon.zzz.fill",
+                        accessibilityLabel: "Night Mode"
+                    ) {
                         Task {
                             try? await sonosService.setNightMode(device.ip, enabled: !settings.nightMode)
+                            if let updated = try? await sonosService.getTVSettings(ip: device.ip, isArcUltra: device.isArcUltra) {
+                                sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
+                            }
                         }
-                    } label: {
-                        Label("Night Mode \(settings.nightMode ? "On": "Off")", systemImage: "moon.zzz.fill")
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
-                            .foregroundColor(settings.nightMode ? .accentColor : .secondary)
-                            .padding(8)
-                            .background(settings.nightMode ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
-                            .cornerRadius(6)
                     }
-                    .contentShape(Rectangle())
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 2)
-                    .buttonStyle(.plain)
-                    .animation(.spring(response: 0.3), value: settings.nightMode)
 
                     if device.isArcUltra {
                         let speechLevel = settings.speechLevel
@@ -40,6 +34,9 @@ struct TVView: View {
                                 Button {
                                     Task {
                                         try? await sonosService.setArcUltraSpeechLevel(device.ip, level: level)
+                                        if let updated = try? await sonosService.getTVSettings(ip: device.ip, isArcUltra: true) {
+                                            sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
+                                        }
                                     }
                                 } label: {
                                     if speechLevel == level {
@@ -50,7 +47,7 @@ struct TVView: View {
                                 }
                             }
                         } label: {
-                            Label("Speech Enhancement \(speechLevel.title)", systemImage: "person.wave.2.fill")
+                            Label("Speech Enhancement", systemImage: "person.wave.2.fill")
                                 .symbolRenderingMode(.hierarchical)
                                 .labelStyle(.iconOnly)
                                 .foregroundColor(speechLevel.isActive ? .accentColor : .secondary)
@@ -70,29 +67,47 @@ struct TVView: View {
                                 .offset(y: 12)
                         }
                     } else {
-                        Button {
+                        TVSettingsButton(
+                            isActive: settings.dialogLevel,
+                            systemImage: "person.wave.2.fill",
+                            accessibilityLabel: "Dialog Mode"
+                        ) {
                             Task {
                                 try? await sonosService.setDialogLevel(device.ip, enabled: !settings.dialogLevel)
+                                if let updated = try? await sonosService.getTVSettings(ip: device.ip) {
+                                    sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
+                                }
                             }
-                        } label: {
-                            Label("Dialog Mode \(settings.dialogLevel ? "On": "Off")", systemImage: "person.wave.2.fill")
-                                .symbolRenderingMode(.hierarchical)
-                                .labelStyle(.iconOnly)
-                                .foregroundColor(settings.dialogLevel ? .accentColor : .secondary)
-                                .padding(8)
-                                .background(settings.dialogLevel ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
-                                .cornerRadius(6)
                         }
-                        .contentShape(Rectangle())
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .buttonStyle(.plain)
-                        .animation(.spring(response: 0.3), value: settings.dialogLevel)
                     }
                 }
             }
         }
         .fontDesign(.rounded)
         .frame(maxWidth: .infinity)
+    }
+}
+
+private struct TVSettingsButton: View {
+    let isActive: Bool
+    let systemImage: String
+    let accessibilityLabel: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(accessibilityLabel, systemImage: systemImage)
+                .symbolRenderingMode(.hierarchical)
+                .labelStyle(.iconOnly)
+                .foregroundColor(isActive ? .accentColor : .secondary)
+                .padding(8)
+                .background(isActive ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
+                .cornerRadius(6)
+        }
+        .contentShape(Rectangle())
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+        .buttonStyle(.plain)
+        .animation(.spring(response: 0.3), value: isActive)
     }
 }
