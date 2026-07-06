@@ -358,6 +358,28 @@ final class SearchRankingTests: XCTestCase {
         XCTAssertEqual(single.map(\.id), ["sp-artist", "hello", "ap-artist"])
     }
 
+    func testArtistOutranksSelfTitledAlbumsEvenWithoutOwnPopularity() {
+        // The "dua lipa" regression: self-titled albums match the query title
+        // exactly, and the Apple artist copy reports no popularity. The artist
+        // rows must still rank above the albums by borrowing the Spotify
+        // copy's popularity.
+        let appleArtist = item(title: "Dua Lipa", subtitle: "Artist", type: .artist, service: .apple, id: "apple-artist")
+        let spotifyArtist = item(title: "Dua Lipa", subtitle: "Artist", type: .artist, service: .spotify, popularity: 90, id: "spotify-artist")
+        let appleAlbum = item(title: "Dua Lipa", subtitle: "Dua Lipa", type: .album, service: .apple, id: "apple-album")
+        let deluxe = item(title: "Dua Lipa (Deluxe)", subtitle: "Dua Lipa", type: .album, service: .apple, id: "deluxe-album")
+
+        let results = SearchRanking.sort(
+            [appleAlbum, deluxe, appleArtist, spotifyArtist],
+            query: "dua lipa",
+            groupArtists: true
+        )
+        // Both artist rows come before any album.
+        let firstAlbumIndex = results.firstIndex { $0.content.type == .album } ?? results.count
+        let artistIndices = results.enumerated().filter { $0.element.content.type == .artist }.map(\.offset)
+        XCTAssertEqual(artistIndices.count, 2)
+        XCTAssertTrue(artistIndices.allSatisfy { $0 < firstAlbumIndex })
+    }
+
     func testGroupingStillKeepsObscureSameNamedArtistsDown() {
         // Grouping scales purely by popularity, so a nobody sharing a song's
         // name can't ride to the top — the hit song stays first.

@@ -44,6 +44,21 @@ enum SearchRanking {
 
         var entries = Array(uniqueItems.values)
 
+        // The same artist appears across services with popularity on only
+        // some copies — Spotify reports it, MusicKit doesn't, the library
+        // doesn't. Share each artist's best-known popularity across its copies
+        // (keyed by name) so every copy earns the same top-artist bonus and
+        // the artist's albums inherit a consistent quality signal. Without
+        // this, an Apple "Dua Lipa" (popularity 0) sank below its own
+        // self-titled albums, which match the query title just as exactly.
+        var artistPopularity: [String: Double] = [:]
+        for index in entries.indices where entries[index].item.content.type.isArtist {
+            let name = normalized(entries[index].item.title)
+            guard !name.isEmpty else { continue }
+            let pop = min(Double(entries[index].item.metadata?.popularity ?? 0) / 100, 1)
+            artistPopularity[name] = max(artistPopularity[name] ?? 0, pop)
+        }
+
         // Artist boost: lift matching artists toward the top like Spotify's
         // top result. Single-service search boosts only the best-matching
         // artist — a flat boost would wall tracks and albums behind a run of
@@ -71,30 +86,40 @@ enum SearchRanking {
                 .map { [$0] } ?? []
         }
 
+        var boostedArtistNames: Set<String> = []
         for (index, text) in boostedArtists {
-            let artistQuality = min(Double(entries[index].item.metadata?.popularity ?? 0) / 100, 1)
-            // Single mode uses a 0.5 floor so the one chosen artist reliably
-            // beats hit tracks even when only moderately popular. Grouping
-            // scales purely by popularity so a nobody sharing the name isn't
-            // lifted — "just dance" still means the Lady Gaga song.
-            let scale = groupArtists ? artistQuality : (0.5 + 0.5 * artistQuality)
-            entries[index].score += topArtistBonus * text * scale
+            let name = normalized(entries[index].item.title)
+            boostedArtistNames.insert(name)
+            let quality = artistPopularity[name] ?? 0
 
-            // Spotify's search API reports popularity for tracks and artists
-            // but not albums, which buried the artist's albums below every
-            // popular track. Albums by this artist inherit its popularity as
-            // their quality signal so they surface alongside the tracks.
-            let artistName = normalized(entries[index].item.title)
-            if !artistName.isEmpty, artistQuality > 0 {
-                for albumIndex in entries.indices {
-                    let candidate = entries[albumIndex].item
-                    guard candidate.content.type == .album || candidate.content.type == .libraryAlbum,
-                          (candidate.metadata?.popularity ?? 0) == 0,
-                          matchesWholeWords(normalized(candidate.metadata?.artist ?? candidate.subtitle), phrase: artistName)
-                    else { continue }
-                    entries[albumIndex].score += artistQuality * popularityWeight
-                }
-            }
+            // Level this copy up to the artist's best-known popularity first:
+            // a copy from a service that reports none (MusicKit, library)
+            // would otherwise score below its own self-titled albums, which
+            // inherit that same popularity below.
+            let ownQuality = min(Double(entries[index].item.metadata?.popularity ?? 0) / 100, 1)
+            entries[index].score += max(0, quality - ownQuality) * popularityWeight
+
+            // Then the top-artist bonus on top, so the artist row always sits
+            // above its albums. Single mode uses a 0.5 floor so the one chosen
+            // artist reliably beats hit tracks even when only moderately
+            // popular; grouping scales purely by popularity so a nobody sharing
+            // the name isn't lifted — "just dance" still means the Lady Gaga song.
+            let scale = groupArtists ? quality : (0.5 + 0.5 * quality)
+            entries[index].score += topArtistBonus * text * scale
+        }
+
+        // Albums by a boosted artist that report no popularity of their own
+        // (MusicKit, library) inherit the artist's popularity — once each, so
+        // they surface alongside the artist's tracks but stay below the artist
+        // rows, which additionally carry the bonus above.
+        for index in entries.indices {
+            let candidate = entries[index].item
+            guard candidate.content.type == .album || candidate.content.type == .libraryAlbum,
+                  (candidate.metadata?.popularity ?? 0) == 0 else { continue }
+            let albumArtist = normalized(candidate.metadata?.artist ?? candidate.subtitle)
+            guard let matched = boostedArtistNames.first(where: { matchesWholeWords(albumArtist, phrase: $0) })
+            else { continue }
+            entries[index].score += (artistPopularity[matched] ?? 0) * popularityWeight
         }
 
         return entries
