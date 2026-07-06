@@ -671,8 +671,10 @@ private struct MediaServiceMenu: View {
                 .disabled(isAtLimit && !isSelected(service))
             }
         } label: {
+            // fixedSize so the toolbar doesn't compress/clip the stack (and its
+            // mask compositing layer) while it resizes on selection changes.
             OverlappingServiceIcons(services: selectedServicesOrdered)
-                .frame(height: 30)
+                .fixedSize()
                 .contentShape(.rect)
         }
         .popoverTip(AppTip.mediaService)
@@ -763,11 +765,13 @@ private struct OverlappingServiceIcons: View {
         if isFront {
             Circle()
         } else {
-            // Cut out where the next (trailing, on-top) icon overlaps.
+            // Cut out where the next (trailing, on-top) icon overlaps, a couple
+            // points wider than that icon so there's a clean seam between the
+            // stacked chips rather than touching edges.
             Circle()
                 .overlay(alignment: .center) {
                     Circle()
-                        .frame(width: diameter, height: diameter)
+                        .frame(width: diameter + 4, height: diameter + 4)
                         .offset(x: diameter - overlap)
                         .blendMode(.destinationOut)
                 }
