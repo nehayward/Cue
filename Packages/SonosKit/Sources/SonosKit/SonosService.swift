@@ -2586,11 +2586,11 @@ public final class SonosService {
         await api.refreshLibrary(IP: ip)
     }
 
-    /// Share paths backing the music library (e.g. `//nas/Music`), from browsing the `S:` container.
-    public func libraryShares() async -> [String] {
-        guard let ip = prioritizedIP() else { return [] }
-        let shares = await api.getLibraryItems(IP: ip, type: "S:", requestedCount: 100)
-        return shares.map(\.title)
+    /// Share path backing the music library (e.g. `//nas/Music`), from browsing the `S:` container.
+    public func libraryShare() async -> String? {
+        guard let ip = prioritizedIP() else { return nil }
+        let shares = await api.getLibraryItems(IP: ip, type: "S:", requestedCount: 1)
+        return shares.first?.title
     }
 
     // MARK: - Sonos Playlists/Queue

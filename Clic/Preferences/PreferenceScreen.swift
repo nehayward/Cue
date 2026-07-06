@@ -23,7 +23,7 @@ struct PreferenceScreen: View {
     @State private var router = Router()
     @State private var isShowingMailView = false
     @State private var refreshSonosLibrary = false
-    @State private var libraryShares: [String] = []
+    @State private var libraryShare: String?
     
     @AppStorage("AppIcon") private var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
@@ -258,7 +258,7 @@ struct PreferenceScreen: View {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Refresh Sonos Library")
-                                if let share = libraryShares.first {
+                                if let share = libraryShare {
                                     Text(share)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
@@ -926,7 +926,7 @@ struct PreferenceScreen: View {
         .withAlert()
         .task {
             try? await subscriptionService.checkSubscription()
-            libraryShares = await sonosService.libraryShares()
+            libraryShare = await sonosService.libraryShare()
 #if DEBUG
             servers = await sonosService.services()
 #endif
