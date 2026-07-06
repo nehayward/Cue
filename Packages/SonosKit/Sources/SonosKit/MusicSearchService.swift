@@ -706,22 +706,26 @@ public final class MusicSearchService {
             playableContent.append(contentsOf: results.artists.map(\.toPlayable))
             playableContent.append(contentsOf: results.playlists.map { $0.toPlayable(isUserPlaylist: false) })
 
-            // MusicKit reports no popularity; Apple's editorial Top Results
-            // are the equivalent signal. Grant them descending synthetic
-            // popularity so ranking treats Apple's picks like the other
-            // services' hits (and the top-artist slot can trust them).
-            let topResultRanks = Dictionary(
-                results.topResults.prefix(5).enumerated().map { ($0.element.id.description, $0.offset) },
-                uniquingKeysWith: { first, _ in first }
-            )
-            if !topResultRanks.isEmpty {
-                playableContent = playableContent.map { item in
-                    guard let rank = topResultRanks[item.id], (item.metadata?.popularity ?? 0) == 0 else { return item }
-                    var boosted = item
-                    let popularity = 90 - rank * 5
-                    boosted.metadata = item.metadata?.replacing(popularity: popularity, isExplicit: item.metadata?.isExplicit)
-                        ?? PlayableContentMetadata(popularity: popularity)
-                    return boosted
+            // MusicKit reports no popularity; Apple's editorial Top Results are
+            // the equivalent signal. Unwrap them directly (rather than matching
+            // ids against the typed lists) and surface each with descending
+            // synthetic popularity (90, 85, …) so Apple's picks rank like the
+            // other services' hits and the top-artist slot can trust them. The
+            // sort's dedup collapses each against its plain copy, keeping the
+            // boosted one — and a Top Result not present in the typed lists now
+            // appears at all.
+            for (rank, topResult) in results.topResults.prefix(5).enumerated() {
+                let popularity = 90 - rank * 5
+                let content: PlayableContent?
+                switch topResult {
+                case .song(let song): content = song.toPlayable
+                case .album(let album): content = album.toPlayable
+                case .artist(let artist): content = artist.toPlayable
+                case .playlist(let playlist): content = playlist.toPlayable(isUserPlaylist: false)
+                default: content = nil
+                }
+                if let content {
+                    playableContent.append(withPopularity(content, popularity))
                 }
             }
         }
@@ -1243,6 +1247,15 @@ public final class MusicSearchService {
 
     func sortContentByIntelligentSearch(playableContent: [PlayableContent], query: String) -> [PlayableContent] {
         SearchRanking.sort(playableContent, query: query, recentlyPlayedIDs: recentlyPlayedIDs)
+    }
+
+    /// Returns `content` with its metadata's popularity set (preserving the
+    /// rest), for grafting a synthetic quality signal — e.g. Apple Top Results.
+    private func withPopularity(_ content: PlayableContent, _ popularity: Int) -> PlayableContent {
+        var updated = content
+        updated.metadata = (content.metadata ?? PlayableContentMetadata())
+            .replacing(popularity: popularity, isExplicit: content.metadata?.isExplicit)
+        return updated
     }
     
     public func requestMusicAuthorization() async -> Bool {
