@@ -41,25 +41,31 @@ struct TVView: View {
                             }
                         }
                     } label: {
-                        Label("Night Mode", systemImage: "moon.zzz.fill")
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
+                        VStack(spacing: 2) {
+                            Image(systemName: "moon.zzz.fill")
+                                .symbolRenderingMode(.hierarchical)
+                            Text(nightMode ? "On" : "Off")
+                                .font(.system(size: 9))
+                        }
                     }
                     .buttonBorderShape(.roundedRectangle)
-                    .opacity(nightMode ? 1 : 0.5)
+                    .tint(nightMode ? .accentColor : nil)
                     Button {
                         Task {
                             await sonosService.setGroupMute(device: device)
                             try? await sonosService.updateWatchDevices(from: [device])
                         }
                     } label: {
-                        Label("Mute", systemImage: device.groupIsMuted ? "speaker.slash.fill" : "speaker.fill")
-                            .contentTransition(.symbolEffect)
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
+                        VStack(spacing: 2) {
+                            Image(systemName: device.groupIsMuted ? "speaker.slash.fill" : "speaker.fill")
+                                .contentTransition(.symbolEffect)
+                                .symbolRenderingMode(.hierarchical)
+                            Text(device.groupIsMuted ? "On" : "Off")
+                                .font(.system(size: 9))
+                        }
                     }
                     .buttonBorderShape(.roundedRectangle)
-                    .opacity(!device.groupIsMuted ? 0.5 : 1)
+                    .tint(device.groupIsMuted ? .accentColor : nil)
                     
                     if device.isArcUltra {
                         let speechLevel = device.TVSettings?.speechLevel ?? .off
@@ -73,12 +79,15 @@ struct TVView: View {
                                 }
                             }
                         } label: {
-                            Label("Speech: \(speechLevel.title)", systemImage: "person.wave.2.fill")
-                                .symbolRenderingMode(.hierarchical)
-                                .labelStyle(.iconOnly)
+                            VStack(spacing: 2) {
+                                Image(systemName: "person.wave.2.fill")
+                                    .symbolRenderingMode(.hierarchical)
+                                Text(speechLevel.title)
+                                    .font(.system(size: 9))
+                            }
                         }
                         .buttonBorderShape(.roundedRectangle)
-                        .opacity(speechLevel.isActive ? 1 : 0.5)
+                        .tint(speechLevel.isActive ? .accentColor : nil)
                     } else {
                         Button {
                             Task {
@@ -88,12 +97,15 @@ struct TVView: View {
                                 }
                             }
                         } label: {
-                            Label("Dialog Mode", systemImage: "person.wave.2.fill")
-                                .symbolRenderingMode(.hierarchical)
-                                .labelStyle(.iconOnly)
+                            VStack(spacing: 2) {
+                                Image(systemName: "person.wave.2.fill")
+                                    .symbolRenderingMode(.hierarchical)
+                                Text(speachEnhancement ? "On" : "Off")
+                                    .font(.system(size: 9))
+                            }
                         }
                         .buttonBorderShape(.roundedRectangle)
-                        .opacity(speachEnhancement ? 1 : 0.5)
+                        .tint(speachEnhancement ? .accentColor : nil)
                     }
                 }
                 
@@ -155,6 +167,9 @@ struct TVView: View {
             if scenePhase == .active {
                 Task {
                     try? await sonosService.updateWatchDevices(from: [device])
+                    if let updated = try? await sonosService.getTVSettings(ip: device.ip, isArcUltra: device.isArcUltra) {
+                        await sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
+                    }
                 }
             }
         }

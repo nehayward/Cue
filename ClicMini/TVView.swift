@@ -53,19 +53,14 @@ struct TVView: View {
                                 .foregroundColor(speechLevel.isActive ? .accentColor : .secondary)
                                 .padding(8)
                                 .background(speechLevel.isActive ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
+                                .cornerRadius(6)
                         }
-                        .menuStyle(.button)
-                        .buttonBorderShape(.roundedRectangle)
-                        .contentShape(.rect)
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .contentShape(Rectangle())
                         .padding(.horizontal, 4)
                         .padding(.vertical, 2)
                         .animation(.spring(response: 0.3), value: speechLevel)
-                        .menuIndicator(.hidden)
-                        .overlay(alignment: .bottom) {
-                            Text(speechLevel.title)
-                                .font(.caption.smallCaps())
-                                .offset(y: 12)
-                        }
                     } else {
                         TVSettingsButton(
                             isActive: settings.dialogLevel,
