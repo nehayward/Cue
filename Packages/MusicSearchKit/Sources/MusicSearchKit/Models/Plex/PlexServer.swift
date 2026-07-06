@@ -36,27 +36,38 @@ public struct PlexServer: Codable {
         connections
             .filter { !$0.local }
             .filter { !$0.address.lowercased().contains("quick") }
-            .sorted {
-                let p0 = Self.preferredPorts.firstIndex(of: $0.port ?? -1) ?? Int.max
-                let p1 = Self.preferredPorts.firstIndex(of: $1.port ?? -1) ?? Int.max
-                return p0 < p1
-            }
+            .sorted { Self.remoteRank($0) < Self.remoteRank($1) }
             .map(\.uri)
+    }
+
+    /// Ordering key for remote connections (lower sorts first): direct
+    /// connections before relays — relays proxy through plex.tv at a throttled
+    /// bandwidth cap — then by preferred-port order.
+    private static func remoteRank(_ connection: PlexConnection) -> (relayRank: Int, portRank: Int) {
+        let relayRank = (connection.relay ?? false) ? 1 : 0
+        let portRank = preferredPorts.firstIndex(of: connection.port ?? -1) ?? Int.max
+        return (relayRank, portRank)
     }
 
     func baseURL(preferring connectionType: PlexAPI.ConnectionPreference) -> URL? {
         switch connectionType {
         case .local:
-            guard let connection = localURIs.first else { 
+            guard let connection = localURIs.first else {
                 return nil
             }
             return URL(string: connection)
         case .nonLocal:
-            guard let connection = nonLocalURIs.first else { 
+            guard let connection = nonLocalURIs.first else {
                 // Fallback to local if no non-local connection available
                 return localURIs.first.flatMap { URL(string: $0) }
             }
             return URL(string: connection)
+        case .auto:
+            // Synchronous best-guess only — the real choice is made by racing
+            // connections in `PlexAPI.resolveBaseURL`. Prefer remote here since
+            // it works anywhere; fall back to local if there's no remote URI.
+            let preferred = nonLocalURIs.first ?? localURIs.first
+            return preferred.flatMap { URL(string: $0) }
         }
     }
 }
