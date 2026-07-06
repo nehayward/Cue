@@ -314,6 +314,48 @@ public final class PlexAPI {
         return parser.parseXML(xmlData: data, plexServer: plexServer, connectionPreference: connectionPreference, baseURL: getBaseURL(for: plexServer))
     }
 
+    /// Batch media lookup, keyed by ratingKey. Some servers omit the `Media`
+    /// element (codec/bitrate) from `/hubs/search` responses, so search
+    /// results are enriched from `/library/metadata/{id,id,...}` — one
+    /// request for all tracks — which always includes it.
+    public func trackMedia(ratingKeys: [String]) async -> [String: PlexMedia] {
+        guard !ratingKeys.isEmpty,
+              let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let url = getBaseURL(for: plexServer)?.appending(path: "library/metadata/\(ratingKeys.joined(separator: ","))") else {
+            return [:]
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, _) = await loadData(for: request),
+              let container = try? decoder.decode(PlexContainer<PlexBatchMetadata>.self, from: data).mediaContainer else {
+            return [:]
+        }
+
+        var mediaByKey: [String: PlexMedia] = [:]
+        for item in container.metadata ?? [] {
+            if let media = item.media?.first {
+                mediaByKey[item.ratingKey] = media
+            }
+        }
+        return mediaByKey
+    }
+
+    /// Minimal container for the batch metadata endpoint: unlike
+    /// `PlexSongItem`, no `librarySectionID`/`librarySectionTitle` — a batch
+    /// spanning several libraries omits the container-level section fields.
+    private struct PlexBatchMetadata: Codable {
+        let metadata: [PlexMetadata]?
+        enum CodingKeys: String, CodingKey {
+            case metadata = "Metadata"
+        }
+    }
+
     public func playlists() async -> [PlexUserPlaylist] {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else {

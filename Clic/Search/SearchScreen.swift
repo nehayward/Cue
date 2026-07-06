@@ -687,7 +687,11 @@ private struct MediaServiceMenu: View {
                 .disabled(isAtLimit && !isSelected(service))
             }
         } label: {
+            // fixedSize so the toolbar can't stretch the label to a standard
+            // button width — the item hugs the icon stack instead of padding
+            // out horizontally around it.
             OverlappingServiceIcons(services: selectedServicesOrdered)
+                .fixedSize()
                 .contentShape(.rect)
         }
         .popoverTip(AppTip.mediaService)
@@ -752,9 +756,10 @@ private struct OverlappingServiceIcons: View {
     var diameter: CGFloat = 26
 
     private var shown: [MediaSearchService] { Array(services.prefix(3)) }
+    private var overlap: CGFloat { diameter * 0.45 }
 
     var body: some View {
-        HStack(spacing: -diameter * 0.45) {
+        HStack(spacing: -overlap) {
             ForEach(shown, id: \.self) { service in
                 service.iconForMusicService
                     .frame(width: diameter * 0.55, height: diameter * 0.55)
@@ -766,7 +771,13 @@ private struct OverlappingServiceIcons: View {
                     .overlay(Circle().strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
             }
         }
-    }
+        // Pin the stack to exactly its content size: without an explicit
+        // frame, the toolbar padded the label out to a standard button width,
+        // leaving dead horizontal space around the chips.
+        .frame(
+            width: diameter + CGFloat(shown.count - 1) * (diameter - overlap),
+            height: diameter
+        )
 }
 
 /// The "Also Search" extras, stored in `@AppStorage` as a typed set instead

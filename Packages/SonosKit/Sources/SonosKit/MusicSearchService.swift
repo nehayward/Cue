@@ -1061,7 +1061,25 @@ public final class MusicSearchService {
     private func searchPlex(query: String) async -> [PlayableContent] {
         var playableContent: [PlayableContent] = []
         guard let results = await plex.search(for: query) else { return playableContent }
-        playableContent.append(contentsOf: results.tracks.map(\.toPlayable))
+
+        // Some servers omit the Media element from hub-search responses, so
+        // codec/bitrate — which tell duplicate editions of a track apart —
+        // never made it into the rows. Fill the gaps with one batch
+        // metadata lookup for all tracks that came back without media info.
+        var tracks = results.tracks
+        let missingMedia = tracks.filter { $0.audioCodec == nil && $0.bitrate == nil }.map(\.ratingKey)
+        if !missingMedia.isEmpty {
+            let mediaByKey = await plex.trackMedia(ratingKeys: missingMedia)
+            for index in tracks.indices {
+                guard let media = mediaByKey[tracks[index].ratingKey] else { continue }
+                tracks[index].audioCodec = tracks[index].audioCodec ?? media.audioCodec
+                tracks[index].bitrate = tracks[index].bitrate ?? media.bitrate
+                tracks[index].audioChannels = tracks[index].audioChannels ?? media.audioChannels
+                tracks[index].duration = tracks[index].duration ?? media.duration
+            }
+        }
+
+        playableContent.append(contentsOf: tracks.map(\.toPlayable))
         playableContent.append(contentsOf: results.album.map(\.toPlayable))
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
         playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
