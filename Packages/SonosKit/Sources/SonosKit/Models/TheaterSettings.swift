@@ -3,6 +3,10 @@ public struct TheaterSettings: Codable, Hashable, Equatable {
 
     public var nightMode: Bool = false
     public var dialogLevel: Bool = false
+    /// Arc Ultra only: nil means unsupported, non-nil means Arc Ultra dialog toggle
+    public var speechEnhanceEnabled: Bool? = nil
+    /// Arc Ultra only: dialog intensity level (1=Low, 2=Medium, 3=High, 4=Max)
+    public var dialogLevelValue: Int = 1
     public var audioInputFormat: AudioInputFormat = .noInputConnected
 
     public var surroundLevel: Double = .zero

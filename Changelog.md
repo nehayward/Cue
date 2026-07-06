@@ -171,6 +171,21 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 - `PreferenceScreen` fetches the share in its existing `.task` and shows it as a single-line caption (middle-truncated) under the "Refresh Sonos Library" label — hidden when no share is configured or no speaker has been discovered yet
 - Motivated by Sonos's S1 desktop controller being Intel-only (unusable once Rosetta goes away): the share path is now visible in Clic, alongside the existing local `RefreshShareIndex` re-index action
 
+### Arc Ultra speech enhancement controls
+Full speech level control for Sonos Arc Ultra across all surfaces.
+
+- New `SpeechLevel` enum (`off=0, low=1, medium=2, high=3, max=4`) with `title: String` and `isActive: Bool` in both SonosKit and SonosKitMini (separate modules, no shared dep)
+- `TVSettings` / `SonosTVSettings` gain `speechLevel: SpeechLevel` and `speechIsActive: Bool` computed properties; `speechIsActive` reads `speechLevel.isActive` for Arc Ultra (`speechEnhanceEnabled != nil`), `dialogLevel` for standard soundbars
+- `SonosService.setArcUltraSpeechLevel` writes `SpeechEnhanceEnabled` and `DialogLevel` EQ values in parallel via `async let`; level `0` sets enabled=false only, levels 1–4 set both
+- `SpeechEnhancementMenu` shared component (SonosKit targets) with `compact` and `showLabel` params replaces triplicated Menu blocks in `TVModeViewCell`, `LargePlayerView`, and `MiniPlayerView`
+- Live activity / widget references updated from `dialogLevel` → `speechIsActive` so Arc Ultra active state highlights correctly
+- `SetSpeechEnhancementIntent` (existing toggle shortcut) detects Arc Ultra via `try?` on `getTVSettings(isArcUltra:true)` — throws SOAP 500 on non-Arc-Ultra, nil result → standard path
+- New `SetSpeechLevelIntent` with `SpeechLevelOption: AppEnum` for direct level selection on Arc Ultra
+- ClicMini: TV tile buttons match Watch style (44pt square tile, icon + label, system background); Arc Ultra speech level uses `Button + popover` instead of `Menu` (macOS `borderlessButton` style strips label backgrounds); state refreshed via explicit `getTVSettings` call after each action
+- Watch: buttons use `VStack(icon + label)` with `.tint` for active state; TVSettings fetched on scene activation (not only when `x-sonos-htastream` track fires); Arc Ultra cycles Off→Low→Medium→High→Max on tap
+- `SonosMiniService.updateDevice` made `public`; `api.deviceInfo(IP:)` uncommented; `loadWatch` fetches device info in parallel for all devices so `isArcUltra` resolves correctly from `modelDisplayName`
+- `DiscoveryInfo` struct added to SonosKitMini (was only in SonosKit)
+
 ---
 
 ## 2026.5
