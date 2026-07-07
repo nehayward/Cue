@@ -2,6 +2,15 @@ import Foundation
 import MusicKit
 import MusicSearchKit
 
+/// "1 song" / "12 songs" for album row subtitles — the standard-vs-deluxe
+/// edition cue. Nil for missing or zero counts (a zero means the service
+/// didn't report one), so callers can drop the component instead of
+/// rendering "0 songs".
+func songCountLabel(_ count: Int?) -> String? {
+    guard let count, count > 0 else { return nil }
+    return count == 1 ? "1 song" : "\(count) songs"
+}
+
 extension PlayableContent {
     public var toRadio: PlayableContent {
         let type: ContentType = content.type == .artist ? .artistRadio : .songRadio
@@ -260,7 +269,7 @@ extension AppleLibraryAlbum {
             title: attributes.name,
             subtitle: [
                 attributes.artistName,
-                attributes.trackCount > 0 ? (attributes.trackCount == 1 ? "1 song" : "\(attributes.trackCount) songs") : nil
+                songCountLabel(attributes.trackCount)
             ].compactMap { $0 }.joined(separator: " • "),
             thumbnail: attributes.artwork?.urlWithSize(width: 100, height: 100),
             artwork: attributes.artwork?.urlWithSize(width: 600, height: 600),
@@ -285,7 +294,7 @@ extension Album {
             subtitle: [
                 artistName,
                 releaseDate?.formatted(.dateTime.year()),
-                (trackCount as Int?).map { $0 == 1 ? "1 song" : "\($0) songs" }
+                songCountLabel(trackCount as Int?)
             ].compactMap { $0 }.joined(separator: " • "),
             thumbnail: artwork?.url(width: 100, height: 100),
             artwork: artwork?.url(width: 600, height: 600),
@@ -505,7 +514,7 @@ extension SpotifyAlbumItem {
         guard let id else { return nil }
         return PlayableContent(
             title: name,
-            subtitle: [artists?.first?.name, releaseDateFormatted, totalTracks.map { $0 == 1 ? "1 song" : "\($0) songs" }].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artists?.first?.name, releaseDateFormatted, songCountLabel(totalTracks)].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: images?.thumbnail,
             artwork: images?.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls?.spotify ?? "")),
@@ -665,7 +674,7 @@ extension PlexAlbum {
             subtitle: [
                 artist,
                 year,
-                leafCount.map { $0 == 1 ? "1 song" : "\($0) songs" } ?? ""
+                songCountLabel(leafCount) ?? ""
             ].filter { !$0.isEmpty }.joined(separator: " • "),
             thumbnail: imageURL,
             artwork: imageURL,
@@ -772,6 +781,11 @@ extension PlexMetadata {
         case "album":
             artist = parentTitle
             artistID = parentRatingKey
+            // The album's own key: without it, artist-detail/browse albums
+            // fell back to the shared title+artist artwork cache key, so two
+            // editions of the same album showed one edition's art — the exact
+            // bug the per-edition imageKey fixed in search.
+            albumID = ratingKey
         case "playlist":
             break
         case "artist":
@@ -922,7 +936,7 @@ extension TidalAlbumResource {
         let artist = artists.first { $0.main ?? false }
         return PlayableContent(
             title: title,
-            subtitle: [artist?.name, releaseDateFormatted, numberOfTracks.map { $0 == 1 ? "1 song" : "\($0) songs" }, dolbyAtmos, lossless].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artist?.name, releaseDateFormatted, songCountLabel(numberOfTracks), dolbyAtmos, lossless].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: imageCover?.thumbnail,
             artwork: imageCover?.biggestImageURL,
             content: .init(

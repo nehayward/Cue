@@ -99,9 +99,27 @@ struct SearchScreen: View {
             && appleMusicAuthorized != .authorized
     }
 
+    /// The rows actually on screen. Must apply the SAME filters the results
+    /// views apply — including the Plex library filter — or the "No Results"
+    /// empty state and keyboard navigation disagree with what's visible
+    /// (a fully library-filtered list showed as a silent blank, and arrow
+    /// keys could select rows the filter hid).
     private var currentFilteredResults: [PlayableContent] {
         guard !musicSearchService.query.isEmpty else { return [] }
-        return musicSearchService.results.filtered(by: filters)
+        return musicSearchService.results
+            .filteredByPlexLibraries(plexLibrariesFilters)
+            .filtered(by: filters)
+    }
+
+    /// One key for both the search `.task(id:)` and the skip-identical-search
+    /// guard, so the two can never drift. Built from the EFFECTIVE service
+    /// set (not the raw stored extras): disabling an extra in Settings
+    /// changes what's searched and must re-fire the task. Separators prevent
+    /// key collisions between adjacent components.
+    private var searchTaskKey: String {
+        ([musicSearchService.query, musicSearchSelection.rawValue]
+            + selectedSearchServices.map(\.rawValue).sorted())
+            .joined(separator: "|")
     }
 
     private var navigableCount: Int {
@@ -260,31 +278,38 @@ struct SearchScreen: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .task(id: musicSearchService.query + musicSearchSelection.rawValue + searchAlsoServices.rawValue) {
+            .task(id: searchTaskKey) {
+                // Ranking boosts items the user has played; injected here —
+                // on EVERY re-fire, before the skip guard, so pop-backs keep
+                // it fresh — and SonosKit stays free of app-side state.
+                musicSearchService.recentlyPlayedIDs = Set(playHistoryService.history.prefix(50).map(\.id))
+
                 // Pushing a detail cancels this task and popping back restarts
                 // it — same id, but `.task` re-fires on reappear. Re-running
                 // the identical search re-streams providers into the list and
                 // re-sorts it, visibly reshuffling results on every return.
-                // If nothing changed since the last completed search, keep
-                // what's on screen.
-                let searchKey = musicSearchService.query + musicSearchSelection.rawValue + searchAlsoServices.rawValue
-                if searchKey == lastCompletedSearchKey, !musicSearchService.results.isEmpty {
+                // If nothing changed since the last COMPLETE search, keep
+                // what's on screen — but still refresh the Sonos playlists,
+                // which a detail screen may have changed.
+                let searchedKey = searchTaskKey
+                if searchedKey == lastCompletedSearchKey, !musicSearchService.results.isEmpty {
                     isLoading = false
+                    playlistsContainer.playlists = await sonosService.sonosPlaylists()
                     return
                 }
                 isLoading = true
                 if suggestion == nil {
                     searchCompletionTapped = false
                 }
-                // Ranking boosts items the user has played; injected here so
-                // SonosKit stays free of app-side play-history state.
-                musicSearchService.recentlyPlayedIDs = Set(playHistoryService.history.prefix(50).map(\.id))
-                await musicSearchService.search(for: selectedSearchServices)
+                let allProvidersAnswered = await musicSearchService.search(for: selectedSearchServices)
                 // A cancelled task (query/service changed) must not clear
                 // isLoading under the replacement search — that briefly
                 // showed "No Results" while the real search was in flight.
                 if Task.isCancelled { return }
-                lastCompletedSearchKey = searchKey
+                // A partial answer (a provider timed out) must not be
+                // memoized as done — the next re-fire retries the search so
+                // the missing service's rows can appear.
+                lastCompletedSearchKey = allProvidersAnswered ? searchedKey : nil
                 suggestion = nil
                 isLoading = false
                 playlistsContainer.playlists = await sonosService.sonosPlaylists()

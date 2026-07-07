@@ -84,12 +84,18 @@ public final class MusicSearchService {
 
     public init() {}
 
-    public func search(for providers: Set<MediaSearchService>) async {
+    /// Returns whether every provider answered. `false` means at least one
+    /// provider timed out or failed and the published results are partial —
+    /// callers memoizing "this query is done" (the search screen's
+    /// skip-identical-re-search guard) must not cache a partial answer.
+    @discardableResult
+    public func search(for providers: Set<MediaSearchService>) async -> Bool {
         if query.isEmpty {
             results = []
-            return
+            return true
         }
 
+        var allProvidersAnswered = true
         let capturedQuery = query
         searchSuggestionTask.cancel()
         searchSuggestionTask = Task { [weak self] in
@@ -163,7 +169,17 @@ public final class MusicSearchService {
                 // The user may have edited the query while we were awaiting; the new
                 // search() call will handle the fresh query, so drop these.
                 if self.query != capturedQuery { continue }
-                guard let providerResults else { continue }
+                guard let providerResults else {
+                    // Not cancelled and still the current query: the provider
+                    // timed out or failed. A single-service search must clear
+                    // — leaving `results` untouched presented the PREVIOUS
+                    // query's list as this query's answer.
+                    allProvidersAnswered = false
+                    if !isMultiServiceSearch {
+                        self.results = []
+                    }
+                    continue
+                }
                 if provider == .tuneIn, !isMultiServiceSearch {
                     self.suggestions.removeAll()
                 }
@@ -175,8 +191,8 @@ public final class MusicSearchService {
             }
         }
 
-        if Task.isCancelled { return }
-        if self.query != capturedQuery { return }
+        if Task.isCancelled { return false }
+        if self.query != capturedQuery { return false }
 
         if isMultiServiceSearch {
             // Publish the merged list once, after every provider has drained.
@@ -206,6 +222,8 @@ public final class MusicSearchService {
                 suggestions = suggestionResults.0
             }
         }
+
+        return allProvidersAnswered
     }
 
     /// Deadline for a single provider's fetch. Generous for a healthy
@@ -1662,7 +1680,7 @@ public final class MusicSearchService {
         let subtitle = [
             artistName.isEmpty ? nil : artistName,
             album.releaseYear,
-            album.nbTracks.map { $0 == 1 ? "1 song" : "\($0) songs" }
+            songCountLabel(album.nbTracks)
         ].compactMap { $0 }.joined(separator: " • ")
         return PlayableContent(
             title: album.title,

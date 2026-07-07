@@ -149,6 +149,15 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 - Merged multi-service results were appended in provider-completion (network) order; since the ranking's tie-break preserves input order, equally-scoring items (an artist's many same-ranked albums) reshuffled every republish. Provider results are now keyed per service and the merged input rebuilt in a fixed service order before each sort, making the ranking reproducible
 - Multi-service results now publish once, after every provider finishes, instead of re-ranking the visible list on each provider's completion — a slower service's copy of the artist joined the grouped cluster at the top and shoved everything down a row seconds after results appeared. Providers run concurrently, so the wait is only the slowest one (the loading spinner covers it)
 - Each provider's fetch races an 8s deadline (`MusicSearchService.withTimeout`): an unreachable service — the Sonos library or a LAN Plex server while on cellular or a foreign network — would otherwise sit in TCP connect for up to 15s and, with single-publish, hold every other service's results hostage. A timed-out provider contributes nothing
+
+### Review fixes (timeout/caching interactions)
+- A single-service provider timeout no longer leaves the *previous* query's results on screen as the new query's answer — the timed-out search clears to the "No Results" state instead
+- `search(for:)` now reports whether every provider answered; the search screen only memoizes a query as "completed" when it did, so a partial result (timed-out provider) retries on the next visit instead of being cached forever
+- The search task id and the skip-identical-search guard now share one key (`searchTaskKey`), built from the *effective* enabled-filtered service set with separators — disabling/re-enabling an extra service in Settings re-runs the search (raw stored extras didn't change the old id), and adjacent-component key collisions are impossible
+- The skip guard no longer skips the task's side effects: recently-played ranking IDs and the Sonos playlist refresh stay fresh on every pop-back
+- The "No Results" empty state and keyboard navigation now apply the Plex library filter like the rendered list does — a fully-filtered list shows the empty state instead of a silent blank, and arrow keys can't select hidden rows
+- `PlexMetadata.toPlayable` album mapping now carries `albumID`, so artist-detail/browse Plex albums get the per-edition artwork key too (search-only before — the duplicate-edition wrong-art bug persisted on artist pages)
+- Album subtitles never render "0 songs": the six hand-rolled pluralizations collapsed into one `songCountLabel` helper that drops missing/zero counts
 - Navigating back from a detail re-fired the search `.task(id:)` (push cancels it, pop restarts it — same id) and re-ran the whole search, re-streaming providers into the visible list. `SearchScreen` now remembers the last *completed* query+services key and skips the identical re-search, keeping the on-screen results untouched
 
 ### Plex duplicate editions distinguishable (bitrate + per-edition artwork)
