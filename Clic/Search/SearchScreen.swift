@@ -159,8 +159,12 @@ struct SearchScreen: View {
                     }
 
                     if isLoading {
+                        // maxWidth only: an unbounded-height row inside a
+                        // self-sizing List cell gives UIKit an ambiguous size
+                        // to resolve on every pass — loop-trap bait.
                         ProgressView()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
                             .listRowSeparator(.hidden)
                     }
                 }
@@ -504,9 +508,12 @@ private struct SearchFilterRow: View {
         .overlay(alignment: .trailing) {
             if searchesPlex {
                 ZStack(alignment: .trailing) {
-                    // Transparent hit area to block taps below
+                    // Transparent hit area to block taps below. No
+                    // ignoresSafeArea here: safe-area-ignoring content inside
+                    // a self-sizing List cell can trigger UIKit's layout
+                    // feedback-loop trap (EXC_BREAKPOINT in
+                    // _UICollectionViewFeedbackLoopDebugger on iOS 26).
                     Color.black.opacity(0.001)
-                        .ignoresSafeArea()
                         .allowsHitTesting(true)
                     PlexLibraryFilterView(plexLibrariesFilters: $plexLibrariesFilters)
                 }
