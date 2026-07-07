@@ -119,25 +119,34 @@ public final class MusicSearchService {
                     try? await Task.sleep(for: self.debounceDuration)
                     guard !Task.isCancelled else { return (provider, nil) }
 
-                    let fetched: [PlayableContent]?
-                    switch provider {
-                    case .apple:
-                        fetched = await self.searchApple(query: capturedQuery)
-                    case .spotify:
-                        fetched = await self.searchSpotify(query: capturedQuery)
-                    case .library:
-                        let playableContent = await self.sonosService.librarySearch(query: capturedQuery)
-                        fetched = await self.sortContentByIntelligentSearch(playableContent: playableContent, query: capturedQuery)
-                    case .plex:
-                        fetched = await self.searchPlex(query: capturedQuery)
-                    case .tidal:
-                        fetched = await self.searchTidal(query: capturedQuery)
-                    case .tuneIn:
-                        fetched = await self.searchTuneIn(query: capturedQuery)
-                    case .soundcloud:
-                        fetched = await self.searchSoundCloud(query: capturedQuery)
-                    case .deezer:
-                        fetched = await self.searchDeezer(query: capturedQuery)
+                    // Each provider races a deadline: an unreachable service
+                    // (the Sonos library or a LAN Plex server while away from
+                    // that network) would otherwise sit in connect/timeout for
+                    // up to 15s — and since a merged search publishes once,
+                    // one dead provider held up every other service's results.
+                    // A timed-out provider just contributes nothing.
+                    let fetched = await Self.withTimeout(seconds: Self.providerTimeout) {
+                        switch provider {
+                        case .apple:
+                            await self.searchApple(query: capturedQuery)
+                        case .spotify:
+                            await self.searchSpotify(query: capturedQuery)
+                        case .library:
+                            await self.sortContentByIntelligentSearch(
+                                playableContent: self.sonosService.librarySearch(query: capturedQuery),
+                                query: capturedQuery
+                            )
+                        case .plex:
+                            await self.searchPlex(query: capturedQuery)
+                        case .tidal:
+                            await self.searchTidal(query: capturedQuery)
+                        case .tuneIn:
+                            await self.searchTuneIn(query: capturedQuery)
+                        case .soundcloud:
+                            await self.searchSoundCloud(query: capturedQuery)
+                        case .deezer:
+                            await self.searchDeezer(query: capturedQuery)
+                        }
                     }
                     // If we were cancelled during the fetch, the API may have returned []
                     // for a cancelled URLSession call. Drop the result so we don't blank
@@ -196,6 +205,31 @@ public final class MusicSearchService {
             if !providers.contains(.tuneIn) {
                 suggestions = suggestionResults.0
             }
+        }
+    }
+
+    /// Deadline for a single provider's fetch. Generous for a healthy
+    /// service (all respond within a couple of seconds) while keeping an
+    /// unreachable one from pinning the merged publish to the network
+    /// stack's 15s connect timeout.
+    private static let providerTimeout: TimeInterval = 8
+
+    /// Races `operation` against a deadline; returns nil when the deadline
+    /// wins (the losing fetch is cancelled, and URLSession-backed calls
+    /// honor that).
+    private static func withTimeout<T: Sendable>(
+        seconds: TimeInterval,
+        _ operation: @escaping @Sendable () async -> T?
+    ) async -> T? {
+        await withTaskGroup(of: T?.self) { group in
+            group.addTask { await operation() }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(seconds))
+                return nil
+            }
+            let winner = await group.next() ?? nil
+            group.cancelAll()
+            return winner
         }
     }
 
