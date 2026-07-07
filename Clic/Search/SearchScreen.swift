@@ -74,6 +74,12 @@ struct SearchScreen: View {
 #endif
     }
 
+    /// Services enabled in Settings, in case order. Observed so disabling a
+    /// service while it's selected deselects it (see validateSelectedServices).
+    private var settingsEnabledServices: [MediaSearchService] {
+        MediaSearchService.allCases.filter { coreFeatures.enabledServices($0).wrappedValue }
+    }
+
     /// The primary service plus any "Also Search" services from the menu.
     /// Extras only count while their service is enabled in Settings.
     /// TuneIn is a radio directory and always searches alone — leftover
@@ -365,6 +371,17 @@ struct SearchScreen: View {
         .onChange(of: searchAlsoServices) {
             keyboardSelectedIndex = nil
         }
+        // Disabling a service in Settings must also deselect it here: extras
+        // are filtered out at read time, but a disabled primary stayed
+        // selected (its icon lingering in the toolbar and the search still
+        // querying it). The Settings sheet presents over this screen, so this
+        // fires live as the user flips toggles.
+        .onChange(of: settingsEnabledServices) {
+            validateSelectedServices()
+        }
+        .onAppear {
+            validateSelectedServices()
+        }
         .onChange(of: filters) {
             keyboardSelectedIndex = nil
         }
@@ -428,6 +445,18 @@ struct SearchScreen: View {
             try await Task.sleep(for: .milliseconds(300))
             UIView.setAnimationsEnabled(true)
         }
+    }
+
+    /// Deselects a service the user disabled in Settings. Extras drop out via
+    /// read-time filtering, but the primary needs an explicit fallback:
+    /// promote the first enabled extra, else the first enabled service.
+    private func validateSelectedServices() {
+        guard !coreFeatures.enabledServices(musicSearchSelection).wrappedValue else { return }
+        let fallback = MediaSearchService.allCases.first {
+            searchAlsoServices.services.contains($0) && coreFeatures.enabledServices($0).wrappedValue
+        } ?? settingsEnabledServices.first ?? .apple
+        searchAlsoServices.services.remove(fallback)
+        musicSearchSelection = fallback
     }
 
     private func activateSelectedItem(at index: Int) {
@@ -641,6 +670,7 @@ private struct MediaServiceMenu: View {
     @Binding var filters: [FilterSelection]
     @Binding var searchAlsoServices: AlsoSearchServices
 
+    @Environment(Router.self) private var router
     @State private var coreFeatures = CoreFeatures.shared
 
     /// The extras actually in effect: matches SearchScreen.selectedSearchServices
@@ -696,6 +726,13 @@ private struct MediaServiceMenu: View {
                 }
                 .menuActionDismissBehavior(.disabled)
                 .disabled(isAtLimit && !isSelected(service))
+            }
+
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                router.presentedSheet = .settings(destination: .servicePreferenceScreen)
+            } label: {
+                Label("Settings…", systemImage: "gear")
             }
         } label: {
             OverlappingServiceIcons(services: selectedServicesOrdered)
