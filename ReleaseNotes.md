@@ -30,7 +30,8 @@
 - Fixed Plex songs missing from search — tracks are no longer dropped when the server omits optional details like media info or artwork from search responses
 - Search results now stay put when you open a song or album and come back — the list no longer reshuffles or reloads behind you
 - If your Plex library has the same album in more than one quality, each copy now shows its own artwork, albums show their track count, and songs show their format and bitrate (like "FLAC • 1411 kbps"), so it's easy to tell editions apart
-- Album rows in search now show the number of songs across Apple Music, Spotify, and Plex — handy for telling a deluxe edition from the standard one
+- Album rows in search now show the number of songs across Apple Music, Spotify, Tidal, Deezer, and Plex — handy for telling a deluxe edition from the standard one
+- The search service menu now stays open while you pick services — toggle two or three in one visit and the checkmarks update in place
 - Spotify albums now rank by popularity, so searching an album like Frozen surfaces it near the top instead of below every song — and albums containing explicit tracks now show the explicit badge
 - Apple Music search now uses Apple's own Top Results to rank its hits higher, matching the ordering you see in the Music app
 - Improved Plex speed and reliability — Clic picks the fastest way to reach your server, automatically switches connection when you change networks, and no longer hangs on an unreachable server

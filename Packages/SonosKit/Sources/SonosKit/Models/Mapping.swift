@@ -922,7 +922,7 @@ extension TidalAlbumResource {
         let artist = artists.first { $0.main ?? false }
         return PlayableContent(
             title: title,
-            subtitle: [artist?.name, releaseDateFormatted, dolbyAtmos, lossless].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artist?.name, releaseDateFormatted, numberOfTracks.map { $0 == 1 ? "1 song" : "\($0) songs" }, dolbyAtmos, lossless].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: imageCover?.thumbnail,
             artwork: imageCover?.biggestImageURL,
             content: .init(

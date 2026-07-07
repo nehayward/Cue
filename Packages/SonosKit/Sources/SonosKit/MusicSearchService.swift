@@ -1613,7 +1613,11 @@ public final class MusicSearchService {
 
     private func createDeezerAlbumContent(from album: DeezerAlbum) -> PlayableContent {
         let artistName = album.artist?.name ?? ""
-        let subtitle = [artistName.isEmpty ? nil : artistName, album.releaseYear].compactMap { $0 }.joined(separator: " • ")
+        let subtitle = [
+            artistName.isEmpty ? nil : artistName,
+            album.releaseYear,
+            album.nbTracks.map { $0 == 1 ? "1 song" : "\($0) songs" }
+        ].compactMap { $0 }.joined(separator: " • ")
         return PlayableContent(
             title: album.title,
             subtitle: subtitle,
