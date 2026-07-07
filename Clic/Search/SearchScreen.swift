@@ -121,7 +121,7 @@ struct SearchScreen: View {
                 List(selection: .constant(selectedItemID)) {
                     SearchFilterRow(
                         musicSearchSelection: $musicSearchSelection,
-                        isMultiService: selectedSearchServices.count > 1,
+                        searchesPlex: selectedSearchServices.contains(.plex),
                         filters: $filters,
                         plexLibrariesFilters: $plexLibrariesFilters
                     )
@@ -480,7 +480,9 @@ struct SearchScreen: View {
 
 private struct SearchFilterRow: View {
     @Binding var musicSearchSelection: MediaSearchService
-    let isMultiService: Bool
+    /// Whether Plex results are in the list — as the primary service or as a
+    /// multi-search extra; the per-library filter applies in both.
+    let searchesPlex: Bool
     @Binding var filters: [FilterSelection]
     @Binding var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>]
 
@@ -500,9 +502,7 @@ private struct SearchFilterRow: View {
         }
         .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
         .overlay(alignment: .trailing) {
-            // The per-library filter only applies in the Plex-only view;
-            // merged multiservice results would silently ignore it.
-            if musicSearchSelection == .plex, !isMultiService {
+            if searchesPlex {
                 ZStack(alignment: .trailing) {
                     // Transparent hit area to block taps below
                     Color.black.opacity(0.001)
@@ -563,8 +563,12 @@ private struct SearchResultsView: View {
     var body: some View {
         if isMultiService {
             // Merged multiservice results are one ranked list; the generic
-            // view renders rows for any service.
-            ServiceSearchView(results: musicSearchService.results, filters: $filters)
+            // view renders rows for any service. The Plex library filter
+            // still applies to the Plex rows — other services pass through.
+            ServiceSearchView(
+                results: musicSearchService.results.filteredByPlexLibraries(plexLibrariesFilters),
+                filters: $filters
+            )
         } else {
             switch service {
             case .spotify:

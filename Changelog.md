@@ -131,6 +131,10 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 - `MusicSearchService.search` accumulates multi-provider results into one merged, re-ranked list as each provider completes (previously last-writer-wins overwrote `results` per provider); merged results render through the generic `ServiceSearchView` as a single ranked list, single-service searches keep their per-service views
 - TuneIn results now go through ranking too — safe now that ties preserve the API's order (exact station-name matches float, the rest stay put)
 
+### Plex library filter in multi-search + glass filter chips
+- The per-library Plex filter button was hidden during a multi-service search because the merged list ignored it. It now shows whenever Plex is among the searched services, and the merged list honors it: `filteredByPlexLibraries` (shared with `PlexSearchView`) drops Plex rows outside the chosen libraries while other services' rows pass through
+- The type filter chips (Songs/Albums/Artists/…) are Liquid Glass on iOS 26 — clear glass idle, accent-tinted glass when selected, matching the Plex library filter button; older OSes and visionOS keep the flat capsule fill
+
 ### Stable search results across navigation
 - Merged multi-service results were appended in provider-completion (network) order; since the ranking's tie-break preserves input order, equally-scoring items (an artist's many same-ranked albums) reshuffled every republish. Provider results are now keyed per service and the merged input rebuilt in a fixed service order before each sort, making the ranking reproducible
 - Navigating back from a detail re-fired the search `.task(id:)` (push cancels it, pop restarts it — same id) and re-ran the whole search, re-streaming providers into the visible list. `SearchScreen` now remembers the last *completed* query+services key and skips the identical re-search, keeping the on-screen results untouched
