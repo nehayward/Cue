@@ -74,24 +74,6 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         }
     }
 
-#if canImport(UIKit)
-    /// UIKit image for native `UIMenu` rows (the search's service menu is
-    /// presented through UIKit so it can stay open across toggles); exposed
-    /// here because the brand assets live in this package's bundle.
-    public var menuImage: UIImage? {
-        switch self {
-        case .apple:
-            UIImage(systemName: "apple.logo")
-        case .library:
-            UIImage(systemName: librarySymbolName)
-        case .tuneIn, .soundcloud, .deezer:
-            UIImage(named: title, in: .module, with: nil)?.withRenderingMode(.alwaysTemplate)
-        default:
-            UIImage(named: rawValue.capitalized, in: .module, with: nil)?.withRenderingMode(.alwaysTemplate)
-        }
-    }
-#endif
-
     @ViewBuilder
     public var image: some View {
         switch self {

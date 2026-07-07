@@ -669,34 +669,34 @@ private struct MediaServiceMenu: View {
     private var isAtLimit: Bool { selectedCount >= maxSelectable }
 
     var body: some View {
-        // The icon stack is plain SwiftUI; the menu is presented by a
-        // transparent UIKit button overlaid on it. A SwiftUI Menu in a
-        // toolbar tears down whenever its label changes — every toggle
-        // rebuilt the bar item and dismissed the menu. A UIButton's presented
-        // menu survives label updates underneath it, `.keepsMenuPresented`
-        // keeps it open across toggles, and `updateVisibleMenu` refreshes the
-        // checkmarks and disabled states in place. (Not a popover either:
-        // those crash on Mac Catalyst; on Mac the menu natively closes per
-        // click, which is expected there.)
-        OverlappingServiceIcons(services: selectedServicesOrdered)
-            .overlay {
-                ServiceMenuPresenter(items: menuItems)
-                    // Grow the tap target past the small icon stack.
-                    .padding(-10)
+        // A native Menu (not a popover): popovers with a List/ScrollView crash
+        // on Mac Catalyst. Each service is a Toggle (checkmark); a UIKit-
+        // presented menu (kept open via .keepsMenuPresented + live-updated
+        // with updateVisibleMenu) was tried and reverted — Catalyst renders
+        // UIMenu rows as native Mac menus that ignore keepsMenuPresented and
+        // draw the asset images full-size, so it only helped iOS.
+        Menu {
+            ForEach(enabledServices, id: \.self) { service in
+                Toggle(isOn: selectionBinding(for: service)) {
+                    HStack {
+                        Text(service.title)
+                        service.iconForMusicService
+                    }
+                }
+                .menuActionDismissBehavior(.disabled)
+                .disabled(isAtLimit && !isSelected(service))
             }
-            .popoverTip(AppTip.mediaService)
+        } label: {
+            OverlappingServiceIcons(services: selectedServicesOrdered)
+        }
+        .popoverTip(AppTip.mediaService)
     }
 
-    private func menuItems() -> [ServiceMenuPresenter.Item] {
-        enabledServices.map { service in
-            ServiceMenuPresenter.Item(
-                title: service.title,
-                image: service.menuImage,
-                isOn: isSelected(service),
-                isDisabled: isAtLimit && !isSelected(service),
-                handler: { toggleService(service) }
-            )
-        }
+    private func selectionBinding(for service: MediaSearchService) -> Binding<Bool> {
+        Binding(
+            get: { isSelected(service) },
+            set: { _ in toggleService(service) }
+        )
     }
 
     /// Toggle a service in/out of the search set (max 3). Primary + extras are
@@ -759,79 +759,6 @@ private struct OverlappingServiceIcons: View {
                 service.iconForMusicService
                     .foregroundStyle(service.brandColor.gradient)
                     .frame(width: diameter, height: diameter)
-            }
-        }
-    }
-}
-
-/// A transparent `UIButton` that presents the service menu natively. UIKit is
-/// the point: SwiftUI's `Menu` dismisses when its toolbar label changes (each
-/// toggle rebuilt the bar item), while a UIButton's presented menu survives
-/// label updates, `.keepsMenuPresented` keeps it open across toggles, and
-/// `updateVisibleMenu` refreshes checkmarks/disabled states in place. The
-/// deferred uncached element re-reads `items` on every presentation, so the
-/// menu always reflects current state without the button itself changing.
-private struct ServiceMenuPresenter: UIViewRepresentable {
-    struct Item {
-        let title: String
-        let image: UIImage?
-        let isOn: Bool
-        let isDisabled: Bool
-        let handler: () -> Void
-    }
-
-    /// Re-invoked at every menu (re)display — must read live state.
-    var items: () -> [Item]
-
-    func makeUIView(context: Context) -> UIButton {
-        let button = UIButton(type: .custom)
-        button.backgroundColor = .clear
-        button.showsMenuAsPrimaryAction = true
-        button.accessibilityLabel = String(localized: "Search Services")
-        context.coordinator.items = items
-        context.coordinator.button = button
-        button.menu = UIMenu(children: [
-            UIDeferredMenuElement.uncached { [weak coordinator = context.coordinator] completion in
-                completion(coordinator?.menuElements() ?? [])
-            }
-        ])
-        return button
-    }
-
-    func updateUIView(_ uiView: UIButton, context: Context) {
-        context.coordinator.items = items
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    @MainActor final class Coordinator {
-        var items: () -> [Item] = { [] }
-        weak var button: UIButton?
-
-        func menuElements() -> [UIMenuElement] {
-            items().map { item in
-                var attributes: UIMenuElement.Attributes = [.keepsMenuPresented]
-                if item.isDisabled { attributes.insert(.disabled) }
-                return UIAction(
-                    title: item.title,
-                    image: item.image,
-                    attributes: attributes,
-                    state: item.isOn ? .on : .off
-                ) { [weak self] _ in
-                    item.handler()
-                    self?.refreshVisibleMenu()
-                }
-            }
-        }
-
-        /// Re-resolves the still-presented menu after a toggle so checkmarks
-        /// and at-limit disabled states update in place; async so the
-        /// SwiftUI state write lands first.
-        private func refreshVisibleMenu() {
-            DispatchQueue.main.async { [weak self] in
-                guard let self, let button = self.button else { return }
-                let refreshed = UIMenu(children: self.menuElements())
-                button.contextMenuInteraction?.updateVisibleMenu { _ in refreshed }
             }
         }
     }
