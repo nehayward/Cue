@@ -29,6 +29,7 @@
 - Search now shows a "No Results" screen when nothing matches instead of a blank list
 - Fixed Plex songs missing from search — tracks are no longer dropped when the server omits optional details like media info or artwork from search responses
 - Search results now stay put when you open a song or album and come back — the list no longer reshuffles or reloads behind you
+- Multi-service search results now appear all at once instead of shifting around as each service finishes loading
 - If your Plex library has the same album in more than one quality, each copy now shows its own artwork, albums show their track count, and songs show their format and bitrate (like "FLAC • 1411 kbps"), so it's easy to tell editions apart
 - Album rows in search now show the number of songs across Apple Music, Spotify, Tidal, Deezer, and Plex — handy for telling a deluxe edition from the standard one
 - The Plex library filter now works during a combined multi-service search too — filter your Plex results by library while other services' results stay put

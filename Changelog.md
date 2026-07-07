@@ -147,6 +147,7 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 
 ### Stable search results across navigation
 - Merged multi-service results were appended in provider-completion (network) order; since the ranking's tie-break preserves input order, equally-scoring items (an artist's many same-ranked albums) reshuffled every republish. Provider results are now keyed per service and the merged input rebuilt in a fixed service order before each sort, making the ranking reproducible
+- Multi-service results now publish once, after every provider finishes, instead of re-ranking the visible list on each provider's completion — a slower service's copy of the artist joined the grouped cluster at the top and shoved everything down a row seconds after results appeared. Providers run concurrently, so the wait is only the slowest one (the loading spinner covers it)
 - Navigating back from a detail re-fired the search `.task(id:)` (push cancels it, pop restarts it — same id) and re-ran the whole search, re-streaming providers into the visible list. `SearchScreen` now remembers the last *completed* query+services key and skips the identical re-search, keeping the on-screen results untouched
 
 ### Plex duplicate editions distinguishable (bitrate + per-edition artwork)

@@ -160,22 +160,6 @@ public final class MusicSearchService {
                 }
                 if isMultiServiceSearch {
                     resultsByProvider[provider] = providerResults
-                    // Rebuild the merged list in a fixed service order (the enum's
-                    // case order), not the order providers happened to finish, so
-                    // the ranking receives the same input sequence every time and
-                    // its order stays stable across republishes.
-                    let mergedResults = MediaSearchService.allCases
-                        .compactMap { resultsByProvider[$0] }
-                        .flatMap { $0 }
-                    // Group all matching artists at the top: the same artist
-                    // appears once per service, and clustering their rows reads
-                    // better than lifting a single copy above its twins.
-                    self.results = SearchRanking.sort(
-                        mergedResults,
-                        query: capturedQuery,
-                        recentlyPlayedIDs: recentlyPlayedIDs,
-                        groupArtists: true
-                    )
                 } else {
                     self.results = providerResults
                 }
@@ -184,6 +168,29 @@ public final class MusicSearchService {
 
         if Task.isCancelled { return }
         if self.query != capturedQuery { return }
+
+        if isMultiServiceSearch {
+            // Publish the merged list once, after every provider has drained.
+            // Publishing per-arrival re-ranked the visible list on each
+            // provider's completion: a slower service's copy of the artist
+            // joined the grouped cluster at the top and shoved everything
+            // below it down a row seconds after results appeared. Providers
+            // run concurrently, so this waits only for the slowest one.
+            //
+            // Merged in a fixed service order (the enum's case order), not
+            // completion order, so the ranking receives the same input
+            // sequence every time. groupArtists clusters each artist's
+            // per-service copies at the top.
+            let mergedResults = MediaSearchService.allCases
+                .compactMap { resultsByProvider[$0] }
+                .flatMap { $0 }
+            self.results = SearchRanking.sort(
+                mergedResults,
+                query: capturedQuery,
+                recentlyPlayedIDs: recentlyPlayedIDs,
+                groupArtists: true
+            )
+        }
 
         if let suggestionResults = await searchSuggestionTask.value {
             if !providers.contains(.tuneIn) {
