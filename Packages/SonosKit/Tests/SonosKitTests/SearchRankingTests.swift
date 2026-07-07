@@ -425,6 +425,36 @@ final class SearchRankingTests: XCTestCase {
         XCTAssertEqual(titles(results), ["Zebra", "Apple"])
     }
 
+    func testArtistRadioPinsDirectlyBeneathItsArtist() {
+        // A radio row carries the artist's own name and popularity, so ranked
+        // on its own it strands among the artist's albums — it must sit
+        // directly under the artist row instead.
+        let results = SearchRanking.sort(
+            [
+                item(title: "Dua Lipa", subtitle: "Dua Lipa", type: .artistRadio, popularity: 90, id: "radio"),
+                item(title: "Dua Lipa", type: .artist, popularity: 90, id: "artist"),
+                item(title: "Future Nostalgia", subtitle: "Dua Lipa", type: .album, popularity: 85, id: "album"),
+            ],
+            query: "dua lipa"
+        )
+        XCTAssertEqual(results.map(\.id), ["artist", "radio", "album"])
+    }
+
+    func testArtistRadioPinsAfterGroupedArtistCluster() {
+        // Grouped multi-service artists cluster at the top; the radio goes
+        // after the whole cluster, not wedged between the artist's copies.
+        let results = SearchRanking.sort(
+            [
+                item(title: "Dua Lipa", type: .artist, service: .spotify, popularity: 90, id: "artist-spotify"),
+                item(title: "Dua Lipa", subtitle: "Dua Lipa", type: .artistRadio, service: .spotify, popularity: 90, id: "radio"),
+                item(title: "Dua Lipa", type: .artist, service: .apple, id: "artist-apple"),
+            ],
+            query: "dua lipa",
+            groupArtists: true
+        )
+        XCTAssertEqual(results.map(\.id), ["artist-spotify", "artist-apple", "radio"])
+    }
+
     func testSortIsIdempotent() {
         // The search screen keeps results on screen across navigation; any
         // re-sort of an already-ranked list (e.g. a provider re-publishing)

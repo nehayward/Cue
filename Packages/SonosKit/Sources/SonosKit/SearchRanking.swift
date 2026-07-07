@@ -122,12 +122,55 @@ enum SearchRanking {
             entries[index].score += (artistPopularity[matched] ?? 0) * popularityWeight
         }
 
-        return entries
+        let ranked = entries
             .sorted { lhs, rhs in
                 if lhs.score != rhs.score { return lhs.score > rhs.score }
                 return lhs.index < rhs.index
             }
             .map { $0.item }
+
+        return pinArtistRadios(ranked)
+    }
+
+    /// Moves each artist-radio row directly beneath its artist. A radio
+    /// carries the artist's own name and popularity, so ranked on its own it
+    /// strands between the artist's albums — "Dua Lipa Radio" reads as part
+    /// of "Dua Lipa". Pins after the *last* consecutive same-named artist so
+    /// a grouped multi-service artist cluster stays intact; radios without a
+    /// matching artist row keep their ranked position.
+    private static func pinArtistRadios(_ items: [PlayableContent]) -> [PlayableContent] {
+        var artistNames: Set<String> = []
+        for item in items where item.content.type.isArtist {
+            artistNames.insert(normalized(item.title))
+        }
+        guard !artistNames.isEmpty else { return items }
+
+        var pinned: [String: [PlayableContent]] = [:]
+        var rest: [PlayableContent] = []
+        for item in items {
+            let name = normalized(item.title)
+            if item.content.type == .artistRadio, artistNames.contains(name) {
+                pinned[name, default: []].append(item)
+            } else {
+                rest.append(item)
+            }
+        }
+        guard !pinned.isEmpty else { return items }
+
+        var result: [PlayableContent] = []
+        result.reserveCapacity(items.count)
+        for (index, item) in rest.enumerated() {
+            result.append(item)
+            guard item.content.type.isArtist else { continue }
+            let name = normalized(item.title)
+            let nextIsSameArtist = index + 1 < rest.count
+                && rest[index + 1].content.type.isArtist
+                && normalized(rest[index + 1].title) == name
+            if !nextIsSameArtist, let radios = pinned.removeValue(forKey: name) {
+                result.append(contentsOf: radios)
+            }
+        }
+        return result
     }
 
     // MARK: - Weights
