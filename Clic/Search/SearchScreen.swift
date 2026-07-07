@@ -77,7 +77,7 @@ struct SearchScreen: View {
     /// Services enabled in Settings, in case order. Observed so disabling a
     /// service while it's selected deselects it (see validateSelectedServices).
     private var settingsEnabledServices: [MediaSearchService] {
-        MediaSearchService.allCases.filter { coreFeatures.enabledServices($0).wrappedValue }
+        MediaSearchService.allCases.filter { coreFeatures.isEnabled($0) }
     }
 
     /// The primary service plus any "Also Search" services from the menu.
@@ -87,7 +87,7 @@ struct SearchScreen: View {
     private var selectedSearchServices: Set<MediaSearchService> {
         guard musicSearchSelection != .tuneIn else { return [.tuneIn] }
         return searchAlsoServices.services
-            .filter { coreFeatures.enabledServices($0).wrappedValue }
+            .filter { coreFeatures.isEnabled($0) }
             .union([musicSearchSelection])
     }
 
@@ -258,22 +258,12 @@ struct SearchScreen: View {
                     }
                     #endif
 
-                    if #available(iOS 26.0, *) {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            MediaServiceMenu(
-                                musicSearchSelection: $musicSearchSelection,
-                                filters: $filters,
-                                searchAlsoServices: $searchAlsoServices
-                            )
-                        }
-                    } else {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            MediaServiceMenu(
-                                musicSearchSelection: $musicSearchSelection,
-                                filters: $filters,
-                                searchAlsoServices: $searchAlsoServices
-                            )
-                        }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        MediaServiceMenu(
+                            musicSearchSelection: $musicSearchSelection,
+                            filters: $filters,
+                            searchAlsoServices: $searchAlsoServices
+                        )
                     }
                 }
             }
@@ -476,9 +466,9 @@ struct SearchScreen: View {
     /// read-time filtering, but the primary needs an explicit fallback:
     /// promote the first enabled extra, else the first enabled service.
     private func validateSelectedServices() {
-        guard !coreFeatures.enabledServices(musicSearchSelection).wrappedValue else { return }
+        guard !coreFeatures.isEnabled(musicSearchSelection) else { return }
         let fallback = MediaSearchService.allCases.first {
-            searchAlsoServices.services.contains($0) && coreFeatures.enabledServices($0).wrappedValue
+            searchAlsoServices.services.contains($0) && coreFeatures.isEnabled($0)
         } ?? settingsEnabledServices.first ?? .apple
         searchAlsoServices.services.remove(fallback)
         musicSearchSelection = fallback
@@ -554,11 +544,7 @@ private struct SearchFilterRow: View {
             if musicSearchSelection != .tuneIn {
                 VStack(spacing: 0) {
                     HStack {
-                        FilterView(
-                            selectedService: $musicSearchSelection,
-                            selectedServices: selectedServices,
-                            filters: $filters
-                        )
+                        FilterView(services: selectedServices, filters: $filters)
                     }
                 }
                 .listRowSeparator(.hidden)
@@ -724,7 +710,7 @@ private struct MediaServiceMenu: View {
     private var activeExtras: Set<MediaSearchService> {
         guard musicSearchSelection != .tuneIn else { return [] }
         return searchAlsoServices.services
-            .filter { coreFeatures.enabledServices($0).wrappedValue }
+            .filter { coreFeatures.isEnabled($0) }
             .subtracting([musicSearchSelection])
     }
 
@@ -743,7 +729,7 @@ private struct MediaServiceMenu: View {
     private let maxSelectable = 3
 
     private var enabledServices: [MediaSearchService] {
-        MediaSearchService.allCases.filter { coreFeatures.enabledServices($0).wrappedValue }
+        MediaSearchService.allCases.filter { coreFeatures.isEnabled($0) }
     }
 
     /// A service is included in the search when it's the primary or an extra.
@@ -780,7 +766,7 @@ private struct MediaServiceMenu: View {
                 Label("Settings…", systemImage: "gear")
             }
         } label: {
-            OverlappingServiceIcons(services: selectedServicesOrdered)
+            ServiceIconRow(services: selectedServicesOrdered)
         }
         .popoverTip(AppTip.mediaService)
     }
@@ -833,18 +819,15 @@ private struct MediaServiceMenu: View {
     }
 }
 
-/// Up to three overlapping, brand-colored service icons — the search menu's
-/// toolbar button. With a single service it's just that icon; with extras
-/// they stack "avatar pile" style, the trailing (primary-most-recent) chip on
-/// top. Deliberately plain: an earlier version cut a masked seam between the
-/// chips, but the mask's compositing layer glitched and clipped while the
-/// stack animated between selection sizes, so the chips simply overlap.
-private struct OverlappingServiceIcons: View {
+/// Up to three brand-colored service icons in a row — the search menu's
+/// toolbar button. Deliberately plain: earlier overlapping/masked-seam
+/// variants glitched and clipped while the row animated between selection
+/// sizes, so the icons just sit side by side.
+private struct ServiceIconRow: View {
     let services: [MediaSearchService]
     var diameter: CGFloat = 26
 
     private var shown: [MediaSearchService] { Array(services.prefix(3)) }
-    private var overlap: CGFloat { diameter * 0.45 }
 
     var body: some View {
         HStack(spacing: 0) {

@@ -812,9 +812,12 @@ public final class MusicSearchService {
             playableContent.append(contentsOf: stations.data.compactMap(\.toPlayable))
         }
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        // Unranked: searchApple (the only caller) ranks the combined
+        // library+catalog list once — ranking here too was pure waste
+        // (every intermediate order is discarded by the final sort).
+        return playableContent
     }
-    
+
     public func searchLibraryAppleMusic(query: String) async -> [PlayableContent] {
         if query.count < 1 { return [] }
         guard await requestMusicAuthorization() else { return [] }
@@ -836,11 +839,11 @@ public final class MusicSearchService {
         if let playlists = container?.results.libraryPlaylists {
             playableContent.append(contentsOf: playlists.data.compactMap(\.toPlayable))
         }
-        
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        // Unranked: searchApple (the only caller) ranks the combined list.
+        return playableContent
     }
-    
+
     public func searchApple(query: String) async -> [PlayableContent] {
         if query.count < 1 { return [] }
         

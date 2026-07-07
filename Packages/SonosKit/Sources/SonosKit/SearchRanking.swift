@@ -52,9 +52,13 @@ enum SearchRanking {
         // this, an Apple "Dua Lipa" (popularity 0) sank below its own
         // self-titled albums, which match the query title just as exactly.
         var artistPopularity: [String: Double] = [:]
+        // Normalized artist names cached by entry index; the boost loop
+        // below reuses them instead of re-folding each title.
+        var artistNameByIndex: [Int: String] = [:]
         for index in entries.indices where entries[index].item.content.type.isArtist {
             let name = normalized(entries[index].item.title)
             guard !name.isEmpty else { continue }
+            artistNameByIndex[index] = name
             let pop = min(Double(entries[index].item.metadata?.popularity ?? 0) / 100, 1)
             artistPopularity[name] = max(artistPopularity[name] ?? 0, pop)
         }
@@ -88,7 +92,7 @@ enum SearchRanking {
 
         var boostedArtistNames: Set<String> = []
         for (index, text) in boostedArtists {
-            let name = normalized(entries[index].item.title)
+            guard let name = artistNameByIndex[index] else { continue }
             boostedArtistNames.insert(name)
             let quality = artistPopularity[name] ?? 0
 
@@ -139,6 +143,10 @@ enum SearchRanking {
     /// a grouped multi-service artist cluster stays intact; radios without a
     /// matching artist row keep their ranked position.
     private static func pinArtistRadios(_ items: [PlayableContent]) -> [PlayableContent] {
+        // Most sorts carry no radios (library, Plex, Tidal, Deezer, TuneIn):
+        // bail before normalizing every title and copying the array.
+        guard items.contains(where: { $0.content.type == .artistRadio }) else { return items }
+
         var artistNames: Set<String> = []
         for item in items where item.content.type.isArtist {
             artistNames.insert(normalized(item.title))

@@ -82,7 +82,6 @@ final class FilterSelection: Hashable, Identifiable {
     static var library = FilterSelection(filter: .library, isFiltered: false)
 
     static var defaultFilters: [FilterSelection] = [.songs, .albums, .playlists, .artist]
-    static var appleFilters: [FilterSelection] = [.songs, .albums, .playlists, .artist, .radio, .library]
     static var alarmFilters: [FilterSelection] = [.albums, .playlists]
 
     /// The union of filters needed by every service being searched — a
@@ -103,18 +102,13 @@ final class FilterSelection: Hashable, Identifiable {
 
 struct FilterView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Binding var selectedService: MediaSearchService
-    /// Every service being searched (primary + extras). When empty, falls
-    /// back to just `selectedService` — call sites without multi-search
-    /// (play history) keep their single-service behavior.
-    var selectedServices: Set<MediaSearchService> = []
+    /// Every service being searched (primary + extras). Empty means "no
+    /// service-specific chips" — play history passes it to get the default
+    /// set regardless of which services exist in the history.
+    let services: Set<MediaSearchService>
     @Binding var filters: [FilterSelection]
 
     @Namespace private var animation
-
-    private var effectiveServices: Set<MediaSearchService> {
-        selectedServices.isEmpty ? [selectedService] : selectedServices
-    }
 
     var body: some View {
         ScrollView(.horizontal) {
@@ -130,9 +124,15 @@ struct FilterView: View {
         .scrollTargetBehavior(.viewAligned)
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
-        .task(id: effectiveServices) {
+        .task(id: services) {
+            // Only assign when the chip set actually changes: toggling a
+            // service whose filters match the current set (e.g. adding Tidal
+            // to a default-chip search) otherwise fired the filters binding
+            // for a no-op, wiping keyboard selection and re-animating chips.
+            let newFilters = FilterSelection.filters(for: services)
+            guard newFilters != filters else { return }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                filters = FilterSelection.filters(for: effectiveServices)
+                filters = newFilters
             }
         }
         .mask(
@@ -194,7 +194,7 @@ struct FilterButton: View {
 
 #Preview {
     FilterView(
-        selectedService: .constant(MediaSearchService.apple),
+        services: [.apple],
         filters: .constant(
             [
                 FilterSelection(

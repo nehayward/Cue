@@ -158,6 +158,12 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 - The "No Results" empty state and keyboard navigation now apply the Plex library filter like the rendered list does — a fully-filtered list shows the empty state instead of a silent blank, and arrow keys can't select hidden rows
 - `PlexMetadata.toPlayable` album mapping now carries `albumID`, so artist-detail/browse Plex albums get the per-edition artwork key too (search-only before — the duplicate-edition wrong-art bug persisted on artist pages)
 - Album subtitles never render "0 songs": the six hand-rolled pluralizations collapsed into one `songCountLabel` helper that drops missing/zero counts
+
+### Search speed + complexity cleanup
+- An Apple search no longer ranks the same items three times over: `searchLibraryAppleMusic` and `searchAppleMusic` return unranked (their only caller, `searchApple`, ranks the combined list once) — the dominant per-keystroke CPU cost on the main actor
+- `SpotifyAPI.albums(ids:)` fetches its 20-id chunks concurrently instead of serializing round-trips; `SearchRanking.pinArtistRadios` bails before any allocation when a sort carries no radios (most services'), and the artist passes reuse cached normalized names
+- `FilterView` takes one `services` set (the redundant `selectedService` binding and empty-set fallback are gone) and only reassigns the chips when the set actually changes — a no-op toggle no longer wipes keyboard selection and re-animates the row. Play History passes `[]`, restoring its default chips (the Spotify-radio chip had leaked in). Dead `appleFilters` removed (`filters(for:)` is the single source)
+- Service enablement reads use `CoreFeatures.isEnabled(_:)` instead of constructing a Binding per check; the byte-identical `#available(iOS 26)` toolbar branches collapsed; `OverlappingServiceIcons` renamed `ServiceIconRow` with its dead `overlap` property removed (the icons deliberately sit side by side); `PlexParser`'s four copies of the token-signed image-URL construction folded into one helper
 - Navigating back from a detail re-fired the search `.task(id:)` (push cancels it, pop restarts it — same id) and re-ran the whole search, re-streaming providers into the visible list. `SearchScreen` now remembers the last *completed* query+services key and skips the identical re-search, keeping the on-screen results untouched
 
 ### Plex duplicate editions distinguishable (bitrate + per-edition artwork)
