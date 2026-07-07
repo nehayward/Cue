@@ -145,13 +145,13 @@ struct SearchScreen: View {
                     if musicSearchService.query.isEmpty {
                         SearchEmptyStateView(
                             isAlarmSearch: isAlarmSearch,
-                            service: musicSearchSelection,
+                            services: selectedSearchServices,
                             filters: $filters
                         )
                     } else {
                         SearchResultsView(
                             service: musicSearchSelection,
-                            isMultiService: selectedSearchServices.count > 1,
+                            selectedServices: selectedSearchServices,
                             query: $musicSearchService.query,
                             filters: $filters,
                             plexLibrariesFilters: $plexLibrariesFilters
@@ -565,7 +565,10 @@ private struct SearchFilterRow: View {
 
 private struct SearchEmptyStateView: View {
     let isAlarmSearch: Bool
-    let service: MediaSearchService
+    /// Every service being searched — per-service sections (Spotify browse,
+    /// Apple playlists) show when their service is anywhere in the selection,
+    /// not just when it's the primary.
+    let services: Set<MediaSearchService>
     @Binding var filters: [FilterSelection]
 
     @Environment(PlayHistoryService.self) private var playHistoryService
@@ -579,11 +582,11 @@ private struct SearchEmptyStateView: View {
             PlayHistoryView(filters: $filters)
         }
 
-        if !isAlarmSearch, service == .spotify {
+        if !isAlarmSearch, services.contains(.spotify) {
             SpotifySearchScreen()
         }
 
-        if !isAlarmSearch, service == .apple {
+        if !isAlarmSearch, services.contains(.apple) {
             ApplePlaylistsView()
         }
 
@@ -596,12 +599,16 @@ private struct SearchEmptyStateView: View {
 
 private struct SearchResultsView: View {
     let service: MediaSearchService
-    let isMultiService: Bool
+    /// Every service being searched; drives the per-service extras that the
+    /// single-service views carry (Plex's library selection prompt).
+    let selectedServices: Set<MediaSearchService>
     @Binding var query: String
     @Binding var filters: [FilterSelection]
     @Binding var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>]
 
     @Environment(MusicSearchService.self) private var musicSearchService
+
+    private var isMultiService: Bool { selectedServices.count > 1 }
 
     var body: some View {
         if isMultiService {
@@ -612,6 +619,12 @@ private struct SearchResultsView: View {
                 results: musicSearchService.results.filteredByPlexLibraries(plexLibrariesFilters),
                 filters: $filters
             )
+
+            // Per-service extras the dedicated views carry, keyed on
+            // membership rather than the primary.
+            if selectedServices.contains(.plex) {
+                PlexLibrarySelectionView()
+            }
         } else {
             switch service {
             case .spotify:

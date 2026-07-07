@@ -133,6 +133,10 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 - `MusicSearchService.search` accumulates multi-provider results into one merged, re-ranked list as each provider completes (previously last-writer-wins overwrote `results` per provider); merged results render through the generic `ServiceSearchView` as a single ranked list, single-service searches keep their per-service views
 - TuneIn results now go through ranking too — safe now that ties preserve the API's order (exact station-name matches float, the rest stay put)
 
+### Per-service sections key on membership, not the primary
+- The empty-query screen's per-service sections only showed for the *primary* service — Spotify's browse section and Apple's playlists vanished when that service was a multi-search extra. `SearchEmptyStateView` now takes the full selected set and shows each section when its service is anywhere in the selection
+- The merged results view now carries the Plex library-selection prompt (`PlexLibrarySelectionView`, self-gated to Plex-authorized-but-no-library) when Plex is among the searched services — previously only the dedicated Plex view showed it
+
 ### Filter chips cover every searched service + Spotify artist radios
 - The filter chips were driven by the primary service alone, so Apple as a multi-search *extra* lost its Radio and Library chips. `FilterSelection.filters(for:)` now unions the filters of every searched service, and `FilterView` keys off the full selected set
 - Spotify search results now include radio: Sonos can start a Spotify artist radio, so the top two artist matches surface an "Artist Radio" row (`toPlayable.toRadio`), mirroring Apple's radio stations in results
