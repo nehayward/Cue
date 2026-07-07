@@ -8,6 +8,8 @@ public struct TheaterSettings: Codable, Hashable, Equatable {
     /// Arc Ultra only: dialog intensity level (1=Low, 2=Medium, 3=High, 4=Max)
     public var dialogLevelValue: Int = 1
     public var audioInputFormat: AudioInputFormat = .noInputConnected
+    /// TV Dialog Sync (lip sync) delay, 0–5. Soundbars only.
+    public var audioDelay: Double = .zero
 
     public var surroundLevel: Double = .zero
     public var musicSurroundLevel: Double = .zero

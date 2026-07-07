@@ -2755,11 +2755,13 @@ public final class SonosService {
         async let surroundLevel = api.getEQValue(IP: room.ip, eq: .surroundLevel)
         async let surroundEnabled = api.getEQValue(IP: room.ip, eq: .surroundEnable)
         async let heightLevel = api.getEQValue(IP: room.ip, eq: .heightChannelLevel)
+        async let audioDelay = api.getEQValue(IP: room.ip, eq: .audioDelay)
 
-        let commonSettings: (nightMode: Bool, audioInputFormat: AudioInputFormat, surroundLevel: Double, musicSurroundLevel: Double, isSurroundEnable: Bool, surroundMode: Double, heightChannel: Double, subGain: Double, isSubEnabled: Bool)
+        let commonSettings: (nightMode: Bool, audioInputFormat: AudioInputFormat, audioDelay: Double, surroundLevel: Double, musicSurroundLevel: Double, isSurroundEnable: Bool, surroundMode: Double, heightChannel: Double, subGain: Double, isSubEnabled: Bool)
         commonSettings = await (
             nightMode: (try? nightMode) ?? false,
             audioInputFormat: (try? audioInputFormat) ?? .unknown,
+            audioDelay: audioDelay ?? 0.0,
             surroundLevel: surroundLevel ?? 0.0,
             musicSurroundLevel: musicSurroundLevel ?? 0.0,
             isSurroundEnable: (surroundEnabled ?? 0) == 1,
@@ -2779,6 +2781,7 @@ public final class SonosService {
                 speechEnhanceEnabled: (try? speechEnhanceEnabled) ?? false,
                 dialogLevelValue: (try? dialogLevelValue) ?? 1,
                 audioInputFormat: commonSettings.audioInputFormat,
+                audioDelay: commonSettings.audioDelay,
                 surroundLevel: commonSettings.surroundLevel,
                 musicSurroundLevel: commonSettings.musicSurroundLevel,
                 isSurroundEnable: commonSettings.isSurroundEnable,
@@ -2794,6 +2797,7 @@ public final class SonosService {
                 nightMode: commonSettings.nightMode,
                 dialogLevel: (try? dialogLevel) ?? false,
                 audioInputFormat: commonSettings.audioInputFormat,
+                audioDelay: commonSettings.audioDelay,
                 surroundLevel: commonSettings.surroundLevel,
                 musicSurroundLevel: commonSettings.musicSurroundLevel,
                 isSurroundEnable: commonSettings.isSurroundEnable,

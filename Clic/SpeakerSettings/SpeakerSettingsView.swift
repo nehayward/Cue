@@ -178,8 +178,38 @@ struct SpeakerSettingsView: View {
                             }
                         }
                     }
+
+                    VStack {
+                        LabeledContent {
+                            Text("\(Int(room.theaterSettings.audioDelay.rounded()))")
+                                .foregroundStyle(.primary)
+                                .bold()
+                                .monospacedDigit()
+                        } label: {
+                            Text("TV Dialog Sync")
+                        }
+
+                        Slider(value: $room.theaterSettings.audioDelay, in: EQType.audioDelay.range, step: 1) {
+                            Text("TV Dialog Sync")
+                        } minimumValueLabel: {
+                            Text(EQType.audioDelay.range.lowerBound, format: .number)
+                                .foregroundStyle(.secondary)
+                        } maximumValueLabel: {
+                            Text(EQType.audioDelay.range.upperBound, format: .number)
+                                .foregroundStyle(.secondary)
+                        } onEditingChanged: { isChanging in
+                            Task {
+                                await sonosService.setEQ(room: room, eq: .audioDelay, value: Int(room.theaterSettings.audioDelay))
+                            }
+                        }
+#if !os(visionOS)
+                        .sensoryFeedback(.impact, trigger: room.theaterSettings.audioDelay)
+#endif
+                    }
                 } header: {
                     Text("Home Theater")
+                } footer: {
+                    Text("If voices are out of sync with the picture, increase TV Dialog Sync to delay the audio.")
                 }
                 .listSectionSpacing(12)
                 
