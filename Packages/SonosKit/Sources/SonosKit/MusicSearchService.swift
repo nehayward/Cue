@@ -657,8 +657,13 @@ public final class MusicSearchService {
         if let tracks = results.albums?.items {
             playableContent.append(contentsOf: tracks.compactMap { $0?.toPlayable })
         }
-        if let tracks = results.artists?.items {
-            playableContent.append(contentsOf: tracks.map(\.toPlayable))
+        if let artists = results.artists?.items {
+            playableContent.append(contentsOf: artists.map(\.toPlayable))
+            // Spotify has no radio catalog to search, but Sonos can start a
+            // Spotify artist radio — surface one for the top artist matches,
+            // like Apple's radio stations in its results. Appended after the
+            // artists so equal-scoring radios rank below the artist itself.
+            playableContent.append(contentsOf: artists.prefix(2).map { $0.toPlayable.toRadio })
         }
         if let tracks = results.playlists?.items {
             playableContent.append(contentsOf: tracks.compactMap { $0?.toPlayable })

@@ -33,6 +33,8 @@
 - Album rows in search now show the number of songs across Apple Music, Spotify, Tidal, Deezer, and Plex — handy for telling a deluxe edition from the standard one
 - The Plex library filter now works during a combined multi-service search too — filter your Plex results by library while other services' results stay put
 - Turning a service off in Settings now removes it from the search selection right away — previously a disabled service could stay selected in the search menu
+- Spotify search now includes artist radio — start a station from the top artist matches right in the results
+- Search filters now cover every service you're searching — with Apple Music as an extra service, the Radio and Library filters show up like they should
 - Spotify albums now rank by popularity, so searching an album like Frozen surfaces it near the top instead of below every song — and albums containing explicit tracks now show the explicit badge
 - Apple Music search now uses Apple's own Top Results to rank its hits higher, matching the ordering you see in the Music app
 - Improved Plex speed and reliability — Clic picks the fastest way to reach your server, automatically switches connection when you change networks, and no longer hangs on an unreachable server

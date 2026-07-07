@@ -127,7 +127,7 @@ struct SearchScreen: View {
                 List(selection: .constant(selectedItemID)) {
                     SearchFilterRow(
                         musicSearchSelection: $musicSearchSelection,
-                        searchesPlex: selectedSearchServices.contains(.plex),
+                        selectedServices: selectedSearchServices,
                         filters: $filters,
                         plexLibrariesFilters: $plexLibrariesFilters
                     )
@@ -513,20 +513,27 @@ struct SearchScreen: View {
 
 private struct SearchFilterRow: View {
     @Binding var musicSearchSelection: MediaSearchService
-    /// Whether Plex results are in the list — as the primary service or as a
-    /// multi-search extra; the per-library filter applies in both.
-    let searchesPlex: Bool
+    /// Every service being searched (primary + extras): the filter chips are
+    /// the union of each member's filters, and Plex's presence shows the
+    /// per-library filter.
+    let selectedServices: Set<MediaSearchService>
     @Binding var filters: [FilterSelection]
     @Binding var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>]
 
     @Environment(MusicSearchService.self) private var musicSearchService
+
+    private var searchesPlex: Bool { selectedServices.contains(.plex) }
 
     var body: some View {
         Group {
             if musicSearchSelection != .tuneIn {
                 VStack(spacing: 0) {
                     HStack {
-                        FilterView(selectedService: $musicSearchSelection, filters: $filters)
+                        FilterView(
+                            selectedService: $musicSearchSelection,
+                            selectedServices: selectedServices,
+                            filters: $filters
+                        )
                     }
                 }
                 .listRowSeparator(.hidden)
