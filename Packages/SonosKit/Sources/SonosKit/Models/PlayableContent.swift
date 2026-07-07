@@ -61,11 +61,11 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         // Plex artwork by the album's unique ratingKey instead (tracks carry
         // their album's key as albumID, albums carry their own), so each
         // edition caches its own art while a track still shares its album's.
-        if content.service == .plex {
-            if let albumID = metadata?.albumID, !albumID.isEmpty {
-                return "plex.\(albumID)"
-            }
-            return "plex.\(id)"
+        // Plex items without an album key (Sonos queue rows) keep the shared
+        // title+artist key — a per-item key there would re-download the same
+        // art once per row of a queued album.
+        if content.service == .plex, let albumID = metadata?.albumID, !albumID.isEmpty {
+            return "plex.\(albumID)"
         }
         if let albumID = metadata?.album, !albumID.isEmpty {
             let artist = metadata?.artist

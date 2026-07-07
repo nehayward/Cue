@@ -425,6 +425,26 @@ final class SearchRankingTests: XCTestCase {
         XCTAssertEqual(titles(results), ["Zebra", "Apple"])
     }
 
+    func testSortIsIdempotent() {
+        // The search screen keeps results on screen across navigation; any
+        // re-sort of an already-ranked list (e.g. a provider re-publishing)
+        // must reproduce the identical order — ties break on input position,
+        // so re-sorting sorted output is a fixed point. Duplicate same-scoring
+        // items (an artist's many equal albums) are the regression case.
+        let input = [
+            item(title: "Dua Lipa", subtitle: "Dua Lipa • 2017", type: .album, service: .plex, id: "edition-1"),
+            item(title: "Dua Lipa", subtitle: "Dua Lipa • 2017", type: .album, service: .plex, id: "edition-2"),
+            item(title: "Dua Lipa", subtitle: "Dua Lipa • 2017", type: .album, service: .plex, id: "edition-3"),
+            item(title: "Dua Lipa", type: .artist, service: .spotify, popularity: 90, id: "artist"),
+            item(title: "Future Nostalgia", subtitle: "Dua Lipa", type: .album, service: .spotify, popularity: 80, id: "fn"),
+        ]
+
+        let once = SearchRanking.sort(input, query: "dua lipa", groupArtists: true)
+        let twice = SearchRanking.sort(once, query: "dua lipa", groupArtists: true)
+        XCTAssertEqual(titles(twice), titles(once))
+        XCTAssertEqual(twice.map(\.id), once.map(\.id))
+    }
+
     func testServiceRelevanceOrderKeptWithoutPopularityData() {
         // Apple Music reports no popularity, so an artist's tracks all tie on
         // the subtitle match — the API's own relevance order must survive.
