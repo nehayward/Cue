@@ -14,6 +14,9 @@ public struct SpotifyAlbumItem: Equatable, Decodable, Identifiable, Sendable {
     public let type: String
     public let uri: String?
     public let releaseDate: String?
+    /// `total_tracks` — present on the simplified album objects search
+    /// returns; distinguishes editions (standard vs deluxe) in result rows.
+    public let totalTracks: Int?
     public var allArtists: String { artists?.compactMap{ $0.name }.joined(separator: ", ") ?? "Unknown"}
     
     public var releaseDateFormatted: String? {
@@ -30,7 +33,7 @@ public struct SpotifyAlbumItem: Equatable, Decodable, Identifiable, Sendable {
         return dateFormatter.date(from: dateString)
     }
     
-    public init(id: String, externalUrls: ExternalUrls, name: String, isPlayable: Bool?, artists: [SpotifyArtistsInfo], images: [SpotifyImage], type: String, uri: String, releaseDate: String?) {
+    public init(id: String, externalUrls: ExternalUrls, name: String, isPlayable: Bool?, artists: [SpotifyArtistsInfo], images: [SpotifyImage], type: String, uri: String, releaseDate: String?, totalTracks: Int? = nil) {
         self.id = id
         self.externalUrls = externalUrls
         self.name = name
@@ -40,6 +43,7 @@ public struct SpotifyAlbumItem: Equatable, Decodable, Identifiable, Sendable {
         self.type = type
         self.uri = uri
         self.releaseDate = releaseDate
+        self.totalTracks = totalTracks
     }
 }
 

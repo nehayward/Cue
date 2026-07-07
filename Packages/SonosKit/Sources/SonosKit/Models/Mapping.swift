@@ -258,7 +258,10 @@ extension AppleLibraryAlbum {
     public var toPlayable: PlayableContent? {
         return PlayableContent(
             title: attributes.name,
-            subtitle: "\(attributes.artistName ?? "")",
+            subtitle: [
+                attributes.artistName,
+                attributes.trackCount > 0 ? (attributes.trackCount == 1 ? "1 song" : "\(attributes.trackCount) songs") : nil
+            ].compactMap { $0 }.joined(separator: " • "),
             thumbnail: attributes.artwork?.urlWithSize(width: 100, height: 100),
             artwork: attributes.artwork?.urlWithSize(width: 600, height: 600),
             content: MediaContent(
@@ -279,7 +282,11 @@ extension Album {
    public var toPlayable: PlayableContent {
         PlayableContent(
             title: title,
-            subtitle: artistName + " • \(releaseDate?.formatted(.dateTime.year()) ?? "")",
+            subtitle: [
+                artistName,
+                releaseDate?.formatted(.dateTime.year()),
+                (trackCount as Int?).map { $0 == 1 ? "1 song" : "\($0) songs" }
+            ].compactMap { $0 }.joined(separator: " • "),
             thumbnail: artwork?.url(width: 100, height: 100),
             artwork: artwork?.url(width: 600, height: 600),
             content: MediaContent(service: .apple, id: id.description, type: .album, location: url),
@@ -498,7 +505,7 @@ extension SpotifyAlbumItem {
         guard let id else { return nil }
         return PlayableContent(
             title: name,
-            subtitle: [artists?.first?.name, releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artists?.first?.name, releaseDateFormatted, totalTracks.map { $0 == 1 ? "1 song" : "\($0) songs" }].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: images?.thumbnail,
             artwork: images?.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls?.spotify ?? "")),

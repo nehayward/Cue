@@ -778,6 +778,7 @@ private struct OverlappingServiceIcons: View {
             width: diameter + CGFloat(shown.count - 1) * (diameter - overlap),
             height: diameter
         )
+    }
 }
 
 /// The "Also Search" extras, stored in `@AppStorage` as a typed set instead
