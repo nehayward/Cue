@@ -145,7 +145,24 @@ struct FilterButton: View {
             }
             HapticManager.shared.fireHaptic(.selection)
         }) {
-            chip
+            HStack(spacing: 6) {
+                Image(systemName: filter.filter.symbol)
+                    .imageScale(.medium)
+                if filter.isFiltered {
+                    Text(filter.filter.title)
+                        .font(.body.smallCaps())
+                        .transition(.opacity)
+                        .matchedGeometryEffect(id: "filterText\(filter.filter.rawValue)", in: animation)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(filter.isFiltered ? AnyShapeStyle(Color.primary.gradient) : AnyShapeStyle(Color.secondary.opacity(0.2)))
+                    .matchedGeometryEffect(id: "filterBackground\(filter.filter.rawValue)", in: animation)
+            )
+            .foregroundStyle(filter.isFiltered ? AnyShapeStyle(.ultraThickMaterial) : AnyShapeStyle(.secondary))
         }
         .buttonStyle(.plain)
         .scaleEffect(isHovered ? 1.05 : 1.0)
@@ -153,52 +170,6 @@ struct FilterButton: View {
         .onHover { hovering in
             isHovered = hovering
         }
-    }
-
-    private var label: some View {
-        HStack(spacing: 6) {
-            Image(systemName: filter.filter.symbol)
-                .imageScale(.medium)
-            if filter.isFiltered {
-                Text(filter.filter.title)
-                    .font(.body.smallCaps())
-                    .transition(.opacity)
-                    .matchedGeometryEffect(id: "filterText\(filter.filter.rawValue)", in: animation)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-    }
-
-    /// Glass capsule chips on iOS 26 (clear glass idle, accent-tinted glass
-    /// when selected — matching the Plex library filter button); the flat
-    /// capsule fill remains the fallback for older OSes and visionOS.
-    @ViewBuilder
-    private var chip: some View {
-#if !os(visionOS)
-        if #available(iOS 26.0, macOS 26.0, *) {
-            label
-                .foregroundStyle(filter.isFiltered ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
-                .glassEffect(
-                    filter.isFiltered ? .regular.tint(Color.accentColor).interactive() : .regular.interactive(),
-                    in: .capsule
-                )
-        } else {
-            fallbackChip
-        }
-#else
-        fallbackChip
-#endif
-    }
-
-    private var fallbackChip: some View {
-        label
-            .background(
-                Capsule()
-                    .fill(filter.isFiltered ? AnyShapeStyle(Color.primary.gradient) : AnyShapeStyle(Color.secondary.opacity(0.2)))
-                    .matchedGeometryEffect(id: "filterBackground\(filter.filter.rawValue)", in: animation)
-            )
-            .foregroundStyle(filter.isFiltered ? AnyShapeStyle(.ultraThickMaterial) : AnyShapeStyle(.secondary))
     }
 }
 

@@ -32,7 +32,6 @@
 - If your Plex library has the same album in more than one quality, each copy now shows its own artwork, albums show their track count, and songs show their format and bitrate (like "FLAC • 1411 kbps"), so it's easy to tell editions apart
 - Album rows in search now show the number of songs across Apple Music, Spotify, Tidal, Deezer, and Plex — handy for telling a deluxe edition from the standard one
 - The Plex library filter now works during a combined multi-service search too — filter your Plex results by library while other services' results stay put
-- The search filter chips get the new glass look
 - Spotify albums now rank by popularity, so searching an album like Frozen surfaces it near the top instead of below every song — and albums containing explicit tracks now show the explicit badge
 - Apple Music search now uses Apple's own Top Results to rank its hits higher, matching the ordering you see in the Music app
 - Improved Plex speed and reliability — Clic picks the fastest way to reach your server, automatically switches connection when you change networks, and no longer hangs on an unreachable server
