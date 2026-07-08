@@ -7,9 +7,9 @@ distills those into promotional copy.
 
 ## Highlights (4)
 
-1. **Also Search — one search, every service** *(hero)* — Search Apple Music,
-   your Library, Spotify, Plex and more at once, one ranked list, now typo- and
-   punctuation-tolerant.
+1. **Universal Search — one search, every service** *(hero)* — Search Apple
+   Music, your Library, Spotify, Plex and more at once, one ranked list, now
+   typo- and punctuation-tolerant.
 2. **Playlist Management everywhere** — Add, create, edit, reorder, delete across
    Apple Music, Spotify, Plex, Deezer — with Undo.
 3. **Multiple Homes** — Clic remembers every Sonos system and reconnects
@@ -28,7 +28,7 @@ distills those into promotional copy.
 
 **Full:**
 
-> **Also Search**
+> **Universal Search**
 > Pick up to three services in the search menu and get one combined, ranked
 > list. Search now forgives typos and punctuation.
 >
@@ -50,7 +50,7 @@ distills those into promotional copy.
 
 Each beat is one continuous screen recording, ~10 seconds.
 
-**① Also Search** *(hero)*
+**① Universal Search** *(hero)*
 > **Screen:** Open search → service menu → check **Library** + **Apple Music** +
 > **Spotify** → type "dont stop me now" → one ranked list resolves, Queen up top.
 > **VO:** *"One search across every service — and it forgives your typos."*
