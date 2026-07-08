@@ -12,24 +12,29 @@ struct FavoritesView: View {
 
     var body: some View {
         if !sonosService.favorites.isEmpty {
-            NavigationLink {
-                List {
-                    ForEach(sonosService.favorites) { item in
-                        PlayableContentView(item: item)
+            // Same Section structure as ApplePlaylistsView — bare rows get
+            // different insets than sectioned ones in the search list, which
+            // left the two headers visibly misaligned.
+            Section {
+                NavigationLink {
+                    List {
+                        ForEach(sonosService.favorites) { item in
+                            PlayableContentView(item: item)
+                        }
                     }
+                    .contentMargins(.bottom, 120, for: .scrollContent)
+                    .navigationTitle("Sonos Favorites")
+                    .miniPlayerOnScrollHandler()
+                } label: {
+                    Text("Sonos Favorites")
+                        .fontDesign(.rounded)
+                        .fontWeight(.semibold)
                 }
-                .contentMargins(.bottom, 120, for: .scrollContent)
-                .navigationTitle("Sonos Favorites")
-                .miniPlayerOnScrollHandler()
-            } label: {
-                Text("Sonos Favorites")
-                    .fontDesign(.rounded)
-                    .fontWeight(.semibold)
-            }
-            .listRowSeparator(.hidden)
-            
-            ForEach(sonosService.favorites.prefix(5)) { item in
-                PlayableContentView(item: item)
+                .listRowSeparator(.hidden)
+
+                ForEach(sonosService.favorites.prefix(5)) { item in
+                    PlayableContentView(item: item)
+                }
             }
         }
     }

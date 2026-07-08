@@ -14,8 +14,10 @@ final class AppBootstrapper {
         Analytics.shared.configure(token: "343f1efbe07acecdefdcd6f71f351673", userID: SubscriptionService.shared.userID)
         RemoteFeatureFlags.shared.fetch()
 
-        if let musicService = UserDefaults.standard.string(forKey: AppStorageKeys.mediaService) {
-            Analytics.shared.setSelection(metadata: ["MusicService": musicService])
+        // First entry of the ordered selection list is the primary service.
+        if let stored = UserDefaults.standard.string(forKey: AppStorageKeys.selectedSearchServices),
+           let primary = stored.split(separator: ",").first {
+            Analytics.shared.setSelection(metadata: ["MusicService": String(primary)])
         }
 
         try? Tips.configure([.displayFrequency(.immediate)])

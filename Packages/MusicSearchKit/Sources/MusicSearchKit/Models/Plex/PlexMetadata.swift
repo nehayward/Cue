@@ -32,6 +32,8 @@ public struct PlexMetadata: Codable {
     public let addedAt: Int?
     public let updatedAt: Int?
     public let userRating: Double?
+    /// Track count for album items; distinguishes editions in search rows.
+    public let leafCount: Int?
     public let media: [PlexMedia]?
 
     public var sonosID: String?
@@ -43,7 +45,7 @@ public struct PlexMetadata: Codable {
     public var streamURL: URL?
 
     enum CodingKeys: String, CodingKey {
-        case ratingKey, key, playlistItemID, parentRatingKey, grandparentRatingKey, guid, parentGuid, grandparentGuid, parentStudio, type, title, grandparentKey, parentKey, grandparentTitle, parentTitle, originalTitle, summary, index, parentIndex, ratingCount, parentYear, year, thumb, art, parentThumb, grandparentThumb, grandparentArt, duration, addedAt, updatedAt, userRating
+        case ratingKey, key, playlistItemID, parentRatingKey, grandparentRatingKey, guid, parentGuid, grandparentGuid, parentStudio, type, title, grandparentKey, parentKey, grandparentTitle, parentTitle, originalTitle, summary, index, parentIndex, ratingCount, parentYear, year, thumb, art, parentThumb, grandparentThumb, grandparentArt, duration, addedAt, updatedAt, userRating, leafCount
         case media = "Media"
     }
 }

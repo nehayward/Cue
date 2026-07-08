@@ -114,6 +114,90 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 **Households screen** (`HouseholdScreen`)
 - Shows stored homes instantly, then lazily enriches each row with its speaker names and an S1/S2 badge (`getGroups(with:)` + `deviceInfo(for:)` per home). Tap to switch, long-press context menu or swipe to rename/remove, toolbar button to rescan the current network (which un-blocks a previously-removed reachable home)
 
+### Search relevance overhaul (SearchRanking)
+- Ranking extracted from `MusicSearchService` into a pure, unit-tested `SearchRanking` engine (SonosKit) — the old scoring counted an in-order character subsequence, so "Love" and "Lyrics of Vengeance" tied for the query "love", and popularity carried the dominant weight (0.5)
+- Tiered text matching: exact (1.0) > prefix (0.9) > whole-word substring (0.8) > all query words present (0.75, typo-tolerant words discounted) > mid-word substring (0.55) > length-penalized subsequence (≤ 0.4). Normalization is case-, diacritic- and punctuation-insensitive ("beyonce" == "Beyoncé", "dont" == "Don't", "Mr. Brightside" == "mr brightside")
+- Typo tolerance via bounded Levenshtein per word (1 edit for 5–7 letters, 2 for 8+, none shorter — "love" must not match "dove"); titles also scored with version suffixes stripped ("Love Story (Taylor's Version)" counts as "Love Story" at 0.97)
+- Weights: text 0.7 (dominant — popularity can never carry a weak match past a strong one), quality 0.25 (Spotify/Tidal popularity or Plex/library `userRating`, whichever is present), small type nudge 0.05, recently-played boost 0.1 (IDs injected by the app from `PlayHistoryService` — SonosKit holds no app state), recency boost up to 0.05 for releases under 2 years (`albumYear`)
+- Exactly one artist — the best-scoring, genuinely matching one — gets the top-slot bonus (0.2); a flat artist boost walled tracks/albums behind runs of same-named artists (searching "dua" showed ten artists named "Dua" above every track)
+- The top artist's albums inherit its popularity when the service reports none (Spotify's search API omits album popularity), so the focused artist's albums surface beside their tracks
+- Score ties keep the service's API order instead of sorting alphabetically — preserves Apple's own relevance ordering (MusicKit reports no popularity)
+- Dedup is exact-identity only (`id-title-subtitle`); fuzzy cross-source dedup was tried and reverted — collapsing per-section Plex copies could leave zero songs once the per-section library filter excluded the surviving copy, and cross-service copies should stay user-selectable
+- First regression tests for ranking: `SearchRankingTests` in SonosKitTests (tiers, weights, typo tolerance, top-artist, recency, dedup)
+
+### Multiservice search (Also Search)
+- The search service menu (`MediaServiceMenu`) is now one checkmark list — pick up to three services to search together (e.g. Library + Apple Music), the first selected acting as the primary. Toggles stay open via `.menuActionDismissBehavior(.disabled)`; selections only apply while enabled in Settings; TuneIn stays single-service (a radio directory doesn't merge into catalog results)
+- The selection persists as ONE ordered primary-first list (`AppStorageKeys.selectedSearchServices`, typed `SelectedSearchServices` wrapper in SonosKit owning all the selection rules — max 3, TuneIn exclusivity, primary promotion, never empty, Settings pruning, defensive dedup — covered by `SelectedSearchServicesTests`). This replaced the split `mediaService` + `searchAlsoServices` keys mid-branch — deliberately not migrated, the selection resets once and users re-pick; onboarding and the bootstrap analytics read/write the new key
+- The toolbar button shows the selected services as up to three brand-colored icons side by side (`ServiceIconRow`); overlapping/masked-seam "avatar pile" variants were tried and reverted — the mask's compositing glitched and clipped while the row animated between selection sizes
+- The "Settings…" entry (service preferences sheet) is restored at the bottom of the menu — it was dropped in the checkmark-list rewrite
+- Disabling a service in Settings now deselects it in search: extras already dropped out via read-time filtering, but a disabled primary stayed selected (icon lingering in the toolbar, search still querying it). `validateSelectedServices` promotes the first enabled extra, else falls back to the first enabled service — live while the Settings sheet is up (`CoreFeatures` is observable) and on appear
+- `MusicSearchService.search` accumulates multi-provider results into one merged, re-ranked list as each provider completes (previously last-writer-wins overwrote `results` per provider); merged results render through the generic `ServiceSearchView` as a single ranked list, single-service searches keep their per-service views
+- TuneIn results now go through ranking too — safe now that ties preserve the API's order (exact station-name matches float, the rest stay put)
+
+### Per-service sections key on membership, not the primary
+- The empty-query screen's per-service sections only showed for the *primary* service — Spotify's browse section and Apple's playlists vanished when that service was a multi-search extra. `SearchEmptyStateView` now takes the full selected set and shows each section when its service is anywhere in the selection
+- The merged results view now carries the Plex library-selection prompt (`PlexLibrarySelectionView`, self-gated to Plex-authorized-but-no-library) when Plex is among the searched services — previously only the dedicated Plex view showed it
+
+### Filter chips cover every searched service + Spotify artist radios
+- The filter chips were driven by the primary service alone, so Apple as a multi-search *extra* lost its Radio and Library chips. `FilterSelection.filters(for:)` now unions the filters of every searched service, and `FilterView` keys off the full selected set
+- Spotify search results now include radio: Sonos can start a Spotify artist radio, so the top two artist matches surface an "Artist Radio" row (`toPlayable.toRadio`), mirroring Apple's radio stations in results
+- The Radio filter chip now also matches artist/song radios (`.artistRadio`/`.songRadio`), not just stations
+
+### Plex library filter in multi-search
+- The per-library Plex filter button was hidden during a multi-service search because the merged list ignored it. It now shows whenever Plex is among the searched services, and the merged list honors it: `filteredByPlexLibraries` (shared with `PlexSearchView`) drops Plex rows outside the chosen libraries while other services' rows pass through. (The button was already glass via `accentGlassButton`; glass on the type filter chips was tried and reverted — it read oddly in the masked chip row)
+
+### Stable search results across navigation
+- Merged multi-service results were appended in provider-completion (network) order; since the ranking's tie-break preserves input order, equally-scoring items (an artist's many same-ranked albums) reshuffled every republish. Provider results are now keyed per service and the merged input rebuilt in a fixed service order before each sort, making the ranking reproducible
+- Multi-service results now publish once, after every provider finishes, instead of re-ranking the visible list on each provider's completion — a slower service's copy of the artist joined the grouped cluster at the top and shoved everything down a row seconds after results appeared. Providers run concurrently, so the wait is only the slowest one (the loading spinner covers it)
+- Each provider's fetch races an 8s deadline (`MusicSearchService.withTimeout`): an unreachable service — the Sonos library or a LAN Plex server while on cellular or a foreign network — would otherwise sit in TCP connect for up to 15s and, with single-publish, hold every other service's results hostage. A timed-out provider contributes nothing
+
+### Review fixes (timeout/caching interactions)
+- A single-service provider timeout no longer leaves the *previous* query's results on screen as the new query's answer — the timed-out search clears to the "No Results" state instead
+- `search(for:)` now reports whether every provider answered; the search screen only memoizes a query as "completed" when it did, so a partial result (timed-out provider) retries on the next visit instead of being cached forever
+- The search task id and the skip-identical-search guard now share one key (`searchTaskKey`), built from the *effective* enabled-filtered service set with separators — disabling/re-enabling an extra service in Settings re-runs the search (raw stored extras didn't change the old id), and adjacent-component key collisions are impossible
+- The skip guard no longer skips the task's side effects: recently-played ranking IDs and the Sonos playlist refresh stay fresh on every pop-back
+- The "No Results" empty state and keyboard navigation now apply the Plex library filter like the rendered list does — a fully-filtered list shows the empty state instead of a silent blank, and arrow keys can't select hidden rows
+- `PlexMetadata.toPlayable` album mapping now carries `albumID`, so artist-detail/browse Plex albums get the per-edition artwork key too (search-only before — the duplicate-edition wrong-art bug persisted on artist pages)
+- Album subtitles never render "0 songs": the six hand-rolled pluralizations collapsed into one `Int.songCountLabel` extension property (internal to SonosKit) that drops missing/zero counts and pluralizes via automatic grammar agreement (`^[…](inflect: true)`) instead of hand-rolled branches
+
+### Search speed + complexity cleanup
+- An Apple search no longer ranks the same items three times over: `searchLibraryAppleMusic` and `searchAppleMusic` return unranked (their only caller, `searchApple`, ranks the combined list once) — the dominant per-keystroke CPU cost on the main actor
+- `SpotifyAPI.albums(ids:)` fetches its 20-id chunks concurrently instead of serializing round-trips; `SearchRanking.pinArtistRadios` bails before any allocation when a sort carries no radios (most services'), and the artist passes reuse cached normalized names
+- `FilterView` takes one `services` set (the redundant `selectedService` binding and empty-set fallback are gone) and only reassigns the chips when the set actually changes — a no-op toggle no longer wipes keyboard selection and re-animates the row. Play History passes `[]`, restoring its default chips (the Spotify-radio chip had leaked in). Dead `appleFilters` removed (`filters(for:)` is the single source)
+- Service enablement reads use `CoreFeatures.isEnabled(_:)` instead of constructing a Binding per check; the byte-identical `#available(iOS 26)` toolbar branches collapsed; `OverlappingServiceIcons` renamed `ServiceIconRow` with its dead `overlap` property removed (the icons deliberately sit side by side); `PlexParser`'s four copies of the token-signed image-URL construction folded into one helper
+- Navigating back from a detail re-fired the search `.task(id:)` (push cancels it, pop restarts it — same id) and re-ran the whole search, re-streaming providers into the visible list. `SearchScreen` now remembers the last *completed* query+services key and skips the identical re-search, keeping the on-screen results untouched
+
+### Plex duplicate editions distinguishable (bitrate + per-edition artwork)
+- A Plex library holding the same album from several rips (FLAC vs 320 kbps) rendered them as identical rows with identical artwork. Track rows now show the media bitrate after the codec ("FLAC • 1411 kbps") — `PlexParser` reads the `Media` element's `bitrate` into `PlexTrack`
+- Album rows show their track count ("12 songs") — the standard-vs-deluxe distinction — via the album's `leafCount`; Plex puts no media info on album containers, so count + artwork + year are the available album-level distinguishers
+- Track count on album rows extends to the other services too: Apple catalog albums (`Album.trackCount`), Apple library albums (`attributes.trackCount`), Spotify albums (`total_tracks`, newly decoded on the simplified search objects), Tidal (`numberOfTracks`), and Deezer (`nb_tracks`, newly decoded)
+- A UIKit-presented service menu (transparent `UIButton` + `.keepsMenuPresented` + `updateVisibleMenu`) was tried to keep the menu open across toggles and reverted: Catalyst renders `UIMenu` as a native Mac menu that ignores `keepsMenuPresented` and draws the asset images full-size, so it only helped iOS — the menu stays a SwiftUI `Menu` of Toggles with `.menuActionDismissBehavior(.disabled)`
+- Servers that omit detail from `/hubs/search` responses (a track's `Media` element, an album's `leafCount` — the same omission that used to drop tracks entirely) never surfaced any of this — `searchPlex` now fills the gaps with one batch `/library/metadata/{id,id,…}` lookup (`PlexAPI.batchMetadata(ratingKeys:)`) covering every track and album that came back without
+- The artwork cache key (`PlayableContent.imageKey`) was album title + artist, so every edition shared one cached image — whichever edition's art was fetched first showed on all of them. Plex artwork is now keyed by the album's unique `ratingKey` (`PlexAlbum` carries its own key as `albumID`, matching the track mapping's `parentRatingKey`), so each edition displays its own art while a track still shares its album's cache entry
+
+### Plex hearts in search results
+- `PlexParser` now reads the `userRating` attribute for tracks and albums (`PlexTrack`/`PlexAlbum` → `PlayableContentMetadata.userRating`), so the heart `PlayableContentView` already renders appears in Plex search rows — and rated tracks feed the ranking's quality signal
+
+### Search "No Results" empty state
+- `SearchScreen` shows the standard `ContentUnavailableView.search(text:)` when a query finishes loading with no matching results (`!isLoading && currentFilteredResults.isEmpty`) — previously the list was simply blank. Gated on `isLoading` so it never flashes while provider results are still streaming in
+
+### Plex search parsing resilience
+- `PlexParser` required 13 attributes per track (`Media` audio details, `Part` file, `parentThumb`, all rating keys, `librarySectionID`, …) and silently dropped any track missing one — servers that omit optional detail from `/hubs/search` responses returned zero songs while albums/artists still showed. Tracks, albums, and artists now require only `title` + `ratingKey` (all the Sonos play URI needs); everything else is optional with the track's own `thumb` as an artwork fallback
+- `PlexTrack.container`/`file` (never consumed) and the `parentRatingKey`/`grandparentRatingKey` keys are now optionals; Plex subtitles skip empty components instead of rendering dangling "•" separators
+
+### Search ranking review hardening
+- Word-boundary detection now checks every occurrence via padded containment instead of only the first range — "Supermarket Market" earns the whole-word tier for "market", and top-artist album attribution no longer misses later whole-word occurrences
+- Normalization folds width too (fullwidth "ＡＢＢＡ" matches "abba"); the query is normalized once per sort instead of ~4× per item
+- Top-artist floor lowered to the typo tier (0.6) so a misspelled artist query ("beyonse") still crowns the artist — safe now that the bonus scales with artist popularity
+
+### Apple Music Top Results as the popularity signal
+- MusicKit exposes no popularity, so Apple results ranked on text tiers alone. `searchAppleMusic` now requests `includeTopResults = true` and grants Apple's editorial Top Results descending synthetic popularity (90, 85, …) via `PlayableContentMetadata.replacing(popularity:isExplicit:)` — Apple's picks rank like the other services' hits, and an Apple artist in Top Results qualifies for the full top-artist bonus (the bonus scales with popularity)
+- Apple already supported the other new signals: `contentRating` drives the explicit badge on songs *and* albums, and `releaseDate` feeds the new-release boost
+
+### Spotify album popularity + explicit badge
+- Spotify's search API returns simplified album objects with no `popularity` and no explicit flag, so albums ranked on text alone and sat below every popular track ("frozen" buried the soundtrack; a same-named song outranked "Radical Optimism"). `searchSpotify` now enriches result albums through the batch `/v1/albums?ids=` endpoint (new `SpotifyAPI.albums(ids:)`, chunked at Spotify's 20-id cap): `popularity` feeds the ranking's quality signal and the explicit badge is derived from the album's tracks (`containsExplicitTracks`)
+- Multi-service search: artist copies share their best-known popularity across services (an Apple `Dua Lipa` with no popularity borrows the Spotify copy's) so every copy levels up and lands above its self-titled albums; `groupArtists` clusters all matching artists at the top of a merged search, and album inheritance runs once per album
+
 ### Plex onboarding + automatic connection
 
 **Onboarding Plex step** (`PlexStep`)

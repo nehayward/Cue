@@ -11,44 +11,50 @@ public final class PlexParser {
         guard let accessToken = plexServer.accessToken, let id = plexServer.clientIdentifier else { return nil }
         let imageBase = baseURL ?? plexServer.baseURL(preferring: connectionPreference)
 
+        // Token-signed image URL for a thumb path; one place to change how
+        // Plex artwork is authenticated/transcoded.
+        func imageURL(for thumb: String?) -> URL? {
+            thumb.flatMap {
+                imageBase?.appending(path: $0).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
+            }
+        }
+
         let tracks: [PlexTrack] = xml["MediaContainer"]["Hub"].all.filter { $0.element?.attribute(by: "type")?.text == "track" }.flatMap { hub in
             hub["Track"].all.compactMap { track in
+                // Only the title and ratingKey are essential (the Sonos URI is
+                // built from the ratingKey). Everything else is detail that
+                // servers may omit from hub search results — requiring all of
+                // it dropped entire libraries' songs from search.
                 guard
                     let title = track.element?.attribute(by: "title")?.text,
-                    let artist = track.element?.attribute(by: "grandparentTitle")?.text,
-                    let album = track.element?.attribute(by: "parentTitle")?.text,
-                    let durationString = track.element?.attribute(by: "duration")?.text, let duration = Int(durationString),
-                    let audioChannelsString = track["Media"].element?.attribute(by: "audioChannels")?.text, let audioChannels = Int(audioChannelsString),
-                    let audioCodec = track["Media"].element?.attribute(by: "audioCodec")?.text,
-                    let container = track["Media"].element?.attribute(by: "container")?.text,
-                    let file = track["Media"]["Part"].element?.attribute(by: "file")?.text,
-                    let parentThumbnail = track.element?.attribute(by: "parentThumb")?.text,
-                    let ratingKey = track.element?.attribute(by: "ratingKey")?.text,
-                    let parentRatingKey = track.element?.attribute(by: "parentRatingKey")?.text,
-                    let grandparentRatingKey = track.element?.attribute(by: "grandparentRatingKey")?.text,
-                    let librarySectionID = track.element?.attribute(by: "librarySectionID")?.text
+                    let ratingKey = track.element?.attribute(by: "ratingKey")?.text
                 else {
                     return nil
                 }
 
-                let imageURL = imageBase?.appending(path: parentThumbnail).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
+                let thumb = track.element?.attribute(by: "parentThumb")?.text
+                    ?? track.element?.attribute(by: "thumb")?.text
+                let imageURL = imageURL(for: thumb)
+                let userRating = (track.element?.attribute(by: "userRating")?.text).flatMap(Double.init)
 
                 return PlexTrack(
                     title: title,
-                    artist: artist,
-                    album: album,
-                    duration: duration,
-                    audioChannels: audioChannels,
-                    audioCodec: audioCodec,
-                    container: container,
-                    file: file,
-                    parentThumbnail: parentThumbnail,
+                    artist: track.element?.attribute(by: "grandparentTitle")?.text ?? "",
+                    album: track.element?.attribute(by: "parentTitle")?.text ?? "",
+                    duration: (track.element?.attribute(by: "duration")?.text).flatMap(Int.init),
+                    audioChannels: (track["Media"].element?.attribute(by: "audioChannels")?.text).flatMap(Int.init),
+                    audioCodec: track["Media"].element?.attribute(by: "audioCodec")?.text,
+                    bitrate: (track["Media"].element?.attribute(by: "bitrate")?.text).flatMap(Int.init),
+                    container: track["Media"].element?.attribute(by: "container")?.text,
+                    file: track["Media"]["Part"].element?.attribute(by: "file")?.text,
+                    parentThumbnail: thumb,
                     ratingKey: ratingKey,
-                    parentRatingKey: parentRatingKey,
-                    grandparentRatingKey: grandparentRatingKey,
+                    parentRatingKey: track.element?.attribute(by: "parentRatingKey")?.text,
+                    grandparentRatingKey: track.element?.attribute(by: "grandparentRatingKey")?.text,
                     imageURL: imageURL,
                     id: "\(id)%3A3%3A\(ratingKey)",
-                    librarySectionID: Int(librarySectionID)
+                    librarySectionID: (track.element?.attribute(by: "librarySectionID")?.text).flatMap(Int.init),
+                    userRating: userRating
                 )
             }
         }
@@ -57,30 +63,29 @@ public final class PlexParser {
             hub["Directory"].all.compactMap { track in
                 guard
                     let title = track.element?.attribute(by: "title")?.text,
-                    let artist = track.element?.attribute(by: "parentTitle")?.text,
-                    let year = track.element?.attribute(by: "year")?.text,
-                    let thumb = track.element?.attribute(by: "thumb")?.text,
-                    let ratingKey = track.element?.attribute(by: "ratingKey")?.text,
-                    let parentRatingKey = track.element?.attribute(by: "parentRatingKey")?.text,
-                    let librarySectionID = track.element?.attribute(by: "librarySectionID")?.text
+                    let ratingKey = track.element?.attribute(by: "ratingKey")?.text
                 else {
                     return nil
                 }
 
+                let thumb = track.element?.attribute(by: "thumb")?.text
                 let art = track.element?.attribute(by: "art")?.text ?? ""
-                let imageURL = imageBase?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
+                let imageURL = imageURL(for: thumb)
+                let userRating = (track.element?.attribute(by: "userRating")?.text).flatMap(Double.init)
 
                 return PlexAlbum(
                     title: title,
-                    artist: artist,
-                    year: year,
+                    artist: track.element?.attribute(by: "parentTitle")?.text ?? "",
+                    year: track.element?.attribute(by: "year")?.text ?? "",
                     thumb: thumb,
                     art: art,
                     ratingKey: ratingKey,
-                    parentRatingKey: parentRatingKey,
+                    parentRatingKey: track.element?.attribute(by: "parentRatingKey")?.text,
                     imageURL: imageURL,
                     id: "\(id)%3A3%3A\(ratingKey)",
-                    librarySectionID: Int(librarySectionID),
+                    librarySectionID: (track.element?.attribute(by: "librarySectionID")?.text).flatMap(Int.init),
+                    userRating: userRating,
+                    leafCount: (track.element?.attribute(by: "leafCount")?.text).flatMap(Int.init)
                 )
             }
         }
@@ -89,21 +94,20 @@ public final class PlexParser {
             hub["Directory"].all.compactMap { track in
                 guard
                     let name = track.element?.attribute(by: "title")?.text,
-                    let ratingKey = track.element?.attribute(by: "ratingKey")?.text,
-                    let thumb = track.element?.attribute(by: "thumb")?.text,
-                    let librarySectionID = track.element?.attribute(by: "librarySectionID")?.text
+                    let ratingKey = track.element?.attribute(by: "ratingKey")?.text
                 else {
                     return nil
                 }
 
-                let imageURL = imageBase?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
+                let thumb = track.element?.attribute(by: "thumb")?.text
+                let imageURL = imageURL(for: thumb)
 
                 return PlexArtist(
                     name: name,
                     ratingKey: ratingKey,
                     imageURL: imageURL,
                     id: "\(id)%3A3%3A\(ratingKey)",
-                    librarySectionID: Int(librarySectionID)
+                    librarySectionID: (track.element?.attribute(by: "librarySectionID")?.text).flatMap(Int.init)
                 )
             }
         }
@@ -117,8 +121,7 @@ public final class PlexParser {
                     return nil
                 }
 
-                let thumb = track.element?.attribute(by: "thumb")?.text ?? ""
-                let imageURL = imageBase?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
+                let imageURL = imageURL(for: track.element?.attribute(by: "thumb")?.text ?? "")
 
                 return PlexPlaylist(
                     title: title,
