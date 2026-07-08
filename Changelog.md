@@ -249,6 +249,18 @@ Full speech level control for Sonos Arc Ultra across all surfaces.
 - `SonosMiniService.updateDevice` made `public`; `api.deviceInfo(IP:)` uncommented; `loadWatch` fetches device info in parallel for all devices so `isArcUltra` resolves correctly from `modelDisplayName`
 - `DiscoveryInfo` struct added to SonosKitMini (was only in SonosKit)
 
+### TV Dialog Sync (audio delay)
+- Sonos exposes lip-sync delay via RenderingControl `GetEQ`/`SetEQ` with `EQType AudioDelay` (0–5, soundbars only). Added the EQ type, surfaced it on `TheaterSettings`, fetch it in `getTheaterSettings`, and added a slider to the Home Theater section of `SpeakerSettingsView`
+
+### Catalyst inspector two-click fix
+- Fixed the inspector (Queue) needing two clicks to open on Mac (Catalyst) — the first click was consumed re-syncing presentation state before the toggle registered
+
+### Token refresh hardening
+- `TokenRefreshCoordinator` now persists the refreshed token through the handler inside the shared task, before the dedup entry is removed and before any coalesced caller resumes. Previously the entry was removed the instant the network refresh returned, so a caller arriving in the completion-to-persist window re-refreshed with a dead token and invalidated the result; every caller also did its own redundant keychain read-modify-write
+- Dedup is keyed on `householdId` instead of the stale `token:key` pair, so callers holding different stale token generations for the same household join one refresh instead of racing each other
+- Waiting on the shared refresh is now cancellation-responsive: a cancelled caller (e.g. a dismissed SwiftUI screen) bails out immediately via a continuation bridge while the refresh keeps running for the other waiters (bare `task.value` ignored caller cancellation and could suspend for the full URLSession timeout)
+- `SpotifyAPI.authorizedRequest` no longer `try?`-swallows a shared refresh failure into an immediate `invalidToken`, so a genuinely valid session is no longer surfaced to the user as signed-out
+
 ---
 
 ## 2026.5

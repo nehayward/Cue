@@ -12,6 +12,7 @@
 - Plex Setup in Onboarding: If you use Plex, setup now walks you through signing in and choosing your music library right away — with artist artwork previews so libraries are easy to tell apart
 - Automatic Plex Connection: A new Auto connection type uses your fast local network at home and switches to remote access when you're away — pick it, Remote, or Local from the redesigned connection switch in Plex settings
 - Arc Ultra Speech Enhancement: Control speech enhancement level (Off, Low, Medium, High, Max) on Sonos Arc Ultra from the player, Shortcuts, Clic Mini, and Apple Watch — the level is shown on the button and updates immediately after changing
+- TV Dialog Sync: Fine-tune audio delay (lip sync) on Sonos soundbars from the Home Theater section of speaker settings
 
 –– Bug Fixes & Improvements ––
 - Faster reconnect on a new network: when you move between Wi-Fi networks — or return to the app at a different location — Clic now finds your speakers right away instead of waiting through a timeout. Once a home is known, switching to it is instant
@@ -48,6 +49,8 @@
 - Fixed the now-playing track not being highlighted in Plex albums and playlists
 - Fixed opening a Plex artist from a song's "View Artist" showing no albums
 - Shuffling the queue now animates tracks sliding into their new order instead of jumping
+- Fixed the Queue inspector needing two clicks to open on Mac
+- Improved streaming service reliability — fixed a token-refresh timing issue that could make requests fail as "signed out" even when your session was still valid
 
 # 2026.5
 
