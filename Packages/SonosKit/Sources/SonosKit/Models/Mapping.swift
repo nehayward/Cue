@@ -2,15 +2,16 @@ import Foundation
 import MusicKit
 import MusicSearchKit
 
-/// "1 song" / "12 songs" for album row subtitles — the standard-vs-deluxe
-/// edition cue. Uses automatic grammar agreement so pluralization (and any
-/// future localization) comes from the inflection engine, not hand-rolled
-/// branches. Nil for missing or zero counts (a zero means the service didn't
-/// report one), so callers can drop the component instead of rendering
-/// "0 songs".
-func songCountLabel(_ count: Int?) -> String? {
-    guard let count, count > 0 else { return nil }
-    return String(AttributedString(localized: "^[\(count) song](inflect: true)").characters)
+extension Int {
+    /// "1 song" / "12 songs" for album row subtitles — the standard-vs-deluxe
+    /// edition cue. Pluralized via automatic grammar agreement so wording
+    /// (and any future localization) comes from the inflection engine. Nil
+    /// for zero counts (a zero means the service didn't report one), so
+    /// callers drop the component instead of rendering "0 songs".
+    var songCountLabel: String? {
+        guard self > 0 else { return nil }
+        return String(AttributedString(localized: "^[\(self) song](inflect: true)").characters)
+    }
 }
 
 extension PlayableContent {
@@ -271,7 +272,7 @@ extension AppleLibraryAlbum {
             title: attributes.name,
             subtitle: [
                 attributes.artistName,
-                songCountLabel(attributes.trackCount)
+                attributes.trackCount.songCountLabel
             ].compactMap { $0 }.joined(separator: " • "),
             thumbnail: attributes.artwork?.urlWithSize(width: 100, height: 100),
             artwork: attributes.artwork?.urlWithSize(width: 600, height: 600),
@@ -296,7 +297,7 @@ extension Album {
             subtitle: [
                 artistName,
                 releaseDate?.formatted(.dateTime.year()),
-                songCountLabel(trackCount as Int?)
+                (trackCount as Int?).flatMap(\.songCountLabel)
             ].compactMap { $0 }.joined(separator: " • "),
             thumbnail: artwork?.url(width: 100, height: 100),
             artwork: artwork?.url(width: 600, height: 600),
@@ -516,7 +517,7 @@ extension SpotifyAlbumItem {
         guard let id else { return nil }
         return PlayableContent(
             title: name,
-            subtitle: [artists?.first?.name, releaseDateFormatted, songCountLabel(totalTracks)].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artists?.first?.name, releaseDateFormatted, totalTracks.flatMap(\.songCountLabel)].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: images?.thumbnail,
             artwork: images?.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls?.spotify ?? "")),
@@ -676,7 +677,7 @@ extension PlexAlbum {
             subtitle: [
                 artist,
                 year,
-                songCountLabel(leafCount) ?? ""
+                leafCount.flatMap(\.songCountLabel) ?? ""
             ].filter { !$0.isEmpty }.joined(separator: " • "),
             thumbnail: imageURL,
             artwork: imageURL,
@@ -938,7 +939,7 @@ extension TidalAlbumResource {
         let artist = artists.first { $0.main ?? false }
         return PlayableContent(
             title: title,
-            subtitle: [artist?.name, releaseDateFormatted, songCountLabel(numberOfTracks), dolbyAtmos, lossless].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artist?.name, releaseDateFormatted, numberOfTracks.flatMap(\.songCountLabel), dolbyAtmos, lossless].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: imageCover?.thumbnail,
             artwork: imageCover?.biggestImageURL,
             content: .init(

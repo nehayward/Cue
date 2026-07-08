@@ -1683,7 +1683,7 @@ public final class MusicSearchService {
         let subtitle = [
             artistName.isEmpty ? nil : artistName,
             album.releaseYear,
-            songCountLabel(album.nbTracks)
+            album.nbTracks.flatMap(\.songCountLabel)
         ].compactMap { $0 }.joined(separator: " • ")
         return PlayableContent(
             title: album.title,

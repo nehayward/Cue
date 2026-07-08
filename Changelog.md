@@ -158,7 +158,7 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 - The skip guard no longer skips the task's side effects: recently-played ranking IDs and the Sonos playlist refresh stay fresh on every pop-back
 - The "No Results" empty state and keyboard navigation now apply the Plex library filter like the rendered list does — a fully-filtered list shows the empty state instead of a silent blank, and arrow keys can't select hidden rows
 - `PlexMetadata.toPlayable` album mapping now carries `albumID`, so artist-detail/browse Plex albums get the per-edition artwork key too (search-only before — the duplicate-edition wrong-art bug persisted on artist pages)
-- Album subtitles never render "0 songs": the six hand-rolled pluralizations collapsed into one `songCountLabel` helper that drops missing/zero counts and pluralizes via automatic grammar agreement (`^[…](inflect: true)`) instead of hand-rolled branches
+- Album subtitles never render "0 songs": the six hand-rolled pluralizations collapsed into one `Int.songCountLabel` extension property (internal to SonosKit) that drops missing/zero counts and pluralizes via automatic grammar agreement (`^[…](inflect: true)`) instead of hand-rolled branches
 
 ### Search speed + complexity cleanup
 - An Apple search no longer ranks the same items three times over: `searchLibraryAppleMusic` and `searchAppleMusic` return unranked (their only caller, `searchApple`, ranks the combined list once) — the dominant per-keystroke CPU cost on the main actor
