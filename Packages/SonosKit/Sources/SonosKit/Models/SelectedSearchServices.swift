@@ -6,7 +6,8 @@ import MusicSearchKit
 /// extras in `searchAlsoServices`); old values are deliberately not migrated,
 /// the selection resets once and users re-pick.
 ///
-/// All selection rules live here so the menu stays declarative:
+/// All selection rules live here (unit-tested in SonosKitTests) so the menu
+/// stays declarative:
 /// - at most `maxCount` services
 /// - TuneIn is exclusive (a radio directory doesn't merge into catalogs)
 /// - unchecking the primary promotes the next selection
@@ -14,31 +15,35 @@ import MusicSearchKit
 ///
 /// `RawRepresentable` (comma-separated raw values, order-preserving) lets
 /// `@AppStorage` persist it while call sites work with real values.
-struct SelectedSearchServices: RawRepresentable, Equatable {
-    static let maxCount = 3
+public struct SelectedSearchServices: RawRepresentable, Equatable, Sendable {
+    public static let maxCount = 3
 
-    private(set) var services: [MediaSearchService]
+    public private(set) var services: [MediaSearchService]
 
-    var primary: MediaSearchService { services.first ?? .apple }
-    var isAtLimit: Bool { services.count >= Self.maxCount }
+    public var primary: MediaSearchService { services.first ?? .apple }
+    public var isAtLimit: Bool { services.count >= Self.maxCount }
 
-    init(_ services: [MediaSearchService] = []) {
-        self.services = services.isEmpty ? [.apple] : Array(services.prefix(Self.maxCount))
+    public init(_ services: [MediaSearchService] = []) {
+        // Storage is only written by this type, but stored strings survive
+        // app versions — dedupe and cap defensively rather than trusting them.
+        var seen = Set<MediaSearchService>()
+        let unique = services.filter { seen.insert($0).inserted }
+        self.services = unique.isEmpty ? [.apple] : Array(unique.prefix(Self.maxCount))
     }
 
-    init(rawValue: String) {
+    public init(rawValue: String) {
         self.init(rawValue.split(separator: ",").compactMap { MediaSearchService(rawValue: String($0)) })
     }
 
-    var rawValue: String {
+    public var rawValue: String {
         services.map(\.rawValue).joined(separator: ",")
     }
 
-    func contains(_ service: MediaSearchService) -> Bool {
+    public func contains(_ service: MediaSearchService) -> Bool {
         services.contains(service)
     }
 
-    mutating func toggle(_ service: MediaSearchService) {
+    public mutating func toggle(_ service: MediaSearchService) {
         if service == .tuneIn {
             services = [.tuneIn]
             return
@@ -59,7 +64,7 @@ struct SelectedSearchServices: RawRepresentable, Equatable {
 
     /// Drops services disabled in Settings, falling back so the selection is
     /// never empty. No-ops (no storage write) when nothing is disabled.
-    mutating func prune(isEnabled: (MediaSearchService) -> Bool, fallback: MediaSearchService) {
+    public mutating func prune(isEnabled: (MediaSearchService) -> Bool, fallback: MediaSearchService) {
         guard services.contains(where: { !isEnabled($0) }) else { return }
         services.removeAll { !isEnabled($0) }
         if services.isEmpty {
