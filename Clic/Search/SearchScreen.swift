@@ -389,12 +389,11 @@ struct SearchScreen: View {
         // Disabling a service in Settings must also deselect it here: extras
         // are filtered out at read time, but a disabled primary stayed
         // selected (its icon lingering in the toolbar and the search still
-        // querying it). The Settings sheet presents over this screen, so this
-        // fires live as the user flips toggles.
-        .onChange(of: settingsEnabledServices) {
-            validateSelectedServices()
-        }
-        .onAppear {
+        // querying it). task(id:) runs on appear AND when the enabled set
+        // changes — the Settings sheet presents over this screen, so it fires
+        // live as the user flips toggles, and the appear run catches changes
+        // made while the screen didn't exist.
+        .task(id: settingsEnabledServices) {
             validateSelectedServices()
         }
         .onChange(of: filters) {
