@@ -102,10 +102,10 @@ final class FilterSelection: Hashable, Identifiable {
 
 struct FilterView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    /// Every service being searched (primary + extras). Empty means "no
-    /// service-specific chips" — play history passes it to get the default
-    /// set regardless of which services exist in the history.
-    let services: Set<MediaSearchService>
+    /// Every service being searched (primary + extras). Omitted/empty means
+    /// "no service-specific chips" — play history relies on the default to
+    /// get the base set regardless of which services exist in the history.
+    var services: Set<MediaSearchService> = []
     @Binding var filters: [FilterSelection]
 
     @Namespace private var animation
