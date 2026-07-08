@@ -30,7 +30,7 @@ struct WelcomeScreen: View {
     @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(\.dismiss) private var dismiss
     @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
-    @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
+    @AppStorage(AppStorageKeys.selectedSearchServices) private var searchSelection = SelectedSearchServices()
 
     @State private var step: Step = .welcome
     @State private var installedServices: Set<SonosServiceType> = []
@@ -165,7 +165,7 @@ struct WelcomeScreen: View {
                 // Default the active search service to Spotify if available,
                 // then Apple Music — matches what most users want without
                 // forcing them into Preferences.
-                musicSearchSelection = CoreFeatures.preferredDefaultService(from: installedSet)
+                searchSelection = SelectedSearchServices([CoreFeatures.preferredDefaultService(from: installedSet)])
                 goTo(.services)
             }
         }

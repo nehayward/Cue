@@ -3,12 +3,14 @@ import MusicKit
 import MusicSearchKit
 
 /// "1 song" / "12 songs" for album row subtitles — the standard-vs-deluxe
-/// edition cue. Nil for missing or zero counts (a zero means the service
-/// didn't report one), so callers can drop the component instead of
-/// rendering "0 songs".
+/// edition cue. Uses automatic grammar agreement so pluralization (and any
+/// future localization) comes from the inflection engine, not hand-rolled
+/// branches. Nil for missing or zero counts (a zero means the service didn't
+/// report one), so callers can drop the component instead of rendering
+/// "0 songs".
 func songCountLabel(_ count: Int?) -> String? {
     guard let count, count > 0 else { return nil }
-    return count == 1 ? "1 song" : "\(count) songs"
+    return String(AttributedString(localized: "^[\(count) song](inflect: true)").characters)
 }
 
 extension PlayableContent {

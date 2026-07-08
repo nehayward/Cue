@@ -28,8 +28,7 @@ struct SearchScreen: View {
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService
     @Environment(MiniPlayerManger.self) private var miniPlayerManager
 
-    @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
-    @AppStorage(AppStorageKeys.searchAlsoServices) private var searchAlsoServices: AlsoSearchServices = []
+    @AppStorage(AppStorageKeys.selectedSearchServices) private var searchSelection = SelectedSearchServices()
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
     @AppStorage(AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     var favorites: Bool = false
@@ -80,21 +79,20 @@ struct SearchScreen: View {
         MediaSearchService.allCases.filter { coreFeatures.isEnabled($0) }
     }
 
-    /// The primary service plus any "Also Search" services from the menu.
-    /// Extras only count while their service is enabled in Settings.
-    /// TuneIn is a radio directory and always searches alone — leftover
-    /// extras from a previous primary must not merge radio with catalogs.
+    /// The services actually searched: the stored selection minus anything
+    /// disabled in Settings (validateSelectedServices prunes storage live;
+    /// the read-time filter covers changes made while this screen didn't
+    /// exist). TuneIn always searches alone by the selection rules.
     private var selectedSearchServices: Set<MediaSearchService> {
-        guard musicSearchSelection != .tuneIn else { return [.tuneIn] }
-        return searchAlsoServices.services
-            .filter { coreFeatures.isEnabled($0) }
-            .union([musicSearchSelection])
+        guard searchSelection.primary != .tuneIn else { return [.tuneIn] }
+        let enabled = searchSelection.services.filter { coreFeatures.isEnabled($0) }
+        return enabled.isEmpty ? [searchSelection.primary] : Set(enabled)
     }
 
     /// Mirrors AppleMusicSearchScreen: a single-service Apple search without
     /// authorization renders the permissions prompt instead of results.
     private var showsApplePermissionsPrompt: Bool {
-        musicSearchSelection == .apple
+        searchSelection.primary == .apple
             && selectedSearchServices.count == 1
             && appleMusicAuthorized != .authorized
     }
@@ -113,11 +111,12 @@ struct SearchScreen: View {
 
     /// One key for both the search `.task(id:)` and the skip-identical-search
     /// guard, so the two can never drift. Built from the EFFECTIVE service
-    /// set (not the raw stored extras): disabling an extra in Settings
-    /// changes what's searched and must re-fire the task. Separators prevent
-    /// key collisions between adjacent components.
+    /// set (not raw storage): disabling a service in Settings changes what's
+    /// searched and must re-fire the task. The primary is included because it
+    /// picks the single-service results view. Separators prevent key
+    /// collisions between adjacent components.
     private var searchTaskKey: String {
-        ([musicSearchService.query, musicSearchSelection.rawValue]
+        ([musicSearchService.query, searchSelection.primary.rawValue]
             + selectedSearchServices.map(\.rawValue).sorted())
             .joined(separator: "|")
     }
@@ -144,7 +143,7 @@ struct SearchScreen: View {
             ScrollViewReader { proxy in
                 List(selection: .constant(selectedItemID)) {
                     SearchFilterRow(
-                        musicSearchSelection: $musicSearchSelection,
+                        primary: searchSelection.primary,
                         selectedServices: selectedSearchServices,
                         filters: $filters,
                         plexLibrariesFilters: $plexLibrariesFilters
@@ -168,7 +167,7 @@ struct SearchScreen: View {
                         )
                     } else {
                         SearchResultsView(
-                            service: musicSearchSelection,
+                            service: searchSelection.primary,
                             selectedServices: selectedSearchServices,
                             query: $musicSearchService.query,
                             filters: $filters,
@@ -259,11 +258,7 @@ struct SearchScreen: View {
                     #endif
 
                     ToolbarItem(placement: .topBarTrailing) {
-                        MediaServiceMenu(
-                            musicSearchSelection: $musicSearchSelection,
-                            filters: $filters,
-                            searchAlsoServices: $searchAlsoServices
-                        )
+                        MediaServiceMenu(selection: $searchSelection, filters: $filters)
                     }
                 }
             }
@@ -376,14 +371,13 @@ struct SearchScreen: View {
         // A new primary service is a different result set — drop stale results
         // immediately (a query edit deliberately keeps old results to avoid
         // flicker while typing).
-        .onChange(of: musicSearchSelection) {
-            keyboardSelectedIndex = nil
+        .onChange(of: searchSelection.primary) {
             musicSearchService.results = []
         }
-        // Toggling an extra does NOT clear results: the merged search updates
-        // them in place, so the list doesn't flash empty behind the still-open
-        // menu (which read as flicker / the menu "closing").
-        .onChange(of: searchAlsoServices) {
+        // Adding/removing a non-primary service does NOT clear results: the
+        // merged search updates them in place, so the list doesn't flash
+        // empty behind the still-open menu (which read as flicker).
+        .onChange(of: searchSelection) {
             keyboardSelectedIndex = nil
         }
         // Disabling a service in Settings must also deselect it here: extras
@@ -461,16 +455,14 @@ struct SearchScreen: View {
         }
     }
 
-    /// Deselects a service the user disabled in Settings. Extras drop out via
-    /// read-time filtering, but the primary needs an explicit fallback:
-    /// promote the first enabled extra, else the first enabled service.
+    /// Drops services the user disabled in Settings from the stored
+    /// selection, falling back to the first enabled service so the selection
+    /// is never empty.
     private func validateSelectedServices() {
-        guard !coreFeatures.isEnabled(musicSearchSelection) else { return }
-        let fallback = MediaSearchService.allCases.first {
-            searchAlsoServices.services.contains($0) && coreFeatures.isEnabled($0)
-        } ?? settingsEnabledServices.first ?? .apple
-        searchAlsoServices.services.remove(fallback)
-        musicSearchSelection = fallback
+        searchSelection.prune(
+            isEnabled: { coreFeatures.isEnabled($0) },
+            fallback: settingsEnabledServices.first ?? .apple
+        )
     }
 
     private func activateSelectedItem(at index: Int) {
@@ -526,7 +518,7 @@ struct SearchScreen: View {
 // MARK: - Subviews
 
 private struct SearchFilterRow: View {
-    @Binding var musicSearchSelection: MediaSearchService
+    let primary: MediaSearchService
     /// Every service being searched (primary + extras): the filter chips are
     /// the union of each member's filters, and Plex's presence shows the
     /// per-library filter.
@@ -540,7 +532,7 @@ private struct SearchFilterRow: View {
 
     var body: some View {
         Group {
-            if musicSearchSelection != .tuneIn {
+            if primary != .tuneIn {
                 VStack(spacing: 0) {
                     HStack {
                         FilterView(services: selectedServices, filters: $filters)
@@ -696,48 +688,21 @@ private struct MacCatalystSuggestionsList: View {
 #endif
 
 private struct MediaServiceMenu: View {
-    @Binding var musicSearchSelection: MediaSearchService
+    @Binding var selection: SelectedSearchServices
     @Binding var filters: [FilterSelection]
-    @Binding var searchAlsoServices: AlsoSearchServices
 
     @Environment(Router.self) private var router
     @State private var coreFeatures = CoreFeatures.shared
-
-    /// The extras actually in effect: matches SearchScreen.selectedSearchServices
-    /// — disabled services don't count (no phantom badge for a service the
-    /// search skips), and a TuneIn primary always searches alone.
-    private var activeExtras: Set<MediaSearchService> {
-        guard musicSearchSelection != .tuneIn else { return [] }
-        return searchAlsoServices.services
-            .filter { coreFeatures.isEnabled($0) }
-            .subtracting([musicSearchSelection])
-    }
-
-    /// Active extras in a stable display order (the enum's case order), for the
-    /// overlapping-icon badge.
-    private var activeExtrasOrdered: [MediaSearchService] {
-        MediaSearchService.allCases.filter { activeExtras.contains($0) }
-    }
-
-    /// Every service being searched — primary first, then active extras in
-    /// stable order — for the overlapping toolbar icon.
-    private var selectedServicesOrdered: [MediaSearchService] {
-        [musicSearchSelection] + activeExtrasOrdered
-    }
-
-    private let maxSelectable = 3
 
     private var enabledServices: [MediaSearchService] {
         MediaSearchService.allCases.filter { coreFeatures.isEnabled($0) }
     }
 
-    /// A service is included in the search when it's the primary or an extra.
-    private func isSelected(_ service: MediaSearchService) -> Bool {
-        service == musicSearchSelection || activeExtras.contains(service)
+    /// Icons for the toolbar button: the stored selection minus disabled
+    /// services (no phantom icon for a service the search skips).
+    private var displayedServices: [MediaSearchService] {
+        selection.services.filter { coreFeatures.isEnabled($0) }
     }
-
-    private var selectedCount: Int { 1 + activeExtras.count }
-    private var isAtLimit: Bool { selectedCount >= maxSelectable }
 
     var body: some View {
         // A native Menu (not a popover): popovers with a List/ScrollView crash
@@ -755,7 +720,7 @@ private struct MediaServiceMenu: View {
                     }
                 }
                 .menuActionDismissBehavior(.disabled)
-                .disabled(isAtLimit && !isSelected(service))
+                .disabled(selection.isAtLimit && !selection.contains(service))
             }
 
             Button {
@@ -765,56 +730,32 @@ private struct MediaServiceMenu: View {
                 Label("Settings…", systemImage: "gear")
             }
         } label: {
-            ServiceIconRow(services: selectedServicesOrdered)
+            ServiceIconRow(services: displayedServices)
         }
         .popoverTip(AppTip.mediaService)
     }
 
     private func selectionBinding(for service: MediaSearchService) -> Binding<Bool> {
         Binding(
-            get: { isSelected(service) },
-            set: { _ in toggleService(service) }
+            get: { selection.contains(service) },
+            set: { _ in toggle(service) }
         )
     }
 
-    /// Toggle a service in/out of the search set (max 3). Primary + extras are
-    /// kept internally; the primary is just the first selected. TuneIn is
-    /// exclusive — a radio directory doesn't mix into a catalog search.
-    private func toggleService(_ service: MediaSearchService) {
+    /// The selection rules (max 3, TuneIn exclusivity, primary promotion)
+    /// live in SelectedSearchServices — this just adds the UI side effects.
+    private func toggle(_ service: MediaSearchService) {
         HapticManager.shared.fireHaptic(.buttonPress)
-
-        if service == .tuneIn {
-            setPrimary(.tuneIn, clearingExtras: true)
+        let previousPrimary = selection.primary
+        selection.toggle(service)
+        if selection.primary == .tuneIn, previousPrimary != .tuneIn {
+            // Type filters don't apply to a radio directory.
             for filter in filters { filter.isFiltered = false }
-            return
         }
-        if musicSearchSelection == .tuneIn {
-            // Leaving TuneIn: the tapped service becomes the sole primary.
-            setPrimary(service, clearingExtras: true)
-            return
+        if selection.primary != previousPrimary {
+            Analytics.shared.track(.selectedMusicService, with: ["MusicService": selection.primary.rawValue])
+            Analytics.shared.setSelection(metadata: ["MusicService": selection.primary.rawValue])
         }
-
-        if service == musicSearchSelection {
-            // Uncheck the primary by promoting an extra; no-op if it's the last.
-            guard let next = activeExtrasOrdered.first else { return }
-            searchAlsoServices.services.remove(next)
-            setPrimary(next, clearingExtras: false)
-        } else if activeExtras.contains(service) {
-            searchAlsoServices.services.remove(service)
-        } else if selectedCount < maxSelectable {
-            searchAlsoServices.services.insert(service)
-        }
-    }
-
-    private func setPrimary(_ service: MediaSearchService, clearingExtras: Bool) {
-        musicSearchSelection = service
-        if clearingExtras {
-            searchAlsoServices.services.removeAll()
-        } else {
-            searchAlsoServices.services.remove(service)
-        }
-        Analytics.shared.track(.selectedMusicService, with: ["MusicService": service.rawValue])
-        Analytics.shared.setSelection(metadata: ["MusicService": service.rawValue])
     }
 }
 
@@ -836,27 +777,6 @@ private struct ServiceIconRow: View {
                     .frame(width: diameter, height: diameter)
             }
         }
-    }
-}
-
-/// The services selected in the search menu BEYOND the primary. The menu
-/// reads as one "pick up to 3" list, but storage stays split: the primary
-/// lives in `AppStorageKeys.mediaService` (which browse/onboarding also
-/// read), and this set holds the extra selections. `RawRepresentable` lets
-/// `@AppStorage` persist it as a sorted comma-separated raw-value string
-/// while call sites work with a real `Set` and never re-parse the string.
-struct AlsoSearchServices: RawRepresentable, Equatable, ExpressibleByArrayLiteral {
-    var services: Set<MediaSearchService>
-
-    init(_ services: Set<MediaSearchService> = []) { self.services = services }
-    init(arrayLiteral elements: MediaSearchService...) { self.services = Set(elements) }
-
-    init(rawValue: String) {
-        services = Set(rawValue.split(separator: ",").compactMap { MediaSearchService(rawValue: String($0)) })
-    }
-
-    var rawValue: String {
-        services.map(\.rawValue).sorted().joined(separator: ",")
     }
 }
 

@@ -1,9 +1,11 @@
 import Foundation
 
 public enum AppStorageKeys {
-    public static let mediaService = "\(Prefix.id).mediaService"
-    /// Comma-separated raw values of services searched alongside the primary one.
-    public static let searchAlsoServices = "\(Prefix.id).searchAlsoServices"
+    /// The search's selected services as one ordered comma-separated list,
+    /// primary first (up to 3). Replaced the split `mediaService` +
+    /// `searchAlsoServices` keys — deliberately not migrated; the selection
+    /// resets once and users re-pick.
+    public static let selectedSearchServices = "\(Prefix.id).selectedSearchServices"
     public static let browseMediaService = "\(Prefix.id).browseMediaService"
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"
