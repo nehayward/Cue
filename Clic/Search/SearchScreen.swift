@@ -578,6 +578,7 @@ private struct SearchEmptyStateView: View {
     var body: some View {
         if !isAlarmSearch {
             RecentSearchesView()
+                .listRowSeparator(.hidden)
         }
 
         if !playHistoryService.history.isEmpty {
