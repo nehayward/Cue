@@ -9,6 +9,8 @@ public struct DeezerAlbum: Codable {
     public let coverXl: String?
     public let artist: DeezerArtist?
     public let releaseDate: String?
+    /// `nb_tracks` — distinguishes editions (standard vs deluxe) in rows.
+    public let nbTracks: Int?
 
     public var releaseYear: String? {
         releaseDate.flatMap { $0.split(separator: "-").first.map(String.init) }

@@ -25,7 +25,7 @@ enum Filter: String, CaseIterable {
         case .playlists:
             return [.playlist, .libraryPlaylist]
         case .radio:
-            return [.radio, .liveRadio]
+            return [.radio, .liveRadio, .artistRadio, .songRadio]
         case .library:
             return [.libraryAlbum, .libraryTrack, .libraryArtist, .libraryPlaylist]
         }
@@ -82,15 +82,32 @@ final class FilterSelection: Hashable, Identifiable {
     static var library = FilterSelection(filter: .library, isFiltered: false)
 
     static var defaultFilters: [FilterSelection] = [.songs, .albums, .playlists, .artist]
-    static var appleFilters: [FilterSelection] = [.songs, .albums, .playlists, .artist, .radio, .library]
     static var alarmFilters: [FilterSelection] = [.albums, .playlists]
+
+    /// The union of filters needed by every service being searched — a
+    /// multi-service search must offer each member's filters (Apple as an
+    /// extra still contributes Radio and Library), not just the primary's.
+    static func filters(for services: Set<MediaSearchService>) -> [FilterSelection] {
+        var result = defaultFilters
+        // Apple returns radio stations; Spotify results include artist radios.
+        if services.contains(.apple) || services.contains(.spotify) {
+            result.append(.radio)
+        }
+        if services.contains(.apple) {
+            result.append(.library)
+        }
+        return result
+    }
 }
 
 struct FilterView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Binding var selectedService: MediaSearchService
+    /// Every service being searched (primary + extras). Omitted/empty means
+    /// "no service-specific chips" — play history relies on the default to
+    /// get the base set regardless of which services exist in the history.
+    var services: Set<MediaSearchService> = []
     @Binding var filters: [FilterSelection]
-    
+
     @Namespace private var animation
 
     var body: some View {
@@ -107,13 +124,15 @@ struct FilterView: View {
         .scrollTargetBehavior(.viewAligned)
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
-        .task(id: selectedService) {
+        .task(id: services) {
+            // Only assign when the chip set actually changes: toggling a
+            // service whose filters match the current set (e.g. adding Tidal
+            // to a default-chip search) otherwise fired the filters binding
+            // for a no-op, wiping keyboard selection and re-animating chips.
+            let newFilters = FilterSelection.filters(for: services)
+            guard newFilters != filters else { return }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                if selectedService == .apple {
-                    filters = FilterSelection.appleFilters
-                } else {
-                    filters = FilterSelection.defaultFilters
-                }
+                filters = newFilters
             }
         }
         .mask(
@@ -175,7 +194,7 @@ struct FilterButton: View {
 
 #Preview {
     FilterView(
-        selectedService: .constant(MediaSearchService.apple),
+        services: [.apple],
         filters: .constant(
             [
                 FilterSelection(

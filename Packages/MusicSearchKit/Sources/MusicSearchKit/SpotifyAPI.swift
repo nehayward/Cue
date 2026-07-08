@@ -133,6 +133,46 @@ public final class SpotifyAPI {
         }
     }
 
+    /// Full album objects (with popularity and per-track explicit flags) for
+    /// the given ids. Search returns simplified albums without popularity, so
+    /// results are enriched via this batch lookup. Chunks by Spotify's
+    /// 20-ids-per-request cap; failed chunks are skipped.
+    public func albums(ids: [String]) async -> [SpotifyAlbumDetails] {
+        let chunks = stride(from: 0, to: ids.count, by: 20).map { Array(ids[$0..<min($0 + 20, ids.count)]) }
+
+        // Chunks are independent — fetch them concurrently instead of
+        // serializing the round-trips back to back.
+        return await withTaskGroup(of: [SpotifyAlbumDetails].self) { group in
+            for chunk in chunks {
+                group.addTask {
+                    var components = URLComponents()
+                    components.scheme = "https"
+                    components.host = "api.spotify.com"
+                    components.path = "/v1/albums"
+                    components.queryItems = [
+                        URLQueryItem(name: "ids", value: chunk.joined(separator: ",")),
+                        Self.marketFilter
+                    ]
+
+                    guard let url = components.url else { return [] }
+
+                    do {
+                        let batch: SpotifyAlbumsBatch = try await self.authorizedRequest(url)
+                        return batch.albums.compactMap { $0 }
+                    } catch {
+                        self.logger.error("\(error.localizedDescription)")
+                        return []
+                    }
+                }
+            }
+            var albums: [SpotifyAlbumDetails] = []
+            for await chunkAlbums in group {
+                albums.append(contentsOf: chunkAlbums)
+            }
+            return albums
+        }
+    }
+
     public func newReleases() async -> SpotifyResult? {
         var components = URLComponents()
         components.scheme = "https"
@@ -746,15 +786,22 @@ public final class SpotifyAPI {
                     }
 
                     logger.warning("Received 401 Unauthorized, refreshing token (attempt \(retryCount) of \(self.maxRetries))")
-                    guard let token = try? await TokenRefreshCoordinator.shared.refreshToken(credentials: credentials) else {
-                        throw AuthError.invalidToken
+                    do {
+                        // The coordinator persists the refreshed token through the
+                        // handler (invalidating its credential cache) before
+                        // returning, so the next loop iteration reads the new
+                        // token instead of the stale one.
+                        _ = try await TokenRefreshCoordinator.shared.refreshToken(credentials: credentials, handler: handler)
+                    } catch let error as CancellationError {
+                        throw error
+                    } catch {
+                        // A failure of the shared refresh is delivered to every
+                        // coalesced caller at once; treat it as transient and
+                        // spend a remaining attempt on a fresh refresh instead
+                        // of failing them all on one error.
+                        logger.warning("Token refresh failed, retrying: \(error)")
+                        try await Task.sleep(for: .milliseconds(200 * retryCount))
                     }
-
-                    // Persist the refreshed token. handleTokenRefresh invalidates the cached
-                    // credentials, so the next loop iteration reads the new token instead of the
-                    // stale one. Without this retry the request fails even though the refresh
-                    // succeeded, which left the browse screen blank until a manual pull-to-refresh.
-                    try await handler.handleTokenRefresh(householdId: credentials.householdId, token: token.0, key: token.1)
 
                     // Retry the request with the freshly refreshed credentials.
                     continue

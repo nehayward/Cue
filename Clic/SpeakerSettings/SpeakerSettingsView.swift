@@ -138,18 +138,78 @@ struct SpeakerSettingsView: View {
                         }
                     }
                     
-                    Toggle(isOn: $room.theaterSettings.dialogLevel) {
-                        Text("Speech Enhancement")
-                    }
-                    .onChange(of: room.theaterSettings.dialogLevel) { oldValue, newValue in
-                        if oldValue != newValue {
+                    if room.isArcUltra {
+                        Toggle(isOn: Binding(
+                            get: { room.theaterSettings.speechEnhanceEnabled ?? false },
+                            set: { room.theaterSettings.speechEnhanceEnabled = $0 }
+                        )) {
+                            Text("Speech Enhancement")
+                        }
+                        .onChange(of: room.theaterSettings.speechEnhanceEnabled) { oldValue, newValue in
+                            guard let newValue, oldValue != newValue else { return }
                             Task {
-                                try? await sonosService.setDialogLevel(room.ip, enabled: newValue)
+                                try? await sonosService.setSpeechEnhanceEnabled(room.ip, enabled: newValue)
+                            }
+                        }
+
+                        Picker("Dialog Level", selection: $room.theaterSettings.dialogLevelValue) {
+                            Text("Low").tag(1)
+                            Text("Medium").tag(2)
+                            Text("High").tag(3)
+                            Text("Max").tag(4)
+                        }
+                        .disabled(room.theaterSettings.speechEnhanceEnabled != true)
+                        .onChange(of: room.theaterSettings.dialogLevelValue) { oldValue, newValue in
+                            if oldValue != newValue {
+                                Task {
+                                    try? await sonosService.setDialogLevelValue(room.ip, value: newValue)
+                                }
+                            }
+                        }
+                    } else {
+                        Toggle(isOn: $room.theaterSettings.dialogLevel) {
+                            Text("Speech Enhancement")
+                        }
+                        .onChange(of: room.theaterSettings.dialogLevel) { oldValue, newValue in
+                            if oldValue != newValue {
+                                Task {
+                                    try? await sonosService.setDialogLevel(room.ip, enabled: newValue)
+                                }
                             }
                         }
                     }
+
+                    VStack {
+                        LabeledContent {
+                            Text("\(Int(room.theaterSettings.audioDelay.rounded()))")
+                                .foregroundStyle(.primary)
+                                .bold()
+                                .monospacedDigit()
+                        } label: {
+                            Text("TV Dialog Sync")
+                        }
+
+                        Slider(value: $room.theaterSettings.audioDelay, in: EQType.audioDelay.range, step: 1) {
+                            Text("TV Dialog Sync")
+                        } minimumValueLabel: {
+                            Text(EQType.audioDelay.range.lowerBound, format: .number)
+                                .foregroundStyle(.secondary)
+                        } maximumValueLabel: {
+                            Text(EQType.audioDelay.range.upperBound, format: .number)
+                                .foregroundStyle(.secondary)
+                        } onEditingChanged: { isChanging in
+                            Task {
+                                await sonosService.setEQ(room: room, eq: .audioDelay, value: Int(room.theaterSettings.audioDelay))
+                            }
+                        }
+#if !os(visionOS)
+                        .sensoryFeedback(.impact, trigger: room.theaterSettings.audioDelay)
+#endif
+                    }
                 } header: {
                     Text("Home Theater")
+                } footer: {
+                    Text("If voices are out of sync with the picture, increase TV Dialog Sync to delay the audio.")
                 }
                 .listSectionSpacing(12)
                 

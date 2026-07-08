@@ -41,6 +41,58 @@ extension SonosAPI {
         }
     }
 
+    func getSpeechEnhanceEnabled(IP: String) async throws -> Bool {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("EQType", "SpeechEnhanceEnabled")
+        ]
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return false }
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            print("Failed with \(httpResponse.statusCode)")
+        }
+        let xml = String(decoding: data, as: UTF8.self)
+        let parser = GenericXMLParser(targetElement: "CurrentValue")
+        return parser.parseXML(xml) == "1"
+    }
+
+    func setSpeechEnhanceEnabled(IP: String, enabled: Bool) async throws {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("EQType", "SpeechEnhanceEnabled"),
+            ("DesiredValue", enabled ? 1 : 0)
+        ]
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            print("Failed with \(httpResponse.statusCode)")
+        }
+    }
+
+    func getDialogLevelValue(IP: String) async throws -> Int {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("EQType", "DialogLevel")
+        ]
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return 1 }
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            print("Failed with \(httpResponse.statusCode)")
+        }
+        let xml = String(decoding: data, as: UTF8.self)
+        let parser = GenericXMLParser(targetElement: "CurrentValue")
+        return Int(parser.parseXML(xml) ?? "1") ?? 1
+    }
+
+    func setDialogLevelValue(IP: String, value: Int) async throws {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("EQType", "DialogLevel"),
+            ("DesiredValue", value)
+        ]
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            print("Failed with \(httpResponse.statusCode)")
+        }
+    }
+
     func getNightMode(IP: String) async throws -> Bool {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),

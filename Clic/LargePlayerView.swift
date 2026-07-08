@@ -751,7 +751,7 @@ fileprivate struct TVModeView: View {
                     Button {
                         Task {
                             try? await sonosService.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode.wrappedValue)
-                            group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                            group.tvSettings = try? await sonosService.getTVSettings(group: group)
                         }
                     } label: {
                         Label("Night Mode", systemImage: "moon.zzz.fill")
@@ -764,28 +764,33 @@ fileprivate struct TVModeView: View {
                     .buttonStyle(.bordered)
                     .tint(settings.nightMode.wrappedValue ? .accent : nil)
                     .animation(.spring, value: settings.nightMode.wrappedValue)
-                    
+
                     MuteButton(group: group)
 
-                    Button {
-                        Task {
-                            try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled:  !settings.dialogLevel.wrappedValue)
-                            group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                    if group.isArcUltra {
+                        SpeechEnhancementMenu(group: group, showLabel: true)
+                    } else {
+                        Button {
+                            Task {
+                                try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled: !settings.dialogLevel.wrappedValue)
+                                group.tvSettings = try? await sonosService.getTVSettings(group: group)
+                            }
+                        } label: {
+                            Label("Dialog Mode", systemImage: "person.wave.2.fill")
+                                .font(.title)
+                                .symbolRenderingMode(.hierarchical)
+                                .labelStyle(.iconOnly)
+                                .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
+                                .frame(width: 40, height: 36)
                         }
-                    } label: {
-                        Label("Dialog Mode", systemImage: "person.wave.2.fill")
-                            .font(.title)
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
-                            .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
-                            .frame(width: 40, height: 36)
+                        .buttonStyle(.bordered)
+                        .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
+                        .tint(settings.dialogLevel.wrappedValue ? .accent : nil)
+                        .animation(.spring, value: settings.dialogLevel.wrappedValue)
                     }
-                    .buttonStyle(.bordered)
-                    .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
-                    .tint(settings.dialogLevel.wrappedValue ? .accent : nil)
-                    .animation(.spring, value: settings.dialogLevel.wrappedValue)
                 }
             }
+
         }
         .fontDesign(.rounded)
     }

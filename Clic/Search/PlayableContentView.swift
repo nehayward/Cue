@@ -181,13 +181,17 @@ struct PlayableContentView: View {
             .overlay(alignment: .bottom) {
                 // Gated on isPreviewing so stopping removes the bar instantly,
                 // instead of animating its width back down to zero.
+                // No ignoresSafeArea: the bar lives inside a self-sizing List
+                // cell, where safe-area-ignoring content can trigger UIKit's
+                // layout feedback-loop trap (EXC_BREAKPOINT in
+                // _UICollectionViewFeedbackLoopDebugger on iOS 26) — and the
+                // 2pt row-bottom bar never meets a safe-area edge anyway.
                 if isPreviewing {
                     Rectangle()
                         .foregroundStyle(.accent.gradient)
                         .frame(height: 2)
                         .scaleEffect(x: previewProgress, anchor: .leading)
                         .animation(.linear(duration: 0.3), value: previewProgress)
-                        .ignoresSafeArea()
                 }
             }
         }

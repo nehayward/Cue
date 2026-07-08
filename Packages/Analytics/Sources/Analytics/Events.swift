@@ -31,6 +31,9 @@ public enum OnboardingEvent: String {
     case discoveryDenied
     /// User landed on the Music Services step.
     case viewedServices
+    /// User landed on the Plex setup step — only shown when Plex was found
+    /// among the user's authorized Sonos services.
+    case viewedPlex
     /// User submitted an email on the newsletter step (server returned
     /// `subscribed` or `already_subscribed`).
     case emailSubscribed

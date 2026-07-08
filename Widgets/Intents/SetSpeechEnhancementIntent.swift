@@ -40,16 +40,15 @@ struct SetSpeechEnhancementIntent: LiveActivityIntent {
         }
 
         do {
-            if mode == .toggle {
-                let current = try await Self.sonosService.getTVSettings(ip: room.ip)
-                try await Self.sonosService.setDialogLevel(room.ip, enabled: !current.dialogLevel)
-            } else {
-                try await Self.sonosService.setDialogLevel(room.ip, enabled: speechEnhancement)
-            }
+            try await Self.sonosService.setSpeechEnhancement(
+                ip: room.ip,
+                enabled: speechEnhancement,
+                toggle: mode == .toggle
+            )
         } catch {
-            throw IntentError.message("Night Mode not supported")
+            throw IntentError.message("Speech Enhancement not supported")
         }
-        
+
         try? await Task.sleep(for: .milliseconds(100))
         await Self.liveActivityManager.refresh()
         return .result(value: speechEnhancement)

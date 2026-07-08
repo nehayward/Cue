@@ -129,8 +129,6 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         switch self {
         case .apple:
             Image(systemName: "apple.logo")
-                .resizable()
-                .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
         case .library:
             Image(systemName: librarySymbolName)
@@ -170,7 +168,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             SwiftUI.Image(self.rawValue.capitalized, bundle: .module)
                 .renderingMode(.template)
                 .resizable()
-                .aspectRatio(contentMode: .fit)
+                .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
 #endif
         }

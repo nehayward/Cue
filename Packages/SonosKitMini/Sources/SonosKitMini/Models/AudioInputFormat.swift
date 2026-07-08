@@ -18,7 +18,7 @@ public enum AudioInputFormat: Int, Codable, Hashable, Equatable, Sendable {
     case dolbySurroundAudio = 84934713
     case dolbyDigitalPlus = 84934714
     case dolbyMultiChannel = 84934718
-    case dolbyMultiChannelSeven = 118489090
+    case multiChannelPCMSevenOne = 118489090
     case DTS = 84934721
     case unknown = -1
 
@@ -62,8 +62,8 @@ public enum AudioInputFormat: Int, Codable, Hashable, Equatable, Sendable {
             "Dolby Digital Plus 5.1"
         case .dolbyMultiChannel:
             "Dolby Multichannel PCM 5.1"
-        case .dolbyMultiChannelSeven:
-            "Dolby Multichannel PCM 7.1"
+        case .multiChannelPCMSevenOne:
+            "Multichannel PCM 7.1"
         case .DTS:
             "DTS 5.1"
         }

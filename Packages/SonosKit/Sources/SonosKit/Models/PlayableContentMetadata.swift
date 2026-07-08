@@ -66,6 +66,33 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         self.playlistItemID = playlistItemID
     }
 
+    /// A copy with the quality-signal fields replaced — used to graft
+    /// popularity/explicitness onto items whose service search response
+    /// doesn't include them (Spotify albums, Apple Top Results).
+    public func replacing(popularity: Int?, isExplicit: Bool?) -> PlayableContentMetadata {
+        PlayableContentMetadata(
+            duration: duration,
+            popularity: popularity,
+            artist: artist,
+            artistID: artistID,
+            album: album,
+            albumID: albumID,
+            albumYear: albumYear,
+            isrc: isrc,
+            position: position,
+            audioCodec: audioCodec,
+            URIMetadata: URIMetadata,
+            radioStation: radioStation,
+            isPlayable: isPlayable,
+            isExplicit: isExplicit,
+            isSingle: isSingle,
+            fingerprint: fingerprint,
+            librarySectionID: librarySectionID,
+            userRating: userRating,
+            playlistItemID: playlistItemID
+        )
+    }
+
     // Equatable conformance
     public static func == (lhs: PlayableContentMetadata, rhs: PlayableContentMetadata) -> Bool {
         lhs.duration == rhs.duration &&

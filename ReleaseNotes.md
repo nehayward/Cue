@@ -1,14 +1,21 @@
 # 2026.6
 
 –– New Features ––
+- Multiple Homes: Clic now remembers every Sonos system you connect to. Manage them under Preferences ▸ Households — each home shows its speakers and whether it's an S1 or S2 system so they're easy to tell apart. Switch systems with a tap, and long-press or swipe to rename or remove a home. Open the screen anywhere and Clic scans for new systems on that network (like a friend's house) and adds them automatically
 - Playlist Management: Add any song to your Apple Music, Spotify, Plex, or Deezer playlists — not just Sonos. The new Add to Playlist sheet lets you pick several playlists at once, create a new one, search, and jump to a recently-used playlist; tap the confirmation to open the playlist you added to
 - Edit Playlists: Open a Spotify, Plex, Deezer, or Sonos playlist you own and tap Edit to remove tracks (swipe, menu, or multi-select), drag to reorder, or delete the playlist — with Undo (⌘Z on Mac)
 - Create Playlists: Make a new playlist for Apple Music, Spotify, Deezer, Plex, or Sonos from its browse screen — including an empty one you fill in later
 - Add to Last Playlist: A one-tap shortcut — in the track menu and the Mac File menu — to drop the current song into the playlist you used last
 - Song Previews: Long-press an Apple Music or Spotify track and tap Preview Song to hear a quick clip — or swipe right on a track in a list. A progress bar fills as the clip plays, and you can tap the track to stop it
 - Library Song Actions: Long-press a song in your Apple Music library to open its Apple Album or Apple Artist, or start a Song Radio — Clic resolves the matching catalog track behind the scenes
+- Also Search: Search several services at once — pick up to three in the search service menu (like your Library alongside Apple Music) and get one combined, ranked list of results. Note: the selected search service resets once with this update — just re-pick it in the search menu
+- Plex Setup in Onboarding: If you use Plex, setup now walks you through signing in and choosing your music library right away — with artist artwork previews so libraries are easy to tell apart
+- Automatic Plex Connection: A new Auto connection type uses your fast local network at home and switches to remote access when you're away — pick it, Remote, or Local from the redesigned connection switch in Plex settings
+- Arc Ultra Speech Enhancement: Control speech enhancement level (Off, Low, Medium, High, Max) on Sonos Arc Ultra from the player, Shortcuts, Clic Mini, and Apple Watch — the level is shown on the button and updates immediately after changing
 
 –– Bug Fixes & Improvements ––
+- Faster reconnect on a new network: when you move between Wi-Fi networks — or return to the app at a different location — Clic now finds your speakers right away instead of waiting through a timeout. Once a home is known, switching to it is instant
+- Fixed the app briefly stalling on the last-used speaker after switching networks, before falling back to discovery
 - Fixed removing one track from a Spotify playlist also deleting other copies of the same song — only the track you remove is removed now
 - Fixed adding a large album (more than 50 tracks) to a Spotify playlist only adding the first batch — every track is added now
 - Fixed the Deezer "Add to Playlist" list showing playlists you follow but don't own — only your own playlists are offered now, so the add no longer silently fails
@@ -16,7 +23,25 @@
 - Fixed "Switch to Line In" appearing on speakers that don't support line-in
 - Fixed the library Albums list stopping partway through the alphabet — albums, songs, and artists now load your entire library as you scroll
 - Fixed Genres, Imported Playlists, and folder contents being cut off in large libraries — these now load fully as you scroll
-- Improved Spotify responsiveness — search, albums, and playlists load noticeably faster and start showing results sooner
+- Smarter search: results now rank like Spotify and Apple Music — the artist you're looking for lands on top with their albums and hits right below, popular and new releases rank higher, songs you play often get a boost, and close matches beat loose ones
+- Search now forgives typos and punctuation — "beyonse" finds Beyoncé, "dont stop me now" finds Don't Stop Me Now
+- Plex tracks you've loved now show their heart in search results
+- Search now shows a "No Results" screen when nothing matches instead of a blank list
+- Fixed Plex songs missing from search — tracks are no longer dropped when the server omits optional details like media info or artwork from search responses
+- Search results now stay put when you open a song or album and come back — the list no longer reshuffles or reloads behind you
+- Multi-service search results now appear all at once instead of shifting around as each service finishes loading
+- If your Plex library has the same album in more than one quality, each copy now shows its own artwork, albums show their track count, and songs show their format and bitrate (like "FLAC • 1411 kbps"), so it's easy to tell editions apart
+- Album rows in search now show the number of songs across Apple Music, Spotify, Tidal, Deezer, and Plex — handy for telling a deluxe edition from the standard one
+- The Plex library filter now works during a combined multi-service search too — filter your Plex results by library while other services' results stay put
+- Turning a service off in Settings now removes it from the search selection right away — previously a disabled service could stay selected in the search menu
+- Spotify search now includes artist radio — start a station from the top artist matches right in the results
+- Search filters now cover every service you're searching — with Apple Music as an extra service, the Radio and Library filters show up like they should
+- The search start screen now shows each selected service's sections (like Spotify's browse or Apple Music playlists) even when that service isn't the primary one
+- Spotify albums now rank by popularity, so searching an album like Frozen surfaces it near the top instead of below every song — and albums containing explicit tracks now show the explicit badge
+- Apple Music search now uses Apple's own Top Results to rank its hits higher, matching the ordering you see in the Music app
+- Improved Plex speed and reliability — Clic picks the fastest way to reach your server, automatically switches connection when you change networks, and no longer hangs on an unreachable server
+- The Refresh Sonos Library button in Preferences now shows your music library's shared folder location underneath, so you can see where Sonos is reading your music from
+- Improved Spotify responsiveness — albums and playlists load noticeably faster and start showing results sooner
 - Fixed Spotify albums with more than 50 tracks not showing every track, and an album sometimes showing the previous album's tracks when navigating back and forth
 - Fixed the Spotify Albums library list shrinking and reshuffling each time you reopened it — it now loads your full library and stays put
 - Fixed sheets like Add to Playlist unexpectedly closing on iPad and Mac when the Queue was open in the side panel; the Queue now also stays with the speaker you have selected as you resize or rotate

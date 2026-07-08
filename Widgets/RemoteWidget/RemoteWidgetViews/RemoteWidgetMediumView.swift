@@ -88,7 +88,7 @@ struct RemoteWidgetMediumView: View {
                         )
                         .invalidatableContent()
 
-                        Toggle(isOn: theater.dialogLevel, intent: SetSpeechEnhancementIntent(room: room, speechEnhancement: !theater.dialogLevel)) {
+                        Toggle(isOn: theater.speechIsActive, intent: SetSpeechEnhancementIntent(room: room, speechEnhancement: !theater.speechIsActive)) {
                             Label("Speech Enhancement", systemImage: "person.wave.2.fill")
                                 .foregroundStyle(.accent)
                                 .widgetAccentable()
@@ -101,7 +101,7 @@ struct RemoteWidgetMediumView: View {
                             Circle()
                                 .fill(.fill)
                         )
-                        .opacity(theater.dialogLevel ? 1 : 0.4)
+                        .opacity(theater.speechIsActive ? 1 : 0.4)
                         .invalidatableContent()
                     }
                 } else {

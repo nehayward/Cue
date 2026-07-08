@@ -77,13 +77,13 @@ struct LiveActivityNowPlayingWidget: Widget {
                                             .frame(width: 48, height: 32)
                                             .foregroundStyle(context.state.isMuted ? Color.primary : .secondary.opacity(0.8))
                                             
-                                            Toggle(isOn: settings.dialogLevel, intent: SetSpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
+                                            Toggle(isOn: settings.speechIsActive, intent: SetSpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.speechIsActive)) {
                                                 Label("Speech Enhancement", systemImage: "person.wave.2.fill")
                                             }
                                             .symbolRenderingMode(.hierarchical)
                                             .labelStyle(.iconOnly)
                                             .toggleStyle(.button)
-                                            .foregroundStyle(settings.dialogLevel ? Color.teal : .secondary.opacity(0.8))
+                                            .foregroundStyle(settings.speechIsActive ? Color.teal : .secondary.opacity(0.8))
                                             .frame(width: 32, height: 32)
                                         }
                                     }

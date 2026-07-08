@@ -16,7 +16,9 @@ struct PlayHistoryFullView: View {
 
     var body: some View {
         List {
-            FilterView(selectedService: .constant(.spotify), filters: $filters)
+            // No services = the default chips; history spans services, so no
+            // service-specific chips (Radio/Library) apply here.
+            FilterView(filters: $filters)
                 .listRowSeparator(.hidden)
             
             let filteredHistory = playHistoryService.history.filter { item in

@@ -77,14 +77,31 @@ public final class MusicSearchService {
     public var results: [PlayableContent] = []
     public var newReleases: [SpotifyAlbumItem] = []
 
+    /// IDs of recently played items for the CURRENT search, captured from the
+    /// `search(for:recentlyPlayedIDs:)` parameter — private plumbing so the
+    /// per-provider ranking helpers can read them; the public contract is the
+    /// parameter, not ambient state.
+    @ObservationIgnored private var recentlyPlayedIDs: Set<String> = []
+
     public init() {}
 
-    public func search(for providers: Set<MediaSearchService>) async {
+    /// Returns whether every provider answered. `false` means at least one
+    /// provider timed out or failed and the published results are partial —
+    /// callers memoizing "this query is done" (the search screen's
+    /// skip-identical-re-search guard) must not cache a partial answer.
+    ///
+    /// - Parameter recentlyPlayedIDs: optional IDs of items the user has
+    ///   played (e.g. from the app's play history) so ranking can boost them;
+    ///   omitted, ranking simply applies no boost.
+    @discardableResult
+    public func search(for providers: Set<MediaSearchService>, recentlyPlayedIDs: Set<String> = []) async -> Bool {
+        self.recentlyPlayedIDs = recentlyPlayedIDs
         if query.isEmpty {
             results = []
-            return
+            return true
         }
 
+        var allProvidersAnswered = true
         let capturedQuery = query
         searchSuggestionTask.cancel()
         searchSuggestionTask = Task { [weak self] in
@@ -95,6 +112,18 @@ public final class MusicSearchService {
             return results
         }
 
+        // With several providers selected, results accumulate into one
+        // merged, deduplicated, re-ranked list instead of last-writer-wins.
+        let isMultiServiceSearch = providers.count > 1
+        // Keyed by provider (not appended in arrival order) so the merged input
+        // is rebuilt in a stable service order every time a provider drains.
+        // Network timing decides which provider returns first; feeding the
+        // ranking in that order made the tie-break — which preserves input
+        // order for equally-scoring items — reshuffle the artist's many
+        // same-ranked albums on each republish, so the list appeared to
+        // rebuild itself as results came in or when the view re-rendered.
+        var resultsByProvider: [MediaSearchService: [PlayableContent]] = [:]
+
         await withTaskGroup(of: (MediaSearchService, [PlayableContent]?).self) { group in
             for provider in providers {
                 group.addTask { [weak self] in
@@ -102,25 +131,34 @@ public final class MusicSearchService {
                     try? await Task.sleep(for: self.debounceDuration)
                     guard !Task.isCancelled else { return (provider, nil) }
 
-                    let fetched: [PlayableContent]?
-                    switch provider {
-                    case .apple:
-                        fetched = await self.searchApple(query: capturedQuery)
-                    case .spotify:
-                        fetched = await self.searchSpotify(query: capturedQuery)
-                    case .library:
-                        let playableContent = await self.sonosService.librarySearch(query: capturedQuery)
-                        fetched = await self.sortContentByIntelligentSearch(playableContent: playableContent, query: capturedQuery)
-                    case .plex:
-                        fetched = await self.searchPlex(query: capturedQuery)
-                    case .tidal:
-                        fetched = await self.searchTidal(query: capturedQuery)
-                    case .tuneIn:
-                        fetched = await self.searchTuneIn(query: capturedQuery)
-                    case .soundcloud:
-                        fetched = await self.searchSoundCloud(query: capturedQuery)
-                    case .deezer:
-                        fetched = await self.searchDeezer(query: capturedQuery)
+                    // Each provider races a deadline: an unreachable service
+                    // (the Sonos library or a LAN Plex server while away from
+                    // that network) would otherwise sit in connect/timeout for
+                    // up to 15s — and since a merged search publishes once,
+                    // one dead provider held up every other service's results.
+                    // A timed-out provider just contributes nothing.
+                    let fetched = await Self.withTimeout(seconds: Self.providerTimeout) {
+                        switch provider {
+                        case .apple:
+                            await self.searchApple(query: capturedQuery)
+                        case .spotify:
+                            await self.searchSpotify(query: capturedQuery)
+                        case .library:
+                            await self.sortContentByIntelligentSearch(
+                                playableContent: self.sonosService.librarySearch(query: capturedQuery),
+                                query: capturedQuery
+                            )
+                        case .plex:
+                            await self.searchPlex(query: capturedQuery)
+                        case .tidal:
+                            await self.searchTidal(query: capturedQuery)
+                        case .tuneIn:
+                            await self.searchTuneIn(query: capturedQuery)
+                        case .soundcloud:
+                            await self.searchSoundCloud(query: capturedQuery)
+                        case .deezer:
+                            await self.searchDeezer(query: capturedQuery)
+                        }
                     }
                     // If we were cancelled during the fetch, the API may have returned []
                     // for a cancelled URLSession call. Drop the result so we don't blank
@@ -137,31 +175,95 @@ public final class MusicSearchService {
                 // The user may have edited the query while we were awaiting; the new
                 // search() call will handle the fresh query, so drop these.
                 if self.query != capturedQuery { continue }
-                guard let providerResults else { continue }
-                if provider == .tuneIn {
+                guard let providerResults else {
+                    // Not cancelled and still the current query: the provider
+                    // timed out or failed. A single-service search must clear
+                    // — leaving `results` untouched presented the PREVIOUS
+                    // query's list as this query's answer.
+                    allProvidersAnswered = false
+                    if !isMultiServiceSearch {
+                        self.results = []
+                    }
+                    continue
+                }
+                if provider == .tuneIn, !isMultiServiceSearch {
                     self.suggestions.removeAll()
                 }
-                self.results = providerResults
+                if isMultiServiceSearch {
+                    resultsByProvider[provider] = providerResults
+                } else {
+                    self.results = providerResults
+                }
             }
         }
 
-        if Task.isCancelled { return }
-        if self.query != capturedQuery { return }
+        if Task.isCancelled { return false }
+        if self.query != capturedQuery { return false }
+
+        if isMultiServiceSearch {
+            // Publish the merged list once, after every provider has drained.
+            // Publishing per-arrival re-ranked the visible list on each
+            // provider's completion: a slower service's copy of the artist
+            // joined the grouped cluster at the top and shoved everything
+            // below it down a row seconds after results appeared. Providers
+            // run concurrently, so this waits only for the slowest one.
+            //
+            // Merged in a fixed service order (the enum's case order), not
+            // completion order, so the ranking receives the same input
+            // sequence every time. groupArtists clusters each artist's
+            // per-service copies at the top.
+            let mergedResults = MediaSearchService.allCases
+                .compactMap { resultsByProvider[$0] }
+                .flatMap { $0 }
+            self.results = SearchRanking.sort(
+                mergedResults,
+                query: capturedQuery,
+                recentlyPlayedIDs: recentlyPlayedIDs,
+                groupArtists: true
+            )
+        }
 
         if let suggestionResults = await searchSuggestionTask.value {
             if !providers.contains(.tuneIn) {
                 suggestions = suggestionResults.0
             }
         }
+
+        return allProvidersAnswered
+    }
+
+    /// Deadline for a single provider's fetch. Generous for a healthy
+    /// service (all respond within a couple of seconds) while keeping an
+    /// unreachable one from pinning the merged publish to the network
+    /// stack's 15s connect timeout.
+    private static let providerTimeout: TimeInterval = 8
+
+    /// Races `operation` against a deadline; returns nil when the deadline
+    /// wins (the losing fetch is cancelled, and URLSession-backed calls
+    /// honor that).
+    private static func withTimeout<T: Sendable>(
+        seconds: TimeInterval,
+        _ operation: @escaping @Sendable () async -> T?
+    ) async -> T? {
+        await withTaskGroup(of: T?.self) { group in
+            group.addTask { await operation() }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(seconds))
+                return nil
+            }
+            let winner = await group.next() ?? nil
+            group.cancelAll()
+            return winner
+        }
     }
 
     // Convenience methods for single provider and array of providers
-    public func search(for provider: MediaSearchService) async {
-        await search(for: [provider])
+    public func search(for provider: MediaSearchService, recentlyPlayedIDs: Set<String> = []) async {
+        await search(for: [provider], recentlyPlayedIDs: recentlyPlayedIDs)
     }
 
-    public func search(for providers: [MediaSearchService]) async {
-        await search(for: Set(providers))
+    public func search(for providers: [MediaSearchService], recentlyPlayedIDs: Set<String> = []) async {
+        await search(for: Set(providers), recentlyPlayedIDs: recentlyPlayedIDs)
     }
     
     public func searchSuggestion(query: String) async -> ([MusicCatalogSearchSuggestionsResponse.Suggestion],
@@ -620,14 +722,45 @@ public final class MusicSearchService {
         if let tracks = results.albums?.items {
             playableContent.append(contentsOf: tracks.compactMap { $0?.toPlayable })
         }
-        if let tracks = results.artists?.items {
-            playableContent.append(contentsOf: tracks.map(\.toPlayable))
+        if let artists = results.artists?.items {
+            playableContent.append(contentsOf: artists.map(\.toPlayable))
+            // Spotify has no radio catalog to search, but Sonos can start a
+            // Spotify artist radio — surface one for the top artist matches,
+            // like Apple's radio stations in its results. Appended after the
+            // artists so equal-scoring radios rank below the artist itself.
+            playableContent.append(contentsOf: artists.prefix(2).map { $0.toPlayable.toRadio })
         }
         if let tracks = results.playlists?.items {
             playableContent.append(contentsOf: tracks.compactMap { $0?.toPlayable })
         }
 
+        playableContent = await enrichSpotifyAlbums(playableContent)
+
         return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+    }
+
+    /// Spotify's search API returns simplified albums with no popularity and
+    /// no explicit flag, which buried albums below every popular track
+    /// (searching "frozen" ranked the soundtrack far down). A batch full-album
+    /// lookup fills in popularity for ranking and derives the explicit badge
+    /// from the album's tracks.
+    private func enrichSpotifyAlbums(_ playableContent: [PlayableContent]) async -> [PlayableContent] {
+        let albumIDs = playableContent
+            .filter { $0.content.service == .spotify && $0.content.type == .album }
+            .map(\.id)
+        guard !albumIDs.isEmpty else { return playableContent }
+
+        let details = await spotifySearchAPI.albums(ids: albumIDs)
+        guard !details.isEmpty else { return playableContent }
+        let detailsByID = Dictionary(details.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+
+        return playableContent.map { item in
+            guard item.content.type == .album, let detail = detailsByID[item.id] else { return item }
+            var enriched = item
+            enriched.metadata = item.metadata?.replacing(popularity: detail.popularity, isExplicit: detail.containsExplicitTracks)
+                ?? PlayableContentMetadata(popularity: detail.popularity, isExplicit: detail.containsExplicitTracks)
+            return enriched
+        }
     }
 
     public func searchSpotifyPlayableContent(query: String) async -> [PlayableContent] {
@@ -648,7 +781,7 @@ public final class MusicSearchService {
         async let radioResults = apple.searchRadioStations(term: query, limit: 5)
 
         var request = MusicCatalogSearchRequest(term: query, types: [Song.self, Album.self, Playlist.self, Artist.self])
-        request.includeTopResults = false
+        request.includeTopResults = true
         request.limit = 20
 
         if let results = try? await request.response() {
@@ -656,15 +789,41 @@ public final class MusicSearchService {
             playableContent.append(contentsOf: results.albums.map(\.toPlayable))
             playableContent.append(contentsOf: results.artists.map(\.toPlayable))
             playableContent.append(contentsOf: results.playlists.map { $0.toPlayable(isUserPlaylist: false) })
+
+            // MusicKit reports no popularity; Apple's editorial Top Results are
+            // the equivalent signal. Unwrap them directly (rather than matching
+            // ids against the typed lists) and surface each with descending
+            // synthetic popularity (90, 85, …) so Apple's picks rank like the
+            // other services' hits and the top-artist slot can trust them. The
+            // sort's dedup collapses each against its plain copy, keeping the
+            // boosted one — and a Top Result not present in the typed lists now
+            // appears at all.
+            for (rank, topResult) in results.topResults.prefix(5).enumerated() {
+                let popularity = 90 - rank * 5
+                let content: PlayableContent?
+                switch topResult {
+                case .song(let song): content = song.toPlayable
+                case .album(let album): content = album.toPlayable
+                case .artist(let artist): content = artist.toPlayable
+                case .playlist(let playlist): content = playlist.toPlayable(isUserPlaylist: false)
+                default: content = nil
+                }
+                if let content {
+                    playableContent.append(withPopularity(content, popularity))
+                }
+            }
         }
 
         if let stations = try? await radioResults {
             playableContent.append(contentsOf: stations.data.compactMap(\.toPlayable))
         }
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        // Unranked: searchApple (the only caller) ranks the combined
+        // library+catalog list once — ranking here too was pure waste
+        // (every intermediate order is discarded by the final sort).
+        return playableContent
     }
-    
+
     public func searchLibraryAppleMusic(query: String) async -> [PlayableContent] {
         if query.count < 1 { return [] }
         guard await requestMusicAuthorization() else { return [] }
@@ -686,11 +845,11 @@ public final class MusicSearchService {
         if let playlists = container?.results.libraryPlaylists {
             playableContent.append(contentsOf: playlists.data.compactMap(\.toPlayable))
         }
-        
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        // Unranked: searchApple (the only caller) ranks the combined list.
+        return playableContent
     }
-    
+
     public func searchApple(query: String) async -> [PlayableContent] {
         if query.count < 1 { return [] }
         
@@ -975,8 +1134,31 @@ public final class MusicSearchService {
     private func searchPlex(query: String) async -> [PlayableContent] {
         var playableContent: [PlayableContent] = []
         guard let results = await plex.search(for: query) else { return playableContent }
-        playableContent.append(contentsOf: results.tracks.map(\.toPlayable))
-        playableContent.append(contentsOf: results.album.map(\.toPlayable))
+
+        // Some servers omit detail from hub-search responses — a track's
+        // Media element (codec/bitrate) and an album's leafCount — which is
+        // exactly what tells duplicate editions apart. Fill the gaps with one
+        // batch metadata lookup covering every item that came back without.
+        var tracks = results.tracks
+        var albums = results.album
+        let tracksMissingMedia = tracks.filter { $0.audioCodec == nil && $0.bitrate == nil }.map(\.ratingKey)
+        let albumsMissingCount = albums.filter { $0.leafCount == nil }.map(\.ratingKey)
+        if !tracksMissingMedia.isEmpty || !albumsMissingCount.isEmpty {
+            let metadataByKey = await plex.batchMetadata(ratingKeys: tracksMissingMedia + albumsMissingCount)
+            for index in tracks.indices {
+                guard let media = metadataByKey[tracks[index].ratingKey]?.media?.first else { continue }
+                tracks[index].audioCodec = tracks[index].audioCodec ?? media.audioCodec
+                tracks[index].bitrate = tracks[index].bitrate ?? media.bitrate
+                tracks[index].audioChannels = tracks[index].audioChannels ?? media.audioChannels
+                tracks[index].duration = tracks[index].duration ?? media.duration
+            }
+            for index in albums.indices {
+                albums[index].leafCount = albums[index].leafCount ?? metadataByKey[albums[index].ratingKey]?.leafCount
+            }
+        }
+
+        playableContent.append(contentsOf: tracks.map(\.toPlayable))
+        playableContent.append(contentsOf: albums.map(\.toPlayable))
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
         playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
 
@@ -1090,7 +1272,9 @@ public final class MusicSearchService {
     private func searchTuneIn(query: String) async -> [PlayableContent] {
         let results = await tuneIn.search(for: query)
         let playableContent = results.map(\.toPlayable)
-        return playableContent
+        // Ranking is safe here now that score ties preserve TuneIn's own
+        // order — exact station-name matches float, the rest stay put.
+        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     public func lookupTuneInStation(id: String) async -> TuneInStation? {
@@ -1172,99 +1356,16 @@ public final class MusicSearchService {
     }
 
     func sortContentByIntelligentSearch(playableContent: [PlayableContent], query: String) -> [PlayableContent] {
-        let lowerQuery = query.lowercased()
-        
-        // Create a dictionary to store unique items and their scores
-        var uniqueItems: [String: (PlayableContent, Double)] = [:]
-        
-        // Calculate scores and store unique items
-        for item in playableContent {
-            let score = intelligentSearchScore(item: item, query: lowerQuery)
-            let key = "\(item.id)-\(item.title)-\(item.subtitle)" // Create a unique key
-            
-            if let existingItem = uniqueItems[key] {
-                // If item already exists, keep the one with the higher score
-                if score > existingItem.1 {
-                    uniqueItems[key] = (item, score)
-                }
-            } else {
-                uniqueItems[key] = (item, score)
-            }
-        }
-        
-        // Sort the unique items
-        let sortedItems = uniqueItems.values.sorted { (item1, item2) in
-            let (content1, score1) = item1
-            let (content2, score2) = item2
-            
-            // Primary sort by intelligent search score (descending)
-            if score1 != score2 {
-                return score1 > score2
-            }
-            
-            // Secondary sort by title (alphabetically)
-            return content1.title.localizedCaseInsensitiveCompare(content2.title) == .orderedAscending
-        }
-        
-        // Return the sorted and deduplicated content
-        return sortedItems.map { $0.0 }
-    }
-    
-    func intelligentSearchScore(item: PlayableContent, query: String) -> Double {
-        let titleScore = fuzzyMatchScore(source: item.title, query: query)
-        let subtitleScore = fuzzyMatchScore(source: item.subtitle, query: query)
-        let popularityScore = Double(item.metadata?.popularity ?? 0)
-
-        // Normalize scores
-        let maxTitleScore = Double(query.count) // Maximum possible title score
-        let maxSubtitleScore = Double(query.count) // Maximum possible subtitle score
-        let maxPopularity: Double = 100 // Adjust based on your popularity scale
-
-        let normalizedTitleScore = Double(titleScore) / maxTitleScore
-        let normalizedSubtitleScore = Double(subtitleScore) / maxSubtitleScore
-        let normalizedPopularity = min(popularityScore / maxPopularity, 1.0)
-
-        // Boost for catalog content over library content (especially artists)
-        let catalogBoost: Double
-        switch item.content.type {
-        case .artist:
-            catalogBoost = 0.3 // Strong boost for catalog artists
-        case .album, .track:
-            catalogBoost = 0.1 // Smaller boost for catalog albums/tracks
-        case .libraryArtist:
-            catalogBoost = -0.1 // Slight penalty for library artists
-        default:
-            catalogBoost = 0.0
-        }
-
-        // Weighting factors
-        let titleWeight = 0.3
-        let subtitleWeight = 0.10
-        let popularityWeight = 0.5
-
-        // Calculate weighted score
-        let weightedScore =
-            normalizedTitleScore * titleWeight +
-            normalizedSubtitleScore * subtitleWeight +
-            normalizedPopularity * popularityWeight +
-            catalogBoost
-
-        return weightedScore
+        SearchRanking.sort(playableContent, query: query, recentlyPlayedIDs: recentlyPlayedIDs)
     }
 
-    func fuzzyMatchScore(source: String, query: String) -> Int {
-        let lowerSource = source.lowercased()
-        var score = 0
-        var sourceIndex = lowerSource.startIndex
-        
-        for queryChar in query {
-            if let foundIndex = lowerSource[sourceIndex...].firstIndex(of: queryChar) {
-                score += 1
-                sourceIndex = lowerSource.index(after: foundIndex)
-            }
-        }
-        
-        return score
+    /// Returns `content` with its metadata's popularity set (preserving the
+    /// rest), for grafting a synthetic quality signal — e.g. Apple Top Results.
+    private func withPopularity(_ content: PlayableContent, _ popularity: Int) -> PlayableContent {
+        var updated = content
+        updated.metadata = (content.metadata ?? PlayableContentMetadata())
+            .replacing(popularity: popularity, isExplicit: content.metadata?.isExplicit)
+        return updated
     }
     
     public func requestMusicAuthorization() async -> Bool {
@@ -1585,7 +1686,11 @@ public final class MusicSearchService {
 
     private func createDeezerAlbumContent(from album: DeezerAlbum) -> PlayableContent {
         let artistName = album.artist?.name ?? ""
-        let subtitle = [artistName.isEmpty ? nil : artistName, album.releaseYear].compactMap { $0 }.joined(separator: " • ")
+        let subtitle = [
+            artistName.isEmpty ? nil : artistName,
+            album.releaseYear,
+            album.nbTracks.flatMap(\.songCountLabel)
+        ].compactMap { $0 }.joined(separator: " • ")
         return PlayableContent(
             title: album.title,
             subtitle: subtitle,
