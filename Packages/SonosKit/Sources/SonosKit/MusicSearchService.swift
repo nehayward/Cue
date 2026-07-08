@@ -77,10 +77,11 @@ public final class MusicSearchService {
     public var results: [PlayableContent] = []
     public var newReleases: [SpotifyAlbumItem] = []
 
-    /// IDs of recently played items, injected by the app (e.g. from
-    /// PlayHistoryService before a search) so ranking can boost items the
-    /// user actually plays. Left empty, ranking simply applies no boost.
-    @ObservationIgnored public var recentlyPlayedIDs: Set<String> = []
+    /// IDs of recently played items for the CURRENT search, captured from the
+    /// `search(for:recentlyPlayedIDs:)` parameter — private plumbing so the
+    /// per-provider ranking helpers can read them; the public contract is the
+    /// parameter, not ambient state.
+    @ObservationIgnored private var recentlyPlayedIDs: Set<String> = []
 
     public init() {}
 
@@ -88,8 +89,13 @@ public final class MusicSearchService {
     /// provider timed out or failed and the published results are partial —
     /// callers memoizing "this query is done" (the search screen's
     /// skip-identical-re-search guard) must not cache a partial answer.
+    ///
+    /// - Parameter recentlyPlayedIDs: optional IDs of items the user has
+    ///   played (e.g. from the app's play history) so ranking can boost them;
+    ///   omitted, ranking simply applies no boost.
     @discardableResult
-    public func search(for providers: Set<MediaSearchService>) async -> Bool {
+    public func search(for providers: Set<MediaSearchService>, recentlyPlayedIDs: Set<String> = []) async -> Bool {
+        self.recentlyPlayedIDs = recentlyPlayedIDs
         if query.isEmpty {
             results = []
             return true
@@ -252,12 +258,12 @@ public final class MusicSearchService {
     }
 
     // Convenience methods for single provider and array of providers
-    public func search(for provider: MediaSearchService) async {
-        await search(for: [provider])
+    public func search(for provider: MediaSearchService, recentlyPlayedIDs: Set<String> = []) async {
+        await search(for: [provider], recentlyPlayedIDs: recentlyPlayedIDs)
     }
 
-    public func search(for providers: [MediaSearchService]) async {
-        await search(for: Set(providers))
+    public func search(for providers: [MediaSearchService], recentlyPlayedIDs: Set<String> = []) async {
+        await search(for: Set(providers), recentlyPlayedIDs: recentlyPlayedIDs)
     }
     
     public func searchSuggestion(query: String) async -> ([MusicCatalogSearchSuggestionsResponse.Suggestion],

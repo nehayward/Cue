@@ -264,11 +264,6 @@ struct SearchScreen: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .task(id: searchTaskKey) {
-                // Ranking boosts items the user has played; injected here —
-                // on EVERY re-fire, before the skip guard, so pop-backs keep
-                // it fresh — and SonosKit stays free of app-side state.
-                musicSearchService.recentlyPlayedIDs = Set(playHistoryService.history.prefix(50).map(\.id))
-
                 // Pushing a detail cancels this task and popping back restarts
                 // it — same id, but `.task` re-fires on reappear. Re-running
                 // the identical search re-streams providers into the list and
@@ -286,7 +281,12 @@ struct SearchScreen: View {
                 if suggestion == nil {
                     searchCompletionTapped = false
                 }
-                let allProvidersAnswered = await musicSearchService.search(for: selectedSearchServices)
+                // Ranking boosts items the user has played; passed per search
+                // so SonosKit holds no app-side state.
+                let allProvidersAnswered = await musicSearchService.search(
+                    for: selectedSearchServices,
+                    recentlyPlayedIDs: Set(playHistoryService.history.prefix(50).map(\.id))
+                )
                 // A cancelled task (query/service changed) must not clear
                 // isLoading under the replacement search — that briefly
                 // showed "No Results" while the real search was in flight.
