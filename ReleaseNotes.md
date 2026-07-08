@@ -8,10 +8,11 @@
 - Add to Last Playlist: A one-tap shortcut — in the track menu and the Mac File menu — to drop the current song into the playlist you used last
 - Song Previews: Long-press an Apple Music or Spotify track and tap Preview Song to hear a quick clip — or swipe right on a track in a list. A progress bar fills as the clip plays, and you can tap the track to stop it
 - Library Song Actions: Long-press a song in your Apple Music library to open its Apple Album or Apple Artist, or start a Song Radio — Clic resolves the matching catalog track behind the scenes
-- Also Search: Search several services at once — pick up to three in the search service menu (like your Library alongside Apple Music) and get one combined, ranked list of results. Note: the selected search service resets once with this update — just re-pick it in the search menu
+- Universal Search: Search several services at once — pick up to three in the search service menu (like your Library alongside Apple Music) and get one combined, ranked list of results. Note: the selected search service resets once with this update — just re-pick it in the search menu
 - Plex Setup in Onboarding: If you use Plex, setup now walks you through signing in and choosing your music library right away — with artist artwork previews so libraries are easy to tell apart
 - Automatic Plex Connection: A new Auto connection type uses your fast local network at home and switches to remote access when you're away — pick it, Remote, or Local from the redesigned connection switch in Plex settings
 - Arc Ultra Speech Enhancement: Control speech enhancement level (Off, Low, Medium, High, Max) on Sonos Arc Ultra from the player, Shortcuts, Clic Mini, and Apple Watch — the level is shown on the button and updates immediately after changing
+- TV Dialog Sync: Fine-tune audio delay (lip sync) on Sonos soundbars from the Home Theater section of speaker settings
 
 –– Bug Fixes & Improvements ––
 - Faster reconnect on a new network: when you move between Wi-Fi networks — or return to the app at a different location — Clic now finds your speakers right away instead of waiting through a timeout. Once a home is known, switching to it is instant
@@ -41,6 +42,15 @@
 - Apple Music search now uses Apple's own Top Results to rank its hits higher, matching the ordering you see in the Music app
 - Improved Plex speed and reliability — Clic picks the fastest way to reach your server, automatically switches connection when you change networks, and no longer hangs on an unreachable server
 - The Refresh Sonos Library button in Preferences now shows your music library's shared folder location underneath, so you can see where Sonos is reading your music from
+- Improved Spotify responsiveness — albums and playlists load noticeably faster and start showing results sooner
+- Fixed Spotify albums with more than 50 tracks not showing every track, and an album sometimes showing the previous album's tracks when navigating back and forth
+- Fixed the Spotify Albums library list shrinking and reshuffling each time you reopened it — it now loads your full library and stays put
+- Fixed sheets like Add to Playlist unexpectedly closing on iPad and Mac when the Queue was open in the side panel; the Queue now also stays with the speaker you have selected as you resize or rotate
+- Fixed the now-playing track not being highlighted in Plex albums and playlists
+- Fixed opening a Plex artist from a song's "View Artist" showing no albums
+- Shuffling the queue now animates tracks sliding into their new order instead of jumping
+- Fixed the Queue inspector needing two clicks to open on Mac
+- Improved streaming service reliability — fixed a token-refresh timing issue that could make requests fail as "signed out" even when your session was still valid
 
 # 2026.5
 

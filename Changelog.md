@@ -91,6 +91,24 @@ First-class playlist management for Apple Music, Spotify, Plex, and Deezer along
 - `LibraryBrowseScreen`: Imported Playlists load-more closure now forwards `offset` to `updateImportedPlaylists(offset:)` instead of discarding it (was always re-fetching page 0)
 - Alphabetical grouping moved out of `PlayableContentList` (where a computed dictionary was re-grouped once per section header and again per letter subscript — O(letters × items) every render) into cached `LibrarySection` arrays on `LibraryBrowseService` (`albumSections` / `artistSections` / `playlistSections`), recomputed only when the underlying set changes; the view now renders the prebuilt sections, so non-data re-renders do zero grouping work. Playlist deletion routed through `removePlaylist(id:)` so the cache stays in sync
 
+### Spotify performance
+- `SpotifyAPI` now passes `market=from_token` on search, track/album lookups, saved tracks/albums, playlist, and artist top-tracks/albums endpoints. With a market specified Spotify returns its slim payload — a single `is_playable` flag replaces the deprecated `available_markets` array (~185 country codes on every track and album object) — so responses are much smaller with no change to availability
+- Playlist endpoints additionally use the `fields` filter: `/playlists/{id}` drops the inlined first-100 `tracks.items` (callers only read name/owner/images/count), and `/playlists/{id}/tracks` returns only `total,items(uid,track)` — exactly what `SpotifyPlaylistsFullContainer` decodes. `SpotifyArtistAlbums.AlbumItem.availableMarkets` became optional since market-aware responses omit the key
+- Halved the album browse-list page size (50 → 25) in both `SpotifyLibraryScreen` and `SpotifySearchScreen` so the first batch paints sooner; 25 stays clear of `PlayableListView`'s "within 10 of the end" prefetch trigger so paging stays smooth
+
+### Spotify album loading fixes
+- Spotify album detail (`MediaDetailView`) now keys its load on `content.id` via `.task(id:)` and runs a `loadInitialTracks()` that resets pagination from a clean slate, so a reused view re-fires for a different album instead of showing the previous album's tracks. Cancelled first-page loads no longer mark the view permanently "loaded" with no tracks, and cancelled loads bail before appending so a stale response can't pollute a freshly-reset list
+- Spotify albums over 50 tracks now paginate: decode the tracks paging metadata (`total`/`next`/`limit`/`offset`) on `SpotifyAlbumDetails` and page through `offset` (Spotify caps album track pages at 50), stopping at `total`; a `supportsPagination` helper drives both the prefetch trigger and the offset guard
+- Fixed the Spotify Albums browse list shrinking/reshuffling on re-entry: the offset-less fallback used `playlists.count` instead of `albums.count`, and the `offset == 0` refresh branch pruned `albums.prefix(10)` while re-fetching only 5, deleting already-paged albums. Prune only within the window actually re-fetched (`prefix(newAlbums.count)`) and page `/me/albums` in 50s. New browse additions surface at the top and stay stable on revisit instead of resorting
+
+### iPad / Catalyst sheet + inspector presentation
+- Fixed sheets self-dismissing on iPad/Catalyst when the inspector (Queue) was open. `withInspector` drove `inspector(isPresented:)` with a `.constant` binding — in compact widths (Split View / Stage Manager / narrow Catalyst windows) the inspector falls back to a sheet presentation, and when the system dismissed it SwiftUI couldn't record that in a constant, so it re-presented the inspector and tore down the sheet the user had just opened. Now uses a real two-way binding that clears `router.inspectorSheet` on dismissal
+- `.sheet`/`.fullScreenCover` were applied inside `.inspector` (modifiers apply inside-out), so an inspector restructuring between column and sheet presentation (rotation, size-class change, Catalyst resize) rebuilt the subtree hosting the sheet and dismissed it. `withInspector` is now applied first so sheets are hosted outside it. The inspector is also stashed and restored across compact collapses and size-class transitions
+- Fixed the queue inspector not following the selected group, and deduped the Sonos topology subscription while sharing a single `MusicSearchService`
+
+### Plex now-playing highlight
+- Fixed the now-playing row highlight never matching for Plex in `MediaDetailView` (and the search/library rows). The highlight compared the coordinator's `track.trackID` against `content.id.removingPercentEncoding`, but Plex now-playing trackIDs are percent-encoded (`clientID%3A3%3AratingKey` — the parser re-encodes the colons via `.urlPathAllowed`), so an encoded-vs-decoded comparison never matched. Both sides are now decoded before comparing — a no-op for services whose IDs carry no percent-encoding (Apple/Spotify/Tidal/Deezer)
+
 ### Multiple households & instant multi-network reconnect
 Clic now models every Sonos system it has connected to as a `SonosHousehold` and reconnects by racing known addresses against Bonjour, so moving between networks (home ↔ a friend's house) is instant once a home is known.
 
@@ -125,7 +143,7 @@ Clic now models every Sonos system it has connected to as a `SonosHousehold` and
 - Dedup is exact-identity only (`id-title-subtitle`); fuzzy cross-source dedup was tried and reverted — collapsing per-section Plex copies could leave zero songs once the per-section library filter excluded the surviving copy, and cross-service copies should stay user-selectable
 - First regression tests for ranking: `SearchRankingTests` in SonosKitTests (tiers, weights, typo tolerance, top-artist, recency, dedup)
 
-### Multiservice search (Also Search)
+### Multiservice search (Universal Search)
 - The search service menu (`MediaServiceMenu`) is now one checkmark list — pick up to three services to search together (e.g. Library + Apple Music), the first selected acting as the primary. Toggles stay open via `.menuActionDismissBehavior(.disabled)`; selections only apply while enabled in Settings; TuneIn stays single-service (a radio directory doesn't merge into catalog results)
 - The selection persists as ONE ordered primary-first list (`AppStorageKeys.selectedSearchServices`, typed `SelectedSearchServices` wrapper in SonosKit owning all the selection rules — max 3, TuneIn exclusivity, primary promotion, never empty, Settings pruning, defensive dedup — covered by `SelectedSearchServicesTests`). This replaced the split `mediaService` + `searchAlsoServices` keys mid-branch — deliberately not migrated, the selection resets once and users re-pick; onboarding and the bootstrap analytics read/write the new key
 - The toolbar button shows the selected services as up to three brand-colored icons side by side (`ServiceIconRow`); overlapping/masked-seam "avatar pile" variants were tried and reverted — the mask's compositing glitched and clipped while the row animated between selection sizes
@@ -230,6 +248,18 @@ Full speech level control for Sonos Arc Ultra across all surfaces.
 - Watch: buttons use `VStack(icon + label)` with `.tint` for active state; TVSettings fetched on scene activation (not only when `x-sonos-htastream` track fires); Arc Ultra cycles Off→Low→Medium→High→Max on tap
 - `SonosMiniService.updateDevice` made `public`; `api.deviceInfo(IP:)` uncommented; `loadWatch` fetches device info in parallel for all devices so `isArcUltra` resolves correctly from `modelDisplayName`
 - `DiscoveryInfo` struct added to SonosKitMini (was only in SonosKit)
+
+### TV Dialog Sync (audio delay)
+- Sonos exposes lip-sync delay via RenderingControl `GetEQ`/`SetEQ` with `EQType AudioDelay` (0–5, soundbars only). Added the EQ type, surfaced it on `TheaterSettings`, fetch it in `getTheaterSettings`, and added a slider to the Home Theater section of `SpeakerSettingsView`
+
+### Catalyst inspector two-click fix
+- Fixed the inspector (Queue) needing two clicks to open on Mac (Catalyst) — the first click was consumed re-syncing presentation state before the toggle registered
+
+### Token refresh hardening
+- `TokenRefreshCoordinator` now persists the refreshed token through the handler inside the shared task, before the dedup entry is removed and before any coalesced caller resumes. Previously the entry was removed the instant the network refresh returned, so a caller arriving in the completion-to-persist window re-refreshed with a dead token and invalidated the result; every caller also did its own redundant keychain read-modify-write
+- Dedup is keyed on `householdId` instead of the stale `token:key` pair, so callers holding different stale token generations for the same household join one refresh instead of racing each other
+- Waiting on the shared refresh is now cancellation-responsive: a cancelled caller (e.g. a dismissed SwiftUI screen) bails out immediately via a continuation bridge while the refresh keeps running for the other waiters (bare `task.value` ignored caller cancellation and could suspend for the full URLSession timeout)
+- `SpotifyAPI.authorizedRequest` no longer `try?`-swallows a shared refresh failure into an immediate `invalidToken`, so a genuinely valid session is no longer surfaced to the user as signed-out
 
 ---
 
