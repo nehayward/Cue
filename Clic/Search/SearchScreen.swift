@@ -839,12 +839,12 @@ private struct ServiceIconRow: View {
     }
 }
 
-/// The "Also Search" extras, stored in `@AppStorage` as a typed set instead
-/// of a bare `String`. `RawRepresentable` lets `@AppStorage` persist it as the
-/// same sorted comma-separated raw-value string (so existing stored values
-/// keep working with no migration), while call sites work with a real `Set`
-/// and never re-parse the string themselves. Sorting keeps the search
-/// `.task(id:)` stable across set-order changes.
+/// The services selected in the search menu BEYOND the primary. The menu
+/// reads as one "pick up to 3" list, but storage stays split: the primary
+/// lives in `AppStorageKeys.mediaService` (which browse/onboarding also
+/// read), and this set holds the extra selections. `RawRepresentable` lets
+/// `@AppStorage` persist it as a sorted comma-separated raw-value string
+/// while call sites work with a real `Set` and never re-parse the string.
 struct AlsoSearchServices: RawRepresentable, Equatable, ExpressibleByArrayLiteral {
     var services: Set<MediaSearchService>
 
