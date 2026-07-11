@@ -4,6 +4,16 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ---
 
+## 2026.7
+
+### Scenes tolerate missing speakers
+- `runScene` (in both `SonosKit.SonosService` and `SonosKitMini.SonosMiniService`) previously threw `deviceNotFound` / `sonosSystemNotFound` if any saved scene room was absent from the discovered-room lookup, aborting the entire scene — and every call site invokes it as `try? await runScene(...)`, so one unplugged speaker made the scene silently do nothing
+- Now, if any scene room is missing from the lookup, discovery is refreshed once via `updateHousehold()` (the room list may just be stale — e.g. after a network change); rooms still missing afterwards are skipped (`compactMap` instead of a throwing `map`), and the scene proceeds — grouping, volumes, music, play mode, and sleep timer — on the remaining speakers
+- Throws only when *none* of the scene's rooms are reachable, preserving the error signal for total failure
+- Known gap (unchanged): call sites swallow the thrown error, so a fully-failed scene still shows no alert, and a degraded run doesn't surface which speakers were skipped
+
+---
+
 ## 2026.6
 
 ### Playlist management across music services

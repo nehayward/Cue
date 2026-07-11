@@ -1,3 +1,8 @@
+# 2026.7
+
+–– Bug Fixes & Improvements ––
+- Scenes now play on the speakers that are available — if a speaker is unplugged or offline, the scene runs on the rest instead of doing nothing
+
 # 2026.6
 
 –– New Features ––
