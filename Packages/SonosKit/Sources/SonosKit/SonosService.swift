@@ -2240,19 +2240,27 @@ public final class SonosService {
         }
         
         // Create a lookup dictionary for better performance
-        let roomLookup = Dictionary(uniqueKeysWithValues: rooms.map { ($0.id, $0) })
-        
-        // Map scene rooms to discovered rooms with better error handling
-        let discoveredSceneRooms = try scene.rooms.map { sceneRoom in
-            guard let existingRoom = roomLookup[sceneRoom.id] else {
-                throw SonosAPIError.deviceNotFound
-            }
+        var roomLookup = Dictionary(uniqueKeysWithValues: rooms.map { ($0.id, $0) })
+
+        // Refresh discovery once if a scene room is missing — it may just be stale
+        if scene.rooms.contains(where: { roomLookup[$0.id] == nil }) {
+            try? await updateHousehold()
+            roomLookup = Dictionary(uniqueKeysWithValues: rooms.map { ($0.id, $0) })
+        }
+
+        // Run with whichever scene rooms are reachable; skip unplugged/offline speakers
+        let discoveredSceneRooms = scene.rooms.compactMap { sceneRoom -> SceneRoom? in
+            guard let existingRoom = roomLookup[sceneRoom.id] else { return nil }
             return SceneRoom(
-                id: existingRoom.id, 
-                ip: existingRoom.ip, 
-                name: existingRoom.name, 
+                id: existingRoom.id,
+                ip: existingRoom.ip,
+                name: existingRoom.name,
                 volume: sceneRoom.volume
             )
+        }
+
+        guard !discoveredSceneRooms.isEmpty else {
+            throw SonosAPIError.deviceNotFound
         }
         
         // Create rooms for grouping
