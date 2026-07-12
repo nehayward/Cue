@@ -86,19 +86,12 @@ struct GroupScreen: View {
                             addGroup(id: room.id)
                         } label: {
                             HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(room.name)
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-
-                                    if !room.track.name.isEmpty {
-                                        Text(room.track.name)
-                                            .font(.caption)
-                                            .lineLimit(1)
-                                            .foregroundStyle(room.isPlaying ? .accent : .secondary)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                                // Track name intentionally omitted: SonosService only refreshes the
+                                // coordinator's track, so member rooms would show a stale title here.
+                                Text(room.name)
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                                 Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
                                     .contentTransition(.symbolEffect(.replace))
                                     .font(.title2)
