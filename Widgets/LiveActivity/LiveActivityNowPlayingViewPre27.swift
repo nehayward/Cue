@@ -148,7 +148,7 @@ struct LiveActivityNowPlayingViewPre27: View {
             }
             if !isCompact {
                 HStack {
-                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -2)) {
+                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -1)) {
                         Image(systemName: "minus")
                             .bold()
                             .frame(width: 24, height: 24)
@@ -163,7 +163,7 @@ struct LiveActivityNowPlayingViewPre27: View {
                         }
                     }
                     
-                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 2)) {
+                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 1)) {
                         Image(systemName: "plus")
                             .frame(width: 24, height: 24)
                             .bold()

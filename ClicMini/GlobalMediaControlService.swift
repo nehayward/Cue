@@ -137,12 +137,12 @@ final class GlobalMediaControlService {
     
     @MainActor
     private func performVolumeUp() async {
-        await adjustVolume(by: 2)
+        await adjustVolume(by: 1)
     }
 
     @MainActor
     private func performVolumeDown() async {
-        await adjustVolume(by: -2)
+        await adjustVolume(by: -1)
     }
 
     /// Bumps the optimistic volume target, updates the HUD instantly, and lets the
