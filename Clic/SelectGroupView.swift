@@ -169,7 +169,7 @@ struct SelectGroupView: View {
                     VStack {
                         HStack {
                             Button {
-                                groupVolume = max(0, groupVolume - 2)
+                                groupVolume = max(0, groupVolume - 1)
                             } label: {
                                 Image(systemName: "minus")
                                     .frame(width: 24, height: 24)
@@ -180,7 +180,7 @@ struct SelectGroupView: View {
                             .buttonRepeatBehavior(.enabled)
                             VibeSlider(value: $groupVolume, step: 1, showValue: true)
                             Button {
-                                groupVolume = min(100, groupVolume + 2)
+                                groupVolume = min(100, groupVolume + 1)
                             } label: {
                                 Image(systemName: "plus")
                                     .frame(width: 24, height: 24)

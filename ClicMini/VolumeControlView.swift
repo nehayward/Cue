@@ -12,8 +12,8 @@ struct VolumeControlView: View {
         HStack(alignment: .center, spacing: 0) {
             Button {
                 Task {
-                    await SonosMiniService.shared.setRelativeGroupVolume(ip: device.ip, volume: -2)
-                    device.groupVolume = max(0, device.groupVolume - 2)
+                    await SonosMiniService.shared.setRelativeGroupVolume(ip: device.ip, volume: -1)
+                    device.groupVolume = max(0, device.groupVolume - 1)
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
                     device.isEditingVolume = isEditing
                 }
@@ -51,8 +51,8 @@ struct VolumeControlView: View {
                         await SonosMiniService.shared.setGroupMute(device: device, mute: false)
                         try? await SonosMiniService.shared.updateWatchDevices(from: [device])
                     }
-                    await SonosMiniService.shared.setRelativeGroupVolume(ip: device.ip, volume: 2)
-                    device.groupVolume = min(100, device.groupVolume + 2)
+                    await SonosMiniService.shared.setRelativeGroupVolume(ip: device.ip, volume: 1)
+                    device.groupVolume = min(100, device.groupVolume + 1)
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
                     device.isEditingVolume = isEditing
                 }

@@ -134,7 +134,7 @@ struct GroupScreen: View {
 
                     HStack {
                         Button {
-                            groupVolume = max(0, groupVolume - 2)
+                            groupVolume = max(0, groupVolume - 1)
                         } label: {
                             Image(systemName: "minus")
                                 .frame(width: 24, height: 24)
@@ -146,7 +146,7 @@ struct GroupScreen: View {
                         VibeSlider(value: $groupVolume, in: 0...100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20)
 
                         Button {
-                            groupVolume = min(100, groupVolume + 2)
+                            groupVolume = min(100, groupVolume + 1)
                         } label: {
                             Image(systemName: "plus")
                                 .frame(width: 24, height: 24)

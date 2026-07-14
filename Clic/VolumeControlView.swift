@@ -16,8 +16,8 @@ struct VolumeControlView: View {
             Button {
                 Task {
                     HapticManager.shared.fireHaptic(.selection)
-                    await SonosService.shared.setRelativeGroupVolume(ip: group.ip, volume: -2)
-                    group.groupVolume = max(0, group.groupVolume - 2)
+                    await SonosService.shared.setRelativeGroupVolume(ip: group.ip, volume: -1)
+                    group.groupVolume = max(0, group.groupVolume - 1)
                     Task { @MainActor in
                         try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
                         group.isEditingVolume = isEditing
@@ -74,8 +74,8 @@ struct VolumeControlView: View {
                 }
                 Task {
                     HapticManager.shared.fireHaptic(.selection)
-                    await SonosService.shared.setRelativeGroupVolume(ip: group.ip, volume: 2)
-                    group.groupVolume = min(100, group.groupVolume + 2)
+                    await SonosService.shared.setRelativeGroupVolume(ip: group.ip, volume: 1)
+                    group.groupVolume = min(100, group.groupVolume + 1)
                     Task { @MainActor in
                         try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
                         group.isEditingVolume = isEditing

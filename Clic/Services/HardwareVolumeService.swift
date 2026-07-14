@@ -18,8 +18,8 @@ final class HardwareVolumeService {
     private let restorePoint: Float = 0.5
     // Reset to midpoint when we're near an extreme to prevent getting stuck.
     private let extremeThreshold: Float = 0.15
-    // Two-point steps match the feel of native iOS volume increments.
-    private let volumeStep = 2
+    // Single-point steps for fine-grained volume control.
+    private let volumeStep = 1
 
     private var slider: UISlider? {
         volumeView?.subviews.compactMap { $0 as? UISlider }.first
