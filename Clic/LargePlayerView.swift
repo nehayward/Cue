@@ -802,7 +802,7 @@ fileprivate struct BackgroundView: View {
     
     var body: some View {
         ZStack {
-            ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade)
+            ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade, isBackground: true)
                 .saturation(1.3)
                 .aspectRatio(contentMode: .fill)
                 .scaleEffect(1.3)
@@ -824,7 +824,7 @@ fileprivate struct BackgroundViewCatalyst: View {
     
     var body: some View {
         ZStack {
-            ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade)
+            ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade, isBackground: true)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .saturation(1.3)
                 .opacity(group.coordinatorRoom.track.artworkURL == nil ? 0 : 1)

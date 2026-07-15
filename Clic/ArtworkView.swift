@@ -11,8 +11,13 @@ struct ArtworkView: View {
     var isDraggable: Bool = false
     var showBadge: Bool = true
     var shouldFade: Bool = false
+    // Renders just the artwork — no badge, rounded-corner clip, shadow, or
+    // alarm tracking. For the full-screen blurred background copies of the
+    // player, where those decorations are invisible under the blur but still
+    // cost render time on every frame of a crossfade.
+    var isBackground: Bool = false
 
-    @State private var defaultFadeDuration: Double = 0.3
+    private let defaultFadeDuration: Double = 0.3
     @State private var alarmRunning: Bool = false
     @State private var currentImage: UIImage?
 
@@ -98,9 +103,11 @@ struct ArtworkView: View {
                 }
             }
             .overlay(alignment: .bottomTrailing) {
-                ArtworkBadgeView(group: group, alarmRunning: alarmRunning)
-                    .opacity(showBadge ? 1 : 0 )
-                    .contentTransition(.identity)
+                if !isBackground {
+                    ArtworkBadgeView(group: group, alarmRunning: alarmRunning)
+                        .opacity(showBadge ? 1 : 0 )
+                        .contentTransition(.identity)
+                }
             }
             #if DEBUG && SCREENSHOT
             .overlay {
@@ -108,8 +115,10 @@ struct ArtworkView: View {
                     .foregroundStyle(.ultraThinMaterial)
             }
             #endif
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .shadow(radius: 2)
+            .if(!isBackground) {
+                $0.clipShape(RoundedRectangle(cornerRadius: 8))
+                    .shadow(radius: 2)
+            }
             .if(isDraggable) {
                 $0.draggable(group.coordinatorRoom.track.toPlayable)
             }
@@ -143,8 +152,10 @@ struct ArtworkView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .onChange(of: group.rooms.contains(where: \.alarmRunning), initial: true) { old, new in
-                alarmRunning = new
+            .if(!isBackground) {
+                $0.onChange(of: group.rooms.contains(where: \.alarmRunning), initial: true) { old, new in
+                    alarmRunning = new
+                }
             }
             // Async load that auto-cancels when the URL changes. SwiftUI
             // discards the in-flight load on id change so a slow request for
