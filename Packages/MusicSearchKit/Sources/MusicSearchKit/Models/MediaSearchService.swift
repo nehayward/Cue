@@ -15,6 +15,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
     case tuneIn
     case soundcloud
     case deezer
+    case sonosRadio
 
     public var title: String {
         switch self {
@@ -34,6 +35,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             "SoundCloud"
         case .deezer:
             "Deezer"
+        case .sonosRadio:
+            "Sonos Radio"
         }
     }
     
@@ -54,6 +57,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         case .soundcloud:
             true
         case .deezer:
+            true
+        case .sonosRadio:
             true
         }
     }
@@ -85,6 +90,12 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: librarySymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+        case .sonosRadio:
+            // The SONOS asset is a full-colour badge (original rendering); don't
+            // template-tint it or the circle collapses into a solid blob.
+            SwiftUI.Image(self.title, bundle: .module)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
         case .tuneIn, .soundcloud, .deezer:
             #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .module, with: nil)!
@@ -108,7 +119,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             let base = UIImage(named: self.rawValue.capitalized, in: .module, with: nil)!
             let templated = base.withRenderingMode(.alwaysTemplate)
             let resized = templated.resized(to: CGSize(width: 16, height: 16)).withTintColor(.label)
-            
+
             SwiftUI.Image(uiImage: resized)
                 .renderingMode(.template)
                 .resizable()
@@ -135,6 +146,10 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
+        case .sonosRadio:
+            SwiftUI.Image(self.title, bundle: .module)
+                .resizable()
+                .scaledToFit()
         case .tuneIn, .soundcloud, .deezer:
 #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .module, with: nil)!
@@ -192,6 +207,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             Color(red: 255.0 / 255.0, green: 85.0 / 255.0, blue: 0 / 255.0)
         case .deezer:
             Color(red: 161.0 / 255.0, green: 0 / 255.0, blue: 255.0 / 255.0)
+        case .sonosRadio:
+                .primary
         }
     }
 }

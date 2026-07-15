@@ -67,6 +67,12 @@ public final class MusicSearchService {
         tokenRefreshHandler: KeychainTokenRefreshHandler.shared
     )
     private let deezer = DeezerAPI()
+    private let sonosRadio = SonosRadioAPI()
+    /// Sonos Radio's service-registry id, used to resolve its SMAPI endpoint and
+    /// to classify its account. Distinct from the playback sid (303).
+    private static let sonosRadioServiceID = "77575"
+    /// Cached resolved SMAPI endpoint for Sonos Radio.
+    private var cachedSonosRadioEndpoint: URL?
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
 
@@ -158,6 +164,8 @@ public final class MusicSearchService {
                             await self.searchSoundCloud(query: capturedQuery)
                         case .deezer:
                             await self.searchDeezer(query: capturedQuery)
+                        case .sonosRadio:
+                            await self.searchSonosRadio(query: capturedQuery)
                         }
                     }
                     // If we were cancelled during the fetch, the API may have returned []
@@ -186,7 +194,7 @@ public final class MusicSearchService {
                     }
                     continue
                 }
-                if provider == .tuneIn, !isMultiServiceSearch {
+                if provider == .tuneIn || provider == .sonosRadio, !isMultiServiceSearch {
                     self.suggestions.removeAll()
                 }
                 if isMultiServiceSearch {
@@ -224,7 +232,7 @@ public final class MusicSearchService {
         }
 
         if let suggestionResults = await searchSuggestionTask.value {
-            if !providers.contains(.tuneIn) {
+            if !providers.contains(.tuneIn) && !providers.contains(.sonosRadio) {
                 suggestions = suggestionResults.0
             }
         }
@@ -1279,6 +1287,81 @@ public final class MusicSearchService {
 
     public func lookupTuneInStation(id: String) async -> TuneInStation? {
         await tuneIn.lookupStation(for: id)
+    }
+
+    // MARK: - Sonos Radio
+
+    /// Resolves the Sonos Radio SMAPI endpoint (cached) and credentials needed
+    /// for browse/search calls. Returns `nil` if Sonos Radio isn't available in
+    /// the household or credentials can't be read.
+    private func sonosRadioContext() async -> (endpoint: URL, credentials: SMAPICredentials)? {
+        // Credentials. Sonos Radio is auto-provisioned on every household; its
+        // loginToken is parsed off the system like any other service account.
+        // SMAPI needs the controller deviceId alongside the loginToken.
+        guard let creds = try? await KeychainTokenRefreshHandler.shared.getCredentials(for: .sonosRadio),
+              !creds.token.isEmpty else {
+            return nil
+        }
+        let credentials = SMAPICredentials(
+            token: creds.token,
+            key: creds.key,
+            householdId: creds.householdId,
+            deviceId: creds.deviceId
+        )
+
+        // Endpoint. Mirror the proven Deezer pattern (hardcoded SMAPI host);
+        // fall back to dynamic ListAvailableServices discovery only if needed.
+        // The host below is the Sonos Radio SMAPI endpoint seen in the official
+        // controller's traffic.
+        let endpoint: URL
+        if let cached = cachedSonosRadioEndpoint {
+            endpoint = cached
+        } else if let resolved = await sonosService.smapiEndpoint(for: Self.sonosRadioServiceID) {
+            endpoint = resolved
+        } else if let fallback = URL(string: "https://sali.sonos.superhi.fi/smapi") {
+            endpoint = fallback
+        } else {
+            return nil
+        }
+        cachedSonosRadioEndpoint = endpoint
+        return (endpoint, credentials)
+    }
+
+    private func searchSonosRadio(query: String) async -> [PlayableContent] {
+        await sonosRadioStations(matching: query)
+    }
+
+    /// Searches Sonos Radio stations for `term`. Sonos Radio is search-only —
+    /// its SMAPI PresentationMap defines no browse tree, only a "station" (and
+    /// "show") search category — so both search and the genre-based browse
+    /// screen are powered by this call.
+    public func sonosRadioStations(matching term: String, count: Int = 50) async -> [PlayableContent] {
+        let term = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !term.isEmpty, let (endpoint, credentials) = await sonosRadioContext() else { return [] }
+        guard let result = await sonosRadio.search(endpoint: endpoint, credentials: credentials, id: "station", term: term, count: count) else { return [] }
+        return result.items.map { createSonosRadioContent(from: $0) }
+    }
+
+    private func createSonosRadioContent(from item: SMAPIMediaItem) -> PlayableContent {
+        let artworkURL = item.albumArtURI.flatMap { URL(string: $0) }
+        let subtitle = item.artist ?? item.summary ?? "Sonos Radio"
+        return PlayableContent(
+            title: item.title,
+            subtitle: subtitle,
+            thumbnail: artworkURL,
+            artwork: artworkURL,
+            content: MediaContent(
+                service: .sonosRadio,
+                id: item.id,
+                type: .radio,
+                location: nil
+            ),
+            metadata: .init(
+                artist: item.artist,
+                album: item.album,
+                radioStation: true
+            )
+        )
     }
 
     // TODO: Update for Media Details

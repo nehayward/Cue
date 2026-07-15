@@ -482,8 +482,11 @@ public final class SonosService {
                         roomGroup.coordinatorRoom.radioStation = title
                     }
                     
-                    if roomGroup.coordinatorRoom.track.radioStationArtworkURL != mediaInfo.artwork {
-                        roomGroup.coordinatorRoom.track.radioStationArtworkURL = mediaInfo.artwork
+                    // Don't clobber the station art the parser already derived from
+                    // the position info; only fill it in if still missing.
+                    if roomGroup.coordinatorRoom.track.radioStationArtworkURL == nil,
+                       let stationArt = mediaInfo.artwork {
+                        roomGroup.coordinatorRoom.track.radioStationArtworkURL = stationArt
                     }
                 }
             } else if roomGroup.coordinatorRoom.radioStation != nil {
@@ -708,6 +711,13 @@ public final class SonosService {
         KeychainTokenRefreshHandler.shared.setCredentials(for: server)
     }
     
+    /// Resolves the SMAPI endpoint for a Sonos service id (e.g. "303" for Sonos
+    /// Radio) by querying a player's available-services descriptor list.
+    public func smapiEndpoint(for serviceID: String) async -> URL? {
+        guard let sonosIP = prioritizedIP() else { return nil }
+        return await api.availableServiceURI(IP: sonosIP, serviceID: serviceID)
+    }
+
     public func getCredentials() async -> (String, String)? {
         guard let sonosIP = try? await getGroupsFast().first?.ip else { return nil }
         let preferredHouseHoldName = await api.getHouseHoldID(for: sonosIP)
@@ -796,10 +806,17 @@ public final class SonosService {
                     }
 
                     if roomGroup.playbackService == .radio {
-                        if let mediaInfo = await mediaInfo, let title = mediaInfo.title, !title.isEmpty {
-                            if roomGroup.coordinatorRoom.radioStation != title, !title.isEmpty {
-                                roomGroup.coordinatorRoom.radioStation = title
-                            }
+                        let info = await mediaInfo
+                        if let title = info?.title, !title.isEmpty, roomGroup.coordinatorRoom.radioStation != title {
+                            roomGroup.coordinatorRoom.radioStation = title
+                        }
+                        // Prefer the station art the parser already pulled from the
+                        // position info; otherwise use the one round-tripped via the
+                        // radio URIMetadata's albumArtURI. Never clobber a known value
+                        // with nil. artworkURL uses this only as a last resort (ads /
+                        // spoken breaks) so the player stays branded, not a blank note.
+                        if awaitedTrack.radioStationArtworkURL == nil, let stationArt = info?.artwork {
+                            awaitedTrack.radioStationArtworkURL = stationArt
                         }
                     } else if roomGroup.coordinatorRoom.radioStation != nil {
                         roomGroup.coordinatorRoom.radioStation = nil
@@ -1606,7 +1623,7 @@ public final class SonosService {
             return track.artwork
         case .tuneIn:
             return nil
-        case .airplay, .unknown, .library:
+        case .airplay, .unknown, .library, .sonosRadio:
             return nil
         }
     }
@@ -1727,7 +1744,7 @@ public final class SonosService {
             }
 
             return (Track.Metadata(ISRC: nil, openInURL: nil, contentType: .track), artworkURL.album.images?.biggestImageURL)
-        case .airplay, .library:
+        case .airplay, .library, .sonosRadio:
             return (nil, nil)
         }
     }

@@ -112,9 +112,13 @@ fileprivate struct OverlayIcons: View {
     let isRadio: Bool
     let size: Double
     
+    // Sonos Radio has its own branded badge, so show the service icon for it
+    // even though it's radio; other radio sources fall back to the generic glyph.
+    private var showsServiceIcon: Bool { !isRadio || service == .sonosRadio }
+
     var body: some View {
         service.icon
-            .opacity(isRadio ? 0 : 1)
+            .opacity(showsServiceIcon ? 1 : 0)
             .frame(width: 18, height: 18, alignment: .bottomLeading)
             .padding(2)
             .overlay {
@@ -123,7 +127,7 @@ fileprivate struct OverlayIcons: View {
                     .aspectRatio(contentMode: .fit)
                     .foregroundStyle(.white)
                     .padding(2)
-                    .opacity(isRadio ? 1 : 0)
+                    .opacity(showsServiceIcon ? 0 : 1)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             .foregroundStyle(content.content.type.isArtist ? AnyShapeStyle(.primary) : AnyShapeStyle(.white))

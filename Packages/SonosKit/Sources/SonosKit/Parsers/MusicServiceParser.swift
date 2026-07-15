@@ -41,6 +41,8 @@ public final class MusicServiceParser {
             return .plex
         case "174":
             return .tidal
+        case "303":
+            return .sonosRadio
         default:
             return .unknown
         }
@@ -99,6 +101,7 @@ public final class MusicServiceParser {
     private func identifyService(from uri: String, decoded decodedURI: String, xml: String? = nil) -> MusicService {
         // Fast path checks first (no allocation)
         if uri == "333" { return .tuneIn }
+        if uri == "303" { return .sonosRadio }
         if decodedURI.contains(":3:") { return .plex }
         
         // Check XML before lowercasing URI
@@ -117,6 +120,7 @@ public final class MusicServiceParser {
         if normalized.contains("soundcloud") { return .soundcloud }
         if normalized.contains("deezer") || normalized.contains("tr-flac") || normalized.contains("tr-mp3") { return .deezer }
         if xml?.contains("RINCON519") == true { return .deezer }
+        if normalized.contains("sid=303") || xml?.contains("Svc77575") == true { return .sonosRadio }
         
         // Check for Tidal (pattern match only if string contains hint)
         if normalized.contains("tidal") || (try? tidalPattern.firstMatch(in: decodedURI)) != nil {
@@ -140,6 +144,9 @@ public final class MusicServiceParser {
         case .soundcloud: return extractSoundCloudID(from: uri)
         case .deezer: return extractDeezerTrackID(from: uri)
         case .tuneIn: return extractTuneInTrackID(from: uri)
+        // Sonos Radio streams are `x-sonosapi-radio:<id>?...`; the TuneIn
+        // extractor (":(.*?)?") recovers the prefixed station id (e.g. sonos:2997).
+        case .sonosRadio: return extractTuneInTrackID(from: uri)
         case .library, .unknown: return uri
         case .airplay: return ""
         }

@@ -30,10 +30,12 @@ public struct Track: Identifiable, Hashable, Sendable {
     public var album: String
 
     public var artworkURL: URL? {
-        if trackID.isEmpty, name.isEmpty { return nil }
         if let downloadedArtworkURL { return downloadedArtworkURL }
-        if let radioStationArtworkURL { return radioStationArtworkURL }
-        return sonosAlbumArtURL
+        // Prefer the per-track art Sonos reports; fall back to the station logo
+        // when the track has none (e.g. ads / spoken breaks, where the track is
+        // otherwise empty — so this fallback runs before any empty-track check).
+        if let sonosAlbumArtURL { return sonosAlbumArtURL }
+        return radioStationArtworkURL
     }
 
     public var downloadedArtworkURL: URL?

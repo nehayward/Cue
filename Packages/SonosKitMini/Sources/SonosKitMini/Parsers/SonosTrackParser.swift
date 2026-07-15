@@ -67,7 +67,6 @@ final class SonosTrackParser {
                         .first ?? ""
                     
                     if let decodedMark = markEncoded.removingPercentEncoding {
-                        print(decodedMark)  // ✅ Final URL
                         sonosAlbumArtURL = URL(string: decodedMark)
                     }
                 }

@@ -261,6 +261,15 @@ Full speech level control for Sonos Arc Ultra across all surfaces.
 - Waiting on the shared refresh is now cancellation-responsive: a cancelled caller (e.g. a dismissed SwiftUI screen) bails out immediately via a continuation bridge while the refresh keeps running for the other waiters (bare `task.value` ignored caller cancellation and could suspend for the full URLSession timeout)
 - `SpotifyAPI.authorizedRequest` no longer `try?`-swallows a shared refresh failure into an immediate `invalidToken`, so a genuinely valid session is no longer surfaced to the user as signed-out
 
+### Sonos Radio
+- New `MediaSearchService.sonosRadio` / `MusicService.sonosRadio`; registered in browse (`BrowseScreen`), onboarding (`ServicesStep`), and `AppRegistry`
+- Reached via SMAPI (no public REST API): `SonosRadioAPI` + `SMAPIEnvelope`/`SMAPICredentials`/`SMAPIMedia`/`SMAPIMediaParser` in `MusicSearchKit`. Endpoint resolved from `ListAvailableServices` (`SonosAPI+SonosRadio`) with a hardcoded fallback
+- Auth: SMAPI credentials are the household loginToken (token/key/householdId) plus the controller `deviceId` + `<deviceProvider>Sonos</deviceProvider>`, matching the official controller capture. Service-registry id is **77575** (account UDN/cdudn), distinct from the playback **sid 303**
+- Fixed `MediaServerParser` dropping any service with an empty `Nickname0` — Sonos Radio's account has a blank nickname, so its token was being discarded and credentials never resolved
+- Search-only per the service PresentationMap (category `station`); browse is presented as curated genre rows, each a station search (`SonosRadioBrowseService` + `SonosRadioBrowseScreen`)
+- Playback: `x-sonosapi-radio:<id>?sid=303&flags=32`, `audioBroadcast` class, `SA_RINCON77575` cdudn; ids carry a source prefix (`sonos:`/`tunein:`) whose colon is percent-encoded
+- Now-playing: SONOS badge shown on artwork (`ArtworkBadgeView`/`OverlayIcons` via the `Sonos Radio` asset, original rendering); station art used as the artwork fallback during ads — derived from the position-info `albumArtURI` (imgix base before the per-track `mark=` overlay) into `Track.radioStationArtworkURL`
+
 ---
 
 ## 2026.5

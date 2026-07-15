@@ -58,6 +58,7 @@ final class SonosTrackParser {
             let rawURI = albumArtURI.unescaped.trimmingCharacters(in: .whitespacesAndNewlines)
 
             var sonosAlbumArtURL: URL?
+            var radioStationArtURL: URL?
 
             if !rawURI.isEmpty {
                 if rawURI.hasPrefix("http://") || rawURI.hasPrefix("https://") {
@@ -90,16 +91,23 @@ final class SonosTrackParser {
                 // Decode HTML entities
                 let htmlDecoded = albumArtURI.replacingOccurrences(of: "&amp;", with: "&")
                 
-                // Extract mark= value
+                // Sonos Radio composites the per-track cover onto the station
+                // image: …/station-images/<id>.jpeg?…&mark=<track cover>. The
+                // `mark` is the track art; the part before it is the station art.
                 if let markRange = htmlDecoded.range(of: "mark=") {
                     let markEncoded = htmlDecoded[markRange.upperBound...]
                         .components(separatedBy: "&")
                         .first ?? ""
-                    
+
                     if let decodedMark = markEncoded.removingPercentEncoding {
-                        print(decodedMark)  // ✅ Final URL
                         sonosAlbumArtURL = URL(string: decodedMark)
                     }
+
+                    // Station image = base imgix URL with the mark overlay
+                    // stripped. Used as the artwork fallback during ads.
+                    var base = String(htmlDecoded[..<markRange.lowerBound])
+                    while base.hasSuffix("&") || base.hasSuffix("?") { base.removeLast() }
+                    radioStationArtURL = URL(string: base)
                 }
             }
             
@@ -111,7 +119,7 @@ final class SonosTrackParser {
                 title = "Loading…"
             }
             
-            return Track(
+            var track = Track(
                 trackID: trackID,
                 name: title.unescaped,
                 artist: albumArtist ?? (
@@ -125,6 +133,8 @@ final class SonosTrackParser {
                 sonosAlbumArtURL: sonosAlbumArtURL,
                 metadata: metadata
             )
+            track.radioStationArtworkURL = radioStationArtURL
+            return track
         }
         
         let (musicServiceType, trackID) = MusicServiceParser().parse(xml: bodyContent.unescaped, trackURI: trackURI)

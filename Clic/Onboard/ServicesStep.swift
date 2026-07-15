@@ -16,8 +16,8 @@ struct ServicesStep: View {
     /// Pairs the Sonos-side service type with the Clic-side `MediaSearchService`
     /// it maps to. When you add a new music backend, drop a row here.
     ///
-    /// TODO: When Clic adds support for more services (Sonos Radio, SiriusXM,
-    /// Pandora, Amazon Music, Bandcamp, etc.), add the matching
+    /// TODO: When Clic adds support for more services (SiriusXM, Pandora,
+    /// Amazon Music, Bandcamp, etc.), add the matching
     /// `(SonosServiceType, MediaSearchService)` pair below.
     private let mapping: [(SonosServiceType, MediaSearchService)] = [
         (.appleMusic, .apple),
@@ -26,7 +26,8 @@ struct ServicesStep: View {
         (.plex, .plex),
         (.tunein, .tuneIn),
         (.soundcloud, .soundcloud),
-        (.deezer, .deezer)
+        (.deezer, .deezer),
+        (.sonosRadio, .sonosRadio)
     ]
 
     private var hasAnySupported: Bool {

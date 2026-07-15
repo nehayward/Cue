@@ -138,6 +138,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return id
         case (.radio, .tuneIn):
             return "x-sonosapi-stream:\(id)?sid=333&amp;flags=8232&amp;sn=14"
+        case (.radio, .sonosRadio):
+            // Sonos Radio stations play as audio broadcasts. Ids carry a source
+            // prefix (e.g. "sonos:2997", "tunein:35189") whose colon is encoded.
+            return "x-sonosapi-radio:\(id.replacingOccurrences(of: ":", with: "%3A"))?sid=303&amp;flags=32"
         case (.radio, .apple):
             return "x-sonosapi-radio:radio%3A\(id)?sid=204&amp;flags=32"
         case (.liveRadio, .apple):
@@ -299,6 +303,14 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         case (.radio, .tuneIn):
             return """
 &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="-1" parentID="-1" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON85255_X_#Svc85255-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+"""
+        case (.radio, .sonosRadio):
+            // Mirrors the official controller's SetAVTransportURI metadata for
+            // Sonos Radio: item id "000c0020<encoded id>", audioBroadcast class,
+            // the SA_RINCON77575 service-account cdudn, and the stream <res>.
+            let encoded = id.replacingOccurrences(of: ":", with: "%3A")
+            return """
+&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="000c0020\(encoded)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON77575_X_#Svc77575-0-Token&lt;/desc&gt;&lt;res&gt;x-sonosapi-radio:\(encoded)?sid=303&amp;amp;flags=32&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
         case(.radio, .apple):
             return """
