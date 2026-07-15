@@ -16,12 +16,6 @@ struct ArtworkView: View {
     @State private var alarmRunning: Bool = false
     @State private var currentImage: UIImage?
 
-    // Snapshot of `shouldFade` taken when the artwork URL changes — see the
-    // `.task` below. The fade must be decided at skip time, not when the
-    // (possibly slow) image load lands, otherwise a late load fades in even
-    // though the user tapped Next.
-    @State private var animateArtworkChange: Bool = false
-
     var cornerRadius: CGFloat {
         UIDevice.current.userInterfaceIdiom == .phone ? 8 : 16
     }
@@ -60,13 +54,23 @@ struct ArtworkView: View {
 
     var body: some View {
         VStack {
-            VStack {
+            // ZStack so that during a crossfade the outgoing and incoming
+            // artwork overlap in place instead of stacking. The fade is a
+            // plain identity-swap opacity transition, animated only by the
+            // explicit transaction in `setImage` — there is deliberately no
+            // persistent `.animation(value:)` here. Keying an implicit
+            // animation on the UIImage instance made every back-to-back load
+            // at track boundaries (Sonos proxy URL, then CDN URL) restart and
+            // interrupt the fade, and let it animate layout of the
+            // full-screen blurred background copies of this view — the
+            // stutter that motivated this rewrite.
+            ZStack {
                 if let displayImage {
                     Image(uiImage: displayImage)
                         .resizable()
                         .aspectRatio(contentMode: showBadge ? .fit : .fill)
+                        .id(displayImage)
                         .transition(.opacity)
-                        .animation(.smooth(duration: animateArtworkChange ? defaultFadeDuration : 0), value: displayImage)
                 } else {
                     Rectangle()
                         .foregroundStyle(.thickMaterial)
@@ -153,24 +157,43 @@ struct ArtworkView: View {
                 // right after a user skip (LargePlayerView only flips it back
                 // true ~200ms later), so snapshotting here means a slow image
                 // load can't fade in after the fact.
-                animateArtworkChange = shouldFade
+                let fade = shouldFade
                 guard let artworkRequest else {
-                    currentImage = nil
+                    setImage(nil, fade: fade)
                     return
                 }
                 if let cached = ImagePipeline.shared.cache.cachedImage(for: artworkRequest) {
-                    currentImage = cached.image
+                    setImage(cached.image, fade: fade)
                     return
                 }
                 do {
                     let image = try await ImagePipeline.shared.image(for: artworkRequest)
-                    currentImage = image
+                    setImage(image, fade: fade)
                 } catch {
                     // Swallow errors silently — the Sonos proxy for Spotify is
                     // unreliable right at track boundaries (the speaker may not
                     // have fetched the new art yet). Keeping the previous image
                     // is better than flashing a grey placeholder.
                 }
+            }
+        }
+    }
+
+    // The only place an artwork swap is animated. Scoping the animation to
+    // this one transaction (instead of a persistent `.animation` modifier)
+    // means unrelated body re-evaluations — playback ticks, mute toggles,
+    // layout changes — can never kick off or restart a fade.
+    private func setImage(_ image: UIImage?, fade: Bool) {
+        guard image !== currentImage else { return }
+        if fade {
+            withAnimation(.smooth(duration: defaultFadeDuration)) {
+                currentImage = image
+            }
+        } else {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                currentImage = image
             }
         }
     }
