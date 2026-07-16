@@ -4,6 +4,16 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ---
 
+## 2026.7
+
+### Album art crossfade stutter fix
+- Fixed the player artwork crossfade hitching the whole player on song changes. `ArtworkView` drove the fade with a persistent `.animation(.smooth, value: displayImage)` modifier keyed on the `UIImage` instance: every back-to-back load at a track boundary (Sonos proxy URL first, then the CDN URL) re-triggered and interrupted the fade, and the implicit animation was free to animate *layout* of the artwork — which renders three times at once (main art plus the full-screen blurred background copies in `LargePlayerView`, one under an 80pt blur), forcing expensive full-screen re-renders mid-fade.
+- Reworked as an identity-swap `.transition(.opacity)` inside a `ZStack` (outgoing and incoming art overlap in place), animated only by an explicit transaction in the new `setImage(_:fade:)` helper — `withAnimation(.smooth)` when fading, `Transaction.disablesAnimations` for instant swaps. Unrelated body re-evaluations (playback ticks, mute toggles, layout changes) can no longer start or restart a fade, and loads that return the image instance already on screen are skipped.
+- Behavior preserved: the `shouldFade` snapshot is still taken when the artwork URL changes, so a slow load can't fade in after a user skip. Queue taps and natural track advances crossfade; next/previous and speaker switches stay instant.
+- New `isBackground` mode on `ArtworkView`, used by the blurred background copies (`BackgroundView` / `BackgroundViewCatalyst`): skips the badge overlay, rounded-corner clip, shadow, and alarm tracking — all invisible under the blur but previously still rendered on every frame of a crossfade. Also made `defaultFadeDuration` a `let` (was needlessly `@State`).
+
+---
+
 ## 2026.6
 
 ### Playlist management across music services

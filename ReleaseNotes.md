@@ -1,5 +1,8 @@
 # 2026.7
 
+–– Bug Fixes & Improvements ––
+- Fixed album artwork stuttering the player during song changes — the crossfade is now one smooth dissolve
+
 # 2026.6
 
 –– New Features ––
