@@ -229,6 +229,9 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         case .plex, .tidal, .spotify:
             return UIImage(named: self.sonosRawValue.capitalized, in: .musicSearchKitBundle, with: nil)?
                 .resized(to: glyph).withRenderingMode(.alwaysTemplate)
+        case .sonosRadio:
+            return UIImage(named: self.title, in: .musicSearchKitBundle, with: nil)?
+                .resized(to: glyph).withRenderingMode(.alwaysTemplate)
         case .unknown:
             return nil
         }
