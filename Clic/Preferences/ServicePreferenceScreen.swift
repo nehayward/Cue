@@ -307,20 +307,22 @@ struct ServicePreferenceScreen: View {
         } else if service == .plex {
             // Plex also needs a Clic-side sign-in — surface it right on the
             // row (like the Spotify/Apple account menus) instead of a
-            // separate "Personalized Services" section.
+            // separate "Personalized Services" section. Single-line label so
+            // the title lines up with the other rows; "Manage" is trailing
+            // secondary text, not link-styled.
             Button {
                 router.presentedSheet = .plexManagement
             } label: {
                 Label {
-                    VStack(alignment: .leading) {
-                        HStack(spacing: 5) {
-                            Text(service.title)
-                            Image(systemName: musicSearchService.isPlexAuthorized ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(musicSearchService.isPlexAuthorized ? AnyShapeStyle(.green.gradient) : AnyShapeStyle(.red.gradient.secondary))
-                        }
-                        Text(musicSearchService.isPlexAuthorized ? "Manage" : "Sign In")
+                    HStack(spacing: 5) {
+                        Text(service.title)
+                            .foregroundStyle(.primary)
+                        Image(systemName: musicSearchService.isPlexAuthorized ? "checkmark.circle.fill" : "xmark.circle.fill")
                             .font(.caption)
+                            .foregroundStyle(musicSearchService.isPlexAuthorized ? AnyShapeStyle(.green.gradient) : AnyShapeStyle(.red.gradient.secondary))
+                        Spacer()
+                        Text(musicSearchService.isPlexAuthorized ? "Manage" : "Sign In")
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
                 } icon: {
