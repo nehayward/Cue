@@ -493,12 +493,21 @@ public final class SonosService {
                 roomGroup.coordinatorRoom.radioStation = nil
             }
 
-            if awaitedTrack == .empty {
-                if roomGroup.coordinatorRoom.track != .empty {
+            if awaitedTrack.isEmpty {
+                // An idle radio player keeps its station branding. Build the
+                // resting track first and only assign on change — comparing
+                // against a bare `.empty` while the radio branch above
+                // re-stamps station art made every pulse alternate between
+                // the two states, flickering the player (and mini player)
+                // and deleting the widget artwork file each second.
+                var restingTrack = Track.empty
+                if roomGroup.playbackService == .radio {
+                    restingTrack.radioStationArtworkURL = awaitedTrack.radioStationArtworkURL
+                        ?? roomGroup.coordinatorRoom.track.radioStationArtworkURL
+                }
+                if roomGroup.coordinatorRoom.track != restingTrack {
                     ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
-                    roomGroup.coordinatorRoom.track = .empty
-                    roomGroup.coordinatorRoom.track.downloadedArtworkURL = nil
-                    roomGroup.coordinatorRoom.track.sonosAlbumArtURL = nil
+                    roomGroup.coordinatorRoom.track = restingTrack
                 }
                 return
             }
@@ -822,9 +831,12 @@ public final class SonosService {
                         roomGroup.coordinatorRoom.radioStation = nil
                     }
 
-                    if awaitedTrack == .empty {
+                    if awaitedTrack.isEmpty {
                         // Active speaker briefly returning empty is usually a transient —
                         // keep the previous track on screen, let the next pulse settle.
+                        // `isEmpty`, not `== .empty`: the radio branch above stamps
+                        // station art onto an empty track, which would otherwise slip
+                        // past this early return into the new-track path every pulse.
                         return
                     }
 

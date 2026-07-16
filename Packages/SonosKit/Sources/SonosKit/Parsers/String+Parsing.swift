@@ -48,6 +48,19 @@ extension String {
         xml = xml.replacingOccurrences(of: "&", with: "%26")
         return xml
     }
+
+    /// Escapes a URL for embedding as element text inside a pre-escaped DIDL
+    /// string (the `&lt;DIDL-Lite …&gt;` metadata literals): the DIDL layer
+    /// needs `&` as `&amp;`, which at the outer SOAP-escaped layer is
+    /// `&amp;amp;` — the same double escape the `<res>` URIs already use.
+    /// `ampersandSafe` (`&` → `%26`) corrupts URLs whose query string relies
+    /// on `&` separators; Sonos round-trips the corrupted URL back as
+    /// albumArtURI and the download 503s (seen with Sonos Radio's
+    /// sali.sonos.superhi.fi artwork proxy).
+    var didlEscaped: String {
+        replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&", with: "&amp;amp;")
+    }
     
     var escaped: String {
         var xml = self

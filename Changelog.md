@@ -269,6 +269,8 @@ Full speech level control for Sonos Arc Ultra across all surfaces.
 - Search-only per the service PresentationMap (category `station`); browse is presented as curated genre rows, each a station search (`SonosRadioBrowseService` + `SonosRadioBrowseScreen`)
 - Playback: `x-sonosapi-radio:<id>?sid=303&flags=32`, `audioBroadcast` class, `SA_RINCON77575` cdudn; ids carry a source prefix (`sonos:`/`tunein:`) whose colon is percent-encoded
 - Now-playing: SONOS badge shown on artwork (`ArtworkBadgeView`/`OverlayIcons` via the `Sonos Radio` asset, original rendering); station art used as the artwork fallback during ads — derived from the position-info `albumArtURI` (imgix base before the per-track `mark=` overlay) into `Track.radioStationArtworkURL`
+- Fixed constant now-playing/mini-player flicker with an idle (empty-track) Sonos Radio player: each poll stamped station art onto the displayed track (making it non-`.empty`) and then immediately reset it to `.empty` — alternating states every pulse and deleting the widget artwork file each second. Emptiness checks now use `Track.isEmpty` (no trackID and no name — station art doesn't count), and the empty-radio resting track keeps its station branding and is only assigned on change (`SonosService.load` / `updateTrackInformation`)
+- Fixed the station artwork URL 503ing after playback: the Sonos Radio `URIMetadata` ran the artwork URL through `ampersandSafe` (`&` → `%26`), corrupting its query separators (`image?w=60%26image=…`); the speaker round-trips that corrupted URL back as `albumArtURI` and every download fails. New `didlEscaped` (`&` → `&amp;amp;`, the same double escape the `<res>` URIs use) preserves the URL through the DIDL round trip
 
 ---
 
