@@ -181,7 +181,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 \(Self.defaultXMLNSHeader) id="00032020spotify%3atrack%3a\(id)" &gt;
 &lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
 &lt;r:description&gt;Spotify&lt;/r:description&gt;
-&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;
 \(defaultSpotifyXMLNSFooter())
 """.split(whereSeparator: \.isNewline).joined()
@@ -190,7 +190,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 \(Self.defaultXMLNSHeader) id="1004206cspotify%3aalbum%3a\(id)" &gt;
 &lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
 &lt;r:description&gt;Spotify&lt;/r:description&gt;
-&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;
 \(defaultSpotifyXMLNSFooter())
 """
@@ -199,7 +199,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 \(Self.defaultXMLNSHeader) id="1006206cspotify%3aplaylist%3a\(id)" &gt;
 &lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
 &lt;r:description&gt;Spotify&lt;/r:description&gt;
-&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;
 \(defaultSpotifyXMLNSFooter())
 """
@@ -208,7 +208,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 \(Self.defaultXMLNSHeader) id="10032020song%3a\(id)" &gt;
 &lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
 &lt;r:description&gt;Apple Music&lt;/r:description&gt;
-&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;
 \(appleXMLNSFooter()))
 """.split(whereSeparator: \.isNewline).joined()
@@ -218,7 +218,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 \(Self.defaultXMLNSHeader) id="10032028librarytrack%3a\(id)" &gt;
 &lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
 &lt;r:description&gt;Apple Music&lt;/r:description&gt;
-&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.item.audioItem.musicTrack.#TitleWithArtist&lt;/upnp:class&gt;
 \(appleXMLNSFooter())
 """.split(whereSeparator: \.isNewline).joined()
@@ -227,7 +227,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 \(Self.defaultXMLNSHeader) id="1004206clibraryalbum%3a\(id)" &gt;
 &lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
 &lt;r:description&gt;Apple Music&lt;/r:description&gt;
-&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.container.album.musicAlbum.#TitleWithArtist&lt;/upnp:class&gt;
 \(appleXMLNSFooter())
 """
@@ -236,7 +236,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 \(Self.defaultXMLNSHeader) id="1006206clibraryplaylist%3a\(id)" &gt;
 &lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
 &lt;r:description&gt;Apple Music&lt;/r:description&gt;
-&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;
 \(appleXMLNSFooter())
 """
@@ -245,7 +245,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 \(Self.defaultXMLNSHeader) id="1004206calbum%3a\(id)" &gt;
 &lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
 &lt;r:description&gt;Apple Music&lt;/r:description&gt;
-&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;
 \(appleXMLNSFooter())
 """
@@ -254,7 +254,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 \(Self.defaultXMLNSHeader) id="1006206cplaylist%3a\(id)" &gt;
 &lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
 &lt;r:description&gt;Apple Music&lt;/r:description&gt;
-&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;
 \(appleXMLNSFooter())
 """
@@ -267,7 +267,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="0004006c\(id)%3Aalbum" parentID="(ignored)"
  restricted="true"&gt;
 &lt;dc:title&gt;\(title)&lt;/dc:title&gt;
-&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;
 &lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-25ccc809-Token&lt;/desc&gt;
 &lt;res&gt;x-rincon-cpcontainer:0004006\(id)8%3A3%3A2781%3Aalbum&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
@@ -280,7 +280,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return """
 &lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item parentID="" restricted="true" id="1006206c\(id)%3Aplaylist"&gt;
 &lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
-&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.container.playlistContainer&lt;/upnp:class&gt;
 &lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
