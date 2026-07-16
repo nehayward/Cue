@@ -178,29 +178,8 @@ struct ServicePreferenceScreen: View {
             }
 #endif
 
-            Section {
-                Button {
-                    router.presentedSheet = .plexManagement
-                } label: {
-                    Label {
-                        HStack {
-                            Text(MediaSearchService.plex.title)
-                            Spacer()
-                            if musicSearchService.isPlexAuthorized {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green.gradient)
-                            } else {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.red.gradient.secondary)
-                            }
-                        }
-                    } icon: {
-                        MediaSearchService.plex.iconForMusicService
-                            .frame(width: 24, height: 24)
-                    }
-                    .tint(.accent)
-                }
-                if let server = servers.filter({ $0.type == .spotify }).first, servers.filter({ $0.type == .spotify }).count == 1 {
+            if let server = servers.filter({ $0.type == .spotify }).first, servers.filter({ $0.type == .spotify }).count == 1 {
+                Section {
                     Button {
                         Task {
                             await sonosService.setPrimaryServer(for: server)
@@ -225,11 +204,9 @@ struct ServicePreferenceScreen: View {
                         }
                         .tint(.accentColor)
                     }
+                } header: {
+                    Text("Troubleshooting")
                 }
-            } header:  {
-                Text("Personalized Services")
-            } footer: {
-                Text("Requires authorization in the **Sonos app** and **Clic**")
             }
 
             // "Can't find the service?" lives at the very bottom as plain
@@ -327,6 +304,31 @@ struct ServicePreferenceScreen: View {
                 service.iconForMusicService
                     .frame(width: 24, height: 24)
             }
+        } else if service == .plex {
+            // Plex also needs a Clic-side sign-in — surface it right on the
+            // row (like the Spotify/Apple account menus) instead of a
+            // separate "Personalized Services" section.
+            Button {
+                router.presentedSheet = .plexManagement
+            } label: {
+                Label {
+                    VStack(alignment: .leading) {
+                        HStack(spacing: 5) {
+                            Text(service.title)
+                            Image(systemName: musicSearchService.isPlexAuthorized ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(musicSearchService.isPlexAuthorized ? AnyShapeStyle(.green.gradient) : AnyShapeStyle(.red.gradient.secondary))
+                        }
+                        Text(musicSearchService.isPlexAuthorized ? "Manage" : "Sign In")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    service.iconForMusicService
+                        .frame(width: 24, height: 24)
+                }
+            }
+            .buttonStyle(.plain)
         } else {
             Label {
                 Text("\(service.title)\(!service.isBrowseSupported ? " (Search Only)" : "")")
