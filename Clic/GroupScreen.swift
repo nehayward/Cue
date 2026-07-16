@@ -39,7 +39,9 @@ struct GroupScreen: View {
         case .nameDescending:
             return activeRooms.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending }
         case .playing:
-            return activeRooms.sorted { $0.isPlaying && !$1.isPlaying }
+            return activeRooms.sorted {
+                sonosService.playbackRoom(for: $0).isPlaying && !sonosService.playbackRoom(for: $1).isPlaying
+            }
         }
     }
     
@@ -86,12 +88,22 @@ struct GroupScreen: View {
                             addGroup(id: room.id)
                         } label: {
                             HStack {
-                                // Track name intentionally omitted: SonosService only refreshes the
-                                // coordinator's track, so member rooms would show a stale title here.
-                                Text(room.name)
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                // Grouped rooms hear the coordinator's stream, so show its track —
+                                // a member room's own `track` goes stale once it joins a group.
+                                let playbackRoom = sonosService.playbackRoom(for: room)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(room.name)
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+
+                                    if !playbackRoom.track.name.isEmpty {
+                                        Text(playbackRoom.track.name)
+                                            .font(.caption)
+                                            .lineLimit(1)
+                                            .foregroundStyle(playbackRoom.isPlaying ? .accent : .secondary)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
                                 Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
                                     .contentTransition(.symbolEffect(.replace))
                                     .font(.title2)
