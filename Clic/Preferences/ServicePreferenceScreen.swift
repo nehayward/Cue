@@ -42,6 +42,27 @@ struct ServicePreferenceScreen: View {
         return MediaSearchService.allCases.filter { !$0.isAuthorized(on: installedTypes) }
     }
 
+    /// Discovered on the user's Sonos but not supported by Clic yet —
+    /// Pandora, SiriusXM, Bandcamp, etc. Shown dimmed like onboarding's
+    /// ServicesStep so the list reflects everything the user has authorized.
+    private var unsupportedKnownTypes: [SonosServiceType] {
+        let supported = Set(MediaSearchService.allCases.compactMap(\.sonosServiceType))
+        return installedTypes.filter { type in
+            guard !supported.contains(type) else { return false }
+            if case .unknown = type { return false }
+            return true
+        }.sorted { $0.rawValue.localizedStandardCompare($1.rawValue) == .orderedAscending }
+    }
+
+    /// Discovered `.unknown(_)` services we can't render a name for —
+    /// surfaced as a footer count, matching onboarding.
+    private var unknownServiceCount: Int {
+        installedTypes.filter { type in
+            if case .unknown = type { return true }
+            return false
+        }.count
+    }
+
     var body: some View {
         @Bindable var coreFeatures = coreFeatures
         List {
@@ -52,12 +73,40 @@ struct ServicePreferenceScreen: View {
                     }
                     .tint(.accent)
                 }
+
+                // Authorized in Sonos but not supported by Clic yet — same
+                // dimmed informational treatment as onboarding's ServicesStep.
+                ForEach(unsupportedKnownTypes, id: \.rawValue) { type in
+                    Label {
+                        VStack(alignment: .leading) {
+                            Text(type.rawValue)
+                            Text("Not supported in Clic yet")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "music.note")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24, height: 24)
+                    }
+                    .opacity(0.6)
+                }
             } header:  {
                 Text(servers.isEmpty ? "Supported Services" : "On Your Sonos")
             } footer: {
-                Text(servers.isEmpty
-                     ? "Requires authorization in the Sonos app."
-                     : "Authorized in the Sonos app. Toggle to show or hide in Clic's search and browse.")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(servers.isEmpty
+                         ? "Requires authorization in the Sonos app."
+                         : "Authorized in the Sonos app. Toggle to show or hide in Clic's search and browse.")
+                    if unknownServiceCount > 0 {
+                        Text(unknownServiceCount == 1
+                             ? "1 other service we don't recognize yet."
+                             : "\(unknownServiceCount) other services we don't recognize yet.")
+                    }
+                    if !unsupportedKnownTypes.isEmpty || unknownServiceCount > 0 {
+                        Text("[Help us add support](https://clic.dance/help)")
+                    }
+                }
             }
 
             if !notConnectedServices.isEmpty {
@@ -109,12 +158,25 @@ struct ServicePreferenceScreen: View {
 //                }
 //            }
 //            #endif
+#if !targetEnvironment(macCatalyst)
             Section {
-                Text("To listen to music from providers not yet supported, like Pandora or SirusXM, make them a [favorite in the Sonos app](https://support.sonos.com/en-us/article/add-favorites-to-your-home-screen) then look for your stations in Clic search under \"[Sonos Favorites](clic://search/favorites).\"")
-            } header: {
-                Text("Can't find the Service here?")
+                Toggle(isOn: $coreFeatures.nowPlaying) {
+                    HStack {
+                        Image(.nowPlayingAppIcon)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 24, height: 24)
+                        VStack(alignment: .leading) {
+                            Link("Now Playing", destination: URL(string: "https://nowplaying.page")!)
+                            Text("Add option to open current track in the Now Playing app.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .tint(.accent)
             }
-            .headerProminence(.increased)
+#endif
 
             Section {
                 Button {
@@ -136,6 +198,7 @@ struct ServicePreferenceScreen: View {
                         MediaSearchService.plex.iconForMusicService
                             .frame(width: 24, height: 24)
                     }
+                    .tint(.accent)
                 }
                 if let server = servers.filter({ $0.type == .spotify }).first, servers.filter({ $0.type == .spotify }).count == 1 {
                     Button {
@@ -169,23 +232,12 @@ struct ServicePreferenceScreen: View {
                 Text("Requires authorization in the **Sonos app** and **Clic**")
             }
 
-#if !targetEnvironment(macCatalyst)
-            Toggle(isOn: $coreFeatures.nowPlaying) {
-                HStack {
-                    Image(.nowPlayingAppIcon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 24, height: 24)
-                    VStack(alignment: .leading) {
-                        Link("Now Playing", destination: URL(string: "https://nowplaying.page")!)
-                        Text("Add option to open current track in the Now Playing app.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+            // "Can't find the service?" lives at the very bottom as plain
+            // footer text — informational, not a section of its own.
+            Section {
+            } footer: {
+                Text("Can't find the service here? To listen to music from providers not yet supported, like Pandora or SirusXM, make them a [favorite in the Sonos app](https://support.sonos.com/en-us/article/add-favorites-to-your-home-screen) then look for your stations in Clic search under \"[Sonos Favorites](clic://search/favorites).\"")
             }
-            .tint(.accent)
-#endif
         }
         .navigationBarTitleDisplayMode(.inline)
         .refreshable {
