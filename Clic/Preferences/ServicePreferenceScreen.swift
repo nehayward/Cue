@@ -324,12 +324,11 @@ struct ServicePreferenceScreen: View {
             // the onTapGesture where the row is built) with "Manage" as
             // trailing secondary text.
             Label {
-                HStack(spacing: 5) {
+                HStack {
                     Text(service.title)
-                    Image(systemName: musicSearchService.isPlexAuthorized ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(musicSearchService.isPlexAuthorized ? AnyShapeStyle(.green.gradient) : AnyShapeStyle(.red.gradient.secondary))
                     Spacer()
+                    // "Manage" doubles as the signed-in indicator — it reads
+                    // "Sign In" until Plex is authorized in Clic.
                     Text(musicSearchService.isPlexAuthorized ? "Manage" : "Sign In")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
