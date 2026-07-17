@@ -68,10 +68,23 @@ struct ServicePreferenceScreen: View {
         List {
             Section {
                 ForEach(connectedServices, id: \.self) { service in
-                    Toggle(isOn: coreFeatures.enabledServices(service)) {
-                        serviceToggleLabel(for: service)
+                    if service == .plex {
+                        // Whole cell opens Plex management; the trailing
+                        // switch still handles its own touches.
+                        Toggle(isOn: coreFeatures.enabledServices(service)) {
+                            serviceToggleLabel(for: service)
+                        }
+                        .tint(.accent)
+                        .contentShape(.rect)
+                        .onTapGesture {
+                            router.presentedSheet = .plexManagement
+                        }
+                    } else {
+                        Toggle(isOn: coreFeatures.enabledServices(service)) {
+                            serviceToggleLabel(for: service)
+                        }
+                        .tint(.accent)
                     }
-                    .tint(.accent)
                 }
 
                 // Authorized in Sonos but not supported by Clic yet — same
@@ -305,32 +318,26 @@ struct ServicePreferenceScreen: View {
                     .frame(width: 24, height: 24)
             }
         } else if service == .plex {
-            // Plex also needs a Clic-side sign-in — surface it right on the
-            // row (like the Spotify/Apple account menus) instead of a
-            // separate "Personalized Services" section. Single-line label so
-            // the title lines up with the other rows; "Manage" is trailing
-            // secondary text, not link-styled.
-            Button {
-                router.presentedSheet = .plexManagement
-            } label: {
-                Label {
-                    HStack(spacing: 5) {
-                        Text(service.title)
-                            .foregroundStyle(.primary)
-                        Image(systemName: musicSearchService.isPlexAuthorized ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(musicSearchService.isPlexAuthorized ? AnyShapeStyle(.green.gradient) : AnyShapeStyle(.red.gradient.secondary))
-                        Spacer()
-                        Text(musicSearchService.isPlexAuthorized ? "Manage" : "Sign In")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                } icon: {
-                    service.iconForMusicService
-                        .frame(width: 24, height: 24)
+            // Plex also needs a Clic-side sign-in — surfaced on the row
+            // itself. Bare Label, structured exactly like the default branch
+            // so the leading edge lines up; the whole cell is tappable (see
+            // the onTapGesture where the row is built) with "Manage" as
+            // trailing secondary text.
+            Label {
+                HStack(spacing: 5) {
+                    Text(service.title)
+                    Image(systemName: musicSearchService.isPlexAuthorized ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(musicSearchService.isPlexAuthorized ? AnyShapeStyle(.green.gradient) : AnyShapeStyle(.red.gradient.secondary))
+                    Spacer()
+                    Text(musicSearchService.isPlexAuthorized ? "Manage" : "Sign In")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
+            } icon: {
+                service.iconForMusicService
+                    .frame(width: 24, height: 24)
             }
-            .buttonStyle(.plain)
         } else {
             Label {
                 Text("\(service.title)\(!service.isBrowseSupported ? " (Search Only)" : "")")
