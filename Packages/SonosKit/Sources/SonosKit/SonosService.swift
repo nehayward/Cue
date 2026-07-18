@@ -478,14 +478,18 @@ public final class SonosService {
 
             if roomGroup.playbackService == .radio {
                 if let mediaInfo = await mediaInfo, let title = mediaInfo.title, !title.isEmpty {
-                    if roomGroup.coordinatorRoom.radioStation != title, !title.isEmpty {
+                    if roomGroup.coordinatorRoom.radioStation != title {
                         roomGroup.coordinatorRoom.radioStation = title
-                    }
-                    
-                    // Don't clobber the station art the parser already derived from
-                    // the position info; only fill it in if still missing.
-                    if roomGroup.coordinatorRoom.track.radioStationArtworkURL == nil,
-                       let stationArt = mediaInfo.artwork {
+                        // Station changed: the old station's art no longer
+                        // applies (the nil-gate below would keep it forever
+                        // while idle). Take the new station's metadata art
+                        // now; the parser-derived art (preferred) lands with
+                        // the next non-empty track.
+                        roomGroup.coordinatorRoom.track.radioStationArtworkURL = mediaInfo.artwork
+                    } else if roomGroup.coordinatorRoom.track.radioStationArtworkURL == nil,
+                              let stationArt = mediaInfo.artwork {
+                        // Don't clobber the station art the parser already derived
+                        // from the position info; only fill it in if still missing.
                         roomGroup.coordinatorRoom.track.radioStationArtworkURL = stationArt
                     }
                 }
