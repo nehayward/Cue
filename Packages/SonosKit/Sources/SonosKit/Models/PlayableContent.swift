@@ -71,7 +71,11 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             let artist = metadata?.artist
             return [albumID, artist].compactMap { $0 }.joined(separator: ".")
         }
-        return id
+        if !id.isEmpty { return id }
+        // Identity-less content (e.g. an idle radio player's resting track has
+        // no trackID and no album) — key by the artwork URL itself so distinct
+        // images don't all share one degenerate "" cache entry.
+        return (thumbnail ?? artwork)?.absoluteString ?? ""
     }
     
     public var isPlayable: Bool { metadata?.isPlayable ?? true }

@@ -1348,8 +1348,11 @@ public final class MusicSearchService {
         return PlayableContent(
             title: item.title,
             subtitle: subtitle,
+            // SMAPI returns a w=60 proxy thumbnail — fine for rows, blurry
+            // everywhere else. `artwork` (player-size display, and what gets
+            // embedded in the playback metadata) uses the upscaled imgix URL.
             thumbnail: artworkURL,
-            artwork: artworkURL,
+            artwork: artworkURL?.sonosRadioArtwork(),
             content: MediaContent(
                 service: .sonosRadio,
                 id: item.id,
