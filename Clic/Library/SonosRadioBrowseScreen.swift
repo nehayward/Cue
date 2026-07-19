@@ -4,14 +4,13 @@ import MusicSearchKit
 
 struct SonosRadioBrowseScreen: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(MusicSearchService.self) private var musicSearchService
     @Environment(SonosService.self) private var sonosService
     @Environment(SonosRadioBrowseService.self) private var sonosRadioBrowseService
 
     @State private var router = Router.browse
 
     private var isEmpty: Bool {
-        sonosRadioBrowseService.populatedGenres.isEmpty
+        sonosRadioBrowseService.populatedSections.isEmpty
     }
 
     var body: some View {
@@ -22,8 +21,8 @@ struct SonosRadioBrowseScreen: View {
                 } else if isEmpty, !sonosRadioBrowseService.isLoading {
                     emptySection
                 } else {
-                    ForEach(sonosRadioBrowseService.populatedGenres, id: \.self) { genre in
-                        sectionView(for: genre)
+                    ForEach(sonosRadioBrowseService.populatedSections) { section in
+                        sectionView(for: section)
                     }
                 }
             }
@@ -69,17 +68,17 @@ struct SonosRadioBrowseScreen: View {
     }
 
     @ViewBuilder
-    private func sectionView(for genre: String) -> some View {
-        let items = sonosRadioBrowseService.previews[genre] ?? []
+    private func sectionView(for section: SonosRadioSection) -> some View {
+        let items = section.items
         Section {
             NavigationLink(value: RouterDestination.playableList(
-                title: genre,
+                title: section.title,
                 showSectionIndex: false,
                 action: { _ in
-                    await musicSearchService.sonosRadioStations(matching: genre, count: 100)
+                    await sonosRadioBrowseService.allStations(for: section)
                 }
             )) {
-                Text(genre)
+                Text(section.title)
                     .fontDesign(.rounded)
                     .fontWeight(.semibold)
             }

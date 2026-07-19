@@ -1331,10 +1331,32 @@ public final class MusicSearchService {
         await sonosRadioStations(matching: query)
     }
 
-    /// Searches Sonos Radio stations for `term`. Sonos Radio is search-only —
-    /// its SMAPI PresentationMap defines no browse tree, only a "station" (and
-    /// "show") search category — so both search and the genre-based browse
-    /// screen are powered by this call.
+    /// Browses a Sonos Radio SMAPI container. `"root"` exposes the dynamic
+    /// home sections the official controller shows ("Trending Now",
+    /// "Summertime", …); each section container's children are stations.
+    /// Returns `nil` if Sonos Radio isn't reachable for the household.
+    public func sonosRadioBrowse(id: String, index: Int = 0, count: Int = 100) async -> SMAPIMediaResult? {
+        guard let (endpoint, credentials) = await sonosRadioContext() else { return nil }
+        return await sonosRadio.getMetadata(
+            endpoint: endpoint,
+            credentials: credentials,
+            id: id,
+            index: index,
+            count: count
+        )
+    }
+
+    /// The playable stations inside a Sonos Radio container, mapped to
+    /// `PlayableContent`. Nested non-playable containers are skipped.
+    public func sonosRadioContainerStations(id: String, count: Int = 100) async -> [PlayableContent] {
+        guard let result = await sonosRadioBrowse(id: id, count: count) else { return [] }
+        return result.items
+            .filter { $0.canPlay || !$0.isContainer }
+            .map { createSonosRadioContent(from: $0) }
+    }
+
+    /// Searches Sonos Radio stations for `term` via the "station" search
+    /// category. Powers search and the genre fallback on the browse screen.
     public func sonosRadioStations(matching term: String, count: Int = 50) async -> [PlayableContent] {
         let term = term.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !term.isEmpty, let (endpoint, credentials) = await sonosRadioContext() else { return [] }

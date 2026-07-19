@@ -5,8 +5,10 @@ import Foundation
 /// using the household's token/key/householdId plus the controller deviceId,
 /// like the favourites flow already used for Deezer.
 ///
-/// Its PresentationMap defines search categories ("station", "show") but no
-/// browse tree, so `search` is the only metadata action used.
+/// Two metadata actions are used: `getMetadata` to browse the service's
+/// container tree (the root exposes the dynamic home sections the official
+/// controller shows — "Trending Now", "Summertime", …) and `search` within
+/// the PresentationMap's search categories ("station", "show").
 public final class SonosRadioAPI {
     private let session: URLSession
 
@@ -14,9 +16,24 @@ public final class SonosRadioAPI {
         self.session = session
     }
 
-    /// Searches within the search category `id` for `term`. Sonos Radio's
-    /// PresentationMap exposes search categories (e.g. `station`) but no browse
-    /// tree, so search is the only metadata action used.
+    /// Browses the children of container `id` ("root" for the service root).
+    /// Root children are the curated home sections; each section is itself a
+    /// container whose children are playable stations.
+    public func getMetadata(
+        endpoint: URL,
+        credentials: SMAPICredentials,
+        id: String,
+        index: Int = 0,
+        count: Int = 100
+    ) async -> SMAPIMediaResult? {
+        let envelope = SMAPIEnvelope(
+            credentials: credentials,
+            action: .getMetadata(id: id, index: index, count: count)
+        )
+        return await perform(endpoint: endpoint, envelope: envelope)
+    }
+
+    /// Searches within the search category `id` for `term`.
     public func search(
         endpoint: URL,
         credentials: SMAPICredentials,
