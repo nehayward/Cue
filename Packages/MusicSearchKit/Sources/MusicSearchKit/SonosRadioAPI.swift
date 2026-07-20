@@ -62,9 +62,26 @@ public final class SonosRadioAPI {
         request.httpBody = envelope.xml.data(using: .utf8)
 
         do {
-            let (data, _) = try await session.data(for: request)
+            let (data, response) = try await session.data(for: request)
             let xml = String(data: data, encoding: .utf8) ?? ""
-            return SMAPIMediaParser.parse(xml: xml)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+
+            // Diagnostics: a SOAP fault body contains no media items, which is
+            // otherwise indistinguishable from a genuinely empty container.
+            if !(200...299).contains(status) {
+                print("Sonos Radio SMAPI \(envelope.action.soapAction) HTTP \(status) from \(endpoint): \(xml.prefix(1000))")
+            }
+            if let fault = Self.faultString(in: xml) {
+                print("Sonos Radio SMAPI \(envelope.action.soapAction) fault: \(fault)")
+                return nil
+            }
+
+            let result = SMAPIMediaParser.parse(xml: xml)
+            if case .getMetadata = envelope.action {
+                print("Sonos Radio SMAPI \(envelope.action.soapAction) HTTP \(status) from \(endpoint), parsed \(result?.items.count ?? -1) items (total \(result?.total ?? -1))")
+                print("Sonos Radio SMAPI \(envelope.action.soapAction) response body: \(xml.prefix(4000))")
+            }
+            return result
         } catch {
             // Ignore debounce cancellations; surface real failures.
             if (error as NSError).code != NSURLErrorCancelled {
@@ -72,5 +89,15 @@ public final class SonosRadioAPI {
             }
             return nil
         }
+    }
+
+    /// Extracts the `<faultstring>` from a SOAP fault body, if present.
+    private static func faultString(in xml: String) -> String? {
+        guard let start = xml.range(of: "<faultstring>"),
+              let end = xml.range(of: "</faultstring>"),
+              start.upperBound <= end.lowerBound else {
+            return nil
+        }
+        return String(xml[start.upperBound..<end.lowerBound])
     }
 }

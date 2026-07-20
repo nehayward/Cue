@@ -66,7 +66,10 @@ public final class SonosRadioBrowseService {
 
         var loaded = await loadDynamicSections()
         if loaded.allSatisfy(\.items.isEmpty) {
+            print("Sonos Radio browse: no dynamic sections, falling back to genre searches")
             loaded = await loadFallbackSections()
+        } else {
+            print("Sonos Radio browse: dynamic sections loaded: \(loaded.map { "\($0.title) (\($0.items.count))" }.joined(separator: ", "))")
         }
         sections = loaded
 
@@ -98,12 +101,27 @@ public final class SonosRadioBrowseService {
         }
     }
 
-    /// Browses the SMAPI root for the service's curated home sections and
-    /// fills each with a preview of its stations. Returns `[]` when the root
-    /// exposes no usable containers.
-    private func loadDynamicSections() async -> [SonosRadioSection] {
-        guard let root = await musicSearchService.sonosRadioBrowse(id: "root") else { return [] }
+    /// Container ids tried, in order, as the browse-tree entry point. "root"
+    /// is the SMAPI standard; "home" is used by some Sonos-operated services
+    /// for their curated home layout.
+    private let rootCandidates = ["root", "home"]
 
+    /// Browses the SMAPI root for the service's curated home sections and
+    /// fills each with a preview of its stations. Returns `[]` when no root
+    /// candidate exposes usable containers.
+    private func loadDynamicSections() async -> [SonosRadioSection] {
+        for rootID in rootCandidates {
+            guard let root = await musicSearchService.sonosRadioBrowse(id: rootID) else {
+                print("Sonos Radio browse: getMetadata(\"\(rootID)\") failed")
+                continue
+            }
+            let sections = await loadSections(fromRoot: root, rootID: rootID)
+            if !sections.isEmpty { return sections }
+        }
+        return []
+    }
+
+    private func loadSections(fromRoot root: SMAPIMediaResult, rootID: String) async -> [SonosRadioSection] {
         // Home sections are enumerable containers. Skip search categories and
         // anything unnamed — those aren't content rows.
         let containers = root.items.filter { item in
@@ -113,7 +131,10 @@ public final class SonosRadioBrowseService {
                 && item.itemType.lowercased() != "search"
                 && item.id.lowercased() != "search"
         }
-        guard !containers.isEmpty else { return [] }
+        guard !containers.isEmpty else {
+            print("Sonos Radio browse: getMetadata(\"\(rootID)\") returned \(root.items.count) items, none browsable")
+            return []
+        }
 
         var loaded = containers.map { SonosRadioSection(title: $0.title, source: .container(id: $0.id)) }
         await withTaskGroup(of: (Int, [PlayableContent]).self) { group in
