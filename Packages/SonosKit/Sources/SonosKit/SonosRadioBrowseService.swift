@@ -5,8 +5,8 @@ import MusicSearchKit
 /// from the service's browse endpoint, matching the curated rows the official
 /// controller shows ("Trending Now", "Summertime", …) — with a static set of
 /// genre searches as a fallback when the home fetch fails.
-public struct SonosRadioSection: Identifiable {
-    public enum Source: Hashable {
+public struct SonosRadioSection: Identifiable, Codable {
+    public enum Source: Hashable, Codable {
         /// A browsable section object id from the home endpoint.
         case container(id: String)
         /// A station-search term (fallback when no browse tree is available).
@@ -55,8 +55,18 @@ public final class SonosRadioBrowseService {
 
     private let musicSearchService = MusicSearchService.shared
     private var hasLoaded = false
+    /// Session cache of full station lists per dynamic section id, so
+    /// re-entering a "see all" screen doesn't refetch.
+    private var sectionStationsCache: [String: [PlayableContent]] = [:]
 
-    private init() {}
+    private let cache = MemoryFileCache.shared
+    private let cacheKey = "sonosRadioHomeSections"
+
+    private init() {
+        // Last-fetched sections render instantly while a fresh load runs
+        // (the screen only shows its spinner when there's nothing to show).
+        sections = cache.load(forKey: cacheKey, as: [SonosRadioSection].self) ?? []
+    }
 
     public func load() async {
         guard !isLoading, !hasLoaded else { return }
@@ -64,14 +74,16 @@ public final class SonosRadioBrowseService {
         error = nil
         defer { isLoading = false }
 
-        var loaded = await loadDynamicSections()
-        if loaded.allSatisfy(\.items.isEmpty) {
+        let dynamic = await loadDynamicSections()
+        if !dynamic.isEmpty {
+            sections = dynamic
+            cache.save(dynamic, forKey: cacheKey)
+        } else if sections.isEmpty {
+            // Nothing fresh and nothing cached — fall back to genre searches.
+            // (A failed fetch never clobbers previously loaded sections.)
             print("Sonos Radio browse: no dynamic sections, falling back to genre searches")
-            loaded = await loadFallbackSections()
-        } else {
-            print("Sonos Radio browse: dynamic sections loaded: \(loaded.map { "\($0.title) (\($0.items.count))" }.joined(separator: ", "))")
+            sections = await loadFallbackSections()
         }
-        sections = loaded
 
         hasLoaded = true
         if populatedSections.isEmpty {
@@ -80,9 +92,10 @@ public final class SonosRadioBrowseService {
     }
 
     public func refresh() async {
-        sections = []
+        // Keep the current sections on screen until fresh ones arrive.
         error = nil
         hasLoaded = false
+        sectionStationsCache = [:]
         await load()
     }
 
@@ -97,8 +110,11 @@ public final class SonosRadioBrowseService {
     public func allStations(for section: SonosRadioSection) async -> [PlayableContent] {
         switch section.source {
         case .container(let id):
+            if let cached = sectionStationsCache[id] { return cached }
             let stations = await musicSearchService.sonosRadioSectionStations(id: id)
-            return stations.isEmpty ? section.items : stations
+            let resolved = stations.isEmpty ? section.items : stations
+            sectionStationsCache[id] = resolved
+            return resolved
         case .search(let term):
             return await musicSearchService.sonosRadioStations(matching: term, count: 100)
         }
