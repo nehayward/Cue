@@ -1331,28 +1331,62 @@ public final class MusicSearchService {
         await sonosRadioStations(matching: query)
     }
 
-    /// Browses a Sonos Radio SMAPI container. `"root"` exposes the dynamic
-    /// home sections the official controller shows ("Trending Now",
-    /// "Summertime", …); each section container's children are stations.
-    /// Returns `nil` if Sonos Radio isn't reachable for the household.
-    public func sonosRadioBrowse(id: String, index: Int = 0, count: Int = 100) async -> SMAPIMediaResult? {
+    /// Fetches Sonos Radio's curated home sections ("Trending Now",
+    /// "Summertime", …) from the browse REST endpoint the official controller
+    /// uses. Each section arrives with its preview stations inline. Returns
+    /// `nil` if Sonos Radio isn't reachable for the household.
+    public func sonosRadioHomeSections() async -> [SonosRadioHomeSection]? {
         guard let (endpoint, credentials) = await sonosRadioContext() else { return nil }
-        return await sonosRadio.getMetadata(
-            endpoint: endpoint,
-            credentials: credentials,
-            id: id,
-            index: index,
-            count: count
+        return await sonosRadio.homeSections(smapiEndpoint: endpoint, credentials: credentials)
+    }
+
+    /// The full station list for a home section (its `id` is the section's
+    /// browse object id, a path like "/stations/en-US/US/…").
+    public func sonosRadioSectionStations(id: String) async -> [PlayableContent] {
+        guard let (endpoint, credentials) = await sonosRadioContext() else { return [] }
+        let items = await sonosRadio.sectionItems(
+            sectionID: id,
+            smapiEndpoint: endpoint,
+            credentials: credentials
+        ) ?? []
+        return items.filter(\.canPlay).map { sonosRadioContent(from: $0) }
+    }
+
+    /// Maps a home-browse item to playable content. Station ids from the
+    /// browse endpoint (e.g. "sonos:2997") match the SMAPI search ids, so
+    /// playback works identically.
+    func sonosRadioContent(from item: SonosRadioHomeItem) -> PlayableContent {
+        PlayableContent(
+            title: item.title,
+            subtitle: item.subtitle ?? "Sonos Radio",
+            thumbnail: item.imageURL,
+            artwork: Self.upsizedImgix(item.imageURL),
+            content: MediaContent(
+                service: .sonosRadio,
+                id: item.id,
+                type: .radio,
+                location: nil
+            ),
+            metadata: .init(
+                artist: item.subtitle,
+                album: nil,
+                radioStation: true
+            )
         )
     }
 
-    /// The playable stations inside a Sonos Radio container, mapped to
-    /// `PlayableContent`. Nested non-playable containers are skipped.
-    public func sonosRadioContainerStations(id: String, count: Int = 100) async -> [PlayableContent] {
-        guard let result = await sonosRadioBrowse(id: id, count: count) else { return [] }
-        return result.items
-            .filter { $0.canPlay || !$0.isContainer }
-            .map { createSonosRadioContent(from: $0) }
+    /// The browse endpoint returns 200px imgix thumbnails; request a larger
+    /// rendition for full-size artwork.
+    private static func upsizedImgix(_ url: URL?) -> URL? {
+        guard let url,
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.queryItems?.contains(where: { $0.name == "w" }) == true else {
+            return url
+        }
+        components.queryItems = components.queryItems?.map {
+            $0.name == "w" ? URLQueryItem(name: "w", value: "600") : $0
+        }
+        return components.url ?? url
     }
 
     /// Searches Sonos Radio stations for `term` via the "station" search

@@ -9,6 +9,8 @@ public enum SMAPIAction {
     /// Search within a search category. `id` is the search-category id returned
     /// by browsing the service's "search" container; `term` is the user query.
     case search(id: String, term: String, index: Int, count: Int)
+    /// Exchanges an expired loginToken for a fresh authToken/privateKey pair.
+    case refreshAuthToken
 
     public var soapAction: String {
         switch self {
@@ -16,6 +18,7 @@ public enum SMAPIAction {
         case .getExtendedMetadata: "getExtendedMetadata"
         case .getMetadata: "getMetadata"
         case .search: "search"
+        case .refreshAuthToken: "refreshAuthToken"
         }
     }
 
@@ -30,6 +33,8 @@ public enum SMAPIAction {
             return "<getMetadata xmlns=\"\(ns)\"><id>\(id.xmlEscaped)</id><index>\(index)</index><count>\(count)</count></getMetadata>"
         case let .search(id, term, index, count):
             return "<search xmlns=\"\(ns)\"><id>\(id.xmlEscaped)</id><term>\(term.xmlEscaped)</term><index>\(index)</index><count>\(count)</count></search>"
+        case .refreshAuthToken:
+            return "<refreshAuthToken xmlns=\"\(ns)\"></refreshAuthToken>"
         }
     }
 }
