@@ -14,6 +14,8 @@ struct ConnectByIPScreen: View {
     @State private var errorMessage: String?
     @State private var isValidIP: Bool = false
     @State private var deviceFound: Bool = false
+    @State private var probeTask: Task<Void, Never>?
+    @State private var isConnecting: Bool = false
     
     // IPv4 regex pattern
     private let ipv4Pattern = #"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"#
@@ -45,6 +47,22 @@ struct ConnectByIPScreen: View {
                             .foregroundStyle(isValidIP ? (deviceFound ? .green : .secondary) : .red)
                             .imageScale(.medium)
                     }
+                }
+                if isValidIP && deviceFound {
+                    Button {
+                        connectToManualIP()
+                    } label: {
+                        if isConnecting {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                        } else {
+                            Text("Connect to This Device")
+                                .bold()
+                                .fontDesign(.rounded)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                    .disabled(isConnecting)
                 }
             } header: {
                 Text("Enter Device IP Address")
@@ -125,17 +143,35 @@ struct ConnectByIPScreen: View {
         let regex = try? NSRegularExpression(pattern: ipv4Pattern)
         let range = NSRange(location: 0, length: ip.utf16.count)
         isValidIP = regex?.firstMatch(in: ip, range: range) != nil
-        
+
+        // Each keystroke re-validates; cancel the in-flight probe so a slow
+        // response for a prefix IP (e.g. "…1.1" while typing "…1.10") can't land
+        // after the full address's probe and overwrite a good result.
+        probeTask?.cancel()
         if isValidIP {
-            Task {
+            probeTask = Task {
                 // Probe reachability only — do NOT adopt/pin a household from a
                 // transient, still-being-typed IP. Adoption happens on an explicit
-                // tap (a room row, or Set Priority Device).
+                // tap (Connect, a room row, or Set Priority Device).
                 let groups = (try? await sonosService.getGroups(with: ip)) ?? []
+                guard !Task.isCancelled, ip == manualConnectIPAddress else { return }
                 deviceFound = !groups.isEmpty
             }
         } else {
             deviceFound = false
+        }
+    }
+
+    private func connectToManualIP() {
+        let ip = manualConnectIPAddress
+        isConnecting = true
+        Task {
+            defer { isConnecting = false }
+            // Adopts the device's household (S1 or S2) and pins the IP, so a
+            // system on another generation than the active one becomes selectable.
+            await sonosService.setStaticIP(ip: ip)
+            let name = sonosService.sortedRooms.first(where: { $0.ip == ip })?.name ?? ip
+            alertService.showAlert(with: "Connected to \(name)", imageName: "checkmark.circle.fill")
         }
     }
 }
