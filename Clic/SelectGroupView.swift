@@ -38,11 +38,11 @@ struct SelectGroupView: View {
     }
     
     private var playingRooms: [Room] {
-        activeRooms.filter { sonosService.playbackRoom(for: $0).isPlaying }
+        activeRooms.filter { $0.playbackRoom.isPlaying }
     }
 
     private var otherRooms: [Room] {
-        activeRooms.filter { !sonosService.playbackRoom(for: $0).isPlaying }
+        activeRooms.filter { !$0.playbackRoom.isPlaying }
     }
     
     var body: some View {
@@ -270,17 +270,12 @@ struct SelectGroupView: View {
         .animation(.interactiveSpring, value: sonosService.sorted)
         .animation(.interactiveSpring, value: selections)
         .animation(.interactiveSpring, value: playingRooms.map(\.id))
-        .animation(.interactiveSpring, value: activeRooms.map {
-            let playbackRoom = sonosService.playbackRoom(for: $0)
-            return "\($0.id)-\(playbackRoom.isPlaying)-\(playbackRoom.track.name)"
-        })
+        .animation(.interactiveSpring, value: activeRooms.map { "\($0.id)-\($0.playbackRoom.isPlaying)-\($0.playbackRoom.track.name)" })
     }
     
     @ViewBuilder
     private func roomRow(room: Room) -> some View {
-        // Grouped rooms hear the coordinator's stream, so show its track —
-        // a member room's own `track` goes stale once it joins a group.
-        let playbackRoom = sonosService.playbackRoom(for: room)
+        let playbackRoom = room.playbackRoom
         Menu {
             if !playbackRoom.track.name.isEmpty {
                 Section {

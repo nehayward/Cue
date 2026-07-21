@@ -46,6 +46,19 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var queue: OrderedSet<PlayableContent> = []
     public var queueTotal: Int = 0
     public var container: SonosContainer?
+    /// The group this room currently belongs to. Maintained by `GroupRoom`
+    /// whenever membership is set or mutated; weak so discarded topology
+    /// snapshots can deallocate.
+    public weak var group: GroupRoom?
+
+    /// The room whose playback state this room is actually hearing.
+    /// Grouped rooms stream from their group coordinator, and only the
+    /// coordinator's `track`/`isPlaying` are kept fresh — so resolve
+    /// through the coordinator, falling back to this room when it isn't
+    /// part of a known group.
+    public var playbackRoom: Room {
+        group?.coordinatorRoom ?? self
+    }
 
     // MARK: Settings
     public var settings = SpeakerSettings(isSet: false)

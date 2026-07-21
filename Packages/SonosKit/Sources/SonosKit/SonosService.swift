@@ -265,15 +265,6 @@ public final class SonosService {
         sorted.first(where: { $0.coordinatorID == id})
     }
 
-    /// The room whose playback state a given room is actually hearing.
-    /// Grouped rooms stream from their group coordinator, and only the
-    /// coordinator's `track`/`isPlaying` are kept fresh — so resolve
-    /// through the coordinator, falling back to the room itself when it
-    /// isn't part of a known group.
-    public func playbackRoom(for room: Room) -> Room {
-        groups.first(where: { $0.rooms.contains(where: { $0.id == room.id }) })?.coordinatorRoom ?? room
-    }
-
     /// Copies battery state from a freshly-parsed `updateGroup` into the
     /// matching rooms of an already-stored `storedGroup`. Iterates every
     /// room — not just the coordinator — so a battery speaker (Move)

@@ -7,7 +7,18 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public var coordinatorRoom: Room
     public let id: String
     public let coordinatorID: String
-    public var rooms: [Room] = []
+    public var rooms: [Room] = [] {
+        didSet {
+            // Keep each room's back-pointer in sync so `Room.playbackRoom`
+            // resolves through the current coordinator. Only clear pointers
+            // that still reference this group — a room may already have been
+            // adopted by another group before being removed from this one.
+            for room in oldValue where room.group === self && !rooms.contains(where: { $0.id == room.id }) {
+                room.group = nil
+            }
+            for room in rooms { room.group = self }
+        }
+    }
     public var TVMode: Bool { playbackService == .tv }
     public var isCrossfaded: Bool? = nil
     public var tvSettings: TVSettings?
@@ -44,6 +55,8 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
         self.rooms = rooms
         self.coordinatorRoom = coordinatorRoom
         self.tvSettings = tvSettings
+        // didSet doesn't fire during init, so adopt the initial members here.
+        for room in rooms { room.group = self }
     }
 }
 
