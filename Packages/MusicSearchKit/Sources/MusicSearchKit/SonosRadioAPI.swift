@@ -12,16 +12,29 @@ import Foundation
 /// - `POST /smapi` — SOAP, for `search` within the PresentationMap's search
 ///   categories ("station", "show") and for `refreshAuthToken` when the
 ///   browse endpoint rejects an expired token.
-public final class SonosRadioAPI {
+///
+/// An actor so the token-refresh state is race-free: concurrent requests that
+/// both hit 401 share a single in-flight refresh instead of firing duplicate
+/// (mutually invalidating) token exchanges.
+public actor SonosRadioAPI {
     private let session: URLSession
+    /// Called after a successful token refresh so the owner can persist the
+    /// rotated pair (the stored household token is stale once rotated).
+    private let onTokenRefreshed: (@Sendable (_ token: String, _ key: String) -> Void)?
 
-    /// A token/key pair returned by `refreshAuthToken` this session. The
-    /// stored household credentials aren't updated by us, so once refreshed,
-    /// this pair is substituted into every subsequent request.
+    /// A token/key pair returned by `refreshAuthToken` this session,
+    /// substituted into every subsequent request.
     private var refreshedLogin: (token: String, key: String)?
+    /// The in-flight refresh, joined by concurrent 401s instead of starting a
+    /// second exchange.
+    private var refreshTask: Task<(token: String, key: String)?, Never>?
 
-    public init(session: URLSession = .shared) {
+    public init(
+        session: URLSession = .shared,
+        onTokenRefreshed: (@Sendable (_ token: String, _ key: String) -> Void)? = nil
+    ) {
         self.session = session
+        self.onTokenRefreshed = onTokenRefreshed
     }
 
     // MARK: - Home browse (REST)
@@ -59,16 +72,16 @@ public final class SonosRadioAPI {
         components.query = nil
         guard let url = components.url else { return nil }
 
-        let (response, unauthorized) = await fetchBrowse(url: url, credentials: effectiveCredentials(credentials))
+        let attempted = effectiveCredentials(credentials)
+        let (response, unauthorized) = await fetchBrowse(url: url, credentials: attempted)
         if let response { return response }
         guard unauthorized else { return nil }
 
         // Expired token — refresh through SMAPI (the same flow the official
         // controller uses) and retry once with the fresh token.
-        guard let refreshed = await refreshAuthToken(endpoint: smapiEndpoint, credentials: effectiveCredentials(credentials)) else {
+        guard await refreshLogin(afterFailureOf: attempted.token, endpoint: smapiEndpoint, credentials: credentials) else {
             return nil
         }
-        refreshedLogin = refreshed
         return await fetchBrowse(url: url, credentials: effectiveCredentials(credentials)).response
     }
 
@@ -122,8 +135,32 @@ public final class SonosRadioAPI {
         return SMAPIMediaParser.parse(xml: xml)
     }
 
+    /// Refreshes the login token after a request using `failedToken` was
+    /// rejected. Deduplicates: if another request already rotated past that
+    /// token there is nothing to do, and a refresh already in flight is
+    /// joined rather than duplicated (a second exchange could invalidate the
+    /// first's token). Returns whether a valid login is now available.
+    private func refreshLogin(
+        afterFailureOf failedToken: String,
+        endpoint: URL,
+        credentials: SMAPICredentials
+    ) async -> Bool {
+        if effectiveCredentials(credentials).token != failedToken { return true }
+        if let refreshTask { return await refreshTask.value != nil }
+
+        let task = Task { await self.requestRefreshedLogin(endpoint: endpoint, credentials: self.effectiveCredentials(credentials)) }
+        refreshTask = task
+        let refreshed = await task.value
+        refreshTask = nil
+
+        guard let refreshed else { return false }
+        refreshedLogin = refreshed
+        onTokenRefreshed?(refreshed.token, refreshed.key)
+        return true
+    }
+
     /// Exchanges the current loginToken for a fresh authToken/privateKey pair.
-    private func refreshAuthToken(
+    private func requestRefreshedLogin(
         endpoint: URL,
         credentials: SMAPICredentials
     ) async -> (token: String, key: String)? {

@@ -21,6 +21,9 @@ struct SonosRadioBrowseScreen: View {
                 } else if isEmpty, !sonosRadioBrowseService.isLoading {
                     emptySection
                 } else {
+                    if let error = sonosRadioBrowseService.error {
+                        staleNotice(error)
+                    }
                     ForEach(sonosRadioBrowseService.populatedSections) { section in
                         sectionView(for: section)
                     }
@@ -96,6 +99,20 @@ struct SonosRadioBrowseScreen: View {
         .listRowSeparator(.hidden)
         .listSectionSeparator(.hidden)
         .listRowSpacing(0)
+    }
+
+    /// Compact banner shown above the sections when a refresh failed but
+    /// previously loaded content is still on screen.
+    @ViewBuilder
+    private func staleNotice(_ message: String) -> some View {
+        Section {
+            Label(message, systemImage: "wifi.exclamationmark")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .listRowSeparator(.hidden)
+        .listSectionSeparator(.hidden)
+        .listRowBackground(Color.clear)
     }
 
     @ViewBuilder

@@ -114,8 +114,11 @@ extension SonosRadioBrowseResponse.Node {
             title: title,
             subtitle: subtitle,
             imageURL: container?.imageUrl.flatMap { URL(string: $0) },
-            canPlay: browsePolicies?.canPlay ?? false,
-            canEnumerate: browsePolicies?.canEnumerate ?? false
+            // When browsePolicies is omitted, assume stations (anything that
+            // isn't a plain sub-container) are playable — defaulting to false
+            // would silently drop every section in that response variant.
+            canPlay: browsePolicies?.canPlay ?? (container?.type != "container"),
+            canEnumerate: browsePolicies?.canEnumerate ?? (container?.type == "container")
         )
     }
 }

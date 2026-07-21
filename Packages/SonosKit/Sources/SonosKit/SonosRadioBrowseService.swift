@@ -5,8 +5,8 @@ import MusicSearchKit
 /// from the service's browse endpoint, matching the curated rows the official
 /// controller shows ("Trending Now", "Summertime", …) — with a static set of
 /// genre searches as a fallback when the home fetch fails.
-public struct SonosRadioSection: Identifiable, Codable {
-    public enum Source: Hashable, Codable {
+public struct SonosRadioSection: Identifiable, Codable, Sendable {
+    public enum Source: Hashable, Codable, Sendable {
         /// A browsable section object id from the home endpoint.
         case container(id: String)
         /// A station-search term (fallback when no browse tree is available).
@@ -59,14 +59,9 @@ public final class SonosRadioBrowseService {
     /// re-entering a "see all" screen doesn't refetch.
     private var sectionStationsCache: [String: [PlayableContent]] = [:]
 
-    private let cache = MemoryFileCache.shared
-    private let cacheKey = "sonosRadioHomeSections"
+    private static let cacheKey = "sonosRadioHomeSections"
 
-    private init() {
-        // Last-fetched sections render instantly while a fresh load runs
-        // (the screen only shows its spinner when there's nothing to show).
-        sections = cache.load(forKey: cacheKey, as: [SonosRadioSection].self) ?? []
-    }
+    private init() {}
 
     public func load() async {
         guard !isLoading, !hasLoaded else { return }
@@ -74,21 +69,36 @@ public final class SonosRadioBrowseService {
         error = nil
         defer { isLoading = false }
 
+        // Hydrate the last-fetched sections first — read off the main actor —
+        // so the screen paints instantly while the fresh fetch runs.
+        if sections.isEmpty, let cached = await Self.loadCachedSections() {
+            sections = cached
+        }
+
         let dynamic = await loadDynamicSections()
         if !dynamic.isEmpty {
             sections = dynamic
-            cache.save(dynamic, forKey: cacheKey)
+            MemoryFileCache.shared.save(dynamic, forKey: Self.cacheKey)
         } else if sections.isEmpty {
             // Nothing fresh and nothing cached — fall back to genre searches.
-            // (A failed fetch never clobbers previously loaded sections.)
             print("Sonos Radio browse: no dynamic sections, falling back to genre searches")
             sections = await loadFallbackSections()
+        } else {
+            // The fetch failed but cached/previous sections are on screen —
+            // surface it instead of silently showing stale rows.
+            error = "Couldn't refresh Sonos Radio — showing your last loaded stations."
         }
 
         hasLoaded = true
         if populatedSections.isEmpty {
             error = "Couldn't load Sonos Radio. Make sure your Sonos system is reachable and try again."
         }
+    }
+
+    /// Reads the persisted sections off the main actor (disk IO + JSON
+    /// decode), so hydration never blocks view setup.
+    private nonisolated static func loadCachedSections() async -> [SonosRadioSection]? {
+        MemoryFileCache.shared.load(forKey: cacheKey, as: [SonosRadioSection].self)
     }
 
     public func refresh() async {
@@ -112,9 +122,11 @@ public final class SonosRadioBrowseService {
         case .container(let id):
             if let cached = sectionStationsCache[id] { return cached }
             let stations = await musicSearchService.sonosRadioSectionStations(id: id)
-            let resolved = stations.isEmpty ? section.items : stations
-            sectionStationsCache[id] = resolved
-            return resolved
+            // Don't cache the degraded preview fallback — a transient failure
+            // would otherwise cap this section at its previews all session.
+            guard !stations.isEmpty else { return section.items }
+            sectionStationsCache[id] = stations
+            return stations
         case .search(let term):
             return await musicSearchService.sonosRadioStations(matching: term, count: 100)
         }
@@ -129,11 +141,15 @@ public final class SonosRadioBrowseService {
             print("Sonos Radio browse: home sections fetch failed")
             return []
         }
+        // Drop duplicate titles: RouterDestination.playableList identity is
+        // keyed on title, so two same-titled sections would collapse onto one
+        // navigation destination.
+        var seenTitles = Set<String>()
         return home.compactMap { section -> SonosRadioSection? in
             let items = section.items
                 .filter(\.canPlay)
                 .map { musicSearchService.sonosRadioContent(from: $0) }
-            guard !items.isEmpty else { return nil }
+            guard !items.isEmpty, seenTitles.insert(section.title).inserted else { return nil }
             return SonosRadioSection(title: section.title, source: .container(id: section.id), items: items)
         }
     }

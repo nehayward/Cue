@@ -67,12 +67,26 @@ public final class MusicSearchService {
         tokenRefreshHandler: KeychainTokenRefreshHandler.shared
     )
     private let deezer = DeezerAPI()
-    private let sonosRadio = SonosRadioAPI()
+    /// Persisting the rotated token means the next launch's stored credentials
+    /// are already fresh, skipping the 401 → refreshAuthToken → retry round
+    /// trips on every cold start.
+    private let sonosRadio = SonosRadioAPI(onTokenRefreshed: { token, key in
+        Task {
+            guard let householdId = KeychainTokenRefreshHandler.shared.householdId else { return }
+            try? await KeychainTokenRefreshHandler.shared.handleTokenRefresh(
+                serviceType: .sonosRadio,
+                householdId: householdId,
+                token: token,
+                key: key
+            )
+        }
+    })
     /// Sonos Radio's service-registry id, used to resolve its SMAPI endpoint and
     /// to classify its account. Distinct from the playback sid (303).
     private static let sonosRadioServiceID = "77575"
     /// Cached resolved SMAPI endpoint for Sonos Radio.
     private var cachedSonosRadioEndpoint: URL?
+    private static let sonosRadioEndpointCacheKey = "sonosRadioEndpoint"
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
 
@@ -1309,15 +1323,19 @@ public final class MusicSearchService {
             deviceId: creds.deviceId
         )
 
-        // Endpoint. Mirror the proven Deezer pattern (hardcoded SMAPI host);
-        // fall back to dynamic ListAvailableServices discovery only if needed.
-        // The host below is the Sonos Radio SMAPI endpoint seen in the official
-        // controller's traffic.
+        // Endpoint. Prefer the memory cache, then the persisted last-resolved
+        // endpoint (skips the speaker SOAP round trip on later launches), then
+        // live ListAvailableServices discovery, then the host seen in the
+        // official controller's traffic.
         let endpoint: URL
         if let cached = cachedSonosRadioEndpoint {
             endpoint = cached
+        } else if let persisted = MemoryFileCache.shared.load(forKey: Self.sonosRadioEndpointCacheKey, as: String.self)
+            .flatMap({ URL(string: $0) }) {
+            endpoint = persisted
         } else if let resolved = await sonosService.smapiEndpoint(for: Self.sonosRadioServiceID) {
             endpoint = resolved
+            MemoryFileCache.shared.save(resolved.absoluteString, forKey: Self.sonosRadioEndpointCacheKey)
         } else if let fallback = URL(string: "https://sali.sonos.superhi.fi/smapi") {
             endpoint = fallback
         } else {
@@ -1356,20 +1374,42 @@ public final class MusicSearchService {
     /// browse endpoint (e.g. "sonos:2997") match the SMAPI search ids, so
     /// playback works identically.
     func sonosRadioContent(from item: SonosRadioHomeItem) -> PlayableContent {
-        PlayableContent(
+        makeSonosRadioContent(
             title: item.title,
-            subtitle: item.subtitle ?? "Sonos Radio",
+            subtitle: item.subtitle,
             thumbnail: item.imageURL,
             artwork: Self.upsizedImgix(item.imageURL),
+            id: item.id,
+            artist: item.subtitle,
+            album: nil
+        )
+    }
+
+    /// Single factory for Sonos Radio stations from either source (SMAPI
+    /// search or home browse), so the shared shape can't drift.
+    private func makeSonosRadioContent(
+        title: String,
+        subtitle: String?,
+        thumbnail: URL?,
+        artwork: URL?,
+        id: String,
+        artist: String?,
+        album: String?
+    ) -> PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: subtitle ?? "Sonos Radio",
+            thumbnail: thumbnail,
+            artwork: artwork,
             content: MediaContent(
                 service: .sonosRadio,
-                id: item.id,
+                id: id,
                 type: .radio,
                 location: nil
             ),
             metadata: .init(
-                artist: item.subtitle,
-                album: nil,
+                artist: artist,
+                album: album,
                 radioStation: true
             )
         )
@@ -1400,23 +1440,14 @@ public final class MusicSearchService {
 
     private func createSonosRadioContent(from item: SMAPIMediaItem) -> PlayableContent {
         let artworkURL = item.albumArtURI.flatMap { URL(string: $0) }
-        let subtitle = item.artist ?? item.summary ?? "Sonos Radio"
-        return PlayableContent(
+        return makeSonosRadioContent(
             title: item.title,
-            subtitle: subtitle,
+            subtitle: item.artist ?? item.summary,
             thumbnail: artworkURL,
             artwork: artworkURL,
-            content: MediaContent(
-                service: .sonosRadio,
-                id: item.id,
-                type: .radio,
-                location: nil
-            ),
-            metadata: .init(
-                artist: item.artist,
-                album: item.album,
-                radioStation: true
-            )
+            id: item.id,
+            artist: item.artist,
+            album: item.album
         )
     }
 
