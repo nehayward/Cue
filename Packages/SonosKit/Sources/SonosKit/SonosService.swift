@@ -822,6 +822,14 @@ public final class SonosService {
                         let info = await mediaInfo
                         if let title = info?.title, !title.isEmpty, roomGroup.coordinatorRoom.radioStation != title {
                             roomGroup.coordinatorRoom.radioStation = title
+                            // Station changed — twin of `load()`: the previous
+                            // station's art must not survive the switch. Take the
+                            // new station's metadata art (or nil if it has none —
+                            // a placeholder beats the wrong station's branding).
+                            // Without this, the resting-track fallback below kept
+                            // the old art whenever the new station's URIMetadata
+                            // carried no albumArtURI.
+                            roomGroup.coordinatorRoom.track.radioStationArtworkURL = info?.artwork
                         }
                         // Prefer the station art the parser already pulled from the
                         // position info; otherwise use the one round-tripped via the
