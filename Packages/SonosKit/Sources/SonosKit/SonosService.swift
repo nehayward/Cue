@@ -836,11 +836,27 @@ public final class SonosService {
                     }
 
                     if awaitedTrack.isEmpty {
-                        // Active speaker briefly returning empty is usually a transient —
-                        // keep the previous track on screen, let the next pulse settle.
-                        // `isEmpty`, not `== .empty`: the radio branch above stamps
-                        // station art onto an empty track, which would otherwise slip
-                        // past this early return into the new-track path every pulse.
+                        // Radio: settle into the station-branded resting track (twin
+                        // of the selected-group path in `load()`). Without this the
+                        // background poll never wrote station art to the room, so the
+                        // mini player only got artwork after the large player had been
+                        // opened once (only `load()`'s selected path filled it in).
+                        // The radio branch above already stamped parser/metadata
+                        // station art onto `awaitedTrack`.
+                        if roomGroup.playbackService == .radio {
+                            var restingTrack = Track.empty
+                            restingTrack.radioStationArtworkURL = awaitedTrack.radioStationArtworkURL
+                                ?? roomGroup.coordinatorRoom.track.radioStationArtworkURL
+                            if roomGroup.coordinatorRoom.track != restingTrack {
+                                roomGroup.coordinatorRoom.track = restingTrack
+                            }
+                            return
+                        }
+                        // Non-radio: an active speaker briefly returning empty is
+                        // usually a transient — keep the previous track on screen,
+                        // let the next pulse settle. `isEmpty`, not `== .empty`, so
+                        // an art-stamped empty track can't slip past this early
+                        // return into the new-track path every pulse.
                         return
                     }
 
