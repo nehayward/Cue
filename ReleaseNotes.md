@@ -6,6 +6,7 @@
 
 –– Bug Fixes & Improvements ––
 - Fixed album artwork stuttering the player during song changes — the crossfade is now one smooth dissolve
+- Fixed the player staying stuck on a radio station after playing a song from the queue — playback switches reliably, the progress bar appears again, and the station caption clears right away
 - Services you remove in the Sonos app no longer linger in Clic — they're hidden from search and browse automatically
 - Plex sign-in now lives right on its row in Services — tap the row to manage your account
 
