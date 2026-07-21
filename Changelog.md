@@ -12,6 +12,13 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 - Behavior preserved: the `shouldFade` snapshot is still taken when the artwork URL changes, so a slow load can't fade in after a user skip. Queue taps and natural track advances crossfade; next/previous and speaker switches stay instant.
 - New `isBackground` mode on `ArtworkView`, used by the blurred background copies (`BackgroundView` / `BackgroundViewCatalyst`): skips the badge overlay, rounded-corner clip, shadow, and alarm tracking — all invisible under the blur but previously still rendered on every frame of a crossfade. Also made `defaultFadeDuration` a `let` (was needlessly `@State`).
 
+### S1 household discovery + Connect-by-IP fixes
+- S1-only players (ZP100, ZP80, older Play:5s…) were invisible to the entire household model: `SonosAPI.getHouseHoldID` only parsed `CurrentMuseHouseholdId` from `GetZoneGroupAttributes`, a Muse (S2) API field S1 firmware never reports. The empty id made every path drop the device — Bonjour discovery (`performDiscovery`), the Households scan (`discoverHouseholds`), and the known-IP reconnect race in `getGroups(useCache:)` — so a split S1/S2 home could add its S2 system but never (re-)add the S1 one, and adopting the S2 household made the S1 player disappear for good
+- `getHouseHoldID` now falls back to `http://<ip>:1400/status/zp` → `<HouseholdControlID>` when the Muse id is absent. That endpoint exists on every firmware generation, and its `Sonos_xxx` value matches the Muse id's pre-dot base (which the method already strips to), so S1 and S2 devices of one household resolve to a single consistent id across both paths
+- `ConnectByIPScreen.validateIP` fired an uncancelled probe per keystroke; a slow response for a prefix of the address (e.g. `…1.1` while typing `…1.10`) could land after the full address's probe and flip `deviceFound` back to false — the reported "green tick, then No Sonos system found". The probe task is now cancelled on each edit and stale results (text no longer matching) are discarded
+- The screen also had no way to adopt the typed IP — its rows only list `sortedRooms` of the already-active household. Added a "Connect to This Device" button (shown once `deviceFound`) that runs `setStaticIP(ip:)`, which pins the legacy IP, resolves + adopts the household (now works for S1 via the fallback), and reconnects
+- Added parser tests: `HouseholdControlID` extraction from a `/status/zp` payload, and `parseHouseID` returning empty for an S1 `GetZoneGroupAttributes` response (documents why the fallback exists)
+
 ---
 
 ## 2026.6

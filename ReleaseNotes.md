@@ -5,6 +5,9 @@
 
 –– Bug Fixes & Improvements ––
 - Fixed album artwork stuttering the player during song changes — the crossfade is now one smooth dissolve
+- Fixed older S1 Sonos players (like the ZP100 or ZP80) never being found — a home running S1 now shows up in Households alongside your S2 system, so a split S1/S2 setup can switch between the two with a tap
+- Connect by IP: a new Connect button appears once a speaker is found at the address you typed, so you can actually switch to that system — previously the screen could only verify the address
+- Fixed Connect by IP sometimes showing "No Sonos system found at this IP address" right after the address was verified with a green check
 
 # 2026.6
 
