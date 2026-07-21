@@ -47,4 +47,22 @@ final class SonosRadioArtworkURLTests: XCTestCase {
         let noImage = try XCTUnwrap(URL(string: "https://sali.sonos.superhi.fi/image?w=60"))
         XCTAssertEqual(noImage.sonosRadioArtwork(), noImage)
     }
+
+    /// Stations queued by builds before the `didlEscaped` fix left corrupted
+    /// metadata on the speaker: the query separators are percent-encoded
+    /// (`image?w=60%26image=…`), collapsing everything into one `w` item, and
+    /// the proxy 503s on it forever. The repair path recovers the inner imgix
+    /// URL so old queues self-heal without being re-queued. URL taken
+    /// verbatim from a device log.
+    func testRepairsCorruptedLegacyProxyURL() throws {
+        let corrupted = try XCTUnwrap(URL(string:
+            "https://sali.sonos.superhi.fi/image?w=60%26image=https%3A%2F%2Fsonosradio.imgix.net%2Fstation-images%2F8a712154-4455-4995-a7ce-319ae4b23be1.jpeg%3Fw%3D200%26auto%3Dformat%2Ccompress%26partnerId=sonos"
+        ))
+        let healed = corrupted.sonosRadioArtwork(width: 800)
+        let components = try XCTUnwrap(URLComponents(url: healed, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(components.host, "sonosradio.imgix.net")
+        XCTAssertEqual(components.path, "/station-images/8a712154-4455-4995-a7ce-319ae4b23be1.jpeg")
+        XCTAssertEqual(components.queryItems?.first(where: { $0.name == "w" })?.value, "800")
+        XCTAssertEqual(components.queryItems?.first(where: { $0.name == "auto" })?.value, "format,compress")
+    }
 }
