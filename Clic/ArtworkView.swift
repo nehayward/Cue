@@ -30,7 +30,12 @@ struct ArtworkView: View {
         let service = String(describing: track.musicService)
         if !track.album.isEmpty { return "\(track.album).\(service).player" }
         if !track.name.isEmpty  { return "\(track.name).\(service).player" }
-        return track.trackID + ".player"
+        if !track.trackID.isEmpty { return track.trackID + ".player" }
+        // Identity-less track (an idle radio player's resting track has no
+        // album/name/trackID): key by the artwork URL. A bare ".player" key
+        // was shared by every idle radio room, so each room's player showed
+        // whichever station's art happened to be cached first.
+        return (track.artworkURL?.absoluteString ?? "") + ".player"
     }
 
     private var artworkRequest: ImageRequest? {
