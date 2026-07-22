@@ -51,23 +51,30 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
     }
     
     func handleTokenRefresh(householdId: String, token: String, key: String) async throws {
+        try await handleTokenRefresh(serviceType: .spotify, householdId: householdId, token: token, key: key)
+    }
+
+    /// Persists a rotated SMAPI token/key pair for `serviceType`'s stored
+    /// media server, so later launches read the fresh pair instead of
+    /// re-refreshing an already-rotated token.
+    func handleTokenRefresh(serviceType: SonosServiceType, householdId: String, token: String, key: String) async throws {
         self.householdId = householdId
         guard var servers = KeychainManager.shared.getMediaServers(householdId: householdId) else {
             throw SpotifyMetadataError.tokenRefreshFailed
         }
-        
-        let spotifyServers = servers.filter { $0.type == .spotify }
+
+        let serviceServers = servers.filter { $0.type == serviceType }
         let targetServer: MediaServer?
-        
-        // Use primaryServer if more than 2 Spotify servers exist
-        if spotifyServers.count > 1, let primaryServer = primaryServer, let primaryKey = getKey(for: .spotify) {
+
+        // Use primaryServer if more than 2 servers of this type exist
+        if serviceServers.count > 1, let primaryServer = primaryServer, let primaryKey = getKey(for: serviceType) {
             if let primaryUDN = primaryServer[primaryKey] {
-                targetServer = servers.first(where: { $0.id == primaryUDN && $0.type == .spotify })
+                targetServer = servers.first(where: { $0.id == primaryUDN && $0.type == serviceType })
             } else {
-                targetServer = spotifyServers.first
+                targetServer = serviceServers.first
             }
         } else {
-            targetServer = spotifyServers.first
+            targetServer = serviceServers.first
         }
         
         guard let targetServer = targetServer,
