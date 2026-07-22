@@ -23,6 +23,12 @@ public struct Track: Identifiable, Hashable, Sendable {
     /// song to consumers comparing `unique`.
     public var unique: String { trackID + name }
 
+    /// True when the device reported no current track (no ID and no title).
+    /// Distinct from `== .empty`: a radio source attaches station artwork to
+    /// an otherwise-empty track (ads / idle station), which full equality
+    /// treats as "not empty".
+    public var isEmpty: Bool { trackID.isEmpty && name.isEmpty }
+
     public let trackID: String
     public var name: String
     public var song: String { metadata?.song ?? name }

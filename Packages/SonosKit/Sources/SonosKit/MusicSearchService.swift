@@ -1378,7 +1378,7 @@ public final class MusicSearchService {
             title: item.title,
             subtitle: item.subtitle,
             thumbnail: item.imageURL,
-            artwork: Self.upsizedImgix(item.imageURL),
+            artwork: item.imageURL?.sonosRadioArtwork(),
             id: item.id,
             artist: item.subtitle,
             album: nil
@@ -1415,20 +1415,6 @@ public final class MusicSearchService {
         )
     }
 
-    /// The browse endpoint returns 200px imgix thumbnails; request a larger
-    /// rendition for full-size artwork.
-    private static func upsizedImgix(_ url: URL?) -> URL? {
-        guard let url,
-              var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              components.queryItems?.contains(where: { $0.name == "w" }) == true else {
-            return url
-        }
-        components.queryItems = components.queryItems?.map {
-            $0.name == "w" ? URLQueryItem(name: "w", value: "600") : $0
-        }
-        return components.url ?? url
-    }
-
     /// Searches Sonos Radio stations for `term` via the "station" search
     /// category. Powers search and the genre fallback on the browse screen.
     public func sonosRadioStations(matching term: String, count: Int = 50) async -> [PlayableContent] {
@@ -1443,8 +1429,11 @@ public final class MusicSearchService {
         return makeSonosRadioContent(
             title: item.title,
             subtitle: item.artist ?? item.summary,
+            // SMAPI returns a w=60 proxy thumbnail — fine for rows, blurry
+            // everywhere else. `artwork` (player-size display, and what gets
+            // embedded in the playback metadata) uses the upscaled imgix URL.
             thumbnail: artworkURL,
-            artwork: artworkURL,
+            artwork: artworkURL?.sonosRadioArtwork(),
             id: item.id,
             artist: item.artist,
             album: item.album

@@ -107,7 +107,7 @@ final class SonosTrackParser {
                     // stripped. Used as the artwork fallback during ads.
                     var base = String(htmlDecoded[..<markRange.lowerBound])
                     while base.hasSuffix("&") || base.hasSuffix("?") { base.removeLast() }
-                    radioStationArtURL = URL(string: base)
+                    radioStationArtURL = URL(string: base)?.sonosRadioArtwork()
                 }
             }
             

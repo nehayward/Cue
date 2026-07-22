@@ -100,13 +100,25 @@ struct MiniPlayerView: View {
         VStack(alignment: .leading) {
             Text(group.nameWithCount)
                 .font(.caption2)
-            MarqueeText([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter { !$0.isEmpty }.joined(separator: " • "))
+            MarqueeText(trackInfoText(for: group))
                 .transition(.slide)
                 .fontWeight(.semibold)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .fontDesign(.rounded)
         .lineLimit(1, reservesSpace: true)
+    }
+
+    /// Song • artist, falling back to the radio station name when the track
+    /// carries no text of its own (idle Sonos Radio players report an empty
+    /// track between songs — the large player shows the station name there,
+    /// so the mini player should too).
+    private func trackInfoText(for group: GroupRoom) -> String {
+        let parts = [group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter { !$0.isEmpty }
+        if parts.isEmpty, let station = group.coordinatorRoom.radioStation {
+            return station
+        }
+        return parts.joined(separator: " • ")
     }
 
     private func tvInputInfoView(for group: GroupRoom) -> some View {
