@@ -39,7 +39,9 @@ struct GroupScreen: View {
         case .nameDescending:
             return activeRooms.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending }
         case .playing:
-            return activeRooms.sorted { $0.playbackRoom.isPlaying && !$1.playbackRoom.isPlaying }
+            return activeRooms.sorted {
+                sonosService.playbackRoom(for: $0).isPlaying && !sonosService.playbackRoom(for: $1).isPlaying
+            }
         }
     }
     
@@ -86,7 +88,9 @@ struct GroupScreen: View {
                             addGroup(id: room.id)
                         } label: {
                             HStack {
-                                let playbackRoom = room.playbackRoom
+                                // Grouped rooms hear the coordinator's stream, so show its track —
+                                // a member room's own `track` goes stale once it joins a group.
+                                let playbackRoom = sonosService.playbackRoom(for: room)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(room.name)
                                         .font(.headline)
