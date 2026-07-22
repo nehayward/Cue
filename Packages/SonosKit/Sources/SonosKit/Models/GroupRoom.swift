@@ -16,7 +16,12 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
             for room in oldValue where room.group === self && !rooms.contains(where: { $0.id == room.id }) {
                 room.group = nil
             }
-            for room in rooms { room.group = self }
+            // Only touch rooms whose pointer actually changes — blind
+            // re-assignment fires an Observation mutation per member on
+            // every topology tick.
+            for room in rooms where room.group !== self {
+                room.group = self
+            }
         }
     }
     public var TVMode: Bool { playbackService == .tv }
@@ -56,7 +61,9 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
         self.coordinatorRoom = coordinatorRoom
         self.tvSettings = tvSettings
         // didSet doesn't fire during init, so adopt the initial members here.
-        for room in rooms { room.group = self }
+        for room in rooms where room.group !== self {
+            room.group = self
+        }
     }
 }
 
