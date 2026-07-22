@@ -478,14 +478,18 @@ public final class SonosService {
 
             if roomGroup.playbackService == .radio {
                 if let mediaInfo = await mediaInfo, let title = mediaInfo.title, !title.isEmpty {
-                    if roomGroup.coordinatorRoom.radioStation != title, !title.isEmpty {
+                    if roomGroup.coordinatorRoom.radioStation != title {
                         roomGroup.coordinatorRoom.radioStation = title
-                    }
-                    
-                    // Don't clobber the station art the parser already derived from
-                    // the position info; only fill it in if still missing.
-                    if roomGroup.coordinatorRoom.track.radioStationArtworkURL == nil,
-                       let stationArt = mediaInfo.artwork {
+                        // Station changed: the old station's art no longer
+                        // applies (the nil-gate below would keep it forever
+                        // while idle). Take the new station's metadata art
+                        // now; the parser-derived art (preferred) lands with
+                        // the next non-empty track.
+                        roomGroup.coordinatorRoom.track.radioStationArtworkURL = mediaInfo.artwork
+                    } else if roomGroup.coordinatorRoom.track.radioStationArtworkURL == nil,
+                              let stationArt = mediaInfo.artwork {
+                        // Don't clobber the station art the parser already derived
+                        // from the position info; only fill it in if still missing.
                         roomGroup.coordinatorRoom.track.radioStationArtworkURL = stationArt
                     }
                 }
@@ -493,12 +497,21 @@ public final class SonosService {
                 roomGroup.coordinatorRoom.radioStation = nil
             }
 
-            if awaitedTrack == .empty {
-                if roomGroup.coordinatorRoom.track != .empty {
+            if awaitedTrack.isEmpty {
+                // An idle radio player keeps its station branding. Build the
+                // resting track first and only assign on change — comparing
+                // against a bare `.empty` while the radio branch above
+                // re-stamps station art made every pulse alternate between
+                // the two states, flickering the player (and mini player)
+                // and deleting the widget artwork file each second.
+                var restingTrack = Track.empty
+                if roomGroup.playbackService == .radio {
+                    restingTrack.radioStationArtworkURL = awaitedTrack.radioStationArtworkURL
+                        ?? roomGroup.coordinatorRoom.track.radioStationArtworkURL
+                }
+                if roomGroup.coordinatorRoom.track != restingTrack {
                     ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
-                    roomGroup.coordinatorRoom.track = .empty
-                    roomGroup.coordinatorRoom.track.downloadedArtworkURL = nil
-                    roomGroup.coordinatorRoom.track.sonosAlbumArtURL = nil
+                    roomGroup.coordinatorRoom.track = restingTrack
                 }
                 return
             }
@@ -818,6 +831,14 @@ public final class SonosService {
                         let info = await mediaInfo
                         if let title = info?.title, !title.isEmpty, roomGroup.coordinatorRoom.radioStation != title {
                             roomGroup.coordinatorRoom.radioStation = title
+                            // Station changed — twin of `load()`: the previous
+                            // station's art must not survive the switch. Take the
+                            // new station's metadata art (or nil if it has none —
+                            // a placeholder beats the wrong station's branding).
+                            // Without this, the resting-track fallback below kept
+                            // the old art whenever the new station's URIMetadata
+                            // carried no albumArtURI.
+                            roomGroup.coordinatorRoom.track.radioStationArtworkURL = info?.artwork
                         }
                         // Prefer the station art the parser already pulled from the
                         // position info; otherwise use the one round-tripped via the
@@ -831,9 +852,28 @@ public final class SonosService {
                         roomGroup.coordinatorRoom.radioStation = nil
                     }
 
-                    if awaitedTrack == .empty {
-                        // Active speaker briefly returning empty is usually a transient —
-                        // keep the previous track on screen, let the next pulse settle.
+                    if awaitedTrack.isEmpty {
+                        // Radio: settle into the station-branded resting track (twin
+                        // of the selected-group path in `load()`). Without this the
+                        // background poll never wrote station art to the room, so the
+                        // mini player only got artwork after the large player had been
+                        // opened once (only `load()`'s selected path filled it in).
+                        // The radio branch above already stamped parser/metadata
+                        // station art onto `awaitedTrack`.
+                        if roomGroup.playbackService == .radio {
+                            var restingTrack = Track.empty
+                            restingTrack.radioStationArtworkURL = awaitedTrack.radioStationArtworkURL
+                                ?? roomGroup.coordinatorRoom.track.radioStationArtworkURL
+                            if roomGroup.coordinatorRoom.track != restingTrack {
+                                roomGroup.coordinatorRoom.track = restingTrack
+                            }
+                            return
+                        }
+                        // Non-radio: an active speaker briefly returning empty is
+                        // usually a transient — keep the previous track on screen,
+                        // let the next pulse settle. `isEmpty`, not `== .empty`, so
+                        // an art-stamped empty track can't slip past this early
+                        // return into the new-track path every pulse.
                         return
                     }
 
