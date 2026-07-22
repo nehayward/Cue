@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Client for Sonos Radio (Sonos' first-party streaming service). Sonos Radio
 /// has no public REST API — it is reached with the household's SMAPI
@@ -13,23 +14,25 @@ import Foundation
 ///   categories ("station", "show") and for `refreshAuthToken` when the
 ///   browse endpoint rejects an expired token.
 ///
-/// The token-refresh state (`refreshedLogin`/`refreshTask`) is guarded by a
-/// lock — never held across an await — so concurrent requests that both hit
-/// 401 share a single in-flight refresh instead of firing duplicate
-/// (mutually invalidating) token exchanges.
-public final class SonosRadioAPI: @unchecked Sendable {
+/// The token-refresh state is guarded by an unfair lock — never held across
+/// an await — so concurrent requests that both hit 401 share a single
+/// in-flight refresh instead of firing duplicate (mutually invalidating)
+/// token exchanges.
+public final class SonosRadioAPI: Sendable {
     private let session: URLSession
     /// Called after a successful token refresh so the owner can persist the
     /// rotated pair (the stored household token is stale once rotated).
     private let onTokenRefreshed: (@Sendable (_ token: String, _ key: String) -> Void)?
 
-    private let lock = NSLock()
-    /// A token/key pair returned by `refreshAuthToken` this session,
-    /// substituted into every subsequent request. Guarded by `lock`.
-    private var refreshedLogin: (token: String, key: String)?
-    /// The in-flight refresh, joined by concurrent 401s instead of starting a
-    /// second exchange. Guarded by `lock`.
-    private var refreshTask: Task<(token: String, key: String)?, Never>?
+    private struct LoginState {
+        /// A token/key pair returned by `refreshAuthToken` this session,
+        /// substituted into every subsequent request.
+        var refreshedLogin: (token: String, key: String)?
+        /// The in-flight refresh, joined by concurrent 401s instead of
+        /// starting a second exchange.
+        var refreshTask: Task<(token: String, key: String)?, Never>?
+    }
+    private let loginState = OSAllocatedUnfairLock(initialState: LoginState())
 
     public init(
         session: URLSession = .shared,
@@ -147,32 +150,28 @@ public final class SonosRadioAPI: @unchecked Sendable {
         endpoint: URL,
         credentials: SMAPICredentials
     ) async -> Bool {
-        let task: Task<(token: String, key: String)?, Never>
-        let startedHere: Bool
+        let currentCredentials = effectiveCredentials(credentials)
 
-        lock.lock()
-        if (refreshedLogin?.token ?? credentials.token) != failedToken {
+        let (task, startedHere): (Task<(token: String, key: String)?, Never>?, Bool) = loginState.withLock { state in
             // Another request already rotated past the failed token.
-            lock.unlock()
-            return true
+            if (state.refreshedLogin?.token ?? credentials.token) != failedToken {
+                return (nil, false)
+            }
+            if let existing = state.refreshTask {
+                return (existing, false)
+            }
+            let started = Task { await self.requestRefreshedLogin(endpoint: endpoint, credentials: currentCredentials) }
+            state.refreshTask = started
+            return (started, true)
         }
-        if let existing = refreshTask {
-            task = existing
-            startedHere = false
-        } else {
-            let started = Task { await self.requestRefreshedLogin(endpoint: endpoint, credentials: self.effectiveCredentials(credentials)) }
-            refreshTask = started
-            task = started
-            startedHere = true
-        }
-        lock.unlock()
+        guard let task else { return true }
 
         let refreshed = await task.value
 
-        lock.lock()
-        refreshTask = nil
-        if let refreshed { refreshedLogin = refreshed }
-        lock.unlock()
+        loginState.withLock { state in
+            state.refreshTask = nil
+            if let refreshed { state.refreshedLogin = refreshed }
+        }
 
         guard let refreshed else { return false }
         if startedHere {
@@ -231,10 +230,7 @@ public final class SonosRadioAPI: @unchecked Sendable {
 
     /// Substitutes a session-refreshed token for the stored household one.
     private func effectiveCredentials(_ credentials: SMAPICredentials) -> SMAPICredentials {
-        lock.lock()
-        let refreshed = refreshedLogin
-        lock.unlock()
-        guard let refreshed else { return credentials }
+        guard let refreshed = loginState.withLock({ $0.refreshedLogin }) else { return credentials }
         return SMAPICredentials(
             token: refreshed.token,
             key: refreshed.key,
