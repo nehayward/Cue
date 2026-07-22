@@ -2,10 +2,13 @@
 
 –– New Features ––
 - Sonos Radio: Search Sonos Radio stations and browse them by genre, then play any station on any room or group — the SONOS badge appears on the artwork, and the station's artwork is shown during ad breaks
+- Smarter Services settings: the Services screen now shows what's actually on your Sonos — services you've authorized get show/hide toggles, ones you haven't set up yet link straight to the Sonos app to sign in, and services Clic doesn't support yet are listed too. Pull down to refresh after adding one
 
 –– Bug Fixes & Improvements ––
 - Fixed album artwork stuttering the player during song changes — the crossfade is now one smooth dissolve
 - Fixed the player staying stuck on a radio station after playing a song from the queue — playback switches reliably, the progress bar appears again, and the station caption clears right away
+- Services you remove in the Sonos app no longer linger in Clic — they're hidden from search and browse automatically
+- Plex sign-in now lives right on its row in Services — tap the row to manage your account
 
 # 2026.6
 

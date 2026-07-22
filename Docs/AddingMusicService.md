@@ -454,7 +454,7 @@ App
 [ ] {Service}BrowseScreen.swift — Plex-style List: nav rows with showSectionIndex:false, inline playlist rows, recently played section at bottom
 [ ] BrowseScreen.swift — add case (if custom browse UI)
 [ ] AppRegistry.swift — register browse service environment
-[ ] CoreFeatures.swift — add to syncEnabledServices mapping + preferredDefaultService
+[ ] MediaSearchService+Sonos.swift — add sonosServiceType mapping case; CoreFeatures.swift — add to preferredDefaultService
 [ ] ServicePreferenceScreen.swift — only if multiple-account token selection needed
 [ ] content.location — set web URL in all MediaContent initializers (search, lookup, browse, getTrackInformation)
 [ ] PlayableContent.serviceWebURL — add deterministic case only if URL is constructible from ID and content.location may lag (e.g. first load from cache)
