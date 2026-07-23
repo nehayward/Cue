@@ -25,9 +25,10 @@ struct ConnectByIPScreen: View {
             Section(header: Text("How to find IP of Device")) {
                 VStack(alignment: .leading, spacing: 12) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("1. Open Sonos App")
-                        Text("2. Go to Settings - Manage - About My System")
-                        Text("3. Input one of the (preferably non-portable and lan connected) speaker IP address. i.e 192.167.1.100")
+                        Text("1. Open the Sonos app")
+                        Text("2. Go to Settings › Manage › About My System")
+                        Text("3. Find the IP address listed under one of your speakers — prefer one that's wired to your router (LAN) or mains-powered, not a portable like Move or Roam")
+                        Text("4. Enter that address below, e.g. 192.168.1.100, then tap Connect when the speaker is found")
                     }
                     .font(.subheadline)
                 }
