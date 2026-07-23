@@ -70,10 +70,10 @@ final class QueueManager {
         }
 
         // Long lists can take seconds to queue. If Sonos hasn't accepted the
-        // content after 300ms, switch the banner into a loading state with a
+        // content after 500ms, switch the banner into a loading state with a
         // spinner so the tap doesn't feel dropped.
         let loadingBanner = Task { @MainActor [alertService] in
-            try? await Task.sleep(for: .milliseconds(300))
+            try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
             alertService.showLoadingContent(with: playableContent)
         }
