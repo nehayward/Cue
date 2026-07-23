@@ -93,9 +93,21 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         case .sonosRadio:
             // The SONOS asset is a full-colour badge (original rendering); don't
             // template-tint it or the circle collapses into a solid blob.
+            #if targetEnvironment(macCatalyst)
+            // Catalyst renders unrasterized asset images at full size inside menus,
+            // so pre-rasterize to a small badge while keeping the original colours.
+            let base = UIImage(named: self.title, in: .module, with: nil)!
+            let resized = base.resized(to: CGSize(width: 16, height: 16))
+
+            SwiftUI.Image(uiImage: resized)
+                .renderingMode(.original)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+            #else
             SwiftUI.Image(self.title, bundle: .module)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+            #endif
         case .tuneIn, .soundcloud, .deezer:
             #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .module, with: nil)!
@@ -147,9 +159,21 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
         case .sonosRadio:
+#if targetEnvironment(macCatalyst)
+            // Catalyst renders unrasterized asset images at full size inside menus,
+            // so pre-rasterize to a small badge while keeping the original colours.
+            let base = UIImage(named: self.title, in: .module, with: nil)!
+            let resized = base.resized(to: CGSize(width: 16, height: 16))
+
+            SwiftUI.Image(uiImage: resized)
+                .renderingMode(.original)
+                .resizable()
+                .scaledToFit()
+#else
             SwiftUI.Image(self.title, bundle: .module)
                 .resizable()
                 .scaledToFit()
+#endif
         case .tuneIn, .soundcloud, .deezer:
 #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .module, with: nil)!
