@@ -113,6 +113,24 @@ extension View {
         #endif
     }
 
+    /// Circular material backing for bottom-bar toolbar icons on OSes without
+    /// Liquid Glass. iOS 26 and visionOS already render toolbar items in
+    /// glass, so this only draws on older OSes.
+    @ViewBuilder
+    func glassToolbarIcon() -> some View {
+        #if !os(visionOS)
+        if #available(iOS 26.0, *) {
+            self
+        } else {
+            self
+                .padding(10)
+                .background(.ultraThinMaterial, in: Circle())
+        }
+        #else
+        self
+        #endif
+    }
+
     /// A circular glass button that fills with the accent tint when `active`.
     /// Keeps the clear-glass look when inactive; on iOS 26 the active state is
     /// prominent (tinted) glass, older OSes fall back to an accent-filled
