@@ -88,6 +88,29 @@ public final class MusicSearchService {
     private var cachedSonosRadioEndpoint: URL?
     private static let sonosRadioEndpointCacheKey = "sonosRadioEndpoint"
 
+    /// Pandora, reached over plain SMAPI like Sonos Radio (browse + search on
+    /// the service's SMAPI endpoint). Rotated tokens are persisted so later
+    /// launches skip the expired-token → refreshAuthToken → retry round trip.
+    private let pandora = PandoraAPI(onTokenRefreshed: { token, key in
+        Task {
+            guard let householdId = KeychainTokenRefreshHandler.shared.householdId else { return }
+            try? await KeychainTokenRefreshHandler.shared.handleTokenRefresh(
+                serviceType: .pandora,
+                householdId: householdId,
+                token: token,
+                key: key
+            )
+        }
+    })
+    /// Pandora's service-registry id (account UDN SA_RINCON60423_…), used to
+    /// resolve its SMAPI endpoint. Distinct from the playback sid (236).
+    private static let pandoraServiceID = "60423"
+    /// Cached resolved SMAPI endpoint for Pandora.
+    private var cachedPandoraEndpoint: URL?
+    private static let pandoraEndpointCacheKey = "pandoraEndpoint"
+    /// Cached search-category id discovered from Pandora's "search" container.
+    private var cachedPandoraSearchCategoryID: String?
+
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
 
     private let debounceDuration: Duration = .milliseconds(150)
@@ -180,6 +203,8 @@ public final class MusicSearchService {
                             await self.searchDeezer(query: capturedQuery)
                         case .sonosRadio:
                             await self.searchSonosRadio(query: capturedQuery)
+                        case .pandora:
+                            await self.searchPandora(query: capturedQuery)
                         }
                     }
                     // If we were cancelled during the fetch, the API may have returned []
@@ -208,7 +233,7 @@ public final class MusicSearchService {
                     }
                     continue
                 }
-                if provider == .tuneIn || provider == .sonosRadio, !isMultiServiceSearch {
+                if provider == .tuneIn || provider == .sonosRadio || provider == .pandora, !isMultiServiceSearch {
                     self.suggestions.removeAll()
                 }
                 if isMultiServiceSearch {
@@ -246,7 +271,7 @@ public final class MusicSearchService {
         }
 
         if let suggestionResults = await searchSuggestionTask.value {
-            if !providers.contains(.tuneIn) && !providers.contains(.sonosRadio) {
+            if !providers.contains(.tuneIn) && !providers.contains(.sonosRadio) && !providers.contains(.pandora) {
                 suggestions = suggestionResults.0
             }
         }
@@ -1437,6 +1462,125 @@ public final class MusicSearchService {
             id: item.id,
             artist: item.artist,
             album: item.album
+        )
+    }
+
+    // MARK: - Pandora
+
+    /// Resolves the Pandora SMAPI endpoint (cached) and credentials needed for
+    /// browse/search calls. Returns `nil` if Pandora isn't authorized in the
+    /// household or credentials can't be read.
+    private func pandoraContext() async -> (endpoint: URL, credentials: SMAPICredentials)? {
+        // Credentials. Pandora's loginToken is parsed off the system like any
+        // other service account the user authorized in the Sonos app. SMAPI
+        // needs the controller deviceId alongside the loginToken.
+        guard let creds = try? await KeychainTokenRefreshHandler.shared.getCredentials(for: .pandora),
+              !creds.token.isEmpty else {
+            return nil
+        }
+        let credentials = SMAPICredentials(
+            token: creds.token,
+            key: creds.key,
+            householdId: creds.householdId,
+            deviceId: creds.deviceId
+        )
+
+        // Endpoint. Prefer the memory cache, then the persisted last-resolved
+        // endpoint (skips the speaker SOAP round trip on later launches), then
+        // live ListAvailableServices discovery. No hardcoded fallback host:
+        // having credentials implies discovery against the household worked at
+        // least once, and the descriptor list is the authoritative source.
+        let endpoint: URL
+        if let cached = cachedPandoraEndpoint {
+            endpoint = cached
+        } else if let persisted = MemoryFileCache.shared.load(forKey: Self.pandoraEndpointCacheKey, as: String.self)
+            .flatMap({ URL(string: $0) }) {
+            endpoint = persisted
+        } else if let resolved = await sonosService.smapiEndpoint(for: Self.pandoraServiceID) {
+            endpoint = resolved
+            MemoryFileCache.shared.save(resolved.absoluteString, forKey: Self.pandoraEndpointCacheKey)
+        } else {
+            return nil
+        }
+        cachedPandoraEndpoint = endpoint
+        return (endpoint, credentials)
+    }
+
+    private func searchPandora(query: String) async -> [PlayableContent] {
+        await pandoraStations(matching: query)
+    }
+
+    /// Browses a Pandora SMAPI container ("root" for the top level, or a
+    /// container id from a prior browse). Returns `nil` if Pandora isn't
+    /// reachable for the household.
+    public func pandoraBrowse(id: String, index: Int = 0, count: Int = 100) async -> SMAPIMediaResult? {
+        guard let (endpoint, credentials) = await pandoraContext() else { return nil }
+        return await pandora.getMetadata(
+            endpoint: endpoint,
+            credentials: credentials,
+            id: id,
+            index: index,
+            count: count
+        )
+    }
+
+    /// Searches Pandora stations for `term` via the service's station search
+    /// category. Powers search and the browse screen's station search.
+    public func pandoraStations(matching term: String, count: Int = 50) async -> [PlayableContent] {
+        let term = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !term.isEmpty, let (endpoint, credentials) = await pandoraContext() else { return [] }
+        let categoryID = await pandoraSearchCategoryID(endpoint: endpoint, credentials: credentials)
+        guard let result = await pandora.search(
+            endpoint: endpoint,
+            credentials: credentials,
+            id: categoryID,
+            term: term,
+            count: count
+        ) else { return [] }
+        return result.items.filter(\.canPlay).map { pandoraContent(from: $0) }
+    }
+
+    /// The search-category id used for station searches. Discovered by
+    /// browsing the SMAPI "search" container (categories vary by presentation
+    /// map version), preferring a station category; falls back to the
+    /// canonical "stations" id when discovery fails.
+    private func pandoraSearchCategoryID(endpoint: URL, credentials: SMAPICredentials) async -> String {
+        if let cached = cachedPandoraSearchCategoryID { return cached }
+        if let categories = await pandora.getMetadata(
+            endpoint: endpoint,
+            credentials: credentials,
+            id: "search",
+            count: 20
+        ), let preferred = categories.items.first(where: {
+            $0.id.lowercased().contains("station") || $0.title.lowercased().contains("station")
+        }) ?? categories.items.first {
+            cachedPandoraSearchCategoryID = preferred.id
+            return preferred.id
+        }
+        return "stations"
+    }
+
+    /// Maps a SMAPI browse/search item to playable Pandora content. Station
+    /// ids ("ST:…") from browse and search are identical, so playback works
+    /// the same from either source.
+    func pandoraContent(from item: SMAPIMediaItem) -> PlayableContent {
+        let artworkURL = item.albumArtURI.flatMap { URL(string: $0) }
+        return PlayableContent(
+            title: item.title,
+            subtitle: item.artist ?? item.summary ?? "Pandora",
+            thumbnail: artworkURL,
+            artwork: artworkURL,
+            content: MediaContent(
+                service: .pandora,
+                id: item.id,
+                type: .radio,
+                location: nil
+            ),
+            metadata: .init(
+                artist: item.artist,
+                album: item.album,
+                radioStation: true
+            )
         )
     }
 

@@ -16,6 +16,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
     case soundcloud
     case deezer
     case sonosRadio
+    case pandora
 
     public var title: String {
         switch self {
@@ -37,9 +38,11 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             "Deezer"
         case .sonosRadio:
             "Sonos Radio"
+        case .pandora:
+            "Pandora"
         }
     }
-    
+
     public var isBrowseSupported: Bool {
         switch self {
         case .apple:
@@ -59,6 +62,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         case .deezer:
             true
         case .sonosRadio:
+            true
+        case .pandora:
             true
         }
     }
@@ -108,7 +113,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
             #endif
-        case .tuneIn, .soundcloud, .deezer:
+        case .tuneIn, .soundcloud, .deezer, .pandora:
             #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .module, with: nil)!
             let templated = base.withRenderingMode(.alwaysTemplate)
@@ -174,7 +179,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .resizable()
                 .scaledToFit()
 #endif
-        case .tuneIn, .soundcloud, .deezer:
+        case .tuneIn, .soundcloud, .deezer, .pandora:
 #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .module, with: nil)!
             let templated = base.withRenderingMode(.alwaysTemplate)
@@ -233,6 +238,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             Color(red: 161.0 / 255.0, green: 0 / 255.0, blue: 255.0 / 255.0)
         case .sonosRadio:
                 .primary
+        case .pandora:
+            Color(red: 54.0 / 255.0, green: 104.0 / 255.0, blue: 255.0 / 255.0)
         }
     }
 }

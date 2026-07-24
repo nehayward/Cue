@@ -146,6 +146,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             // Sonos Radio stations play as audio broadcasts. Ids carry a source
             // prefix (e.g. "sonos:2997", "tunein:35189") whose colon is encoded.
             return "x-sonosapi-radio:\(id.replacingOccurrences(of: ":", with: "%3A"))?sid=303&amp;flags=32"
+        case (.radio, .pandora):
+            // Pandora stations play as audio broadcasts. SMAPI station ids
+            // carry an "ST:" prefix whose colon is encoded.
+            return "x-sonosapi-radio:\(id.replacingOccurrences(of: ":", with: "%3A"))?sid=236&amp;flags=8300"
         case (.radio, .apple):
             return "x-sonosapi-radio:radio%3A\(id)?sid=204&amp;flags=32"
         case (.liveRadio, .apple):
@@ -315,6 +319,14 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             let encoded = id.replacingOccurrences(of: ":", with: "%3A")
             return """
 &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="000c0020\(encoded)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON77575_X_#Svc77575-0-Token&lt;/desc&gt;&lt;res&gt;x-sonosapi-radio:\(encoded)?sid=303&amp;amp;flags=32&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+"""
+        case (.radio, .pandora):
+            // Pandora station metadata: item id "100c2068<encoded ST:… id>",
+            // audioBroadcast class, and the SA_RINCON60423 service-account
+            // cdudn — the shape the official controller sends.
+            let encoded = id.replacingOccurrences(of: ":", with: "%3A")
+            return """
+&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="100c2068\(encoded)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON60423_X_#Svc60423-0-Token&lt;/desc&gt;&lt;res&gt;x-sonosapi-radio:\(encoded)?sid=236&amp;amp;flags=8300&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
         case(.radio, .apple):
             return """

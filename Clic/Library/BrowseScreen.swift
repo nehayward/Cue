@@ -47,6 +47,8 @@ struct BrowseScreen: View {
                 DeezerBrowseScreen()
             case .sonosRadio:
                 SonosRadioBrowseScreen()
+            case .pandora:
+                PandoraBrowseScreen()
             default:
                 NavigationStack {
                     EmptyView()

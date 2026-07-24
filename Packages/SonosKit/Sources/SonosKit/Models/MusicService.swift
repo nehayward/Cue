@@ -12,6 +12,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     case soundcloud
     case deezer
     case sonosRadio
+    case pandora
     case unknown
 
     public init?(service: String) {
@@ -34,6 +35,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             self = .deezer
         case "sonosradio":
             self = .sonosRadio
+        case "pandora":
+            self = .pandora
         default:
             return nil
         }
@@ -59,6 +62,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "deezer"
         case .sonosRadio:
             "sonosradio"
+        case .pandora:
+            "pandora"
         default:
             nil
         }
@@ -84,6 +89,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "Deezer"
         case .sonosRadio:
             "Sonos Radio"
+        case .pandora:
+            "Pandora"
         default:
             ""
         }
@@ -109,6 +116,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "deezer"
         case .sonosRadio:
             "sonosradio"
+        case .pandora:
+            "pandora"
         default:
             ""
         }
@@ -138,7 +147,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .tuneIn, .soundcloud, .deezer:
+        case .tuneIn, .soundcloud, .deezer, .pandora:
             SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
                 .renderingMode(.template)
                 .resizable()
@@ -174,7 +183,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .tuneIn, .soundcloud, .deezer:
+        case .tuneIn, .soundcloud, .deezer, .pandora:
             #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .musicSearchKitBundle, with: nil)!
             let resized = base.resized(to: CGSize(width: 16, height: 16)).withRenderingMode(.alwaysTemplate)
@@ -223,7 +232,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             return UIImage(systemName: librarySymbolName)
         case .airplay:
             return UIImage(systemName: "airplayaudio")
-        case .tuneIn, .soundcloud, .deezer:
+        case .tuneIn, .soundcloud, .deezer, .pandora:
             return UIImage(named: self.title, in: .musicSearchKitBundle, with: nil)?
                 .resized(to: glyph).withRenderingMode(.alwaysTemplate)
         case .plex, .tidal, .spotify:
@@ -292,6 +301,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             Color(red: 161.0 / 255.0, green: 0 / 255.0, blue: 255.0 / 255.0)
         case .sonosRadio:
                 .primary
+        case .pandora:
+            Color(red: 54.0 / 255.0, green: 104.0 / 255.0, blue: 255.0 / 255.0)
         case .unknown:
                 .primary
         }
@@ -317,6 +328,7 @@ extension MusicService {
         case "soundcloud": self = .soundcloud
         case "deezer":     self = .deezer
         case "sonosRadio": self = .sonosRadio
+        case "pandora":    self = .pandora
         default:           self = .unknown
         }
     }

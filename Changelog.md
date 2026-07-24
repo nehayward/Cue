@@ -27,6 +27,17 @@ Playing a queue item while a radio station (e.g. Sonos Radio) was active could l
 - New `CoreFeatures.disableUnauthorizedServices(from:)`: whenever the Services screen gets a fresh non-empty discovery result, services no longer authorized in Sonos are switched off. Disable-only — it never re-enables, so a manual "off" survives. Search/browse react live since all surfaces observe `CoreFeatures.shared`.
 - Plex management folded onto its row in the services list: whole cell tappable (`.onTapGesture`; the trailing toggle keeps its own touches) with trailing "Manage" / "Sign In" secondary text doubling as the Clic-side auth indicator. The separate "Personalized Services" section is gone; the conditional "Override Spotify" button moved to a "Troubleshooting" section shown only when a single Spotify account is discovered; "Can't find the Service here?" is now plain footer text at the bottom; the Now Playing toggle moved up into its own section.
 
+### Pandora via SMAPI
+Adds Pandora as a browsable, searchable, playable service over the Sonos SMAPI protocol — the same integration path as Sonos Radio, using the household's stored loginToken plus the controller deviceId.
+
+- New `PandoraAPI` (`MusicSearchKit`): SOAP-only SMAPI client with `getMetadata` (browse) and `search`, sharing Sonos Radio's lock-guarded `refreshAuthToken` dedup pattern; auth faults (`tokenRefreshRequired`, `AuthTokenExpired`, …) trigger a single shared refresh + one retry, and rotated token/key pairs are persisted back through `KeychainTokenRefreshHandler` so cold starts skip the refresh round trip.
+- New `SMAPIAction.getMetadata(id:index:count:)` in `SMAPIEnvelope` — the generic SMAPI browse call, reusable by any future SMAPI service.
+- `MusicSearchService`: `pandoraContext()` resolves credentials (keychain, service-registry id `60423`) and the SMAPI endpoint (memory → persisted cache → live `ListAvailableServices` discovery; no hardcoded fallback host). `pandoraBrowse(id:)` exposes raw SMAPI containers/items; `pandoraStations(matching:)` powers search, with the station search-category id discovered from the service's `search` container (cached, `"stations"` fallback).
+- Playback (`PlayableContent`): station URI `x-sonosapi-radio:<ST%3A…>?sid=236&flags=8300` with `100c2068`-prefixed item id, `audioBroadcast` class, and the `SA_RINCON60423_X_#Svc60423-0-Token` cdudn.
+- `MusicServiceParser`: sid `236` ↔ `.pandora` in `serviceLookup`/`identifyService` (plus `Svc60423` XML and "pandora" URI hints); station id recovered with the shared `x-sonosapi-radio` extractor.
+- New `PandoraBrowseService` + `PandoraBrowseScreen`: root `getMetadata` containers become sections ("My Stations", "Browse", …) with preview grids and "see all" lists, section caching via `MemoryFileCache`, and stale-refresh error banners — mirroring the Sonos Radio browse screen.
+- Enum plumbing: `.pandora` added to `MediaSearchService` and `MusicService` (titles, icons, brand color, forgiving decoders), `MediaSearchService.sonosServiceType` mapping (so onboarding + Services settings pick it up automatically), `CoreFeatures.preferredDefaultService`, and a template-rendered vector `Pandora.imageset` in Music Icons.
+
 ---
 
 ## 2026.6

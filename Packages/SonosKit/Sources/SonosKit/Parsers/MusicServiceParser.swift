@@ -43,6 +43,8 @@ public final class MusicServiceParser {
             return .tidal
         case "303":
             return .sonosRadio
+        case "236":
+            return .pandora
         default:
             return .unknown
         }
@@ -102,6 +104,7 @@ public final class MusicServiceParser {
         // Fast path checks first (no allocation)
         if uri == "333" { return .tuneIn }
         if uri == "303" { return .sonosRadio }
+        if uri == "236" { return .pandora }
         if decodedURI.contains(":3:") { return .plex }
         
         // Check XML before lowercasing URI
@@ -121,6 +124,7 @@ public final class MusicServiceParser {
         if normalized.contains("deezer") || normalized.contains("tr-flac") || normalized.contains("tr-mp3") { return .deezer }
         if xml?.contains("RINCON519") == true { return .deezer }
         if normalized.contains("sid=303") || xml?.contains("Svc77575") == true { return .sonosRadio }
+        if normalized.contains("sid=236") || normalized.contains("pandora") || xml?.contains("Svc60423") == true { return .pandora }
         
         // Check for Tidal (pattern match only if string contains hint)
         if normalized.contains("tidal") || (try? tidalPattern.firstMatch(in: decodedURI)) != nil {
@@ -144,9 +148,10 @@ public final class MusicServiceParser {
         case .soundcloud: return extractSoundCloudID(from: uri)
         case .deezer: return extractDeezerTrackID(from: uri)
         case .tuneIn: return extractTuneInTrackID(from: uri)
-        // Sonos Radio streams are `x-sonosapi-radio:<id>?...`; the TuneIn
-        // extractor (":(.*?)?") recovers the prefixed station id (e.g. sonos:2997).
-        case .sonosRadio: return extractTuneInTrackID(from: uri)
+        // Sonos Radio and Pandora streams are `x-sonosapi-radio:<id>?...`; the
+        // TuneIn extractor (":(.*?)?") recovers the prefixed station id
+        // (e.g. sonos:2997, ST:12345).
+        case .sonosRadio, .pandora: return extractTuneInTrackID(from: uri)
         case .library, .unknown: return uri
         case .airplay: return ""
         }

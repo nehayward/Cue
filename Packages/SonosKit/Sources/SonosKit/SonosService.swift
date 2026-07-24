@@ -1690,7 +1690,7 @@ public final class SonosService {
             return track.artwork
         case .tuneIn:
             return nil
-        case .airplay, .unknown, .library, .sonosRadio:
+        case .airplay, .unknown, .library, .sonosRadio, .pandora:
             return nil
         }
     }
@@ -1811,7 +1811,7 @@ public final class SonosService {
             }
 
             return (Track.Metadata(ISRC: nil, openInURL: nil, contentType: .track), artworkURL.album.images?.biggestImageURL)
-        case .airplay, .library, .sonosRadio:
+        case .airplay, .library, .sonosRadio, .pandora:
             return (nil, nil)
         }
     }
