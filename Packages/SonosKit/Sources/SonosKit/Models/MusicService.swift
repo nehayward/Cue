@@ -142,12 +142,12 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: librarySymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .sonosRadio:
-            // Full-colour SONOS badge (original rendering) — no template tint.
+        case .sonosRadio, .pandora:
+            // Full-colour badges (original rendering) — no template tint.
             SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .tuneIn, .soundcloud, .deezer, .pandora:
+        case .tuneIn, .soundcloud, .deezer:
             SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
                 .renderingMode(.template)
                 .resizable()
@@ -179,11 +179,11 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .aspectRatio(contentMode: .fit)
         case .airplay, .unknown:
             EmptyView()
-        case .sonosRadio:
+        case .sonosRadio, .pandora:
             SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .tuneIn, .soundcloud, .deezer, .pandora:
+        case .tuneIn, .soundcloud, .deezer:
             #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .musicSearchKitBundle, with: nil)!
             let resized = base.resized(to: CGSize(width: 16, height: 16)).withRenderingMode(.alwaysTemplate)

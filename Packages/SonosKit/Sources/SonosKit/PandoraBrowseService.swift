@@ -35,7 +35,7 @@ public final class PandoraBrowseService {
     /// "see all" screen doesn't refetch.
     private var sectionStationsCache: [String: [PlayableContent]] = [:]
 
-    private static let cacheKey = "pandoraBrowseSections"
+    private nonisolated static let cacheKey = "pandoraBrowseSections"
 
     private init() {}
 

@@ -95,9 +95,9 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: librarySymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .sonosRadio:
-            // The SONOS asset is a full-colour badge (original rendering); don't
-            // template-tint it or the circle collapses into a solid blob.
+        case .sonosRadio, .pandora:
+            // These assets are full-colour badges (original rendering); don't
+            // template-tint them or the artwork collapses into a solid blob.
             #if targetEnvironment(macCatalyst)
             // Catalyst renders unrasterized asset images at full size inside menus,
             // so pre-rasterize to a small badge while keeping the original colours.
@@ -113,7 +113,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
             #endif
-        case .tuneIn, .soundcloud, .deezer, .pandora:
+        case .tuneIn, .soundcloud, .deezer:
             #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .module, with: nil)!
             let templated = base.withRenderingMode(.alwaysTemplate)
@@ -163,7 +163,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
-        case .sonosRadio:
+        case .sonosRadio, .pandora:
 #if targetEnvironment(macCatalyst)
             // Catalyst renders unrasterized asset images at full size inside menus,
             // so pre-rasterize to a small badge while keeping the original colours.
@@ -179,7 +179,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .resizable()
                 .scaledToFit()
 #endif
-        case .tuneIn, .soundcloud, .deezer, .pandora:
+        case .tuneIn, .soundcloud, .deezer:
 #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .module, with: nil)!
             let templated = base.withRenderingMode(.alwaysTemplate)
