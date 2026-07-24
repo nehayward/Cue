@@ -104,7 +104,7 @@ extension View {
     func glassToolbar() -> some View {
         #if !os(visionOS)
         if #available(iOS 26.0, *) {
-            self.glassEffect(.regular.interactive(), in: .capsule)
+            self.glassEffect(.clear, in: .capsule)
         } else {
             self.background(.thinMaterial, in: Capsule())
         }
