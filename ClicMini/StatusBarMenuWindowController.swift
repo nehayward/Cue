@@ -45,8 +45,9 @@ final class StatusBarMenuWindowController: NSWindowController {
         effect.blendingMode = .behindWindow
         effect.state = .active
         effect.material = .hudWindow
-        effect.wantsLayer = true
-        effect.layer?.cornerRadius = 24
+        // Masks the behind-window blur too — cornerRadius on its own leaves the
+        // backdrop square, which shows as bright corners over a light desktop.
+        effect.applyRoundedCornerMask(radius: 24)
 
         window.contentView = effect
         window.contentView?.addSubview(hostingView)

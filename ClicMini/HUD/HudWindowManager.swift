@@ -154,17 +154,11 @@ final class HudWindowManager {
             // effect + hosting view on every 100ms volume tick caused flicker.
             hostingView.rootView = mediaView
         } else {
-            // Create the effect view with proper frame
-            let effect = NSVisualEffectView(frame: NSRect(origin: .zero, size: windowSize))
-            effect.blendingMode = .behindWindow
-            effect.state = .active
-            effect.material = .hudWindow
-            effect.wantsLayer = true
-            effect.layer?.cornerRadius = 18
-            effect.layer?.masksToBounds = true
-            // Subtle hairline border to lift it off the desktop.
-            effect.layer?.borderWidth = 1
-            effect.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
+            // Create the effect view with proper frame. HUDEffectView masks the
+            // behind-window blur to the corner radius (a plain cornerRadius leaves
+            // the backdrop square) and keeps its hairline border legible in both
+            // light and dark appearances.
+            let effect = HUDEffectView(frame: NSRect(origin: .zero, size: windowSize), cornerRadius: 18)
 
             let hostingView = ClickThroughHostingView(rootView: mediaView)
             hostingView.frame = effect.bounds
