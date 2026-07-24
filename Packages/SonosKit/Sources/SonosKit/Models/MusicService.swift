@@ -166,6 +166,23 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         }
     }
 
+    /// The badge drawn over the player artwork. Pandora's full-colour badge
+    /// clashes with album art there, so it's tinted like the standard template
+    /// icons; every other service reuses `icon` (Sonos Radio stays full colour
+    /// by design).
+    @ViewBuilder
+    public var artworkBadgeIcon: some View {
+        switch self {
+        case .pandora:
+            SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        default:
+            icon
+        }
+    }
+
     @ViewBuilder
     public var image: some View {
         switch self {

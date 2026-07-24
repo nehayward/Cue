@@ -41,7 +41,7 @@ struct ArtworkBadgeView: View {
             }
             
             // Bottom-trailing badge
-            group.coordinatorRoom.track.musicService.icon
+            group.coordinatorRoom.track.musicService.artworkBadgeIcon
                 .foregroundStyle(.white)
                 .containerRelativeFrame(.vertical) { width, _ in
                     max(width * 0.05, 24)
