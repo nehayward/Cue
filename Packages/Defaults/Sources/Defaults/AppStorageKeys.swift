@@ -27,4 +27,8 @@ public enum AppStorageKeys {
     public static let latestReleaseVersion = "\(Prefix.id).latestReleaseVersion"
     public static let latestReleaseHeadline = "\(Prefix.id).latestReleaseHeadline"
     public static let useHardwareVolumeButtons = "\(Prefix.id).useHardwareVolumeButtons"
+    /// Mirrors the playing group onto the Lock Screen / Control Center Now
+    /// Playing card by holding a silent audio session. Off by default — it
+    /// takes over the phone's audio output while it runs.
+    public static let lockScreenNowPlaying = "\(Prefix.id).lockScreenNowPlaying"
 }

@@ -38,6 +38,7 @@ struct PreferenceScreen: View {
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
     @AppStorage(Defaults.AppStorageKeys.useHardwareVolumeButtons) private var useHardwareVolumeButtons: Bool = false
+    @AppStorage(Defaults.AppStorageKeys.lockScreenNowPlaying) private var lockScreenNowPlaying: Bool = false
 
     private var hasUnseenWhatsNew: Bool {
         // Strict: the worker must have returned 200 for this bundle's
@@ -419,6 +420,31 @@ struct PreferenceScreen: View {
                             .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
 #if os(iOS) && !targetEnvironment(macCatalyst)
+                    Label {
+                        Toggle(isOn: $lockScreenNowPlaying) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Lock Screen Controls")
+                                Text("Show the playing speaker on the Lock Screen and in Control Center. Clic takes over your iPhone's audio and volume while a speaker is playing.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .tint(.accent)
+                    } icon: {
+                        Image(systemName: "lock.iphone")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.65, blue: 0.95), Color(red: 0.2, green: 0.45, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+
                     Label {
                         Toggle(isOn: $useHardwareVolumeButtons) {
                             VStack(alignment: .leading, spacing: 2) {

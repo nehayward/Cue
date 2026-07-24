@@ -219,6 +219,10 @@ struct ClicApp: App {
                 }
             }
             .preferredColorScheme(colorScheme.scheme)
+            // Mirrors the playing group onto the Lock Screen / Control Center.
+            // Root-level on purpose: the card has to follow the music whether or
+            // not the player screen is on top.
+            .nowPlayingSession()
 #if targetEnvironment(macCatalyst)
             // Single source of truth for dock-menu refresh. The RefreshKey
             // reads selectedID, the current group's track + isPlaying, and

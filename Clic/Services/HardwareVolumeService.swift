@@ -13,6 +13,11 @@ final class HardwareVolumeService {
     private var volumeView: MPVolumeView?
     private var savedVolume: Float?
     private var task: Task<Void, Never>?
+    /// False when the Now Playing session owns the audio session. It holds
+    /// `.playback` to keep the Lock Screen card up; re-configuring the session
+    /// to `.ambient` here would drop that claim. Also keeps the KVO alive while
+    /// backgrounded, since that's exactly when the Lock Screen slider is used.
+    private var ownsAudioSession = true
 
     // Fixed midpoint gives room for both up and down on any starting volume.
     private let restorePoint: Float = 0.5
@@ -29,10 +34,16 @@ final class HardwareVolumeService {
 
     // MARK: - Public
 
-    func start(group: GroupRoom, sonosService: SonosService, volumeView: MPVolumeView) {
+    func start(
+        group: GroupRoom,
+        sonosService: SonosService,
+        volumeView: MPVolumeView,
+        ownsAudioSession: Bool = true
+    ) {
         self.group = group
         self.sonosService = sonosService
         self.volumeView = volumeView
+        self.ownsAudioSession = ownsAudioSession
         // Snapshot once so stop() can restore it; don't clobber across restarts.
         if savedVolume == nil {
             savedVolume = AVAudioSession.sharedInstance().outputVolume
@@ -50,13 +61,23 @@ final class HardwareVolumeService {
         group = nil
         sonosService = nil
         volumeView = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+        if ownsAudioSession {
+            try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+        }
+        ownsAudioSession = true
     }
 
     // MARK: - Private
 
     private func restart() {
         task?.cancel()
+        // Driven by the Now Playing session: the app keeps running on the audio
+        // background mode, and the Lock Screen slider only exists while
+        // backgrounded — so listen straight through instead of per foreground.
+        guard ownsAudioSession else {
+            task = Task { [weak self] in await self?.listen() }
+            return
+        }
         // [weak self] breaks the self → task → self reference cycle.
         task = Task { [weak self] in
             guard let self else { return }
@@ -91,8 +112,10 @@ final class HardwareVolumeService {
 
     private func listen() async {
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
-        try? session.setActive(true)
+        if ownsAudioSession {
+            try? session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            try? session.setActive(true)
+        }
 
         // Brief delay lets AVAudioSession activation settle before we attach KVO.
         try? await Task.sleep(for: .milliseconds(150))

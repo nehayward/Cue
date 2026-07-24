@@ -97,6 +97,13 @@
 			<string>com.clic.search</string>
 		</dict>
 	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<!-- Holds the silent session behind the Lock Screen Now Playing card
+		     (NowPlayingSessionService) so its controls keep working, and the
+		     Sonos WebSocket keeps delivering track changes, while backgrounded. -->
+		<string>audio</string>
+	</array>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

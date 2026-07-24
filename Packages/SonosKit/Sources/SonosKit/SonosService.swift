@@ -66,6 +66,9 @@ public final class SonosService {
         rooms.removeAll()
         selectedGroup = nil
         cachedIPVerified = false
+        // The sockets point at a system we're leaving — drop the listeners and
+        // close them rather than letting the refresh timer keep them alive.
+        Task { @MainActor [weak self] in await self?.disconnectAll() }
     }
 
     /// Forces the next `getGroups(useCache:)` call to re-race all known-household
@@ -161,6 +164,21 @@ public final class SonosService {
     @ObservationIgnored public var isEditing: Bool = false
     @ObservationIgnored public var isGrouping: Bool = false
     @ObservationIgnored var streamingService: SonosStreamingService?
+    /// What each live listener currently wants a socket for. Keyed by listener
+    /// so the player screen and the Lock Screen session can't tear down each
+    /// other's connection — see `SonosService+LiveListening.swift`.
+    @ObservationIgnored var liveListeners: [LiveListener: LiveSubscription] = [:]
+    /// Event sets currently established on the streaming service, so reconcile
+    /// can tell "already connected" from "connected, but for fewer events".
+    @ObservationIgnored var liveConnections: [String: Set<SonosStreamingService.EventType>] = [:]
+    /// Last item id seen on the socket per coordinator — the change signal that
+    /// triggers a targeted track refresh instead of waiting on the poll.
+    @ObservationIgnored var lastLiveItemIDs: [String: String] = [:]
+    @ObservationIgnored var liveTrackRefreshTasks: [String: Task<Void, Never>] = [:]
+    /// Fired whenever a socket event moved a group's playback state. Consumers
+    /// that mirror playback outside SwiftUI (the Lock Screen Now Playing card)
+    /// hook this instead of polling.
+    @ObservationIgnored public var onLiveUpdate: ((GroupRoom) -> Void)?
     @ObservationIgnored private var metadataTask: Task<Void, Never>?
     @ObservationIgnored private var hasAppliedGroupsCache = false
     @ObservationIgnored private var cachedIPVerified = false
@@ -1628,16 +1646,23 @@ public final class SonosService {
         return track
     }
     
+    /// Points the on-screen listener at a group. Routed through the listener
+    /// registry so it can't close the Now Playing session's socket.
     @MainActor
     public func getTrackAudioInformation(ip: String, playerID: String, groupID: String) async {
-        await streamingService?.addPlayer(.init(ipAddress: ip, playerId: playerID, groupId: groupID, events: [.metadata]))
+        await listen(ip: ip, playerID: playerID, groupID: groupID, as: .viewing, events: [.metadata])
     }
-    
+
+    /// Drops the on-screen listener. `playerID` is accepted for call-site
+    /// clarity; the registry knows which socket that listener holds.
+    @MainActor
     public func stopListening(playerID: String) async {
-        await streamingService?.removePlayer(playerID)
+        await stopListening(as: .viewing)
     }
-    
+
+    @MainActor
     public func disconnectAll() async {
+        clearLiveListeners()
         await streamingService?.disconnectAll()
     }
 
