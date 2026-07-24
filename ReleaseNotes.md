@@ -9,6 +9,9 @@
 - Fixed the player staying stuck on a radio station after playing a song from the queue — playback switches reliably, the progress bar appears again, and the station caption clears right away
 - Services you remove in the Sonos app no longer linger in Clic — they're hidden from search and browse automatically
 - Plex sign-in now lives right on its row in Services — tap the row to manage your account
+- Refreshed the bottom controls on the player and the speaker list with a glass toolbar look — earlier iOS versions get a matching frosted style
+- The player's ••• menu now sits at the end of the toolbar on iPad and Mac, after Search, Browse, and Queue
+- Fixed the queue button's ring briefly showing as full when opening or closing the queue
 
 # 2026.6
 
