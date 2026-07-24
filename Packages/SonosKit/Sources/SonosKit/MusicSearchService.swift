@@ -108,8 +108,6 @@ public final class MusicSearchService {
     /// Cached resolved SMAPI endpoint for Pandora.
     private var cachedPandoraEndpoint: URL?
     private static let pandoraEndpointCacheKey = "pandoraEndpoint"
-    /// Cached search-category id discovered from Pandora's "search" container.
-    private var cachedPandoraSearchCategoryID: String?
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
 
@@ -1487,9 +1485,8 @@ public final class MusicSearchService {
 
         // Endpoint. Prefer the memory cache, then the persisted last-resolved
         // endpoint (skips the speaker SOAP round trip on later launches), then
-        // live ListAvailableServices discovery. No hardcoded fallback host:
-        // having credentials implies discovery against the household worked at
-        // least once, and the descriptor list is the authoritative source.
+        // live ListAvailableServices discovery, then the SecureUri seen in the
+        // official controller's descriptor list.
         let endpoint: URL
         if let cached = cachedPandoraEndpoint {
             endpoint = cached
@@ -1499,6 +1496,8 @@ public final class MusicSearchService {
         } else if let resolved = await sonosService.smapiEndpoint(for: Self.pandoraServiceID) {
             endpoint = resolved
             MemoryFileCache.shared.save(resolved.absoluteString, forKey: Self.pandoraEndpointCacheKey)
+        } else if let fallback = URL(string: "https://sonos.pandora.com/v2.1") {
+            endpoint = fallback
         } else {
             return nil
         }
@@ -1524,45 +1523,26 @@ public final class MusicSearchService {
         )
     }
 
-    /// Searches Pandora stations for `term` via the service's station search
-    /// category. Powers search and the browse screen's station search.
+    /// Searches Pandora via the "all" search category — the combined
+    /// artist/track/station search the official controller runs. Results are
+    /// station seeds ("SF:…" ids): playing one creates/tunes the station,
+    /// exactly like tapping a search result in the Pandora app.
     public func pandoraStations(matching term: String, count: Int = 50) async -> [PlayableContent] {
         let term = term.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !term.isEmpty, let (endpoint, credentials) = await pandoraContext() else { return [] }
-        let categoryID = await pandoraSearchCategoryID(endpoint: endpoint, credentials: credentials)
         guard let result = await pandora.search(
             endpoint: endpoint,
             credentials: credentials,
-            id: categoryID,
+            id: "all",
             term: term,
             count: count
         ) else { return [] }
         return result.items.filter(\.canPlay).map { pandoraContent(from: $0) }
     }
 
-    /// The search-category id used for station searches. Discovered by
-    /// browsing the SMAPI "search" container (categories vary by presentation
-    /// map version), preferring a station category; falls back to the
-    /// canonical "stations" id when discovery fails.
-    private func pandoraSearchCategoryID(endpoint: URL, credentials: SMAPICredentials) async -> String {
-        if let cached = cachedPandoraSearchCategoryID { return cached }
-        if let categories = await pandora.getMetadata(
-            endpoint: endpoint,
-            credentials: credentials,
-            id: "search",
-            count: 20
-        ), let preferred = categories.items.first(where: {
-            $0.id.lowercased().contains("station") || $0.title.lowercased().contains("station")
-        }) ?? categories.items.first {
-            cachedPandoraSearchCategoryID = preferred.id
-            return preferred.id
-        }
-        return "stations"
-    }
-
-    /// Maps a SMAPI browse/search item to playable Pandora content. Station
-    /// ids ("ST:…") from browse and search are identical, so playback works
-    /// the same from either source.
+    /// Maps a SMAPI browse/search item to playable Pandora content. Browse
+    /// returns the user's stations ("ST:…" ids); search returns station seeds
+    /// ("SF:…" ids) — both play through the same x-sonosapi-radio URI.
     func pandoraContent(from item: SMAPIMediaItem) -> PlayableContent {
         let artworkURL = item.albumArtURI.flatMap { URL(string: $0) }
         return PlayableContent(

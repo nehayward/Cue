@@ -91,7 +91,7 @@ public final class PandoraBrowseService {
     /// items are shown instead.
     public func allStations(for section: PandoraSection) async -> [PlayableContent] {
         if let cached = sectionStationsCache[section.id] { return cached }
-        let stations = await stations(in: section.id, count: 200)
+        let stations = await stations(in: section.id, count: 100)
         // Don't cache the degraded preview fallback — a transient failure
         // would otherwise cap this section at its previews all session.
         guard !stations.isEmpty else { return section.items }
@@ -100,17 +100,23 @@ public final class PandoraBrowseService {
     }
 
     /// Browses the SMAPI root and turns each container into a section with its
-    /// preview stations. Stations sitting directly at the root (some
-    /// presentation maps put the user's list there) land in a leading
-    /// "My Stations" section.
+    /// preview stations. Pandora's root returns one container ("My Stations",
+    /// id `myStations`); stations sitting directly at the root land in a
+    /// leading "My Stations" section as a fallback.
+    ///
+    /// Note on shapes (from a capture of the official controller): stations
+    /// arrive as `mediaCollection` elements with `itemType` "program" and
+    /// `canPlay` true / `canEnumerate` false, so "is a station" is decided by
+    /// `canPlay` — NOT by mediaMetadata vs mediaCollection. Real containers
+    /// ("My Stations", "Stations (A-Z)") have `canPlay` false.
     private func loadSections() async -> [PandoraSection] {
-        guard let root = await musicSearchService.pandoraBrowse(id: "root", count: 50) else {
+        guard let root = await musicSearchService.pandoraBrowse(id: "root", count: 100) else {
             print("Pandora browse: root fetch failed")
             return []
         }
 
         var loaded: [PandoraSection] = []
-        let rootStations = root.items.filter { $0.canPlay && !$0.isContainer }
+        let rootStations = root.items.filter(\.canPlay)
         if !rootStations.isEmpty {
             loaded.append(PandoraSection(
                 id: "root",
@@ -123,7 +129,7 @@ public final class PandoraBrowseService {
         // keyed on title, so two same-titled sections would collapse onto one
         // navigation destination.
         var seenTitles = Set(loaded.map(\.title))
-        let containers = root.items.filter { $0.isContainer && $0.canEnumerate && $0.id != "search" }
+        let containers = root.items.filter { !$0.canPlay && $0.canEnumerate && $0.id != "search" }
             .filter { seenTitles.insert($0.title).inserted }
         var containerSections = containers.map { PandoraSection(id: $0.id, title: $0.title) }
 
@@ -143,20 +149,20 @@ public final class PandoraBrowseService {
     }
 
     /// The playable stations inside a container. Descends one level into
-    /// sub-containers (e.g. "Browse" holds genre folders, not stations) so a
-    /// section still previews something useful without a request storm.
+    /// sub-containers (e.g. "Stations (A-Z)") so a section still previews
+    /// something useful without a request storm.
     private func stations(in containerID: String, count: Int) async -> [PlayableContent] {
         guard let result = await musicSearchService.pandoraBrowse(id: containerID, count: count) else {
             return []
         }
-        let direct = result.items.filter { $0.canPlay && !$0.isContainer }
+        let direct = result.items.filter(\.canPlay)
         if !direct.isEmpty {
             return direct.map { musicSearchService.pandoraContent(from: $0) }
         }
         // One level down: take the first sub-container that yields stations.
-        for sub in result.items.filter({ $0.isContainer && $0.canEnumerate }).prefix(3) {
+        for sub in result.items.filter({ !$0.canPlay && $0.canEnumerate }).prefix(3) {
             if let nested = await musicSearchService.pandoraBrowse(id: sub.id, count: count) {
-                let stations = nested.items.filter { $0.canPlay && !$0.isContainer }
+                let stations = nested.items.filter(\.canPlay)
                 if !stations.isEmpty {
                     return stations.map { musicSearchService.pandoraContent(from: $0) }
                 }
