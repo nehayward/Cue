@@ -7,7 +7,7 @@ struct SpeakerVolumesView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ForEach(device.allDevices, id: \.id) { speaker in
+            ForEach(device.allDevices.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }, id: \.id) { speaker in
                 SpeakerVolumeRow(
                     speakerID: speaker.id,
                     speakerIP: speaker.ip,
