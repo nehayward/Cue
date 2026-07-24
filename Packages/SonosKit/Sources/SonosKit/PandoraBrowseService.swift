@@ -27,7 +27,7 @@ public final class PandoraBrowseService {
     /// Number of preview stations shown per section before the "see all" link.
     public let previewCount = 12
     /// Stations fetched per section for the preview grids.
-    private let sectionFetchCount = 12
+    private let sectionFetchCount = 14
 
     private let musicSearchService = MusicSearchService.shared
     private var hasLoaded = false
