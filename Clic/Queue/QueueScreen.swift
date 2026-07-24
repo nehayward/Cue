@@ -404,7 +404,11 @@ struct QueueScreen: View {
             guard let position = track.metadata?.position else { continue }
             try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
         }
-        group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+        // Keep the last known total on a failed fetch — zeroing it makes the
+        // queue toolbar gauge read as full/empty until the next refresh.
+        if let total = try? await SonosService.shared.getQueueTotal(group: group) {
+            group.coordinatorRoom.queueTotal = total
+        }
         selection.removeAll()
     }
 
@@ -429,7 +433,11 @@ struct QueueScreen: View {
             guard let position = track.metadata?.position else { continue }
             try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
         }
-        group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+        // Keep the last known total on a failed fetch — zeroing it makes the
+        // queue toolbar gauge read as full/empty until the next refresh.
+        if let total = try? await SonosService.shared.getQueueTotal(group: group) {
+            group.coordinatorRoom.queueTotal = total
+        }
         selection.removeAll()
     }
 
