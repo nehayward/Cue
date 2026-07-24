@@ -62,9 +62,16 @@ extension SonosMiniService: SonosEventHandler {
                 // Cancel previous metadata task FOR THIS PLAYER only.
                 // Using a per-player dictionary prevents speakers from cancelling each
                 // other's in-flight queueTotal lookups when events arrive in bursts.
+                //
+                // Deliberately no self-removal on completion: a cancelled task's
+                // cleanup could run *after* a newer task was stored under the same
+                // key, deleting the live task's entry. That untracked task could
+                // then no longer be cancelled by the next event or by cleanup(),
+                // letting network work pile up during event bursts. Keeping the
+                // finished handle in the dictionary is bounded (one per player)
+                // and it is cancelled + cleared in cleanup().
                 metadataUpdateTasks[playerId]?.cancel()
                 metadataUpdateTasks[playerId] = Task { [weak self] in
-                    defer { self?.metadataUpdateTasks[playerId] = nil }
                     guard let self else { return }
                     if let duration = track.durationMillis {
                         self.updateDevice(deviceAtIndex, keyPath: \.totalDuration, value: duration)

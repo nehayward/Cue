@@ -24,9 +24,6 @@ struct GroupMenuScreen: View {
             .fontDesign(.rounded)
             .padding(.vertical)
             .environment(sonosServiceMini)
-            .task {
-                try? await SonosMiniService.shared.loadWatch(useCache: true)
-            }
             .onAppear {
                 loadScenes()
                 isVisible = true
@@ -68,18 +65,19 @@ struct GroupMenuScreen: View {
             .padding(.horizontal, 12)
         }
         .frame(minWidth: 400, minHeight: min(contentIdealHeight, screenMaxHeight))
-        .onAppear {
-            Task {
-                isLoading = true
-                try? await sonosServiceMini.loadWatch(useCache: true)
-                isLoading = false
-            }
-            Task {
-                // Re-fetch queueTotal for visible speakers — the popover may have been
-                // closed while the user reordered/trimmed the queue, and those mutations
-                // don't trigger a metadata event.
-                await sonosServiceMini.refreshQueueTotals()
-            }
+        .task {
+            // Single load path per popover open. Previously loadWatch ran twice
+            // concurrently (a .task on the body plus this onAppear); when the
+            // topology changed, both runs called disconnectAll + addPlayers and
+            // could close sockets the other run had just opened, orphaning
+            // WebSocket connections that nothing tracked.
+            isLoading = true
+            try? await sonosServiceMini.loadWatch(useCache: true)
+            isLoading = false
+            // Re-fetch queueTotal for visible speakers — the popover may have been
+            // closed while the user reordered/trimmed the queue, and those mutations
+            // don't trigger a metadata event.
+            await sonosServiceMini.refreshQueueTotals()
         }
         .overlay { GroupMenuEmptyOverlay(isLoading: isLoading, isEmpty: filteredDeviceBindings.isEmpty) }
         .onChange(of: filteredDeviceBindings.map(\.wrappedValue.id)) { _, ids in

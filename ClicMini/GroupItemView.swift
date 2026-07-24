@@ -8,9 +8,6 @@ struct GroupItemView: View {
     @Binding var expandedGroupIDs: Set<String>
     @State private var hovered: Bool = false
     @State private var showing: Bool = false
-    @State private var updateTrigger = false
-    @State private var timer: Timer?
-    @State private var isTimerEnabled = true
     @State private var miniSettingsService = MiniSettingsService.shared
     @State private var sonosServiceMini = SonosMiniService.shared
     @State private var isHovering: Bool = false
@@ -275,58 +272,20 @@ struct GroupItemView: View {
                 await SonosMiniService.shared.togglePlayback(ip: device.ip)
             }
         } label: {
-            PlaybackIconView(value: device.progress, total: 1, isPlaying: device.isPlaying)
+            // TimelineView re-renders once a second while playing so the
+            // extrapolated progress stays live. Unlike the previous run-loop
+            // Timer (whose closure the run loop retained until invalidated),
+            // this is structured — it pauses when playback stops and tears
+            // down with the view, so nothing outlives the row.
+            TimelineView(.animation(minimumInterval: 1.0, paused: !device.isPlaying)) { _ in
+                PlaybackIconView(value: device.progress, total: 1, isPlaying: device.isPlaying)
+            }
         }
         .buttonStyle(.plain)
         .contentShape(.rect)
         .disabled(!device.availableActions.contains(.play))
-        .onAppear {
-            startTimer()
-        }
-        .onDisappear {
-            stopTimer()
-        }
-        .onChange(of: device.isPlaying) {
-            if device.isPlaying && isTimerEnabled {
-                startTimer()
-            } else {
-                stopTimer()
-            }
-        }
-        .id(updateTrigger) // Force view refresh when updateTrigger changes
     }
-    
-    /// Start the update timer
-    private func startTimer() {
-        guard timer == nil && isTimerEnabled else { return }
-        
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            if device.isPlaying {
-                updateTrigger.toggle()
-            }
-        }
-    }
-    
-    /// Stop the update timer
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
-    }
-    
-    /// Enable timer updates
-    func enableTimer() {
-        isTimerEnabled = true
-        if device.isPlaying{
-            startTimer()
-        }
-    }
-    
-    /// Disable timer updates
-    func disableTimer() {
-        isTimerEnabled = false
-        stopTimer()
-    }
-    
+
     private func playPauseLabel(for device: SonosDevice) -> some View {
         Image(systemName: device.isPlaying ? "pause.fill" : "play.fill")
             .font(.body)
