@@ -25,7 +25,7 @@ public final class PandoraBrowseService {
     public var error: String?
 
     /// Number of preview stations shown per section before the "see all" link.
-    public let previewCount = 6
+    public let previewCount = 12
     /// Stations fetched per section for the preview grids.
     private let sectionFetchCount = 12
 
