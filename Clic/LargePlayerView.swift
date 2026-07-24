@@ -693,6 +693,10 @@ fileprivate struct BottomToolbarView: View {
                     isHoveringOnQueueList = isTargeted
                 }
             }
+            .padding(.vertical, 14)
+            .padding(.horizontal, 28)
+            .frame(maxWidth: 500)
+            .glassToolbar()
         } else {
             HStack {
                 if group.rooms.count > 1 {
