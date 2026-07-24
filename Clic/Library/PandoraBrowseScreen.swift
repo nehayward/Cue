@@ -4,7 +4,6 @@ import MusicSearchKit
 
 struct PandoraBrowseScreen: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(SonosService.self) private var sonosService
     @Environment(PandoraBrowseService.self) private var pandoraBrowseService
 
     @State private var router = Router.browse

@@ -121,7 +121,7 @@ public final class PandoraBrowseService {
             loaded.append(PandoraSection(
                 id: "root",
                 title: "My Stations",
-                items: rootStations.map { musicSearchService.pandoraContent(from: $0) }
+                items: rootStations.map { musicSearchService.pandoraContent(from: $0, summaryIsArtist: false) }
             ))
         }
 
@@ -157,14 +157,14 @@ public final class PandoraBrowseService {
         }
         let direct = result.items.filter(\.canPlay)
         if !direct.isEmpty {
-            return direct.map { musicSearchService.pandoraContent(from: $0) }
+            return direct.map { musicSearchService.pandoraContent(from: $0, summaryIsArtist: false) }
         }
         // One level down: take the first sub-container that yields stations.
         for sub in result.items.filter({ !$0.canPlay && $0.canEnumerate }).prefix(3) {
             if let nested = await musicSearchService.pandoraBrowse(id: sub.id, count: count) {
                 let stations = nested.items.filter(\.canPlay)
                 if !stations.isEmpty {
-                    return stations.map { musicSearchService.pandoraContent(from: $0) }
+                    return stations.map { musicSearchService.pandoraContent(from: $0, summaryIsArtist: false) }
                 }
             }
         }

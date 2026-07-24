@@ -406,15 +406,12 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     
     private var deezerServiceToken: String { "SA_RINCON519_X_#Svc519-0-Token" }
 
-    /// The official controller's Pandora cdudn carries the household's account
-    /// suffix (the third segment of "Sonos_<id>_<suffix>", e.g.
-    /// "SA_RINCON60423_X_#Svc60423-62fe75eb-Token"); fall back to the generic
-    /// "0" serial when the stored householdId has no suffix.
-    private var pandoraServiceToken: String {
-        let suffix = GroupStorageKeys.storage?.string(forKey: "householdId")?
-            .components(separatedBy: "_").dropFirst(2).first ?? "0"
-        return "SA_RINCON60423_X_#Svc60423-\(suffix)-Token"
-    }
+    /// The official controller sends the household's Pandora account serial here
+    /// ("…-62fe75eb-Token"), but the generic "0" serial plays fine — the speaker
+    /// resolves the account from the service id. Sourcing the real serial (the
+    /// Pandora `MediaServer` UDN, which is this string verbatim) would only
+    /// matter for a household with more than one Pandora account.
+    private var pandoraServiceToken: String { "SA_RINCON60423_X_#Svc60423-0-Token" }
 
     private var spotifyMusicServiceToken: String {
         if let storedTokenID = GroupStorageKeys.storage?.string(forKey: Defaults.GroupStorageKeys.spotifyMusicTokenID), !storedTokenID.isEmpty {

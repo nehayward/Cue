@@ -1543,11 +1543,17 @@ public final class MusicSearchService {
     /// Maps a SMAPI browse/search item to playable Pandora content. Browse
     /// returns the user's stations ("ST:…" ids); search returns station seeds
     /// ("SF:…" ids) — both play through the same x-sonosapi-radio URI.
-    func pandoraContent(from item: SMAPIMediaItem) -> PlayableContent {
+    ///
+    /// - Parameter summaryIsArtist: search results carry the seed's artist in
+    ///   `summary`, but browsed stations put their *creation date* there
+    ///   ("6/27/2025"), so browse passes `false` to keep dates out of the
+    ///   subtitle. Neither source sends an `artist` element.
+    func pandoraContent(from item: SMAPIMediaItem, summaryIsArtist: Bool = true) -> PlayableContent {
         let artworkURL = item.albumArtURI.flatMap { URL(string: $0) }
+        let summary = summaryIsArtist ? item.summary : nil
         return PlayableContent(
             title: item.title,
-            subtitle: item.artist ?? item.summary ?? "Pandora",
+            subtitle: item.artist ?? summary ?? "Pandora",
             thumbnail: artworkURL,
             artwork: artworkURL,
             content: MediaContent(
