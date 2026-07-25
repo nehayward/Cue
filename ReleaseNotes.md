@@ -6,10 +6,9 @@
 –– Bug Fixes & Improvements ––
 - Fixed album artwork stuttering the player during song changes — the crossfade is now one smooth dissolve
 - Fixed older S1 Sonos players (like the ZP100 or ZP80) never being found — a home running S1 now shows up in Households alongside your S2 system, so a split S1/S2 setup can switch between the two with a tap
-- Connect by IP: a new Connect button appears once a speaker is found at the address you typed, so you can actually switch to that system — previously the screen could only verify the address
-- Fixed Connect by IP sometimes showing "No Sonos system found at this IP address" right after the address was verified with a green check
-- Connect by IP now shows a LAN badge on speakers wired to your router, so it's easy to pick the most reliable one to connect through
-- Clearer step-by-step instructions on the Connect by IP screen, and fixed the Set Priority Device description being cut off at the edge of the screen
+- Redesigned the Connectivity screen around a single choice — which speaker Clic connects through. Tap any speaker to use it, or Choose Best Speaker to let Clic pick; a LAN badge marks the speakers wired to your router, and a tick shows the one in use
+- Entering an address by hand has moved into a "Can't find your speakers?" section that opens on its own when nothing is found — and once a speaker answers at that address, a Connect button appears so you can actually switch to it. Previously the screen could only verify the address
+- Fixed the Connectivity screen sometimes showing "No Sonos system found at this IP address" right after the address was verified with a green check
 
 # 2026.6
 
