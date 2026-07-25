@@ -35,12 +35,21 @@ extension SonosService: SonosEventHandler {
         // for 400 ms; the device echoes its pre-command state in that window.
         guard !isEditing, !group.isEditingPlayback else { return }
 
-        let isPlaying = playbackState.playbackState == "PLAYBACK_STATE_PLAYING"
-        if group.coordinatorRoom.isPlaying != isPlaying {
-            group.coordinatorRoom.isPlaying = isPlaying
-            for room in group.rooms where room.isPlaying != isPlaying {
-                room.isPlaying = isPlaying
-            }
+        // Sonos reports BUFFERING while the next stream opens, which is what a
+        // track change looks like on the socket — it is not a pause. Writing
+        // `false` for it left the model stuck on paused for the rest of the song
+        // whenever the poll wasn't running to correct it (i.e. backgrounded,
+        // exactly when the Lock Screen card is the only thing showing).
+        // `SonosMiniService` skips the same state for the same reason.
+        switch playbackState.playbackState {
+        case "PLAYBACK_STATE_PLAYING":
+            setIsPlaying(true, on: group)
+        case "PLAYBACK_STATE_PAUSED", "PLAYBACK_STATE_IDLE":
+            setIsPlaying(false, on: group)
+        default:
+            // BUFFERING, TRANSITIONING, or a state this build doesn't know:
+            // keep whatever we had rather than guessing.
+            break
         }
 
         // Only correct real drift: the position ticks continuously and every
@@ -72,6 +81,15 @@ extension SonosService: SonosEventHandler {
             } else {
                 groups[index].coordinatorRoom.container = nil
             }
+        }
+    }
+
+    @MainActor
+    private func setIsPlaying(_ isPlaying: Bool, on group: GroupRoom) {
+        guard group.coordinatorRoom.isPlaying != isPlaying else { return }
+        group.coordinatorRoom.isPlaying = isPlaying
+        for room in group.rooms where room.isPlaying != isPlaying {
+            room.isPlaying = isPlaying
         }
     }
 

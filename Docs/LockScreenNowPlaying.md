@@ -45,6 +45,20 @@ Non-negotiables learned the hard way:
   left behind. Same for interruptions (`.ended`) and
   `mediaServicesWereResetNotification`.
 
+## Ownership: not the view layer
+
+`activate()` is called once from `ClicApp.onAppear`; from there the service
+watches the model itself with a self-re-arming `withObservationTracking` pass
+over `trackedState()` (target group, track identity, artwork URL, duration,
+isPlaying, station, available actions — deliberately *not* `playbackPosition`,
+which ticks). The preference is read from `UserDefaults` and re-evaluated on
+`didChangeNotification`, so the toggle needs no wiring of its own.
+
+The first version hung all of this off a root `ViewModifier`, which is wrong for
+a background feature: SwiftUI stops evaluating bodies once the app is
+backgrounded, so `onChange` stopped firing exactly when the card was the only UI
+left. `@Observable` notifications don't care whether a view is alive.
+
 ## Why it doesn't poll
 
 The `.nowPlaying` live listener holds one socket, on the mirrored group's
@@ -69,25 +83,12 @@ connects the union. Notes for anyone extending this:
   widening a socket's event set requires remove-then-add. Reconcile does this.
 - Never call `disconnectAll()` to re-point a subscription (`LargePlayerView`
   used to) — it takes every listener's socket with it.
-
-## Favorites
-
-`likeCommand` is registered as a toggle: `isActive` carries the current state,
-each invocation flips it, and both directions go through
-`MusicSearchService.isFavorite`/`setFavorite` — the same per-service dispatch
-(Apple / Spotify / SoundCloud / Deezer / Plex-by-rating) the player's heart uses,
-so the two can't diverge. State is looked up once per song and seeded instantly
-from `LiveActivityFavoriteStore`, the app-group cache shared with the Live
-Activity's like button.
-
-**Where it actually shows up:** feedback commands are surfaced by CarPlay and
-some head units and accessories. iOS's own Lock Screen / Control Center card has
-no slot for a custom button — it renders artwork, text, scrubber, transport,
-volume, and the route picker, and nothing else. So this does *not* put a heart on
-the Lock Screen; the Lock Screen path for that is the Live Activity
-(`claude/live-activity-like-button-57o9qu`), which owns its own button.
-
-`dislikeCommand` stays disabled — none of these services take a negative signal.
+- **`PLAYBACK_STATE_BUFFERING` is not a pause.** Sonos reports it while the next
+  stream opens, i.e. on every track change. Mapping anything-but-PLAYING to
+  `isPlaying = false` left the model stuck on paused for the rest of the song,
+  because backgrounded there's no poll to correct it — the card froze after each
+  track change. Only PAUSED/IDLE clears the flag; unknown states are left alone.
+  `SonosMiniService` skips the same state, for the same reason.
 
 ## Volume
 
@@ -105,12 +106,12 @@ exists inside a window.
 
 - **Watch / CarPlay parity beyond the free ride.** Both surfaces read the info
   center, so they work, but neither has been tested on hardware.
-- **Point `LikeButtonView` / `FavoriteMenuButton` at
-  `MusicSearchService.setFavorite`.** They still hold their own copies of the
-  per-service switch, so a favorite made in the app doesn't populate
-  `LiveActivityFavoriteStore` (the card and the activity then pay for a lookup
-  that was already done). `claude/live-activity-like-button-57o9qu` does exactly
-  this refactor — it's deliberately left to that branch rather than done twice.
+- **Favorites.** `likeCommand` was wired and then removed: iOS's Lock Screen card
+  has no slot for an app-provided button, so it only surfaced in CarPlay and on
+  some accessories — not worth a per-song favorite lookup for. The Lock Screen
+  path is the Live Activity's own button
+  (`claude/live-activity-like-button-57o9qu`, which also extracts the shared
+  per-service favorite API). Revisit if CarPlay becomes a target.
 - **Interaction with Live Updates** (`claude/ios-now-playing-notifications-*`).
   That feature's Live Activity and this card are complementary — one is
   push-driven and works away from home, the other is LAN-driven and gives real

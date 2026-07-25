@@ -255,10 +255,9 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     }
 
     /// Service supports favoriting / liking individual tracks.
-    /// Plex favorites via its 0–10 track rating (10 = favorite) — see `LikeButtonView`.
     public var supportsFavoriteTrack: Bool {
         switch self {
-        case .spotify, .apple, .soundcloud, .deezer, .plex: true
+        case .spotify, .apple, .soundcloud, .deezer: true
         default: false
         }
     }

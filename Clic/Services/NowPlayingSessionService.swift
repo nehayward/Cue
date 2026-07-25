@@ -24,7 +24,19 @@ import UIKit
 /// - It interrupts other audio on the phone. `.mixWithOthers` would avoid that
 ///   but also forfeits the Now Playing claim, which is the entire feature.
 /// - It needs the `audio` background mode, so the session is held only while a
-///   group actually has something loaded (see `NowPlayingSessionModifier`).
+///   group actually has something loaded.
+///
+/// ## Why this isn't driven from the view layer
+///
+/// The first cut hung this off a root `ViewModifier`, which was wrong: SwiftUI
+/// stops evaluating bodies once the app is backgrounded, and backgrounded is
+/// precisely when the Lock Screen card is the only thing on screen. Anything
+/// keyed off `onChange` silently stopped updating there.
+///
+/// So the service owns its own observation. `activate()` arms a
+/// `withObservationTracking` loop over the model state the card reflects; that
+/// fires from `@Observable` regardless of whether any view is alive, and re-arms
+/// after each pass. Nothing in the view tree is involved.
 ///
 /// ## Why the WebSocket
 ///
@@ -52,6 +64,10 @@ final class NowPlayingSessionService {
     @ObservationIgnored private var artworkTask: Task<Void, Never>?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var volumeView: MPVolumeView?
+    @ObservationIgnored private var hasActivated = false
+    @ObservationIgnored private var preferenceObserver: NSObjectProtocol?
+    @ObservationIgnored private var lastKnownEnabled = false
+    @ObservationIgnored private var observationGeneration = 0
 
     /// What the card is currently showing, so repeat events don't rebuild it.
     @ObservationIgnored private var published: Snapshot?
@@ -59,11 +75,10 @@ final class NowPlayingSessionService {
     /// reproduce the elapsed time the system is currently interpolating.
     @ObservationIgnored private var publishedElapsed: TimeInterval = 0
     @ObservationIgnored private var publishedAt: Date = .distantPast
+    /// Last `Room.playbackPosition` we saw, to tell a position the speaker just
+    /// reported from one that's been frozen since the poll stopped.
+    @ObservationIgnored private var lastModelElapsed: TimeInterval = -1
 
-    /// Favorite state behind `likeCommand`, and the track it belongs to.
-    @ObservationIgnored private var isFavorite = false
-    @ObservationIgnored private var favoriteTrackID: String?
-    @ObservationIgnored private var favoriteTask: Task<Void, Never>?
     /// Artwork is keyed by URL: the expensive part is decoding, and the same
     /// song can republish many times (pause, seek, volume).
     @ObservationIgnored private var publishedArtworkURL: URL?
@@ -85,31 +100,138 @@ final class NowPlayingSessionService {
 
     // MARK: - Lifecycle
 
-    /// Starts mirroring `group`, or re-points an already-running session at it.
-    func start(group: GroupRoom, sonosService: SonosService) {
-        let isRepoint = isActive && self.group?.coordinatorID != group.coordinatorID
-        self.group = group
-        self.sonosService = sonosService
+    /// Call once at launch. From then on the service watches the model itself and
+    /// starts, re-points, or drops the session as playback moves around — no
+    /// further calls needed, including from the preference toggle (a
+    /// `UserDefaults` change re-evaluates).
+    func activate() {
+        guard !hasActivated else { return }
+        hasActivated = true
+
+        // `didChangeNotification` fires for every `@AppStorage` write anywhere in
+        // the app, so filter down to an actual change of *this* flag rather than
+        // re-evaluating on unrelated preference traffic.
+        lastKnownEnabled = isEnabled
+        preferenceObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: UserDefaults.standard,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.isEnabled != self.lastKnownEnabled else { return }
+                self.lastKnownEnabled = self.isEnabled
+                self.evaluate()
+            }
+        }
+
+        evaluate()
+    }
+
+    private var isEnabled: Bool {
+        UserDefaults.standard.bool(forKey: AppStorageKeys.lockScreenNowPlaying)
+    }
+
+    /// The group the card mirrors: the selected one, falling back to whatever is
+    /// playing. The selection sticks around after the user leaves a player, so an
+    /// idle selected speaker hands the card over to the music.
+    private func resolveTarget() -> GroupRoom? {
+        let sonosService = SonosService.shared
+        let selected = Router.main.selectedID.flatMap { id in
+            sonosService.groups.first(where: { $0.coordinatorID == id })
+        }
+        if let selected, isMirrorable(selected) { return selected }
+        return sonosService.groups.first { $0.coordinatorRoom.isPlaying && isMirrorable($0) }
+    }
+
+    /// TV mode has no transport to mirror and an empty track means the speaker is
+    /// idle — neither is worth holding the audio session for.
+    private func isMirrorable(_ group: GroupRoom) -> Bool {
+        guard !group.TVMode else { return false }
+        return !group.coordinatorRoom.track.isEmpty || group.coordinatorRoom.radioStation != nil
+    }
+
+    /// Everything the card reflects, read in one place so
+    /// `withObservationTracking` registers exactly these and nothing more.
+    /// Deliberately excludes `playbackPosition` — it ticks continuously, and the
+    /// info center interpolates elapsed time on its own.
+    private func trackedState() -> String {
+        guard isEnabled, let group = resolveTarget() else { return "idle" }
+        let room = group.coordinatorRoom
+        return [
+            group.coordinatorID,
+            room.track.unique,
+            room.track.artworkURL?.absoluteString ?? "",
+            String(room.track.duration),
+            String(room.isPlaying),
+            room.radioStation ?? "",
+            String(group.availableActions.rawValue),
+        ].joined(separator: "|")
+    }
+
+    /// Re-arms after every pass: `withObservationTracking` is one-shot.
+    private func evaluate() {
+        defer { armObservation() }
+        guard isEnabled, let group = resolveTarget() else {
+            stop()
+            return
+        }
+        run(group: group)
+    }
+
+    /// A `withObservationTracking` registration can't be cancelled, and every
+    /// `evaluate()` adds one — so registrations from earlier passes stay live and
+    /// all fire on the next mutation. The generation stamp retires them: only the
+    /// newest one is allowed to act, and since it's the only one that re-arms,
+    /// the set converges back to a single live registration.
+    private func armObservation() {
+        observationGeneration += 1
+        let generation = observationGeneration
+        withObservationTracking {
+            _ = trackedState()
+        } onChange: { [weak self] in
+            // onChange fires *before* the mutation lands, so read the new value
+            // on the next main-actor turn.
+            Task { @MainActor in
+                guard let self, self.observationGeneration == generation else { return }
+                self.evaluate()
+            }
+        }
+    }
+
+    /// Brings the session up if needed and points it at `group`. Idempotent: the
+    /// steady-state path is a `publish()` that returns without touching the info
+    /// center when nothing the card shows has moved.
+    private func run(group: GroupRoom) {
+        let sonosService = SonosService.shared
 
         if !isActive {
             guard activateSession() else { return }
             registerCommands()
             observeSessionEvents()
             isActive = true
-        }
-        attachVolumeBridge(group: group, sonosService: sonosService)
-
-        sonosService.onLiveUpdate = { [weak self] updated in
-            guard let self, updated.coordinatorID == self.group?.coordinatorID else { return }
-            self.publish()
+            sonosService.onLiveUpdate = { [weak self] updated in
+                guard let self, updated.coordinatorID == self.group?.coordinatorID else { return }
+                self.publish()
+            }
         }
 
-        Task { [weak self] in
-            await sonosService.listen(to: group, as: .nowPlaying, events: [.metadata, .playback])
-            self?.publish()
+        let isNewTarget = self.group?.coordinatorID != group.coordinatorID
+        // Re-assign even for the same id: `SonosService` replaces `GroupRoom`
+        // instances on topology changes, and holding the old one means writing to
+        // an orphan.
+        self.group = group
+        self.sonosService = sonosService
+
+        if isNewTarget {
+            published = nil
+            lastModelElapsed = -1
+            attachVolumeBridge(group: group, sonosService: sonosService)
+            Task { [weak self] in
+                await sonosService.listen(to: group, as: .nowPlaying, events: [.metadata, .playback])
+                self?.publish()
+            }
         }
 
-        if isRepoint { published = nil }
         publish()
     }
 
@@ -120,14 +242,11 @@ final class NowPlayingSessionService {
 
         artworkTask?.cancel()
         artworkTask = nil
-        favoriteTask?.cancel()
-        favoriteTask = nil
-        favoriteTrackID = nil
-        isFavorite = false
         detachVolumeBridge()
         silentPlayer?.stop()
         silentPlayer = nil
         published = nil
+        lastModelElapsed = -1
         publishedArtworkURL = nil
 
         MPNowPlayingInfoCenter.default().playbackState = .stopped
@@ -242,13 +361,6 @@ final class NowPlayingSessionService {
         })
     }
 
-    /// Repaints the card from the current model. Cheap and idempotent — it
-    /// returns without touching the info center when nothing the card shows has
-    /// moved.
-    func refresh() {
-        publish()
-    }
-
     /// Re-takes the audio session after another part of the app borrowed it (a
     /// 30-second song preview ducks and then deactivates on teardown, which
     /// would otherwise drop the Now Playing claim with it).
@@ -324,11 +436,6 @@ final class NowPlayingSessionService {
         let room = group.coordinatorRoom
         let track = room.track
 
-        // Ahead of the dedupe guard below: this is a no-op unless the song
-        // actually changed, and it has to run even when the card itself doesn't
-        // need repainting.
-        refreshFavorite(for: track)
-
         // An idle radio player reports an empty track between songs; the station
         // name is what the rest of the app shows there, so match it.
         let title = !track.song.isEmpty ? track.song : (room.radioStation ?? group.nameWithCount)
@@ -353,13 +460,26 @@ final class NowPlayingSessionService {
 
         // The info center interpolates elapsed time from the last anchor and the
         // playback rate, so a republish is only needed when the card's content
-        // changed or when the speaker's position has actually drifted from what
-        // the system is already showing (a seek, or a skip we didn't initiate).
+        // changed or when the *speaker* reported a position that disagrees with
+        // what the system is already showing (a seek, or a skip we didn't
+        // initiate).
+        //
+        // `modelMoved` is what makes that safe. `Room.playbackPosition` only
+        // advances when something writes it — the socket, or the SOAP poll, which
+        // is cancelled while backgrounded. So in the background the model sits
+        // frozen at the last reported position while the system's interpolation
+        // correctly moves on. Re-anchoring on that difference would drag the
+        // scrubber back to the frozen value every time, which reads as playback
+        // having stopped. Only a position the speaker has actually updated is
+        // worth re-anchoring to.
         let elapsed = room.playbackPosition
+        let modelMoved = elapsed != lastModelElapsed
+        lastModelElapsed = elapsed
         let interpolated = published?.isPlaying == true
             ? publishedElapsed + Date.now.timeIntervalSince(publishedAt) * 1000
             : publishedElapsed
-        guard snapshot != published || abs(elapsed - interpolated) > 2000 else { return }
+        let drifted = modelMoved && abs(elapsed - interpolated) > 2000
+        guard snapshot != published || drifted else { return }
 
         if snapshot != published {
             updateCommandAvailability(snapshot)
@@ -523,93 +643,18 @@ final class NowPlayingSessionService {
             }
         }
 
-        // Favorites the playing song in whichever service it came from, the same
-        // as the player's heart/star. `isActive` carries the current state, and
-        // each invocation toggles it.
-        center.likeCommand.localizedTitle = "Favorite"
-        center.likeCommand.localizedShortTitle = "Favorite"
-        center.likeCommand.addTarget { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.toggleFavorite() ?? .commandFailed
-            }
-        }
-
         // Nothing here maps onto a Sonos transport — leaving them enabled makes
-        // the card offer controls that silently do nothing. `dislike` included:
-        // no service Clic talks to has a negative signal to send.
+        // the card offer controls that silently do nothing.
         center.skipForwardCommand.isEnabled = false
         center.skipBackwardCommand.isEnabled = false
         center.seekForwardCommand.isEnabled = false
         center.seekBackwardCommand.isEnabled = false
         center.changeRepeatModeCommand.isEnabled = false
         center.changeShuffleModeCommand.isEnabled = false
-        center.dislikeCommand.isEnabled = false
-    }
-
-    /// Points `likeCommand` at `track`, once per song.
-    ///
-    /// Goes through `MusicSearchService.isFavorite`/`setFavorite`, the same
-    /// per-service dispatch the player's heart uses, so a favorite made here and
-    /// one made in the app can't diverge. `LiveActivityFavoriteStore` seeds the
-    /// state instantly — the card would otherwise show "not favorited" for as
-    /// long as the service lookup takes.
-    private func refreshFavorite(for track: Track) {
-        let command = MPRemoteCommandCenter.shared().likeCommand
-
-        guard canFavorite(track) else {
-            favoriteTask?.cancel()
-            favoriteTask = nil
-            favoriteTrackID = nil
-            isFavorite = false
-            command.isEnabled = false
-            command.isActive = false
-            return
-        }
-
-        guard favoriteTrackID != track.trackID else { return }
-        favoriteTrackID = track.trackID
-        command.isEnabled = true
-
-        let cached = LiveActivityFavoriteStore.shared.get(track.trackID) ?? false
-        isFavorite = cached
-        command.isActive = cached
-
-        favoriteTask?.cancel()
-        favoriteTask = Task { [weak self] in
-            let favorite = await MusicSearchService.shared.isFavorite(
-                trackID: track.trackID,
-                service: track.musicService
-            )
-            guard !Task.isCancelled, let self, self.favoriteTrackID == track.trackID else { return }
-            self.isFavorite = favorite
-            MPRemoteCommandCenter.shared().likeCommand.isActive = favorite
-        }
     }
 
     private func allows(_ action: AvailableActions, in group: GroupRoom) -> Bool {
         group.availableActions.isEmpty || group.availableActions.contains(action)
-    }
-
-    private func canFavorite(_ track: Track) -> Bool {
-        track.musicService.supportsFavoriteTrack && !track.trackID.isEmpty
-    }
-
-    private func toggleFavorite() -> MPRemoteCommandHandlerStatus {
-        guard let track = group?.coordinatorRoom.track, canFavorite(track) else { return .noSuchContent }
-
-        // Optimistic, like every other favorite surface: the write is
-        // fire-and-forget from the user's point of view.
-        let favorite = !isFavorite
-        isFavorite = favorite
-        MPRemoteCommandCenter.shared().likeCommand.isActive = favorite
-        Task {
-            await MusicSearchService.shared.setFavorite(
-                favorite,
-                trackID: track.trackID,
-                service: track.musicService
-            )
-        }
-        return .success
     }
 
     private func updateCommandAvailability(_ snapshot: Snapshot) {
@@ -630,9 +675,6 @@ final class NowPlayingSessionService {
         center.nextTrackCommand.removeTarget(nil)
         center.previousTrackCommand.removeTarget(nil)
         center.changePlaybackPositionCommand.removeTarget(nil)
-        center.likeCommand.removeTarget(nil)
-        center.likeCommand.isEnabled = false
-        center.likeCommand.isActive = false
     }
 
     /// Runs a transport command against the mirrored group and repaints the card
