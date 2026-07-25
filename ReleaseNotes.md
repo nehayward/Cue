@@ -9,6 +9,7 @@
 - Redesigned the Connectivity screen around a single choice — which speaker Clic connects through. Tap any speaker to use it, or Choose Best Speaker to let Clic pick; a LAN badge marks the speakers wired to your router, and a tick shows the one in use
 - Entering an address by hand has moved into a "Can't find your speakers?" section that opens on its own when nothing is found — and once a speaker answers at that address, a Connect button appears so you can actually switch to it. Previously the screen could only verify the address
 - Fixed the Connectivity screen sometimes showing "No Sonos system found at this IP address" right after the address was verified with a green check
+- The IP address field no longer marks an address wrong while you're still typing it, and shows a spinner while it checks. A wrong address now tints the field red instead of adding an error icon that looked like a second clear button
 
 # 2026.6
 

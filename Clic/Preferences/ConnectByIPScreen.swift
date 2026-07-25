@@ -14,6 +14,7 @@ struct ConnectByIPScreen: View {
     @State private var deviceFound: Bool = false
     @State private var probeTask: Task<Void, Never>?
     @State private var isConnecting: Bool = false
+    @State private var isProbing: Bool = false
     /// Manual IP entry is a recovery path, so it stays collapsed — unless nothing
     /// was discovered, in which case it's the only way forward and leads instead.
     @State private var showManualEntry: Bool = false
@@ -146,25 +147,44 @@ struct ConnectByIPScreen: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 4)
 
-                HStack {
+                HStack(spacing: 8) {
                     TextField("192.168.1.100", text: $manualConnectIPAddress)
                         .keyboardType(.numbersAndPunctuation)
                         .onChange(of: manualConnectIPAddress, initial: true) {
                             validateIP(manualConnectIPAddress)
                         }
 
-                    if !manualConnectIPAddress.isEmpty {
-                        Image(systemName: isValidIP ? (deviceFound ? "checkmark.circle.fill" : "checkmark.circle") : "xmark.circle.fill")
-                            .foregroundStyle(isValidIP ? (deviceFound ? .green : .secondary) : .red)
+                    // No ✕ here: the field already has the system clear button,
+                    // and a second red circle-with-x beside it read as a second
+                    // control rather than as validation feedback. Wrongness is
+                    // shown by tinting the field instead.
+                    if isProbing {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else if deviceFound {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
                             .imageScale(.medium)
                     }
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(showsInvalidIP ? Color.red.opacity(0.12) : Color.clear)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(showsInvalidIP ? Color.red.opacity(0.5) : Color.clear, lineWidth: 1)
+                )
+                .animation(.smooth(duration: 0.2), value: showsInvalidIP)
 
-                if !isValidIP && !manualConnectIPAddress.isEmpty {
-                    Text("Invalid IP address format")
+                if showsInvalidIP {
+                    Text("That doesn't look like an IP address — four numbers separated by dots, like 192.168.1.100")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else if isValidIP && !deviceFound && !manualConnectIPAddress.isEmpty {
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if isValidIP && !deviceFound && !isProbing {
                     Text("No Sonos system found at this IP address")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -230,6 +250,34 @@ struct ConnectByIPScreen: View {
         alertService.showAlert(with: "Now connecting through \(name)", imageName: "checkmark.circle.fill")
     }
 
+    /// Whether to style the field as wrong. Deliberately NOT `!isValidIP`: while
+    /// someone is typing, "192." is an incomplete address, not a bad one, and
+    /// flagging it on the way to a valid entry is what made the field feel like
+    /// it was rejecting every keystroke.
+    private var showsInvalidIP: Bool {
+        !manualConnectIPAddress.isEmpty && !isPartialIP(manualConnectIPAddress)
+    }
+
+    /// True while the text could still grow into a valid IPv4 address — at most
+    /// four dot-separated groups, each 1–3 digits and ≤ 255, with only the final
+    /// group allowed to be empty (the user just typed a dot).
+    private func isPartialIP(_ ip: String) -> Bool {
+        let parts = ip.components(separatedBy: ".")
+        guard parts.count <= 4 else { return false }
+        for (index, part) in parts.enumerated() {
+            if part.isEmpty {
+                guard index == parts.count - 1 else { return false }
+                continue
+            }
+            guard part.count <= 3,
+                  part.allSatisfy(\.isNumber),
+                  let value = Int(part), value <= 255 else {
+                return false
+            }
+        }
+        return true
+    }
+
     private func validateIP(_ ip: String) {
         let regex = try? NSRegularExpression(pattern: ipv4Pattern)
         let range = NSRange(location: 0, length: ip.utf16.count)
@@ -240,16 +288,21 @@ struct ConnectByIPScreen: View {
         // after the full address's probe and overwrite a good result.
         probeTask?.cancel()
         if isValidIP {
+            isProbing = true
             probeTask = Task {
                 // Probe reachability only — do NOT adopt/pin a household from a
                 // transient, still-being-typed IP. Adoption happens on an explicit
                 // tap (Connect, a speaker row, or Choose Best Speaker).
                 let groups = (try? await sonosService.getGroups(with: ip)) ?? []
+                // A superseded probe leaves the flags alone: the newer validateIP
+                // call already owns them.
                 guard !Task.isCancelled, ip == manualConnectIPAddress else { return }
                 deviceFound = !groups.isEmpty
+                isProbing = false
             }
         } else {
             deviceFound = false
+            isProbing = false
         }
     }
 
