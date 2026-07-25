@@ -6,7 +6,10 @@ struct ConnectByIPScreen: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(AlertService.self) private var alertService
 
-    @CloudStorage("sonos_ip") var sonosIP = ""
+    /// The user's explicit speaker choice — NOT `sonos_ip`, which the reconnect
+    /// race rewrites to whichever speaker answered first, making the tick jump
+    /// off the speaker that was just tapped.
+    @CloudStorage("sonos_preferred_speaker_ip") var preferredSpeakerIP = ""
 
     @State private var manualConnectIPAddress: String = ""
     @State private var errorMessage: String?
@@ -15,6 +18,9 @@ struct ConnectByIPScreen: View {
     @State private var probeTask: Task<Void, Never>?
     @State private var isConnecting: Bool = false
     @State private var isProbing: Bool = false
+    /// Bumped once a speaker choice actually lands, so the haptic confirms the
+    /// result rather than firing on tap and buzzing for a change that failed.
+    @State private var selectionFeedback: Int = 0
     /// Manual IP entry is a recovery path, so it stays collapsed — unless nothing
     /// was discovered, in which case it's the only way forward and leads instead.
     @State private var showManualEntry: Bool = false
@@ -42,6 +48,7 @@ struct ConnectByIPScreen: View {
         .navigationTitle("Connectivity")
         .headerProminence(.increased)
         .fontDesign(.rounded)
+        .sensoryFeedback(.success, trigger: selectionFeedback)
         .onAppear {
             // Nothing to pick from means discovery found nothing — open the manual
             // path rather than showing an empty screen with a hidden way out.
@@ -55,29 +62,29 @@ struct ConnectByIPScreen: View {
 
     private var automaticSection: some View {
         Section {
-            Button {
-                Task {
-                    guard let device = await sonosService.setPriorityDevice() else { return }
-                    announceConnection(to: device.name)
-                }
-            } label: {
-                Label {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Choose Best Speaker")
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.primary)
-                        Text("Prefers LAN-connected and mains-powered speakers, and skips portables like Roam or Move")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 8) {
+                Button {
+                    Task {
+                        guard let device = await sonosService.setPriorityDevice() else { return }
+                        selectionFeedback += 1
+                        announceConnection(to: device.name)
                     }
-                } icon: {
-                    Image(systemName: "wand.and.stars")
-                        .foregroundStyle(.accent)
+                } label: {
+                    Label("Choose Best Speaker", systemImage: "wand.and.stars")
+                        .fontWeight(.semibold)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
                 }
-                .contentShape(Rectangle())
+                .buttonStyle(.borderedProminent)
+                .tint(.accent)
+
+                Text("Prefers LAN-connected and mains-powered speakers, and skips portables like Roam or Move")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .buttonStyle(.plain)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
         } header: {
             Text("How Clic Connects")
         } footer: {
@@ -93,6 +100,7 @@ struct ConnectByIPScreen: View {
                 Button {
                     Task {
                         await sonosService.setStaticIP(ip: room.ip)
+                        selectionFeedback += 1
                         announceConnection(to: room.name)
                     }
                 } label: {
@@ -114,7 +122,7 @@ struct ConnectByIPScreen: View {
 
                         connectionBadge(for: room)
 
-                        if sonosIP == room.ip {
+                        if preferredSpeakerIP == room.ip {
                             Image(systemName: "checkmark")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.green)
@@ -314,6 +322,7 @@ struct ConnectByIPScreen: View {
             // Adopts the device's household (S1 or S2) and pins the IP, so a
             // system on another generation than the active one becomes selectable.
             await sonosService.setStaticIP(ip: ip)
+            selectionFeedback += 1
             announceConnection(to: sonosService.sortedRooms.first(where: { $0.ip == ip })?.name ?? ip)
         }
     }

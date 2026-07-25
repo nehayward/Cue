@@ -2947,6 +2947,18 @@ public final class SonosService {
 
     func prioritizedIP() -> String? {
         let allRooms = groups.flatMap(\.rooms)
+
+        // An explicit choice from the Connectivity screen wins over the heuristic
+        // below — otherwise picking a speaker there changed nothing, since every
+        // system-wide lookup (artwork, library, favorites) resolves through here.
+        // Gated on the speaker still being part of the current system so a pin
+        // left over from another household or network can't strand every lookup
+        // on an address nothing answers.
+        let pinnedIP = sonosSystemDiscoverService.preferredSpeakerIP
+        if !pinnedIP.isEmpty, allRooms.contains(where: { $0.ip == pinnedIP }) {
+            return pinnedIP
+        }
+
         let sortedRooms = allRooms.sorted { lhs, rhs in
             // Ethernet-enabled rooms should come last
             let lhsEthernet = lhs.ethernetEnabled ? 1 : 0
@@ -3020,6 +3032,12 @@ public final class SonosService {
         // Discovery-independent pin so a hand-entered IP connects regardless of
         // whether identity resolution or Bonjour succeed.
         sonosSystemDiscoverService.pinLegacyIP(ip)
+        // Remember this as the user's explicit choice. `pinLegacyIP` alone won't
+        // hold: the `load` below re-races every known IP, and whichever speaker
+        // answers first rewrites `lastKnownIP` and re-mirrors it over the legacy
+        // key — which is why the selection used to flash onto the tapped speaker
+        // and then jump back.
+        sonosSystemDiscoverService.pinPreferredSpeaker(ip)
         let householdID = await api.getHouseHoldID(for: ip)
         if !householdID.isEmpty {
             // Explicit user action — unblock in case it was previously removed.

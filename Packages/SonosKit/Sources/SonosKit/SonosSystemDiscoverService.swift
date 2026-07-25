@@ -36,6 +36,12 @@ class SonosStorageIP: ObservableObject {
     /// would re-adopt a deleted home and write it back into the synced list — and
     /// so a deletion on one device doesn't get resurrected by another.
     @CloudStorage("sonos_removed_households") var removedHouseholds: [String] = []
+    /// The speaker the user explicitly chose to run system-wide lookups through.
+    /// Deliberately SEPARATE from `legacyIP`/`lastKnownIP`: those answer "an
+    /// address that reaches this household" and are rewritten by the reconnect
+    /// race in `getGroups` whenever another speaker replies first. A user's pick
+    /// has to outlive that, so it gets its own key that only explicit action writes.
+    @CloudStorage("sonos_preferred_speaker_ip") var preferredSpeakerIP = ""
 }
 
 @Observable
@@ -81,6 +87,19 @@ final class SonosSystemDiscoverService {
     var knownHouseholds: [SonosHousehold] {
         get { sonosStorageIP.knownHouseholds }
         set { sonosStorageIP.knownHouseholds = newValue }
+    }
+
+    /// The speaker the user picked for system-wide lookups (groups, artwork,
+    /// library). Empty means "no preference — use the automatic heuristic".
+    var preferredSpeakerIP: String { sonosStorageIP.preferredSpeakerIP }
+
+    /// Records an explicit speaker choice. Only user actions call this, so the
+    /// reconnect race can never overwrite it the way it overwrites `lastKnownIP`.
+    @MainActor
+    func pinPreferredSpeaker(_ ip: String) {
+        if sonosStorageIP.preferredSpeakerIP != ip {
+            sonosStorageIP.preferredSpeakerIP = ip
+        }
     }
 
     /// Known households ordered most-recently-connected first — the order the
