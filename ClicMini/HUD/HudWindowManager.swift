@@ -128,7 +128,7 @@ final class HudWindowManager {
         // system ran its own order-in/out animation that fought our fade, so the
         // window snapped away instead of fading.
         window.animationBehavior = .none
-        window.hasShadow = true
+        window.hasShadow = !PanelBackground.drawsOwnShadow
         window.ignoresMouseEvents = false
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
 
@@ -154,27 +154,19 @@ final class HudWindowManager {
             // effect + hosting view on every 100ms volume tick caused flicker.
             hostingView.rootView = mediaView
         } else {
-            // Create the effect view with proper frame
-            let effect = NSVisualEffectView(frame: NSRect(origin: .zero, size: windowSize))
-            effect.blendingMode = .behindWindow
-            effect.state = .active
-            effect.material = .hudWindow
-            effect.wantsLayer = true
-            effect.layer?.cornerRadius = 18
-            effect.layer?.masksToBounds = true
-            // Subtle hairline border to lift it off the desktop.
-            effect.layer?.borderWidth = 1
-            effect.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
-
             let hostingView = ClickThroughHostingView(rootView: mediaView)
-            hostingView.frame = effect.bounds
-            hostingView.autoresizingMask = [.width, .height]
 
             // Store reference to hosting view for cleanup
             currentHostingView = hostingView
 
-            effect.addSubview(hostingView)
-            window.contentView = effect
+            // Liquid Glass on macOS 26, corner-masked blur before that. Bordered so
+            // the pre-26 panel keeps a visible edge against a light desktop.
+            window.contentView = PanelBackground.wrap(
+                hostingView,
+                frame: NSRect(origin: .zero, size: windowSize),
+                cornerRadius: 18,
+                bordered: true
+            )
 
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden

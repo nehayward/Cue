@@ -9,6 +9,8 @@
 - Fixed the player staying stuck on a radio station after playing a song from the queue — playback switches reliably, the progress bar appears again, and the station caption clears right away
 - Services you remove in the Sonos app no longer linger in Clic — they're hidden from search and browse automatically
 - Plex sign-in now lives right on its row in Services — tap the row to manage your account
+- Fixed square corners showing around the Clic Mini notification and menu bar window in light mode
+- Clic Mini: The notification and menu bar window now use Liquid Glass on macOS 26
 
 # 2026.6
 
