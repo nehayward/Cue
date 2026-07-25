@@ -31,6 +31,14 @@ public final class PandoraBrowseService {
 
     private let musicSearchService = MusicSearchService.shared
     private var hasLoaded = false
+    /// When the sections on screen were last fetched. Revisiting the screen
+    /// after `staleAfter` refetches instead of trusting `hasLoaded` for the
+    /// whole session — stations appear on the account without Clic doing
+    /// anything (playing a search seed creates one, and so does the Pandora
+    /// app or another controller), and a session-long cache hid them until a
+    /// manual pull-to-refresh.
+    private var lastLoaded: Date?
+    private let staleAfter: TimeInterval = 300
     /// Session cache of full station lists per container id, so re-entering a
     /// "see all" screen doesn't refetch.
     private var sectionStationsCache: [String: [PlayableContent]] = [:]
@@ -40,7 +48,10 @@ public final class PandoraBrowseService {
     private init() {}
 
     public func load() async {
-        guard !isLoading, !hasLoaded else { return }
+        guard !isLoading else { return }
+        // Already loaded and still fresh — nothing to do. When it's gone stale
+        // the current sections stay on screen while the refetch runs.
+        if hasLoaded, let lastLoaded, Date().timeIntervalSince(lastLoaded) < staleAfter { return }
         isLoading = true
         error = nil
         defer { isLoading = false }
@@ -62,6 +73,7 @@ public final class PandoraBrowseService {
         }
 
         hasLoaded = true
+        lastLoaded = Date()
         if populatedSections.isEmpty {
             error = "Couldn't load Pandora. Make sure Pandora is set up in the Sonos app and try again."
         }
@@ -77,6 +89,7 @@ public final class PandoraBrowseService {
         // Keep the current sections on screen until fresh ones arrive.
         error = nil
         hasLoaded = false
+        lastLoaded = nil
         sectionStationsCache = [:]
         await load()
     }
