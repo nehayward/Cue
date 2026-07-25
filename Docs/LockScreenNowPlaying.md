@@ -59,6 +59,24 @@ a background feature: SwiftUI stops evaluating bodies once the app is
 backgrounded, so `onChange` stopped firing exactly when the card was the only UI
 left. `@Observable` notifications don't care whether a view is alive.
 
+## Tapping the card
+
+The Now Playing card carries no tap URL — iOS simply foregrounds the app, and
+gives no signal that the launch came from the card. Intercepting
+`didBecomeActive` would therefore route the user to the player on *every* return
+to the app (after a phone call, after a share sheet), which is worse than not
+doing it.
+
+Instead `pointSelectionAtMirroredGroup` keeps `Router.main.selectedID` on the
+group being mirrored, so the app is already on that speaker whenever it opens —
+from the card or otherwise. `ClicApp` persists the selection to
+`AppStorageKeys.savedGroupID` and restores it at launch, so this survives a cold
+start too.
+
+It only fills a selection that isn't already showing something mirrorable:
+`resolveTarget()` *prefers* the selection, so overwriting a live one would let
+the card drag the user off the speaker they were looking at.
+
 ## Why it doesn't poll
 
 The `.nowPlaying` live listener holds one socket, on the mirrored group's

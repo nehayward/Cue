@@ -143,6 +143,28 @@ final class NowPlayingSessionService {
         return sonosService.groups.first { $0.coordinatorRoom.isPlaying && isMirrorable($0) }
     }
 
+    /// Makes tapping the Now Playing card land on the mirrored speaker.
+    ///
+    /// The card carries no tap URL — iOS just foregrounds the app, and there's no
+    /// signal saying the launch came from the card — so intercepting activation
+    /// would mean yanking the user to the player on *every* return to the app,
+    /// including after a phone call. Instead the selection is pointed at the group
+    /// while it's being mirrored, so the app is already on that speaker whenever
+    /// it opens, from the card or anywhere else.
+    ///
+    /// Only fills a selection that isn't already showing something mirrorable:
+    /// `resolveTarget` prefers the selection, so overwriting a live one would let
+    /// the card drag the user off the speaker they were looking at.
+    private func pointSelectionAtMirroredGroup(_ group: GroupRoom) {
+        let router = Router.main
+        guard router.selectedID != group.coordinatorID else { return }
+        let selected = router.selectedID.flatMap { id in
+            SonosService.shared.groups.first(where: { $0.coordinatorID == id })
+        }
+        if let selected, isMirrorable(selected) { return }
+        router.selectedID = group.coordinatorID
+    }
+
     /// TV mode has no transport to mirror and an empty track means the speaker is
     /// idle — neither is worth holding the audio session for.
     private func isMirrorable(_ group: GroupRoom) -> Bool {
@@ -221,6 +243,8 @@ final class NowPlayingSessionService {
         // an orphan.
         self.group = group
         self.sonosService = sonosService
+
+        pointSelectionAtMirroredGroup(group)
 
         if isNewTarget {
             published = nil
@@ -603,22 +627,22 @@ final class NowPlayingSessionService {
 
         center.playCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform { service, group in await service.play(ip: group.ip) } ?? .commandFailed
+                self?.perform("play") { service, group in await service.play(ip: group.ip) } ?? .commandFailed
             }
         }
         center.pauseCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform { service, group in await service.pause(ip: group.ip) } ?? .commandFailed
+                self?.perform("pause") { service, group in await service.pause(ip: group.ip) } ?? .commandFailed
             }
         }
         center.togglePlayPauseCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform { service, group in await service.togglePlayPause(for: group) } ?? .commandFailed
+                self?.perform("toggle") { service, group in await service.togglePlayPause(for: group) } ?? .commandFailed
             }
         }
         center.nextTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform { service, group in
+                self?.perform("next") { service, group in
                     group.coordinatorRoom.playbackPosition = 0
                     await service.next(ip: group.ip)
                 } ?? .commandFailed
@@ -626,7 +650,7 @@ final class NowPlayingSessionService {
         }
         center.previousTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform { service, group in
+                self?.perform("previous") { service, group in
                     group.coordinatorRoom.playbackPosition = 0
                     await service.previous(ip: group.ip)
                 } ?? .commandFailed
@@ -636,7 +660,7 @@ final class NowPlayingSessionService {
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             let milliseconds = event.positionTime * 1000
             return MainActor.assumeIsolated {
-                self?.perform { service, group in
+                self?.perform("scrub") { service, group in
                     group.coordinatorRoom.updatePlaybackPosition(milliseconds)
                     await service.seek(to: milliseconds, on: group)
                 } ?? .commandFailed
@@ -681,8 +705,16 @@ final class NowPlayingSessionService {
     /// immediately, so the Lock Screen doesn't sit on the old state waiting for
     /// the speaker to echo back.
     private func perform(
+        _ name: String,
         _ action: @escaping (SonosService, GroupRoom) async -> Void
     ) -> MPRemoteCommandHandlerStatus {
+        #if DEBUG
+        // Proves the command centre is actually reaching us. A card that draws no
+        // buttons and a command centre that isn't wired look the same from the
+        // outside — but AirPods, a headset button, CarPlay, or the Control Centre
+        // module will all land here even when the Lock Screen draws nothing.
+        print("🎛 NowPlaying — command \(name) received")
+        #endif
         guard let sonosService, let group else { return .noSuchContent }
         Task { @MainActor in
             await action(sonosService, group)
