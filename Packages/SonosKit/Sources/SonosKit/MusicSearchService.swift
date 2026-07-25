@@ -1476,10 +1476,18 @@ public final class MusicSearchService {
               !creds.token.isEmpty else {
             return nil
         }
+        // Pandora scopes its SMAPI session to the *account*, not just the
+        // household: the official controller sends
+        // `<householdId>Sonos_<id>_<serial></householdId>`, where `<serial>` is
+        // the account segment of the Pandora service UDN
+        // (`SA_RINCON60423_X_#Svc60423-<serial>-Token`). Apple and Spotify get
+        // the bare household id, which is why nothing else needs this. Sending
+        // the bare id to Pandora fails every call with "Failed to reauth device
+        // id" — including refreshAuthToken, so the session can never recover.
         let credentials = SMAPICredentials(
             token: creds.token,
             key: creds.key,
-            householdId: creds.householdId,
+            householdId: Self.pandoraHouseholdID(base: creds.householdId),
             deviceId: creds.deviceId
         )
 
@@ -1503,6 +1511,19 @@ public final class MusicSearchService {
         }
         cachedPandoraEndpoint = endpoint
         return (endpoint, credentials)
+    }
+
+    /// Appends the Pandora account serial to the household id, matching the
+    /// official controller. Falls back to the bare id when the account can't be
+    /// read or the serial is already present, so this can't corrupt a working
+    /// session.
+    private static func pandoraHouseholdID(base: String) -> String {
+        guard let udn = KeychainTokenRefreshHandler.shared.serverUDN(for: .pandora),
+              let serial = KeychainTokenRefreshHandler.accountSerial(fromUDN: udn),
+              !base.hasSuffix("_\(serial)") else {
+            return base
+        }
+        return "\(base)_\(serial)"
     }
 
     private func searchPandora(query: String) async -> [PlayableContent] {

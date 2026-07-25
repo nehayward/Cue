@@ -39,4 +39,32 @@ final class PandoraRatingTests: XCTestCase {
     func testEmptyIDIsUnchanged() {
         XCTAssertEqual(MusicSearchService.pandoraSMAPITrackID(from: ""), "")
     }
+
+    // MARK: - Account serial
+
+    /// Pandora scopes its SMAPI session to the account: the controller sends
+    /// `Sonos_<id>_<serial>` as the householdId, where the serial is the middle
+    /// segment of the service UDN. Sending the bare household id fails every
+    /// call with "Failed to reauth device id".
+    func testAccountSerialFromServiceUDN() {
+        XCTAssertEqual(
+            KeychainTokenRefreshHandler.accountSerial(fromUDN: "SA_RINCON60423_X_#Svc60423-62fe75eb-Token"),
+            "62fe75eb"
+        )
+        XCTAssertEqual(
+            KeychainTokenRefreshHandler.accountSerial(fromUDN: "SA_RINCON40967_X_#Svc40967-7051ab01-Token"),
+            "7051ab01"
+        )
+        // The generic account still parses — "0" is a serial like any other.
+        XCTAssertEqual(
+            KeychainTokenRefreshHandler.accountSerial(fromUDN: "SA_RINCON77575_X_#Svc77575-0-Token"),
+            "0"
+        )
+    }
+
+    func testAccountSerialRejectsMalformedUDN() {
+        XCTAssertNil(KeychainTokenRefreshHandler.accountSerial(fromUDN: ""))
+        XCTAssertNil(KeychainTokenRefreshHandler.accountSerial(fromUDN: "SA_RINCON60423_X_#Svc60423"))
+        XCTAssertNil(KeychainTokenRefreshHandler.accountSerial(fromUDN: "SA_RINCON60423_X_#Svc60423--Token"))
+    }
 }

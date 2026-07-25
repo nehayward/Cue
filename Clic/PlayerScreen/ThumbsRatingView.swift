@@ -15,6 +15,7 @@ struct ThumbsRatingView: View {
 
     private enum Thumb { case up, down }
 
+    @Environment(SonosService.self) private var sonosService
     @State private var rated: Thumb?
     @State private var bounceTrigger = 0
 
@@ -27,8 +28,12 @@ struct ThumbsRatingView: View {
                 symbol: "hand.thumbsdown",
                 help: "Thumbs Down",
                 // Pandora stops playing a thumbed-down track, so the station
-                // skips on. Nothing to undo locally once it's sent.
-                action: { _ = await MusicSearchService.shared.thumbsDownPandoraTrack(trackID: trackID) }
+                // moves on — skip to match. Gated on the rating landing: a
+                // failed call shouldn't cost the user the song they're on.
+                action: {
+                    guard await MusicSearchService.shared.thumbsDownPandoraTrack(trackID: trackID) else { return }
+                    await sonosService.next(ip: group.coordinatorRoom.ip)
+                }
             )
 
             thumbButton(
