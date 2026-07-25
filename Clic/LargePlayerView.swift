@@ -341,7 +341,7 @@ fileprivate struct ScenePhaseSyncModifier: ViewModifier {
                     }
                 } else if scenePhase == .background {
                     Task {
-                        await sonosService.stopListening(playerID: group.coordinatorID)
+                        await sonosService.stopViewing()
                     }
                 }
             }

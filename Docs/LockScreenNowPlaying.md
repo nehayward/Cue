@@ -8,13 +8,13 @@ system Now Playing card, and how that card stays current without polling.
               │  WebSocket: metadata + playback
               ▼
    SonosService (.nowPlaying live listener)
-              │  onLiveUpdate(group)
+              │  live-update observer (.nowPlaying)
               ▼
    NowPlayingSessionService ──► MPNowPlayingInfoCenter   (Lock Screen / CC / CarPlay)
        │                   └──► MPRemoteCommandCenter    (play/pause/skip/scrub)
        │
        ├── silent .playback session (why the card renders at all)
-       └── HardwareVolumeService (ownsAudioSession: false) → group volume
+       └── HardwareVolumeService (owner: .session, .absoluteMirror) → group volume
 ```
 
 ## The silent-audio requirement
@@ -40,17 +40,18 @@ Non-negotiables learned the hard way:
   alive and to keep the WebSocket delivering: `handleScenePhase(.background)`
   cancels the SOAP pulse.
 - **The session is borrowable.** Song previews (`AudioPlaybackService`) take the
-  session and deactivate it on teardown, which would drop the claim — teardown
-  calls `reclaimSession()` instead, which also restores the category the preview
-  left behind. Same for interruptions (`.ended`) and
-  `mediaServicesWereResetNotification`.
+  session and deactivate it on teardown, which would drop the claim. That's
+  arbitrated by `AudioSessionArbiter`: this service registers a claim, and the
+  preview asks the arbiter rather than naming the feature — with no claim
+  registered it deactivates exactly as it always did. Interruptions (`.ended`)
+  and `mediaServicesWereResetNotification` route to the same recovery.
 
 ## Gating
 
 Clic Super. The check lives in `isEnabled` — preference **and** active
 subscription — not only on the toggle, because this is a feature that keeps
 running with the app closed: a subscription that lapses mid-session has to tear
-it down, and a toggle can't do that. `trackedState()` reads `isEnabled`, so the
+it down, and a toggle can't do that. `trackModelState()` reads `isEnabled`, so the
 `@Observable` write when a purchase, restore, or expiry lands re-evaluates on its
 own. That also covers cold launch, where `checkSubscription()` hasn't returned
 yet and the session simply starts a moment later.
@@ -65,7 +66,7 @@ they can't clear.
 
 `activate()` is called once from `ClicApp.onAppear`; from there the service
 watches the model itself with a self-re-arming `withObservationTracking` pass
-over `trackedState()` (target group, track identity, artwork URL, duration,
+over `trackModelState()` (target group, track identity, artwork URL, duration,
 isPlaying, station, available actions — deliberately *not* `playbackPosition`,
 which ticks). The preference is read from `UserDefaults` and re-evaluated on
 `didChangeNotification`, so the toggle needs no wiring of its own.
@@ -94,11 +95,6 @@ Screen would drop the card and leave no way to resume.
 `sorted`, not `groups`: `groups` is in Sonos topology-parse order, which is
 arbitrary and reshuffles on refresh, so two rooms playing could hand the card
 back and forth on an unrelated group change.
-
-The selection follows the card in the background
-(`pointSelectionAtMirroredGroup`), which is what keeps card, selection, and
-volume bridge on one speaker — and what makes a tap on the card land on the
-group it was showing rather than the one that was selected before.
 
 ## What the card shows
 
@@ -155,7 +151,9 @@ knowing it's there before concluding "only WebSockets are alive".
 
 The `.nowPlaying` live listener holds one socket, on the mirrored group's
 coordinator, for `[.metadata, .playback]` only. Events write the model in
-`SonosService`'s handler and call back through `onLiveUpdate`.
+`SonosService`'s handler and call back through the `.nowPlaying` live-update
+observer (keyed by listener, so a second consumer can't silently replace the
+first).
 
 Elapsed time is never pushed on a timer. The info center interpolates from the
 `elapsedPlaybackTime` + `playbackRate` anchor, so `publish()` re-anchors only
@@ -210,7 +208,7 @@ sides have to participate:
   player screen never reached the card.
 - Reads follow the store. The card's `refreshFavorite` only queried the service
   on a *song* change, so it never noticed a like made elsewhere on the current
-  song; it now adopts the store's value for the same song, and `trackedState()`
+  song; it now adopts the store's value for the same song, and `trackModelState()`
   reads the store so the write wakes the observation.
 
 `MusicService+Favorite.swift` and `LikeButtonView.swift` are both byte-identical
@@ -227,12 +225,14 @@ services take a negative signal.
 
 While the session is held the phone's own volume is inaudible, so the hardware
 buttons and the Lock Screen slider are re-pointed at the group.
-`HardwareVolumeService` runs in `ownsAudioSession: false` mode: it skips the
+`HardwareVolumeService` runs as `owner: .session` with `configuresAudioSession:
+false`: it skips the
 `.ambient` reconfiguration that would forfeit the Now Playing claim, and keeps
 its `outputVolume` KVO alive while backgrounded — which is exactly when the Lock
-Screen slider is used. `HardwareVolumeControlModifier` stands down while the
-session owns the bridge and takes it back when the session ends (it observes
-`isActive`). The `MPVolumeView` is parked in the key window; its slider only
+Screen slider is used. The service arbitrates ownership itself (`Owner.session` outranks
+`Owner.playerScreen`), so the player screen's modifier claims and releases
+without knowing what else exists; its `owner` is observed, which is what makes
+the modifier take the bridge back when the session ends. The `MPVolumeView` is parked in the key window; its slider only
 exists inside a window.
 
 The bridge runs in **absolute** mode here, unlike the player screen's *relative*
@@ -242,7 +242,7 @@ headroom — fine for hardware buttons, useless for a Lock Screen slider: its
 position means nothing, a drag registers as a single step, and once it pins at 0
 or 1 further presses do nothing. Absolute makes the phone's volume *be* the
 group's volume, scaled: `syncSystemVolume()` mirrors the group's level onto the
-slider (driven from `trackedState`, so a change made on the speaker or in the
+slider (driven from `trackModelState`, so a change made on the speaker or in the
 Sonos app follows), and a user change is sent as a level via `setGroupVolume`.
 Sends are coalesced — a drag emits a KVO callback every few pixels and only the
 last value matters.
@@ -252,6 +252,49 @@ Echo filtering differs by mode for the same reason: relative can compare against
 `lastWrittenSystemVolume`. One consequence to expect: hardware presses move the
 group in ~6-point steps (the system has 16), not the 1-point steps of the player
 screen.
+
+## Deliberately deferred
+
+Reviewed against SOLID; these were judged not worth the churn *yet*, and are
+recorded so the next person doesn't have to rediscover them:
+
+- **`NowPlayingSessionService` still holds ~8 jobs** (gating, target policy,
+  observation, session lifecycle, WAV encoding, publishing, artwork, commands,
+  favorites). The highest-value split is `SilentAudioSession` (session lifecycle
+  + `makeSilentPCMWAV`, ~110 lines, no external call sites) followed by a
+  `NowPlayingPositionAnchor` value type for the interpolation maths — the only
+  genuinely subtle logic here, and currently unreachable from a test.
+- **Constructor injection.** Every collaborator is a singleton reached through
+  `.shared`, so nothing in this file is testable without a device and a Sonos
+  system. `init(sonos:router:subscription:…)` with defaults would fix that
+  without touching a call site.
+- **The command table.** `registerCommands`, `updateCommandAvailability` and
+  `unregisterCommands` each enumerate the commands separately; adding one means
+  editing three places.
+- **`HardwareVolumeService`'s two modes could be a strategy** rather than a
+  `Mode` enum switched in three places — worth it if a third mode appears.
+- **Relative volume mode may be obsolete.** Absolute mirroring works for hardware
+  buttons too, so deleting `relativeSteps` would remove two algorithms, two echo
+  filters and two send paths. Not done because it changes long-standing
+  player-screen behaviour (1-point steps vs ~6).
+
+## Removing this feature
+
+After the dependency inversions, no pre-existing type names it. To remove:
+
+1. Delete `NowPlayingSessionService.swift`, `AudioSessionArbiter.swift`, and
+   `Docs/LockScreenNowPlaying.md`.
+2. Delete the `activate()` call in `ClicApp.onAppear`, the preference row and
+   its `Binding` in `PreferenceScreen`, the `lockScreenNowPlaying` key, and
+   `UIBackgroundModes` from `Info.plist`.
+3. In `AudioPlaybackService`, drop the `AudioSessionArbiter.shared.handBack()`
+   line (or leave it — with nothing claiming, it returns false and the original
+   behaviour stands).
+4. Optionally simplify `HardwareVolumeService` back to one owner and one mode.
+
+What stays, because it's independent of the Lock Screen and fixes real
+foreground behaviour: the whole `SonosService+LiveListening` registry, the
+socket event handlers in `SonosService+SonosEventHandler`, and `SuperBadge`.
 
 ## Not done yet
 

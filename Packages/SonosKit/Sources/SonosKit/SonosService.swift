@@ -69,6 +69,7 @@ public final class SonosService {
         // The sockets point at a system we're leaving — drop the listeners and
         // close them rather than letting the refresh timer keep them alive.
         Task { @MainActor [weak self] in await self?.disconnectAll() }
+
     }
 
     /// Forces the next `getGroups(useCache:)` call to re-race all known-household
@@ -168,17 +169,19 @@ public final class SonosService {
     /// so the player screen and the Lock Screen session can't tear down each
     /// other's connection — see `SonosService+LiveListening.swift`.
     @ObservationIgnored var liveListeners: [LiveListener: LiveSubscription] = [:]
-    /// Event sets currently established on the streaming service, so reconcile
-    /// can tell "already connected" from "connected, but for fewer events".
-    @ObservationIgnored var liveConnections: [String: Set<SonosStreamingService.EventType>] = [:]
-    /// Last item id seen on the socket per coordinator — the change signal that
-    /// triggers a targeted track refresh instead of waiting on the poll.
+    /// What each socket was actually built with, so reconcile can tell an
+    /// unchanged connection from one whose events, group id, or ip have moved.
+    @ObservationIgnored var liveConnections: [String: LiveSubscription] = [:]
+    /// Last item id seen on the socket, keyed by `liveItemKey` — the change
+    /// signal that triggers a targeted track refresh instead of waiting on the
+    /// poll.
     @ObservationIgnored var lastLiveItemIDs: [String: String] = [:]
     @ObservationIgnored var liveTrackRefreshTasks: [String: Task<Void, Never>] = [:]
-    /// Fired whenever a socket event moved a group's playback state. Consumers
-    /// that mirror playback outside SwiftUI (the Lock Screen Now Playing card)
-    /// hook this instead of polling.
-    @ObservationIgnored public var onLiveUpdate: ((GroupRoom) -> Void)?
+    /// Callbacks for socket events, keyed by listener so a second consumer can't
+    /// silently replace the first. Consumers that mirror playback outside
+    /// SwiftUI (the Lock Screen Now Playing card) register here instead of
+    /// polling.
+    @ObservationIgnored var liveUpdateObservers: [LiveListener: (GroupRoom) -> Void] = [:]
     @ObservationIgnored private var metadataTask: Task<Void, Never>?
     @ObservationIgnored private var hasAppliedGroupsCache = false
     @ObservationIgnored private var cachedIPVerified = false
@@ -1653,17 +1656,12 @@ public final class SonosService {
         await listen(ip: ip, playerID: playerID, groupID: groupID, as: .viewing, events: [.metadata])
     }
 
-    /// Drops the on-screen listener. `playerID` is accepted for call-site
-    /// clarity; the registry knows which socket that listener holds.
+    /// Drops the on-screen listener. The registry knows which socket it holds —
+    /// there is deliberately no player id to pass, since passing one that didn't
+    /// match would have been silently ignored.
     @MainActor
-    public func stopListening(playerID: String) async {
+    public func stopViewing() async {
         await stopListening(as: .viewing)
-    }
-
-    @MainActor
-    public func disconnectAll() async {
-        clearLiveListeners()
-        await streamingService?.disconnectAll()
     }
 
     public func getArtwork(from track: Track, size: Int = 500) async -> URL? {

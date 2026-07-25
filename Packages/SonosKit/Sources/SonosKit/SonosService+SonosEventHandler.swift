@@ -8,21 +8,6 @@ import Foundation
 
 extension SonosService: SonosEventHandler {
     // MARK: - SonosEventHandler Implementation
-    public func onVolumeUpdate(playerId: String, event: VolumeEvent) {
-        if event.info.type == "groupVolume" {
-//            guard let index = devices.firstIndex(where: { $0.id == playerId }) else {
-//                return
-//            }
-//            if let groupVolume = event.volumeState?.volume {
-//                updateDevice(devices[index], keyPath: \.groupVolume, value: Double(groupVolume))
-//            }
-//            
-//            if let isMuted = event.volumeState?.muted {
-//                updateDevice(devices[index], keyPath: \.groupIsMuted, value: isMuted)
-//            }
-        }
-    }
-    
     /// Transport changes (play/pause/skip) arrive here within ~100 ms of the
     /// speaker acting on them — well ahead of the 500 ms SOAP pulse, and the
     /// only source of updates at all once the app is backgrounded and the pulse
@@ -36,12 +21,12 @@ extension SonosService: SonosEventHandler {
         // it's handled before that guard. These events are edge-triggered: drop
         // one and the model stays wrong until something else happens to move it,
         // which in the background is nothing at all.
-        liveItemDidChange(itemID: playbackState.itemId, for: group)
+        liveItemDidChange(itemID: playbackState.itemId, from: .playback, for: group)
 
         // A local play/pause optimistically writes the model and holds `isEditing`
         // for 400 ms; the device echoes its pre-command state in that window.
         guard !isEditing, !group.isEditingPlayback else {
-            onLiveUpdate?(group)
+            notifyLiveUpdate(for: group)
             return
         }
 
@@ -69,22 +54,23 @@ extension SonosService: SonosEventHandler {
             group.coordinatorRoom.updatePlaybackPosition(position)
         }
 
-        onLiveUpdate?(group)
+        notifyLiveUpdate(for: group)
     }
     
     public func onMetadataUpdate(playerId: String, event: TrackEvent) {
-        if event.info.type == "metadataStatus", event.metadata != nil {
+        if event.info.type == "metadataStatus", let metadata = event.metadata {
             guard let index = groups.firstIndex(where: { $0.coordinatorID == playerId }) else {
                 return
             }
-            if let track = event.metadata?.currentItem?.track {
+            if let track = metadata.currentItem?.track {
                 groups[index].audioQuality = track.quality
-                groups[index].coordinatorRoom.container = event.metadata?.container
+                groups[index].coordinatorRoom.container = metadata.container
                 // The socket carries the *new* song before the poll notices.
                 // Prefer the catalog object id; fall back to the name for
                 // sources that don't carry one (radio track announcements).
                 liveItemDidChange(
                     itemID: track.id?.objectId ?? track.name ?? "",
+                    from: .metadata,
                     for: groups[index]
                 )
             } else {
@@ -110,11 +96,23 @@ extension SonosService: SonosEventHandler {
     /// other one no-ops. The fetch is deliberately one targeted
     /// `updateTrackInformation` (~1 request per song) rather than a poll —
     /// that's the whole point of holding the socket open.
+    /// Which socket reported the item. The two streams speak different id
+    /// namespaces — `playbackStatus` carries the Sonos *queue item* id, while
+    /// `metadataStatus` carries the music service's *catalog* id — so they need
+    /// separate slots. Sharing one made the two ids overwrite each other all
+    /// song, and every transport event that followed a metadata event then
+    /// looked like a song change and fired a full track refetch.
+    enum LiveItemSource: String, CaseIterable {
+        case playback
+        case metadata
+    }
+
     @MainActor
-    func liveItemDidChange(itemID: String, for group: GroupRoom) {
+    func liveItemDidChange(itemID: String, from source: LiveItemSource, for group: GroupRoom) {
         guard !itemID.isEmpty else { return }
-        guard lastLiveItemIDs[group.coordinatorID] != itemID else { return }
-        lastLiveItemIDs[group.coordinatorID] = itemID
+        let key = liveItemKey(source, group.coordinatorID)
+        guard lastLiveItemIDs[key] != itemID else { return }
+        lastLiveItemIDs[key] = itemID
 
         liveTrackRefreshTasks[group.coordinatorID]?.cancel()
         liveTrackRefreshTasks[group.coordinatorID] = Task { @MainActor [weak self] in
@@ -124,7 +122,7 @@ extension SonosService: SonosEventHandler {
             guard !Task.isCancelled, let self else { return }
             try? await self.updateTrackInformation(for: [group])
             guard !Task.isCancelled else { return }
-            self.onLiveUpdate?(group)
+            self.notifyLiveUpdate(for: group)
         }
     }
     

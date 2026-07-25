@@ -26,6 +26,25 @@ New opt-in **Preferences → Playback → Lock Screen Controls** (`AppStorageKey
 - The card's artist line carries the room: `The Favors • Theater`. That line is the only subtitle the Lock Screen renders (title and artist, nothing else), so it's the only place the speaker name can appear; `MPMediaItemPropertyAlbumTitle` keeps the real album for Control Centre and CarPlay, which do show it.
 - `AudioPlaybackService`'s teardown no longer deactivates the audio session when the Now Playing session is live (a 30-second song preview would otherwise take the card down with it) — it calls `reclaimSession()` instead, which also restores the category the preview left behind.
 
+### Now Playing review pass (SOLID + removability)
+
+Reviewed the feature for dependency direction, duplication and wasted work. Three of the findings were bugs, not style:
+
+- **`liveItemDidChange` was fed two id namespaces.** `onPlaybackUpdate` passes the Sonos *queue item* id and `onMetadataUpdate` the music service's *catalog* id; both wrote one slot, so they overwrote each other all song and nearly every transport event then read as a song change — firing a full `updateTrackInformation` (two SOAP round trips) 250 ms later, in the background, on a held audio session. Keys are namespaced by source now.
+- **The group-id re-subscribe couldn't fire.** `liveConnections` stored only the event set, so reconcile's rebuild test was blind to a changed group id or ip — the fix shipped one commit earlier was inert. It stores the whole `LiveSubscription` and compares it. The merge also iterates `LiveListener.allCases` rather than `liveListeners.values`, so when two listeners name the same player under different addressing the winner is deterministic instead of dictionary order.
+- **The card's artwork request bypassed the app's cache-key convention** (no `.imageIdKey`, `resize(width: 600)` against `ArtworkView`'s 500), so it never hit the entry the player screen had just populated — a second download and decode of the same image per track change, while backgrounded.
+
+Dependency inversions, so no pre-existing type names the feature (it's now deletable by removing two files and four lines — steps written down in `Docs/LockScreenNowPlaying.md`):
+
+- New `AudioSessionArbiter`: the long-lived holder registers a claim and `AudioPlaybackService` asks *it* on preview teardown, instead of asking `NowPlayingSessionService.isActive`. With no claim registered `handBack()` returns false and the original deactivate runs, so deleting the feature restores the old behaviour exactly.
+- `HardwareVolumeService` arbitrates its own ownership (`Owner.session` outranks `Owner.playerScreen`, `owner` observed so a stood-down view takes the bridge back). `HardwareVolumeControlModifier` loses all five `sessionOwnsBridge` checks and returns to its pre-feature shape. The two booleans encoding one mode become `Mode.relativeSteps` / `.absoluteMirror` plus an explicit `configuresAudioSession`.
+- `SonosService.onLiveUpdate` — a single-slot public callback a second consumer would have silently stolen — becomes `observeLiveUpdates(as:)`/`removeLiveUpdateObserver(_:)`, keyed by the same `LiveListener`. `disconnectAll()` now routes through the registry rather than around it, so `liveConnections` can't be left claiming a socket that's gone.
+- `stopListening(playerID:)` ignored its only argument; it's `stopViewing()`.
+
+Also: absolute volume writes set `group.isEditingVolume` (the convention `VolumeControlView` uses and the poll checks) so a foreground drag isn't clobbered mid-gesture; the silent WAV is built once as a `static let` rather than per activation; the `UISlider` is resolved once per attach instead of walking `subviews` on every access; `trackedState()` became `trackModelState()` and performs bare reads rather than building a ~12-allocation string per observation pass that nothing consumed; the media-services-reset handler calls `resumeSilentLoop()` instead of repeating it; the artwork is held locally rather than read back out of `nowPlayingInfo` (whose getter copies the whole dictionary across to MediaRemote); `Snapshot.roomName`, the redundant `sonosService` property, and the empty `onVolumeUpdate` stub are gone.
+
+Deferred with reasons recorded in the doc: splitting `SilentAudioSession` and `NowPlayingPositionAnchor` out of the service, constructor injection, a command table, and a volume strategy protocol.
+
 ### Listener-keyed Sonos WebSocket subscriptions
 `LargePlayerView` used to call `disconnectAll()` and re-subscribe on every group change, which works only while there's exactly one consumer. The Lock Screen card follows the playing group, not the visible one, so subscriptions are now keyed by listener (`SonosService+LiveListening.swift`).
 

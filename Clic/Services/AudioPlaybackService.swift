@@ -186,15 +186,13 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         currentTrack = nil
         isPreviewMode = false
         stopProgressObserver()
-#if os(iOS) && !targetEnvironment(macCatalyst)
-        // The Lock Screen card is held up by a silent session; deactivating
-        // here would take the Now Playing claim down with the preview. Hand the
-        // session back to it instead.
-        if NowPlayingSessionService.shared.isActive {
-            NowPlayingSessionService.shared.reclaimSession()
-            return
-        }
-#endif
+        // Something longer-lived may be holding the session behind this preview
+        // (see `AudioSessionArbiter`). If so it takes it back here, because
+        // deactivating and letting it re-activate would drop whatever claim it
+        // holds for the gap in between. With no holder registered this is false
+        // and the ordinary deactivate below runs.
+        if AudioSessionArbiter.shared.handBack() { return }
+
         do {
             // Notify others so any audio we ducked returns to full volume.
             try AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])

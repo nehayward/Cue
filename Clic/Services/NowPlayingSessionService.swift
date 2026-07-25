@@ -46,8 +46,9 @@ import UIKit
 /// audio session would be the expensive way to do this. Instead the service
 /// claims the `.nowPlaying` live listener: one socket, on the coordinator of the
 /// group being mirrored, for `[.metadata, .playback]`. Events land in
-/// `SonosService`'s handler, which writes the model and calls back through
-/// `onLiveUpdate` — so the card refreshes on track and transport changes only,
+/// `SonosService`'s handler, which writes the model and calls back through the
+/// `.nowPlaying` live-update observer — so the card refreshes on track and
+/// transport changes only,
 /// and idles at zero cost in between. Elapsed time is *not* pushed on a timer:
 /// the info center interpolates from `elapsedPlaybackTime` + `playbackRate`.
 @MainActor
@@ -55,13 +56,10 @@ import UIKit
 final class NowPlayingSessionService {
     static let shared = NowPlayingSessionService()
 
-    /// True while the silent session is held. `HardwareVolumeControlModifier`
-    /// reads this (and re-runs, since it's observed) to stay off the audio
-    /// session while this service owns it.
+    /// True while the silent session is held.
     private(set) var isActive = false
 
     @ObservationIgnored private var group: GroupRoom?
-    @ObservationIgnored private var sonosService: SonosService?
     @ObservationIgnored private var silentPlayer: AVAudioPlayer?
     @ObservationIgnored private var artworkTask: Task<Void, Never>?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
@@ -89,19 +87,19 @@ final class NowPlayingSessionService {
     @ObservationIgnored private var isFavorite = false
     @ObservationIgnored private var favoriteTrackID: String?
     @ObservationIgnored private var favoriteTask: Task<Void, Never>?
-    /// Coordinator + group id + ip of the live subscription, so it can be
-    /// re-declared when any of them moves.
+    /// Addressing of the declared subscription, to skip re-declaring it on
+    /// every observation pass. Correctness lives in the registry, not here.
     @ObservationIgnored private var subscribedKey: String?
 
     /// Artwork is keyed by URL: the expensive part is decoding, and the same
     /// song can republish many times (pause, seek, volume).
     @ObservationIgnored private var publishedArtworkURL: URL?
+    @ObservationIgnored private var publishedArtwork: MPMediaItemArtwork?
 
     private struct Snapshot: Equatable {
         var title: String
         var artist: String
         var album: String
-        var roomName: String
         var duration: TimeInterval
         var isPlaying: Bool
         var artworkURL: URL?
@@ -126,14 +124,17 @@ final class NowPlayingSessionService {
         // the app, so filter down to an actual change of *this* flag rather than
         // re-evaluating on unrelated preference traffic. Only the preference is
         // compared here — the subscription half of `isEnabled` is observed, and
-        // arrives through `trackedState()` instead.
+        // arrives through `trackModelState()` instead.
         lastKnownPreference = isPreferenceOn
         preferenceObserver = NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification,
             object: UserDefaults.standard,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in
+            // Delivered on `.main`, so the comparison happens here rather than
+            // spawning a Task for every defaults write in the app just to
+            // discover the flag didn't move.
+            MainActor.assumeIsolated {
                 guard let self, self.isPreferenceOn != self.lastKnownPreference else { return }
                 self.lastKnownPreference = self.isPreferenceOn
                 self.evaluate()
@@ -181,7 +182,7 @@ final class NowPlayingSessionService {
     /// session down — the toggle can't be the source of truth for something that
     /// keeps running with the app closed.
     ///
-    /// `trackedState()` reads this, so the `@Observable` subscription write on
+    /// `trackModelState()` reads this, so the `@Observable` subscription write on
     /// purchase or expiry re-evaluates on its own.
     private var isEnabled: Bool {
         isPreferenceOn && SubscriptionService.shared.subscription.isActive
@@ -225,34 +226,40 @@ final class NowPlayingSessionService {
         return !group.coordinatorRoom.track.isEmpty || group.coordinatorRoom.radioStation != nil
     }
 
-    /// Everything the card reflects, read in one place so
-    /// `withObservationTracking` registers exactly these and nothing more.
-    /// Deliberately excludes `playbackPosition` — it ticks continuously, and the
+    /// Touches everything the card reflects, so `withObservationTracking`
+    /// registers on exactly these properties.
+    ///
+    /// The reads are the point — nothing is returned, because building a value
+    /// out of them would allocate on every model change for something no one
+    /// looks at. `playbackPosition` is deliberately absent: it ticks, and the
     /// info center interpolates elapsed time on its own.
-    private func trackedState() -> String {
-        guard isEnabled, let group = resolveTarget() else { return "idle" }
+    ///
+    /// Note this registers more widely than the list below suggests:
+    /// `resolveTarget()` scans every group to find the playing one, so any
+    /// room's play state, name, or TV mode wakes the pass. That's inherent to
+    /// "follow whatever is playing" — the pass is cheap and `publish()` returns
+    /// early when nothing the card shows has moved.
+    private func trackModelState() {
+        guard isEnabled, let group = resolveTarget() else { return }
         let room = group.coordinatorRoom
-        return [
-            group.coordinatorID,
-            // The socket is addressed by group id and ip, both of which move
-            // without the coordinator changing (grouping, DHCP) — see `run`.
-            group.id,
-            group.ip,
-            room.track.unique,
-            room.track.artworkURL?.absoluteString ?? "",
-            String(room.track.duration),
-            String(room.isPlaying),
-            room.radioStation ?? "",
-            String(group.availableActions.rawValue),
-            // Not shown on the card, but the volume bridge mirrors it onto the
-            // phone's slider — so a change made on the speaker, in the Sonos app,
-            // or anywhere else in Clic has to reach `syncSystemVolume`.
-            String(group.groupVolume),
-            // Likewise for `likeCommand.isActive`: every favorite path writes
-            // this store, so reading it here is what makes a like made on the
-            // player screen show up on the card, and vice versa.
-            String(LiveActivityFavoriteStore.shared.get(room.track.trackID) ?? false),
-        ].joined(separator: "|")
+        _ = group.coordinatorID
+        // The socket is addressed by group id and ip, both of which move without
+        // the coordinator changing (grouping, DHCP) — see `run`.
+        _ = group.id
+        _ = group.ip
+        _ = room.track.unique
+        _ = room.track.artworkURL
+        _ = room.track.duration
+        _ = room.isPlaying
+        _ = room.radioStation
+        _ = group.availableActions
+        // Not shown on the card, but the volume bridge mirrors it onto the
+        // phone's slider — so a change made on the speaker, in the Sonos app, or
+        // anywhere else in Clic has to reach `syncSystemVolume`.
+        _ = group.groupVolume
+        // Every favorite path writes this store, so reading it is what makes a
+        // like made on the player screen reach `likeCommand`, and vice versa.
+        _ = LiveActivityFavoriteStore.shared.get(room.track.trackID)
     }
 
     /// Re-arms after every pass: `withObservationTracking` is one-shot.
@@ -274,7 +281,7 @@ final class NowPlayingSessionService {
         observationGeneration += 1
         let generation = observationGeneration
         withObservationTracking {
-            _ = trackedState()
+            trackModelState()
         } onChange: { [weak self] in
             // onChange fires *before* the mutation lands, so read the new value
             // on the next main-actor turn.
@@ -295,10 +302,12 @@ final class NowPlayingSessionService {
             guard activateSession() else { return }
             registerCommands()
             observeSessionEvents()
+            // Anything that borrows the session (a song preview) hands it back
+            // here instead of deactivating it, without naming this type.
+            AudioSessionArbiter.shared.claim { [weak self] in self?.resumeSilentLoop() }
             isActive = true
-            sonosService.onLiveUpdate = { [weak self] updated in
-                guard let self, updated.coordinatorID == self.group?.coordinatorID else { return }
-                self.publish()
+            sonosService.observeLiveUpdates(as: .nowPlaying) { [weak self] _ in
+                self?.publish()
             }
         }
 
@@ -307,7 +316,6 @@ final class NowPlayingSessionService {
         // instances on topology changes, and holding the old one means writing to
         // an orphan.
         self.group = group
-        self.sonosService = sonosService
 
         // Nothing here writes `Router.main.selectedID`. It used to, so that a tap
         // on the card landed on the mirrored speaker — but the selection is also
@@ -319,16 +327,15 @@ final class NowPlayingSessionService {
         if isNewTarget {
             published = nil
             lastModelElapsed = -1
-            attachVolumeBridge(group: group, sonosService: sonosService)
+            attachVolumeBridge(group: group)
         }
 
-        // Re-declared on any change to the socket's addressing, not just a change
-        // of coordinator. Sonos's playback and metadata namespaces are subscribed
-        // *per group id*, and that id changes when speakers are grouped or
-        // ungrouped even though the coordinator stays put — the old subscription
-        // then goes quiet, and with no poll running in the background the card
-        // silently stops updating. The ip moves on DHCP renewal for the same
-        // reason. `listen` no-ops when the subscription is unchanged.
+        // Re-declared on any change to the socket's addressing, not just a
+        // change of coordinator: Sonos subscribes playback and metadata *per
+        // group id*, and that id changes when speakers are grouped or ungrouped
+        // even though the coordinator stays put. The registry is what enforces
+        // this — it compares the whole subscription — so this key is only here to
+        // avoid spawning a Task per observation pass to tell it nothing changed.
         let subscriptionKey = "\(group.coordinatorID)|\(group.id)|\(group.ip)"
         if subscribedKey != subscriptionKey {
             subscribedKey = subscriptionKey
@@ -338,7 +345,7 @@ final class NowPlayingSessionService {
             }
         }
 
-        // Group volume is in `trackedState`, so this runs whenever it moves.
+        // Group volume is in `trackModelState`, so this runs whenever it moves.
         HardwareVolumeService.shared.syncSystemVolume()
         publish()
     }
@@ -361,7 +368,9 @@ final class NowPlayingSessionService {
         published = nil
         lastModelElapsed = -1
         publishedArtworkURL = nil
+        publishedArtwork = nil
 
+        AudioSessionArbiter.shared.resign()
         MPNowPlayingInfoCenter.default().playbackState = .stopped
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         unregisterCommands()
@@ -369,13 +378,12 @@ final class NowPlayingSessionService {
         for observer in observers { NotificationCenter.default.removeObserver(observer) }
         observers.removeAll()
 
-        let sonosService = self.sonosService
-        sonosService?.onLiveUpdate = nil
-        self.sonosService = nil
+        let sonosService = SonosService.shared
+        sonosService.removeLiveUpdateObserver(.nowPlaying)
         self.group = nil
 
         Task {
-            await sonosService?.stopListening(as: .nowPlaying)
+            await sonosService.stopListening(as: .nowPlaying)
         }
 
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
@@ -400,7 +408,7 @@ final class NowPlayingSessionService {
     private func startSilentLoop() -> Bool {
         do {
             let player = try AVAudioPlayer(
-                data: Self.silentPCMWAV(seconds: 1),
+                data: Self.silentLoopWAV,
                 fileTypeHint: AVFileType.wav.rawValue
             )
             player.numberOfLoops = -1
@@ -416,7 +424,9 @@ final class NowPlayingSessionService {
 
     /// One second of 44.1 kHz mono PCM silence with a WAV header, built in
     /// memory — no bundled asset to keep in sync across targets.
-    private static func silentPCMWAV(seconds: Double) -> Data {
+    private static let silentLoopWAV: Data = makeSilentPCMWAV(seconds: 1)
+
+    private static func makeSilentPCMWAV(seconds: Double) -> Data {
         let sampleRate = 44_100
         let channels = 1
         let bitsPerSample = 16
@@ -466,20 +476,11 @@ final class NowPlayingSessionService {
         ) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.isActive else { return }
+                // The player object doesn't survive a media services reset.
                 self.silentPlayer = nil
-                _ = self.activateSession()
-                self.published = nil
-                self.publish()
+                self.resumeSilentLoop()
             }
         })
-    }
-
-    /// Re-takes the audio session after another part of the app borrowed it (a
-    /// 30-second song preview ducks and then deactivates on teardown, which
-    /// would otherwise drop the Now Playing claim with it).
-    func reclaimSession() {
-        guard isActive else { return }
-        resumeSilentLoop()
     }
 
     private func resumeSilentLoop() {
@@ -506,7 +507,7 @@ final class NowPlayingSessionService {
     /// session-borrowing mode; the `MPVolumeView` has to live in a window for
     /// its slider to exist, so it's parked in the key window rather than
     /// plumbed through SwiftUI.
-    private func attachVolumeBridge(group: GroupRoom, sonosService: SonosService) {
+    private func attachVolumeBridge(group: GroupRoom) {
         // Backgrounded, no window is key any more — any window in the scene will
         // do, it only has to host the slider.
         let windows = UIApplication.shared.connectedScenes
@@ -526,15 +527,17 @@ final class NowPlayingSessionService {
         guard let volumeView else { return }
         HardwareVolumeService.shared.start(
             group: group,
-            sonosService: sonosService,
+            sonosService: SonosService.shared,
             volumeView: volumeView,
-            ownsAudioSession: false
+            as: .session,
+            mode: .absoluteMirror,
+            configuresAudioSession: false
         )
     }
 
     private func detachVolumeBridge() {
         guard volumeView != nil else { return }
-        HardwareVolumeService.shared.stop()
+        HardwareVolumeService.shared.stop(as: .session)
         volumeView?.removeFromSuperview()
         volumeView = nil
     }
@@ -569,7 +572,6 @@ final class NowPlayingSessionService {
             title: title,
             artist: artistLine,
             album: track.album,
-            roomName: group.nameWithCount,
             duration: track.duration,
             isPlaying: room.isPlaying,
             artworkURL: track.artworkURL,
@@ -614,12 +616,8 @@ final class NowPlayingSessionService {
         // the scrubber back to wherever the last playbackStatus happened to land
         // (often the start of the track). Carrying the interpolation forward
         // pauses the card where the music actually is.
-        var elapsed = modelMoved ? modelElapsed : interpolated
-        if snapshot.duration > 0 {
-            elapsed = min(max(elapsed, 0), snapshot.duration)
-        } else {
-            elapsed = max(elapsed, 0)
-        }
+        var elapsed = max(modelMoved ? modelElapsed : interpolated, 0)
+        if snapshot.duration > 0 { elapsed = min(elapsed, snapshot.duration) }
 
         if snapshot != published {
             updateCommandAvailability(snapshot)
@@ -648,11 +646,11 @@ final class NowPlayingSessionService {
             info[MPNowPlayingInfoPropertyIsLiveStream] = true
         }
 
-        // Keep the existing artwork attached across republishes; loadArtwork
-        // replaces it once a new URL resolves.
-        if let artwork = MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyArtwork],
-           publishedArtworkURL == snapshot.artworkURL {
-            info[MPMediaItemPropertyArtwork] = artwork
+        // Carry the artwork across republishes. Held locally rather than read
+        // back out of `nowPlayingInfo`, whose getter copies the whole dictionary
+        // across to MediaRemote.
+        if let publishedArtwork, publishedArtworkURL == snapshot.artworkURL {
+            info[MPMediaItemPropertyArtwork] = publishedArtwork
         }
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
@@ -662,22 +660,41 @@ final class NowPlayingSessionService {
         #endif
 
         if publishedArtworkURL != snapshot.artworkURL {
-            loadArtwork(from: snapshot.artworkURL)
+            loadArtwork(from: snapshot.artworkURL, track: track)
         }
     }
 
     /// Loads through the shared Nuke pipeline, so the image is usually already
     /// in memory from the player screen.
-    private func loadArtwork(from url: URL?) {
+    /// Mirrors `ArtworkView.imageIDKey` — album, else track name, else id, else
+    /// the URL — so both surfaces name the same cache entry.
+    private func artworkCacheKey(for track: Track) -> String {
+        let service = String(describing: track.musicService)
+        if !track.album.isEmpty { return "\(track.album).\(service).player" }
+        if !track.name.isEmpty { return "\(track.name).\(service).player" }
+        if !track.trackID.isEmpty { return track.trackID + ".player" }
+        return (track.artworkURL?.absoluteString ?? "") + ".player"
+    }
+
+    private func loadArtwork(from url: URL?, track: Track) {
         artworkTask?.cancel()
         publishedArtworkURL = url
 
         guard let url else {
+            publishedArtwork = nil
             MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyArtwork] = nil
             return
         }
 
-        let request = ImageRequest(url: url, processors: [.resize(width: 600)], priority: .high)
+        // Same key and processor as `ArtworkView`, so this hits the entry the
+        // player screen populated rather than downloading and decoding a second
+        // copy of the same image on every track change.
+        let request = ImageRequest(
+            url: url,
+            processors: [.resize(width: 500)],
+            priority: .high,
+            userInfo: [.imageIdKey: artworkCacheKey(for: track)]
+        )
         if let cached = ImagePipeline.shared.cache.cachedImage(for: request)?.image {
             attach(artwork: cached, for: url)
             return
@@ -694,6 +711,7 @@ final class NowPlayingSessionService {
         // A slower load for the previous song must not overwrite the current one.
         guard publishedArtworkURL == url else { return }
         let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+        publishedArtwork = artwork
         MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyArtwork] = artwork
     }
 
@@ -839,7 +857,7 @@ final class NowPlayingSessionService {
         // Same song: follow the store. It's written by every favorite path —
         // the player's heart, the context menus, this command — so this is how a
         // like made on the player screen reaches the card without either side
-        // knowing about the other. `trackedState()` reads the store too, so the
+        // knowing about the other. `trackModelState()` reads the store too, so the
         // write wakes the observation that lands here.
         guard favoriteTrackID != track.trackID else {
             if let stored, stored != isFavorite {
@@ -891,11 +909,10 @@ final class NowPlayingSessionService {
         return .success
     }
 
+    /// Only the commands whose availability actually varies — play/pause/toggle
+    /// are enabled once in `registerCommands` and never conditional.
     private func updateCommandAvailability(_ snapshot: Snapshot) {
         let center = MPRemoteCommandCenter.shared()
-        center.playCommand.isEnabled = true
-        center.pauseCommand.isEnabled = true
-        center.togglePlayPauseCommand.isEnabled = true
         center.nextTrackCommand.isEnabled = snapshot.canSkip
         center.previousTrackCommand.isEnabled = snapshot.canSkipBack
         center.changePlaybackPositionCommand.isEnabled = snapshot.canSeek && snapshot.duration > 0
@@ -928,9 +945,9 @@ final class NowPlayingSessionService {
         // module will all land here even when the Lock Screen draws nothing.
         print("🎛 NowPlaying — command \(name) received")
         #endif
-        guard let sonosService, let group else { return .noSuchContent }
+        guard let group else { return .noSuchContent }
         Task { @MainActor in
-            await action(sonosService, group)
+            await action(SonosService.shared, group)
             publish()
         }
         return .success

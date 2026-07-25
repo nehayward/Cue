@@ -21,35 +21,35 @@ private struct HardwareVolumeControlModifier: ViewModifier {
         return v
     }()
 
-    /// The Now Playing session runs the same bridge app-wide (and from its own
-    /// window-parked volume view) whenever it's active. Reading `isActive` here
-    /// registers observation, so this task re-runs and hands the bridge back
-    /// when the session ends.
-    private var sessionOwnsBridge: Bool {
-        NowPlayingSessionService.shared.isActive
+    /// Reading `owner` here is what registers observation on it, so the task
+    /// re-runs when a longer-lived owner (a background session) takes the bridge
+    /// or gives it back. The service refuses or ignores the calls as
+    /// appropriate — this view doesn't need to know what else might hold it.
+    private var claimKey: String? {
+        guard enabled else { return nil }
+        return "\(group.coordinatorID)|\(HardwareVolumeService.shared.owner == .session)"
     }
 
     func body(content: Content) -> some View {
         content
             .background {
-                if enabled, !sessionOwnsBridge {
+                if enabled {
                     VolumeViewRepresentable(view: volumeView)
                         .frame(width: 1, height: 1)
                 }
             }
-            .task(id: enabled && !sessionOwnsBridge ? group.coordinatorID : nil) {
-                if enabled, !sessionOwnsBridge {
+            .task(id: claimKey) {
+                if enabled {
                     HardwareVolumeService.shared.start(
                         group: group,
                         sonosService: sonosService,
                         volumeView: volumeView
                     )
-                } else if !sessionOwnsBridge {
+                } else {
                     HardwareVolumeService.shared.stop()
                 }
             }
             .onDisappear {
-                guard !sessionOwnsBridge else { return }
                 HardwareVolumeService.shared.stop()
             }
     }

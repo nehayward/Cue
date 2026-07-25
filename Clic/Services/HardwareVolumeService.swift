@@ -1,90 +1,115 @@
 #if os(iOS) && !targetEnvironment(macCatalyst)
 import AVFoundation
 import MediaPlayer
+import Observation
 import SonosKit
 import UIKit
 
 @MainActor
+@Observable
 final class HardwareVolumeService {
     static let shared = HardwareVolumeService()
 
-    private var group: GroupRoom?
-    private var sonosService: SonosService?
-    private var volumeView: MPVolumeView?
-    private var savedVolume: Float?
-    private var task: Task<Void, Never>?
-    /// False when the Now Playing session owns the audio session. It holds
-    /// `.playback` to keep the Lock Screen card up; re-configuring the session
-    /// to `.ambient` here would drop that claim. Also keeps the KVO alive while
-    /// backgrounded, since that's exactly when the Lock Screen slider is used.
-    private var ownsAudioSession = true
+    /// Who the bridge is currently working for.
+    ///
+    /// Only one owner at a time: both would be writing the same system volume.
+    /// The service arbitrates rather than the callers, so the player screen's
+    /// modifier doesn't have to know which other features exist — it claims,
+    /// and is refused if something with a longer life already holds it.
+    enum Owner {
+        /// The player screen, for as long as it's on screen.
+        case playerScreen
+        /// A background session that outlives any view. Outranks `playerScreen`.
+        case session
+    }
 
-    /// Absolute mode, used by the Now Playing session.
-    ///
-    /// The default (player screen) mode is *relative*: any change in the phone's
-    /// output volume is read as one step up or down on the group, and the system
-    /// slider is shoved back to a midpoint whenever it nears an end so there's
-    /// always headroom for the next press. That works for hardware buttons, but
-    /// it means the phone's volume is a scratch value with no relationship to the
-    /// speaker — so the Lock Screen's slider sits wherever it happens to be, a
-    /// drag registers as a single step, and once it pins at 0 or 1 the presses
-    /// stop doing anything.
-    ///
-    /// In absolute mode the phone's volume *is* the group's volume, scaled: the
-    /// group's level is mirrored onto the system slider, and any change the user
-    /// makes is sent to the group as a level rather than a nudge. No midpoint
-    /// reset, no ends to hit.
-    private var mirrorsGroupVolume = false
+    /// How phone volume maps onto group volume.
+    enum Mode {
+        /// Any change in phone volume is one step up or down on the group, and
+        /// the system slider is shoved back to a midpoint near the ends to keep
+        /// headroom. Fine for hardware buttons: the phone's volume is a scratch
+        /// value, not a reading.
+        case relativeSteps
+        /// The phone's volume *is* the group's volume, scaled — mirrored onto
+        /// the slider, and sent back as a level. Needed wherever the slider is
+        /// visible (the Lock Screen), where a scratch value would sit at a
+        /// meaningless position, read a drag as one step, and stop responding
+        /// once pinned at either end.
+        case absoluteMirror
+    }
+
+    /// Observed, so a view that stood down while something else held the bridge
+    /// re-runs and takes it back when the claim is released.
+    private(set) var owner: Owner?
+
+    @ObservationIgnored private var group: GroupRoom?
+    @ObservationIgnored private var sonosService: SonosService?
+    @ObservationIgnored private var volumeView: MPVolumeView?
+    /// Resolved once per attach: reading it walks `subviews` and allocates.
+    @ObservationIgnored private var slider: UISlider?
+    @ObservationIgnored private var savedVolume: Float?
+    @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private var mode: Mode = .relativeSteps
+    /// False when someone else holds the audio session — it configures the
+    /// category, and re-configuring it here would drop their claim. Also keeps
+    /// the KVO alive while backgrounded, which is when a visible slider is used.
+    @ObservationIgnored private var configuresAudioSession = true
     /// The last value written to the slider, to tell our own echo from a real
-    /// change. Absolute mode can't use the default's value-based filter, which
-    /// only works because its writes always land on `restorePoint`.
-    private var lastWrittenSystemVolume: Float?
-    private var pendingGroupVolume: Int?
-    private var volumeSendTask: Task<Void, Never>?
+    /// change. Absolute mode can't use the relative mode's value-based filter,
+    /// which only works because its writes always land on `restorePoint`.
+    @ObservationIgnored private var lastWrittenSystemVolume: Float?
+    @ObservationIgnored private var pendingGroupVolume: Int?
+    @ObservationIgnored private var volumeSendTask: Task<Void, Never>?
 
     // Fixed midpoint gives room for both up and down on any starting volume.
-    private let restorePoint: Float = 0.5
+    @ObservationIgnored private let restorePoint: Float = 0.5
     // Reset to midpoint when we're near an extreme to prevent getting stuck.
-    private let extremeThreshold: Float = 0.15
+    @ObservationIgnored private let extremeThreshold: Float = 0.15
     // Single-point steps for fine-grained volume control.
-    private let volumeStep = 1
-
-    private var slider: UISlider? {
-        volumeView?.subviews.compactMap { $0 as? UISlider }.first
-    }
+    @ObservationIgnored private let volumeStep = 1
 
     private init() {}
 
     // MARK: - Public
 
+    /// Claims the bridge for `owner`. Refused — a no-op — while a
+    /// longer-lived owner holds it, so the caller doesn't have to know what else
+    /// exists.
+    @discardableResult
     func start(
         group: GroupRoom,
         sonosService: SonosService,
         volumeView: MPVolumeView,
-        ownsAudioSession: Bool = true
-    ) {
+        as owner: Owner = .playerScreen,
+        mode: Mode = .relativeSteps,
+        configuresAudioSession: Bool = true
+    ) -> Bool {
+        if let current = self.owner, current == .session, owner != .session { return false }
+
         self.group = group
         self.sonosService = sonosService
         self.volumeView = volumeView
-        self.ownsAudioSession = ownsAudioSession
-        self.mirrorsGroupVolume = !ownsAudioSession
+        self.slider = volumeView.subviews.compactMap { $0 as? UISlider }.first
+        self.mode = mode
+        self.configuresAudioSession = configuresAudioSession
+        self.owner = owner
         // Snapshot once so stop() can restore it; don't clobber across restarts.
         if savedVolume == nil {
             savedVolume = AVAudioSession.sharedInstance().outputVolume
         }
         restart()
         syncSystemVolume()
+        return true
     }
 
     /// Mirrors the group's volume onto the phone's slider. No-op outside
     /// absolute mode.
     ///
     /// Called whenever the group's volume changes from any source — a press on
-    /// the speaker, the Sonos app, another Clic surface — so the Lock Screen
-    /// slider reads the speaker's actual level rather than a leftover phone
-    /// value.
+    /// the speaker, the Sonos app, another Clic surface — so a visible slider
+    /// reads the speaker's actual level rather than a leftover phone value.
     func syncSystemVolume() {
-        guard mirrorsGroupVolume, let group, let slider else { return }
+        guard mode == .absoluteMirror, let group, let slider else { return }
         let target = Float(max(0, min(100, group.groupVolume)) / 100)
         // Already there (within a slider step) — writing again would only
         // generate an echo to filter.
@@ -93,14 +118,17 @@ final class HardwareVolumeService {
         slider.setValue(target, animated: false)
     }
 
-    func stop() {
+    /// Releases the claim. Ignored when someone else holds it, so a view tearing
+    /// down can't stop a session it never owned.
+    func stop(as owner: Owner = .playerScreen) {
+        guard self.owner == owner else { return }
+
         task?.cancel()
         task = nil
         volumeSendTask?.cancel()
         volumeSendTask = nil
         pendingGroupVolume = nil
         lastWrittenSystemVolume = nil
-        mirrorsGroupVolume = false
         if let saved = savedVolume {
             slider?.setValue(saved, animated: false)
         }
@@ -108,20 +136,23 @@ final class HardwareVolumeService {
         group = nil
         sonosService = nil
         volumeView = nil
-        if ownsAudioSession {
+        slider = nil
+        if configuresAudioSession {
             try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         }
-        ownsAudioSession = true
+        configuresAudioSession = true
+        mode = .relativeSteps
+        self.owner = nil
     }
 
     // MARK: - Private
 
     private func restart() {
         task?.cancel()
-        // Driven by the Now Playing session: the app keeps running on the audio
-        // background mode, and the Lock Screen slider only exists while
-        // backgrounded — so listen straight through instead of per foreground.
-        guard ownsAudioSession else {
+        // A session owner outlives the foreground — the app stays alive on the
+        // audio background mode — and backgrounded is exactly when a visible
+        // slider is used, so listen straight through rather than per foreground.
+        guard owner != .session else {
             task = Task { [weak self] in await self?.listen() }
             return
         }
@@ -159,7 +190,7 @@ final class HardwareVolumeService {
 
     private func listen() async {
         let session = AVAudioSession.sharedInstance()
-        if ownsAudioSession {
+        if configuresAudioSession {
             try? session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
             try? session.setActive(true)
         }
@@ -182,10 +213,17 @@ final class HardwareVolumeService {
                       let old = change.oldValue,
                       abs(new - old) > 0.001 else { return }
 
-                if self.mirrorsGroupVolume {
+                if self.mode == .absoluteMirror {
                     // Our own `syncSystemVolume` write coming back around.
                     if let written = self.lastWrittenSystemVolume, abs(new - written) < 0.005 { return }
                     let volume = Int((new * 100).rounded())
+                    // The codebase's convention for an in-progress volume
+                    // gesture (`VolumeControlView`, `RoomVolumeView`): the poll
+                    // checks it before overwriting `groupVolume`, so without it a
+                    // foreground drag gets clobbered mid-gesture by a stale
+                    // reading — and `syncSystemVolume` then shoves the slider
+                    // back under the user's finger.
+                    group.isEditingVolume = true
                     group.groupVolume = Double(volume)
                     self.sendGroupVolume(volume)
                     return
@@ -205,7 +243,7 @@ final class HardwareVolumeService {
             continuation?.finish()
         }
 
-        if mirrorsGroupVolume {
+        if mode == .absoluteMirror {
             // Absolute mode has no midpoint to hold — 0 and 1 are real positions,
             // meaning a silent and a full-volume speaker. Seed the slider from
             // the group instead.
@@ -242,6 +280,8 @@ final class HardwareVolumeService {
                 self.pendingGroupVolume = nil
                 await sonosService.setGroupVolume(ip: ip, volume: next)
             }
+            // Gesture over: hand `groupVolume` back to the poll.
+            self?.group?.isEditingVolume = false
             self?.volumeSendTask = nil
         }
     }
