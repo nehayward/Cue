@@ -31,9 +31,19 @@ extension SonosService: SonosEventHandler {
     public func onPlaybackUpdate(playerId: String, event: PlaybackEvent) {
         guard event.info.type == "playbackStatus", let playbackState = event.playbackState else { return }
         guard let group = groups.first(where: { $0.coordinatorID == playerId }) else { return }
+
+        // A song change has nothing to do with the play/pause echo race below, so
+        // it's handled before that guard. These events are edge-triggered: drop
+        // one and the model stays wrong until something else happens to move it,
+        // which in the background is nothing at all.
+        liveItemDidChange(itemID: playbackState.itemId, for: group)
+
         // A local play/pause optimistically writes the model and holds `isEditing`
         // for 400 ms; the device echoes its pre-command state in that window.
-        guard !isEditing, !group.isEditingPlayback else { return }
+        guard !isEditing, !group.isEditingPlayback else {
+            onLiveUpdate?(group)
+            return
+        }
 
         // Sonos reports BUFFERING while the next stream opens, which is what a
         // track change looks like on the socket — it is not a pause. Writing
@@ -59,7 +69,6 @@ extension SonosService: SonosEventHandler {
             group.coordinatorRoom.updatePlaybackPosition(position)
         }
 
-        liveItemDidChange(itemID: playbackState.itemId, for: group)
         onLiveUpdate?(group)
     }
     

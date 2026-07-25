@@ -131,6 +131,26 @@ If routing on launch is wanted, the app already has an opt-in for it —
 activation. That fires once per activation rather than on every selection change,
 so it can't fight in-app navigation.
 
+## What is actually running while backgrounded
+
+Verified, since the whole design rests on it:
+
+| Running | What it costs |
+|---|---|
+| The `.nowPlaying` WebSocket (one, on the mirrored group's coordinator) | Idle until the speaker changes something |
+| `SonosStreamingService`'s connection refresh | One reconnect per socket every 5 minutes |
+| The UPnP ZoneGroupTopology subscription — the FlyingFox listener plus a renewal at 80% of the speaker's ~500 s timeout | Push, not polling: NOTIFY arrives when the topology changes. One renewal request every ~7 minutes |
+| `HardwareVolumeService`'s `outputVolume` KVO | Nothing until a volume button or the Lock Screen slider moves |
+| `updateTrackInformation` from `liveItemDidChange` | One SOAP fetch per song change — event-driven, not a poll |
+
+**Not running:** `sonosPulse` and `watcher`, the 500–800 ms SOAP loops, both
+cancelled in `handleScenePhase(.background)`. They're what would actually cost
+battery; everything above is either idle or edge-triggered.
+
+The topology subscription is the one piece that isn't a WebSocket. It predates
+this feature and is push-based, so it doesn't change the cost picture — worth
+knowing it's there before concluding "only WebSockets are alive".
+
 ## Why it doesn't poll
 
 The `.nowPlaying` live listener holds one socket, on the mirrored group's
@@ -155,6 +175,17 @@ connects the union. Notes for anyone extending this:
   widening a socket's event set requires remove-then-add. Reconcile does this.
 - Never call `disconnectAll()` to re-point a subscription (`LargePlayerView`
   used to) — it takes every listener's socket with it.
+- **The subscription is addressed by group id, not just coordinator.** Sonos's
+  `playback` and `metadata` namespaces are subscribed per group id, and that id
+  changes when speakers are grouped or ungrouped even though the coordinator
+  stays put. Re-point on any change to coordinator + group id + ip (`run()`'s
+  `subscriptionKey`); watching the coordinator alone leaves the socket
+  subscribed to a group that no longer exists, and it just goes quiet.
+- **Don't drop socket events on the `isEditing` guard.** The guard exists so a
+  local play/pause isn't overwritten by the device echoing its pre-command
+  state, but it used to skip the whole event, including the item change. These
+  events are edge-triggered: drop one and the model stays wrong until something
+  else moves it — which, backgrounded, is nothing.
 - **`PLAYBACK_STATE_BUFFERING` is not a pause.** Sonos reports it while the next
   stream opens, i.e. on every track change. Mapping anything-but-PLAYING to
   `isPlaying = false` left the model stuck on paused for the rest of the song,

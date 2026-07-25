@@ -89,6 +89,9 @@ final class NowPlayingSessionService {
     @ObservationIgnored private var isFavorite = false
     @ObservationIgnored private var favoriteTrackID: String?
     @ObservationIgnored private var favoriteTask: Task<Void, Never>?
+    /// Coordinator + group id + ip of the live subscription, so it can be
+    /// re-declared when any of them moves.
+    @ObservationIgnored private var subscribedKey: String?
 
     /// Artwork is keyed by URL: the expensive part is decoding, and the same
     /// song can republish many times (pause, seek, volume).
@@ -231,6 +234,10 @@ final class NowPlayingSessionService {
         let room = group.coordinatorRoom
         return [
             group.coordinatorID,
+            // The socket is addressed by group id and ip, both of which move
+            // without the coordinator changing (grouping, DHCP) — see `run`.
+            group.id,
+            group.ip,
             room.track.unique,
             room.track.artworkURL?.absoluteString ?? "",
             String(room.track.duration),
@@ -313,6 +320,18 @@ final class NowPlayingSessionService {
             published = nil
             lastModelElapsed = -1
             attachVolumeBridge(group: group, sonosService: sonosService)
+        }
+
+        // Re-declared on any change to the socket's addressing, not just a change
+        // of coordinator. Sonos's playback and metadata namespaces are subscribed
+        // *per group id*, and that id changes when speakers are grouped or
+        // ungrouped even though the coordinator stays put — the old subscription
+        // then goes quiet, and with no poll running in the background the card
+        // silently stops updating. The ip moves on DHCP renewal for the same
+        // reason. `listen` no-ops when the subscription is unchanged.
+        let subscriptionKey = "\(group.coordinatorID)|\(group.id)|\(group.ip)"
+        if subscribedKey != subscriptionKey {
+            subscribedKey = subscriptionKey
             Task { [weak self] in
                 await sonosService.listen(to: group, as: .nowPlaying, events: [.metadata, .playback])
                 self?.publish()
@@ -335,6 +354,7 @@ final class NowPlayingSessionService {
         favoriteTask = nil
         favoriteTrackID = nil
         isFavorite = false
+        subscribedKey = nil
         detachVolumeBridge()
         silentPlayer?.stop()
         silentPlayer = nil
