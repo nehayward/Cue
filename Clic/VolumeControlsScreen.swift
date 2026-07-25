@@ -20,7 +20,7 @@ struct VolumeControlsScreen: View {
         ScrollView {
             VStack {
                 if let groupIndex = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }){
-                    ForEach(sonosService.sorted[groupIndex].rooms) { room in
+                    ForEach(sonosService.sorted[groupIndex].rooms.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }) { room in
                         VStack(alignment: .leading, spacing: 0) {
                             Text(room.name)
                                 .fontWeight(.semibold)
