@@ -102,6 +102,16 @@ final class SonosSystemDiscoverService {
         }
     }
 
+    /// Drops the explicit choice, handing the decision back to the automatic
+    /// heuristic. Without this a pin would be one-way — once you picked a
+    /// speaker there'd be no route back to "let Clic decide".
+    @MainActor
+    func clearPreferredSpeaker() {
+        if !sonosStorageIP.preferredSpeakerIP.isEmpty {
+            sonosStorageIP.preferredSpeakerIP = ""
+        }
+    }
+
     /// Known households ordered most-recently-connected first — the order the
     /// Households list shows and the tiebreak `activeHousehold` uses when unpinned,
     /// kept in one place so the list order and the active pick can't diverge.

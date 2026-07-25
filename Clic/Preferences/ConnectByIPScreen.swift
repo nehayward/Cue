@@ -30,8 +30,6 @@ struct ConnectByIPScreen: View {
 
     var body: some View {
         Form {
-            automaticSection
-
             if !sonosService.sortedRooms.isEmpty {
                 speakerSection
             }
@@ -58,44 +56,41 @@ struct ConnectByIPScreen: View {
         }
     }
 
-    // MARK: - Automatic
-
-    private var automaticSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 8) {
-                Button {
-                    Task {
-                        guard let device = await sonosService.setPriorityDevice() else { return }
-                        selectionFeedback += 1
-                        announceConnection(to: device.name)
-                    }
-                } label: {
-                    Label("Choose Best Speaker", systemImage: "wand.and.stars")
-                        .fontWeight(.semibold)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.accent)
-
-                Text("Prefers LAN-connected and mains-powered speakers, and skips portables like Roam or Move")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-        } header: {
-            Text("How Clic Connects")
-        } footer: {
-            Text("One speaker answers Clic's system-wide requests — how your speakers are grouped, album artwork, and your library, favorites and playlists. Play, pause and volume go straight to the speaker you're controlling. Picking one that's wired and always awake keeps everything else quick.")
-        }
-    }
-
     // MARK: - Speaker picker
 
     private var speakerSection: some View {
         Section {
+            // Automatic is a row in the same picker rather than a separate
+            // button: it's one of the available answers to "which speaker?", and
+            // an empty pin is a real, persistent state — so it can carry a tick
+            // like any other option. It's also the only way back once a speaker
+            // has been chosen.
+            Button {
+                sonosService.useAutomaticSpeaker()
+                selectionFeedback += 1
+                alertService.showAlert(with: "Clic will choose the best speaker", imageName: "wand.and.stars")
+            } label: {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Automatic")
+                            .foregroundStyle(.primary)
+                        Text(automaticSubtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    if preferredSpeakerIP.isEmpty {
+                        Image(systemName: "checkmark")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.green)
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
             ForEach(sonosService.sortedRooms) { room in
                 Button {
                     Task {
@@ -135,8 +130,17 @@ struct ConnectByIPScreen: View {
         } header: {
             Text("Connect Through")
         } footer: {
-            Text("Tap a speaker to connect through it. LAN means it's wired to your router — those stay reachable when other speakers sleep, so they're the most reliable choice.")
+            Text("One speaker answers Clic's system-wide requests — how your speakers are grouped, album artwork, and your library, favorites and playlists. Play, pause and volume go straight to the speaker you're controlling. LAN means a speaker is wired to your router; those stay reachable when others sleep, so they're the most reliable choice.")
         }
+    }
+
+    /// Names the speaker Automatic currently resolves to, so the option isn't
+    /// abstract — and so it's obvious when it lands somewhere unexpected.
+    private var automaticSubtitle: String {
+        if let room = sonosService.automaticSpeakerChoice() {
+            return "Clic decides — currently \(room.name)"
+        }
+        return "Prefers wired, mains-powered speakers"
     }
 
     // MARK: - Manual IP entry
@@ -300,7 +304,7 @@ struct ConnectByIPScreen: View {
             probeTask = Task {
                 // Probe reachability only — do NOT adopt/pin a household from a
                 // transient, still-being-typed IP. Adoption happens on an explicit
-                // tap (Connect, a speaker row, or Choose Best Speaker).
+                // tap (Connect, or a speaker row).
                 let groups = (try? await sonosService.getGroups(with: ip)) ?? []
                 // A superseded probe leaves the flags alone: the newer validateIP
                 // call already owns them.

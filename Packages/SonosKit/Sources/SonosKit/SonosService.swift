@@ -2959,29 +2959,13 @@ public final class SonosService {
             return pinnedIP
         }
 
-        let sortedRooms = allRooms.sorted { lhs, rhs in
-            // Ethernet-enabled rooms should come last
-            let lhsEthernet = lhs.ethernetEnabled ? 1 : 0
-            let rhsEthernet = rhs.ethernetEnabled ? 1 : 0
-            return lhsEthernet < rhsEthernet
-        }
-        
-        // Filter out portable models like Roam and Move
-        let filteredRooms = sortedRooms.filter { room in
-            guard let modelName = room.info?.modelDisplayName.lowercased() else { return false }
-            let excludedModels = ["roam", "move", "play"]
-            return !excludedModels.contains { modelName.contains($0) }
-        }
-        
-        // Return the best matching room IP
-        if let bestRoom = filteredRooms.sorted(by: {
-            ($0.info?.model ?? "").localizedStandardCompare($1.info?.model ?? "") == .orderedDescending
-        }).first {
-            return bestRoom.ip
-        }
-        
-        // Fallback
-        return allRooms.first?.ip
+        // No explicit choice — defer to the single automatic heuristic in
+        // `priorityDevice()`. This used to be a second, divergent copy that
+        // computed an ethernet ordering and then threw it away by re-sorting on
+        // model name alone, so the automatic path silently ignored the wired
+        // preference it claimed to have (and dropped speakers whose `info`
+        // hadn't loaded, which `priorityDevice` keeps).
+        return priorityDevice()?.ip
     }
     
     func priorityDevice() -> Room? {
@@ -3011,6 +2995,21 @@ public final class SonosService {
         return sortedRooms.first ?? allRooms.first
     }
     
+    /// The speaker the automatic heuristic currently resolves to, without
+    /// changing anything. Lets the Connectivity screen name the speaker its
+    /// "Automatic" option would use instead of leaving it abstract.
+    @MainActor
+    public func automaticSpeakerChoice() -> Room? {
+        priorityDevice()
+    }
+
+    /// Clears an explicit speaker choice, returning to the automatic pick. Takes
+    /// effect immediately — `prioritizedIP()` resolves per call, so no reload.
+    @MainActor
+    public func useAutomaticSpeaker() {
+        sonosSystemDiscoverService.clearPreferredSpeaker()
+    }
+
     /// Prioritise the best current speaker (wired/newer, non-portable) by pinning
     /// its IP through the same path as manual Connect-by-IP, so it resolves and
     /// adopts the correct household even when there isn't one yet. Returns the
