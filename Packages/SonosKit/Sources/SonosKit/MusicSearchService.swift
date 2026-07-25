@@ -1570,6 +1570,54 @@ public final class MusicSearchService {
         )
     }
 
+    /// Thumbs the currently playing Pandora track up. Pandora treats this as
+    /// station feedback, so it tunes what that station plays next rather than
+    /// saving the song anywhere.
+    @discardableResult
+    public func thumbsUpPandoraTrack(trackID: String) async -> Bool {
+        await ratePandoraTrack(trackID: trackID, rating: Self.pandoraThumbsUp)
+    }
+
+    /// Thumbs the currently playing Pandora track down: the station skips it
+    /// and stops playing it. Destructive and not undoable through this API.
+    @discardableResult
+    public func thumbsDownPandoraTrack(trackID: String) async -> Bool {
+        await ratePandoraTrack(trackID: trackID, rating: Self.pandoraThumbsDown)
+    }
+
+    /// SMAPI rating values for Pandora's thumbs. The capture this integration
+    /// was built from never exercised a thumb, so these follow the SMAPI
+    /// convention rather than an observed request — if thumbs come back
+    /// rejected, this pair is the thing to correct.
+    private static let pandoraThumbsUp = 1
+    private static let pandoraThumbsDown = -1
+
+    private func ratePandoraTrack(trackID: String, rating: Int) async -> Bool {
+        guard !trackID.isEmpty, let (endpoint, credentials) = await pandoraContext() else { return false }
+        return await pandora.rateItem(
+            endpoint: endpoint,
+            credentials: credentials,
+            id: Self.pandoraSMAPITrackID(from: trackID),
+            rating: rating
+        )
+    }
+
+    /// Derives the SMAPI track id from the id parsed off a playing Pandora
+    /// stream. Sonos reports the stream as
+    /// `x-sonos-http:VC1::ST::ST:<station>::TR:<track>::0::RINCON_…:<n>.mp3?sid=236…`,
+    /// and `MusicServiceParser` keeps everything between the scheme and the
+    /// query, so the SMAPI id is that value minus the file extension. Rating
+    /// targets the *track*, not the station id the browse rows carry.
+    ///
+    /// `nonisolated` because it's a pure string transform — the enclosing class
+    /// is `@MainActor`, which would otherwise make it unusable from tests.
+    nonisolated static func pandoraSMAPITrackID(from trackID: String) -> String {
+        for ext in [".mp3", ".m4a", ".aac", ".flac"] where trackID.hasSuffix(ext) {
+            return String(trackID.dropLast(ext.count))
+        }
+        return trackID
+    }
+
     // TODO: Update for Media Details
     // MARK: Album/Playlist Lookup
     public func albumPlaylistLookup(from playableContent: PlayableContent) async -> (PlayableContent, [PlayableContent]) {

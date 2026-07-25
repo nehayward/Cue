@@ -68,6 +68,23 @@ public final class PandoraAPI: Sendable {
         )
     }
 
+    /// Rates the currently playing track — Pandora's thumbs up / thumbs down.
+    /// `id` is the track's SMAPI id (the `x-sonos-http:` stream id, minus the
+    /// file extension), not the station id. Returns whether the service
+    /// accepted the rating.
+    public func rateItem(
+        endpoint: URL,
+        credentials: SMAPICredentials,
+        id: String,
+        rating: Int
+    ) async -> Bool {
+        await performRaw(
+            endpoint: endpoint,
+            credentials: credentials,
+            action: .rateItem(id: id, rating: rating)
+        ) != nil
+    }
+
     /// Runs `action` with the freshest known login; on an expired-token fault,
     /// refreshes through SMAPI (the same flow the official controller uses)
     /// and retries once with the new token.
@@ -76,22 +93,33 @@ public final class PandoraAPI: Sendable {
         credentials: SMAPICredentials,
         action: SMAPIAction
     ) async -> SMAPIMediaResult? {
+        await performRaw(endpoint: endpoint, credentials: credentials, action: action)
+            .flatMap { SMAPIMediaParser.parse(xml: $0) }
+    }
+
+    /// The refresh-and-retry wrapper shared by every SMAPI call: returns the
+    /// raw response XML, or nil if the request failed for a reason a token
+    /// refresh can't fix.
+    private func performRaw(
+        endpoint: URL,
+        credentials: SMAPICredentials,
+        action: SMAPIAction
+    ) async -> String? {
         let attempted = effectiveCredentials(credentials)
         let (xml, authFailed) = await perform(
             endpoint: endpoint,
             envelope: SMAPIEnvelope(credentials: attempted, action: action)
         )
-        if let xml { return SMAPIMediaParser.parse(xml: xml) }
+        if let xml { return xml }
         guard authFailed else { return nil }
 
         guard await refreshLogin(afterFailureOf: attempted.token, endpoint: endpoint, credentials: credentials) else {
             return nil
         }
-        let retried = await perform(
+        return await perform(
             endpoint: endpoint,
             envelope: SMAPIEnvelope(credentials: effectiveCredentials(credentials), action: action)
-        )
-        return retried.xml.flatMap { SMAPIMediaParser.parse(xml: $0) }
+        ).xml
     }
 
     /// Refreshes the login token after a request using `failedToken` was
