@@ -59,6 +59,29 @@ a background feature: SwiftUI stops evaluating bodies once the app is
 backgrounded, so `onChange` stopped firing exactly when the card was the only UI
 left. `@Observable` notifications don't care whether a view is alive.
 
+## Several groups playing at once
+
+iOS has one Now Playing app and one item in it, so only one group can be on the
+card. `resolveTarget()` picks it:
+
+1. The selected group, if it has something loaded — even paused. The selection is
+   what the user is looking at, and the volume bridge follows the card, so in the
+   foreground the buttons should control the speaker on screen.
+2. Otherwise the first *playing* group in `sorted` order.
+
+Two consequences worth knowing before changing this:
+
+- **The pick latches.** Once the fallback picks a group,
+  `pointSelectionAtMirroredGroup` writes it to `Router.main.selectedID`, and rule
+  1 then prefers it. So with two rooms playing, the card stays on the one it
+  picked first until that room goes idle, rather than flip-flopping. That's
+  deliberate — but it does mean "the other room" never takes over on its own.
+- **A paused selection outranks a playing group.** Follows from rule 1. If the
+  card should always follow the music instead, the change is to require
+  `isPlaying` in rule 1 and keep the paused selection as a last resort — but note
+  that also re-points the hardware volume buttons away from the speaker on
+  screen, which is why it isn't the default.
+
 ## Tapping the card
 
 The Now Playing card carries no tap URL — iOS simply foregrounds the app, and

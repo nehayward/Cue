@@ -135,13 +135,22 @@ final class NowPlayingSessionService {
     /// The group the card mirrors: the selected one, falling back to whatever is
     /// playing. The selection sticks around after the user leaves a player, so an
     /// idle selected speaker hands the card over to the music.
+    ///
+    /// iOS has exactly one Now Playing app and one item in it, so with several
+    /// groups playing at once only one can be on the card. The fallback walks
+    /// `sorted` rather than `groups`: `groups` is in Sonos topology-parse order,
+    /// which is arbitrary and reshuffles when the topology refreshes — two rooms
+    /// playing could hand the card back and forth on an unrelated group change.
+    /// `sorted` is the same order the user sees in the speaker list (and puts
+    /// playing groups first under the `.playing` sort), so the pick is stable and
+    /// explicable.
     private func resolveTarget() -> GroupRoom? {
         let sonosService = SonosService.shared
         let selected = Router.main.selectedID.flatMap { id in
             sonosService.groups.first(where: { $0.coordinatorID == id })
         }
         if let selected, isMirrorable(selected) { return selected }
-        return sonosService.groups.first { $0.coordinatorRoom.isPlaying && isMirrorable($0) }
+        return sonosService.sorted.first { $0.coordinatorRoom.isPlaying && isMirrorable($0) }
     }
 
     /// Makes tapping the Now Playing card land on the mirrored speaker.
