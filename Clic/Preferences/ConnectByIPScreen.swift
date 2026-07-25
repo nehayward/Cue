@@ -80,7 +80,7 @@ struct ConnectByIPScreen: View {
         } header: {
             Text("How Clic Connects")
         } footer: {
-            Text("Clic sends its commands through one speaker, which passes them on to the rest of your system. Choosing one that's wired and always awake makes the whole app more responsive.")
+            Text("One speaker answers Clic's system-wide requests — how your speakers are grouped, album artwork, and your library, favorites and playlists. Play, pause and volume go straight to the speaker you're controlling. Picking one that's wired and always awake keeps everything else quick.")
         }
     }
 
