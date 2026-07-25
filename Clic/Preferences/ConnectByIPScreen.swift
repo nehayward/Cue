@@ -94,39 +94,54 @@ struct ConnectByIPScreen: View {
                      .buttonStyle(.bordered)
                      .tint(.accent)
 
-                     Text("Prefers wired devices, newer models, and excludes portable speakers like Roam, Move or Play.")
+                     Text("Picks the best speaker for you — prefers LAN-connected and newer models, and skips portables like Roam, Move or Play.")
                          .font(.caption2)
                          .foregroundStyle(.secondary)
                          .multilineTextAlignment(.leading)
+                         .fixedSize(horizontal: false, vertical: true)
+                         .frame(maxWidth: .infinity, alignment: .leading)
                  }
                  .listRowBackground(Color.clear)
-                 .listRowInsets(EdgeInsets())
+                 // Keep the row's horizontal margins: zeroing every inset ran the
+                 // caption flush to the row edge, where the leading character of a
+                 // wrapped line was clipped.
+                 .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
             }
-            
-            ForEach(sonosService.sortedRooms) { room in
-                Button {
-                    Task {
-                        await sonosService.setStaticIP(ip: room.ip)
-                        alertService.showAlert(with: "Assigning Priority to \(room.name)", imageName: "1.circle.fill")
-                    }
-                } label: {
-                    Label {
-                        Text(room.name)
-                        HStack(spacing: 0) {
-                            if let info = room.info {
-                                Text("\(info.modelDisplayName) • ")
-                            }
-                            Text(room.ip)
-                                .foregroundStyle(manualConnectIPAddress == room.ip ? .green : .secondary)
+
+            Section {
+                ForEach(sonosService.sortedRooms) { room in
+                    Button {
+                        Task {
+                            await sonosService.setStaticIP(ip: room.ip)
+                            alertService.showAlert(with: "Assigning Priority to \(room.name)", imageName: "1.circle.fill")
                         }
-                    } icon: {
-                        Image(systemName: "circle")
-                            .foregroundStyle(.accent)
-                            .transition(.scale.combined(with: .opacity))
-                            .symbolVariant(sonosIP == room.ip  ? .fill : .none)
+                    } label: {
+                        HStack {
+                            Label {
+                                Text(room.name)
+                                HStack(spacing: 0) {
+                                    if let info = room.info {
+                                        Text("\(info.modelDisplayName) • ")
+                                    }
+                                    Text(room.ip)
+                                        .foregroundStyle(manualConnectIPAddress == room.ip ? .green : .secondary)
+                                }
+                            } icon: {
+                                Image(systemName: "circle")
+                                    .foregroundStyle(.accent)
+                                    .transition(.scale.combined(with: .opacity))
+                                    .symbolVariant(sonosIP == room.ip  ? .fill : .none)
+                            }
+                            Spacer(minLength: 8)
+                            connectionBadge(for: room)
+                        }
                     }
+                    .tint(.primary)
                 }
-                .tint(.primary)
+            } header: {
+                Text("Speakers on This System")
+            } footer: {
+                Text("Tap a speaker to make it the one Clic connects through. LAN means it's wired to your router — those stay reachable when speakers go to sleep, so they're the most reliable choice.")
             }
             
             if let error = errorMessage {
@@ -140,6 +155,32 @@ struct ConnectByIPScreen: View {
         .fontDesign(.rounded)
     }
     
+    /// "LAN" when the speaker reports a wired link, "Wi-Fi" when it reports a
+    /// wireless one. Shows nothing when it reports neither — some older S1
+    /// players omit both attributes from ZoneGroupState, and a missing `EthLink`
+    /// would otherwise read as "this speaker is on Wi-Fi", which is exactly the
+    /// claim this badge exists to get right.
+    @ViewBuilder
+    private func connectionBadge(for room: Room) -> some View {
+        if room.ethernetEnabled {
+            badge("LAN", systemImage: "cable.connector", tint: .green)
+        } else if room.wifiEnabled {
+            badge("Wi-Fi", systemImage: "wifi", tint: .secondary)
+        }
+    }
+
+    private func badge(_ title: String, systemImage: String, tint: Color) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: systemImage)
+            Text(title)
+        }
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(tint)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(tint.opacity(0.12), in: Capsule())
+    }
+
     private func validateIP(_ ip: String) {
         let regex = try? NSRegularExpression(pattern: ipv4Pattern)
         let range = NSRange(location: 0, length: ip.utf16.count)
