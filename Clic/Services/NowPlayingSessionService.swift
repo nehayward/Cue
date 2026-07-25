@@ -59,6 +59,11 @@ final class NowPlayingSessionService {
     /// reproduce the elapsed time the system is currently interpolating.
     @ObservationIgnored private var publishedElapsed: TimeInterval = 0
     @ObservationIgnored private var publishedAt: Date = .distantPast
+
+    /// Favorite state behind `likeCommand`, and the track it belongs to.
+    @ObservationIgnored private var isFavorite = false
+    @ObservationIgnored private var favoriteTrackID: String?
+    @ObservationIgnored private var favoriteTask: Task<Void, Never>?
     /// Artwork is keyed by URL: the expensive part is decoding, and the same
     /// song can republish many times (pause, seek, volume).
     @ObservationIgnored private var publishedArtworkURL: URL?
@@ -115,6 +120,10 @@ final class NowPlayingSessionService {
 
         artworkTask?.cancel()
         artworkTask = nil
+        favoriteTask?.cancel()
+        favoriteTask = nil
+        favoriteTrackID = nil
+        isFavorite = false
         detachVolumeBridge()
         silentPlayer?.stop()
         silentPlayer = nil
@@ -315,6 +324,11 @@ final class NowPlayingSessionService {
         let room = group.coordinatorRoom
         let track = room.track
 
+        // Ahead of the dedupe guard below: this is a no-op unless the song
+        // actually changed, and it has to run even when the card itself doesn't
+        // need repainting.
+        refreshFavorite(for: track)
+
         // An idle radio player reports an empty track between songs; the station
         // name is what the rest of the app shows there, so match it.
         let title = !track.song.isEmpty ? track.song : (room.radioStation ?? group.nameWithCount)
@@ -467,14 +481,89 @@ final class NowPlayingSessionService {
             }
         }
 
+        // Favorites the playing song in whichever service it came from, the same
+        // as the player's heart/star. `isActive` carries the current state, and
+        // each invocation toggles it.
+        center.likeCommand.localizedTitle = "Favorite"
+        center.likeCommand.localizedShortTitle = "Favorite"
+        center.likeCommand.addTarget { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.toggleFavorite() ?? .commandFailed
+            }
+        }
+
         // Nothing here maps onto a Sonos transport — leaving them enabled makes
-        // the card offer controls that silently do nothing.
+        // the card offer controls that silently do nothing. `dislike` included:
+        // no service Clic talks to has a negative signal to send.
         center.skipForwardCommand.isEnabled = false
         center.skipBackwardCommand.isEnabled = false
         center.seekForwardCommand.isEnabled = false
         center.seekBackwardCommand.isEnabled = false
         center.changeRepeatModeCommand.isEnabled = false
         center.changeShuffleModeCommand.isEnabled = false
+        center.dislikeCommand.isEnabled = false
+    }
+
+    /// Points `likeCommand` at `track`, once per song.
+    ///
+    /// Goes through `MusicSearchService.isFavorite`/`setFavorite`, the same
+    /// per-service dispatch the player's heart uses, so a favorite made here and
+    /// one made in the app can't diverge. `LiveActivityFavoriteStore` seeds the
+    /// state instantly — the card would otherwise show "not favorited" for as
+    /// long as the service lookup takes.
+    private func refreshFavorite(for track: Track) {
+        let command = MPRemoteCommandCenter.shared().likeCommand
+
+        guard canFavorite(track) else {
+            favoriteTask?.cancel()
+            favoriteTask = nil
+            favoriteTrackID = nil
+            isFavorite = false
+            command.isEnabled = false
+            command.isActive = false
+            return
+        }
+
+        guard favoriteTrackID != track.trackID else { return }
+        favoriteTrackID = track.trackID
+        command.isEnabled = true
+
+        let cached = LiveActivityFavoriteStore.shared.get(track.trackID) ?? false
+        isFavorite = cached
+        command.isActive = cached
+
+        favoriteTask?.cancel()
+        favoriteTask = Task { [weak self] in
+            let favorite = await MusicSearchService.shared.isFavorite(
+                trackID: track.trackID,
+                service: track.musicService
+            )
+            guard !Task.isCancelled, let self, self.favoriteTrackID == track.trackID else { return }
+            self.isFavorite = favorite
+            MPRemoteCommandCenter.shared().likeCommand.isActive = favorite
+        }
+    }
+
+    private func canFavorite(_ track: Track) -> Bool {
+        track.musicService.supportsFavoriteTrack && !track.trackID.isEmpty
+    }
+
+    private func toggleFavorite() -> MPRemoteCommandHandlerStatus {
+        guard let track = group?.coordinatorRoom.track, canFavorite(track) else { return .noSuchContent }
+
+        // Optimistic, like every other favorite surface: the write is
+        // fire-and-forget from the user's point of view.
+        let favorite = !isFavorite
+        isFavorite = favorite
+        MPRemoteCommandCenter.shared().likeCommand.isActive = favorite
+        Task {
+            await MusicSearchService.shared.setFavorite(
+                favorite,
+                trackID: track.trackID,
+                service: track.musicService
+            )
+        }
+        return .success
     }
 
     private func updateCommandAvailability(_ snapshot: Snapshot) {
@@ -495,6 +584,9 @@ final class NowPlayingSessionService {
         center.nextTrackCommand.removeTarget(nil)
         center.previousTrackCommand.removeTarget(nil)
         center.changePlaybackPositionCommand.removeTarget(nil)
+        center.likeCommand.removeTarget(nil)
+        center.likeCommand.isEnabled = false
+        center.likeCommand.isActive = false
     }
 
     /// Runs a transport command against the mirrored group and repaints the card

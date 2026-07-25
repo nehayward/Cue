@@ -70,6 +70,25 @@ connects the union. Notes for anyone extending this:
 - Never call `disconnectAll()` to re-point a subscription (`LargePlayerView`
   used to) — it takes every listener's socket with it.
 
+## Favorites
+
+`likeCommand` is registered as a toggle: `isActive` carries the current state,
+each invocation flips it, and both directions go through
+`MusicSearchService.isFavorite`/`setFavorite` — the same per-service dispatch
+(Apple / Spotify / SoundCloud / Deezer / Plex-by-rating) the player's heart uses,
+so the two can't diverge. State is looked up once per song and seeded instantly
+from `LiveActivityFavoriteStore`, the app-group cache shared with the Live
+Activity's like button.
+
+**Where it actually shows up:** feedback commands are surfaced by CarPlay and
+some head units and accessories. iOS's own Lock Screen / Control Center card has
+no slot for a custom button — it renders artwork, text, scrubber, transport,
+volume, and the route picker, and nothing else. So this does *not* put a heart on
+the Lock Screen; the Lock Screen path for that is the Live Activity
+(`claude/live-activity-like-button-57o9qu`), which owns its own button.
+
+`dislikeCommand` stays disabled — none of these services take a negative signal.
+
 ## Volume
 
 While the session is held the phone's own volume is inaudible, so the hardware
@@ -86,9 +105,12 @@ exists inside a window.
 
 - **Watch / CarPlay parity beyond the free ride.** Both surfaces read the info
   center, so they work, but neither has been tested on hardware.
-- **Like / favorite on the card.** `MPRemoteCommandCenter` has
-  `likeCommand`/`dislikeCommand`; Clic already has `LikeButtonView` logic to
-  hook up.
+- **Point `LikeButtonView` / `FavoriteMenuButton` at
+  `MusicSearchService.setFavorite`.** They still hold their own copies of the
+  per-service switch, so a favorite made in the app doesn't populate
+  `LiveActivityFavoriteStore` (the card and the activity then pay for a lookup
+  that was already done). `claude/live-activity-like-button-57o9qu` does exactly
+  this refactor — it's deliberately left to that branch rather than done twice.
 - **Interaction with Live Updates** (`claude/ios-now-playing-notifications-*`).
   That feature's Live Activity and this card are complementary — one is
   push-driven and works away from home, the other is LAN-driven and gives real
