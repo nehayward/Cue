@@ -2,9 +2,15 @@
 
 –– New Features ––
 - Sonos Radio: Search Sonos Radio stations and browse them by genre, then play any station on any room or group — the SONOS badge appears on the artwork, and the station's artwork is shown during ad breaks
+- Smarter Services settings: the Services screen now shows what's actually on your Sonos — services you've authorized get show/hide toggles, ones you haven't set up yet link straight to the Sonos app to sign in, and services Clic doesn't support yet are listed too. Pull down to refresh after adding one
 
 –– Bug Fixes & Improvements ––
 - Fixed album artwork stuttering the player during song changes — the crossfade is now one smooth dissolve
+- Fixed the player staying stuck on a radio station after playing a song from the queue — playback switches reliably, the progress bar appears again, and the station caption clears right away
+- Services you remove in the Sonos app no longer linger in Clic — they're hidden from search and browse automatically
+- Plex sign-in now lives right on its row in Services — tap the row to manage your account
+- Fixed square corners showing around the Clic Mini notification and menu bar window in light mode
+- Clic Mini: The notification and menu bar window now use Liquid Glass on macOS 26
 - Fixed older S1 Sonos players (like the ZP100 or ZP80) never being found — a home running S1 now shows up in Households alongside your S2 system, so a split S1/S2 setup can switch between the two with a tap
 - Redesigned the Connectivity screen around a single choice — which speaker Clic connects through. Tap any speaker to use it, or Choose Best Speaker to let Clic pick; a LAN badge marks the speakers wired to your router, and a tick shows the one in use
 - Entering an address by hand has moved into a "Can't find your speakers?" section that opens on its own when nothing is found — and once a speaker answers at that address, a Connect button appears so you can actually switch to it. Previously the screen could only verify the address
