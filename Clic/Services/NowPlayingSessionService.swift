@@ -48,9 +48,16 @@ import UIKit
 /// group being mirrored, for `[.metadata, .playback]`. Events land in
 /// `SonosService`'s handler, which writes the model and calls back through the
 /// `.nowPlaying` live-update observer — so the card refreshes on track and
-/// transport changes only,
-/// and idles at zero cost in between. Elapsed time is *not* pushed on a timer:
-/// the info center interpolates from `elapsedPlaybackTime` + `playbackRate`.
+/// transport changes only, and idles at zero cost in between.
+///
+/// ## What lives elsewhere
+///
+/// - `SilentAudioSession` — the audio claim itself, its recovery from
+///   interruptions, and the silence it plays.
+/// - `PlaybackPositionAnchor` — when to re-state elapsed time, and what to
+///   state. Subtler than it looks; read its notes before touching it.
+/// - `AudioSessionArbiter` — how a song preview hands the session back without
+///   knowing this type exists.
 @MainActor
 @Observable
 final class NowPlayingSessionService {
@@ -60,9 +67,8 @@ final class NowPlayingSessionService {
     private(set) var isActive = false
 
     @ObservationIgnored private var group: GroupRoom?
-    @ObservationIgnored private var silentPlayer: AVAudioPlayer?
+    @ObservationIgnored private let audioSession = SilentAudioSession()
     @ObservationIgnored private var artworkTask: Task<Void, Never>?
-    @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var volumeView: MPVolumeView?
     @ObservationIgnored private var hasActivated = false
     @ObservationIgnored private var preferenceObserver: NSObjectProtocol?
@@ -75,13 +81,9 @@ final class NowPlayingSessionService {
 
     /// What the card is currently showing, so repeat events don't rebuild it.
     @ObservationIgnored private var published: Snapshot?
-    /// The position anchor handed to the info center, and when — together they
-    /// reproduce the elapsed time the system is currently interpolating.
-    @ObservationIgnored private var publishedElapsed: TimeInterval = 0
-    @ObservationIgnored private var publishedAt: Date = .distantPast
-    /// Last `Room.playbackPosition` we saw, to tell a position the speaker just
-    /// reported from one that's been frozen since the poll stopped.
-    @ObservationIgnored private var lastModelElapsed: TimeInterval = -1
+    /// Owns the elapsed-time maths — see `PlaybackPositionAnchor` for why it
+    /// isn't as simple as publishing the speaker's number.
+    @ObservationIgnored private var positionAnchor = PlaybackPositionAnchor()
 
     /// Favorite state behind `likeCommand`, and the track it belongs to.
     @ObservationIgnored private var isFavorite = false
@@ -143,8 +145,8 @@ final class NowPlayingSessionService {
 
         // Which group the card mirrors depends on foreground vs background (see
         // `resolveTarget`), so both transitions re-pick. These live for the
-        // process, not per session — unlike the audio observers in `observers`,
-        // which `stop()` tears down.
+        // process, not per session — unlike the audio-session observers, which
+        // `SilentAudioSession` owns and tears down with the session.
         isForeground = UIApplication.shared.applicationState != .background
         let center = NotificationCenter.default
         appStateObservers = [
@@ -299,12 +301,16 @@ final class NowPlayingSessionService {
         let sonosService = SonosService.shared
 
         if !isActive {
-            guard activateSession() else { return }
+            guard audioSession.start() else { return }
+            audioSession.onRestored = { [weak self] in
+                // Whatever interrupted us may have invalidated the card.
+                self?.published = nil
+                self?.publish()
+            }
             registerCommands()
-            observeSessionEvents()
             // Anything that borrows the session (a song preview) hands it back
             // here instead of deactivating it, without naming this type.
-            AudioSessionArbiter.shared.claim { [weak self] in self?.resumeSilentLoop() }
+            AudioSessionArbiter.shared.claim { [weak self] in self?.audioSession.reclaim() }
             isActive = true
             sonosService.observeLiveUpdates(as: .nowPlaying) { [weak self] _ in
                 self?.publish()
@@ -326,7 +332,7 @@ final class NowPlayingSessionService {
 
         if isNewTarget {
             published = nil
-            lastModelElapsed = -1
+            positionAnchor.reset()
             attachVolumeBridge(group: group)
         }
 
@@ -363,10 +369,10 @@ final class NowPlayingSessionService {
         isFavorite = false
         subscribedKey = nil
         detachVolumeBridge()
-        silentPlayer?.stop()
-        silentPlayer = nil
+        audioSession.onRestored = nil
+        audioSession.stop()
         published = nil
-        lastModelElapsed = -1
+        positionAnchor.reset()
         publishedArtworkURL = nil
         publishedArtwork = nil
 
@@ -374,9 +380,6 @@ final class NowPlayingSessionService {
         MPNowPlayingInfoCenter.default().playbackState = .stopped
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         unregisterCommands()
-
-        for observer in observers { NotificationCenter.default.removeObserver(observer) }
-        observers.removeAll()
 
         let sonosService = SonosService.shared
         sonosService.removeLiveUpdateObserver(.nowPlaying)
@@ -386,116 +389,6 @@ final class NowPlayingSessionService {
             await sonosService.stopListening(as: .nowPlaying)
         }
 
-        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
-    }
-
-    // MARK: - Audio session
-
-    /// `.playback` with no options: `.mixWithOthers` or `.duckOthers` would let
-    /// other audio keep the Now Playing claim, which defeats the purpose.
-    private func activateSession() -> Bool {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(.playback, mode: .default, options: [])
-            try session.setActive(true)
-        } catch {
-            print("Now Playing session failed to activate: \(error.localizedDescription)")
-            return false
-        }
-        return startSilentLoop()
-    }
-
-    private func startSilentLoop() -> Bool {
-        do {
-            let player = try AVAudioPlayer(
-                data: Self.silentLoopWAV,
-                fileTypeHint: AVFileType.wav.rawValue
-            )
-            player.numberOfLoops = -1
-            player.volume = 0
-            guard player.play() else { return false }
-            silentPlayer = player
-            return true
-        } catch {
-            print("Now Playing silent loop failed: \(error.localizedDescription)")
-            return false
-        }
-    }
-
-    /// One second of 44.1 kHz mono PCM silence with a WAV header, built in
-    /// memory — no bundled asset to keep in sync across targets.
-    private static let silentLoopWAV: Data = makeSilentPCMWAV(seconds: 1)
-
-    private static func makeSilentPCMWAV(seconds: Double) -> Data {
-        let sampleRate = 44_100
-        let channels = 1
-        let bitsPerSample = 16
-        let bytesPerFrame = channels * bitsPerSample / 8
-        let audioBytes = Int(Double(sampleRate) * seconds) * bytesPerFrame
-
-        var data = Data(capacity: 44 + audioBytes)
-        func append32(_ value: UInt32) { withUnsafeBytes(of: value.littleEndian) { data.append(contentsOf: $0) } }
-        func append16(_ value: UInt16) { withUnsafeBytes(of: value.littleEndian) { data.append(contentsOf: $0) } }
-
-        data.append(contentsOf: Array("RIFF".utf8))
-        append32(UInt32(36 + audioBytes))
-        data.append(contentsOf: Array("WAVE".utf8))
-        data.append(contentsOf: Array("fmt ".utf8))
-        append32(16)                                     // PCM header length
-        append16(1)                                      // PCM, uncompressed
-        append16(UInt16(channels))
-        append32(UInt32(sampleRate))
-        append32(UInt32(sampleRate * bytesPerFrame))     // byte rate
-        append16(UInt16(bytesPerFrame))                  // block align
-        append16(UInt16(bitsPerSample))
-        data.append(contentsOf: Array("data".utf8))
-        append32(UInt32(audioBytes))
-        data.append(Data(count: audioBytes))
-        return data
-    }
-
-    /// A phone call (or Siri, or another app grabbing output) suspends the
-    /// silent loop; without resuming it the card silently disappears. Media
-    /// services resetting invalidates the player entirely.
-    private func observeSessionEvents() {
-        let center = NotificationCenter.default
-        observers.append(center.addObserver(
-            forName: AVAudioSession.interruptionNotification,
-            object: AVAudioSession.sharedInstance(),
-            queue: .main
-        ) { [weak self] notification in
-            guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
-                  AVAudioSession.InterruptionType(rawValue: raw) == .ended else { return }
-            Task { @MainActor in self?.resumeSilentLoop() }
-        })
-
-        observers.append(center.addObserver(
-            forName: AVAudioSession.mediaServicesWereResetNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.isActive else { return }
-                // The player object doesn't survive a media services reset.
-                self.silentPlayer = nil
-                self.resumeSilentLoop()
-            }
-        })
-    }
-
-    private func resumeSilentLoop() {
-        guard isActive else { return }
-        let session = AVAudioSession.sharedInstance()
-        // The borrower may have left a different category behind (`.duckOthers`
-        // in the preview's case), which forfeits the Now Playing claim.
-        try? session.setCategory(.playback, mode: .default, options: [])
-        try? session.setActive(true)
-        if silentPlayer?.play() != true {
-            silentPlayer = nil
-            _ = activateSession()
-        }
-        published = nil
-        publish()
     }
 
     // MARK: - Volume
@@ -584,47 +477,21 @@ final class NowPlayingSessionService {
             canSeek: allows(.scrubbable, in: group)
         )
 
-        // The info center interpolates elapsed time from the last anchor and the
-        // playback rate, so a republish is only needed when the card's content
-        // changed or when the *speaker* reported a position that disagrees with
-        // what the system is already showing (a seek, or a skip we didn't
-        // initiate).
-        //
-        // `modelMoved` is what makes that safe. `Room.playbackPosition` only
-        // advances when something writes it — the socket, or the SOAP poll, which
-        // is cancelled while backgrounded. So in the background the model sits
-        // frozen at the last reported position while the system's interpolation
-        // correctly moves on. Re-anchoring on that difference would drag the
-        // scrubber back to the frozen value every time, which reads as playback
-        // having stopped. Only a position the speaker has actually updated is
-        // worth re-anchoring to.
-        let modelElapsed = room.playbackPosition
-        let modelMoved = modelElapsed != lastModelElapsed
-        lastModelElapsed = modelElapsed
-        let interpolated = published?.isPlaying == true
-            ? publishedElapsed + Date.now.timeIntervalSince(publishedAt) * 1000
-            : publishedElapsed
-        let drifted = modelMoved && abs(modelElapsed - interpolated) > 2000
-        guard snapshot != published || drifted else { return }
-
-        // Which position to publish. The speaker's number is authoritative only
-        // when it just arrived; otherwise the system's own interpolation is the
-        // better estimate, because the model is frozen between socket events.
-        //
-        // This is what pausing used to get wrong. Pause changes the snapshot, so
-        // it publishes — and it published the *stale* model position, snapping
-        // the scrubber back to wherever the last playbackStatus happened to land
-        // (often the start of the track). Carrying the interpolation forward
-        // pauses the card where the music actually is.
-        var elapsed = max(modelMoved ? modelElapsed : interpolated, 0)
-        if snapshot.duration > 0 { elapsed = min(elapsed, snapshot.duration) }
+        // Elapsed time is not pushed on a timer — the info center interpolates
+        // from the anchor and the rate — so a republish is only needed when the
+        // card's content changed, or when the speaker reported a position far
+        // enough from what the system already shows to be worth correcting.
+        let position = positionAnchor.resolve(
+            modelElapsed: room.playbackPosition,
+            duration: snapshot.duration
+        )
+        guard snapshot != published || position.drifted else { return }
 
         if snapshot != published {
             updateCommandAvailability(snapshot)
         }
         published = snapshot
-        publishedElapsed = elapsed
-        publishedAt = .now
+        positionAnchor.commit(elapsed: position.elapsed, isPlaying: snapshot.isPlaying)
 
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: snapshot.title,
@@ -638,7 +505,7 @@ final class NowPlayingSessionService {
         // Sonos reports positions and durations in milliseconds.
         if snapshot.duration > 0 {
             info[MPMediaItemPropertyPlaybackDuration] = snapshot.duration / 1000
-            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed / 1000
+            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = position.elapsed / 1000
             info[MPNowPlayingInfoPropertyIsLiveStream] = false
         } else {
             // Radio and line-in have no timeline — a duration of 0 would render
@@ -726,7 +593,7 @@ final class NowPlayingSessionService {
         let info = MPNowPlayingInfoCenter.default()
         print("""
         🎛 NowPlaying — \(context)
-           session: category=\(session.category.rawValue) active=\(silentPlayer?.isPlaying == true) \
+           session: category=\(session.category.rawValue) held=\(audioSession.isHeld) \
         otherAudio=\(session.isOtherAudioPlaying)
            commands: play=\(center.playCommand.isEnabled) pause=\(center.pauseCommand.isEnabled) \
         toggle=\(center.togglePlayPauseCommand.isEnabled) next=\(center.nextTrackCommand.isEnabled) \

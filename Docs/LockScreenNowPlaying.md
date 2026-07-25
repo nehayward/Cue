@@ -253,21 +253,32 @@ Echo filtering differs by mode for the same reason: relative can compare against
 group in ~6-point steps (the system has 16), not the 1-point steps of the player
 screen.
 
-## Deliberately deferred
+## Shape
 
-Reviewed against SOLID; these were judged not worth the churn *yet*, and are
-recorded so the next person doesn't have to rediscover them:
+| Type | Job |
+|---|---|
+| `NowPlayingSessionService` | Coordinator: gating, which group to mirror, the observation loop, publishing, commands, favorites |
+| `SilentAudioSession` | The audio claim — session category, the silence it plays, recovery from interruptions and media-services resets |
+| `PlaybackPositionAnchor` (SonosKit) | When to re-state elapsed time and what to state. Pure value type, covered by `PlaybackPositionAnchorTests` |
+| `AudioSessionArbiter` | How a song preview hands the session back without knowing the feature exists |
 
-- **`NowPlayingSessionService` still holds ~8 jobs** (gating, target policy,
-  observation, session lifecycle, WAV encoding, publishing, artwork, commands,
-  favorites). The highest-value split is `SilentAudioSession` (session lifecycle
-  + `makeSilentPCMWAV`, ~110 lines, no external call sites) followed by a
-  `NowPlayingPositionAnchor` value type for the interpolation maths — the only
-  genuinely subtle logic here, and currently unreachable from a test.
-- **Constructor injection.** Every collaborator is a singleton reached through
-  `.shared`, so nothing in this file is testable without a device and a Sonos
-  system. `init(sonos:router:subscription:…)` with defaults would fix that
-  without touching a call site.
+`SilentAudioSession` and `PlaybackPositionAnchor` came out of the service
+because neither knows anything about Sonos or the card — one is an audio
+lifecycle, the other arithmetic. The anchor lives in SonosKit rather than the
+app so it has somewhere to be tested: there is no app-side unit-test target, so
+an extraction "for testability" that stayed in the app target would have been
+hollow. Its logic caused two visible bugs (the scrubber appearing to stop, and
+pausing snapping it to the start of the track); both are now pinned by tests.
+
+## Still deferred
+
+Judged not worth the churn yet, recorded so the next person doesn't rediscover
+them:
+
+- **Constructor injection.** Every collaborator is still a singleton reached
+  through `.shared`, so the coordinator itself isn't testable.
+  `init(sonos:router:subscription:…)` with defaults would fix that without
+  touching a call site.
 - **The command table.** `registerCommands`, `updateCommandAvailability` and
   `unregisterCommands` each enumerate the commands separately; adding one means
   editing three places.
@@ -282,8 +293,8 @@ recorded so the next person doesn't have to rediscover them:
 
 After the dependency inversions, no pre-existing type names it. To remove:
 
-1. Delete `NowPlayingSessionService.swift`, `AudioSessionArbiter.swift`, and
-   `Docs/LockScreenNowPlaying.md`.
+1. Delete `NowPlayingSessionService.swift`, `SilentAudioSession.swift`,
+   `AudioSessionArbiter.swift`, and `Docs/LockScreenNowPlaying.md`.
 2. Delete the `activate()` call in `ClicApp.onAppear`, the preference row and
    its `Binding` in `PreferenceScreen`, the `lockScreenNowPlaying` key, and
    `UIBackgroundModes` from `Info.plist`.
@@ -294,7 +305,9 @@ After the dependency inversions, no pre-existing type names it. To remove:
 
 What stays, because it's independent of the Lock Screen and fixes real
 foreground behaviour: the whole `SonosService+LiveListening` registry, the
-socket event handlers in `SonosService+SonosEventHandler`, and `SuperBadge`.
+socket event handlers in `SonosService+SonosEventHandler`, `SuperBadge`, and
+`PlaybackPositionAnchor` (a general utility any media surface can use — the
+Live Activity has the same interpolation problem).
 
 ## Not done yet
 
