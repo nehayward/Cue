@@ -270,6 +270,41 @@ an extraction "for testability" that stayed in the app target would have been
 hollow. Its logic caused two visible bugs (the scrubber appearing to stop, and
 pausing snapping it to the start of the track); both are now pinned by tests.
 
+## Modern-API and performance notes
+
+Deployment target is **iOS 17**, so nothing here uses an 18+ API.
+
+- **Audio-session activation is off the main actor.** `setActive` is a
+  synchronous XPC round trip to mediaserverd — routinely 100 ms, longer when it
+  has to interrupt other audio — and `activate()` runs during launch. Only the
+  session call is detached; the `AVAudioPlayer` is built on the main actor,
+  where it's a cheap in-memory init. `run()` doesn't wait: the socket and the
+  volume bridge don't depend on the session, and `publish()` no-ops until
+  `isActive`. A generation stamp retires a bring-up that `stop()` beat.
+- **Notifications are async sequences**, not block observers with tokens. The
+  loop bodies inherit the actor, so there's no `assumeIsolated` to be wrong
+  about — which matters, because it traps rather than warns if a notification
+  ever arrives off-main. Cancelling the task is the teardown.
+- **One observation pass resolves the target once.** `resolveTarget()` scans and
+  sorts the groups; doing it once for the decision and again to register the
+  reads doubled that on every model change. Resolving *inside* the tracking
+  closure gives one pass, and registers exactly the reads that produced the
+  answer.
+- **`os.Logger`, not `print`.** Interpolations aren't evaluated unless something
+  is collecting, so the diagnostics cost nothing in a release build and don't
+  need a `#if DEBUG` fence. One-line message literals: `OSLogMessage` wants a
+  static format string.
+- Also: the silent WAV is a `static let` rather than rebuilt per activation; the
+  `UISlider` is resolved once per attach instead of walking `subviews` on every
+  read; artwork is held locally rather than read back out of `nowPlayingInfo`
+  (whose getter copies the whole dictionary across to MediaRemote); and the
+  artwork request matches `ArtworkView`'s cache key and processor so the card
+  reuses the image the player screen already decoded.
+
+`HardwareVolumeService.appEvents()` is left as-is — it predates this work, it's
+already an `AsyncStream` with correct teardown, and rewriting it would put the
+shipped player-screen path at risk for no gain.
+
 ## Still deferred
 
 Judged not worth the churn yet, recorded so the next person doesn't rediscover

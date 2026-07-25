@@ -1,6 +1,16 @@
 #if os(iOS) && !targetEnvironment(macCatalyst)
 import AVFoundation
 import Foundation
+import os
+
+/// Matches the file-scope logger pattern used elsewhere in the app
+/// (`PlayAction/ActionViewController.swift`). File scope rather than a static
+/// member so the detached session work can log without crossing actor
+/// isolation.
+private let log = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "com.nick.Clic",
+    category: "SilentAudioSession"
+)
 
 /// Holds an active `.playback` audio session playing silence, so iOS treats this
 /// app as the one producing audio.
@@ -22,7 +32,9 @@ final class SilentAudioSession {
     var onRestored: (() -> Void)?
 
     private var player: AVAudioPlayer?
-    private var observers: [NSObjectProtocol] = []
+    /// One task per notification stream; cancelling them is the teardown, so
+    /// there are no observer tokens to keep straight.
+    private var interruptionTasks: [Task<Void, Never>] = []
 
     private(set) var isHeld = false
 
@@ -30,10 +42,15 @@ final class SilentAudioSession {
 
     /// Takes the session. Returns false if the system refused it, in which case
     /// nothing is held and the caller should not proceed.
+    ///
+    /// Async because `setActive` is a synchronous XPC round trip to
+    /// mediaserverd — routinely 100 ms, longer when it has to interrupt other
+    /// audio — and this runs during launch. Only the session call goes off the
+    /// main actor; the player is built here, where it's a cheap in-memory init.
     @discardableResult
-    func start() -> Bool {
+    func start() async -> Bool {
         guard !isHeld else { return true }
-        guard configureSession(), startLoop() else { return false }
+        guard await Self.configureSession(), startLoop() else { return false }
         observeInterruptions()
         isHeld = true
         return true
@@ -44,18 +61,22 @@ final class SilentAudioSession {
         isHeld = false
         player?.stop()
         player = nil
-        for observer in observers { NotificationCenter.default.removeObserver(observer) }
-        observers.removeAll()
-        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+        for task in interruptionTasks { task.cancel() }
+        interruptionTasks.removeAll()
+        // Off the main actor for the same reason as activation, and nothing is
+        // waiting on the result.
+        Task.detached(priority: .utility) {
+            try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+        }
     }
 
     /// Re-takes the session after something else borrowed it — a song preview
     /// that ducked and then deactivated, an interruption that ended, a media
     /// services reset. Restores the category too: a borrower may have left
     /// `.duckOthers` behind, which forfeits the Now Playing claim.
-    func reclaim() {
+    func reclaim() async {
         guard isHeld else { return }
-        _ = configureSession()
+        _ = await Self.configureSession()
         if player?.play() != true {
             player = nil
             _ = startLoop()
@@ -68,16 +89,18 @@ final class SilentAudioSession {
     /// `.playback` with no options on purpose: `.mixWithOthers` and
     /// `.duckOthers` both let other audio keep the Now Playing claim, which is
     /// the one thing this exists to hold.
-    private func configureSession() -> Bool {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(.playback, mode: .default, options: [])
-            try session.setActive(true)
-            return true
-        } catch {
-            print("Silent audio session failed to activate: \(error.localizedDescription)")
-            return false
-        }
+    private static func configureSession() async -> Bool {
+        await Task.detached(priority: .userInitiated) {
+            let session = AVAudioSession.sharedInstance()
+            do {
+                try session.setCategory(.playback, mode: .default, options: [])
+                try session.setActive(true)
+                return true
+            } catch {
+                log.error("Session failed to activate: \(error.localizedDescription, privacy: .public)")
+                return false
+            }
+        }.value
     }
 
     private func startLoop() -> Bool {
@@ -89,7 +112,7 @@ final class SilentAudioSession {
             self.player = player
             return true
         } catch {
-            print("Silent audio loop failed: \(error.localizedDescription)")
+            log.error("Silent loop failed: \(error.localizedDescription, privacy: .public)")
             return false
         }
     }
@@ -100,27 +123,23 @@ final class SilentAudioSession {
     private func observeInterruptions() {
         let center = NotificationCenter.default
 
-        observers.append(center.addObserver(
-            forName: AVAudioSession.interruptionNotification,
-            object: AVAudioSession.sharedInstance(),
-            queue: .main
-        ) { [weak self] notification in
-            guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
-                  AVAudioSession.InterruptionType(rawValue: raw) == .ended else { return }
-            MainActor.assumeIsolated { self?.reclaim() }
-        })
-
-        observers.append(center.addObserver(
-            forName: AVAudioSession.mediaServicesWereResetNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self, self.isHeld else { return }
-                self.player = nil
-                self.reclaim()
-            }
-        })
+        interruptionTasks = [
+            Task { [weak self] in
+                for await notification in center.notifications(named: AVAudioSession.interruptionNotification) {
+                    guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                          AVAudioSession.InterruptionType(rawValue: raw) == .ended else { continue }
+                    await self?.reclaim()
+                }
+            },
+            Task { [weak self] in
+                for await _ in center.notifications(named: AVAudioSession.mediaServicesWereResetNotification) {
+                    guard let self, self.isHeld else { continue }
+                    // The player object doesn't survive a reset.
+                    self.player = nil
+                    await self.reclaim()
+                }
+            },
+        ]
     }
 
     // MARK: - Silence
