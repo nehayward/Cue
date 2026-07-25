@@ -208,7 +208,7 @@ sides have to participate:
   player screen never reached the card.
 - Reads follow the store. The card's `refreshFavorite` only queried the service
   on a *song* change, so it never noticed a like made elsewhere on the current
-  song; it now adopts the store's value for the same song, and `trackModelState()`
+  song; it now adopts the store's value for the same song, and the observation pass
   reads the store so the write wakes the observation.
 
 `MusicService+Favorite.swift` and `LikeButtonView.swift` are both byte-identical
@@ -242,7 +242,7 @@ headroom — fine for hardware buttons, useless for a Lock Screen slider: its
 position means nothing, a drag registers as a single step, and once it pins at 0
 or 1 further presses do nothing. Absolute makes the phone's volume *be* the
 group's volume, scaled: `syncSystemVolume()` mirrors the group's level onto the
-slider (driven from `trackModelState`, so a change made on the speaker or in the
+slider (driven from the observation pass, so a change made on the speaker or in the
 Sonos app follows), and a user change is sent as a level via `setGroupVolume`.
 Sends are coalesced — a drag emits a KVO callback every few pixels and only the
 last value matters.
