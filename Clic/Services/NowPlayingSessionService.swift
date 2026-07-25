@@ -1,5 +1,6 @@
 #if os(iOS) && !targetEnvironment(macCatalyst)
 import AVFoundation
+import Defaults
 import MediaPlayer
 import Nuke
 import Observation
