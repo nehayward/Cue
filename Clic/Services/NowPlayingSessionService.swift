@@ -210,35 +210,6 @@ final class NowPlayingSessionService {
         return nil
     }
 
-    /// Makes tapping the Now Playing card land on the mirrored speaker.
-    ///
-    /// The card carries no tap URL — iOS just foregrounds the app, and there's no
-    /// signal saying the launch came from the card — so intercepting activation
-    /// would mean yanking the user to the player on *every* return to the app,
-    /// including after a phone call. Instead the selection is pointed at the group
-    /// while it's being mirrored, so the app is already on that speaker whenever
-    /// it opens, from the card or anywhere else.
-    ///
-    /// In the background it always follows the card: the card just switched to
-    /// the playing group, and a tap has to land there. That the in-app selection
-    /// moves with it is the point — it keeps the card, the selection, and the
-    /// volume bridge pointed at one speaker.
-    ///
-    /// In the foreground it only fills an empty or idle selection.
-    /// `resolveTarget` prefers the selection there, so writing over a live one
-    /// would drag the user off the speaker they're looking at.
-    private func pointSelectionAtMirroredGroup(_ group: GroupRoom) {
-        let router = Router.main
-        guard router.selectedID != group.coordinatorID else { return }
-        if isForeground {
-            let selected = router.selectedID.flatMap { id in
-                SonosService.shared.groups.first(where: { $0.coordinatorID == id })
-            }
-            if let selected, isMirrorable(selected) { return }
-        }
-        router.selectedID = group.coordinatorID
-    }
-
     /// TV mode has no transport to mirror and an empty track means the speaker is
     /// idle — neither is worth holding the audio session for.
     private func isMirrorable(_ group: GroupRoom) -> Bool {
@@ -318,7 +289,12 @@ final class NowPlayingSessionService {
         self.group = group
         self.sonosService = sonosService
 
-        pointSelectionAtMirroredGroup(group)
+        // Nothing here writes `Router.main.selectedID`. It used to, so that a tap
+        // on the card landed on the mirrored speaker — but the selection is also
+        // how the speaker list drives navigation, and popping back to the list
+        // sets it to nil. That fired this observation, which wrote the id
+        // straight back and pushed the player again, so there was no way out of
+        // the player. The card is a mirror; it only reads.
 
         if isNewTarget {
             published = nil

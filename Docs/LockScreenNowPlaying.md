@@ -109,23 +109,27 @@ title and artist and stops — so it's the only place the speaker name can appea
 The album line still carries the real album for the surfaces that do show it
 (Control Centre, CarPlay).
 
-## Tapping the card
+## Tapping the card (not implemented — and why the obvious way is a trap)
 
-The Now Playing card carries no tap URL — iOS simply foregrounds the app, and
-gives no signal that the launch came from the card. Intercepting
-`didBecomeActive` would therefore route the user to the player on *every* return
-to the app (after a phone call, after a share sheet), which is worse than not
-doing it.
+Tapping the card just foregrounds the app, wherever it was. The card carries no
+tap URL and iOS gives no signal that a launch came from it, so there is nothing
+to route on.
 
-Instead `pointSelectionAtMirroredGroup` keeps `Router.main.selectedID` on the
-group being mirrored, so the app is already on that speaker whenever it opens —
-from the card or otherwise. `ClicApp` persists the selection to
-`AppStorageKeys.savedGroupID` and restores it at launch, so this survives a cold
-start too.
+**Do not route by writing `Router.main.selectedID`.** That was tried: keep the
+selection on the mirrored group, and the app is always already on that speaker.
+It bricks navigation. The selection is also what the speaker list uses to drive
+the split view, so popping back to the list sets it to `nil` — which fires this
+service's observation, which writes the id straight back, which pushes the player
+again. The user cannot get out of the player to change speakers.
 
-It only fills a selection that isn't already showing something mirrorable:
-`resolveTarget()` *prefers* the selection, so overwriting a live one would let
-the card drag the user off the speaker they were looking at.
+Anything that writes shared navigation state from here has the same shape, since
+`resolveTarget()` *reads* the selection: a write feeds its own trigger. **The card
+is a mirror. It only reads.**
+
+If routing on launch is wanted, the app already has an opt-in for it —
+`AppStorageKeys.speedLaunchNowPlaying` routes `clic://playing` on scene
+activation. That fires once per activation rather than on every selection change,
+so it can't fight in-app navigation.
 
 ## Why it doesn't poll
 

@@ -1,7 +1,7 @@
 # 2026.7
 
 –– New Features ––
-- Lock Screen Controls (Super): Turn it on in Preferences ▸ Playback and what's playing on Sonos shows up on your iPhone's Lock Screen and in Control Center — artwork, song, and the speaker it's playing on, with play/pause, skip, and scrubbing. The volume buttons and the Lock Screen slider control that speaker's volume, and tapping the card opens Clic on it. With several rooms playing, the card follows whichever one is playing while your phone is locked, and stays on the speaker you're viewing while you're in the app. It all keeps working with the app closed. Note that while it's on, Clic takes over your iPhone's audio
+- Lock Screen Controls (Super): Turn it on in Preferences ▸ Playback and what's playing on Sonos shows up on your iPhone's Lock Screen and in Control Center — artwork, song, and the speaker it's playing on, with play/pause, skip, and scrubbing. The volume buttons and the Lock Screen slider control that speaker's volume. With several rooms playing, the card follows whichever one is playing while your phone is locked, and stays on the speaker you're viewing while you're in the app. It all keeps working with the app closed. Note that while it's on, Clic takes over your iPhone's audio
 - Sonos Radio: Search Sonos Radio stations and browse them by genre, then play any station on any room or group — the SONOS badge appears on the artwork, and the station's artwork is shown during ad breaks
 - Smarter Services settings: the Services screen now shows what's actually on your Sonos — services you've authorized get show/hide toggles, ones you haven't set up yet link straight to the Sonos app to sign in, and services Clic doesn't support yet are listed too. Pull down to refresh after adding one
 
