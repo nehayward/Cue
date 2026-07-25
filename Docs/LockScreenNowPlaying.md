@@ -51,7 +51,7 @@ Non-negotiables learned the hard way:
 Clic Super. The check lives in `isEnabled` — preference **and** active
 subscription — not only on the toggle, because this is a feature that keeps
 running with the app closed: a subscription that lapses mid-session has to tear
-it down, and a toggle can't do that. `trackModelState()` reads `isEnabled`, so the
+it down, and a toggle can't do that. `trackCardState` reads `isEnabled`, so the
 `@Observable` write when a purchase, restore, or expiry lands re-evaluates on its
 own. That also covers cold launch, where `checkSubscription()` hasn't returned
 yet and the session simply starts a moment later.
@@ -66,7 +66,7 @@ they can't clear.
 
 `activate()` is called once from `ClicApp.onAppear`; from there the service
 watches the model itself with a self-re-arming `withObservationTracking` pass
-over `trackModelState()` (target group, track identity, artwork URL, duration,
+over the target and `trackCardState` (track identity, artwork URL, duration,
 isPlaying, station, available actions — deliberately *not* `playbackPosition`,
 which ticks). The preference is read from `UserDefaults` and re-evaluated on
 `didChangeNotification`, so the toggle needs no wiring of its own.
