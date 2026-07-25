@@ -45,6 +45,22 @@ Non-negotiables learned the hard way:
   left behind. Same for interruptions (`.ended`) and
   `mediaServicesWereResetNotification`.
 
+## Gating
+
+Clic Super. The check lives in `isEnabled` — preference **and** active
+subscription — not only on the toggle, because this is a feature that keeps
+running with the app closed: a subscription that lapses mid-session has to tear
+it down, and a toggle can't do that. `trackedState()` reads `isEnabled`, so the
+`@Observable` write when a purchase, restore, or expiry lands re-evaluates on its
+own. That also covers cold launch, where `checkSubscription()` hasn't returned
+yet and the session simply starts a moment later.
+
+In Preferences the row carries a `SuperBadge` while unsubscribed, and enabling
+presents the paywall *without writing the preference* — so the toggle snaps back
+by itself and the service never sees a value it would have to undo. Turning it
+off always goes through, so a lapsed subscriber isn't stuck with a preference
+they can't clear.
+
 ## Ownership: not the view layer
 
 `activate()` is called once from `ClicApp.onAppear`; from there the service

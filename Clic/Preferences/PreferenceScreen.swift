@@ -362,17 +362,7 @@ struct PreferenceScreen: View {
                             HStack {
                                 Text("Scenes")
                                 Spacer()
-                                Text("Super")
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .textCase(.uppercase)
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color.accentColor.gradient)
-                                    )
+                                SuperBadge()
                             }
                         } icon: {
                             Image(systemName: "bolt.fill")
@@ -421,9 +411,14 @@ struct PreferenceScreen: View {
                     }
 #if os(iOS) && !targetEnvironment(macCatalyst)
                     Label {
-                        Toggle(isOn: $lockScreenNowPlaying) {
+                        Toggle(isOn: lockScreenNowPlayingBinding) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Lock Screen Controls")
+                                HStack(spacing: 6) {
+                                    Text("Lock Screen Controls")
+                                    if !subscriptionService.subscription.isActive {
+                                        SuperBadge()
+                                    }
+                                }
                                 Text("Show the playing speaker on the Lock Screen and in Control Center. Clic takes over your iPhone's audio and volume while a speaker is playing.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -1053,6 +1048,31 @@ struct PreferenceScreen: View {
             : latestReleaseHeadline
     }
 
+    /// Lock Screen Controls is Clic Super. Enabling without a subscription
+    /// presents the paywall and leaves the stored value alone, so the toggle
+    /// snaps back on its own — no write, and nothing for
+    /// `NowPlayingSessionService` to pick up and immediately undo. Turning it
+    /// *off* always goes through, so a lapsed subscriber isn't stuck with a
+    /// preference they can't clear.
+    private var lockScreenNowPlayingBinding: Binding<Bool> {
+        Binding(
+            get: { lockScreenNowPlaying },
+            set: { isOn in
+                guard isOn else {
+                    lockScreenNowPlaying = false
+                    return
+                }
+                guard subscriptionService.subscription.isActive else {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    Analytics.shared.track(.viewedPaywall)
+                    router.presentedFullScreenCover = .paywall
+                    return
+                }
+                lockScreenNowPlaying = true
+            }
+        )
+    }
+
     private var subscriptionStatusLine: Text {
         let info = subscriptionService.subscription.info
         let plan = info.flatMap { planName(for: $0.productIdentifier) }
@@ -1253,6 +1273,23 @@ struct PreferenceScreen: View {
         } catch {
             print("Request failed with error: \(error)")
         }
+    }
+}
+
+/// The capsule that marks a Clic Super feature in Preferences.
+struct SuperBadge: View {
+    var body: some View {
+        Text("Super")
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .textCase(.uppercase)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Color.accentColor.gradient)
+            )
     }
 }
 

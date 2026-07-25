@@ -5,6 +5,7 @@ import MediaPlayer
 import Nuke
 import Observation
 import SonosKit
+import SubscriptionKit
 import UIKit
 
 /// Mirrors a Sonos group onto the system Now Playing card — Lock Screen,
@@ -67,7 +68,7 @@ final class NowPlayingSessionService {
     @ObservationIgnored private var volumeView: MPVolumeView?
     @ObservationIgnored private var hasActivated = false
     @ObservationIgnored private var preferenceObserver: NSObjectProtocol?
-    @ObservationIgnored private var lastKnownEnabled = false
+    @ObservationIgnored private var lastKnownPreference = false
     @ObservationIgnored private var observationGeneration = 0
     @ObservationIgnored private var appStateObservers: [NSObjectProtocol] = []
     /// Drives the target pick — the selection wins on screen, the music wins on
@@ -115,16 +116,18 @@ final class NowPlayingSessionService {
 
         // `didChangeNotification` fires for every `@AppStorage` write anywhere in
         // the app, so filter down to an actual change of *this* flag rather than
-        // re-evaluating on unrelated preference traffic.
-        lastKnownEnabled = isEnabled
+        // re-evaluating on unrelated preference traffic. Only the preference is
+        // compared here — the subscription half of `isEnabled` is observed, and
+        // arrives through `trackedState()` instead.
+        lastKnownPreference = isPreferenceOn
         preferenceObserver = NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification,
             object: UserDefaults.standard,
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                guard let self, self.isEnabled != self.lastKnownEnabled else { return }
-                self.lastKnownEnabled = self.isEnabled
+                guard let self, self.isPreferenceOn != self.lastKnownPreference else { return }
+                self.lastKnownPreference = self.isPreferenceOn
                 self.evaluate()
             }
         }
@@ -161,8 +164,19 @@ final class NowPlayingSessionService {
         evaluate()
     }
 
-    private var isEnabled: Bool {
+    private var isPreferenceOn: Bool {
         UserDefaults.standard.bool(forKey: AppStorageKeys.lockScreenNowPlaying)
+    }
+
+    /// Clic Super, and the preference. Gated here rather than only at the toggle
+    /// so a subscription that lapses while the preference is still on tears the
+    /// session down — the toggle can't be the source of truth for something that
+    /// keeps running with the app closed.
+    ///
+    /// `trackedState()` reads this, so the `@Observable` subscription write on
+    /// purchase or expiry re-evaluates on its own.
+    private var isEnabled: Bool {
+        isPreferenceOn && SubscriptionService.shared.subscription.isActive
     }
 
     /// The group the card mirrors. iOS has exactly one Now Playing app and one
