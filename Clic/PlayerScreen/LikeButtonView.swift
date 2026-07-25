@@ -10,6 +10,10 @@ struct LikeButtonView: View {
     @State private var plexRating: Double = 0
     @State private var favoriteAnimationTrigger = 0
 
+    // Observable so likes toggled from the Live Activity (whose intents run in
+    // this process) update this button live.
+    private let favoriteStore = LiveActivityFavoriteStore.shared
+
     private var trackID: String { group.coordinatorRoom.track.trackID }
 
     var body: some View {
@@ -23,7 +27,7 @@ struct LikeButtonView: View {
                 plexRatingCache.set(newRating, for: trackID)
                 HapticManager.shared.fireHaptic(newRating > 0 ? .notification(.success) : .selection)
                 if newRating > 0 { favoriteAnimationTrigger += 1 }
-                Task { await MusicSearchService.shared.ratePlexTrack(trackID: trackID, rating: Int(newRating)) }
+                Task { await MusicSearchService.shared.setFavorite(newRating > 0, trackID: trackID, service: .plex) }
             } label: {
                 Label {
                     Text("Favorite")
@@ -40,9 +44,18 @@ struct LikeButtonView: View {
                 let fetched = await MusicSearchService.shared.getPlexTrackRating(trackID: trackID)
                 let rating = fetched ?? 0
                 plexRatingCache.set(rating, for: trackID)
+                LiveActivityFavoriteStore.shared.set(rating > 0, for: trackID)
                 var transaction = Transaction(animation: .none)
                 transaction.disablesAnimations = true
                 withTransaction(transaction) { plexRating = rating }
+            }
+            .onChange(of: favoriteStore.favorites[trackID]) { _, newValue in
+                // Like toggled from the Live Activity — mirror it here.
+                guard let newValue, newValue != (plexRating > 0) else { return }
+                let rating = newValue ? 10.0 : 0.0
+                plexRating = rating
+                plexRatingCache.set(rating, for: trackID)
+                if newValue { favoriteAnimationTrigger += 1 }
             }
             .tint(MusicService.plex.brandColor.gradient)
 
@@ -72,6 +85,12 @@ struct LikeButtonView: View {
                 var transaction = Transaction(animation: .none)
                 transaction.disablesAnimations = true
                 withTransaction(transaction) { isFavorite = result }
+            }
+            .onChange(of: favoriteStore.favorites[trackID]) { _, newValue in
+                // Like toggled from the Live Activity — mirror it here.
+                guard let newValue, newValue != isFavorite else { return }
+                isFavorite = newValue
+                if newValue { favoriteAnimationTrigger += 1 }
             }
             .tint(service.brandColor.gradient)
 
@@ -106,31 +125,14 @@ struct LikeButtonView: View {
             )
     }
 
+    // Favorite reads/writes go through MusicSearchService.isFavorite/setFavorite,
+    // which also update LiveActivityFavoriteStore so the Live Activity heart
+    // stays in sync with likes made here.
     private func performAction(service: MusicService, favorite: Bool) async {
-        switch service {
-        case .spotify:
-            if favorite { await MusicSearchService.shared.saveSpotifyTrack(id: trackID) }
-            else { await MusicSearchService.shared.deleteSpotifyTrack(id: trackID) }
-        case .soundcloud:
-            if favorite { await MusicSearchService.shared.likeSoundCloudTrack(id: trackID) }
-            else { await MusicSearchService.shared.unlikeSoundCloudTrack(id: trackID) }
-        case .deezer:
-            if favorite { await MusicSearchService.shared.likeDeezerTrack(id: trackID) }
-            else { await MusicSearchService.shared.unlikeDeezerTrack(id: trackID) }
-        case .apple:
-            try? await AppleMusicAPI.shared.updateFavoriteStatus(songId: trackID, favorite: favorite)
-        default:
-            break
-        }
+        await MusicSearchService.shared.setFavorite(favorite, trackID: trackID, service: service)
     }
 
     private func checkFavorite(service: MusicService) async -> Bool {
-        switch service {
-        case .spotify: await MusicSearchService.shared.isSpotifyTrackSaved(id: trackID)
-        case .soundcloud: await MusicSearchService.shared.isSoundCloudTrackLiked(id: trackID) ?? false
-        case .apple: (try? await AppleMusicAPI.shared.isFavorite(songId: trackID)) ?? false
-        case .deezer: await MusicSearchService.shared.isDeezerTrackLiked(id: trackID)
-        default: false
-        }
+        await MusicSearchService.shared.isFavorite(trackID: trackID, service: service)
     }
 }

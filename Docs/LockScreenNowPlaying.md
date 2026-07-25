@@ -171,9 +171,20 @@ Plex-by-rating) the player's heart uses, so the two can't diverge. Looked up onc
 per song and seeded from `LiveActivityFavoriteStore`, the app-group cache shared
 with the Live Activity's like button.
 
-`MusicService+Favorite.swift` is byte-identical to the copy on
-`claude/live-activity-like-button-57o9qu`, so if both land git merges them
-without a conflict. Don't "improve" it here — improve it there.
+**`LiveActivityFavoriteStore` is what keeps the surfaces in sync**, and both
+sides have to participate:
+
+- Writes go through `MusicSearchService.setFavorite`, which records the store.
+  `LikeButtonView` used to call the per-service APIs directly, so a like on the
+  player screen never reached the card.
+- Reads follow the store. The card's `refreshFavorite` only queried the service
+  on a *song* change, so it never noticed a like made elsewhere on the current
+  song; it now adopts the store's value for the same song, and `trackedState()`
+  reads the store so the write wakes the observation.
+
+`MusicService+Favorite.swift` and `LikeButtonView.swift` are both byte-identical
+to the copies on `claude/live-activity-like-button-57o9qu`, so if both land git
+merges them without a conflict. Don't "improve" them here — improve them there.
 
 **Where it appears:** surfaces that render feedback commands — CarPlay, some head
 units and accessories. The iOS Lock Screen card has no slot for an app-provided

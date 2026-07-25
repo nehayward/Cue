@@ -241,6 +241,10 @@ final class NowPlayingSessionService {
             // phone's slider — so a change made on the speaker, in the Sonos app,
             // or anywhere else in Clic has to reach `syncSystemVolume`.
             String(group.groupVolume),
+            // Likewise for `likeCommand.isActive`: every favorite path writes
+            // this store, so reading it here is what makes a like made on the
+            // player screen show up on the card, and vice versa.
+            String(LiveActivityFavoriteStore.shared.get(room.track.trackID) ?? false),
         ].joined(separator: "|")
     }
 
@@ -809,13 +813,25 @@ final class NowPlayingSessionService {
             return
         }
 
-        guard favoriteTrackID != track.trackID else { return }
-        favoriteTrackID = track.trackID
         command.isEnabled = true
+        let stored = LiveActivityFavoriteStore.shared.get(track.trackID)
 
-        let cached = LiveActivityFavoriteStore.shared.get(track.trackID) ?? false
-        isFavorite = cached
-        command.isActive = cached
+        // Same song: follow the store. It's written by every favorite path —
+        // the player's heart, the context menus, this command — so this is how a
+        // like made on the player screen reaches the card without either side
+        // knowing about the other. `trackedState()` reads the store too, so the
+        // write wakes the observation that lands here.
+        guard favoriteTrackID != track.trackID else {
+            if let stored, stored != isFavorite {
+                isFavorite = stored
+                command.isActive = stored
+            }
+            return
+        }
+
+        favoriteTrackID = track.trackID
+        isFavorite = stored ?? false
+        command.isActive = isFavorite
 
         favoriteTask?.cancel()
         favoriteTask = Task { [weak self] in
