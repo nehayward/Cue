@@ -69,6 +69,10 @@ final class NowPlayingSessionService {
     @ObservationIgnored private var preferenceObserver: NSObjectProtocol?
     @ObservationIgnored private var lastKnownEnabled = false
     @ObservationIgnored private var observationGeneration = 0
+    @ObservationIgnored private var appStateObservers: [NSObjectProtocol] = []
+    /// Drives the target pick — the selection wins on screen, the music wins on
+    /// the Lock Screen. See `resolveTarget`.
+    @ObservationIgnored private var isForeground = true
 
     /// What the card is currently showing, so repeat events don't rebuild it.
     @ObservationIgnored private var published: Snapshot?
@@ -125,6 +129,35 @@ final class NowPlayingSessionService {
             }
         }
 
+        // Which group the card mirrors depends on foreground vs background (see
+        // `resolveTarget`), so both transitions re-pick. These live for the
+        // process, not per session — unlike the audio observers in `observers`,
+        // which `stop()` tears down.
+        isForeground = UIApplication.shared.applicationState != .background
+        let center = NotificationCenter.default
+        appStateObservers = [
+            center.addObserver(
+                forName: UIApplication.didEnterBackgroundNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.isForeground = false
+                    self?.evaluate()
+                }
+            },
+            center.addObserver(
+                forName: UIApplication.willEnterForegroundNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.isForeground = true
+                    self?.evaluate()
+                }
+            },
+        ]
+
         evaluate()
     }
 
@@ -132,25 +165,35 @@ final class NowPlayingSessionService {
         UserDefaults.standard.bool(forKey: AppStorageKeys.lockScreenNowPlaying)
     }
 
-    /// The group the card mirrors: the selected one, falling back to whatever is
-    /// playing. The selection sticks around after the user leaves a player, so an
-    /// idle selected speaker hands the card over to the music.
+    /// The group the card mirrors. iOS has exactly one Now Playing app and one
+    /// item in it, so with several groups playing only one of them can be on the
+    /// card — this is the pick, and it depends on where the user is:
     ///
-    /// iOS has exactly one Now Playing app and one item in it, so with several
-    /// groups playing at once only one can be on the card. The fallback walks
-    /// `sorted` rather than `groups`: `groups` is in Sonos topology-parse order,
-    /// which is arbitrary and reshuffles when the topology refreshes — two rooms
-    /// playing could hand the card back and forth on an unrelated group change.
-    /// `sorted` is the same order the user sees in the speaker list (and puts
-    /// playing groups first under the `.playing` sort), so the pick is stable and
-    /// explicable.
+    /// - **Foreground:** the selected group wins, even paused. The user is
+    ///   looking at a speaker, and the hardware volume bridge follows the card,
+    ///   so the buttons have to control the speaker on screen.
+    /// - **Background:** the playing group wins. The card is all the user can
+    ///   see, so it should follow the music; a paused selection is only the
+    ///   fallback for when nothing is playing at all.
+    ///
+    /// The playing scan walks `sorted`, not `groups`: `groups` is in Sonos
+    /// topology-parse order, which is arbitrary and reshuffles when the topology
+    /// refreshes — two rooms playing could hand the card back and forth on an
+    /// unrelated group change. `sorted` is the order the user sees in the speaker
+    /// list, so the pick is stable and explicable.
     private func resolveTarget() -> GroupRoom? {
         let sonosService = SonosService.shared
         let selected = Router.main.selectedID.flatMap { id in
             sonosService.groups.first(where: { $0.coordinatorID == id })
         }
+        if isForeground, let selected, isMirrorable(selected) { return selected }
+        if let playing = sonosService.sorted.first(where: { $0.coordinatorRoom.isPlaying && isMirrorable($0) }) {
+            return playing
+        }
+        // Nothing playing anywhere — keep the selection up rather than dropping
+        // the card, so its transport can start it again.
         if let selected, isMirrorable(selected) { return selected }
-        return sonosService.sorted.first { $0.coordinatorRoom.isPlaying && isMirrorable($0) }
+        return nil
     }
 
     /// Makes tapping the Now Playing card land on the mirrored speaker.
@@ -162,16 +205,23 @@ final class NowPlayingSessionService {
     /// while it's being mirrored, so the app is already on that speaker whenever
     /// it opens, from the card or anywhere else.
     ///
-    /// Only fills a selection that isn't already showing something mirrorable:
-    /// `resolveTarget` prefers the selection, so overwriting a live one would let
-    /// the card drag the user off the speaker they were looking at.
+    /// In the background it always follows the card: the card just switched to
+    /// the playing group, and a tap has to land there. That the in-app selection
+    /// moves with it is the point — it keeps the card, the selection, and the
+    /// volume bridge pointed at one speaker.
+    ///
+    /// In the foreground it only fills an empty or idle selection.
+    /// `resolveTarget` prefers the selection there, so writing over a live one
+    /// would drag the user off the speaker they're looking at.
     private func pointSelectionAtMirroredGroup(_ group: GroupRoom) {
         let router = Router.main
         guard router.selectedID != group.coordinatorID else { return }
-        let selected = router.selectedID.flatMap { id in
-            SonosService.shared.groups.first(where: { $0.coordinatorID == id })
+        if isForeground {
+            let selected = router.selectedID.flatMap { id in
+                SonosService.shared.groups.first(where: { $0.coordinatorID == id })
+            }
+            if let selected, isMirrorable(selected) { return }
         }
-        if let selected, isMirrorable(selected) { return }
         router.selectedID = group.coordinatorID
     }
 
@@ -473,12 +523,19 @@ final class NowPlayingSessionService {
         // An idle radio player reports an empty track between songs; the station
         // name is what the rest of the app shows there, so match it.
         let title = !track.song.isEmpty ? track.song : (room.radioStation ?? group.nameWithCount)
+        // The room goes on the artist line because that's the only subtitle the
+        // Lock Screen card actually renders — it shows title and artist and stops
+        // there. The album line still carries the real album for the surfaces
+        // that do show it (Control Centre, CarPlay), so nothing is lost by
+        // borrowing this one.
+        let artistLine = [track.artist, group.nameWithCount]
+            .filter { !$0.isEmpty }
+            .joined(separator: " • ")
+
         let snapshot = Snapshot(
             title: title,
-            artist: track.artist,
-            // The album line is the only spare row on the card — when the track
-            // has no album (radio, TV, line-in) it's more useful as the speaker.
-            album: track.album.isEmpty ? group.nameWithCount : track.album,
+            artist: artistLine,
+            album: track.album,
             roomName: group.nameWithCount,
             duration: track.duration,
             isPlaying: room.isPlaying,

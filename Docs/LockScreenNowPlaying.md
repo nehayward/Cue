@@ -62,25 +62,36 @@ left. `@Observable` notifications don't care whether a view is alive.
 ## Several groups playing at once
 
 iOS has one Now Playing app and one item in it, so only one group can be on the
-card. `resolveTarget()` picks it:
+card. Which one depends on where the user is — the two states want opposite
+things, so `resolveTarget()` gives them opposite answers:
 
-1. The selected group, if it has something loaded — even paused. The selection is
-   what the user is looking at, and the volume bridge follows the card, so in the
-   foreground the buttons should control the speaker on screen.
-2. Otherwise the first *playing* group in `sorted` order.
+| | Rule | Why |
+|---|---|---|
+| **Foreground** | The selected group wins, even paused | The user is looking at a speaker, and the volume bridge follows the card — the buttons have to control what's on screen |
+| **Background** | The playing group wins | The card is all the user can see, so it follows the music |
 
-Two consequences worth knowing before changing this:
+Fallbacks, in order: selection (foreground only) → first playing group in
+`sorted` order → any mirrorable selection. That last one is what keeps a paused
+card up when nothing is playing anywhere; without it, pausing from the Lock
+Screen would drop the card and leave no way to resume.
 
-- **The pick latches.** Once the fallback picks a group,
-  `pointSelectionAtMirroredGroup` writes it to `Router.main.selectedID`, and rule
-  1 then prefers it. So with two rooms playing, the card stays on the one it
-  picked first until that room goes idle, rather than flip-flopping. That's
-  deliberate — but it does mean "the other room" never takes over on its own.
-- **A paused selection outranks a playing group.** Follows from rule 1. If the
-  card should always follow the music instead, the change is to require
-  `isPlaying` in rule 1 and keep the paused selection as a last resort — but note
-  that also re-points the hardware volume buttons away from the speaker on
-  screen, which is why it isn't the default.
+`sorted`, not `groups`: `groups` is in Sonos topology-parse order, which is
+arbitrary and reshuffles on refresh, so two rooms playing could hand the card
+back and forth on an unrelated group change.
+
+The selection follows the card in the background
+(`pointSelectionAtMirroredGroup`), which is what keeps card, selection, and
+volume bridge on one speaker — and what makes a tap on the card land on the
+group it was showing rather than the one that was selected before.
+
+## What the card shows
+
+Title is the song (or the station name for an idle radio player, or the room if
+even that is missing). The **artist line carries the room**: `The Favors •
+Theater`. That line is the only subtitle the Lock Screen card renders — it draws
+title and artist and stops — so it's the only place the speaker name can appear.
+The album line still carries the real album for the surfaces that do show it
+(Control Centre, CarPlay).
 
 ## Tapping the card
 
