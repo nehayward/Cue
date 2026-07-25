@@ -342,9 +342,13 @@ final class NowPlayingSessionService {
             duration: track.duration,
             isPlaying: room.isPlaying,
             artworkURL: track.artworkURL,
-            canSkip: group.availableActions.contains(.next),
-            canSkipBack: group.availableActions.contains(.previous),
-            canSeek: group.availableActions.contains(.scrubbable)
+            // An empty action set means "not fetched yet", not "nothing is
+            // allowed" — `getCurrentTransportActions` only lands on the first
+            // `updateGroups` pass. Treating unknown as unavailable stripped the
+            // skip buttons off the card on launch and never put them back.
+            canSkip: allows(.next, in: group),
+            canSkipBack: allows(.previous, in: group),
+            canSeek: allows(.scrubbable, in: group)
         )
 
         // The info center interpolates elapsed time from the last anchor and the
@@ -393,6 +397,9 @@ final class NowPlayingSessionService {
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         MPNowPlayingInfoCenter.default().playbackState = snapshot.isPlaying ? .playing : .paused
+        #if DEBUG
+        logDiagnostics("published \(snapshot.title)")
+        #endif
 
         if publishedArtworkURL != snapshot.artworkURL {
             loadArtwork(from: snapshot.artworkURL)
@@ -430,6 +437,29 @@ final class NowPlayingSessionService {
         MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyArtwork] = artwork
     }
 
+    #if DEBUG
+    /// The card's contents and its control row come from two different places —
+    /// `nowPlayingInfo` and the command centre — and a missing button looks
+    /// identical to a missing session. This prints both so they can be told
+    /// apart from the console.
+    private func logDiagnostics(_ context: String) {
+        let session = AVAudioSession.sharedInstance()
+        let center = MPRemoteCommandCenter.shared()
+        let info = MPNowPlayingInfoCenter.default()
+        print("""
+        🎛 NowPlaying — \(context)
+           session: category=\(session.category.rawValue) active=\(silentPlayer?.isPlaying == true) \
+        otherAudio=\(session.isOtherAudioPlaying)
+           commands: play=\(center.playCommand.isEnabled) pause=\(center.pauseCommand.isEnabled) \
+        toggle=\(center.togglePlayPauseCommand.isEnabled) next=\(center.nextTrackCommand.isEnabled) \
+        prev=\(center.previousTrackCommand.isEnabled) scrub=\(center.changePlaybackPositionCommand.isEnabled)
+           info: rate=\(info.nowPlayingInfo?[MPNowPlayingInfoPropertyPlaybackRate] ?? "nil") \
+        duration=\(info.nowPlayingInfo?[MPMediaItemPropertyPlaybackDuration] ?? "nil") \
+        state=\(info.playbackState.rawValue)
+        """)
+    }
+    #endif
+
     // MARK: - Remote commands
 
     /// Handlers are delivered on the main thread, hence `assumeIsolated` rather
@@ -438,6 +468,18 @@ final class NowPlayingSessionService {
     /// control.
     private func registerCommands() {
         let center = MPRemoteCommandCenter.shared()
+
+        // Enabled up front, not left to the first `publish()`. iOS reads the
+        // command set when it builds the card, which can happen before any
+        // playback state has been resolved — a command that isn't enabled by
+        // then simply has no button, and enabling it later doesn't always bring
+        // the row back.
+        center.playCommand.isEnabled = true
+        center.pauseCommand.isEnabled = true
+        center.togglePlayPauseCommand.isEnabled = true
+        center.nextTrackCommand.isEnabled = true
+        center.previousTrackCommand.isEnabled = true
+        center.changePlaybackPositionCommand.isEnabled = true
 
         center.playCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
@@ -542,6 +584,10 @@ final class NowPlayingSessionService {
             self.isFavorite = favorite
             MPRemoteCommandCenter.shared().likeCommand.isActive = favorite
         }
+    }
+
+    private func allows(_ action: AvailableActions, in group: GroupRoom) -> Bool {
+        group.availableActions.isEmpty || group.availableActions.contains(action)
     }
 
     private func canFavorite(_ track: Track) -> Bool {
