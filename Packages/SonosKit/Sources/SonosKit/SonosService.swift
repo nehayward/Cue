@@ -3007,7 +3007,7 @@ public final class SonosService {
     /// effect immediately — `prioritizedIP()` resolves per call, so no reload.
     @MainActor
     public func useAutomaticSpeaker() {
-        sonosSystemDiscoverService.clearPreferredSpeaker()
+        sonosSystemDiscoverService.setPreferredSpeaker("")
     }
 
     /// Prioritise the best current speaker (wired/newer, non-portable) by pinning
@@ -3028,15 +3028,20 @@ public final class SonosService {
     /// resolves + adopts the household when possible, then reconnects.
     @MainActor
     public func setStaticIP(ip: String) async {
-        // Discovery-independent pin so a hand-entered IP connects regardless of
-        // whether identity resolution or Bonjour succeed.
-        sonosSystemDiscoverService.pinLegacyIP(ip)
-        // Remember this as the user's explicit choice. `pinLegacyIP` alone won't
+        // Remember this as the user's explicit choice. A legacy pin alone won't
         // hold: the `load` below re-races every known IP, and whichever speaker
         // answers first rewrites `lastKnownIP` and re-mirrors it over the legacy
         // key — which is why the selection used to flash onto the tapped speaker
         // and then jump back.
-        sonosSystemDiscoverService.pinPreferredSpeaker(ip)
+        sonosSystemDiscoverService.setPreferredSpeaker(ip)
+        // Discovery-independent pin so a hand-entered IP connects regardless of
+        // whether identity resolution or Bonjour succeed. MUST come after the
+        // line above: setPreferredSpeaker re-mirrors, and this IP isn't in the
+        // household's knownIPs until `adoptHousehold` below runs — so mirroring
+        // first would resolve back to the old address and, if the household
+        // lookup then fails, strand the legacy key there. Pinning last leaves
+        // the hand-entered IP as the standing value on that path.
+        sonosSystemDiscoverService.pinLegacyIP(ip)
         let householdID = await api.getHouseHoldID(for: ip)
         if !householdID.isEmpty {
             // Explicit user action — unblock in case it was previously removed.

@@ -93,27 +93,15 @@ final class SonosSystemDiscoverService {
     /// library). Empty means "no preference — use the automatic heuristic".
     var preferredSpeakerIP: String { sonosStorageIP.preferredSpeakerIP }
 
-    /// Records an explicit speaker choice. Only user actions call this, so the
-    /// reconnect race can never overwrite it the way it overwrites `lastKnownIP`.
+    /// Sets the explicit speaker choice, or clears it back to the automatic pick
+    /// when passed an empty string. Only user actions call this, so the reconnect
+    /// race can never overwrite it the way it overwrites `lastKnownIP`. Re-mirrors
+    /// so Clic Mini and the Watch follow the choice too.
     @MainActor
-    func pinPreferredSpeaker(_ ip: String) {
-        if sonosStorageIP.preferredSpeakerIP != ip {
-            sonosStorageIP.preferredSpeakerIP = ip
-            // Re-mirror so Clic Mini and the Watch pick the choice up too.
-            mirrorLegacyIP()
-        }
-    }
-
-    /// Drops the explicit choice, handing the decision back to the automatic
-    /// heuristic. Without this a pin would be one-way — once you picked a
-    /// speaker there'd be no route back to "let Clic decide".
-    @MainActor
-    func clearPreferredSpeaker() {
-        if !sonosStorageIP.preferredSpeakerIP.isEmpty {
-            sonosStorageIP.preferredSpeakerIP = ""
-            // Back to the household's own address for external consumers.
-            mirrorLegacyIP()
-        }
+    func setPreferredSpeaker(_ ip: String) {
+        guard sonosStorageIP.preferredSpeakerIP != ip else { return }
+        sonosStorageIP.preferredSpeakerIP = ip
+        mirrorLegacyIP()
     }
 
     /// Known households ordered most-recently-connected first — the order the
@@ -228,13 +216,9 @@ final class SonosSystemDiscoverService {
         browseBusy = false
     }
 
-    // Mirrors the active household's IP into the legacy `sonos_ip` key for
-    // external consumers (Clic Mini, Watch) that still read it directly. The main
-    // app never reads it except for first-launch migration. Writes the active
-    // household's IP, or clears the key when no household remains (so removing the
-    // active home doesn't leave those consumers pointed at the deleted system).
-    // Normal callers (record/switch) always have an active household; only
-    // removeHousehold reaches the empty/clear case. No-op when unchanged.
+    // Publishes `mirroredIP` to the legacy `sonos_ip` key, which Clic Mini and the
+    // Watch read directly. The main app itself only reads it for first-launch
+    // migration. No-op when unchanged.
     @MainActor
     private func mirrorLegacyIP() {
         let ip = mirroredIP
@@ -243,10 +227,13 @@ final class SonosSystemDiscoverService {
 
     /// The address external consumers should follow: the user's pinned speaker
     /// when it belongs to the active household, otherwise that household's last
-    /// known address. Without the pin, Clic Mini and the Watch kept following
-    /// whichever speaker won the reconnect race while the main app used the
-    /// chosen one. The household gate matters — a pin left over from a different
-    /// home would otherwise aim them at a system the main app isn't even on.
+    /// known address, and empty when no household remains (so removing the active
+    /// home doesn't leave Mini and the Watch aimed at a deleted system).
+    ///
+    /// Both conditions earn their place. Without the pin those consumers kept
+    /// following whichever speaker won the reconnect race while the main app used
+    /// the chosen one; without the household gate, a pin left over from a
+    /// different home would aim them at a system the main app isn't even on.
     private var mirroredIP: String {
         guard let household = activeHousehold else { return "" }
         let pinned = sonosStorageIP.preferredSpeakerIP
