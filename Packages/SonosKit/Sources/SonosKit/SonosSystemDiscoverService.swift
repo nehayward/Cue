@@ -99,6 +99,8 @@ final class SonosSystemDiscoverService {
     func pinPreferredSpeaker(_ ip: String) {
         if sonosStorageIP.preferredSpeakerIP != ip {
             sonosStorageIP.preferredSpeakerIP = ip
+            // Re-mirror so Clic Mini and the Watch pick the choice up too.
+            mirrorLegacyIP()
         }
     }
 
@@ -109,6 +111,8 @@ final class SonosSystemDiscoverService {
     func clearPreferredSpeaker() {
         if !sonosStorageIP.preferredSpeakerIP.isEmpty {
             sonosStorageIP.preferredSpeakerIP = ""
+            // Back to the household's own address for external consumers.
+            mirrorLegacyIP()
         }
     }
 
@@ -233,8 +237,21 @@ final class SonosSystemDiscoverService {
     // removeHousehold reaches the empty/clear case. No-op when unchanged.
     @MainActor
     private func mirrorLegacyIP() {
-        let ip = cachedIP
+        let ip = mirroredIP
         if sonosStorageIP.legacyIP != ip { sonosStorageIP.legacyIP = ip }
+    }
+
+    /// The address external consumers should follow: the user's pinned speaker
+    /// when it belongs to the active household, otherwise that household's last
+    /// known address. Without the pin, Clic Mini and the Watch kept following
+    /// whichever speaker won the reconnect race while the main app used the
+    /// chosen one. The household gate matters — a pin left over from a different
+    /// home would otherwise aim them at a system the main app isn't even on.
+    private var mirroredIP: String {
+        guard let household = activeHousehold else { return "" }
+        let pinned = sonosStorageIP.preferredSpeakerIP
+        if !pinned.isEmpty, household.knownIPs.contains(pinned) { return pinned }
+        return household.lastKnownIP
     }
 
     // Re-mirror after a mutation that changes the active household without going
