@@ -362,7 +362,11 @@ struct PreferenceScreen: View {
                             HStack {
                                 Text("Scenes")
                                 Spacer()
-                                SuperBadge()
+                                // Only while it's still something to buy — once
+                                // subscribed the badge is noise on every Super row.
+                                if !subscriptionService.subscription.isActive {
+                                    SuperBadge()
+                                }
                             }
                         } icon: {
                             Image(systemName: "bolt.fill")
