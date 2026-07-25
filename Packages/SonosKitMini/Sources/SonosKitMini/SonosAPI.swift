@@ -965,13 +965,41 @@ final class SonosAPI {
 //    }
 //
     func getHouseHoldID(for IP: String) async -> String? {
-        guard let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [], endpoint: "ZoneGroupTopology") else { return nil }
-        let xml = String(decoding: data, as: UTF8.self)
-        let parser = GenericXMLParser(targetElement: "CurrentMuseHouseholdId")
-        if let value = parser.parseXML(xml) {
-            return value
+        if let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [], endpoint: "ZoneGroupTopology") {
+            let xml = String(decoding: data, as: UTF8.self)
+            let parser = GenericXMLParser(targetElement: "CurrentMuseHouseholdId")
+            if let value = parser.parseXML(xml), let base = householdBase(value) {
+                return base
+            }
         }
-        return nil 
+
+        // S1 players (ZP100, ZP80, older Play:5s…) never report
+        // CurrentMuseHouseholdId — Muse is the S2 API. Without this fallback an
+        // S1 speaker resolves to nil, and `getAllHouseholdsIPs` drops any IP
+        // whose household is empty, so an S1 system is invisible to Clic Mini
+        // and the Watch entirely (the same failure the main app had).
+        // /status/zp is served by every firmware generation.
+        if let url = URL(string: "http://\(IP):1400/status/zp"),
+           let (data, response) = try? await session.data(for: URLRequest(url: url)),
+           (response as? HTTPURLResponse)?.statusCode == 200 {
+            let xml = String(decoding: data, as: UTF8.self)
+            let parser = GenericXMLParser(targetElement: "HouseholdControlID")
+            if let value = parser.parseXML(xml), let base = householdBase(value) {
+                return base
+            }
+        }
+
+        return nil
+    }
+
+    /// Household IDs, normalised to the `Sonos_xxx` part before any `.` suffix.
+    /// Both sources must be trimmed the same way: the Muse ID carries a trailing
+    /// `.yyy` that `/status/zp`'s `HouseholdControlID` doesn't, so leaving them
+    /// as-is would file the S1 and S2 halves of one household under two
+    /// different IDs — the exact split this fallback exists to prevent.
+    private func householdBase(_ raw: String) -> String? {
+        guard let base = raw.components(separatedBy: ".").first, !base.isEmpty else { return nil }
+        return base
     }
 //
 //    // MARK: - Favorites

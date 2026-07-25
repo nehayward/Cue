@@ -11,7 +11,8 @@
 - Plex sign-in now lives right on its row in Services — tap the row to manage your account
 - Fixed square corners showing around the Clic Mini notification and menu bar window in light mode
 - Clic Mini: The notification and menu bar window now use Liquid Glass on macOS 26
-- Fixed older S1 Sonos players (like the ZP100 or ZP80) never being found — a home running S1 now shows up in Households alongside your S2 system, so a split S1/S2 setup can switch between the two with a tap
+- Fixed older S1 Sonos players (like the ZP100 or ZP80) never being found — a home running S1 now shows up in Households alongside your S2 system, so a split S1/S2 setup can switch between the two with a tap. This applies on Apple Watch and in Clic Mini too, where S1 systems were missing from the household list entirely
+- Clic Mini and Apple Watch now follow the speaker you pick on the Connectivity screen, instead of whichever speaker happened to answer first
 - Redesigned the Connectivity screen around a single choice — which speaker Clic connects through. It's set to Automatic out of the box, or tap any speaker to use that one instead; a LAN badge marks the speakers wired to your router, and a tick shows what's in use
 - Entering an address by hand has moved into a "Can't find your speakers?" section that opens on its own when nothing is found — and once a speaker answers at that address, a Connect button appears so you can actually switch to it. Previously the screen could only verify the address
 - Fixed the Connectivity screen sometimes showing "No Sonos system found at this IP address" right after the address was verified with a green check
