@@ -18,9 +18,6 @@ struct ConnectByIPScreen: View {
     @State private var probeTask: Task<Void, Never>?
     @State private var isConnecting: Bool = false
     @State private var isProbing: Bool = false
-    /// Bumped once a speaker choice actually lands, so the haptic confirms the
-    /// result rather than firing on tap and buzzing for a change that failed.
-    @State private var selectionFeedback: Int = 0
     /// Manual IP entry is a recovery path, so it stays collapsed — unless nothing
     /// was discovered, in which case it's the only way forward and leads instead.
     @State private var showManualEntry: Bool = false
@@ -46,7 +43,6 @@ struct ConnectByIPScreen: View {
         .navigationTitle("Connectivity")
         .headerProminence(.increased)
         .fontDesign(.rounded)
-        .sensoryFeedback(.success, trigger: selectionFeedback)
         .onAppear {
             // Nothing to pick from means discovery found nothing — open the manual
             // path rather than showing an empty screen with a hidden way out.
@@ -67,7 +63,7 @@ struct ConnectByIPScreen: View {
             // has been chosen.
             Button {
                 sonosService.useAutomaticSpeaker()
-                selectionFeedback += 1
+                HapticManager.shared.fireHaptic(.notification(.success))
                 alertService.showAlert(with: "Clic will choose the best speaker", imageName: "wand.and.stars")
             } label: {
                 HStack(spacing: 12) {
@@ -81,7 +77,7 @@ struct ConnectByIPScreen: View {
 
                     Spacer(minLength: 8)
 
-                    if preferredSpeakerIP.isEmpty {
+                    if isUsingAutomatic {
                         Image(systemName: "checkmark")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.green)
@@ -95,7 +91,7 @@ struct ConnectByIPScreen: View {
                 Button {
                     Task {
                         await sonosService.setStaticIP(ip: room.ip)
-                        selectionFeedback += 1
+                        HapticManager.shared.fireHaptic(.notification(.success))
                         announceConnection(to: room.name)
                     }
                 } label: {
@@ -132,6 +128,16 @@ struct ConnectByIPScreen: View {
         } footer: {
             Text("One speaker answers Clic's system-wide requests — how your speakers are grouped, album artwork, and your library, favorites and playlists. Play, pause and volume go straight to the speaker you're controlling. LAN means a speaker is wired to your router; those stay reachable when others sleep, so they're the most reliable choice.")
         }
+    }
+
+    /// Whether the automatic pick is what's actually in effect. Mirrors the gate
+    /// in `prioritizedIP()`, which ignores a pin whose speaker isn't in the
+    /// current system: after switching households the stored pin is still set but
+    /// no longer applies, so keying the tick off `isEmpty` alone left the list
+    /// with no tick at all while the app was, in fact, running on Automatic.
+    private var isUsingAutomatic: Bool {
+        preferredSpeakerIP.isEmpty
+            || !sonosService.sortedRooms.contains { $0.ip == preferredSpeakerIP }
     }
 
     /// Names the speaker Automatic currently resolves to, so the option isn't
@@ -300,6 +306,11 @@ struct ConnectByIPScreen: View {
         // after the full address's probe and overwrite a good result.
         probeTask?.cancel()
         if isValidIP {
+            // Drop the previous address's result before probing the new one.
+            // Without this, editing a found address (…1.10 → …1.100) left
+            // `deviceFound` true, so Connect stayed live for an address nothing
+            // had answered on and would pin a dead IP.
+            deviceFound = false
             isProbing = true
             probeTask = Task {
                 // Probe reachability only — do NOT adopt/pin a household from a
@@ -326,7 +337,7 @@ struct ConnectByIPScreen: View {
             // Adopts the device's household (S1 or S2) and pins the IP, so a
             // system on another generation than the active one becomes selectable.
             await sonosService.setStaticIP(ip: ip)
-            selectionFeedback += 1
+            HapticManager.shared.fireHaptic(.notification(.success))
             announceConnection(to: sonosService.sortedRooms.first(where: { $0.ip == ip })?.name ?? ip)
         }
     }
