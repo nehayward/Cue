@@ -85,6 +85,11 @@ final class NowPlayingSessionService {
     /// reported from one that's been frozen since the poll stopped.
     @ObservationIgnored private var lastModelElapsed: TimeInterval = -1
 
+    /// Favorite state behind `likeCommand`, and the track it belongs to.
+    @ObservationIgnored private var isFavorite = false
+    @ObservationIgnored private var favoriteTrackID: String?
+    @ObservationIgnored private var favoriteTask: Task<Void, Never>?
+
     /// Artwork is keyed by URL: the expensive part is decoding, and the same
     /// song can republish many times (pause, seek, volume).
     @ObservationIgnored private var publishedArtworkURL: URL?
@@ -232,6 +237,10 @@ final class NowPlayingSessionService {
             String(room.isPlaying),
             room.radioStation ?? "",
             String(group.availableActions.rawValue),
+            // Not shown on the card, but the volume bridge mirrors it onto the
+            // phone's slider — so a change made on the speaker, in the Sonos app,
+            // or anywhere else in Clic has to reach `syncSystemVolume`.
+            String(group.groupVolume),
         ].joined(separator: "|")
     }
 
@@ -306,6 +315,8 @@ final class NowPlayingSessionService {
             }
         }
 
+        // Group volume is in `trackedState`, so this runs whenever it moves.
+        HardwareVolumeService.shared.syncSystemVolume()
         publish()
     }
 
@@ -316,6 +327,10 @@ final class NowPlayingSessionService {
 
         artworkTask?.cancel()
         artworkTask = nil
+        favoriteTask?.cancel()
+        favoriteTask = nil
+        favoriteTrackID = nil
+        isFavorite = false
         detachVolumeBridge()
         silentPlayer?.stop()
         silentPlayer = nil
@@ -510,6 +525,10 @@ final class NowPlayingSessionService {
         let room = group.coordinatorRoom
         let track = room.track
 
+        // Ahead of the dedupe guard below: a no-op unless the song changed, and
+        // it has to run even on publishes the card itself skips.
+        refreshFavorite(for: track)
+
         // An idle radio player reports an empty track between songs; the station
         // name is what the rest of the app shows there, so match it.
         let title = !track.song.isEmpty ? track.song : (room.radioStation ?? group.nameWithCount)
@@ -553,14 +572,30 @@ final class NowPlayingSessionService {
         // scrubber back to the frozen value every time, which reads as playback
         // having stopped. Only a position the speaker has actually updated is
         // worth re-anchoring to.
-        let elapsed = room.playbackPosition
-        let modelMoved = elapsed != lastModelElapsed
-        lastModelElapsed = elapsed
+        let modelElapsed = room.playbackPosition
+        let modelMoved = modelElapsed != lastModelElapsed
+        lastModelElapsed = modelElapsed
         let interpolated = published?.isPlaying == true
             ? publishedElapsed + Date.now.timeIntervalSince(publishedAt) * 1000
             : publishedElapsed
-        let drifted = modelMoved && abs(elapsed - interpolated) > 2000
+        let drifted = modelMoved && abs(modelElapsed - interpolated) > 2000
         guard snapshot != published || drifted else { return }
+
+        // Which position to publish. The speaker's number is authoritative only
+        // when it just arrived; otherwise the system's own interpolation is the
+        // better estimate, because the model is frozen between socket events.
+        //
+        // This is what pausing used to get wrong. Pause changes the snapshot, so
+        // it publishes — and it published the *stale* model position, snapping
+        // the scrubber back to wherever the last playbackStatus happened to land
+        // (often the start of the track). Carrying the interpolation forward
+        // pauses the card where the music actually is.
+        var elapsed = modelMoved ? modelElapsed : interpolated
+        if snapshot.duration > 0 {
+            elapsed = min(max(elapsed, 0), snapshot.duration)
+        } else {
+            elapsed = max(elapsed, 0)
+        }
 
         if snapshot != published {
             updateCommandAvailability(snapshot)
@@ -581,7 +616,7 @@ final class NowPlayingSessionService {
         // Sonos reports positions and durations in milliseconds.
         if snapshot.duration > 0 {
             info[MPMediaItemPropertyPlaybackDuration] = snapshot.duration / 1000
-            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = room.playbackPosition / 1000
+            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed / 1000
             info[MPNowPlayingInfoPropertyIsLiveStream] = false
         } else {
             // Radio and line-in have no timeline — a duration of 0 would render
@@ -724,8 +759,23 @@ final class NowPlayingSessionService {
             }
         }
 
+        // Favorites the playing song on whichever service it came from, the same
+        // as the player's heart/star. `isActive` carries the current state and
+        // each invocation toggles it. Surfaces that render feedback commands
+        // (CarPlay, some head units and accessories) get it; the iOS Lock Screen
+        // card has no slot for an app button, so it doesn't appear there.
+        center.likeCommand.localizedTitle = "Favorite"
+        center.likeCommand.localizedShortTitle = "Favorite"
+        center.likeCommand.addTarget { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.toggleFavorite() ?? .commandFailed
+            }
+        }
+
         // Nothing here maps onto a Sonos transport — leaving them enabled makes
-        // the card offer controls that silently do nothing.
+        // the card offer controls that silently do nothing. `dislike` included:
+        // no service Clic talks to takes a negative signal.
+        center.dislikeCommand.isEnabled = false
         center.skipForwardCommand.isEnabled = false
         center.skipBackwardCommand.isEnabled = false
         center.seekForwardCommand.isEnabled = false
@@ -736,6 +786,73 @@ final class NowPlayingSessionService {
 
     private func allows(_ action: AvailableActions, in group: GroupRoom) -> Bool {
         group.availableActions.isEmpty || group.availableActions.contains(action)
+    }
+
+    /// Points `likeCommand` at `track`, once per song.
+    ///
+    /// Goes through `MusicSearchService.isFavorite`/`setFavorite` — the same
+    /// per-service dispatch (Apple / Spotify / SoundCloud / Deezer /
+    /// Plex-by-rating) the player's heart uses — so a favorite made here and one
+    /// made in the app can't diverge. `LiveActivityFavoriteStore` seeds the state
+    /// instantly; without it the control would read "not favorited" for as long
+    /// as the service lookup takes.
+    private func refreshFavorite(for track: Track) {
+        let command = MPRemoteCommandCenter.shared().likeCommand
+
+        guard canFavorite(track) else {
+            favoriteTask?.cancel()
+            favoriteTask = nil
+            favoriteTrackID = nil
+            isFavorite = false
+            command.isEnabled = false
+            command.isActive = false
+            return
+        }
+
+        guard favoriteTrackID != track.trackID else { return }
+        favoriteTrackID = track.trackID
+        command.isEnabled = true
+
+        let cached = LiveActivityFavoriteStore.shared.get(track.trackID) ?? false
+        isFavorite = cached
+        command.isActive = cached
+
+        favoriteTask?.cancel()
+        favoriteTask = Task { [weak self] in
+            let favorite = await MusicSearchService.shared.isFavorite(
+                trackID: track.trackID,
+                service: track.musicService
+            )
+            guard !Task.isCancelled, let self, self.favoriteTrackID == track.trackID else { return }
+            self.isFavorite = favorite
+            MPRemoteCommandCenter.shared().likeCommand.isActive = favorite
+        }
+    }
+
+    private func canFavorite(_ track: Track) -> Bool {
+        track.musicService.supportsFavoriteTrack && !track.trackID.isEmpty
+    }
+
+    private func toggleFavorite() -> MPRemoteCommandHandlerStatus {
+        guard let track = group?.coordinatorRoom.track, canFavorite(track) else { return .noSuchContent }
+
+        #if DEBUG
+        print("🎛 NowPlaying — command favorite received")
+        #endif
+
+        // Optimistic, like every other favorite surface: the write is
+        // fire-and-forget from the user's point of view.
+        let favorite = !isFavorite
+        isFavorite = favorite
+        MPRemoteCommandCenter.shared().likeCommand.isActive = favorite
+        Task {
+            await MusicSearchService.shared.setFavorite(
+                favorite,
+                trackID: track.trackID,
+                service: track.musicService
+            )
+        }
+        return .success
     }
 
     private func updateCommandAvailability(_ snapshot: Snapshot) {
@@ -756,6 +873,9 @@ final class NowPlayingSessionService {
         center.nextTrackCommand.removeTarget(nil)
         center.previousTrackCommand.removeTarget(nil)
         center.changePlaybackPositionCommand.removeTarget(nil)
+        center.likeCommand.removeTarget(nil)
+        center.likeCommand.isEnabled = false
+        center.likeCommand.isActive = false
     }
 
     /// Runs a transport command against the mirrored group and repaints the card

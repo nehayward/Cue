@@ -162,6 +162,25 @@ connects the union. Notes for anyone extending this:
   track change. Only PAUSED/IDLE clears the flag; unknown states are left alone.
   `SonosMiniService` skips the same state, for the same reason.
 
+## Favorites
+
+`likeCommand` is a toggle: `isActive` carries the state, each invocation flips
+it, and both directions go through `MusicSearchService.isFavorite`/`setFavorite`
+— the same per-service dispatch (Apple / Spotify / SoundCloud / Deezer /
+Plex-by-rating) the player's heart uses, so the two can't diverge. Looked up once
+per song and seeded from `LiveActivityFavoriteStore`, the app-group cache shared
+with the Live Activity's like button.
+
+`MusicService+Favorite.swift` is byte-identical to the copy on
+`claude/live-activity-like-button-57o9qu`, so if both land git merges them
+without a conflict. Don't "improve" it here — improve it there.
+
+**Where it appears:** surfaces that render feedback commands — CarPlay, some head
+units and accessories. The iOS Lock Screen card has no slot for an app-provided
+button, so this does not put a heart on the Lock Screen; that surface's path is
+the Live Activity's own button. `dislikeCommand` stays disabled — none of these
+services take a negative signal.
+
 ## Volume
 
 While the session is held the phone's own volume is inaudible, so the hardware
@@ -174,16 +193,32 @@ session owns the bridge and takes it back when the session ends (it observes
 `isActive`). The `MPVolumeView` is parked in the key window; its slider only
 exists inside a window.
 
+The bridge runs in **absolute** mode here, unlike the player screen's *relative*
+mode. Relative reads any change in phone volume as one step up or down on the
+group and shoves the system slider back to a midpoint near the ends to keep
+headroom — fine for hardware buttons, useless for a Lock Screen slider: its
+position means nothing, a drag registers as a single step, and once it pins at 0
+or 1 further presses do nothing. Absolute makes the phone's volume *be* the
+group's volume, scaled: `syncSystemVolume()` mirrors the group's level onto the
+slider (driven from `trackedState`, so a change made on the speaker or in the
+Sonos app follows), and a user change is sent as a level via `setGroupVolume`.
+Sends are coalesced — a drag emits a KVO callback every few pixels and only the
+last value matters.
+
+Echo filtering differs by mode for the same reason: relative can compare against
+`restorePoint` because its writes always land there, absolute has to remember
+`lastWrittenSystemVolume`. One consequence to expect: hardware presses move the
+group in ~6-point steps (the system has 16), not the 1-point steps of the player
+screen.
+
 ## Not done yet
 
 - **Watch / CarPlay parity beyond the free ride.** Both surfaces read the info
   center, so they work, but neither has been tested on hardware.
-- **Favorites.** `likeCommand` was wired and then removed: iOS's Lock Screen card
-  has no slot for an app-provided button, so it only surfaced in CarPlay and on
-  some accessories — not worth a per-song favorite lookup for. The Lock Screen
-  path is the Live Activity's own button
-  (`claude/live-activity-like-button-57o9qu`, which also extracts the shared
-  per-service favorite API). Revisit if CarPlay becomes a target.
+- **A Lock Screen favorite button.** `likeCommand` covers CarPlay and
+  accessories, but the Lock Screen card can't host one. That surface's path is
+  the Live Activity's button on
+  `claude/live-activity-like-button-57o9qu`.
 - **Interaction with Live Updates** (`claude/ios-now-playing-notifications-*`).
   That feature's Live Activity and this card are complementary — one is
   push-driven and works away from home, the other is LAN-driven and gives real
