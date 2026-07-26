@@ -16,6 +16,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
     case soundcloud
     case deezer
     case sonosRadio
+    case pandora
 
     public var title: String {
         switch self {
@@ -37,9 +38,11 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             "Deezer"
         case .sonosRadio:
             "Sonos Radio"
+        case .pandora:
+            "Pandora"
         }
     }
-    
+
     public var isBrowseSupported: Bool {
         switch self {
         case .apple:
@@ -59,6 +62,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         case .deezer:
             true
         case .sonosRadio:
+            true
+        case .pandora:
             true
         }
     }
@@ -90,9 +95,9 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: librarySymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .sonosRadio:
-            // The SONOS asset is a full-colour badge (original rendering); don't
-            // template-tint it or the circle collapses into a solid blob.
+        case .sonosRadio, .pandora:
+            // These assets are full-colour badges (original rendering); don't
+            // template-tint them or the artwork collapses into a solid blob.
             #if targetEnvironment(macCatalyst)
             // Catalyst renders unrasterized asset images at full size inside menus,
             // so pre-rasterize to a small badge while keeping the original colours.
@@ -158,7 +163,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
-        case .sonosRadio:
+        case .sonosRadio, .pandora:
 #if targetEnvironment(macCatalyst)
             // Catalyst renders unrasterized asset images at full size inside menus,
             // so pre-rasterize to a small badge while keeping the original colours.
@@ -233,6 +238,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             Color(red: 161.0 / 255.0, green: 0 / 255.0, blue: 255.0 / 255.0)
         case .sonosRadio:
                 .primary
+        case .pandora:
+            Color(red: 54.0 / 255.0, green: 104.0 / 255.0, blue: 255.0 / 255.0)
         }
     }
 }

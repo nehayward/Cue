@@ -59,7 +59,7 @@ public final class SonosRadioBrowseService {
     /// re-entering a "see all" screen doesn't refetch.
     private var sectionStationsCache: [String: [PlayableContent]] = [:]
 
-    private static let cacheKey = "sonosRadioHomeSections"
+    private nonisolated static let cacheKey = "sonosRadioHomeSections"
 
     private init() {}
 

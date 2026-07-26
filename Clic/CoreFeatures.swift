@@ -84,6 +84,7 @@ final class CoreFeatures {
         if installed.contains(.soundcloud) { return .soundcloud }
         if installed.contains(.deezer) { return .deezer }
         if installed.contains(.tunein) { return .tuneIn }
+        if installed.contains(.pandora) { return .pandora }
         if installed.contains(.sonosRadio) { return .sonosRadio }
         return .library
     }

@@ -3,6 +3,8 @@
 –– New Features ––
 - Sonos Radio: Search Sonos Radio stations and browse them by genre, then play any station on any room or group — the SONOS badge appears on the artwork, and the station's artwork is shown during ad breaks
 - Smarter Services settings: the Services screen now shows what's actually on your Sonos — services you've authorized get show/hide toggles, ones you haven't set up yet link straight to the Sonos app to sign in, and services Clic doesn't support yet are listed too. Pull down to refresh after adding one
+- Pandora: Browse your Pandora stations, search for new ones, and play any station on any room or group — sign in through the Sonos app and it works in Clic automatically
+- Pandora Thumbs: Thumb a song up or down right from the player to tune what the station plays next — and set any Pandora station as an alarm
 
 –– Bug Fixes & Improvements ––
 - Fixed album artwork stuttering the player during song changes — the crossfade is now one smooth dissolve
