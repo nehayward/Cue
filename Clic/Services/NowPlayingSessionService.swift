@@ -9,6 +9,14 @@ import SonosKit
 import SubscriptionKit
 import UIKit
 
+// File scope so nothing here has to reason about actor isolation to log, and so
+// the formatting cost is only paid when the log is actually collected — unlike
+// `print`, which builds its string every time.
+private let log = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "com.nick.Clic",
+    category: "NowPlaying"
+)
+
 /// Mirrors a Sonos group onto the system Now Playing card — Lock Screen,
 /// Control Center, CarPlay, AirPods stem presses, the Watch's Now Playing app.
 ///
@@ -59,14 +67,6 @@ import UIKit
 ///   state. Subtler than it looks; read its notes before touching it.
 /// - `AudioSessionArbiter` — how a song preview hands the session back without
 ///   knowing this type exists.
-/// File scope so nothing here has to reason about actor isolation to log, and
-/// so the formatting cost is only paid when the log is actually collected —
-/// unlike `print`, which builds its string every time.
-private let log = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "com.nick.Clic",
-    category: "NowPlaying"
-)
-
 @MainActor
 @Observable
 final class NowPlayingSessionService {
@@ -216,8 +216,16 @@ final class NowPlayingSessionService {
         if let playing = sonosService.sorted.first(where: { $0.coordinatorRoom.isPlaying && isMirrorable($0) }) {
             return playing
         }
-        // Nothing playing anywhere — keep the selection up rather than dropping
-        // the card, so its transport can start it again.
+        // Nothing is playing anywhere. Keep mirroring whatever we already are,
+        // so pausing doesn't drop the card out from under the user — the pause
+        // came *from* that card, and its play button is how they resume.
+        // Resolved fresh by id: `SonosService` replaces `GroupRoom` instances on
+        // topology changes.
+        if let current = group.flatMap({ mirrored in
+            sonosService.groups.first { $0.coordinatorID == mirrored.coordinatorID }
+        }), isMirrorable(current) {
+            return current
+        }
         if let selected, isMirrorable(selected) { return selected }
         return nil
     }
@@ -238,6 +246,13 @@ final class NowPlayingSessionService {
     /// info center interpolates elapsed time on its own.
     private func trackCardState(of group: GroupRoom) {
         let room = group.coordinatorRoom
+        // Read explicitly, even though `resolveTarget` sometimes reads it while
+        // scanning for the playing group: its foreground branch returns on the
+        // selection *before* touching `isPlaying`, so relying on that left
+        // play/pause untracked for the case that matters most. Without this the
+        // card only moved when a socket event happened to fire — when the poll
+        // was what noticed, nothing republished and the card sat stale.
+        _ = room.isPlaying
         // The socket is addressed by group id and ip, both of which move without
         // the coordinator changing (grouping, DHCP) — see `run`.
         _ = group.id
