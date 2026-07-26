@@ -2,10 +2,25 @@
 
 –– New Features ––
 - Sonos Radio: Search Sonos Radio stations and browse them by genre, then play any station on any room or group — the SONOS badge appears on the artwork, and the station's artwork is shown during ad breaks
+- Smarter Services settings: the Services screen now shows what's actually on your Sonos — services you've authorized get show/hide toggles, ones you haven't set up yet link straight to the Sonos app to sign in, and services Clic doesn't support yet are listed too. Pull down to refresh after adding one
+- Pandora: Browse your Pandora stations, search for new ones, and play any station on any room or group — sign in through the Sonos app and it works in Clic automatically
+- Pandora Thumbs: Thumb a song up or down right from the player to tune what the station plays next — and set any Pandora station as an alarm
 
 –– Bug Fixes & Improvements ––
 - Fixed album artwork stuttering the player during song changes — the crossfade is now one smooth dissolve
 - Fixed the player staying stuck on a radio station after playing a song from the queue — playback switches reliably, the progress bar appears again, and the station caption clears right away
+- Services you remove in the Sonos app no longer linger in Clic — they're hidden from search and browse automatically
+- Plex sign-in now lives right on its row in Services — tap the row to manage your account
+- Fixed square corners showing around the Clic Mini notification and menu bar window in light mode
+- Clic Mini: The notification and menu bar window now use Liquid Glass on macOS 26
+- Fixed older S1 Sonos players (like the ZP100 or ZP80) never being found — a home running S1 now shows up in Households alongside your S2 system, so a split S1/S2 setup can switch between the two with a tap. This applies on Apple Watch and in Clic Mini too, where S1 systems were missing from the household list entirely
+- Clic Mini and Apple Watch now follow the speaker you pick on the Connectivity screen, instead of whichever speaker happened to answer first
+- Redesigned the Connectivity screen around a single choice — which speaker Clic connects through. It's set to Automatic out of the box, or tap any speaker to use that one instead; a LAN badge marks the speakers wired to your router, and a tick shows what's in use
+- Entering an address by hand has moved into a "Can't find your speakers?" section that opens on its own when nothing is found — and once a speaker answers at that address, a Connect button appears so you can actually switch to it. Previously the screen could only verify the address
+- Fixed the Connectivity screen sometimes showing "No Sonos system found at this IP address" right after the address was verified with a green check
+- The IP address field no longer marks an address wrong while you're still typing it, and shows a spinner while it checks. A wrong address now tints the field red instead of adding an error icon that looked like a second clear button
+- Fixed the speaker you pick on the Connectivity screen not sticking — the tick would flash onto it and jump back to another speaker. Your choice now persists, and Clic genuinely uses that speaker for album artwork, your library and favorites
+- Clic's automatic speaker pick now prefers a speaker wired to your router, as it always said it did — previously the wired preference was applied and then discarded, so it could settle on a speaker over Wi-Fi
 
 # 2026.6
 

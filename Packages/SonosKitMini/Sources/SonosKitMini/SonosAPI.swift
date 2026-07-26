@@ -964,14 +964,49 @@ final class SonosAPI {
 //        }
 //    }
 //
+    /// The household ID exactly as the device reports it. Returned UNTRIMMED: an
+    /// S2 device's Muse ID carries a `.yyy` suffix that the WebSocket group
+    /// subscribe requires verbatim (see `connectAndSubscribeToGroup`), and this
+    /// value reaches it through `getSystem` → `toConfig` → `SonosPlayerConfig`.
+    /// For comparing or de-duplicating households, use `householdIdentity` instead.
     func getHouseHoldID(for IP: String) async -> String? {
-        guard let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [], endpoint: "ZoneGroupTopology") else { return nil }
-        let xml = String(decoding: data, as: UTF8.self)
-        let parser = GenericXMLParser(targetElement: "CurrentMuseHouseholdId")
-        if let value = parser.parseXML(xml) {
-            return value
+        if let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [], endpoint: "ZoneGroupTopology") {
+            let xml = String(decoding: data, as: UTF8.self)
+            let parser = GenericXMLParser(targetElement: "CurrentMuseHouseholdId")
+            if let value = parser.parseXML(xml), !value.isEmpty {
+                return value
+            }
         }
-        return nil 
+
+        // S1 players (ZP100, ZP80, older Play:5s…) never report
+        // CurrentMuseHouseholdId — Muse is the S2 API. Without this fallback an
+        // S1 speaker resolves to nil, and `getAllHouseholdsIPs` drops any IP
+        // whose household is empty, so an S1 system is invisible to Clic Mini
+        // and the Watch entirely (the same failure the main app had).
+        // /status/zp is served by every firmware generation. S1 players have no
+        // Muse WebSocket to subscribe to, so the missing suffix costs nothing.
+        if let url = URL(string: "http://\(IP):1400/status/zp"),
+           let (data, response) = try? await session.data(for: URLRequest(url: url)),
+           (response as? HTTPURLResponse)?.statusCode == 200 {
+            let xml = String(decoding: data, as: UTF8.self)
+            let parser = GenericXMLParser(targetElement: "HouseholdControlID")
+            if let value = parser.parseXML(xml), !value.isEmpty {
+                return value
+            }
+        }
+
+        return nil
+    }
+
+    /// The household ID normalised for identity checks and de-duplication —
+    /// trimmed at the first `.` so an S1 player's `/status/zp` value and an S2
+    /// player's Muse value in the same home resolve alike, which is the whole
+    /// point of the fallback above. Never hand this to the WebSocket.
+    func householdIdentity(for IP: String) async -> String? {
+        guard let raw = await getHouseHoldID(for: IP),
+              let base = raw.components(separatedBy: ".").first,
+              !base.isEmpty else { return nil }
+        return base
     }
 //
 //    // MARK: - Favorites

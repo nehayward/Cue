@@ -2,29 +2,28 @@ import SwiftUI
 import SonosKit
 import MusicSearchKit
 
-struct SonosRadioBrowseScreen: View {
+struct PandoraBrowseScreen: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(SonosService.self) private var sonosService
-    @Environment(SonosRadioBrowseService.self) private var sonosRadioBrowseService
+    @Environment(PandoraBrowseService.self) private var pandoraBrowseService
 
     @State private var router = Router.browse
 
     private var isEmpty: Bool {
-        sonosRadioBrowseService.populatedSections.isEmpty
+        pandoraBrowseService.populatedSections.isEmpty
     }
 
     var body: some View {
         NavigationStack(path: $router.path) {
             List {
-                if isEmpty, let error = sonosRadioBrowseService.error {
+                if isEmpty, let error = pandoraBrowseService.error {
                     errorSection(error)
-                } else if isEmpty, !sonosRadioBrowseService.isLoading {
+                } else if isEmpty, !pandoraBrowseService.isLoading {
                     emptySection
                 } else {
-                    if let error = sonosRadioBrowseService.error {
+                    if let error = pandoraBrowseService.error {
                         staleNotice(error)
                     }
-                    ForEach(sonosRadioBrowseService.populatedSections) { section in
+                    ForEach(pandoraBrowseService.populatedSections) { section in
                         sectionView(for: section)
                     }
                 }
@@ -34,10 +33,10 @@ struct SonosRadioBrowseScreen: View {
             .headerProminence(.increased)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
-            .navigationTitle("Sonos Radio")
+            .navigationTitle("Pandora")
             .navigationBarTitleDisplayMode(.inline)
             .task {
-                await sonosRadioBrowseService.load()
+                await pandoraBrowseService.load()
             }
             .toolbar {
                 ToolbarItem {
@@ -52,12 +51,12 @@ struct SonosRadioBrowseScreen: View {
             }
 #endif
             .refreshable {
-                await sonosRadioBrowseService.refresh()
+                await pandoraBrowseService.refresh()
             }
             .withAppRouter()
         }
         .overlay {
-            if sonosRadioBrowseService.isLoading, isEmpty {
+            if pandoraBrowseService.isLoading, isEmpty {
                 ProgressView()
                     .frame(maxWidth: .infinity, alignment: .center)
                     .listRowBackground(Color.clear)
@@ -65,20 +64,20 @@ struct SonosRadioBrowseScreen: View {
         }
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
-            Task { await sonosRadioBrowseService.load() }
+            Task { await pandoraBrowseService.load() }
         }
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
     }
 
     @ViewBuilder
-    private func sectionView(for section: SonosRadioSection) -> some View {
+    private func sectionView(for section: PandoraSection) -> some View {
         let items = section.items
         Section {
             NavigationLink(value: RouterDestination.playableList(
                 title: section.title,
                 showSectionIndex: false,
                 action: { _ in
-                    await sonosRadioBrowseService.allStations(for: section)
+                    await pandoraBrowseService.allStations(for: section)
                 }
             )) {
                 Text(section.title)
@@ -88,7 +87,7 @@ struct SonosRadioBrowseScreen: View {
             .tag(UUID().uuidString)
 
             LazyVGrid(columns: [.init(), .init()]) {
-                ForEach(items.prefix(sonosRadioBrowseService.previewCount)) { item in
+                ForEach(items.prefix(pandoraBrowseService.previewCount)) { item in
                     PlayableContentRowView(item: item)
                         .buttonStyle(.plain)
                         .geometryGroup()
@@ -123,7 +122,7 @@ struct SonosRadioBrowseScreen: View {
                     .font(.system(size: 48))
                     .foregroundColor(.orange)
 
-                Text("Error Loading Sonos Radio")
+                Text("Error Loading Pandora")
                     .font(.headline)
 
                 Text(error)
@@ -132,7 +131,7 @@ struct SonosRadioBrowseScreen: View {
                     .multilineTextAlignment(.center)
 
                 Button("Try Again") {
-                    Task { await sonosRadioBrowseService.load() }
+                    Task { await pandoraBrowseService.load() }
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -154,7 +153,7 @@ struct SonosRadioBrowseScreen: View {
                 Text("No Stations")
                     .font(.headline)
 
-                Text("Pull to refresh to load Sonos Radio stations.")
+                Text("Pull to refresh to load your Pandora stations.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -168,6 +167,6 @@ struct SonosRadioBrowseScreen: View {
 }
 
 #Preview {
-    SonosRadioBrowseScreen()
+    PandoraBrowseScreen()
         .withEnvironments()
 }
