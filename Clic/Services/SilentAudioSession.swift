@@ -31,6 +31,10 @@ final class SilentAudioSession {
     private var interruptionTasks: [Task<Void, Never>] = []
 
     private(set) var isHeld = false
+    /// What the loop is *supposed* to be doing. Kept separately from
+    /// `player.isPlaying` because a reclaim rebuilds the player and has to put it
+    /// back into the state the remote transport is in, not into playing.
+    private(set) var isPlaying = false
 
     // MARK: - Lifecycle
 
@@ -47,12 +51,46 @@ final class SilentAudioSession {
         guard await Self.configureSession(), startLoop() else { return false }
         observeInterruptions()
         isHeld = true
+        // Starts playing on purpose: the card is only created once audio has
+        // actually begun. The owner's first `publish()` pauses the loop
+        // immediately if the speaker is paused.
+        isPlaying = true
         return true
+    }
+
+    /// Mirrors the remote transport onto the silent loop.
+    ///
+    /// This is not cosmetic, and it is not about the sound — there isn't any.
+    /// iOS decides what the Now Playing card renders from the *audio session*,
+    /// not from `MPNowPlayingInfoCenter` alone: an app whose session is actively
+    /// rendering audio is playing, whatever it writes to `playbackState`. So a
+    /// loop that never pauses pins the card to "playing" and silently discards
+    /// every `rate = 0` we publish. Pausing the loop is what makes a pause
+    /// visible.
+    ///
+    /// The session itself stays active. That's the distinction between this and
+    /// `stop()`: a paused player with a live session is exactly the state a
+    /// music app sits in when the user pauses it, and the card stays ours.
+    /// Deactivating would hand it away.
+    func setPlaying(_ playing: Bool) {
+        guard isHeld, isPlaying != playing else { return }
+        isPlaying = playing
+        if playing {
+            // A reclaim can leave no player behind; rebuild rather than no-op,
+            // or the card would go stale from here on.
+            if player?.play() != true {
+                player = nil
+                _ = startLoop()
+            }
+        } else {
+            player?.pause()
+        }
     }
 
     func stop() {
         guard isHeld else { return }
         isHeld = false
+        isPlaying = false
         player?.stop()
         player = nil
         for task in interruptionTasks { task.cancel() }
@@ -75,6 +113,10 @@ final class SilentAudioSession {
             player = nil
             _ = startLoop()
         }
+        // Play first even when the transport is paused: the card is re-created
+        // off audio actually starting, and pausing straight back is how a music
+        // app returns to a paused card after an interruption.
+        if !isPlaying { player?.pause() }
         onRestored?()
     }
 

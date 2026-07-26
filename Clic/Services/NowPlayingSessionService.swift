@@ -583,6 +583,12 @@ final class NowPlayingSessionService {
             info[MPMediaItemPropertyArtwork] = publishedArtwork
         }
 
+        // Before the write, not after: iOS reads the card's transport state off
+        // the audio session, so `rate = 0` on a session that is still rendering
+        // audio is discarded. Moving the loop first means the two agree by the
+        // time the info centre is read.
+        audioSession.setPlaying(snapshot.isPlaying)
+
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         MPNowPlayingInfoCenter.default().playbackState = snapshot.isPlaying ? .playing : .paused
         logDiagnostics("published \(snapshot.title) — \(snapshot.isPlaying ? "playing" : "paused")")
@@ -652,7 +658,7 @@ final class NowPlayingSessionService {
         let info = MPNowPlayingInfoCenter.default()
         print("""
         \(nowPlayingLogPrefix) \(context)
-           session: held=\(audioSession.isHeld) playing=\(published?.isPlaying == true)
+           session: held=\(audioSession.isHeld) playing=\(audioSession.isPlaying)
            commands: play=\(center.playCommand.isEnabled) pause=\(center.pauseCommand.isEnabled) \
         toggle=\(center.togglePlayPauseCommand.isEnabled) next=\(center.nextTrackCommand.isEnabled) \
         prev=\(center.previousTrackCommand.isEnabled) scrub=\(center.changePlaybackPositionCommand.isEnabled)

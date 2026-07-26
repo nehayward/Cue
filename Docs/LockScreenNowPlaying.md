@@ -39,6 +39,18 @@ Non-negotiables learned the hard way:
 - **`UIBackgroundModes: audio`** is required, both to keep the card's controls
   alive and to keep the WebSocket delivering: `handleScenePhase(.background)`
   cancels the SOAP pulse.
+- **The loop has to pause when the speaker pauses.** iOS derives the card's
+  transport state from the audio session, not from `MPNowPlayingInfoCenter`
+  alone. An app whose session is actively rendering audio *is* playing as far as
+  the system is concerned, so a loop that never pauses pins the card to playing
+  and discards every `rate = 0` / `playbackState = .paused` we publish — the
+  symptom being a correct-looking log (`state=2 rate=0.0`) with a card that
+  never changes. `SilentAudioSession.setPlaying(_:)` mirrors the speaker onto
+  the loop, and `publish()` calls it *before* the info-centre write so the two
+  agree by the time the system reads them.
+- **Pause, never deactivate.** A paused player on a live session is the state a
+  music app sits in when the user pauses it, and the card stays ours.
+  Deactivating hands it away — that's `stop()`, and it's a different operation.
 - **The session is borrowable.** Song previews (`AudioPlaybackService`) take the
   session and deactivate it on teardown, which would drop the claim. That's
   arbitrated by `AudioSessionArbiter`: this service registers a claim, and the
@@ -88,9 +100,11 @@ things, so `resolveTarget()` gives them opposite answers:
 | **Background** | The playing group wins | The card is all the user can see, so it follows the music |
 
 Fallbacks, in order: selection (foreground only) → first playing group in
-`sorted` order → any mirrorable selection. That last one is what keeps a paused
-card up when nothing is playing anywhere; without it, pausing from the Lock
-Screen would drop the card and leave no way to resume.
+`sorted` order → **the group already on the card** → any mirrorable selection.
+The last two are what keep a paused card up when nothing is playing anywhere;
+without them, pausing from the Lock Screen would drop the card and leave no way
+to resume. Keeping the current group matters most in the background with no
+selection, where there is nothing else to fall back to.
 
 `sorted`, not `groups`: `groups` is in Sonos topology-parse order, which is
 arbitrary and reshuffles on refresh, so two rooms playing could hand the card
@@ -146,6 +160,23 @@ battery; everything above is either idle or edge-triggered.
 The topology subscription is the one piece that isn't a WebSocket. It predates
 this feature and is push-based, so it doesn't change the cost picture — worth
 knowing it's there before concluding "only WebSockets are alive".
+
+**Backgrounded *and* paused is a different regime.** `UIBackgroundModes: audio`
+keeps the app alive while it is playing audio; once the silent loop pauses, iOS
+is free to suspend us, and everything in the table above stops with it. That is
+the accepted cost of the pause mirroring described above, and it's the same
+behaviour any paused music app has:
+
+- Pressing play on the card is a remote command, which resumes the app — so the
+  normal way out works.
+- A resume started from somewhere else (the Sonos app, a speaker button) is not
+  seen while suspended, so the card can show paused until the app runs again. It
+  self-corrects on the next `publish()`, since `evaluate()` re-resolves and the
+  socket reconnects on resume.
+
+Nothing tries to defeat the suspension. Holding the process open by playing
+silence through a pause would put us back at a card that can't show a pause,
+which is the bug this traded away.
 
 ## Why it doesn't poll
 
