@@ -1,4 +1,5 @@
 import Foundation
+import os
 import SwiftyBeaver
 
 @Observable
@@ -7,8 +8,21 @@ public final class PlexAPI {
     @ObservationIgnored private let session: URLSession
     @ObservationIgnored private let decoder: JSONDecoder
     @ObservationIgnored private let parser = PlexParser()
-    @ObservationIgnored private var plexServer: PlexServer?
     @ObservationIgnored private let logger = SwiftyBeaver.self
+
+    // MARK: - Connection cache
+    // `plexServer`, `resolvedBaseURL`, and `resolvedBaseURLByServer` are read
+    // and written from concurrent tasks (parallel browse calls, the loadData
+    // self-heal path, onboarding fan-out). They're guarded by `cacheLock` so
+    // access is race-free while keeping `getBaseURL` synchronous. Never hold the
+    // lock across an `await`.
+    @ObservationIgnored private let cacheLock = OSAllocatedUnfairLock()
+    @ObservationIgnored private var plexServer: PlexServer?
+    @ObservationIgnored private var resolvedBaseURLByServer: [String: URL] = [:]
+
+    private func withCacheLock<T>(_ body: () -> T) -> T {
+        cacheLock.withLock(body)
+    }
 
     private let authenticator: PlexAuthenticator
     
@@ -36,37 +50,69 @@ public final class PlexAPI {
             if let preference = UserDefaults.standard.string(forKey: "com.clic.plexServer.connectionPreference"), let connection = ConnectionPreference(rawValue: preference) {
                 return connection
             }
-            return ConnectionPreference.nonLocal
+            return ConnectionPreference.auto
         }
         set {
             withMutation(keyPath: \.connectionPreference) {
                 UserDefaults.standard.set(newValue.rawValue, forKey: "com.clic.plexServer.connectionPreference")
             }
+            // Drop the cached server + resolved connections so the next request
+            // re-resolves against the newly chosen preference.
+            withCacheLock {
+                plexServer = nil
+                resolvedBaseURL = nil
+                resolvedBaseURLByServer.removeAll()
+            }
         }
     }
-    
+
     @ObservationIgnored
     var _connectionPreference: String?
-    
+
+    /// Best base URL for the selected server, resolved once (see
+    /// `resolveBaseURL`) and reused for browse requests. Cleared when the
+    /// connection preference or selected server changes. Guarded by `cacheLock`.
+    @ObservationIgnored
+    private var resolvedBaseURL: URL?
+
     public enum ConnectionPreference: String, CaseIterable {
+        /// Hybrid: use the local connection when reachable (fast), otherwise
+        /// fall back to remote. Resolved by racing the connections.
+        case auto = "auto"
         case nonLocal = "nonLocal"
         case local = "local"
-        
+
         public var displayName: String {
             switch self {
+            case .auto:
+                return "Automatic"
             case .local:
                 return "Local Network"
             case .nonLocal:
                 return "Remote Access"
             }
         }
-        
+
+        /// Short label for the segmented picker.
+        public var shortName: String {
+            switch self {
+            case .auto:
+                return "Auto"
+            case .local:
+                return "Local"
+            case .nonLocal:
+                return "Remote"
+            }
+        }
+
         public var description: String {
             switch self {
+            case .auto:
+                return "Uses your local network at home and remote access when you're away."
             case .local:
-                return "Use local network connection (faster, requires same network)"
+                return "Local network only — faster, but requires the same network."
             case .nonLocal:
-                return "Use remote access (works from anywhere, may be slower)"
+                return "Remote access — works from anywhere, may be slower."
             }
         }
     }
@@ -123,6 +169,114 @@ public final class PlexAPI {
         return song.metadata?.first?.userRating
     }
 
+    // MARK: - Playlist Management
+
+    /// The library item uri Plex expects when seeding or adding tracks to a playlist.
+    private func libraryItemURI(machineIdentifier: String, ratingKey: String) -> String {
+        "server://\(machineIdentifier)/com.plexapp.plugins.library/library/metadata/\(ratingKey)"
+    }
+
+    /// Creates a new audio playlist, optionally seeded with a single track.
+    /// - Returns: The new playlist's ratingKey, or `nil` on failure.
+    public func createPlaylist(title: String, trackRatingKey: String? = nil) async -> String? {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let machineIdentifier = plexServer.clientIdentifier,
+              var url = getBaseURL(for: plexServer)?.appending(path: "playlists") else {
+            return nil
+        }
+        var queryItems = [
+            URLQueryItem(name: "type", value: "audio"),
+            URLQueryItem(name: "title", value: title),
+            URLQueryItem(name: "smart", value: "0")
+        ]
+        if let trackRatingKey {
+            queryItems.append(URLQueryItem(name: "uri", value: libraryItemURI(machineIdentifier: machineIdentifier, ratingKey: trackRatingKey)))
+        }
+        url.append(queryItems: queryItems)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else { return nil }
+        let container = try? decoder.decode(PlexContainer<PlexUserPlaylistContainer>.self, from: data)
+        return container?.mediaContainer.metadata.first?.ratingKey
+    }
+
+    /// Adds a track to an existing playlist.
+    public func addToPlaylist(playlistRatingKey: String, trackRatingKey: String) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let machineIdentifier = plexServer.clientIdentifier,
+              var url = getBaseURL(for: plexServer)?.appending(path: "playlists/\(playlistRatingKey)/items") else {
+            return false
+        }
+        url.append(queryItems: [
+            URLQueryItem(name: "uri", value: libraryItemURI(machineIdentifier: machineIdentifier, ratingKey: trackRatingKey))
+        ])
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+        guard let (_, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse else { return false }
+        return (200...299).contains(http.statusCode)
+    }
+
+    /// Moves a playlist item after another item, or to the front when `afterItemID` is nil.
+    public func movePlaylistItem(playlistRatingKey: String, playlistItemID: String, afterItemID: String?) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              var url = getBaseURL(for: plexServer)?.appending(path: "playlists/\(playlistRatingKey)/items/\(playlistItemID)/move") else {
+            return false
+        }
+        if let afterItemID {
+            url.append(queryItems: [URLQueryItem(name: "after", value: afterItemID)])
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+        guard let (_, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse else { return false }
+        return (200...299).contains(http.statusCode)
+    }
+
+    /// Removes a single item (identified by its playlist item id) from a playlist.
+    public func removeFromPlaylist(playlistRatingKey: String, playlistItemID: String) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let url = getBaseURL(for: plexServer)?.appending(path: "playlists/\(playlistRatingKey)/items/\(playlistItemID)") else {
+            return false
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+        guard let (_, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse else { return false }
+        return (200...299).contains(http.statusCode)
+    }
+
+    /// Deletes a playlist entirely.
+    public func deletePlaylist(ratingKey: String) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let url = getBaseURL(for: plexServer)?.appending(path: "playlists/\(ratingKey)") else {
+            return false
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+        guard let (_, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse else { return false }
+        return (200...299).contains(http.statusCode)
+    }
+
     public func search(for query: String, limit: Int = 50) async -> PlexResults? {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else {
@@ -147,7 +301,7 @@ public final class PlexAPI {
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
-        guard let (data, _) = try? await session.data(for: request) else {
+        guard let (data, _) = await loadData(for: request) else {
             logger.warning("Search request failed \(String(describing: request.url?.absoluteString))")
             return nil
         }
@@ -157,7 +311,48 @@ public final class PlexAPI {
         logger.info("\(xml)")
         #endif
         
-        return parser.parseXML(xmlData: data, plexServer: plexServer, connectionPreference: connectionPreference)
+        return parser.parseXML(xmlData: data, plexServer: plexServer, connectionPreference: connectionPreference, baseURL: getBaseURL(for: plexServer))
+    }
+
+    /// Batch metadata lookup, keyed by ratingKey — one request for any mix of
+    /// tracks and albums. Some servers omit detail from `/hubs/search`
+    /// responses (a track's `Media` element with codec/bitrate, an album's
+    /// `leafCount`), so search results are enriched from
+    /// `/library/metadata/{id,id,...}`, which always includes it.
+    public func batchMetadata(ratingKeys: [String]) async -> [String: PlexMetadata] {
+        guard !ratingKeys.isEmpty,
+              let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let url = getBaseURL(for: plexServer)?.appending(path: "library/metadata/\(ratingKeys.joined(separator: ","))") else {
+            return [:]
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, _) = await loadData(for: request),
+              let container = try? decoder.decode(PlexContainer<PlexBatchMetadata>.self, from: data).mediaContainer else {
+            return [:]
+        }
+
+        var metadataByKey: [String: PlexMetadata] = [:]
+        for item in container.metadata ?? [] {
+            metadataByKey[item.ratingKey] = item
+        }
+        return metadataByKey
+    }
+
+    /// Minimal container for the batch metadata endpoint: unlike
+    /// `PlexSongItem`, no `librarySectionID`/`librarySectionTitle` — a batch
+    /// spanning several libraries omits the container-level section fields.
+    private struct PlexBatchMetadata: Codable {
+        let metadata: [PlexMetadata]?
+        enum CodingKeys: String, CodingKey {
+            case metadata = "Metadata"
+        }
     }
 
     public func playlists() async -> [PlexUserPlaylist] {
@@ -345,6 +540,7 @@ public final class PlexAPI {
 
         for index in songs.indices {
             songs[index].sonosID = "\(id)%3A3%3A\(songs[index].ratingKey)"
+            songs[index].streamURL = streamURL(for: songs[index], server: plexServer, token: token)
             guard let thumb = songs[index].thumb else { continue }
             songs[index].thumbImageURL = getBaseURL(for: plexServer)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
         }
@@ -384,17 +580,79 @@ public final class PlexAPI {
         }
     }
     
+    /// Picks the fastest reachable base URL for a server by racing its candidate
+    /// connections (local + remote) concurrently and using whichever responds
+    /// first — so we use the LAN connection at home and remote when away,
+    /// without paying a sequential timeout penalty. Falls back to the
+    /// connection-preference URL if no probe succeeds.
+    func resolveBaseURL(for server: PlexServer, forceRefresh: Bool = false) async -> URL? {
+        // Reuse a previously-raced result for this server unless a caller forces
+        // a refresh (loadData does this when a cached connection went stale).
+        let cacheKey = server.clientIdentifier
+        if !forceRefresh, let cacheKey, let cached = withCacheLock({ resolvedBaseURLByServer[cacheKey] }) {
+            return cached
+        }
+
+        let fallback = server.baseURL(preferring: connectionPreference)
+        guard let token = server.accessToken else { return fallback }
+
+        // Candidate connections to probe, per preference:
+        //  - .local: local only
+        //  - .nonLocal: remote only
+        //  - .auto: race local (fast at home) against remote (works anywhere)
+        let candidateStrings: [String]
+        switch connectionPreference {
+        case .local:    candidateStrings = server.localURIs
+        case .nonLocal: candidateStrings = server.nonLocalURIs
+        case .auto:     candidateStrings = server.localURIs + server.nonLocalURIs
+        }
+        let candidates = candidateStrings.compactMap { URL(string: $0) }
+        guard !candidates.isEmpty else { return fallback }
+
+        let session = self.session
+        let winner = await withTaskGroup(of: URL?.self) { group -> URL? in
+            for url in candidates {
+                group.addTask {
+                    var request = URLRequest(url: url.appending(path: "identity"))
+                    request.timeoutInterval = 4
+                    request.addValue("application/json", forHTTPHeaderField: "Accept")
+                    request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+                    request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+                    guard let (_, response) = try? await session.data(for: request),
+                          let http = response as? HTTPURLResponse,
+                          (200..<300).contains(http.statusCode) else { return nil }
+                    return url
+                }
+            }
+            // Return the first connection to respond, then cancel the rest.
+            for await result in group {
+                if let url = result {
+                    group.cancelAll()
+                    return url
+                }
+            }
+            return nil
+        }
+
+        // Cache only a real probe winner, so a failed race re-probes next time.
+        if let cacheKey, let winner {
+            withCacheLock { resolvedBaseURLByServer[cacheKey] = winner }
+        }
+        return winner ?? fallback
+    }
+
     public func getMusicLibraries(server: PlexServer) async -> [PlexLibrarySection] {
         guard let token = server.accessToken else {
             return []
         }
 
-        guard let sectionsURL = server.baseURL(preferring: connectionPreference)?.appending(path: "library/sections") else {
+        guard let sectionsURL = (await resolveBaseURL(for: server))?.appending(path: "library/sections") else {
             return []
         }
 
         var request = URLRequest(url: sectionsURL)
         request.httpMethod = "GET"
+        request.timeoutInterval = 10
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
@@ -421,7 +679,51 @@ public final class PlexAPI {
             return []
         }
     }
-    
+
+    /// Fetches a handful of artists (with resolved artwork URLs) from a
+    /// specific library section on a specific server. Unlike `artists()`, this
+    /// doesn't depend on the currently-selected server/library — used to preview
+    /// libraries (e.g. onboarding) before one is chosen.
+    public func getArtists(server: PlexServer, sectionKey: String, limit: Int = 12) async -> [PlexMetadata] {
+        guard let token = server.accessToken,
+              let base = await resolveBaseURL(for: server) else {
+            return []
+        }
+
+        var url = base.appending(path: "/library/sections/\(sectionKey)/all")
+        url.append(queryItems: [
+            URLQueryItem(name: "type", value: "8"), // 8 = artist
+            URLQueryItem(name: "X-Plex-Container-Size", value: "\(limit)"),
+            URLQueryItem(name: "X-Plex-Container-Start", value: "0")
+        ])
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, _) = try? await session.data(for: request) else {
+            return []
+        }
+
+        do {
+            let container = try decoder.decode(PlexContainer<PlexArtistContainer>.self, from: data)
+            guard var artists = container.mediaContainer.metadata else { return [] }
+            for index in artists.indices {
+                guard let thumb = artists[index].thumb else { continue }
+                artists[index].thumbImageURL = base
+                    .appending(path: thumb)
+                    .appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+            }
+            return artists
+        } catch {
+            logger.error(error)
+            return []
+        }
+    }
+
     public func getMusicLibraries() async -> [PlexLibrarySection] {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else {
@@ -863,10 +1165,11 @@ public final class PlexAPI {
         components.queryItems = [.init(name: "includeHttps", value: "1"), .init(name: "includeRelay", value: "1")]
         var request = URLRequest(url: components.url!)
         request.httpMethod = "GET"
+        request.timeoutInterval = 10
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
-        
+
         guard let (data, urlResponse) = try? await session.data(for: request) else { return [] }
         
         if let httpResponse = urlResponse as? HTTPURLResponse, httpResponse.statusCode == 401 {
@@ -958,17 +1261,53 @@ public final class PlexAPI {
 //      }
 //"""
 //        return try? JSONDecoder().decode(PlexServer.self, from: jsonData.data(using: .utf8)!)
-        if let plexServer {
-            return plexServer
+        if let cached = withCacheLock({ plexServer }) {
+            return cached
         }
         let plexServers = await getPlexServers()
         let preferredServer = plexServers.filter { $0.clientIdentifier == serverID }.first
-        self.plexServer = preferredServer
+        // Resolve the fastest connection once so browse requests reuse it.
+        var resolved: URL?
+        if let preferredServer {
+            resolved = await resolveBaseURL(for: preferredServer)
+        }
+        withCacheLock {
+            plexServer = preferredServer
+            resolvedBaseURL = resolved
+        }
         return preferredServer
     }
-    
+
     private func getBaseURL(for plexServer: PlexServer) -> URL? {
-        return plexServer.baseURL(preferring: connectionPreference)
+        return withCacheLock { resolvedBaseURL } ?? plexServer.baseURL(preferring: connectionPreference)
+    }
+
+    /// Performs a request; if it fails at the connection level, re-resolves this
+    /// server's connection and retries once against a *different* connection —
+    /// so a cached local URL that's unreachable after leaving home transparently
+    /// fails over to remote (and vice-versa). Keeps the cached server (no extra
+    /// plex.tv round trip); only the stale connection is re-raced, and the retry
+    /// only fires when re-resolution yields a different connection (avoids
+    /// doubling the timeout when the server is simply down).
+    private func loadData(for request: URLRequest) async -> (Data, URLResponse)? {
+        if let result = try? await session.data(for: request) {
+            return result
+        }
+        guard let url = request.url,
+              let server = await getPlexServer() else {
+            return nil
+        }
+        // Force a fresh race for this server's connection and cache the winner.
+        let newBase = await resolveBaseURL(for: server, forceRefresh: true)
+        withCacheLock { resolvedBaseURL = newBase }
+        guard let newBase,
+              let retryURL = url.rebasing(to: newBase),
+              retryURL != url else {
+            return nil
+        }
+        var retryRequest = request
+        retryRequest.url = retryURL
+        return try? await session.data(for: retryRequest)
     }
 
     private func authorizedRequest(from url: URL) async -> URLRequest? {
@@ -978,6 +1317,7 @@ public final class PlexAPI {
         }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.timeoutInterval = 10
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
@@ -988,8 +1328,8 @@ public final class PlexAPI {
         guard let request = await authorizedRequest(from: url) else {
             return nil
         }
-        
-        guard let (data, urlResponse) = try? await session.data(for: request) else { return nil }
+
+        guard let (data, urlResponse) = await loadData(for: request) else { return nil }
         
         if let httpResponse = urlResponse as? HTTPURLResponse, httpResponse.statusCode == 401 {
             // MARK: Reset
@@ -1034,8 +1374,36 @@ public final class PlexAPI {
             if let art = item.art {
                 updatedItem.artImageURL = getBaseURL(for: plexServer)?.appending(path: art).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
             }
-            
+
+            updatedItem.streamURL = streamURL(for: item, server: plexServer, token: token)
+
             return updatedItem
         }
+    }
+
+    /// Builds a token-authenticated URL to stream a track's media file from the
+    /// server. Returns nil for items without a playable part (e.g. albums,
+    /// artists, playlists), so only tracks get a stream URL.
+    private func streamURL(for item: PlexMetadata, server: PlexServer, token: String) -> URL? {
+        guard let partKey = item.media?.first?.part.first?.key else { return nil }
+        return getBaseURL(for: server)?
+            .appending(path: partKey)
+            .appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+    }
+}
+
+private extension URL {
+    /// Returns a copy of this URL with its scheme/host/port replaced by those
+    /// of `base`, preserving the path and query. Used to retry a Plex request
+    /// against a different connection of the same server.
+    func rebasing(to base: URL) -> URL? {
+        guard var components = URLComponents(url: self, resolvingAgainstBaseURL: false),
+              let baseComponents = URLComponents(url: base, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        components.scheme = baseComponents.scheme
+        components.host = baseComponents.host
+        components.port = baseComponents.port
+        return components.url
     }
 }

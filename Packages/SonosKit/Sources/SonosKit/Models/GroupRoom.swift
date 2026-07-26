@@ -11,12 +11,23 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public var TVMode: Bool { playbackService == .tv }
     public var isCrossfaded: Bool? = nil
     public var tvSettings: TVSettings?
+
+    public var isArcUltra: Bool {
+        rooms.first(where: \.isSoundbar)?.isArcUltra ?? coordinatorRoom.isArcUltra
+    }
     public var playMode: PlayMode = .normal
     public var isMuted: Bool = false
     public var ip: String { coordinatorRoom.ip }
     public var isEditingVolume: Bool = false
     public var isEditingPlayback: Bool = false
     public var playbackService: PlaybackService = .unknown
+
+    /// Whether `track` is the row currently playing from the queue. Matched by queue
+    /// position — the unique 1-based queue index at render time (not stable across
+    /// reorders) — and gated on playing from the queue.
+    public func isNowPlaying(_ track: PlayableContent) -> Bool {
+        track.metadata?.position == coordinatorRoom.track.position && playbackService == .queue
+    }
     public var availableActions: AvailableActions = []
     public var groupVolume: Double = 0
     public var audioQuality: SonosTrackQuality? = nil

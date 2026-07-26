@@ -23,17 +23,16 @@ struct PlexLibraryFilterView: View {
                 .menuActionDismissBehavior(.disabled)
             }
         } label: {
-            ZStack(alignment: .topTrailing) {
-                Image(systemName: "line.3.horizontal.decrease")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 24, height: 24)
-                    .foregroundStyle(hasActiveFilters ? AnyShapeStyle(.accent.gradient) : AnyShapeStyle(.primary))
-            }
-            .allowsHitTesting(false)
+            Image(systemName: "line.3.horizontal.decrease")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 24, height: 24)
+                // White reads against the accent glass fill; primary on clear glass.
+                .foregroundStyle(hasActiveFilters ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+                .allowsHitTesting(false)
         }
         .buttonBorderShape(.circle)
-        .glassButton()
+        .accentGlassButton(active: hasActiveFilters)
         .id(plexLibrariesFilters.count)
     }
 }

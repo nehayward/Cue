@@ -100,13 +100,25 @@ struct MiniPlayerView: View {
         VStack(alignment: .leading) {
             Text(group.nameWithCount)
                 .font(.caption2)
-            MarqueeText([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter { !$0.isEmpty }.joined(separator: " • "))
+            MarqueeText(trackInfoText(for: group))
                 .transition(.slide)
                 .fontWeight(.semibold)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .fontDesign(.rounded)
         .lineLimit(1, reservesSpace: true)
+    }
+
+    /// Song • artist, falling back to the radio station name when the track
+    /// carries no text of its own (idle Sonos Radio players report an empty
+    /// track between songs — the large player shows the station name there,
+    /// so the mini player should too).
+    private func trackInfoText(for group: GroupRoom) -> String {
+        let parts = [group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter { !$0.isEmpty }
+        if parts.isEmpty, let station = group.coordinatorRoom.radioStation {
+            return station
+        }
+        return parts.joined(separator: " • ")
     }
 
     private func tvInputInfoView(for group: GroupRoom) -> some View {
@@ -162,7 +174,6 @@ private struct MiniTVControlsView: View {
     var body: some View {
         let settings = group.tvSettings
         let nightMode = settings?.nightMode ?? false
-        let dialogLevel = settings?.dialogLevel ?? false
 
         HStack(spacing: 8) {
             Button {
@@ -170,7 +181,7 @@ private struct MiniTVControlsView: View {
                 Task {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     try? await SonosService.shared.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode)
-                    group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
+                    group.tvSettings = try? await SonosService.shared.getTVSettings(group: group)
                 }
             } label: {
                 Image(systemName: "moon.zzz.fill")
@@ -198,22 +209,27 @@ private struct MiniTVControlsView: View {
             .tint(group.isMuted ? .accent : nil)
             .animation(.spring, value: group.isMuted)
 
-            Button {
-                guard let settings else { return }
-                Task {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    try? await SonosService.shared.setDialogLevel(group.coordinatorRoom.ip, enabled: !settings.dialogLevel)
-                    group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
+            if group.isArcUltra {
+                SpeechEnhancementMenu(group: group, compact: true)
+            } else {
+                let dialogLevel = settings?.dialogLevel ?? false
+                Button {
+                    guard let settings else { return }
+                    Task {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        try? await SonosService.shared.setDialogLevel(group.coordinatorRoom.ip, enabled: !settings.dialogLevel)
+                        group.tvSettings = try? await SonosService.shared.getTVSettings(group: group)
+                    }
+                } label: {
+                    Image(systemName: "person.wave.2.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(dialogLevel ? .accent : .secondary.opacity(0.8))
                 }
-            } label: {
-                Image(systemName: "person.wave.2.fill")
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(dialogLevel ? .accent : .secondary.opacity(0.8))
+                .buttonStyle(.bordered)
+                .tint(dialogLevel ? .accent : nil)
+                .animation(.spring, value: dialogLevel)
+                .disabled(settings == nil)
             }
-            .buttonStyle(.bordered)
-            .tint(dialogLevel ? .accent : nil)
-            .animation(.spring, value: dialogLevel)
-            .disabled(settings == nil)
         }
         .controlSize(.small)
     }

@@ -219,7 +219,7 @@ struct PlexAuthorizationFlowView: View {
                                     .font(.body.bold())
                                     .foregroundStyle(.primary)
                                 
-                                if preference == .nonLocal {
+                                if preference == .auto {
                                     Text("(Recommended)")
                                         .font(.caption)
                                         .foregroundStyle(.accent)

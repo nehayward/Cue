@@ -58,13 +58,27 @@ public final class Room: Identifiable, @unchecked Sendable {
         }
         return false
     }
+
+    public var isArcUltra: Bool {
+        info?.modelDisplayName.lowercased().contains("arc ultra") ?? false
+    }
     
     public var supportsLineIn: Bool {
-        let keywords = ["Amp", "Era", "Five", "Move 2", "Play", "Connect", "Port"]
-        if let info {
-            return keywords.contains(where: info.modelDisplayName.contains)
+        guard let info else { return false }
+        // Prefer the device-reported capability — it's authoritative across firmware/models.
+        if let capabilities = info.capabilities {
+            return capabilities.contains("LINE_IN")
         }
-        return false
+        // Fallback when capabilities haven't been reported yet. "Era" and "Move 2" stay
+        // broad — every Era (100/100 SL/300) and Move 2 supports line-in via the USB-C
+        // adapter. "Play:5" and the 2026 portable "Play" both support it, but must be
+        // matched precisely: the bare "Play" substring also caught Play:1/Play:3/Playbar/
+        // Playbase, which have no line-in and wrongly surfaced the "Switch to Line In" action.
+        let model = info.modelDisplayName
+        // New portable "Sonos Play" — exact (last-token) match so we don't catch its siblings.
+        if model.split(separator: " ").last == "Play" { return true }
+        let keywords = ["Amp", "Connect", "Port", "Five", "Play:5", "Era", "Move 2"]
+        return keywords.contains(where: model.contains)
     }
     
     public var supportsFixedOutput: Bool {

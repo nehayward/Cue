@@ -42,13 +42,15 @@ public final class SonosService {
     @ObservationIgnored private lazy var api = SonosAPI()
     @ObservationIgnored private lazy var mediaServerHandler = MediaServerHandler()
 
+    // The shared instance, not a private one: all uses here are stateless
+    // catalog lookups, and a second instance duplicates auth/session setup.
     @MainActor
-    @ObservationIgnored private lazy var musicSearch = MusicSearchService()
+    @ObservationIgnored private lazy var musicSearch = MusicSearchService.shared
     @ObservationIgnored private var isGroupingTask: Task<Void, Error> = Task { }
 
     public var systemState = SonosSystemState()
     public var isSearching: Bool { sonosSystemDiscoverService.isSearching }
-    public var lastKnownIP: String { sonosSystemDiscoverService.sonosStorageIP.sonosIP }
+    public var lastKnownIP: String { sonosSystemDiscoverService.cachedIP }
     public var state: String { sonosSystemDiscoverService.lastKnownState }
     public var isCellular: Bool { sonosSystemDiscoverService.isCellular }
 
@@ -63,15 +65,92 @@ public final class SonosService {
         groups.removeAll()
         rooms.removeAll()
         selectedGroup = nil
+        cachedIPVerified = false
     }
 
-    public var preferredHouseHold: String? { 
+    /// Forces the next `getGroups(useCache:)` call to re-race all known-household
+    /// IPs (plus Bonjour) instead of trusting the IP verified earlier this
+    /// session. Call this on foreground: the network may have changed while the
+    /// app was backgrounded (home → friend's house), and the stale cached IP is
+    /// now unreachable — blindly hitting it would block on the network timeout
+    /// before falling back to discovery. Re-racing keeps switching instant while
+    /// still only running discovery once per foreground (the flag is set back to
+    /// true after the first successful load, so steady-state polls stay on the
+    /// fast path). Unlike `clearDevices()`, this leaves the current groups/rooms
+    /// on screen so the UI doesn't flash empty.
+    @MainActor
+    public func invalidateVerifiedConnection() {
+        cachedIPVerified = false
+    }
+
+    public var preferredHouseHold: String? {
         get {
             sonosSystemDiscoverService.preferredHouseHold
         }
         set {
             sonosSystemDiscoverService.preferredHouseHold = newValue
         }
+    }
+
+    /// All households this device has ever successfully connected to.
+    /// Persisted in iCloud so it syncs across devices.
+    public var knownHouseholds: [SonosHousehold] {
+        sonosSystemDiscoverService.knownHouseholds
+    }
+
+    /// `knownHouseholds` ordered most-recently-connected first — the canonical
+    /// display order for the Households list.
+    public var householdsByRecency: [SonosHousehold] {
+        sonosSystemDiscoverService.householdsByRecency
+    }
+
+    /// The household currently being monitored (or the most-recently-connected
+    /// one when no explicit preference is set).
+    public var activeHousehold: SonosHousehold? {
+        sonosSystemDiscoverService.activeHousehold
+    }
+
+    /// Switches the active household, resets all state, and restarts monitoring.
+    /// The race in getGroups will test the household's last known IP immediately
+    /// while Bonjour discovery runs in parallel in case the IP has changed.
+    /// Clears any removal block — an explicit switch is an explicit re-add.
+    @MainActor
+    public func switchHousehold(to id: String) {
+        sonosSystemDiscoverService.unblockHousehold(id: id)
+        sonosSystemDiscoverService.switchToHousehold(id: id)
+        clearDevices()
+        monitor()
+    }
+
+    /// Removes a household from the known list and blocks it from auto-returning
+    /// (via the pulse race, Bonjour, or an on-appear scan). If it was the active
+    /// household — whether pinned or active-by-recency — monitoring is stopped so
+    /// the pulse loop cannot immediately reconnect to the removed system.
+    @MainActor
+    public func removeHousehold(id: String) {
+        let wasActive = sonosSystemDiscoverService.activeHousehold?.id == id
+        sonosSystemDiscoverService.blockHousehold(id: id)
+        var households = sonosSystemDiscoverService.knownHouseholds
+        households.removeAll { $0.id == id }
+        sonosSystemDiscoverService.knownHouseholds = households
+        if sonosSystemDiscoverService.preferredHouseHold == id {
+            sonosSystemDiscoverService.preferredHouseHold = nil
+        }
+        // Re-point (or clear) the legacy sonos_ip mirror so Clic Mini / the Watch
+        // don't keep controlling the system that was just removed.
+        sonosSystemDiscoverService.refreshLegacyMirror()
+        if wasActive {
+            clearDevices()
+        }
+    }
+
+    /// Renames a household in the known list.
+    @MainActor
+    public func renameHousehold(id: String, name: String) {
+        var households = sonosSystemDiscoverService.knownHouseholds
+        guard let idx = households.firstIndex(where: { $0.id == id }) else { return }
+        households[idx].name = name
+        sonosSystemDiscoverService.knownHouseholds = households
     }
 
     public var parserError: String?
@@ -84,6 +163,8 @@ public final class SonosService {
     @ObservationIgnored var streamingService: SonosStreamingService?
     @ObservationIgnored private var metadataTask: Task<Void, Never>?
     @ObservationIgnored private var hasAppliedGroupsCache = false
+    @ObservationIgnored private var cachedIPVerified = false
+    @ObservationIgnored private var attemptedTrackInfoUniques = Set<String>()
 
     public var sortOption: SonosSortOption {
         didSet {
@@ -184,6 +265,15 @@ public final class SonosService {
         sorted.first(where: { $0.coordinatorID == id})
     }
 
+    /// The room whose playback state a given room is actually hearing.
+    /// Grouped rooms stream from their group coordinator, and only the
+    /// coordinator's `track`/`isPlaying` are kept fresh — so resolve
+    /// through the coordinator, falling back to the room itself when it
+    /// isn't part of a known group.
+    public func playbackRoom(for room: Room) -> Room {
+        groups.first(where: { $0.rooms.contains(where: { $0.id == room.id }) })?.coordinatorRoom ?? room
+    }
+
     /// Copies battery state from a freshly-parsed `updateGroup` into the
     /// matching rooms of an already-stored `storedGroup`. Iterates every
     /// room — not just the coordinator — so a battery speaker (Move)
@@ -222,7 +312,7 @@ public final class SonosService {
                 } else {
                     try? await Task.sleep(for: .milliseconds(1000))
                 }
-            } while (!watcher.isCancelled)
+            } while !Task.isCancelled
         }
 
         self.sonosPulse = Task { [weak self] in
@@ -273,7 +363,7 @@ public final class SonosService {
                     sonosPulse.cancel()
                     print(#function, error)
                 }
-            } while (!sonosPulse.isCancelled)
+            } while !Task.isCancelled
         }
     }
 
@@ -397,24 +487,40 @@ public final class SonosService {
 
             if roomGroup.playbackService == .radio {
                 if let mediaInfo = await mediaInfo, let title = mediaInfo.title, !title.isEmpty {
-                    if roomGroup.coordinatorRoom.radioStation != title, !title.isEmpty {
+                    if roomGroup.coordinatorRoom.radioStation != title {
                         roomGroup.coordinatorRoom.radioStation = title
-                    }
-                    
-                    if roomGroup.coordinatorRoom.track.radioStationArtworkURL != mediaInfo.artwork {
+                        // Station changed: the old station's art no longer
+                        // applies (the nil-gate below would keep it forever
+                        // while idle). Take the new station's metadata art
+                        // now; the parser-derived art (preferred) lands with
+                        // the next non-empty track.
                         roomGroup.coordinatorRoom.track.radioStationArtworkURL = mediaInfo.artwork
+                    } else if roomGroup.coordinatorRoom.track.radioStationArtworkURL == nil,
+                              let stationArt = mediaInfo.artwork {
+                        // Don't clobber the station art the parser already derived
+                        // from the position info; only fill it in if still missing.
+                        roomGroup.coordinatorRoom.track.radioStationArtworkURL = stationArt
                     }
                 }
             } else if roomGroup.coordinatorRoom.radioStation != nil {
                 roomGroup.coordinatorRoom.radioStation = nil
             }
 
-            if awaitedTrack == .empty {
-                if roomGroup.coordinatorRoom.track != .empty {
+            if awaitedTrack.isEmpty {
+                // An idle radio player keeps its station branding. Build the
+                // resting track first and only assign on change — comparing
+                // against a bare `.empty` while the radio branch above
+                // re-stamps station art made every pulse alternate between
+                // the two states, flickering the player (and mini player)
+                // and deleting the widget artwork file each second.
+                var restingTrack = Track.empty
+                if roomGroup.playbackService == .radio {
+                    restingTrack.radioStationArtworkURL = awaitedTrack.radioStationArtworkURL
+                        ?? roomGroup.coordinatorRoom.track.radioStationArtworkURL
+                }
+                if roomGroup.coordinatorRoom.track != restingTrack {
                     ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
-                    roomGroup.coordinatorRoom.track = .empty
-                    roomGroup.coordinatorRoom.track.downloadedArtworkURL = nil
-                    roomGroup.coordinatorRoom.track.sonosAlbumArtURL = nil
+                    roomGroup.coordinatorRoom.track = restingTrack
                 }
                 return
             }
@@ -449,13 +555,24 @@ public final class SonosService {
                 if !awaitedTrack.album.isEmpty, roomGroup.coordinatorRoom.track.album != awaitedTrack.album {
                     roomGroup.coordinatorRoom.track.album = awaitedTrack.album
                 }
+                // TrackDuration can land a pulse late — Sonos reports 0:00:00
+                // while a stream is still opening (e.g. right after switching
+                // from a radio station to a queue track). Without this the
+                // first-pulse 0 sticks for the whole song and the progress bar
+                // stays hidden. Gate on non-zero so a transient 0 during
+                // buffering can't clobber a known length.
+                if awaitedTrack.duration > 0, roomGroup.coordinatorRoom.track.duration != awaitedTrack.duration {
+                    roomGroup.coordinatorRoom.track.duration = awaitedTrack.duration
+                }
                 return
             }
 
             // Only get track information if the track ID has changed
             let shouldGetTrackInfo = roomGroup.coordinatorRoom.track.unique != awaitedTrack.unique
+                || !attemptedTrackInfoUniques.contains(awaitedTrack.unique)
             
             if shouldGetTrackInfo {
+                attemptedTrackInfoUniques.insert(awaitedTrack.unique)
                 // Sonos's XML (`dc:title`, `dc:creator`, `r:albumArtist`) already gives us
                 // displayable name/artist — assign immediately so the row never sits blank
                 // while we wait on `getTrackInformation` (which can be slow or rate-limited
@@ -625,6 +742,13 @@ public final class SonosService {
         KeychainTokenRefreshHandler.shared.setCredentials(for: server)
     }
     
+    /// Resolves the SMAPI endpoint for a Sonos service id (e.g. "303" for Sonos
+    /// Radio) by querying a player's available-services descriptor list.
+    public func smapiEndpoint(for serviceID: String) async -> URL? {
+        guard let sonosIP = prioritizedIP() else { return nil }
+        return await api.availableServiceURI(IP: sonosIP, serviceID: serviceID)
+    }
+
     public func getCredentials() async -> (String, String)? {
         guard let sonosIP = try? await getGroupsFast().first?.ip else { return nil }
         let preferredHouseHoldName = await api.getHouseHoldID(for: sonosIP)
@@ -706,25 +830,59 @@ public final class SonosService {
                     if awaitedTrack == .tv {
                         roomGroup.playbackService = .tv
 
-                        if let settings = try? await getTVSettings(ip: roomGroup.ip), roomGroup.tvSettings != settings {
+                        if let settings = try? await getTVSettings(group: roomGroup), roomGroup.tvSettings != settings {
                             roomGroup.tvSettings = settings
                         }
                         return
                     }
 
                     if roomGroup.playbackService == .radio {
-                        if let mediaInfo = await mediaInfo, let title = mediaInfo.title, !title.isEmpty {
-                            if roomGroup.coordinatorRoom.radioStation != title, !title.isEmpty {
-                                roomGroup.coordinatorRoom.radioStation = title
-                            }
+                        let info = await mediaInfo
+                        if let title = info?.title, !title.isEmpty, roomGroup.coordinatorRoom.radioStation != title {
+                            roomGroup.coordinatorRoom.radioStation = title
+                            // Station changed — twin of `load()`: the previous
+                            // station's art must not survive the switch. Take the
+                            // new station's metadata art (or nil if it has none —
+                            // a placeholder beats the wrong station's branding).
+                            // Without this, the resting-track fallback below kept
+                            // the old art whenever the new station's URIMetadata
+                            // carried no albumArtURI.
+                            roomGroup.coordinatorRoom.track.radioStationArtworkURL = info?.artwork
+                        }
+                        // Prefer the station art the parser already pulled from the
+                        // position info; otherwise use the one round-tripped via the
+                        // radio URIMetadata's albumArtURI. Never clobber a known value
+                        // with nil. artworkURL uses this only as a last resort (ads /
+                        // spoken breaks) so the player stays branded, not a blank note.
+                        if awaitedTrack.radioStationArtworkURL == nil, let stationArt = info?.artwork {
+                            awaitedTrack.radioStationArtworkURL = stationArt
                         }
                     } else if roomGroup.coordinatorRoom.radioStation != nil {
                         roomGroup.coordinatorRoom.radioStation = nil
                     }
 
-                    if awaitedTrack == .empty {
-                        // Active speaker briefly returning empty is usually a transient —
-                        // keep the previous track on screen, let the next pulse settle.
+                    if awaitedTrack.isEmpty {
+                        // Radio: settle into the station-branded resting track (twin
+                        // of the selected-group path in `load()`). Without this the
+                        // background poll never wrote station art to the room, so the
+                        // mini player only got artwork after the large player had been
+                        // opened once (only `load()`'s selected path filled it in).
+                        // The radio branch above already stamped parser/metadata
+                        // station art onto `awaitedTrack`.
+                        if roomGroup.playbackService == .radio {
+                            var restingTrack = Track.empty
+                            restingTrack.radioStationArtworkURL = awaitedTrack.radioStationArtworkURL
+                                ?? roomGroup.coordinatorRoom.track.radioStationArtworkURL
+                            if roomGroup.coordinatorRoom.track != restingTrack {
+                                roomGroup.coordinatorRoom.track = restingTrack
+                            }
+                            return
+                        }
+                        // Non-radio: an active speaker briefly returning empty is
+                        // usually a transient — keep the previous track on screen,
+                        // let the next pulse settle. `isEmpty`, not `== .empty`, so
+                        // an art-stamped empty track can't slip past this early
+                        // return into the new-track path every pulse.
                         return
                     }
 
@@ -732,7 +890,8 @@ public final class SonosService {
                     // `let currentTrack = ...` capture is a value copy and
                     // mutations vanish. Write through the Room property
                     // directly so the @Observable setter actually fires.
-                    if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique {
+                    if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique,
+                       attemptedTrackInfoUniques.contains(awaitedTrack.unique) {
                         if !roomGroup.isEditingPlayback, roomGroup.coordinatorRoom.playbackPosition != awaitedTrack.playbackPosition {
                             roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
                         }
@@ -751,9 +910,16 @@ public final class SonosService {
                         if !awaitedTrack.album.isEmpty, roomGroup.coordinatorRoom.track.album != awaitedTrack.album {
                             roomGroup.coordinatorRoom.track.album = awaitedTrack.album
                         }
+                        // See twin site in `load()` — TrackDuration can arrive a
+                        // pulse late (0:00:00 while the stream opens); reconcile
+                        // it so the progress bar doesn't stay hidden all song.
+                        if awaitedTrack.duration > 0, roomGroup.coordinatorRoom.track.duration != awaitedTrack.duration {
+                            roomGroup.coordinatorRoom.track.duration = awaitedTrack.duration
+                        }
                         return
                     }
 
+                    attemptedTrackInfoUniques.insert(awaitedTrack.unique)
                     // Sonos's XML already provides displayable name/artist — assign now so
                     // the row never sits blank waiting on `getTrackInformation`.
                     //
@@ -908,16 +1074,19 @@ public final class SonosService {
                     //                        roomGroup.tvSettings?.audioInputFormat = .dolbyAtmosTrueHD
                     //                        return
                     //                    }
+                    // Apply synchronously — the closure is already @MainActor.
+                    // Deferring through a fire-and-forget Task let a stale
+                    // pre-switch reading (e.g. `.radio` fetched just before a
+                    // queue-item tap re-pointed the transport) land after the
+                    // optimistic `.queue` write from `markSwitchedToQueue`.
                     if let playbackService = await playbackService(ip: roomGroup.ip), roomGroup.playbackService != playbackService {
-                        Task { @MainActor in
-                            roomGroup.playbackService = playbackService
-                        }
+                        roomGroup.playbackService = playbackService
                     }
 
                     // TODO: Move into playback
                     Task { @MainActor [weak self] in
                         if roomGroup.playbackService == .tv {
-                            if let settings = try? await self?.getTVSettings(ip: roomGroup.ip), roomGroup.tvSettings != settings {
+                            if let settings = try? await self?.getTVSettings(group: roomGroup), roomGroup.tvSettings != settings {
                                 roomGroup.tvSettings = settings
                             }
                         } else if roomGroup.tvSettings != nil {
@@ -1015,10 +1184,173 @@ public final class SonosService {
         }
     }
 
+    // Outcome of a single task in the getGroups reconnect race.
+    //   knownWin  — a stored IP answered; `verifiedID` is the household the
+    //               responding device *actually* reports (see getGroups: IPs are
+    //               NOT stable household identities — DHCP reassigns them and
+    //               different LANs reuse 192.168.x.x — so we trust the device,
+    //               never the stored IP→ID mapping).
+    //   bonjourWin — discovery won; it adopted the correct household internally.
+    //   grace      — timer sentinel giving a reachable preferred household a brief
+    //               head start over other reachable households.
+    private enum GroupsRaceOutcome {
+        case knownWin(groups: [GroupRoom], ip: String, verifiedID: String)
+        case bonjourWin(groups: [GroupRoom])
+        case failure(Error)
+        case grace
+    }
+
     @MainActor
     public func getGroups(useCache: Bool) async throws -> [GroupRoom] {
+        // Candidate IPs to probe = union of every known household's IPs, as a
+        // Set. An IP is just an address to try, not a household claim: the same
+        // 192.168.x.x commonly appears in two different homes, so a map keyed by
+        // IP would silently drop one. We resolve identity from the device instead.
+        let knownHouseholds = sonosSystemDiscoverService.knownHouseholds
+        let knownIDs = Set(knownHouseholds.map(\.id))
+        var candidateIPs = Set<String>()
+        for h in knownHouseholds { candidateIPs.formUnion(h.knownIPs) }
+        let preferred = sonosSystemDiscoverService.preferredHouseHold
+
+        // Fast path: IP verified good this session — use it directly.
+        if useCache && cachedIPVerified,
+           let ip = sonosSystemDiscoverService.activeHousehold?.lastKnownIP {
+            return try await api.getGroups(ipAddress: ip)
+        }
+
+        cachedIPVerified = false
+
+        // Race path: probe every known IP in parallel plus Bonjour discovery. The
+        // first VERIFIED-known response wins and becomes active, switching
+        // households automatically when the network changed. `URLSession.data`
+        // is cancellation-aware, so losing requests to unreachable IPs are torn
+        // down the moment a winner calls cancelAll() — no far-away-household delay.
+        if !candidateIPs.isEmpty {
+            let outcome: GroupsRaceOutcome = await withTaskGroup(of: GroupsRaceOutcome.self) { group in
+                for ip in candidateIPs {
+                    group.addTask { [weak self] in
+                        guard let self else { return .failure(SonosServiceError.sonosSystemNotFound) }
+                        // Fire the groups fetch and the identity check concurrently so
+                        // verifying who actually answered adds no serial latency. An IP
+                        // is NEVER a stable household identity — DHCP reassigns it and
+                        // different LANs reuse 192.168.x.x — so we ALWAYS confirm the
+                        // responding device's household (checked against knownIDs below)
+                        // before accepting it. Skipping this even for a lone known home
+                        // would let a reassigned/colliding IP silently drive a stranger's
+                        // system and poison the stored household record.
+                        async let groupsResult = self.api.getGroups(ipAddress: ip)
+                        // Bounded (2s) + cached identity lookup so a device that
+                        // serves groups but stalls on its household endpoint can't
+                        // hold the race open for the full URLSession timeout.
+                        async let verifiedID = self.sonosSystemDiscoverService.householdID(for: ip)
+                        do {
+                            let groups = try await groupsResult
+                            return .knownWin(groups: groups, ip: ip, verifiedID: await verifiedID)
+                        } catch {
+                            return .failure(error)
+                        }
+                    }
+                }
+                // Bonjour fallback for genuinely unknown networks (or when every
+                // stored IP was reassigned). performDiscovery resolves and adopts
+                // the correct household internally when this wins.
+                //
+                // Started LAZILY: give the known-IP probes a short head start
+                // first. On an unchanged network a stored IP wins in well under
+                // this window, cancelAll() cancels this task mid-sleep, and Bonjour
+                // never runs — so a routine foreground doesn't briefly flash the
+                // "Discovering Devices" state (getFirstIP flips `isSearching`).
+                // Only when no known IP answers quickly — i.e. the network really
+                // changed — does discovery kick in, where that state is warranted.
+                group.addTask { [weak self] in
+                    guard let self else { return .failure(SonosServiceError.sonosSystemNotFound) }
+                    try? await Task.sleep(for: .milliseconds(600))
+                    if Task.isCancelled { return .failure(SonosServiceError.sonosSystemNotFound) }
+                    do {
+                        let ip = try await self.sonosSystemDiscoverService.getFirstIP(useCache: false)
+                        let groups = try await self.api.getGroups(ipAddress: ip)
+                        return .bonjourWin(groups: groups)
+                    } catch {
+                        return .failure(error)
+                    }
+                }
+
+                var fallback: GroupsRaceOutcome?
+                var lastError: Error = SonosServiceError.sonosSystemNotFound
+                while let r = await group.next() {
+                    switch r {
+                    case .bonjourWin:
+                        // Discovery already resolved identity + adoption correctly.
+                        group.cancelAll()
+                        return r
+                    case .knownWin(_, _, let verifiedID):
+                        // Only accept a device whose reported household we still
+                        // know. An unknown/empty ID means this IP was reassigned
+                        // (DHCP) or a foreign Sonos answered on a colliding address
+                        // — ignore it and let Bonjour resolve the network properly.
+                        guard !verifiedID.isEmpty, knownIDs.contains(verifiedID) else {
+                            continue
+                        }
+                        // Take immediately when there's no manual preference or the
+                        // responder IS the preferred household.
+                        if preferred == nil || verifiedID == preferred {
+                            group.cancelAll()
+                            return r
+                        }
+                        // A DIFFERENT known household answered while a preference is
+                        // set. Both may be on this LAN, so give the preferred one a
+                        // short grace window before widening — don't thrash the
+                        // user's explicit choice.
+                        if fallback == nil {
+                            fallback = r
+                            group.addTask {
+                                try? await Task.sleep(for: .milliseconds(400))
+                                return .grace
+                            }
+                        }
+                    case .grace:
+                        if let fallback {
+                            group.cancelAll()
+                            return fallback
+                        }
+                    case .failure(let error):
+                        lastError = error
+                    }
+                }
+                return fallback ?? .failure(lastError)
+            }
+
+            switch outcome {
+            case .bonjourWin(let groups):
+                // Discovery adopted the household internally. Skip the mutation if
+                // this task was cancelled (e.g. switchHousehold started a new
+                // pulse) so a stale race can't reset a fresh selection.
+                if !Task.isCancelled { cachedIPVerified = true }
+                return groups
+            case .knownWin(let groups, let ip, let verifiedID):
+                if !Task.isCancelled {
+                    if verifiedID == preferred {
+                        // Preferred household reachable — just refresh its IP.
+                        sonosSystemDiscoverService.recordDiscoveredHousehold(id: verifiedID, ip: ip)
+                    } else {
+                        // No prior preference, or the preferred one was unreachable
+                        // — widen to this reachable known household and make it active.
+                        sonosSystemDiscoverService.adoptHousehold(id: verifiedID, ip: ip)
+                    }
+                    cachedIPVerified = true
+                }
+                return groups
+            case .failure(let error):
+                throw error
+            case .grace:
+                throw SonosServiceError.sonosSystemNotFound
+            }
+        }
+
+        // No known IPs at all — first launch or all households removed. Full discovery.
         let ip = try await sonosSystemDiscoverService.getFirstIP(useCache: useCache)
         let groups = try await api.getGroups(ipAddress: ip)
+        cachedIPVerified = true
         return groups
     }
 
@@ -1353,9 +1685,12 @@ public final class SonosService {
         case .soundcloud:
             guard let track = await musicSearch.lookupSoundCloudTrack(with: track.trackID) else { return nil }
             return track.artwork
+        case .deezer:
+            guard let track = await musicSearch.lookupDeezerTrack(with: track.trackID) else { return nil }
+            return track.artwork
         case .tuneIn:
             return nil
-        case .airplay, .unknown, .library:
+        case .airplay, .unknown, .library, .sonosRadio, .pandora:
             return nil
         }
     }
@@ -1456,6 +1791,19 @@ public final class SonosService {
                 ),
                 track.artwork
             )
+        case .deezer:
+            guard let deezerTrack = await musicSearch.lookupDeezerTrack(with: track.trackID) else { return nil }
+            return (
+                Track.Metadata(
+                    ISRC: nil,
+                    openInURL: URL(string: "https://www.deezer.com/track/\(track.trackID)"),
+                    contentType: .track,
+                    song: nil,
+                    album: deezerTrack.metadata?.album,
+                    artist: deezerTrack.metadata?.artist
+                ),
+                deezerTrack.artwork
+            )
         case .unknown:
             if track.metadata?.contentType != .track { return (nil, nil) }
             guard let artworkURL = await musicSearch.searchSpotifySong(song: track.name, artist: track.artist)?.tracks?.items.first else {
@@ -1463,7 +1811,7 @@ public final class SonosService {
             }
 
             return (Track.Metadata(ISRC: nil, openInURL: nil, contentType: .track), artworkURL.album.images?.biggestImageURL)
-        case .airplay, .library:
+        case .airplay, .library, .sonosRadio, .pandora:
             return (nil, nil)
         }
     }
@@ -1543,7 +1891,16 @@ public final class SonosService {
     }
 
     public func getContent(from url: URL) async -> PlayableContent? {
-        guard let content = api.parse(url: url) else { return nil }
+        var parsed = api.parse(url: url)
+        // The Deezer app shares short "smart" links (link.deezer.com, *.page.link)
+        // that carry no type/id, so the path parser can't read them. Resolve them
+        // to the canonical deezer.com/<type>/<id> URL, then re-parse.
+        if parsed == nil, DeezerLinkResolver.isShareLink(url),
+           let resolved = await DeezerLinkResolver.resolve(url),
+           let resolvedContent = api.parse(url: resolved) {
+            parsed = resolvedContent
+        }
+        guard let content = parsed else { return nil }
         switch (content.type, content.service) {
         case (.album, .spotify):
             guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
@@ -1591,6 +1948,14 @@ public final class SonosService {
         case (.track, .soundcloud):
             guard let track = await musicSearch.lookupSoundCloudTrack(with: content.id) else { return nil }
             return track
+        case (.track, .deezer):
+            return await musicSearch.lookupDeezerTrack(with: content.id)
+        case (.album, .deezer):
+            return await musicSearch.lookupDeezerAlbum(with: content.id)
+        case (.playlist, .deezer):
+            return await musicSearch.lookupDeezerPlaylist(with: content.id)
+        case (.artist, .deezer):
+            return await musicSearch.lookupDeezerArtist(id: content.id)
         case (.artist, .apple):
             guard let artist: Artist = try? await musicSearch.lookup(id: content.id) else { return nil }
             return PlayableContent(title: artist.name, subtitle: "", thumbnail: artist.artwork?.url(width: 100, height: 100), artwork: artist.artwork?.url(width: 500, height: 500), content: content)
@@ -1672,6 +2037,12 @@ public final class SonosService {
         case (.track, .soundcloud):
             guard let track = await musicSearch.lookupSoundCloudTrack(with: id) else { return nil }
             return track
+        case (.track, .deezer):
+            return await musicSearch.lookupDeezerTrack(with: id)
+        case (.album, .deezer):
+            return await musicSearch.lookupDeezerAlbum(with: id)
+        case (.playlist, .deezer):
+            return await musicSearch.lookupDeezerPlaylist(with: id)
         case (.playlist, .library):
             let playlist = await libraryPlaylistLookup(ID: id)
             return playlist
@@ -1825,20 +2196,78 @@ public final class SonosService {
     }
 
     // MARK: TV
-    public func getTVSettings(ip: String) async throws -> TVSettings {
+    public func getTVSettings(group: GroupRoom) async throws -> TVSettings {
+        try await getTVSettings(ip: group.coordinatorRoom.ip, isArcUltra: group.isArcUltra)
+    }
+
+    public func setArcUltraSpeechLevel(_ ip: String, level: Int) async throws {
+
+        if level == 0 {
+            try await api.setSpeechEnhanceEnabled(IP: ip, enabled: false)
+        } else {
+            async let enable: Void = api.setSpeechEnhanceEnabled(IP: ip, enabled: true)
+            async let setLevel: Void = api.setDialogLevelValue(IP: ip, value: level)
+            _ = try await (enable, setLevel)
+        }
+    }
+
+    /// `isArcUltra`: pass `true`/`false` when the device type is already known to skip the probe.
+    /// Pass `nil` (default) to auto-detect — tries Arc Ultra first, falls back to standard on failure.
+    public func getTVSettings(ip: String, isArcUltra: Bool? = nil) async throws -> TVSettings {
         async let audioInputFormat = api.getAudioInputFormat(IP: ip)
-        async let dialogLevel = api.getDialogLevel(IP: ip)
         async let nightMode = api.getNightMode(IP: ip)
-        
-        return try await TVSettings(
-            nightMode: nightMode,
-            dialogLevel: dialogLevel,
-            audioInputFormat: audioInputFormat
-        )
+
+        let arcUltra: Bool
+        if let known = isArcUltra {
+            arcUltra = known
+        } else {
+            arcUltra = (try? await api.getSpeechEnhanceEnabled(IP: ip)) != nil
+        }
+
+        if arcUltra {
+            async let speechEnhanceEnabled = api.getSpeechEnhanceEnabled(IP: ip)
+            async let dialogLevelValue = api.getDialogLevelValue(IP: ip)
+            return try await TVSettings(
+                nightMode: nightMode,
+                dialogLevel: false,
+                speechEnhanceEnabled: speechEnhanceEnabled,
+                dialogLevelValue: dialogLevelValue,
+                audioInputFormat: audioInputFormat
+            )
+        } else {
+            async let dialogLevel = api.getDialogLevel(IP: ip)
+            return try await TVSettings(
+                nightMode: nightMode,
+                dialogLevel: dialogLevel,
+                audioInputFormat: audioInputFormat
+            )
+        }
+    }
+
+    /// Unified speech enhancement setter. Probes for Arc Ultra support first;
+    /// falls back to standard dialog level for all other soundbars.
+    public func setSpeechEnhancement(ip: String, enabled: Bool, toggle: Bool = false) async throws {
+        let current = try await getTVSettings(ip: ip)
+        if current.speechEnhanceEnabled != nil {
+            let enable = toggle ? !current.speechLevel.isActive : enabled
+            let level = enable ? max(1, current.dialogLevelValue) : 0
+            try await setArcUltraSpeechLevel(ip, level: level)
+        } else {
+            let enable = toggle ? !current.dialogLevel : enabled
+            try await api.setDialogLevel(IP: ip, enabled: enable)
+        }
     }
 
     public func setDialogLevel(_ IP: String, enabled: Bool) async throws {
         try await api.setDialogLevel(IP: IP, enabled: enabled)
+    }
+
+    public func setSpeechEnhanceEnabled(_ IP: String, enabled: Bool) async throws {
+        try await api.setSpeechEnhanceEnabled(IP: IP, enabled: enabled)
+    }
+
+    public func setDialogLevelValue(_ IP: String, value: Int) async throws {
+        try await api.setDialogLevelValue(IP: IP, value: value)
     }
 
     public func setNightMode(_ IP: String, enabled: Bool) async throws {
@@ -1856,6 +2285,7 @@ public final class SonosService {
     
     public func switchToQueueInput(group: GroupRoom) async {
         await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        await markSwitchedToQueue(group: group)
     }
 
     public func togglePlayback(ip: String) async {
@@ -1957,13 +2387,33 @@ public final class SonosService {
     }
 
     public func seek(trackNumber: Int, on group: GroupRoom) async {
-        let queueActive = group.playbackService == .queue
-        if !queueActive {
+        // Don't trust the cached playbackService here — after backgrounding
+        // (or another controller changing the source) it can lag the device.
+        // A stale `.queue` would skip the transport switch, so the Seek
+        // silently no-ops against the live stream and playback stays stuck on
+        // radio. One GetMediaInfo round-trip on a tap is cheap; fall back to
+        // the cached value if the device doesn't answer.
+        let currentService = await playbackService(ip: group.ip) ?? group.playbackService
+        if currentService != .queue {
             await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+            await markSwitchedToQueue(group: group)
         }
         await api.seek(trackNumber: trackNumber, IP: group.coordinatorRoom.ip)
         try? await Task.sleep(for: .milliseconds(80))
         try? await updateGroups(from: [group])
+    }
+
+    /// The AVTransport was just pointed at the group's queue. Reflect that
+    /// locally right away instead of waiting on the next mediaInfo pulse —
+    /// otherwise the player keeps rendering the previous source (the
+    /// radio-station caption stays up, and the queue's now-playing highlight,
+    /// which requires `.queue`, never lights) until the round-trip lands.
+    /// A later pulse re-verifies against the device and corrects this if the
+    /// switch didn't stick.
+    @MainActor
+    private func markSwitchedToQueue(group: GroupRoom) {
+        group.playbackService = .queue
+        group.coordinatorRoom.radioStation = nil
     }
 
     public func getFavoriteList() async {
@@ -2028,6 +2478,7 @@ public final class SonosService {
                 return
             }
             await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+            await markSwitchedToQueue(group: group)
             return
         }
 
@@ -2200,40 +2651,55 @@ public final class SonosService {
         }
     }
 
-    public func getHouseID() async -> String? {
-        guard let ip = prioritizedIP() else { return nil }
-        return await api.getHouseHoldID(for: ip)
-    }
-
     public func getHouseID(for ip: String) async -> String? {
         return await api.getHouseHoldID(for: ip)
     }
 
-    public func getAllHouseholdsIPs() async -> Set<String> {
-        guard let ips = try? await sonosSystemDiscoverService.getAllIPs() else { return [] }
+    /// Scans the current network (Bonjour) for every reachable Sonos household and
+    /// records any not already in `knownHouseholds`, so a home you've never
+    /// connected to (a friend's system) shows up in the Households list. Does NOT
+    /// change the active selection — it only surfaces homes for the user to pick.
+    /// Returns the updated known-households list. Safe to call on-appear: the
+    /// screen shows stored homes instantly while this fills in newly-found ones.
+    ///
+    /// - Parameter includeRemoved: when true (the manual "rescan" action), a home
+    ///   the user previously removed is un-blocked and re-added if it's reachable.
+    ///   The on-appear auto-scan passes false so a removed home stays gone unless
+    ///   the user explicitly asks to look again.
+    @MainActor
+    public func discoverHouseholds(includeRemoved: Bool = false) async -> [SonosHousehold] {
+        guard let ips = try? await sonosSystemDiscoverService.getAllIPs() else {
+            return sonosSystemDiscoverService.knownHouseholds
+        }
 
-        var householdMap = [String: String]()
-        var savedIPs = Set<String>()
-        
-        await withTaskGroup(of: (String, String).self) { taskGroup in
+        // Map each reachable IP → its household ID in parallel, keeping the first
+        // IP seen per household (dedupes multi-speaker systems).
+        let pairs: [(id: String, ip: String)] = await withTaskGroup(of: (String, String).self) { taskGroup in
             for ip in ips {
                 taskGroup.addTask { [weak self] in
                     guard let self else { return ("", "") }
-                    let householdID = await self.api.getHouseHoldID(for: ip)
-                    return (householdID, ip)
+                    return (await self.api.getHouseHoldID(for: ip), ip)
                 }
             }
-
-            for await (householdID, ip) in taskGroup {
-                if householdMap[householdID] == nil {
-                    householdMap[householdID] = ip
-                    savedIPs.insert(ip)
+            var seen = Set<String>()
+            var found: [(id: String, ip: String)] = []
+            for await (id, ip) in taskGroup where !id.isEmpty && !ip.isEmpty {
+                if seen.insert(id).inserted {
+                    found.append((id, ip))
                 }
             }
+            return found
         }
 
-        print(householdMap)
-        return savedIPs
+        for pair in pairs {
+            // An explicit rescan un-blocks a reachable removed home so it can be
+            // re-added; recordDiscoveredHousehold otherwise skips blocked ones.
+            if includeRemoved {
+                sonosSystemDiscoverService.unblockHousehold(id: pair.id)
+            }
+            sonosSystemDiscoverService.recordDiscoveredHousehold(id: pair.id, ip: pair.ip)
+        }
+        return sonosSystemDiscoverService.knownHouseholds
     }
 
     public func librarySearch(query: String) async -> [PlayableContent] {
@@ -2282,6 +2748,13 @@ public final class SonosService {
     public func refreshLibrary() async {
         guard let ip = prioritizedIP() else { return  }
         await api.refreshLibrary(IP: ip)
+    }
+
+    /// Share path backing the music library (e.g. `//nas/Music`), from browsing the `S:` container.
+    public func libraryShare() async -> String? {
+        guard let ip = prioritizedIP() else { return nil }
+        let shares = await api.getLibraryItems(IP: ip, type: "S:", requestedCount: 1)
+        return shares.first?.title
     }
 
     // MARK: - Sonos Playlists/Queue
@@ -2380,7 +2853,6 @@ public final class SonosService {
     // MARK: Theater Settings
     public func getTheaterSettings(room: Room) async -> TheaterSettings {
         async let audioInputFormat = api.getAudioInputFormat(IP: room.ip)
-        async let dialogLevel = api.getDialogLevel(IP: room.ip)
         async let nightMode = api.getNightMode(IP: room.ip)
         async let subGain = api.getEQValue(IP: room.ip, eq: .subGain)
         async let isSubEnabled = api.getEQValue(IP: room.ip, eq: .subEnable)
@@ -2389,26 +2861,69 @@ public final class SonosService {
         async let surroundLevel = api.getEQValue(IP: room.ip, eq: .surroundLevel)
         async let surroundEnabled = api.getEQValue(IP: room.ip, eq: .surroundEnable)
         async let heightLevel = api.getEQValue(IP: room.ip, eq: .heightChannelLevel)
+        async let audioDelay = api.getEQValue(IP: room.ip, eq: .audioDelay)
 
-        return TheaterSettings(
-            isSet: true,
-            nightMode: (try? await nightMode) ?? false,
-            dialogLevel: (try? await dialogLevel) ?? false,
-            audioInputFormat: (try? await audioInputFormat) ?? .unknown,
-            surroundLevel: await surroundLevel ?? 0.0,
-            musicSurroundLevel: await musicSurroundLevel ?? 0.0,
-            isSurroundEnable: await (surroundEnabled ?? 0) == 1 ? true : false,
-            surroundMode:  await surroundMode ?? 0.0,
-            heightChannel: await heightLevel ?? 0.0,
-            subGain: await subGain ?? 0.0,
-            isSubEnabled: await (isSubEnabled ?? 0) == 1 ? true : false
+        let commonSettings: (nightMode: Bool, audioInputFormat: AudioInputFormat, audioDelay: Double, surroundLevel: Double, musicSurroundLevel: Double, isSurroundEnable: Bool, surroundMode: Double, heightChannel: Double, subGain: Double, isSubEnabled: Bool)
+        commonSettings = await (
+            nightMode: (try? nightMode) ?? false,
+            audioInputFormat: (try? audioInputFormat) ?? .unknown,
+            audioDelay: audioDelay ?? 0.0,
+            surroundLevel: surroundLevel ?? 0.0,
+            musicSurroundLevel: musicSurroundLevel ?? 0.0,
+            isSurroundEnable: (surroundEnabled ?? 0) == 1,
+            surroundMode: surroundMode ?? 0.0,
+            heightChannel: heightLevel ?? 0.0,
+            subGain: subGain ?? 0.0,
+            isSubEnabled: (isSubEnabled ?? 0) == 1
         )
+
+        if room.isArcUltra {
+            async let speechEnhanceEnabled = api.getSpeechEnhanceEnabled(IP: room.ip)
+            async let dialogLevelValue = api.getDialogLevelValue(IP: room.ip)
+            return await TheaterSettings(
+                isSet: true,
+                nightMode: commonSettings.nightMode,
+                dialogLevel: false,
+                speechEnhanceEnabled: (try? speechEnhanceEnabled) ?? false,
+                dialogLevelValue: (try? dialogLevelValue) ?? 1,
+                audioInputFormat: commonSettings.audioInputFormat,
+                audioDelay: commonSettings.audioDelay,
+                surroundLevel: commonSettings.surroundLevel,
+                musicSurroundLevel: commonSettings.musicSurroundLevel,
+                isSurroundEnable: commonSettings.isSurroundEnable,
+                surroundMode: commonSettings.surroundMode,
+                heightChannel: commonSettings.heightChannel,
+                subGain: commonSettings.subGain,
+                isSubEnabled: commonSettings.isSubEnabled
+            )
+        } else {
+            async let dialogLevel = api.getDialogLevel(IP: room.ip)
+            return await TheaterSettings(
+                isSet: true,
+                nightMode: commonSettings.nightMode,
+                dialogLevel: (try? dialogLevel) ?? false,
+                audioInputFormat: commonSettings.audioInputFormat,
+                audioDelay: commonSettings.audioDelay,
+                surroundLevel: commonSettings.surroundLevel,
+                musicSurroundLevel: commonSettings.musicSurroundLevel,
+                isSurroundEnable: commonSettings.isSurroundEnable,
+                surroundMode: commonSettings.surroundMode,
+                heightChannel: commonSettings.heightChannel,
+                subGain: commonSettings.subGain,
+                isSubEnabled: commonSettings.isSubEnabled
+            )
+        }
     }
 
     // MARK: - Alarms
-    public func listAlarms() async -> [Alarm] {
-        guard let ip = prioritizedIP() else { return [] }
-        return await api.listAlarms(IP: ip).sorted(by: { $0.startTime.compare($1.startTime) == .orderedAscending })
+    /// Returns the household's alarms sorted by start time, or `nil` if the
+    /// request failed (no reachable speaker, transport error, non-200). An
+    /// empty array means the request succeeded and there are genuinely no
+    /// alarms — callers should not retry on that.
+    public func listAlarms() async -> [Alarm]? {
+        guard let ip = prioritizedIP() else { return nil }
+        guard let alarms = await api.listAlarms(IP: ip) else { return nil }
+        return alarms.sorted(by: { $0.startTime.compare($1.startTime) == .orderedAscending })
     }
 
     public func editAlarm(alarm: Alarm, content: PlayableContent?) async  {
@@ -2432,29 +2947,25 @@ public final class SonosService {
 
     func prioritizedIP() -> String? {
         let allRooms = groups.flatMap(\.rooms)
-        let sortedRooms = allRooms.sorted { lhs, rhs in
-            // Ethernet-enabled rooms should come last
-            let lhsEthernet = lhs.ethernetEnabled ? 1 : 0
-            let rhsEthernet = rhs.ethernetEnabled ? 1 : 0
-            return lhsEthernet < rhsEthernet
+
+        // An explicit choice from the Connectivity screen wins over the heuristic
+        // below — otherwise picking a speaker there changed nothing, since every
+        // system-wide lookup (artwork, library, favorites) resolves through here.
+        // Gated on the speaker still being part of the current system so a pin
+        // left over from another household or network can't strand every lookup
+        // on an address nothing answers.
+        let pinnedIP = sonosSystemDiscoverService.preferredSpeakerIP
+        if !pinnedIP.isEmpty, allRooms.contains(where: { $0.ip == pinnedIP }) {
+            return pinnedIP
         }
-        
-        // Filter out portable models like Roam and Move
-        let filteredRooms = sortedRooms.filter { room in
-            guard let modelName = room.info?.modelDisplayName.lowercased() else { return false }
-            let excludedModels = ["roam", "move", "play"]
-            return !excludedModels.contains { modelName.contains($0) }
-        }
-        
-        // Return the best matching room IP
-        if let bestRoom = filteredRooms.sorted(by: {
-            ($0.info?.model ?? "").localizedStandardCompare($1.info?.model ?? "") == .orderedDescending
-        }).first {
-            return bestRoom.ip
-        }
-        
-        // Fallback
-        return allRooms.first?.ip
+
+        // No explicit choice — defer to the single automatic heuristic in
+        // `priorityDevice()`. This used to be a second, divergent copy that
+        // computed an ethernet ordering and then threw it away by re-sorting on
+        // model name alone, so the automatic path silently ignored the wired
+        // preference it claimed to have (and dropped speakers whose `info`
+        // hadn't loaded, which `priorityDevice` keeps).
+        return priorityDevice()?.ip
     }
     
     func priorityDevice() -> Room? {
@@ -2484,14 +2995,60 @@ public final class SonosService {
         return sortedRooms.first ?? allRooms.first
     }
     
-    public func setPriorityDevice() -> Room? {
+    /// The speaker the automatic heuristic currently resolves to, without
+    /// changing anything. Lets the Connectivity screen name the speaker its
+    /// "Automatic" option would use instead of leaving it abstract.
+    @MainActor
+    public func automaticSpeakerChoice() -> Room? {
+        priorityDevice()
+    }
+
+    /// Clears an explicit speaker choice, returning to the automatic pick. Takes
+    /// effect immediately — `prioritizedIP()` resolves per call, so no reload.
+    @MainActor
+    public func useAutomaticSpeaker() {
+        sonosSystemDiscoverService.setPreferredSpeaker("")
+    }
+
+    /// Prioritise the best current speaker (wired/newer, non-portable) by pinning
+    /// its IP through the same path as manual Connect-by-IP, so it resolves and
+    /// adopts the correct household even when there isn't one yet. Returns the
+    /// chosen room (nil if none available).
+    @MainActor
+    public func setPriorityDevice() async -> Room? {
         guard let device = priorityDevice() else { return nil }
-        sonosSystemDiscoverService.sonosStorageIP.sonosIP = device.ip
+        await setStaticIP(ip: device.ip)
         return device
     }
-    
+
+    /// Manually connect to a Sonos speaker by IP. This is the ONLY bootstrap path
+    /// on networks where Bonjour/mDNS discovery is blocked, so it must work even
+    /// when household identity can't be resolved: it pins the raw IP into the
+    /// legacy key first (getFirstIP falls back to it, discovery-independent), then
+    /// resolves + adopts the household when possible, then reconnects.
+    @MainActor
     public func setStaticIP(ip: String) async {
-        sonosSystemDiscoverService.sonosStorageIP.sonosIP = ip
+        // Remember this as the user's explicit choice. A legacy pin alone won't
+        // hold: the `load` below re-races every known IP, and whichever speaker
+        // answers first rewrites `lastKnownIP` and re-mirrors it over the legacy
+        // key — which is why the selection used to flash onto the tapped speaker
+        // and then jump back.
+        sonosSystemDiscoverService.setPreferredSpeaker(ip)
+        // Discovery-independent pin so a hand-entered IP connects regardless of
+        // whether identity resolution or Bonjour succeed. MUST come after the
+        // line above: setPreferredSpeaker re-mirrors, and this IP isn't in the
+        // household's knownIPs until `adoptHousehold` below runs — so mirroring
+        // first would resolve back to the old address and, if the household
+        // lookup then fails, strand the legacy key there. Pinning last leaves
+        // the hand-entered IP as the standing value on that path.
+        sonosSystemDiscoverService.pinLegacyIP(ip)
+        let householdID = await api.getHouseHoldID(for: ip)
+        if !householdID.isEmpty {
+            // Explicit user action — unblock in case it was previously removed.
+            sonosSystemDiscoverService.unblockHousehold(id: householdID)
+            sonosSystemDiscoverService.adoptHousehold(id: householdID, ip: ip)
+        }
+        cachedIPVerified = false
         try? await load(useCache: true)
     }
 

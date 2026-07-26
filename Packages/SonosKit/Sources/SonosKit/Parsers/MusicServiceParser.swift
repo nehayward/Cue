@@ -10,12 +10,18 @@ public final class MusicServiceParser {
     private let appleLibraryPattern = #/librarytrack:(.*?)\?/#
     private let spotifyPattern = #/spotify:track:(\w+)|track:(\w+)/#
     private let soundcloudPattern = #/soundcloud:tracks:(\d+)/#
+    private let deezerPattern = #/deezer:tracks:(\d+)|tr-[a-z]+:(\d+)/#
     private let tuneinPattern = #/:(.*?)\?/#
     private lazy var plexRegex = try? NSRegularExpression(pattern: "([^:]+:\\d+:\\d+)")
     
     public func lookup(uri: String, serviceID: String, type: ContentType) -> (MusicService, TrackID, ContentType)? {
-        let service = serviceLookup(serviceID: serviceID)
-        guard let (id, lookupType) = parse(uri: uri, service: service) else { return nil }
+        var service = serviceLookup(serviceID: serviceID)
+        if service == .unknown {
+            let decoded = uri.removingPercentEncoding ?? uri
+            service = identifyService(from: uri, decoded: decoded)
+        }
+        guard service != .unknown,
+              let (id, lookupType) = parse(uri: uri, service: service) else { return nil }
         return (service, id, lookupType ?? type)
     }
     
@@ -29,10 +35,16 @@ public final class MusicServiceParser {
             return .apple
         case "160":
             return .soundcloud
+        case "2", "519", "250":
+            return .deezer
         case "212":
             return .plex
         case "174":
             return .tidal
+        case "303":
+            return .sonosRadio
+        case "236":
+            return .pandora
         default:
             return .unknown
         }
@@ -56,6 +68,20 @@ public final class MusicServiceParser {
             let components = uri.components(separatedBy: ":")
             guard let last = components.last else { return nil }
             return (last, nil)
+        case .deezer:
+            // Handles track (tr-flac:ID), album (0004006calbum-ID), playlist (0006006cplaylist_spotify%3Aplaylist-ID)
+            let decoded = uri.removingPercentEncoding ?? uri
+            if decoded.contains("playlist") {
+                guard let id = decoded.components(separatedBy: "-").last, !id.isEmpty else { return nil }
+                return (id, .playlist)
+            } else if decoded.contains("album") {
+                guard let id = decoded.components(separatedBy: "-").last, !id.isEmpty else { return nil }
+                return (id, .album)
+            } else {
+                // track: tr-flac:ID or tr-mp3:ID
+                guard let id = decoded.components(separatedBy: ":").last?.components(separatedBy: "?").first, !id.isEmpty else { return nil }
+                return (id, .track)
+            }
         case .plex:
             return (uri, nil)
         case .library:
@@ -77,8 +103,24 @@ public final class MusicServiceParser {
     private func identifyService(from uri: String, decoded decodedURI: String, xml: String? = nil) -> MusicService {
         // Fast path checks first (no allocation)
         if uri == "333" { return .tuneIn }
+        if uri == "303" { return .sonosRadio }
+        if uri == "236" { return .pandora }
+
+        // The `sid=` parameter is authoritative, so it has to beat the
+        // positional heuristics below. Pandora's per-track stream id carries a
+        // `::<sequence>::` field —
+        // `VC1::ST::ST:<station>::TR:<track>::3::RINCON_…` on the 4th track of
+        // a station — which satisfied Plex's `:3:` check and flipped the whole
+        // player to Plex mid-station.
+        if uri.range(of: "sid=303", options: .caseInsensitive) != nil || xml?.contains("Svc77575") == true {
+            return .sonosRadio
+        }
+        if uri.range(of: "sid=236", options: .caseInsensitive) != nil || xml?.contains("Svc60423") == true {
+            return .pandora
+        }
+
         if decodedURI.contains(":3:") { return .plex }
-        
+
         // Check XML before lowercasing URI
         if let xml = xml, xml.range(of: "tunein", options: .caseInsensitive) != nil {
             return .tuneIn
@@ -87,11 +129,18 @@ public final class MusicServiceParser {
         // Single lowercased allocation
         let normalized = uri.lowercased()
         
-        // Ordered by likelihood/specificity
+        // Ordered by likelihood/specificity — deezer playlist format contains "spotify" so check first
+        if normalized.contains("playlist_spotify") { return .deezer }
         if normalized.contains("spotify") { return .spotify }
         if normalized.contains("airplay") { return .airplay }
         if normalized.contains("x-file-cifs") { return .library }
         if normalized.contains("soundcloud") { return .soundcloud }
+        if normalized.contains("deezer") || normalized.contains("tr-flac") || normalized.contains("tr-mp3") { return .deezer }
+        if xml?.contains("RINCON519") == true { return .deezer }
+        // sid/account checks for both already ran above; these are the weaker
+        // name hints, kept below `:3:` so a Plex path containing "pandora"
+        // still resolves as Plex.
+        if normalized.contains("pandora") { return .pandora }
         
         // Check for Tidal (pattern match only if string contains hint)
         if normalized.contains("tidal") || (try? tidalPattern.firstMatch(in: decodedURI)) != nil {
@@ -113,7 +162,12 @@ public final class MusicServiceParser {
         case .tidal: return extractTidalTrackID(from: uri)
         case .plex: return extractPlexTrackID(from: uri)
         case .soundcloud: return extractSoundCloudID(from: uri)
+        case .deezer: return extractDeezerTrackID(from: uri)
         case .tuneIn: return extractTuneInTrackID(from: uri)
+        // Sonos Radio and Pandora streams are `x-sonosapi-radio:<id>?...`; the
+        // TuneIn extractor (":(.*?)?") recovers the prefixed station id
+        // (e.g. sonos:2997, ST:12345).
+        case .sonosRadio, .pandora: return extractTuneInTrackID(from: uri)
         case .library, .unknown: return uri
         case .airplay: return ""
         }
@@ -170,6 +224,13 @@ public final class MusicServiceParser {
     private func extractSoundCloudID(from uri: String) -> TrackID {
         if let result = try? soundcloudPattern.firstMatch(in: uri) {
             return String(result.1)
+        }
+        return ""
+    }
+
+    private func extractDeezerTrackID(from uri: String) -> TrackID {
+        if let result = try? deezerPattern.firstMatch(in: uri) {
+            return String(result.1 ?? result.2 ?? "")
         }
         return ""
     }

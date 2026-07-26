@@ -14,25 +14,7 @@ struct PlexSearchView: View {
     @Binding var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>]
 
     private var filteredResults: [PlayableContent] {
-        let filteredLibraryIDs = Set(
-            plexLibrariesFilters
-                .filter(\.isFiltered)
-                .compactMap { $0.filter.key }
-        )
-
-        // Playlists span libraries and have no librarySectionID, so they bypass the library filter.
-        let libraryFiltered: [PlayableContent]
-        if filteredLibraryIDs.isEmpty {
-            libraryFiltered = results
-        } else {
-            libraryFiltered = results.filter { item in
-                if item.content.type == .playlist { return true }
-                guard let id = item.metadata?.librarySectionID else { return false }
-                return filteredLibraryIDs.contains(id)
-            }
-        }
-
-        return libraryFiltered.filtered(by: filters)
+        results.filteredByPlexLibraries(plexLibrariesFilters).filtered(by: filters)
     }
 
     var body: some View {
@@ -42,5 +24,27 @@ struct PlexSearchView: View {
         .fontDesign(.rounded)
 
         PlexLibrarySelectionView()
+    }
+}
+
+extension [PlayableContent] {
+    /// Applies the per-library Plex filter to a (possibly mixed-service)
+    /// list: items from other services pass through untouched, so the merged
+    /// multiservice list can honor the filter too. Playlists span libraries
+    /// and have no `librarySectionID`, so they bypass the filter.
+    func filteredByPlexLibraries(_ libraryFilters: [GenericFilter<PlexLibrarySection>]) -> [PlayableContent] {
+        let filteredLibraryIDs = Set(
+            libraryFilters
+                .filter(\.isFiltered)
+                .compactMap { $0.filter.key }
+        )
+        guard !filteredLibraryIDs.isEmpty else { return self }
+
+        return filter { item in
+            guard item.content.service == .plex else { return true }
+            if item.content.type == .playlist { return true }
+            guard let id = item.metadata?.librarySectionID else { return false }
+            return filteredLibraryIDs.contains(id)
+        }
     }
 }

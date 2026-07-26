@@ -14,6 +14,9 @@ public struct SpotifyAlbumItem: Equatable, Decodable, Identifiable, Sendable {
     public let type: String
     public let uri: String?
     public let releaseDate: String?
+    /// `total_tracks` — present on the simplified album objects search
+    /// returns; distinguishes editions (standard vs deluxe) in result rows.
+    public let totalTracks: Int?
     public var allArtists: String { artists?.compactMap{ $0.name }.joined(separator: ", ") ?? "Unknown"}
     
     public var releaseDateFormatted: String? {
@@ -30,7 +33,7 @@ public struct SpotifyAlbumItem: Equatable, Decodable, Identifiable, Sendable {
         return dateFormatter.date(from: dateString)
     }
     
-    public init(id: String, externalUrls: ExternalUrls, name: String, isPlayable: Bool?, artists: [SpotifyArtistsInfo], images: [SpotifyImage], type: String, uri: String, releaseDate: String?) {
+    public init(id: String, externalUrls: ExternalUrls, name: String, isPlayable: Bool?, artists: [SpotifyArtistsInfo], images: [SpotifyImage], type: String, uri: String, releaseDate: String?, totalTracks: Int? = nil) {
         self.id = id
         self.externalUrls = externalUrls
         self.name = name
@@ -40,6 +43,7 @@ public struct SpotifyAlbumItem: Equatable, Decodable, Identifiable, Sendable {
         self.type = type
         self.uri = uri
         self.releaseDate = releaseDate
+        self.totalTracks = totalTracks
     }
 }
 
@@ -55,14 +59,34 @@ public struct SpotifyAlbumDetails: Decodable, Sendable {
     public var allArtists: String? { artists?.compactMap(\.name).joined(separator: ", ") }
     public let durationMs: Int?
     public let explicit: Bool?
+    /// Only present on full album objects (the search API returns simplified
+    /// albums without it). Marked deprecated in Spotify's docs but still
+    /// served; ranking degrades gracefully if it ever disappears (nil).
+    public let popularity: Int?
 
     public var releaseDateFormatted: String? {
         return releaseDate.components(separatedBy: "-").first
     }
+
+    /// Albums carry no explicit flag at any level in the Web API — per-track
+    /// `explicit` on the embedded first page of tracks is the only source,
+    /// so this zero-extra-requests derivation is the minimal one.
+    public var containsExplicitTracks: Bool {
+        tracks.items.contains(where: \.explicit)
+    }
+}
+
+/// Response envelope for the batch `/v1/albums?ids=` endpoint. Spotify
+/// returns `null` entries for unknown ids.
+public struct SpotifyAlbumsBatch: Decodable, Sendable {
+    public let albums: [SpotifyAlbumDetails?]
 }
 
 public struct SpotifyAlbumTracks: Decodable, Sendable {
     public let items: [SpotifyAlbumTrackItems]
+    /// Spotify's paging metadata for the album's tracks (used to walk albums past the first page).
+    public let total: Int?
+    public let next: String?
 }
 
 public struct SpotifyAlbumTrackItems: Decodable, Identifiable, Sendable {
@@ -77,5 +101,6 @@ public struct SpotifyAlbumTrackItems: Decodable, Identifiable, Sendable {
     public let explicit: Bool
     public let durationMs: Int
     public let album: SpotifyAlbumItem?
+    public let previewUrl: String?
     public var allArtists: String { artists.map(\.name).joined(separator: ", ") }
 }

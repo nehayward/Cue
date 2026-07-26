@@ -39,7 +39,9 @@ struct GroupScreen: View {
         case .nameDescending:
             return activeRooms.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending }
         case .playing:
-            return activeRooms.sorted { $0.isPlaying && !$1.isPlaying }
+            return activeRooms.sorted {
+                sonosService.playbackRoom(for: $0).isPlaying && !sonosService.playbackRoom(for: $1).isPlaying
+            }
         }
     }
     
@@ -86,16 +88,19 @@ struct GroupScreen: View {
                             addGroup(id: room.id)
                         } label: {
                             HStack {
+                                // Grouped rooms hear the coordinator's stream, so show its track —
+                                // a member room's own `track` goes stale once it joins a group.
+                                let playbackRoom = sonosService.playbackRoom(for: room)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(room.name)
                                         .font(.headline)
                                         .fontWeight(.semibold)
 
-                                    if !room.track.name.isEmpty {
-                                        Text(room.track.name)
+                                    if !playbackRoom.track.name.isEmpty {
+                                        Text(playbackRoom.track.name)
                                             .font(.caption)
                                             .lineLimit(1)
-                                            .foregroundStyle(room.isPlaying ? .accent : .secondary)
+                                            .foregroundStyle(playbackRoom.isPlaying ? .accent : .secondary)
                                     }
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -134,7 +139,7 @@ struct GroupScreen: View {
 
                     HStack {
                         Button {
-                            groupVolume = max(0, groupVolume - 2)
+                            groupVolume = max(0, groupVolume - 1)
                         } label: {
                             Image(systemName: "minus")
                                 .frame(width: 24, height: 24)
@@ -146,7 +151,7 @@ struct GroupScreen: View {
                         VibeSlider(value: $groupVolume, in: 0...100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20)
 
                         Button {
-                            groupVolume = min(100, groupVolume + 2)
+                            groupVolume = min(100, groupVolume + 1)
                         } label: {
                             Image(systemName: "plus")
                                 .frame(width: 24, height: 24)
@@ -194,7 +199,8 @@ struct GroupScreen: View {
                           if scenes.isEmpty {
                             Label("Create Scene", systemImage: "plus")
                           } else {
-                            Image(systemName: "plus")
+                            Label("Add", systemImage: "plus")
+                                .labelStyle(.iconOnly)
                           }
                         }
                     } else {

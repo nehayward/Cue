@@ -129,7 +129,7 @@ struct PlayerView: View {
         .digitalCrownRotation(detent: $device.groupVolume,
                               from: 0,
                               through: 100,
-                              by: 2,
+                              by: 1,
                               sensitivity: .low,
                               isContinuous: false,
                               isHapticFeedbackEnabled: true,

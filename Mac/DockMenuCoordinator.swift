@@ -241,16 +241,16 @@ final class DockMenuCoordinator {
 
         case .volumeUp:
             guard let group else { return }
-            await sonosService.setRelativeGroupVolume(ip: group.coordinatorRoom.ip, volume: 2)
+            await sonosService.setRelativeGroupVolume(ip: group.coordinatorRoom.ip, volume: 1)
             // Optimistically mirror into the cached model — monitoring is
             // paused while the window is closed, so the next snapshot would
             // otherwise show a stale level.
-            group.coordinatorRoom.volume = min(100, group.coordinatorRoom.volume + 2)
+            group.coordinatorRoom.volume = min(100, group.coordinatorRoom.volume + 1)
 
         case .volumeDown:
             guard let group else { return }
-            await sonosService.setRelativeGroupVolume(ip: group.coordinatorRoom.ip, volume: -2)
-            group.coordinatorRoom.volume = max(0, group.coordinatorRoom.volume - 2)
+            await sonosService.setRelativeGroupVolume(ip: group.coordinatorRoom.ip, volume: -1)
+            group.coordinatorRoom.volume = max(0, group.coordinatorRoom.volume - 1)
 
         case .volumeUpLarge:
             guard let group else { return }

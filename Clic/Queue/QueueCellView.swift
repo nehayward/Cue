@@ -7,7 +7,6 @@ import Nuke
 struct QueueCellView: View {
     var track: PlayableContent
     @Bindable var group: GroupRoom
-    var currentTrackID: String
     var router: Router
     var isEditing: Bool
     var onLocalMoveNext: ((PlayableContent) -> Void)? = nil
@@ -38,8 +37,8 @@ struct QueueCellView: View {
                         .lineLimit(1)
                         .foregroundStyle(isTrackPlaying ? AnyShapeStyle(.accent) : AnyShapeStyle(.primary))
                     Text(track.subtitle)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .opacity(0.7)
+                        .font(.footnote)
                         .lineLimit(1)
                 }
                 Spacer()
@@ -79,12 +78,13 @@ struct QueueCellView: View {
             Text(track.title)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                .background(.background, in: .capsule)
+                .contentShape(.dragPreview, .capsule)
         }
     }
     
     private var isTrackPlaying: Bool {
-        currentTrackID == track.trackID && group.playbackService == .queue
+        group.isNowPlaying(track)
     }
 }
 
@@ -99,7 +99,11 @@ fileprivate struct QueueCellMenuView: View {
         VStack {
             if track.content.service != .unknown {
                 AddToLastPlaylistButton(itemToAdd: track)
-                AddToPlaylistMenu(itemToAdd: track)
+                Button {
+                    router.sheet(to: .addToPlaylist(content: track))
+                } label: {
+                    Label("Add to Playlist…", systemImage: "text.badge.plus")
+                }
 
                 Button {
                     router.navigate(to: .mediaDetail(content: track, group: group))

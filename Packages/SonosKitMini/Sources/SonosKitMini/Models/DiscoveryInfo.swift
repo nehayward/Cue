@@ -6,6 +6,14 @@
 //
 import Foundation
 
+struct DiscoveryInfo: Codable {
+    let device: DeviceInfo
+
+    enum CodingKeys: String, CodingKey {
+        case device
+    }
+}
+
 public struct DeviceInfo: Codable, Hashable, Equatable {
     public let objectType: String?
     public let id: String

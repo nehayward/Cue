@@ -36,48 +36,84 @@ struct TVView: View {
                     Button {
                         Task {
                             try? await sonosService.setNightMode(device.ip, enabled: !nightMode)
-                            try? await sonosService.updateWatchDevices(from: [device])
+                            if let updated = try? await sonosService.getTVSettings(ip: device.ip) {
+                                await sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
+                            }
                         }
                     } label: {
-                        Label("Night Mode", systemImage: "moon.zzz.fill")
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
+                        VStack(spacing: 2) {
+                            Image(systemName: "moon.zzz.fill")
+                                .symbolRenderingMode(.hierarchical)
+                            Text(nightMode ? "On" : "Off")
+                                .font(.system(size: 9))
+                        }
                     }
                     .buttonBorderShape(.roundedRectangle)
-                    .opacity(nightMode ? 1 : 0.5)
+                    .tint(nightMode ? .accentColor : nil)
                     Button {
                         Task {
                             await sonosService.setGroupMute(device: device)
                             try? await sonosService.updateWatchDevices(from: [device])
                         }
                     } label: {
-                        Label("Mute", systemImage: device.groupIsMuted ? "speaker.slash.fill" : "speaker.fill")
-                            .contentTransition(.symbolEffect)
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
-                    }
-                    .buttonBorderShape(.roundedRectangle)
-                    .opacity(!device.groupIsMuted ? 0.5 : 1)
-                    
-                    Button {
-                        Task {
-                            try? await sonosService.setDialogLevel(device.ip, enabled:  !speachEnhancement)
-                            try? await sonosService.updateWatchDevices(from: [device])
+                        VStack(spacing: 2) {
+                            Image(systemName: device.groupIsMuted ? "speaker.slash.fill" : "speaker.fill")
+                                .contentTransition(.symbolEffect)
+                                .symbolRenderingMode(.hierarchical)
+                            Text(device.groupIsMuted ? "On" : "Off")
+                                .font(.system(size: 9))
                         }
-                    } label: {
-                        Label("Dialog Mode", systemImage: "person.wave.2.fill")
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
                     }
                     .buttonBorderShape(.roundedRectangle)
-                    .opacity(speachEnhancement ? 1 : 0.5)
+                    .tint(device.groupIsMuted ? .accentColor : nil)
+                    
+                    if device.isArcUltra {
+                        let speechLevel = device.TVSettings?.speechLevel ?? .off
+                        Button {
+                            Task {
+                                let all = SpeechLevel.allCases
+                                let next = all[(all.firstIndex(of: speechLevel)! + 1) % all.count]
+                                try? await sonosService.setArcUltraSpeechLevel(device.ip, level: next)
+                                if let updated = try? await sonosService.getTVSettings(ip: device.ip, isArcUltra: true) {
+                                    await sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
+                                }
+                            }
+                        } label: {
+                            VStack(spacing: 2) {
+                                Image(systemName: "person.wave.2.fill")
+                                    .symbolRenderingMode(.hierarchical)
+                                Text(speechLevel.title)
+                                    .font(.system(size: 9))
+                            }
+                        }
+                        .buttonBorderShape(.roundedRectangle)
+                        .tint(speechLevel.isActive ? .accentColor : nil)
+                    } else {
+                        Button {
+                            Task {
+                                try? await sonosService.setDialogLevel(device.ip, enabled: !speechEnhancement)
+                                if let updated = try? await sonosService.getTVSettings(ip: device.ip) {
+                                    await sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
+                                }
+                            }
+                        } label: {
+                            VStack(spacing: 2) {
+                                Image(systemName: "person.wave.2.fill")
+                                    .symbolRenderingMode(.hierarchical)
+                                Text(speechEnhancement ? "On" : "Off")
+                                    .font(.system(size: 9))
+                            }
+                        }
+                        .buttonBorderShape(.roundedRectangle)
+                        .tint(speechEnhancement ? .accentColor : nil)
+                    }
                 }
                 
                 HStack(spacing: 0) {
                     Button {
                         Task {
-                            await sonosService.setRelativeGroupVolume(ip: device.ip, volume: -2)
-                            deviceBinding.groupVolume.wrappedValue = max(0, device.groupVolume - 2)
+                            await sonosService.setRelativeGroupVolume(ip: device.ip, volume: -1)
+                            deviceBinding.groupVolume.wrappedValue = max(0, device.groupVolume - 1)
                         }
                     } label: {
                         Image(systemName: "minus")
@@ -94,8 +130,8 @@ struct TVView: View {
                         .monospacedDigit()
                     Button {
                         Task {
-                            await sonosService.setRelativeVolume(ip: device.ip, volume: 2)
-                            deviceBinding.groupVolume.wrappedValue = min(100, device.groupVolume + 2)
+                            await sonosService.setRelativeVolume(ip: device.ip, volume: 1)
+                            deviceBinding.groupVolume.wrappedValue = min(100, device.groupVolume + 1)
                         }
                     } label: {
                         Image(systemName: "plus")
@@ -131,6 +167,9 @@ struct TVView: View {
             if scenePhase == .active {
                 Task {
                     try? await sonosService.updateWatchDevices(from: [device])
+                    if let updated = try? await sonosService.getTVSettings(ip: device.ip) {
+                        await sonosService.updateDevice(device, keyPath: \.TVSettings, value: updated)
+                    }
                 }
             }
         }
@@ -147,7 +186,7 @@ struct TVView: View {
     }
     
     
-    var speachEnhancement: Bool {
+    var speechEnhancement: Bool {
         guard let deviceIndex = sonosService.devices.firstIndex(where: { $0.id == id }),
               let tvSettings = sonosService.devices[deviceIndex].TVSettings else {
             return false

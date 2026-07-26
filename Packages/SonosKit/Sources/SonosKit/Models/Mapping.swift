@@ -2,13 +2,26 @@ import Foundation
 import MusicKit
 import MusicSearchKit
 
+extension Int {
+    /// "1 song" / "12 songs" for album row subtitles — the standard-vs-deluxe
+    /// edition cue. Pluralized via automatic grammar agreement so wording
+    /// (and any future localization) comes from the inflection engine. Nil
+    /// for zero counts (a zero means the service didn't report one), so
+    /// callers drop the component instead of rendering "0 songs".
+    var songCountLabel: String? {
+        guard self > 0 else { return nil }
+        return String(AttributedString(localized: "^[\(self) song](inflect: true)").characters)
+    }
+}
+
 extension PlayableContent {
     public var toRadio: PlayableContent {
         let type: ContentType = content.type == .artist ? .artistRadio : .songRadio
+        let radioTitle = content.service == .deezer ? "Mix \(title)" : title
         let content = MediaContent(service: content.service, id: content.id + ".radio", type: type, location: nil)
         var metadata = metadata ?? PlayableContentMetadata()
         metadata.radioStation = true
-        return PlayableContent(title: title, subtitle: title, thumbnail: thumbnail, artwork: artwork, content: content, metadata: metadata)
+        return PlayableContent(title: radioTitle, subtitle: radioTitle, thumbnail: thumbnail, artwork: artwork, content: content, metadata: metadata)
     }
 }
 
@@ -79,12 +92,19 @@ extension MusicKit.Track {
         artworkURL = processURL(artworkURL)
         thumbnailURL = processURL(thumbnailURL)
 
+        let previewURL: URL?
+        switch self {
+        case .song(let song): previewURL = song.previewAssets?.first?.url
+        default: previewURL = nil
+        }
+
         return PlayableContent(
             title: title,
             subtitle: artistName,
             thumbnail: thumbnailURL,
             artwork: artworkURL,
             content: MediaContent(service: .apple, id: id.description, type: .track, location: url),
+            previewURL: previewURL,
             metadata: PlayableContentMetadata(
                 duration: durationSeconds,
                 artist: artistName,
@@ -232,6 +252,9 @@ extension AppleLibraryItem {
                 type: resolvedType,
                 location: nil
             ),
+            // Library items only carry a preview via the included catalog
+            // relationship (see AppleLibraryItem.previewURL).
+            previewURL: previewURL,
             metadata: .init(
                 duration: trackDuration,
                 popularity: 50,
@@ -247,7 +270,10 @@ extension AppleLibraryAlbum {
     public var toPlayable: PlayableContent? {
         return PlayableContent(
             title: attributes.name,
-            subtitle: "\(attributes.artistName ?? "")",
+            subtitle: [
+                attributes.artistName,
+                attributes.trackCount.songCountLabel
+            ].compactMap { $0 }.joined(separator: " • "),
             thumbnail: attributes.artwork?.urlWithSize(width: 100, height: 100),
             artwork: attributes.artwork?.urlWithSize(width: 600, height: 600),
             content: MediaContent(
@@ -268,7 +294,11 @@ extension Album {
    public var toPlayable: PlayableContent {
         PlayableContent(
             title: title,
-            subtitle: artistName + " • \(releaseDate?.formatted(.dateTime.year()) ?? "")",
+            subtitle: [
+                artistName,
+                releaseDate?.formatted(.dateTime.year()),
+                (trackCount as Int?).flatMap(\.songCountLabel)
+            ].compactMap { $0 }.joined(separator: " • "),
             thumbnail: artwork?.url(width: 100, height: 100),
             artwork: artwork?.url(width: 600, height: 600),
             content: MediaContent(service: .apple, id: id.description, type: .album, location: url),
@@ -487,7 +517,7 @@ extension SpotifyAlbumItem {
         guard let id else { return nil }
         return PlayableContent(
             title: name,
-            subtitle: [artists?.first?.name, releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artists?.first?.name, releaseDateFormatted, totalTracks.flatMap(\.songCountLabel)].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: images?.thumbnail,
             artwork: images?.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls?.spotify ?? "")),
@@ -546,6 +576,7 @@ extension SpotifyAlbumTrackItems {
             thumbnail: thumbnail,
             artwork: artwork,
             content: MediaContent(service: .spotify, id: id, type: .track, location: URL(string: externalUrls?.spotify ?? "")),
+            previewURL: URL(string: previewUrl ?? ""),
             metadata: PlayableContentMetadata(
                 duration: Duration.milliseconds(
                     durationMs
@@ -606,7 +637,10 @@ extension PlexTrack {
         }
         return PlayableContent(
             title: title,
-            subtitle: [artist, audioCodec?.uppercased()].compactMap{ $0 }.joined(separator: " • "),
+            // Codec and bitrate tell duplicate editions apart: a Plex library
+            // can hold the same track from several rips (FLAC vs 320 kbps),
+            // which otherwise render as identical rows.
+            subtitle: [artist, audioCodec?.uppercased() ?? "", bitrate.map { "\($0) kbps" } ?? ""].filter { !$0.isEmpty }.joined(separator: " • "),
             // TODO: Add Thumbnail
             thumbnail: imageURL,
             artwork: imageURL,
@@ -625,7 +659,8 @@ extension PlexTrack {
                 albumID: parentRatingKey,
                 albumYear: nil,
                 audioCodec: audioCodec,
-                librarySectionID: librarySectionID.map(String.init)
+                librarySectionID: librarySectionID.map(String.init),
+                userRating: userRating
             )
         )
     }
@@ -635,7 +670,15 @@ extension PlexAlbum {
     public var toPlayable: PlayableContent {
         PlayableContent(
             title: title,
-            subtitle: "\(artist) • \(year)",
+            // Track count tells editions of the same album apart (standard vs
+            // deluxe rips share title, artist, and year). Plex puts no media
+            // info on album containers, so count + artwork are the available
+            // distinguishers.
+            subtitle: [
+                artist,
+                year,
+                leafCount.flatMap(\.songCountLabel) ?? ""
+            ].filter { !$0.isEmpty }.joined(separator: " • "),
             thumbnail: imageURL,
             artwork: imageURL,
             content: .init(
@@ -649,8 +692,13 @@ extension PlexAlbum {
                 artist: artist,
                 artistID: parentRatingKey,
                 album: title,
+                // The album's own ratingKey: pairs with the track mapping's
+                // parentRatingKey so a track and its album share an artwork
+                // cache entry, while different editions of the album don't.
+                albumID: ratingKey,
                 albumYear: nil,
-                librarySectionID: librarySectionID.map(String.init)
+                librarySectionID: librarySectionID.map(String.init),
+                userRating: userRating
             )
         )
     }
@@ -736,6 +784,11 @@ extension PlexMetadata {
         case "album":
             artist = parentTitle
             artistID = parentRatingKey
+            // The album's own key: without it, artist-detail/browse albums
+            // fell back to the shared title+artist artwork cache key, so two
+            // editions of the same album showed one edition's art — the exact
+            // bug the per-edition imageKey fixed in search.
+            albumID = ratingKey
         case "playlist":
             break
         case "artist":
@@ -755,6 +808,9 @@ extension PlexMetadata {
                 type: ContentType(type)!,
                 location: nil
             ),
+            // Plex has no short preview clip — this is the full track streamed
+            // from the user's server (see AudioPlaybackService streaming path).
+            previewURL: streamURL,
             metadata: .init(
                 duration: Duration.milliseconds(duration ?? 0),
                 popularity: ratingCount,
@@ -763,7 +819,8 @@ extension PlexMetadata {
                 album: album,
                 albumID: albumID,
                 audioCodec: audioCodec,
-                userRating: userRating
+                userRating: userRating,
+                playlistItemID: playlistItemID.map(String.init)
             )
         )
     }
@@ -882,7 +939,7 @@ extension TidalAlbumResource {
         let artist = artists.first { $0.main ?? false }
         return PlayableContent(
             title: title,
-            subtitle: [artist?.name, releaseDateFormatted, dolbyAtmos, lossless].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artist?.name, releaseDateFormatted, numberOfTracks.flatMap(\.songCountLabel), dolbyAtmos, lossless].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: imageCover?.thumbnail,
             artwork: imageCover?.biggestImageURL,
             content: .init(

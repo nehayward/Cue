@@ -46,6 +46,10 @@ public class SonosRoom: Equatable, Identifiable, Sendable {
         }
         return false
     }
+
+    public var isArcUltra: Bool {
+        info?.modelDisplayName.lowercased().contains("arc ultra") ?? false
+    }
     
     public init(
         id: String,

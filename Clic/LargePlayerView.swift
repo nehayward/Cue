@@ -367,11 +367,11 @@ fileprivate struct SongTitleButton: View {
 
     @State private var isHovering: Bool = false
 
-    private static let supportedServices: Set<MusicService> = [.spotify, .apple, .library, .tidal, .plex]
+    private var isSupported: Bool { group.coordinatorRoom.track.musicService.supportsViewArtistAlbum }
 
     var body: some View {
         Button {
-            guard Self.supportedServices.contains(group.coordinatorRoom.track.musicService) else { return }
+            guard isSupported else { return }
             HapticManager.shared.fireHaptic(.buttonPress)
             router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
         } label: {
@@ -385,7 +385,7 @@ fileprivate struct SongTitleButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            guard Self.supportedServices.contains(group.coordinatorRoom.track.musicService) else { return }
+            guard isSupported else { return }
             withAnimation(.interactiveSpring) {
                 isHovering = hovering
             }
@@ -401,11 +401,11 @@ fileprivate struct ArtistButton: View {
 
     @State private var isHovering: Bool = false
 
-    private static let supportedServices: Set<MusicService> = [.spotify, .apple, .library, .tidal, .plex]
+    private var isSupported: Bool { group.coordinatorRoom.track.musicService.supportsViewArtistAlbum }
 
     var body: some View {
         Button {
-            guard Self.supportedServices.contains(group.coordinatorRoom.track.musicService) else { return }
+            guard isSupported else { return }
             HapticManager.shared.fireHaptic(.buttonPress)
             router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
         } label: {
@@ -421,7 +421,7 @@ fileprivate struct ArtistButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            guard Self.supportedServices.contains(group.coordinatorRoom.track.musicService) else { return }
+            guard isSupported else { return }
             withAnimation(.interactiveSpring) {
                 isHovering = hovering
             }
@@ -751,7 +751,7 @@ fileprivate struct TVModeView: View {
                     Button {
                         Task {
                             try? await sonosService.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode.wrappedValue)
-                            group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                            group.tvSettings = try? await sonosService.getTVSettings(group: group)
                         }
                     } label: {
                         Label("Night Mode", systemImage: "moon.zzz.fill")
@@ -764,28 +764,33 @@ fileprivate struct TVModeView: View {
                     .buttonStyle(.bordered)
                     .tint(settings.nightMode.wrappedValue ? .accent : nil)
                     .animation(.spring, value: settings.nightMode.wrappedValue)
-                    
+
                     MuteButton(group: group)
 
-                    Button {
-                        Task {
-                            try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled:  !settings.dialogLevel.wrappedValue)
-                            group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                    if group.isArcUltra {
+                        SpeechEnhancementMenu(group: group, showLabel: true)
+                    } else {
+                        Button {
+                            Task {
+                                try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled: !settings.dialogLevel.wrappedValue)
+                                group.tvSettings = try? await sonosService.getTVSettings(group: group)
+                            }
+                        } label: {
+                            Label("Dialog Mode", systemImage: "person.wave.2.fill")
+                                .font(.title)
+                                .symbolRenderingMode(.hierarchical)
+                                .labelStyle(.iconOnly)
+                                .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
+                                .frame(width: 40, height: 36)
                         }
-                    } label: {
-                        Label("Dialog Mode", systemImage: "person.wave.2.fill")
-                            .font(.title)
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
-                            .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
-                            .frame(width: 40, height: 36)
+                        .buttonStyle(.bordered)
+                        .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
+                        .tint(settings.dialogLevel.wrappedValue ? .accent : nil)
+                        .animation(.spring, value: settings.dialogLevel.wrappedValue)
                     }
-                    .buttonStyle(.bordered)
-                    .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
-                    .tint(settings.dialogLevel.wrappedValue ? .accent : nil)
-                    .animation(.spring, value: settings.dialogLevel.wrappedValue)
                 }
             }
+
         }
         .fontDesign(.rounded)
     }
@@ -797,7 +802,7 @@ fileprivate struct BackgroundView: View {
     
     var body: some View {
         ZStack {
-            ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade)
+            ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade, isBackground: true)
                 .saturation(1.3)
                 .aspectRatio(contentMode: .fill)
                 .scaleEffect(1.3)
@@ -819,7 +824,7 @@ fileprivate struct BackgroundViewCatalyst: View {
     
     var body: some View {
         ZStack {
-            ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade)
+            ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade, isBackground: true)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .saturation(1.3)
                 .opacity(group.coordinatorRoom.track.artworkURL == nil ? 0 : 1)

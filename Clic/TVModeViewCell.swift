@@ -3,25 +3,26 @@ import SonosKit
 
 struct TVModeViewCell: View {
     @Environment(Router.self) var router: Router
-    
+
     let group: GroupRoom
-    
+
     var body: some View {
         let settings = group.tvSettings
         let nightMode = settings?.nightMode ?? false
-        let dialogLevel = settings?.dialogLevel ?? false
 
-        VStack {
+        VStack(spacing: 4) {
             Text(settings?.audioInputFormat.description ?? " ")
                 .bold()
                 .tint(.primary)
-            HStack {
+            HStack(alignment: .top) {
                 Button {
                     guard let settings else { return }
                     Task {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         try? await SonosService.shared.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode)
-                        group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
+                        if let updated = try? await SonosService.shared.getTVSettings(group: group) {
+                            group.tvSettings = updated
+                        }
                     }
                 } label: {
                     Label("Night Mode", systemImage: "moon.zzz.fill")
@@ -39,27 +40,34 @@ struct TVModeViewCell: View {
 
                 MuteButton(group: group)
 
-                Button {
-                    guard let settings else { return }
-                    Task {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        try? await SonosService.shared.setDialogLevel(group.coordinatorRoom.ip, enabled: !settings.dialogLevel)
-                        group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
+                if group.isArcUltra {
+                    SpeechEnhancementMenu(group: group)
+                } else {
+                    let dialogLevel = settings?.dialogLevel ?? false
+                    Button {
+                        guard let settings else { return }
+                        Task {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            try? await SonosService.shared.setDialogLevel(group.coordinatorRoom.ip, enabled: !settings.dialogLevel)
+                            if let updated = try? await SonosService.shared.getTVSettings(group: group) {
+                                group.tvSettings = updated
+                            }
+                        }
+                    } label: {
+                        Label("Dialog Mode", systemImage: "person.wave.2.fill")
+                            .font(.title)
+                            .symbolRenderingMode(.hierarchical)
+                            .labelStyle(.iconOnly)
+                            .toggleStyle(.button)
+                            .foregroundStyle(dialogLevel ? .accent : .secondary.opacity(0.8))
+                            .frame(width: 40, height: 36)
                     }
-                } label: {
-                    Label("Dialog Mode", systemImage: "person.wave.2.fill")
-                        .font(.title)
-                        .symbolRenderingMode(.hierarchical)
-                        .labelStyle(.iconOnly)
-                        .toggleStyle(.button)
-                        .foregroundStyle(dialogLevel ? .accent : .secondary.opacity(0.8))
-                        .frame(width: 40, height: 36)
+                    .buttonStyle(.bordered)
+                    .foregroundStyle(dialogLevel ? .accent : .secondary.opacity(0.8))
+                    .tint(dialogLevel ? .accent : nil)
+                    .animation(.spring, value: dialogLevel)
+                    .disabled(settings == nil)
                 }
-                .buttonStyle(.bordered)
-                .foregroundStyle(dialogLevel ? .accent : .secondary.opacity(0.8))
-                .tint(dialogLevel ? .accent : nil)
-                .animation(.spring, value: dialogLevel)
-                .disabled(settings == nil)
             }
         }
         .fontDesign(.rounded)
@@ -85,4 +93,3 @@ struct TVModeViewCell: View {
             .environment(SonosService())
     }
 }
-

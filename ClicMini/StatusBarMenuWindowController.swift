@@ -37,19 +37,18 @@ final class StatusBarMenuWindowController: NSWindowController {
         window.level = .statusBar
 
         window.isReleasedWhenClosed = false
-        window.contentView = hostingView
         window.level = .floating
         window.animationBehavior = .default
 
-        let effect = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 0, height: 0))
-        effect.blendingMode = .behindWindow
-        effect.state = .active
-        effect.material = .hudWindow
-        effect.wantsLayer = true
-        effect.layer?.cornerRadius = 24
-
-        window.contentView = effect
-        window.contentView?.addSubview(hostingView)
+        // Liquid Glass on macOS 26, corner-masked blur before that. The mask matters
+        // pre-26: cornerRadius on its own leaves the blurred backdrop square, which
+        // shows as bright corners over a light desktop.
+        window.contentView = PanelBackground.wrap(
+            hostingView,
+            frame: NSRect(origin: .zero, size: windowSize),
+            cornerRadius: 24
+        )
+        window.hasShadow = !PanelBackground.drawsOwnShadow
 
         window.isOpaque = false
         window.backgroundColor = .clear

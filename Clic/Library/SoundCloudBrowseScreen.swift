@@ -9,165 +9,55 @@ struct SoundCloudBrowseScreen: View {
     @Environment(SoundCloudBrowseService.self) private var soundCloudBrowseService
 
     @State private var router = Router.browse
-    
+    @State private var configStore = SectionConfigurationStores.shared.soundcloudLibrary
+
+    private var isEmpty: Bool {
+        soundCloudBrowseService.likedTracks.isEmpty && soundCloudBrowseService.likedPlaylists.isEmpty
+    }
+
     var body: some View {
         NavigationStack(path: $router.path) {
-            ScrollView {
-                if !soundCloudBrowseService.likedTracks.isEmpty {
-                    Section {
-                        VStack {
-                            ScrollView(.horizontal) {
-                                LazyHStack {
-                                    ForEach(soundCloudBrowseService.likedTracks.prefix(10)) { item in
-                                        VStack {
-                                            PlayableArtworkView(item: item)
-                                            Text(item.title)
-                                                .foregroundStyle(.secondary)
-                                                .font(.caption)
-                                                .lineLimit(2, reservesSpace: true)
-                                                .fontDesign(.rounded)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                        }
-                                        .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, axis in
-                                            return length / 2.5
-                                        }
-                                        .draggable(item)
-                                    }
-                                }
-                                .padding(.horizontal, 16)
-                            }
-                            .scrollIndicators(.hidden)
-                            .scrollClipDisabled()
-                            PlayAllButtonView(item: .soundCloudLikes)
-                                .padding(.horizontal, 16)
-                        }
-                    } header: {
-                        let item = PlayableContent.soundCloudLikes
-                        NavigationLink(value: RouterDestination.playableList(title: "SoundCloud Liked Tracks", playAllItem: item, action: { offset in
-                            // If we need more tracks and can load more, load them
-                            if offset >= soundCloudBrowseService.likedTracks.count && soundCloudBrowseService.canLoadMore {
-                                await soundCloudBrowseService.loadMoreTracks()
-                            }
-                            // Return the tracks up to the requested offset
-                            return Array(soundCloudBrowseService.likedTracks.prefix(offset + 50))
-                        })) {
-                            HStack(spacing: 2) {
-                                Text("Liked Songs")
-                                Image(systemName: "chevron.right")
-                                    .foregroundStyle(.secondary)
-                            }
-                            .font(.headline)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .padding(.horizontal, 16)
-                    }
-                    .listRowBackground(Color.clear)
-
-                if !soundCloudBrowseService.likedPlaylists.isEmpty {
-                    Section {
-                        VStack {
-                            ScrollView(.horizontal) {
-                                LazyHStack {
-                                    ForEach(soundCloudBrowseService.likedPlaylists.prefix(10)) { item in
-                                        VStack {
-                                            PlayableArtworkView(item: item)
-                                            Text(item.title)
-                                                .foregroundStyle(.secondary)
-                                                .font(.caption)
-                                                .lineLimit(2, reservesSpace: true)
-                                                .fontDesign(.rounded)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                        }
-                                        .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, axis in
-                                            return length / 2.5
-                                        }
-                                        .draggable(item)
-                                    }
-                                }
-                                .padding(.horizontal, 16)
-                            }
-                            .scrollIndicators(.hidden)
-                            .scrollClipDisabled()
-                        }
-                    } header: {
-                        NavigationLink(value: RouterDestination.playableList(title: "SoundCloud Playlists", playAllItem: nil, action: { offset in
-                            // If we need more playlists and can load more, load them
-                            if offset >= soundCloudBrowseService.likedPlaylists.count && soundCloudBrowseService.canLoadMorePlaylists {
-                                await soundCloudBrowseService.loadMorePlaylists()
-                            }
-                            // Return the playlists up to the requested offset
-                            return Array(soundCloudBrowseService.likedPlaylists.prefix(offset + 50))
-                        })) {
-                            HStack(spacing: 2) {
-                                Text("Playlists")
-                                Image(systemName: "chevron.right")
-                                    .foregroundStyle(.secondary)
-                            }
-                            .font(.headline)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .padding(.horizontal, 16)
-                    }
-                    .listRowBackground(Color.clear)
-                }
-                } else if let error = soundCloudBrowseService.error {
-                    Section {
-                        VStack(spacing: 16) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 48))
-                                .foregroundColor(.orange)
-                            
-                            Text("Error Loading SoundCloud")
-                                .font(.headline)
-                            
-                            Text(error)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                            
-                            Button("Try Again") {
-                                Task {
-                                    await soundCloudBrowseService.updateLikedTracks()
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                        .padding()
-                    }
-                } else if !soundCloudBrowseService.isLoading, soundCloudBrowseService.likedTracks.isEmpty {
-                    Section {
-                        VStack(spacing: 16) {
-                            Image(systemName: "heart.slash")
-                                .font(.system(size: 48))
-                                .foregroundColor(.secondary)
-                            
-                            Text("No Liked Tracks")
-                                .font(.headline)
-                            
-                            Text("Your SoundCloud liked tracks will appear here when you authenticate.")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding()
+            List {
+                if isEmpty, let error = soundCloudBrowseService.error {
+                    errorSection(error)
+                } else if isEmpty, !soundCloudBrowseService.isLoading {
+                    emptySection
+                } else {
+                    ForEach(configStore.configuration.visibleSections(), id: \.self) { section in
+                        sectionView(for: section)
                     }
                 }
             }
-            .headerProminence(.increased)
-            .miniPlayerOnScrollHandler()
+            .listSectionSpacing(4)
             .listStyle(.plain)
+            .headerProminence(.increased)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("SoundCloud Library")
             .navigationBarTitleDisplayMode(.inline)
             .task {
-                await withTaskGroup { group in
-                    group.addTask { await soundCloudBrowseService.updateLikedTracks() }
-                    group.addTask { await soundCloudBrowseService.updateLikedPlaylists() }
-                }
+                await updateSoundCloudBrowseService()
             }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+#if !os(visionOS)
+                if #available(iOS 26.0, visionOS 26.0, *) {
+                    ToolbarSpacer(.fixed)
+                }
+#endif
+                ToolbarItem {
+                    Button {
+                        router.presentedSheet = .reorderSoundCloudLibrarySections
+                    } label: {
+                        Label("Filter", systemImage: "line.3.horizontal.decrease")
+                            .labelStyle(.iconOnly)
+                    }
+                }
+#if !os(visionOS)
+                if #available(iOS 26.0, visionOS 26.0, *) {
+                    ToolbarSpacer(.fixed)
+                }
+#endif
+                ToolbarItem {
                     MediaSelector()
                         .environment(router)
                 }
@@ -186,7 +76,7 @@ struct SoundCloudBrowseScreen: View {
             .withAppRouter()
         }
         .overlay {
-            if soundCloudBrowseService.isLoading, soundCloudBrowseService.likedTracks.isEmpty {
+            if soundCloudBrowseService.isLoading, isEmpty {
                 ProgressView()
                     .frame(maxWidth: .infinity, alignment: .center)
                     .listRowBackground(Color.clear)
@@ -195,13 +85,129 @@ struct SoundCloudBrowseScreen: View {
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
             Task {
-                await withTaskGroup(of: Void.self) { group in
-                    group.addTask { await soundCloudBrowseService.updateLikedTracks() }
-                    group.addTask { await soundCloudBrowseService.updateLikedPlaylists() }
-                }
+                await updateSoundCloudBrowseService()
             }
         }
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
+    }
+
+    @ViewBuilder
+    private func sectionView(for section: SoundCloudLibrarySection) -> some View {
+        switch section {
+        case .likedSongs:
+            Section {
+                NavigationLink(value: RouterDestination.playableList(title: "SoundCloud Liked Tracks", playAllItem: .soundCloudLikes, showSectionIndex: false, action: { offset in
+                    if offset >= soundCloudBrowseService.likedTracks.count && soundCloudBrowseService.canLoadMore {
+                        await soundCloudBrowseService.loadMoreTracks()
+                    }
+                    return Array(soundCloudBrowseService.likedTracks.prefix(offset + 50))
+                })) {
+                    Text("Liked Songs")
+                        .fontDesign(.rounded)
+                        .fontWeight(.semibold)
+                }
+                .tag(UUID().uuidString)
+                LazyVGrid(columns: [.init(), .init()]) {
+                    ForEach(soundCloudBrowseService.likedTracks.prefix(7)) { item in
+                        PlayableContentRowView(item: item)
+                            .buttonStyle(.plain)
+                            .geometryGroup()
+                    }
+                    if !soundCloudBrowseService.likedTracks.isEmpty {
+                        PlayAllButtonView(item: .soundCloudLikes)
+                            .transition(.identity)
+                    }
+                }
+            }
+            .listRowInsets(.default)
+            .listRowSeparator(.hidden)
+            .listSectionSeparator(.hidden)
+            .listRowSpacing(0)
+
+        case .playlists:
+            Section {
+                NavigationLink(value: RouterDestination.playableList(title: "SoundCloud Playlists", showSectionIndex: false, action: { offset in
+                    if offset >= soundCloudBrowseService.likedPlaylists.count && soundCloudBrowseService.canLoadMorePlaylists {
+                        await soundCloudBrowseService.loadMorePlaylists()
+                    }
+                    return Array(soundCloudBrowseService.likedPlaylists.prefix(offset + 50))
+                })) {
+                    Text("Playlists")
+                        .fontDesign(.rounded)
+                        .fontWeight(.semibold)
+                }
+                .tag(UUID().uuidString)
+
+                LazyVGrid(columns: [.init(), .init()]) {
+                    ForEach(soundCloudBrowseService.likedPlaylists.prefix(8)) { item in
+                        PlayableContentRowView(item: item)
+                    }
+                }
+                .listRowInsets(.default)
+            }
+            .listRowSeparator(.hidden)
+            .listSectionSeparator(.hidden)
+        }
+    }
+
+    @ViewBuilder
+    private func errorSection(_ error: String) -> some View {
+        Section {
+            VStack(spacing: 16) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 48))
+                    .foregroundColor(.orange)
+
+                Text("Error Loading SoundCloud")
+                    .font(.headline)
+
+                Text(error)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+
+                Button("Try Again") {
+                    Task {
+                        await updateSoundCloudBrowseService()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+        }
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+    }
+
+    @ViewBuilder
+    private var emptySection: some View {
+        Section {
+            VStack(spacing: 16) {
+                Image(systemName: "heart.slash")
+                    .font(.system(size: 48))
+                    .foregroundColor(.secondary)
+
+                Text("No Liked Tracks")
+                    .font(.headline)
+
+                Text("Your SoundCloud liked tracks will appear here when you authenticate.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+        }
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+    }
+
+    private func updateSoundCloudBrowseService() async {
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await soundCloudBrowseService.updateLikedTracks() }
+            group.addTask { await soundCloudBrowseService.updateLikedPlaylists() }
+        }
     }
 }
 

@@ -1,7 +1,11 @@
 import Foundation
 
 public enum AppStorageKeys {
-    public static let mediaService = "\(Prefix.id).mediaService"
+    /// The search's selected services as one ordered comma-separated list,
+    /// primary first (up to 3). Replaced the split `mediaService` +
+    /// `searchAlsoServices` keys — deliberately not migrated; the selection
+    /// resets once and users re-pick.
+    public static let selectedSearchServices = "\(Prefix.id).selectedSearchServices"
     public static let browseMediaService = "\(Prefix.id).browseMediaService"
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"
@@ -13,6 +17,9 @@ public enum AppStorageKeys {
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
     public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
+    public static let lastPlaylistService = "\(Prefix.id).lastPlaylistService"
+    public static let recentPlaylistIDs = "\(Prefix.id).recentPlaylistIDs"
+    public static let addToPlaylistSegment = "\(Prefix.id).addToPlaylistSegment"
     public static let recentlyViewed = "\(Prefix.id).recentlyViewed"
     public static let recentQueries = "\(Prefix.id).recentQueries"
     public static let lastSeenWhatsNewVersion = "\(Prefix.id).lastSeenWhatsNewVersion"

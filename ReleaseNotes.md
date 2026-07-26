@@ -1,22 +1,105 @@
+# 2026.7
+
+–– New Features ––
+- Sonos Radio: Search Sonos Radio stations and browse them by genre, then play any station on any room or group — the SONOS badge appears on the artwork, and the station's artwork is shown during ad breaks
+- Smarter Services settings: the Services screen now shows what's actually on your Sonos — services you've authorized get show/hide toggles, ones you haven't set up yet link straight to the Sonos app to sign in, and services Clic doesn't support yet are listed too. Pull down to refresh after adding one
+- Pandora: Browse your Pandora stations, search for new ones, and play any station on any room or group — sign in through the Sonos app and it works in Clic automatically
+- Pandora Thumbs: Thumb a song up or down right from the player to tune what the station plays next — and set any Pandora station as an alarm
+
+–– Bug Fixes & Improvements ––
+- Fixed album artwork stuttering the player during song changes — the crossfade is now one smooth dissolve
+- Fixed the player staying stuck on a radio station after playing a song from the queue — playback switches reliably, the progress bar appears again, and the station caption clears right away
+- Services you remove in the Sonos app no longer linger in Clic — they're hidden from search and browse automatically
+- Plex sign-in now lives right on its row in Services — tap the row to manage your account
+- Fixed square corners showing around the Clic Mini notification and menu bar window in light mode
+- Clic Mini: The notification and menu bar window now use Liquid Glass on macOS 26
+- Fixed older S1 Sonos players (like the ZP100 or ZP80) never being found — a home running S1 now shows up in Households alongside your S2 system, so a split S1/S2 setup can switch between the two with a tap. This applies on Apple Watch and in Clic Mini too, where S1 systems were missing from the household list entirely
+- Clic Mini and Apple Watch now follow the speaker you pick on the Connectivity screen, instead of whichever speaker happened to answer first
+- Redesigned the Connectivity screen around a single choice — which speaker Clic connects through. It's set to Automatic out of the box, or tap any speaker to use that one instead; a LAN badge marks the speakers wired to your router, and a tick shows what's in use
+- Entering an address by hand has moved into a "Can't find your speakers?" section that opens on its own when nothing is found — and once a speaker answers at that address, a Connect button appears so you can actually switch to it. Previously the screen could only verify the address
+- Fixed the Connectivity screen sometimes showing "No Sonos system found at this IP address" right after the address was verified with a green check
+- The IP address field no longer marks an address wrong while you're still typing it, and shows a spinner while it checks. A wrong address now tints the field red instead of adding an error icon that looked like a second clear button
+- Fixed the speaker you pick on the Connectivity screen not sticking — the tick would flash onto it and jump back to another speaker. Your choice now persists, and Clic genuinely uses that speaker for album artwork, your library and favorites
+- Clic's automatic speaker pick now prefers a speaker wired to your router, as it always said it did — previously the wired preference was applied and then discarded, so it could settle on a speaker over Wi-Fi
+
+# 2026.6
+
+–– New Features ––
+- Multiple Homes: Clic now remembers every Sonos system you connect to. Manage them under Preferences ▸ Households — each home shows its speakers and whether it's an S1 or S2 system so they're easy to tell apart. Switch systems with a tap, and long-press or swipe to rename or remove a home. Open the screen anywhere and Clic scans for new systems on that network (like a friend's house) and adds them automatically
+- Playlist Management: Add any song to your Apple Music, Spotify, Plex, or Deezer playlists — not just Sonos. The new Add to Playlist sheet lets you pick several playlists at once, create a new one, search, and jump to a recently-used playlist; tap the confirmation to open the playlist you added to
+- Edit Playlists: Open a Spotify, Plex, Deezer, or Sonos playlist you own and tap Edit to remove tracks (swipe, menu, or multi-select), drag to reorder, or delete the playlist — with Undo (⌘Z on Mac)
+- Create Playlists: Make a new playlist for Apple Music, Spotify, Deezer, Plex, or Sonos from its browse screen — including an empty one you fill in later
+- Add to Last Playlist: A one-tap shortcut — in the track menu and the Mac File menu — to drop the current song into the playlist you used last
+- Song Previews: Long-press an Apple Music or Spotify track and tap Preview Song to hear a quick clip — or swipe right on a track in a list. A progress bar fills as the clip plays, and you can tap the track to stop it
+- Library Song Actions: Long-press a song in your Apple Music library to open its Apple Album or Apple Artist, or start a Song Radio — Clic resolves the matching catalog track behind the scenes
+- Universal Search: Search several services at once — pick up to three in the search service menu (like your Library alongside Apple Music) and get one combined, ranked list of results. Note: the selected search service resets once with this update — just re-pick it in the search menu
+- Plex Setup in Onboarding: If you use Plex, setup now walks you through signing in and choosing your music library right away — with artist artwork previews so libraries are easy to tell apart
+- Automatic Plex Connection: A new Auto connection type uses your fast local network at home and switches to remote access when you're away — pick it, Remote, or Local from the redesigned connection switch in Plex settings
+- Arc Ultra Speech Enhancement: Control speech enhancement level (Off, Low, Medium, High, Max) on Sonos Arc Ultra from the player, Shortcuts, Clic Mini, and Apple Watch — the level is shown on the button and updates immediately after changing
+- TV Dialog Sync: Fine-tune audio delay (lip sync) on Sonos soundbars from the Home Theater section of speaker settings
+
+–– Bug Fixes & Improvements ––
+- Faster reconnect on a new network: when you move between Wi-Fi networks — or return to the app at a different location — Clic now finds your speakers right away instead of waiting through a timeout. Once a home is known, switching to it is instant
+- Fixed the app briefly stalling on the last-used speaker after switching networks, before falling back to discovery
+- Fixed removing one track from a Spotify playlist also deleting other copies of the same song — only the track you remove is removed now
+- Fixed adding a large album (more than 50 tracks) to a Spotify playlist only adding the first batch — every track is added now
+- Fixed the Deezer "Add to Playlist" list showing playlists you follow but don't own — only your own playlists are offered now, so the add no longer silently fails
+- Fixed some alarms not appearing in the Alarms list — alarms for speakers that are grouped, part of a stereo pair, or temporarily offline are now always shown, and music alarms (Apple Music, Spotify, radio stations) no longer occasionally go missing. Pull down to refresh the list
+- Fixed "Switch to Line In" appearing on speakers that don't support line-in
+- Fixed the library Albums list stopping partway through the alphabet — albums, songs, and artists now load your entire library as you scroll
+- Fixed Genres, Imported Playlists, and folder contents being cut off in large libraries — these now load fully as you scroll
+- Smarter search: results now rank like Spotify and Apple Music — the artist you're looking for lands on top with their albums and hits right below, popular and new releases rank higher, songs you play often get a boost, and close matches beat loose ones
+- Search now forgives typos and punctuation — "beyonse" finds Beyoncé, "dont stop me now" finds Don't Stop Me Now
+- Plex tracks you've loved now show their heart in search results
+- Search now shows a "No Results" screen when nothing matches instead of a blank list
+- Fixed Plex songs missing from search — tracks are no longer dropped when the server omits optional details like media info or artwork from search responses
+- Search results now stay put when you open a song or album and come back — the list no longer reshuffles or reloads behind you
+- Multi-service search results now appear all at once instead of shifting around as each service finishes loading
+- If your Plex library has the same album in more than one quality, each copy now shows its own artwork, albums show their track count, and songs show their format and bitrate (like "FLAC • 1411 kbps"), so it's easy to tell editions apart
+- Album rows in search now show the number of songs across Apple Music, Spotify, Tidal, Deezer, and Plex — handy for telling a deluxe edition from the standard one
+- The Plex library filter now works during a combined multi-service search too — filter your Plex results by library while other services' results stay put
+- Turning a service off in Settings now removes it from the search selection right away — previously a disabled service could stay selected in the search menu
+- Spotify search now includes artist radio — start a station from the top artist matches right in the results
+- Search filters now cover every service you're searching — with Apple Music as an extra service, the Radio and Library filters show up like they should
+- The search start screen now shows each selected service's sections (like Spotify's browse or Apple Music playlists) even when that service isn't the primary one
+- Spotify albums now rank by popularity, so searching an album like Frozen surfaces it near the top instead of below every song — and albums containing explicit tracks now show the explicit badge
+- Apple Music search now uses Apple's own Top Results to rank its hits higher, matching the ordering you see in the Music app
+- Improved Plex speed and reliability — Clic picks the fastest way to reach your server, automatically switches connection when you change networks, and no longer hangs on an unreachable server
+- The Refresh Sonos Library button in Preferences now shows your music library's shared folder location underneath, so you can see where Sonos is reading your music from
+- Improved Spotify responsiveness — albums and playlists load noticeably faster and start showing results sooner
+- Fixed Spotify albums with more than 50 tracks not showing every track, and an album sometimes showing the previous album's tracks when navigating back and forth
+- Fixed the Spotify Albums library list shrinking and reshuffling each time you reopened it — it now loads your full library and stays put
+- Fixed sheets like Add to Playlist unexpectedly closing on iPad and Mac when the Queue was open in the side panel; the Queue now also stays with the speaker you have selected as you resize or rotate
+- Fixed the now-playing track not being highlighted in Plex albums and playlists
+- Fixed opening a Plex artist from a song's "View Artist" showing no albums
+- Shuffling the queue now animates tracks sliding into their new order instead of jumping
+- Fixed the Queue inspector needing two clicks to open on Mac
+- Improved streaming service reliability — fixed a token-refresh timing issue that could make requests fail as "signed out" even when your session was still valid
+
 # 2026.5
 
 –– New Features ––
+- Deezer: Full Deezer integration — search tracks, albums, artists, and playlists, browse Deezer charts, view album and artist pages, start a Mix from any track or artist, and open content directly in the Deezer app
 - Listen with Clic: A second share sheet action that appears in the Actions row — share any song, album, or playlist link and queue it to any room without leaving your current app
 - Queue Position: Choose how a shared link is queued — Play Now, Play Next, Add to Last, or Replace Queue — right from the share sheet; playlists default to Replace
 - TV Mode Controls: Night mode, speech enhancement, and mute buttons now appear in the mini player when a Sonos soundbar is in TV mode — artwork swaps to a TV icon and the audio input format is shown in place of the track name
 - Favorite Albums: Save a Spotify album or love an Apple Music album directly from search results or the album detail page
 - Volume Buttons: Use the iPhone's physical volume buttons to control your Sonos speaker volume on the player screen — enable the toggle in Playback preferences
-- Mac Dock Menu: Reordered menu items — transport controls and Now Playing are at the bottom (closest to the Dock icon), with Sleep Timer at the top; Repeat, Shuffle, and Crossfade grouped under a "Playback" section; Favorite moved into the Now Playing group
 - Plex Track Ratings: Rate Plex tracks with a heart from the player or the track menu — the heart fills based on your 1–5 star rating and a badge appears on rated tracks in your library
 - Popular Tracks: Artist pages for Plex and library artists now show a Popular Tracks section ordered by global popularity, sourced from Last.fm and powered by Audioscrobbler
 - Start Live Activity Shortcut: New shortcut and Control Center widget (iOS 18+) to start a Live Activity for any speaker — configure a speaker once and tap to get Now Playing on your Lock Screen instantly
 
 –– Bug Fixes & Improvements ––
+- Mac Dock Menu: Reordered menu items — transport controls and Now Playing are at the bottom (closest to the Dock icon), with Sleep Timer at the top; Repeat, Shuffle, and Crossfade grouped under a "Playback" section; Favorite moved into the Now Playing group
+- Fixed speaker discovery incorrectly reporting "On Cellular" and refusing to connect when Wi-Fi Assist is enabled — the app now connects whenever Wi-Fi or Ethernet is available
 - Apple Music artwork now loads as a square crop instead of a letterboxed image with white padding
 - Play Folder: Playing an Apple Music playlist folder now queues all playlists in order — first replaces the queue, the rest append automatically
 - Fixed a crash that could occur when play history or queue data stored by a different app version contained an unrecognized music service
 - Fixed artwork flickering when skipping between tracks on the same Spotify album, including albums with featured artists
 - Right-clicking or long-pressing a single queue track now offers the full set of actions — Add to Playlist, View Album, View Artist, and Play Next — in both Up Next and Full Queue on iPhone, iPad, and Mac
+- Fixed the music service icon in the search and library menus being hard to tap on iOS 26, and restored its brand color and size
+- Search and library results now lay out in a two-column grid, so you see more at a glance
+- SoundCloud Library: Liked Songs and Playlists now lay out in a two-column grid with a filter button to reorder or hide sections, matching the Apple Music and Spotify libraries
 
 # 2026.4
 
@@ -39,6 +122,7 @@
 - Restored Live Activity to its former glory with 5 volume steps
 - Dock Menu: Volume Up / Down now adjusts by 2% by default; hold Option for a 5% jump
 - Clic Mini: Menu bar window now smoothly grows and shrinks when expanding a group's per-speaker volume controls
+- Improved Player screen performance: reduced unnecessary view updates on foreground, inspector toggle, hover, and resize for smoother behavior on Mac
 - Fixed Custom Sleep Timer not showing
 - Fixed Apple Music links without a slug (e.g. `music.apple.com/us/album/<id>`) failing to open
 - Fixed Apple Music station links not parsing in the share sheet, Shortcuts, or "Open in Clic" — station name is now derived from the URL when richer metadata isn't available

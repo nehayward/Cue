@@ -20,6 +20,8 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
     public let fingerprint: String?
     public let librarySectionID: String?
     public var userRating: Double?
+    /// Identifies a track's position within a specific playlist (used by Plex to remove items).
+    public let playlistItemID: String?
 
     // Initializer
     public init(
@@ -40,7 +42,8 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         isSingle: Bool? = false,
         fingerprint: String? = nil,
         librarySectionID: String? = nil,
-        userRating: Double? = nil
+        userRating: Double? = nil,
+        playlistItemID: String? = nil
     ) {
         self.duration = duration
         self.popularity = popularity
@@ -60,6 +63,34 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         self.fingerprint = fingerprint
         self.librarySectionID = librarySectionID
         self.userRating = userRating
+        self.playlistItemID = playlistItemID
+    }
+
+    /// A copy with the quality-signal fields replaced — used to graft
+    /// popularity/explicitness onto items whose service search response
+    /// doesn't include them (Spotify albums, Apple Top Results).
+    public func replacing(popularity: Int?, isExplicit: Bool?) -> PlayableContentMetadata {
+        PlayableContentMetadata(
+            duration: duration,
+            popularity: popularity,
+            artist: artist,
+            artistID: artistID,
+            album: album,
+            albumID: albumID,
+            albumYear: albumYear,
+            isrc: isrc,
+            position: position,
+            audioCodec: audioCodec,
+            URIMetadata: URIMetadata,
+            radioStation: radioStation,
+            isPlayable: isPlayable,
+            isExplicit: isExplicit,
+            isSingle: isSingle,
+            fingerprint: fingerprint,
+            librarySectionID: librarySectionID,
+            userRating: userRating,
+            playlistItemID: playlistItemID
+        )
     }
 
     // Equatable conformance
@@ -80,7 +111,8 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         lhs.isExplicit == rhs.isExplicit &&
         lhs.isSingle == rhs.isSingle &&
         lhs.fingerprint == rhs.fingerprint &&
-        lhs.userRating == rhs.userRating
+        lhs.userRating == rhs.userRating &&
+        lhs.playlistItemID == rhs.playlistItemID
     }
 
     // Hashable conformance
@@ -102,5 +134,6 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         hasher.combine(isSingle)
         hasher.combine(fingerprint)
         hasher.combine(userRating)
+        hasher.combine(playlistItemID)
     }
 }

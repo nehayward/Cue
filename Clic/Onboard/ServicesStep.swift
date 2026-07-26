@@ -14,19 +14,13 @@ struct ServicesStep: View {
     @State private var rowsIn = false
 
     /// Pairs the Sonos-side service type with the Clic-side `MediaSearchService`
-    /// it maps to. When you add a new music backend, drop a row here.
-    ///
-    /// TODO: When Clic adds support for more services (Sonos Radio, SiriusXM,
-    /// Pandora, Amazon Music, Bandcamp, etc.), add the matching
-    /// `(SonosServiceType, MediaSearchService)` pair below.
-    private let mapping: [(SonosServiceType, MediaSearchService)] = [
-        (.appleMusic, .apple),
-        (.spotify, .spotify),
-        (.tidal, .tidal),
-        (.plex, .plex),
-        (.tunein, .tuneIn),
-        (.soundcloud, .soundcloud)
-    ]
+    /// it maps to, derived from the shared `sonosServiceType` mapping
+    /// (MediaSearchService+Sonos.swift) — a new music backend added there
+    /// shows up here automatically. Library is skipped: it has no Sonos
+    /// counterpart to detect.
+    private let mapping: [(SonosServiceType, MediaSearchService)] = MediaSearchService.allCases.compactMap { service in
+        service.sonosServiceType.map { ($0, service) }
+    }
 
     private var hasAnySupported: Bool {
         mapping.contains { installed.contains($0.0) }
