@@ -346,6 +346,7 @@ These flags replace all hardcoded service allowlists in the UI. Add `.myService`
 | `supportsViewArtistAlbum` | View Album / View Artist taps in player and queue (`LargePlayerView`, `MenuInfoView`) |
 | `supportsFavoriteTrack` | Like/heart button in player and context menus (`LikeButtonView`, `FavoriteMenuButton`) |
 | `supportsFavoriteAlbum` | Save album in context menus (`FavoriteMenuButton`) |
+| `hasBrandedRadioBadge` | Stations keep the service icon on artwork instead of the generic `radio.fill` glyph (`ContentArtworkView`). Set it for services with a full-colour badge asset |
 
 No view files need to be touched — they already read from these flags.
 

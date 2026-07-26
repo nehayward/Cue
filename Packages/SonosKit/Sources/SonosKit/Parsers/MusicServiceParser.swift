@@ -43,6 +43,8 @@ public final class MusicServiceParser {
             return .tidal
         case "303":
             return .sonosRadio
+        case "236":
+            return .pandora
         default:
             return .unknown
         }
@@ -102,8 +104,23 @@ public final class MusicServiceParser {
         // Fast path checks first (no allocation)
         if uri == "333" { return .tuneIn }
         if uri == "303" { return .sonosRadio }
+        if uri == "236" { return .pandora }
+
+        // The `sid=` parameter is authoritative, so it has to beat the
+        // positional heuristics below. Pandora's per-track stream id carries a
+        // `::<sequence>::` field —
+        // `VC1::ST::ST:<station>::TR:<track>::3::RINCON_…` on the 4th track of
+        // a station — which satisfied Plex's `:3:` check and flipped the whole
+        // player to Plex mid-station.
+        if uri.range(of: "sid=303", options: .caseInsensitive) != nil || xml?.contains("Svc77575") == true {
+            return .sonosRadio
+        }
+        if uri.range(of: "sid=236", options: .caseInsensitive) != nil || xml?.contains("Svc60423") == true {
+            return .pandora
+        }
+
         if decodedURI.contains(":3:") { return .plex }
-        
+
         // Check XML before lowercasing URI
         if let xml = xml, xml.range(of: "tunein", options: .caseInsensitive) != nil {
             return .tuneIn
@@ -120,7 +137,10 @@ public final class MusicServiceParser {
         if normalized.contains("soundcloud") { return .soundcloud }
         if normalized.contains("deezer") || normalized.contains("tr-flac") || normalized.contains("tr-mp3") { return .deezer }
         if xml?.contains("RINCON519") == true { return .deezer }
-        if normalized.contains("sid=303") || xml?.contains("Svc77575") == true { return .sonosRadio }
+        // sid/account checks for both already ran above; these are the weaker
+        // name hints, kept below `:3:` so a Plex path containing "pandora"
+        // still resolves as Plex.
+        if normalized.contains("pandora") { return .pandora }
         
         // Check for Tidal (pattern match only if string contains hint)
         if normalized.contains("tidal") || (try? tidalPattern.firstMatch(in: decodedURI)) != nil {
@@ -144,9 +164,10 @@ public final class MusicServiceParser {
         case .soundcloud: return extractSoundCloudID(from: uri)
         case .deezer: return extractDeezerTrackID(from: uri)
         case .tuneIn: return extractTuneInTrackID(from: uri)
-        // Sonos Radio streams are `x-sonosapi-radio:<id>?...`; the TuneIn
-        // extractor (":(.*?)?") recovers the prefixed station id (e.g. sonos:2997).
-        case .sonosRadio: return extractTuneInTrackID(from: uri)
+        // Sonos Radio and Pandora streams are `x-sonosapi-radio:<id>?...`; the
+        // TuneIn extractor (":(.*?)?") recovers the prefixed station id
+        // (e.g. sonos:2997, ST:12345).
+        case .sonosRadio, .pandora: return extractTuneInTrackID(from: uri)
         case .library, .unknown: return uri
         case .airplay: return ""
         }
