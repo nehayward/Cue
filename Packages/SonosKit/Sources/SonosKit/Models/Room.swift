@@ -150,20 +150,41 @@ extension Room {
         playbackPosition = newValue
     }
 
-    /// Sets `isPlaying` and records when, marking it as pushed to us rather than
-    /// polled for.
+    /// Where a playback-state write came from. The sources have very different
+    /// latencies and authority, and until they went through one funnel they
+    /// silently fought each other.
+    public enum PlaybackStateSource: String {
+        /// Pushed by the speaker over the WebSocket, ~100 ms after the fact.
+        case socket
+        /// A SOAP read — the pulse, a Live Activity refresh, a group sweep.
+        /// Always a request/response behind whatever just happened.
+        case poll
+        /// An optimistic write from a user action, before the speaker confirms.
+        case localCommand
+    }
+
+    /// The single way `isPlaying` should be written.
     ///
-    /// Two kinds of source write this: the WebSocket, which the speaker pushes
-    /// within ~100 ms of the transport actually changing, and SOAP reads, which
-    /// are a request/response behind. When both are live — the Lock Screen
-    /// session holds a socket while `LiveActivityManager` and the pulse keep
-    /// polling — a SOAP response captured *before* a pause lands *after* the
-    /// socket reported it, flipping the flag back. On screen the next poll
-    /// corrects it; on a Lock Screen card driven by this flag it reads as
-    /// playback flickering between states.
-    public func markPlaybackState(_ playing: Bool) {
-        playbackStateStampedAt = .now
+    /// Precedence: a pushed or user-initiated state wins over a polled one for
+    /// two seconds. A SOAP response captured *before* a pause lands *after* the
+    /// socket reported it, and would otherwise flip the flag back — invisible on
+    /// screen, where the next poll corrects it, but on a Lock Screen card it
+    /// reads as playback flickering.
+    ///
+    /// The trace is deliberate and temporary: seven call sites write this, and
+    /// when they disagree the only way to find out which one won is to watch
+    /// them. Remove with the rest of the `🎛 NowPlaying —` prints.
+    public func setPlaying(_ playing: Bool, source: PlaybackStateSource) {
+        if source != .poll {
+            // Stamped even when the value is unchanged: what matters is that a
+            // fast source just spoke, not that it changed its mind.
+            playbackStateStampedAt = .now
+        } else if hasFreshPlaybackState, isPlaying != playing {
+            print("🎛 NowPlaying — \(name): ignored poll isPlaying=\(playing), pushed state is newer")
+            return
+        }
         guard isPlaying != playing else { return }
+        print("🎛 NowPlaying — \(name): isPlaying \(isPlaying) → \(playing) via \(source.rawValue)")
         isPlaying = playing
     }
 

@@ -83,9 +83,9 @@ extension SonosService: SonosEventHandler {
     private func setIsPlaying(_ isPlaying: Bool, on group: GroupRoom) {
         // Stamped even when unchanged: the point is to record that the speaker
         // just told us, so an in-flight SOAP read can't overwrite it.
-        group.coordinatorRoom.markPlaybackState(isPlaying)
-        for room in group.rooms where room.isPlaying != isPlaying {
-            room.markPlaybackState(isPlaying)
+        group.coordinatorRoom.setPlaying(isPlaying, source: .socket)
+        for room in group.rooms {
+            room.setPlaying(isPlaying, source: .socket)
         }
     }
 
