@@ -33,6 +33,34 @@ final class SonosKitTests: XCTestCase {
         XCTAssertEqual(zones.count, 8)
     }
     
+    func testHouseholdControlIDParseFromStatusZP() throws {
+        // S1 players (ZP100 etc.) don't report CurrentMuseHouseholdId; their
+        // household comes from /status/zp's HouseholdControlID instead.
+        let statusZP = """
+        <?xml version="1.0" ?>
+        <ZPSupportInfo><ZPInfo><ZoneName>Living Room</ZoneName>\
+        <LocalUID>RINCON_000E58AAAAAA01400</LocalUID>\
+        <HouseholdControlID>Sonos_vKO8NuKV8cwCRWMPY4z5xErrhA</HouseholdControlID>\
+        </ZPInfo></ZPSupportInfo>
+        """
+        let id = try XMLParserSonos().parseValue(xml: statusZP, named: "HouseholdControlID")
+        XCTAssertEqual(id, "Sonos_vKO8NuKV8cwCRWMPY4z5xErrhA")
+    }
+
+    func testParseHouseIDEmptyOnS1Attributes() throws {
+        // An S1 GetZoneGroupAttributes response has no CurrentMuseHouseholdId —
+        // parseHouseID must return empty (triggering the /status/zp fallback)
+        // rather than some other field's value.
+        let s1Attributes = """
+        <s:Envelope><s:Body><u:GetZoneGroupAttributesResponse>\
+        <CurrentZoneGroupName>Living Room</CurrentZoneGroupName>\
+        <CurrentZoneGroupID>RINCON_000E58AAAAAA01400:12</CurrentZoneGroupID>\
+        <CurrentZonePlayerUUIDsInGroup>RINCON_000E58AAAAAA01400</CurrentZonePlayerUUIDsInGroup>\
+        </u:GetZoneGroupAttributesResponse></s:Body></s:Envelope>
+        """
+        XCTAssertEqual(XMLParserSonos().parseHouseID(xml: s1Attributes), "")
+    }
+
     func testXMLParserDelegatePerformance() {
         measure {
             let zone = Bundle.module.url(forResource: "ZoneMatt", withExtension: "xml")
