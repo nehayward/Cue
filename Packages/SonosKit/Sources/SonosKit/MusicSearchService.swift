@@ -91,6 +91,14 @@ public final class MusicSearchService {
     /// Pandora, reached over plain SMAPI like Sonos Radio (browse + search on
     /// the service's SMAPI endpoint). Rotated tokens are persisted so later
     /// launches skip the expired-token → refreshAuthToken → retry round trip.
+    ///
+    /// The persist is deliberately unstructured and *not* cancellable: by the
+    /// time this runs the old token is already dead on Pandora's side, so
+    /// dropping the write leaves the keychain holding credentials the service
+    /// has invalidated — and `try?` would swallow the `CancellationError`
+    /// silently. Unlike `searchSuggestionTask` below, nothing ever supersedes
+    /// this work, and the service is a never-deallocated singleton, so there is
+    /// no lifetime to tie it to either.
     private let pandora = PandoraAPI(onTokenRefreshed: { token, key in
         Task {
             guard let householdId = KeychainTokenRefreshHandler.shared.householdId else { return }
