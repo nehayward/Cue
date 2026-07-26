@@ -296,6 +296,17 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         }
     }
 
+    /// Service ships its own branded badge, so its stations keep the service
+    /// icon on artwork instead of falling back to the generic `radio.fill`
+    /// glyph other radio sources use. These are the same services whose assets
+    /// are full-colour (original rendering) in `icon` / `image` above.
+    public var hasBrandedRadioBadge: Bool {
+        switch self {
+        case .sonosRadio, .pandora: true
+        default: false
+        }
+    }
+
     public var brandColor: Color {
         switch self {
         case .apple:

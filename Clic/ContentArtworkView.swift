@@ -112,10 +112,7 @@ fileprivate struct OverlayIcons: View {
     let isRadio: Bool
     let size: Double
     
-    // Sonos Radio and Pandora have their own branded badges, so show the service
-    // icon for them even though they're radio; other radio sources fall back to
-    // the generic glyph.
-    private var showsServiceIcon: Bool { !isRadio || service == .sonosRadio || service == .pandora }
+    private var showsServiceIcon: Bool { !isRadio || service.hasBrandedRadioBadge }
 
     var body: some View {
         service.icon
