@@ -50,7 +50,7 @@ private let nowPlayingLogPrefix = "🎛 NowPlaying —"
 /// The SOAP pulse is cancelled on background, and polling from a background
 /// audio session would be the expensive way to do this. Instead the service
 /// claims the `.nowPlaying` live listener: one socket, on the coordinator of the
-/// group being mirrored, for `[.metadata, .playback]`. Events land in
+/// group being mirrored, for `[.metadata, .playback, .groupVolume]`. Events land in
 /// `SonosService`'s handler, which writes the model and calls back through the
 /// `.nowPlaying` live-update observer — so the card refreshes on track and
 /// transport changes only, and idles at zero cost in between.
@@ -166,6 +166,10 @@ final class NowPlayingSessionService {
             Task { [weak self] in
                 for await _ in center.notifications(named: UIApplication.willEnterForegroundNotification) {
                     self?.isForeground = true
+                    // The idle window is a background rule; coming back on
+                    // screen retires it rather than letting a stale clock expire
+                    // under a user who is looking at the app.
+                    self?.noteActivity()
                     self?.evaluate()
                 }
             },
@@ -196,9 +200,8 @@ final class NowPlayingSessionService {
     /// - **Foreground:** the selected group wins, even paused. The user is
     ///   looking at a speaker, and the hardware volume bridge follows the card,
     ///   so the buttons have to control the speaker on screen.
-    /// - **Background:** the playing group wins. The card is all the user can
-    ///   see, so it should follow the music; a paused selection is only the
-    ///   fallback for when nothing is playing at all.
+    /// - **Background:** the playing group wins, and *only* a playing group
+    ///   keeps the session alive past a short grace window. See `idleGrace`.
     ///
     /// The playing scan walks `sorted`, not `groups`: `groups` is in Sonos
     /// topology-parse order, which is arbitrary and reshuffles when the topology
@@ -212,13 +215,21 @@ final class NowPlayingSessionService {
         }
         if isForeground, let selected, isMirrorable(selected) { return selected }
         if let playing = sonosService.sorted.first(where: { $0.coordinatorRoom.isPlaying && isMirrorable($0) }) {
+            noteActivity()
             return playing
         }
-        // Nothing is playing anywhere. Keep mirroring whatever we already are,
-        // so pausing doesn't drop the card out from under the user — the pause
-        // came *from* that card, and its play button is how they resume.
-        // Resolved fresh by id: `SonosService` replaces `GroupRoom` instances on
-        // topology changes.
+
+        // Nothing is playing anywhere. In the foreground that costs nothing and
+        // the card should follow the speaker on screen. Backgrounded it means
+        // holding an audio session, the `audio` background mode and the hardware
+        // volume bridge for a system that isn't playing anything — so it's kept
+        // only long enough to undo a pause, then dropped.
+        guard mayKeepIdleCard() else { return nil }
+
+        // Keep mirroring whatever we already are, so pausing doesn't drop the
+        // card out from under the user — the pause came *from* that card, and
+        // its play button is how they resume. Resolved fresh by id:
+        // `SonosService` replaces `GroupRoom` instances on topology changes.
         if let current = group.flatMap({ mirrored in
             sonosService.groups.first { $0.coordinatorID == mirrored.coordinatorID }
         }), isMirrorable(current) {
@@ -226,6 +237,66 @@ final class NowPlayingSessionService {
         }
         if let selected, isMirrorable(selected) { return selected }
         return nil
+    }
+
+    /// How long a paused card survives in the background.
+    ///
+    /// It can't be zero. Pausing from the Lock Screen would then tear the card
+    /// down, and its play button is the only way back — the user would have to
+    /// open the app to undo something they did from the Lock Screen. It also
+    /// can't be unbounded: an idle system would keep the audio session, the
+    /// background-audio grant and the volume bridge indefinitely, which is how
+    /// the hardware buttons end up controlling a speaker with nothing on screen
+    /// to explain why.
+    @ObservationIgnored private let idleGrace: TimeInterval = 3 * 60
+
+    /// When the background went quiet, or nil if something is playing.
+    @ObservationIgnored private var idleSince: Date?
+    /// Wakes the evaluation when the grace window expires. Nothing in the model
+    /// changes at that moment, so without this the window never closes.
+    @ObservationIgnored private var idleTimeoutTask: Task<Void, Never>?
+
+    /// Called on the paths where nothing is playing. Starts the grace clock on
+    /// the first such pass and reports whether the card may still stand.
+    private func mayKeepIdleCard() -> Bool {
+        guard !isForeground else { return true }
+        // Nothing mirrored yet: there's no pause to undo, so don't start one.
+        guard group != nil else { return false }
+
+        guard let idleSince else {
+            // The window exists to undo a pause, so only a card that *was*
+            // playing earns one. A card already showing paused when the app went
+            // to the background has nothing to undo, and holding the session for
+            // it is exactly how the volume buttons end up pointed at a speaker
+            // with nothing on screen to explain it.
+            guard published?.isPlaying == true else {
+                print("\(nowPlayingLogPrefix) backgrounded with nothing playing — releasing")
+                return false
+            }
+            self.idleSince = .now
+            let grace = idleGrace
+            print("\(nowPlayingLogPrefix) paused in background — holding the card \(Int(grace))s")
+            idleTimeoutTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(grace))
+                guard !Task.isCancelled else { return }
+                self?.evaluate()
+            }
+            return true
+        }
+        guard Date.now.timeIntervalSince(idleSince) < idleGrace else {
+            print("\(nowPlayingLogPrefix) idle window expired — releasing")
+            return false
+        }
+        return true
+    }
+
+    /// Something is playing (or we're back in the foreground) — the window is
+    /// no longer running, and has to start from scratch next time.
+    private func noteActivity() {
+        guard idleSince != nil || idleTimeoutTask != nil else { return }
+        idleSince = nil
+        idleTimeoutTask?.cancel()
+        idleTimeoutTask = nil
     }
 
     /// TV mode has no transport to mirror and an empty track means the speaker is
@@ -344,7 +415,15 @@ final class NowPlayingSessionService {
         if subscribedKey != subscriptionKey {
             subscribedKey = subscriptionKey
             Task { [weak self] in
-                await sonosService.listen(to: group, as: .nowPlaying, events: [.metadata, .playback])
+                // `.groupVolume` as well as the transport: the card carries a
+                // volume slider, and backgrounded this socket is the only thing
+                // that can tell us the speaker's level moved somewhere else —
+                // the SOAP pulse that used to cover it is cancelled.
+                await sonosService.listen(
+                    to: group,
+                    as: .nowPlaying,
+                    events: [.metadata, .playback, .groupVolume]
+                )
                 self?.publish()
             }
         }
@@ -419,6 +498,7 @@ final class NowPlayingSessionService {
         favoriteTrackID = nil
         isFavorite = false
         subscribedKey = nil
+        noteActivity()
         detachVolumeBridge()
         audioSession.onRestored = nil
         audioSession.stop()

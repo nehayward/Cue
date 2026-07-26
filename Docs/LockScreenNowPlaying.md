@@ -97,14 +97,34 @@ things, so `resolveTarget()` gives them opposite answers:
 | | Rule | Why |
 |---|---|---|
 | **Foreground** | The selected group wins, even paused | The user is looking at a speaker, and the volume bridge follows the card — the buttons have to control what's on screen |
-| **Background** | The playing group wins | The card is all the user can see, so it follows the music |
+| **Background** | The playing group wins, and only a playing group keeps the session | The card is all the user can see, so it follows the music — and nothing is worth holding an audio session for |
 
 Fallbacks, in order: selection (foreground only) → first playing group in
 `sorted` order → **the group already on the card** → any mirrorable selection.
 The last two are what keep a paused card up when nothing is playing anywhere;
 without them, pausing from the Lock Screen would drop the card and leave no way
-to resume. Keeping the current group matters most in the background with no
-selection, where there is nothing else to fall back to.
+to resume.
+
+### The idle window
+
+Those last two fallbacks are unconditional in the foreground and **time-boxed in
+the background** (`idleGrace`, 3 minutes). Backgrounded with nothing playing, the
+session costs an audio-session claim, the `audio` background grant and the
+hardware volume bridge — which is how the volume buttons end up controlling a
+speaker with no card on screen to explain why. So:
+
+- Something playing → `noteActivity()`, no clock.
+- The card was **playing** and everything went quiet → arm the window. That is a
+  pause, and its play button is the only way to undo it; tearing the card down
+  would mean opening the app to reverse something done from the Lock Screen.
+- The card was **already paused** when the app went to the background → drop it
+  now. There's nothing to undo.
+- Window expires → `stop()`.
+
+The expiry needs its own `Task.sleep`: no model state changes at that moment, so
+the observation pass would never re-run on its own. Returning to the foreground
+retires the clock rather than letting it fire under a user who is looking at the
+app.
 
 `sorted`, not `groups`: `groups` is in Sonos topology-parse order, which is
 arbitrary and reshuffles on refresh, so two rooms playing could hand the card
@@ -147,7 +167,7 @@ Verified, since the whole design rests on it:
 
 | Running | What it costs |
 |---|---|
-| The `.nowPlaying` WebSocket (one, on the mirrored group's coordinator) | Idle until the speaker changes something |
+| The `.nowPlaying` WebSocket (one, on the mirrored group's coordinator) | Idle until the speaker changes something — transport, metadata, or group volume |
 | `SonosStreamingService`'s connection refresh | One reconnect per socket every 5 minutes |
 | The UPnP ZoneGroupTopology subscription — the FlyingFox listener plus a renewal at 80% of the speaker's ~500 s timeout | Push, not polling: NOTIFY arrives when the topology changes. One renewal request every ~7 minutes |
 | `HardwareVolumeService`'s `outputVolume` KVO | Nothing until a volume button or the Lock Screen slider moves |
@@ -181,7 +201,7 @@ which is the bug this traded away.
 ## Why it doesn't poll
 
 The `.nowPlaying` live listener holds one socket, on the mirrored group's
-coordinator, for `[.metadata, .playback]` only. Events write the model in
+coordinator, for `[.metadata, .playback, .groupVolume]` only. Events write the model in
 `SonosService`'s handler and call back through the `.nowPlaying` live-update
 observer (keyed by listener, so a second consumer can't silently replace the
 first).
@@ -285,6 +305,19 @@ slider (driven from the observation pass, so a change made on the speaker or in 
 Sonos app follows), and a user change is sent as a level via `setGroupVolume`.
 Sends are coalesced — a drag emits a KVO callback every few pixels and only the
 last value matters.
+
+**The inbound half needed a socket event, not just observation.**
+`syncSystemVolume` runs off `trackCardState`'s read of `group.groupVolume`, so it
+follows whatever writes the model — but backgrounded, nothing did.
+`SonosService.onVolumeUpdate` was the protocol's empty default, and in the
+foreground the 500 ms SOAP pulse re-read `groupVolume` and hid that. With the
+pulse cancelled, a change made on the speaker or in the Sonos app never arrived
+and the slider drifted. So the `.nowPlaying` listener subscribes `.groupVolume`
+alongside the transport, and the handler writes `group.groupVolume` (behind the
+same `isEditingVolume` guard the poll uses, or a drag gets shoved back under the
+user's finger by its own echo). `playerVolume` is deliberately not handled:
+different namespace, nothing subscribes to it, and it's the wrong number for a
+surface that controls the group.
 
 Echo filtering differs by mode for the same reason: relative can compare against
 `restorePoint` because its writes always land there, absolute has to remember

@@ -57,6 +57,34 @@ extension SonosService: SonosEventHandler {
         notifyLiveUpdate(for: group)
     }
     
+    /// Group volume changed on the speaker itself, in the Sonos app, or from
+    /// another controller.
+    ///
+    /// This was the protocol's empty default until now, which was invisible in
+    /// the foreground — the SOAP pulse re-reads `groupVolume` every 500 ms and
+    /// papered over it. Backgrounded, the pulse is cancelled and the socket is
+    /// the only source there is, so a volume change made anywhere else never
+    /// reached the model and the Lock Screen slider drifted away from the
+    /// speaker it is supposed to be showing.
+    public func onVolumeUpdate(playerId: String, event: VolumeEvent) {
+        // Only the group's own level. `playerVolume` is a different namespace,
+        // nothing subscribes to it, and it would be the wrong number for a
+        // surface that controls the group.
+        guard event.info.type == "groupVolume", let state = event.volumeState else { return }
+        guard let group = groups.first(where: { $0.coordinatorID == playerId }) else { return }
+
+        // A drag writes the model optimistically and holds `isEditingVolume`
+        // until the last value is sent; the speaker echoes intermediate levels
+        // inside that window, which would shove the slider back under the
+        // finger. Same guard the poll uses.
+        guard !group.isEditingVolume else { return }
+
+        let volume = Double(state.volume)
+        guard group.groupVolume != volume else { return }
+        group.groupVolume = volume
+        notifyLiveUpdate(for: group)
+    }
+
     public func onMetadataUpdate(playerId: String, event: TrackEvent) {
         if event.info.type == "metadataStatus", let metadata = event.metadata {
             guard let index = groups.firstIndex(where: { $0.coordinatorID == playerId }) else {
