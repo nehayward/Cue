@@ -5,7 +5,7 @@ import SwiftUI
 /// Shared empty state for the queue and "Up Next" screens.
 ///
 /// Instead of a bare "Nothing up next" message, this surfaces recently played
-/// content as tappable cover art so there's always something to play.
+/// content as tappable rows so there's always something to play.
 struct EmptyQueueView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService
 
@@ -16,8 +16,6 @@ struct EmptyQueueView: View {
     private var recentlyPlayed: [PlayableContent] {
         Array(playHistoryService.history.prefix(12))
     }
-
-    private let columns = [GridItem(.adaptive(minimum: 100), spacing: 12)]
 
     var body: some View {
         GeometryReader { proxy in
@@ -60,25 +58,25 @@ struct EmptyQueueView: View {
     }
 
     private var recentlySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             Label("Recently Played", systemImage: "clock.arrow.circlepath")
                 .font(.headline)
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
 
-            LazyVGrid(columns: columns, spacing: 16) {
+            VStack(spacing: 4) {
                 ForEach(recentlyPlayed) { item in
-                    PlayableCardView(item: item)
+                    PlayableContentRowView(item: item)
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
 #Preview("Up Next – Empty") {
     EmptyQueueView(
         title: "Nothing up next",
-        message: "When something's playing, what's coming up appears here. Tap to start something new.",
+        message: "When something's playing, what's coming up shows here. Tap below to start something new.",
         systemImage: "music.note.list"
     )
     .withEnvironments()
