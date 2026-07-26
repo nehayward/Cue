@@ -4,18 +4,14 @@ import Defaults
 import MediaPlayer
 import Nuke
 import Observation
-import os
 import SonosKit
 import SubscriptionKit
 import UIKit
 
-// File scope so nothing here has to reason about actor isolation to log, and so
-// the formatting cost is only paid when the log is actually collected — unlike
-// `print`, which builds its string every time.
-private let log = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "com.nick.Clic",
-    category: "NowPlaying"
-)
+// Deliberately `print`, not `Logger`: these show up in the Xcode console with no
+// filtering while the feature is being brought up on device. Every one is
+// prefixed `\(nowPlayingLogPrefix)`, so grep finds the lot when they come out.
+private let nowPlayingLogPrefix = "🎛 NowPlaying —"
 
 /// Mirrors a Sonos group onto the system Now Playing card — Lock Screen,
 /// Control Center, CarPlay, AirPods stem presses, the Watch's Now Playing app.
@@ -573,7 +569,7 @@ final class NowPlayingSessionService {
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         MPNowPlayingInfoCenter.default().playbackState = snapshot.isPlaying ? .playing : .paused
-        logDiagnostics("published")
+        logDiagnostics("published \(snapshot.title) — \(snapshot.isPlaying ? "playing" : "paused")")
 
         if publishedArtworkURL != snapshot.artworkURL {
             loadArtwork(from: snapshot.artworkURL, track: track)
@@ -633,19 +629,21 @@ final class NowPlayingSessionService {
 
     /// The card's contents and its control row come from two different places —
     /// `nowPlayingInfo` and the command centre — and a missing button looks
-    /// identical to a missing session. This records both so they can be told
+    /// identical to a missing session. This prints both so they can be told
     /// apart.
-    ///
-    /// `Logger` rather than `print`: the interpolations aren't evaluated unless
-    /// something is collecting, so this costs nothing in a release build and
-    /// doesn't need a `#if DEBUG` fence around every call site.
     private func logDiagnostics(_ context: String) {
         let center = MPRemoteCommandCenter.shared()
         let info = MPNowPlayingInfoCenter.default()
-        // One line rather than a multi-line literal: `OSLogMessage` needs a
-        // static format string, and folded literals are a known source of
-        // trouble there.
-        log.debug("\(context, privacy: .public) — held=\(self.audioSession.isHeld), play=\(center.playCommand.isEnabled), pause=\(center.pauseCommand.isEnabled), toggle=\(center.togglePlayPauseCommand.isEnabled), next=\(center.nextTrackCommand.isEnabled), prev=\(center.previousTrackCommand.isEnabled), scrub=\(center.changePlaybackPositionCommand.isEnabled), state=\(info.playbackState.rawValue)")
+        print("""
+        \(nowPlayingLogPrefix) \(context)
+           session: held=\(audioSession.isHeld) playing=\(published?.isPlaying == true)
+           commands: play=\(center.playCommand.isEnabled) pause=\(center.pauseCommand.isEnabled) \
+        toggle=\(center.togglePlayPauseCommand.isEnabled) next=\(center.nextTrackCommand.isEnabled) \
+        prev=\(center.previousTrackCommand.isEnabled) scrub=\(center.changePlaybackPositionCommand.isEnabled)
+           info: state=\(info.playbackState.rawValue) \
+        elapsed=\(info.nowPlayingInfo?[MPNowPlayingInfoPropertyElapsedPlaybackTime] ?? "nil") \
+        rate=\(info.nowPlayingInfo?[MPNowPlayingInfoPropertyPlaybackRate] ?? "nil")
+        """)
     }
 
     // MARK: - Remote commands
@@ -800,7 +798,7 @@ final class NowPlayingSessionService {
     private func toggleFavorite() -> MPRemoteCommandHandlerStatus {
         guard let track = group?.coordinatorRoom.track, canFavorite(track) else { return .noSuchContent }
 
-        log.debug("command favorite received")
+        print("\(nowPlayingLogPrefix) command favorite received")
 
         // Optimistic, like every other favorite surface: the write is
         // fire-and-forget from the user's point of view.
@@ -850,7 +848,7 @@ final class NowPlayingSessionService {
         // buttons and a command centre that isn't wired look the same from the
         // outside — but AirPods, a headset button, CarPlay, or the Control Centre
         // module all land here even when the Lock Screen draws nothing.
-        log.debug("command \(name, privacy: .public) received")
+        print("\(nowPlayingLogPrefix) command \(name) received")
         guard let group else { return .noSuchContent }
         Task { @MainActor in
             await action(SonosService.shared, group)

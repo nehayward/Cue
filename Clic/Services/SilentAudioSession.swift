@@ -1,16 +1,10 @@
 #if os(iOS) && !targetEnvironment(macCatalyst)
 import AVFoundation
 import Foundation
-import os
 
-/// Matches the file-scope logger pattern used elsewhere in the app
-/// (`PlayAction/ActionViewController.swift`). File scope rather than a static
-/// member so the detached session work can log without crossing actor
-/// isolation.
-private let log = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "com.nick.Clic",
-    category: "SilentAudioSession"
-)
+// Deliberately `print` while this is being brought up on device — see the note
+// in `NowPlayingSessionService`. Same prefix, so one grep finds them all.
+private let logPrefix = "🎛 NowPlaying —"
 
 /// Holds an active `.playback` audio session playing silence, so iOS treats this
 /// app as the one producing audio.
@@ -97,7 +91,7 @@ final class SilentAudioSession {
                 try session.setActive(true)
                 return true
             } catch {
-                log.error("Session failed to activate: \(error.localizedDescription, privacy: .public)")
+                print("\(logPrefix) session failed to activate: \(error.localizedDescription)")
                 return false
             }
         }.value
@@ -112,7 +106,7 @@ final class SilentAudioSession {
             self.player = player
             return true
         } catch {
-            log.error("Silent loop failed: \(error.localizedDescription, privacy: .public)")
+            print("\(logPrefix) silent loop failed: \(error.localizedDescription)")
             return false
         }
     }

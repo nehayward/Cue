@@ -290,10 +290,11 @@ Deployment target is **iOS 17**, so nothing here uses an 18+ API.
   reads doubled that on every model change. Resolving *inside* the tracking
   closure gives one pass, and registers exactly the reads that produced the
   answer.
-- **`os.Logger`, not `print`.** Interpolations aren't evaluated unless something
-  is collecting, so the diagnostics cost nothing in a release build and don't
-  need a `#if DEBUG` fence. One-line message literals: `OSLogMessage` wants a
-  static format string.
+- **Diagnostics use `print`, deliberately.** `os.Logger` would be the modern
+  choice and costs nothing in release, but its output needs console filtering to
+  see — and this feature is still being brought up on device, where the console
+  is the only instrument. Every line is prefixed `🎛 NowPlaying —`; grep that to
+  find them all when they come out.
 - Also: the silent WAV is a `static let` rather than rebuilt per activation; the
   `UISlider` is resolved once per attach instead of walking `subviews` on every
   read; artwork is held locally rather than read back out of `nowPlayingInfo`
