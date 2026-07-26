@@ -126,6 +126,16 @@ the observation pass would never re-run on its own. Returning to the foreground
 retires the clock rather than letting it fire under a user who is looking at the
 app.
 
+**"Was playing" cannot be read off `published`.** It looks like the obvious
+source and it is wrong, deterministically. `onPlaybackUpdate` writes `isPlaying`
+and then calls `notifyLiveUpdate`, which runs this service's `publish()`
+*synchronously* — while `@Observable`'s `onChange` defers `evaluate()` to the next
+main-actor turn. So the card is already republished as paused before the
+evaluation gets to ask, every socket-delivered pause reads as "was already
+paused", and the session is released instead of held: pausing from another device
+cleared the card. `wasPlaying` is stamped at the end of `evaluate()` instead, so
+it means "what the previous pass saw" — which is the question being asked.
+
 `sorted`, not `groups`: `groups` is in Sonos topology-parse order, which is
 arbitrary and reshuffles on refresh, so two rooms playing could hand the card
 back and forth on an unrelated group change.

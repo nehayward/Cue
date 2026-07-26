@@ -215,7 +215,6 @@ final class NowPlayingSessionService {
         }
         if isForeground, let selected, isMirrorable(selected) { return selected }
         if let playing = sonosService.sorted.first(where: { $0.coordinatorRoom.isPlaying && isMirrorable($0) }) {
-            noteActivity()
             return playing
         }
 
@@ -250,6 +249,17 @@ final class NowPlayingSessionService {
     /// to explain why.
     @ObservationIgnored private let idleGrace: TimeInterval = 3 * 60
 
+    /// Whether the previous evaluation pass found the mirrored group playing.
+    ///
+    /// Not read back off `published`, which looks like it would do and doesn't:
+    /// `onPlaybackUpdate` writes `isPlaying` and then calls `notifyLiveUpdate`,
+    /// which runs this service's `publish()` **synchronously**, while the
+    /// `@Observable` `onChange` defers `evaluate()` to the next main-actor turn.
+    /// So the card is already republished as paused by the time the evaluation
+    /// asks — a pause from another device looked like "was already paused", and
+    /// the session was released instead of held, clearing the card.
+    @ObservationIgnored private var wasPlaying = false
+
     /// When the background went quiet, or nil if something is playing.
     @ObservationIgnored private var idleSince: Date?
     /// Wakes the evaluation when the grace window expires. Nothing in the model
@@ -264,12 +274,12 @@ final class NowPlayingSessionService {
         guard group != nil else { return false }
 
         guard let idleSince else {
-            // The window exists to undo a pause, so only a card that *was*
+            // The window exists to undo a pause, so only a group that *was*
             // playing earns one. A card already showing paused when the app went
             // to the background has nothing to undo, and holding the session for
             // it is exactly how the volume buttons end up pointed at a speaker
             // with nothing on screen to explain it.
-            guard published?.isPlaying == true else {
+            guard wasPlaying else {
                 print("\(nowPlayingLogPrefix) backgrounded with nothing playing — releasing")
                 return false
             }
@@ -375,6 +385,12 @@ final class NowPlayingSessionService {
             return
         }
         run(group: target)
+
+        // Recorded after the fact, so the *next* pass knows what this one saw.
+        // See `wasPlaying` for why this can't be read back off `published`.
+        let playing = target.coordinatorRoom.isPlaying
+        if playing { noteActivity() }
+        wasPlaying = playing
     }
 
     /// Brings the session up if needed and points it at `group`. Idempotent: the
@@ -499,6 +515,7 @@ final class NowPlayingSessionService {
         isFavorite = false
         subscribedKey = nil
         noteActivity()
+        wasPlaying = false
         detachVolumeBridge()
         audioSession.onRestored = nil
         audioSession.stop()
