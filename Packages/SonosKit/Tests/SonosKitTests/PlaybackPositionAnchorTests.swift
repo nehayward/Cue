@@ -128,6 +128,27 @@ final class PlaybackPositionAnchorTests: XCTestCase {
 
     // MARK: - Reset
 
+    /// The song-change failure. Skipping writes `playbackPosition = 0`
+    /// optimistically, and the incoming track reports ~0 too — so "the model
+    /// didn't move" is read as "keep counting" and a song that just started
+    /// shows several seconds in. The service resets the anchor on a track
+    /// change; this pins what that reset has to achieve.
+    func testUnchangedPositionAcrossATrackChangeDoesNotKeepCounting() {
+        var anchor = PlaybackPositionAnchor()
+        _ = anchor.resolve(modelElapsed: 0, duration: trackDuration, now: start)
+        anchor.commit(elapsed: 0, isPlaying: true, at: start)
+
+        // Ten seconds later the next track begins, also reporting 0.
+        let nextTrack = start.addingTimeInterval(10)
+        let withoutReset = anchor.resolve(modelElapsed: 0, duration: trackDuration, now: nextTrack)
+        XCTAssertEqual(withoutReset.elapsed, 10_000, accuracy: 1,
+                       "without a reset the anchor carries the old timeline across the boundary")
+
+        anchor.reset()
+        let afterReset = anchor.resolve(modelElapsed: 0, duration: trackDuration, now: nextTrack)
+        XCTAssertEqual(afterReset.elapsed, 0, "a new song starts at the position the speaker reports")
+    }
+
     func testResetTakesTheSpeakersPositionAgain() {
         var anchor = PlaybackPositionAnchor()
         _ = anchor.resolve(modelElapsed: 20_000, duration: trackDuration, now: start)

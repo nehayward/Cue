@@ -92,6 +92,8 @@ final class NowPlayingSessionService {
     /// Owns the elapsed-time maths — see `PlaybackPositionAnchor` for why it
     /// isn't as simple as publishing the speaker's number.
     @ObservationIgnored private var positionAnchor = PlaybackPositionAnchor()
+    /// The track the anchor's numbers belong to. A new song is a new timeline.
+    @ObservationIgnored private var anchoredTrackUnique: String?
 
     /// Favorite state behind `likeCommand`, and the track it belongs to.
     @ObservationIgnored private var isFavorite = false
@@ -328,6 +330,7 @@ final class NowPlayingSessionService {
         if isNewTarget {
             published = nil
             positionAnchor.reset()
+            anchoredTrackUnique = nil
             attachVolumeBridge(group: group)
         }
 
@@ -421,6 +424,7 @@ final class NowPlayingSessionService {
         audioSession.stop()
         published = nil
         positionAnchor.reset()
+        anchoredTrackUnique = nil
         publishedArtworkURL = nil
         publishedArtwork = nil
 
@@ -495,6 +499,18 @@ final class NowPlayingSessionService {
         // Ahead of the dedupe guard below: a no-op unless the song changed, and
         // it has to run even on publishes the card itself skips.
         refreshFavorite(for: track)
+
+        // A new song is a new timeline, so the anchor's numbers no longer mean
+        // anything. Without this the anchor keeps interpolating across the
+        // boundary: skipping tracks writes `playbackPosition = 0` optimistically,
+        // the new track then reports ~0 as well, and "the model didn't move" is
+        // read as "keep counting" — so a song that just started shows several
+        // seconds in. It only self-corrected when the new position happened to
+        // differ from the last one seen.
+        if anchoredTrackUnique != track.unique {
+            anchoredTrackUnique = track.unique
+            positionAnchor.reset()
+        }
 
         // An idle radio player reports an empty track between songs; the station
         // name is what the rest of the app shows there, so match it.
