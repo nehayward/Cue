@@ -487,7 +487,8 @@ public final class SonosService {
                 isNowPlaying = roomGroup.coordinatorRoom.isPlaying // keep current value
             }
             
-            if roomGroup.coordinatorRoom.isPlaying != isNowPlaying {
+            if roomGroup.coordinatorRoom.isPlaying != isNowPlaying,
+               !roomGroup.coordinatorRoom.hasFreshPlaybackState {
                 roomGroup.coordinatorRoom.isPlaying = isNowPlaying
             }
 
@@ -825,7 +826,8 @@ public final class SonosService {
                         isNowPlaying = roomGroup.coordinatorRoom.isPlaying // keep current value
                     }
 
-                    if roomGroup.coordinatorRoom.isPlaying != isNowPlaying {
+                    if roomGroup.coordinatorRoom.isPlaying != isNowPlaying,
+                       !roomGroup.coordinatorRoom.hasFreshPlaybackState {
                         roomGroup.coordinatorRoom.isPlaying = isNowPlaying
                     }
                 }
@@ -1067,6 +1069,9 @@ public final class SonosService {
                     guard let self else { return }
                     async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
                     switch await playbackInfo {
+                    case _ where roomGroup.coordinatorRoom.hasFreshPlaybackState:
+                        // A socket event beat this response back; it's newer.
+                        break
                     case .playing:
                         roomGroup.coordinatorRoom.isPlaying = true
                     case .paused:
@@ -1164,6 +1169,9 @@ public final class SonosService {
                     async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
 
                     switch await playbackInfo {
+                    case _ where roomGroup.coordinatorRoom.hasFreshPlaybackState:
+                        // A socket event beat this response back; it's newer.
+                        break
                     case .playing:
                         roomGroup.coordinatorRoom.isPlaying = true
                     case .paused:
@@ -1452,6 +1460,8 @@ public final class SonosService {
         // Refresh playback state for relevant groups so we can prefer a playing coordinator
         for group in relevantGroups {
             let playback = await getPlaybackInfo(ip: group.ip)
+            // A socket event that landed while this was in flight is newer.
+            guard !group.coordinatorRoom.hasFreshPlaybackState else { continue }
             group.coordinatorRoom.isPlaying = (playback == .playing)
         }
 
@@ -2081,9 +2091,9 @@ public final class SonosService {
     public func pause(ip: String) async {
         if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) {
             for room in group.rooms {
-                room.isPlaying = false
+                room.markPlaybackState(false)
             }
-            group.coordinatorRoom.isPlaying = false
+            group.coordinatorRoom.markPlaybackState(false)
         }
 
         isEditing = true
@@ -2096,9 +2106,9 @@ public final class SonosService {
     public func play(ip: String) async {
         if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) {
             for room in group.rooms {
-                room.isPlaying = true
+                room.markPlaybackState(true)
             }
-            group.coordinatorRoom.isPlaying = true
+            group.coordinatorRoom.markPlaybackState(true)
         }
         isEditing = true
         await api.play(ipAddress: ip)

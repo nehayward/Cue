@@ -19,6 +19,9 @@ public final class Room: Identifiable, @unchecked Sendable {
     /// position pulses from Sonos don't fire `Room.track` observation and
     /// invalidate every consumer reading any track field.
     public var playbackPosition: TimeInterval = 0
+    /// When `isPlaying` was last set from a pushed (WebSocket) event. Read
+    /// through `hasFreshPlaybackState` — see `markPlaybackState`.
+    @ObservationIgnored public private(set) var playbackStateStampedAt: Date = .distantPast
     /// Radio Station Name
     public var radioStation: String?
     public var isEditingVolume: Bool = false
@@ -145,6 +148,30 @@ public final class Room: Identifiable, @unchecked Sendable {
 extension Room {
     public func updatePlaybackPosition(_ newValue: TimeInterval) {
         playbackPosition = newValue
+    }
+
+    /// Sets `isPlaying` and records when, marking it as pushed to us rather than
+    /// polled for.
+    ///
+    /// Two kinds of source write this: the WebSocket, which the speaker pushes
+    /// within ~100 ms of the transport actually changing, and SOAP reads, which
+    /// are a request/response behind. When both are live — the Lock Screen
+    /// session holds a socket while `LiveActivityManager` and the pulse keep
+    /// polling — a SOAP response captured *before* a pause lands *after* the
+    /// socket reported it, flipping the flag back. On screen the next poll
+    /// corrects it; on a Lock Screen card driven by this flag it reads as
+    /// playback flickering between states.
+    public func markPlaybackState(_ playing: Bool) {
+        playbackStateStampedAt = .now
+        guard isPlaying != playing else { return }
+        isPlaying = playing
+    }
+
+    /// Whether a pushed playback state landed recently enough that a SOAP read
+    /// shouldn't overwrite it. Poll intervals here are 500–800 ms, so two
+    /// seconds covers a response that was already in flight.
+    public var hasFreshPlaybackState: Bool {
+        Date.now.timeIntervalSince(playbackStateStampedAt) < 2
     }
 }
 

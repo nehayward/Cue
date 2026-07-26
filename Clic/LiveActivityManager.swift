@@ -53,7 +53,12 @@ final class LiveActivityManager: LiveActivityManageable {
                     group.coordinatorRoom.updatePlaybackPosition(track.playbackPosition)
                 }
             }
-            group.coordinatorRoom.isPlaying = info.1 == .playing
+            // This refresh runs while backgrounded, where the Lock Screen
+            // session's socket is the faster source — don't overwrite a state it
+            // just pushed with a SOAP read taken before the change.
+            if !group.coordinatorRoom.hasFreshPlaybackState {
+                group.coordinatorRoom.isPlaying = info.1 == .playing
+            }
             group.groupVolume = info.2
             group.isMuted = info.3 ?? false
             

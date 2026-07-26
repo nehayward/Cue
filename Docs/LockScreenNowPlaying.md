@@ -184,6 +184,14 @@ connects the union. Notes for anyone extending this:
   state, but it used to skip the whole event, including the item change. These
   events are edge-triggered: drop one and the model stays wrong until something
   else moves it — which, backgrounded, is nothing.
+- **Pushed state beats polled state.** Seven things write `Room.isPlaying`: the
+  socket, and six SOAP paths (the pulse, `LiveActivityManager`, `getPlaybackInfo`
+  sweeps). SOAP is a round trip behind, so a response captured before a pause
+  lands after the socket reported it and flips the flag back — invisible on
+  screen, where the next poll corrects it, but on the card it reads as playback
+  flickering. `Room.markPlaybackState(_:)` stamps pushed writes and
+  `hasFreshPlaybackState` makes the polled ones defer for two seconds. With no
+  socket connected nothing stamps and the poll behaves as it always did.
 - **`PLAYBACK_STATE_BUFFERING` is not a pause.** Sonos reports it while the next
   stream opens, i.e. on every track change. Mapping anything-but-PLAYING to
   `isPlaying = false` left the model stuck on paused for the rest of the song,
