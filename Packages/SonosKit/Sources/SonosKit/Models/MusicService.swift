@@ -142,12 +142,14 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: librarySymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .sonosRadio, .pandora:
-            // Full-colour badges (original rendering) — no template tint.
+        case .sonosRadio:
+            // The SONOS mark is designed to sit on artwork, so it keeps its
+            // original colours. Every other badge here is tinted by the call
+            // site (all three are drawn over album art in white).
             SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .tuneIn, .soundcloud, .deezer:
+        case .tuneIn, .soundcloud, .deezer, .pandora:
             SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
                 .renderingMode(.template)
                 .resizable()
@@ -163,23 +165,6 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .aspectRatio(contentMode: .fit)
         case .unknown:
             EmptyView()
-        }
-    }
-
-    /// The badge drawn over the player artwork. Pandora's full-colour badge
-    /// clashes with album art there, so it's tinted like the standard template
-    /// icons; every other service reuses `icon` (Sonos Radio stays full colour
-    /// by design).
-    @ViewBuilder
-    public var artworkBadgeIcon: some View {
-        switch self {
-        case .pandora:
-            SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
-                .renderingMode(.template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-        default:
-            icon
         }
     }
 
@@ -296,10 +281,10 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         }
     }
 
-    /// Service ships its own branded badge, so its stations keep the service
+    /// Service ships a recognisable badge, so its stations keep the service
     /// icon on artwork instead of falling back to the generic `radio.fill`
-    /// glyph other radio sources use. These are the same services whose assets
-    /// are full-colour (original rendering) in `icon` / `image` above.
+    /// glyph other radio sources use. Independent of how `icon` renders it —
+    /// Sonos Radio keeps its original colours, Pandora is tinted like the rest.
     public var hasBrandedRadioBadge: Bool {
         switch self {
         case .sonosRadio, .pandora: true
