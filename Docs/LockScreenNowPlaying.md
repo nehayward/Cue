@@ -57,6 +57,14 @@ Non-negotiables learned the hard way:
   preview asks the arbiter rather than naming the feature — with no claim
   registered it deactivates exactly as it always did. Interruptions (`.ended`)
   and `mediaServicesWereResetNotification` route to the same recovery.
+- **A route change isn't an interruption.** Unplugging headphones or losing a
+  Bluetooth route stops the player on `.oldDeviceUnavailable` and posts no
+  interruption, so the claim went silently — and since a stopped loop now means a
+  paused card, visibly wrong. `routeChangeNotification` reclaims too.
+
+None of this reaches the speakers. A call, Siri, an alarm or another app can take
+the *card* away and Sonos keeps playing throughout; the loop exists only to hold
+the claim, and every recovery path above is about getting the claim back.
 
 ## Gating
 

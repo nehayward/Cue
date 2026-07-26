@@ -155,7 +155,11 @@ final class SilentAudioSession {
 
     /// A phone call, Siri, or another app grabbing output suspends the loop, and
     /// without resuming it the claim — and so the card — quietly disappears. A
-    /// media services reset invalidates the player object outright.
+    /// media services reset invalidates the player object outright, and a route
+    /// change stops it without any interruption being posted at all.
+    ///
+    /// None of this touches what the speakers are playing. The audio is on the
+    /// network; the loop only exists to hold the card.
     private func observeInterruptions() {
         let center = NotificationCenter.default
 
@@ -165,6 +169,21 @@ final class SilentAudioSession {
                     guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
                           AVAudioSession.InterruptionType(rawValue: raw) == .ended else { continue }
                     await self?.reclaim()
+                }
+            },
+            // Unplugging headphones or dropping a Bluetooth route is a route
+            // change, not an interruption, so none of the above fires — and iOS
+            // stops the player on `.oldDeviceUnavailable` rather than moving it
+            // to the speaker. Nothing audible is lost (there is no audio), but
+            // the claim goes with it: silently, and now that a stopped loop means
+            // a paused card, visibly wrong. Cheap and safe either way — if the
+            // player survived the route change this is a no-op.
+            Task { [weak self] in
+                for await notification in center.notifications(named: AVAudioSession.routeChangeNotification) {
+                    guard let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                          AVAudioSession.RouteChangeReason(rawValue: raw) == .oldDeviceUnavailable else { continue }
+                    guard let self, self.isHeld, self.isPlaying, self.player?.isPlaying != true else { continue }
+                    await self.reclaim()
                 }
             },
             Task { [weak self] in
