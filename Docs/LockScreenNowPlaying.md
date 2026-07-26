@@ -114,12 +114,16 @@ hardware volume bridge — which is how the volume buttons end up controlling a
 speaker with no card on screen to explain why. So:
 
 - Something playing → `noteActivity()`, no clock.
-- The card was **playing** and everything went quiet → arm the window. That is a
-  pause, and its play button is the only way to undo it; tearing the card down
-  would mean opening the app to reverse something done from the Lock Screen.
-- The card was **already paused** when the app went to the background → drop it
-  now. There's nothing to undo.
-- Window expires → `stop()`.
+- The group **has played** during this session and everything is now quiet → arm
+  the window. That's a pause, and the card's play button is how it gets undone;
+  tearing the card down would mean opening the app to reverse it. Where the pause
+  came from doesn't matter — the card, the app, the Sonos app on another device —
+  so `hasPlayed` is sticky for the life of the session rather than tracking the
+  last pass.
+- The group has **never played** while this card was up → drop it now. There's
+  nothing to undo, and this is the case that had the volume buttons pointed at an
+  idle speaker.
+- Window expires → `stop()`, which clears `hasPlayed` along with everything else.
 
 The expiry needs its own `Task.sleep`: no model state changes at that moment, so
 the observation pass would never re-run on its own. Returning to the foreground
@@ -133,8 +137,8 @@ and then calls `notifyLiveUpdate`, which runs this service's `publish()`
 main-actor turn. So the card is already republished as paused before the
 evaluation gets to ask, every socket-delivered pause reads as "was already
 paused", and the session is released instead of held: pausing from another device
-cleared the card. `wasPlaying` is stamped at the end of `evaluate()` instead, so
-it means "what the previous pass saw" — which is the question being asked.
+cleared the card. `hasPlayed` is stamped at the end of `evaluate()` instead, from
+the model rather than from the card.
 
 `sorted`, not `groups`: `groups` is in Sonos topology-parse order, which is
 arbitrary and reshuffles on refresh, so two rooms playing could hand the card

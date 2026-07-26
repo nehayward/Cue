@@ -249,16 +249,19 @@ final class NowPlayingSessionService {
     /// to explain why.
     @ObservationIgnored private let idleGrace: TimeInterval = 3 * 60
 
-    /// Whether the previous evaluation pass found the mirrored group playing.
+    /// Whether this session has seen the group playing at all — sticky until the
+    /// session ends, so a pause is resumable from the card no matter where it was
+    /// made: in the app, on the card, or from another device.
     ///
-    /// Not read back off `published`, which looks like it would do and doesn't:
-    /// `onPlaybackUpdate` writes `isPlaying` and then calls `notifyLiveUpdate`,
-    /// which runs this service's `publish()` **synchronously**, while the
-    /// `@Observable` `onChange` defers `evaluate()` to the next main-actor turn.
-    /// So the card is already republished as paused by the time the evaluation
-    /// asks — a pause from another device looked like "was already paused", and
-    /// the session was released instead of held, clearing the card.
-    @ObservationIgnored private var wasPlaying = false
+    /// Stamped by `evaluate()` rather than read back off `published`, which looks
+    /// like it would do and doesn't: `onPlaybackUpdate` writes `isPlaying` and
+    /// then calls `notifyLiveUpdate`, which runs this service's `publish()`
+    /// **synchronously**, while the `@Observable` `onChange` defers `evaluate()`
+    /// to the next main-actor turn. So the card is already republished as paused
+    /// by the time the evaluation asks — a pause from another device looked like
+    /// "was already paused", and the session was released instead of held,
+    /// clearing the card.
+    @ObservationIgnored private var hasPlayed = false
 
     /// When the background went quiet, or nil if something is playing.
     @ObservationIgnored private var idleSince: Date?
@@ -274,12 +277,12 @@ final class NowPlayingSessionService {
         guard group != nil else { return false }
 
         guard let idleSince else {
-            // The window exists to undo a pause, so only a group that *was*
-            // playing earns one. A card already showing paused when the app went
-            // to the background has nothing to undo, and holding the session for
-            // it is exactly how the volume buttons end up pointed at a speaker
-            // with nothing on screen to explain it.
-            guard wasPlaying else {
+            // The window exists to undo a pause, so it takes a group that has
+            // actually played. A card that has only ever shown a paused speaker
+            // has nothing to undo, and holding the session for it is exactly how
+            // the volume buttons end up pointed at a speaker with nothing on
+            // screen to explain it.
+            guard hasPlayed else {
                 print("\(nowPlayingLogPrefix) backgrounded with nothing playing — releasing")
                 return false
             }
@@ -386,11 +389,14 @@ final class NowPlayingSessionService {
         }
         run(group: target)
 
-        // Recorded after the fact, so the *next* pass knows what this one saw.
-        // See `wasPlaying` for why this can't be read back off `published`.
-        let playing = target.coordinatorRoom.isPlaying
-        if playing { noteActivity() }
-        wasPlaying = playing
+        // Recorded after the fact, so a later pass knows what this one saw. See
+        // `hasPlayed` for why this can't be read back off `published`. Only ever
+        // set here — `stop()` is what clears it, so a pause stays resumable from
+        // the card however long the user sat with it paused in the app first.
+        if target.coordinatorRoom.isPlaying {
+            noteActivity()
+            hasPlayed = true
+        }
     }
 
     /// Brings the session up if needed and points it at `group`. Idempotent: the
@@ -515,7 +521,7 @@ final class NowPlayingSessionService {
         isFavorite = false
         subscribedKey = nil
         noteActivity()
-        wasPlaying = false
+        hasPlayed = false
         detachVolumeBridge()
         audioSession.onRestored = nil
         audioSession.stop()
