@@ -14,6 +14,7 @@ public enum SonosServiceType: Codable, CaseIterable, Equatable, Hashable {
     case plex
     case bandcamp
     case deezer
+    case sonosRadio
     case unknown(String)
 
     public var rawValue: String {
@@ -30,12 +31,13 @@ public enum SonosServiceType: Codable, CaseIterable, Equatable, Hashable {
         case .plex: return "Plex"
         case .bandcamp: return "Bandcamp"
         case .deezer: return "Deezer"
+        case .sonosRadio: return "Sonos Radio"
         case .unknown(let id): return "Unknown (\(id))"
         }
     }
 
     public static var allCases: [SonosServiceType] {
-        [.appleMusic, .spotify, .tidal, .tunein, .soundcloud, .siriusXM, .pandora, .iHeartRadio, .audible, .plex, .bandcamp, .deezer, .unknown("")]
+        [.appleMusic, .spotify, .tidal, .tunein, .soundcloud, .siriusXM, .pandora, .iHeartRadio, .audible, .plex, .bandcamp, .deezer, .sonosRadio, .unknown("")]
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -72,6 +74,7 @@ public enum SonosServiceType: Codable, CaseIterable, Equatable, Hashable {
         case "Plex": self = .plex
         case "Bandcamp": self = .bandcamp
         case "Deezer": self = .deezer
+        case "Sonos Radio": self = .sonosRadio
         default:
             // If the unwrapped value is the numeric service ID we cached
             // before the case existed, re-resolve via the serviceId map.
@@ -114,6 +117,10 @@ public enum SonosServiceType: Codable, CaseIterable, Equatable, Hashable {
         case "61191": return .audible
         case "54279": return .plex
         case "40199": return .bandcamp
+        // Sonos Radio's service-registry id (account UDN/cdudn
+        // SA_RINCON77575_X_#Svc77575-…-Token) is 77575 — distinct from the
+        // playback sid 303 used in the stream URI. Classify by the registry id.
+        case "77575": return .sonosRadio
         default: return .unknown(id)
         }
     }

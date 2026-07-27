@@ -1263,7 +1263,9 @@ public final class SonosMiniService {
     }
 
     public func getHouseID(for ip: String) async -> String? {
-        return await api.getHouseHoldID(for: ip)
+        // Identity form: this is stored as `clic.household` and compared, not
+        // sent to the WebSocket.
+        return await api.householdIdentity(for: ip)
     }
 
     public func getAllHouseholdsIPs() async -> Set<String> {
@@ -1276,7 +1278,9 @@ public final class SonosMiniService {
             for ip in ips {
                 taskGroup.addTask { [weak self] in
                     guard let self else { return ("", "") }
-                    let householdID = await self.api.getHouseHoldID(for: ip)
+                    // Identity form so the S1 and S2 halves of one household
+                    // dedupe to a single entry instead of listing twice.
+                    let householdID = await self.api.householdIdentity(for: ip)
                     return (householdID ?? "", ip)
                 }
             }

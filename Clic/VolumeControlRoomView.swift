@@ -18,8 +18,8 @@ struct VolumeControlRoomView: View {
                 Button {
                     Task {
                         HapticManager.shared.fireHaptic(.selection)
-                        await sonosService.setRelativeVolume(ip: room.ip, volume: -2)
-                        room.volume = max(0, room.volume - 2)
+                        await sonosService.setRelativeVolume(ip: room.ip, volume: -1)
+                        room.volume = max(0, room.volume - 1)
                         updatedVolume?()
                     }
                     
@@ -58,8 +58,8 @@ struct VolumeControlRoomView: View {
                     }
                     Task {
                         HapticManager.shared.fireHaptic(.selection)
-                        await sonosService.setRelativeVolume(ip: room.ip, volume: 2)
-                        room.volume = min(100, room.volume + 2)
+                        await sonosService.setRelativeVolume(ip: room.ip, volume: 1)
+                        room.volume = min(100, room.volume + 1)
                         updatedVolume?()
                     }
                     Task { @MainActor in

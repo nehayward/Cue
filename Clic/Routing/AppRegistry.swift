@@ -460,6 +460,8 @@ extension View {
             .environment(SpotifyBrowseService.shared)
             .environment(SoundCloudBrowseService.shared)
             .environment(DeezerBrowseService.shared)
+            .environment(SonosRadioBrowseService.shared)
+            .environment(PandoraBrowseService.shared)
             .environment(PlexBrowseService.shared)
             .environment(LibraryBrowseService.shared)
             .environment(MiniPlayerManger.shared)

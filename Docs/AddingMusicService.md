@@ -346,6 +346,7 @@ These flags replace all hardcoded service allowlists in the UI. Add `.myService`
 | `supportsViewArtistAlbum` | View Album / View Artist taps in player and queue (`LargePlayerView`, `MenuInfoView`) |
 | `supportsFavoriteTrack` | Like/heart button in player and context menus (`LikeButtonView`, `FavoriteMenuButton`) |
 | `supportsFavoriteAlbum` | Save album in context menus (`FavoriteMenuButton`) |
+| `hasBrandedRadioBadge` | Stations keep the service icon on artwork instead of the generic `radio.fill` glyph (`ContentArtworkView`). Set it for services with a full-colour badge asset |
 
 No view files need to be touched — they already read from these flags.
 
@@ -454,7 +455,7 @@ App
 [ ] {Service}BrowseScreen.swift — Plex-style List: nav rows with showSectionIndex:false, inline playlist rows, recently played section at bottom
 [ ] BrowseScreen.swift — add case (if custom browse UI)
 [ ] AppRegistry.swift — register browse service environment
-[ ] CoreFeatures.swift — add to syncEnabledServices mapping + preferredDefaultService
+[ ] MediaSearchService+Sonos.swift — add sonosServiceType mapping case; CoreFeatures.swift — add to preferredDefaultService
 [ ] ServicePreferenceScreen.swift — only if multiple-account token selection needed
 [ ] content.location — set web URL in all MediaContent initializers (search, lookup, browse, getTrackInformation)
 [ ] PlayableContent.serviceWebURL — add deterministic case only if URL is constructible from ID and content.location may lag (e.g. first load from cache)
