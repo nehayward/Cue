@@ -143,7 +143,8 @@ struct MiniPlayerView: View {
             PlaybackIconView(
                 value: group.coordinatorRoom.playbackPosition,
                 total: group.coordinatorRoom.track.duration,
-                isPlaying: group.coordinatorRoom.isPlaying
+                isPlaying: group.coordinatorRoom.isPlaying,
+                isTransitioning: group.coordinatorRoom.isTransitioning
             )
             .font(.title)
         }
