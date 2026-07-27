@@ -26,17 +26,37 @@ final class LiveActivityManager: LiveActivityManageable {
     }
 
     func refresh() async {
-        for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
+        let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
+        guard !activities.isEmpty else { return }
+
+        // Tapping a control in the Live Activity (a volume number, say) runs its
+        // intent in the app's process — and when the app isn't already running,
+        // iOS launches it fresh in the background just for that intent. In that
+        // process `groups` is still empty because nothing has loaded the
+        // topology yet, so load it before judging any activity. Without this an
+        // empty topology reads as "these rooms are gone" and dismisses the very
+        // activity the user just tapped.
+        if sonosService.groups.isEmpty {
+            try? await sonosService.load(useCache: true)
+        }
+
+        // Still empty: the system is unreachable (off Wi-Fi, speakers asleep,
+        // load failed). That's indistinguishable from "the room went away", so
+        // leave every activity alone rather than tearing them all down.
+        guard !sonosService.groups.isEmpty else { return }
+
+        for activity in activities {
             guard !isActivityDisabled(id: activity.attributes.room.id) || activity.attributes.requiresManualDismissal else {
                 await activity.end(activity.content, dismissalPolicy: .immediate)
                 continue
             }
-            
+
             guard let group = sonosService.groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
-                for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
-                    await activity.end(activity.content, dismissalPolicy: .immediate)
-                }
-                return
+                // Only this activity's room is missing from a topology we did
+                // load — end this one. Ending the whole set here took unrelated
+                // rooms' activities down with it.
+                await activity.end(activity.content, dismissalPolicy: .immediate)
+                continue
             }
 
             async let track = sonosService.getTrack(ip: group.coordinatorRoom.ip)
@@ -44,7 +64,9 @@ final class LiveActivityManager: LiveActivityManageable {
             async let groupVolume = sonosService.getGroupVolume(ip: group.coordinatorRoom.ip)
             async let isMuted = sonosService.isMuted(for: group)
 
-            guard let info = try? await (track, playbackInfo, groupVolume, isMuted) else { return }
+            // One unreachable speaker shouldn't stop the remaining activities
+            // from refreshing.
+            guard let info = try? await (track, playbackInfo, groupVolume, isMuted) else { continue }
             if let track = info.0 {
                 if group.coordinatorRoom.track.trackID == track.trackID, !group.isEditingPlayback {
                     group.coordinatorRoom.updatePlaybackPosition(track.playbackPosition)
