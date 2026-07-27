@@ -107,6 +107,12 @@ Adds Pandora as a browsable, searchable, playable service over the Sonos SMAPI p
 - Both windows now set `hasShadow = !PanelBackground.drawsOwnShadow`, dropping the window shadow on 26 since glass already separates itself from the desktop.
 - Behavior note: the menu bar window's hosting view has `translatesAutoresizingMaskIntoConstraints = false` with no constraints ever added — it was just `addSubview`'d into the effect view. `wrap` preserves that exactly on the fallback path (it skips frame/autoresizing for constraint-driven content), but `NSGlassEffectView` pins its `contentView`, so on macOS 26 the hosting view now fills the window.
 
+### Empty queue & Up Next redesign
+- Replaced the two separate empty states — the bare `ContentUnavailableView("Nothing up next")` in `UpNextContentView` and the floating cover-art `LazyVGrid` overlay in `QueueScreen` — with one shared `EmptyQueueView` (`Clic/Queue/EmptyQueueView.swift`) used by both, so the queue and Up Next screens now read identically when there's nothing queued.
+- `EmptyQueueView` shows a title + message header over a "Play History" list of `PlayableContentRowView` rows (from `PlayHistoryService.history.prefix(12)`), so an empty queue always offers something tappable to play. Rows reuse the standard row's tap-to-play, context menu, and swipe actions.
+- Fills the sheet: a `GeometryReader` sets the scroll content's `minHeight` to the container height and centers it, so content no longer clusters at the top of the medium/large detent. `scrollBounceBehavior(.basedOnSize)` keeps short content from bouncing.
+- Dropped the header glyph and the section-header icon per design — plain "Play History" text, no `systemImage` parameter.
+
 ---
 
 ## 2026.6
