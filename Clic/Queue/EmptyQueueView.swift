@@ -11,7 +11,6 @@ struct EmptyQueueView: View {
 
     var title: String
     var message: String
-    var systemImage: String = "music.note.list"
 
     private var recentlyPlayed: [PlayableContent] {
         Array(playHistoryService.history.prefix(12))
@@ -37,29 +36,20 @@ struct EmptyQueueView: View {
     }
 
     private var header: some View {
-        VStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: 32, weight: .medium))
-                .symbolRenderingMode(.hierarchical)
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.title3.bold())
+
+            Text(message)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .frame(width: 72, height: 72)
-                .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 20))
-
-            VStack(spacing: 6) {
-                Text(title)
-                    .font(.title3.bold())
-
-                Text(message)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
+                .multilineTextAlignment(.center)
         }
     }
 
     private var recentlySection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Recently Played", systemImage: "clock.arrow.circlepath")
+            Text("Play History")
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
@@ -76,8 +66,7 @@ struct EmptyQueueView: View {
 #Preview("Up Next – Empty") {
     EmptyQueueView(
         title: "Nothing up next",
-        message: "When something's playing, what's coming up shows here. Tap below to start something new.",
-        systemImage: "music.note.list"
+        message: "When something's playing, what's coming up shows here. Tap below to start something new."
     )
     .withEnvironments()
     .environment(SelectedGroupService(group: nil))
@@ -87,8 +76,7 @@ struct EmptyQueueView: View {
 #Preview("Queue – Empty") {
     EmptyQueueView(
         title: "Your queue is empty",
-        message: "Add songs, albums, or playlists to build a queue. Pick up where you left off below.",
-        systemImage: "list.bullet"
+        message: "Add songs, albums, or playlists to build a queue. Pick up where you left off below."
     )
     .withEnvironments()
     .environment(SelectedGroupService(group: nil))

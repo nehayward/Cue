@@ -115,8 +115,7 @@ struct UpNextContentView: View {
                 } else if upNext.isEmpty {
                     EmptyQueueView(
                         title: "Nothing up next",
-                        message: "When something's playing, what's coming up shows here. Tap below to start something new.",
-                        systemImage: "music.note.list"
+                        message: "When something's playing, what's coming up shows here. Tap below to start something new."
                     )
                     .transition(.opacity)
                 }

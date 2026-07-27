@@ -282,8 +282,7 @@ struct QueueScreen: View {
             if !isLoading, group.coordinatorRoom.queue.isEmpty {
                 EmptyQueueView(
                     title: "Your queue is empty",
-                    message: "Add songs, albums, or playlists to build a queue. Pick up where you left off below.",
-                    systemImage: "list.bullet"
+                    message: "Add songs, albums, or playlists to build a queue. Pick up where you left off below."
                 )
                 .transition(.opacity)
             }
