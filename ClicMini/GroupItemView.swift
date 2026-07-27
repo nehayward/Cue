@@ -272,12 +272,19 @@ struct GroupItemView: View {
                 await SonosMiniService.shared.togglePlayback(ip: device.ip)
             }
         } label: {
-            // TimelineView re-renders once a second while playing so the
-            // extrapolated progress stays live. Unlike the previous run-loop
-            // Timer (whose closure the run loop retained until invalidated),
-            // this is structured — it pauses when playback stops and tears
-            // down with the view, so nothing outlives the row.
-            TimelineView(.animation(minimumInterval: 1.0, paused: !device.isPlaying)) { _ in
+            // While playing, a periodic 1 Hz TimelineView re-renders just this
+            // small icon so the extrapolated progress stays live. `.periodic` is
+            // a plain timer schedule (no display link), and the view isn't even
+            // mounted when idle, so nothing ticks for paused speakers. Unlike
+            // the previous run-loop Timer + .id() approach — which rebuilt the
+            // whole button's identity every second and was retained by the run
+            // loop until invalidated — this is structured and tears down with
+            // the row.
+            if device.isPlaying {
+                TimelineView(.periodic(from: .now, by: 1.0)) { _ in
+                    PlaybackIconView(value: device.progress, total: 1, isPlaying: device.isPlaying)
+                }
+            } else {
                 PlaybackIconView(value: device.progress, total: 1, isPlaying: device.isPlaying)
             }
         }
