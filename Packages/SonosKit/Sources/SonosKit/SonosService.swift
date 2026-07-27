@@ -2239,18 +2239,14 @@ public final class SonosService {
             try await updateHousehold()
         }
         
-        // Create a lookup dictionary for better performance
-        var roomLookup = Dictionary(uniqueKeysWithValues: rooms.map { ($0.id, $0) })
-
         // Refresh discovery once if a scene room is missing — it may just be stale
-        if scene.rooms.contains(where: { roomLookup[$0.id] == nil }) {
+        if scene.rooms.contains(where: { sceneRoom in !rooms.contains { $0.id == sceneRoom.id } }) {
             try? await updateHousehold()
-            roomLookup = Dictionary(uniqueKeysWithValues: rooms.map { ($0.id, $0) })
         }
 
         // Run with whichever scene rooms are reachable; skip unplugged/offline speakers
         let discoveredSceneRooms = scene.rooms.compactMap { sceneRoom -> SceneRoom? in
-            guard let existingRoom = roomLookup[sceneRoom.id] else { return nil }
+            guard let existingRoom = rooms.first(where: { $0.id == sceneRoom.id }) else { return nil }
             return SceneRoom(
                 id: existingRoom.id,
                 ip: existingRoom.ip,
