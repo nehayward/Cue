@@ -107,6 +107,12 @@ Adds Pandora as a browsable, searchable, playable service over the Sonos SMAPI p
 - Both windows now set `hasShadow = !PanelBackground.drawsOwnShadow`, dropping the window shadow on 26 since glass already separates itself from the desktop.
 - Behavior note: the menu bar window's hosting view has `translatesAutoresizingMaskIntoConstraints = false` with no constraints ever added — it was just `addSubview`'d into the effect view. `wrap` preserves that exactly on the fallback path (it skips frame/autoresizing for constraint-driven content), but `NSGlassEffectView` pins its `contentView`, so on macOS 26 the hosting view now fills the window.
 
+### Playback loading feedback
+- Queueing long lists (big playlists, likes) can take seconds with no feedback — the "Playing" banner auto-dismissed after 4s while `SonosService.queue` was still running, and for `showBanner: false` items (play-track-in-parent) nothing showed at all. `QueueManager.playSong` now races the queue call against a 500ms timer: if Sonos hasn't accepted the content by then, the banner switches into a loading state via new `AlertService.showLoadingContent(with:)` — artwork + title of what's loading, a `ProgressView` spinner in the trailing slot (`Alert.isLoading`), no auto-dismiss. On completion it resolves to the normal `showAlertContent` confirmation (which restores the timed dismiss); on failure the existing error alerts replace it. Every other `showAlert*` method clears `isLoading` so a stale spinner can't linger.
+- The timer task and the queue call both run on the main actor, so the spinner can't appear after completion: the task is cancelled synchronously once `queue` returns, and a sleep that has already elapsed still hits the `Task.isCancelled` guard before showing.
+- New `Room.isTransitioning`, set from the transport's TRANSITIONING state at every `getPlaybackInfo` polling site in `SonosService` (selected-group refresh, group updates, watch updates, grouping helper). `pause` clears it optimistically so a pulse stops the moment the user acts; `play` leaves it to the poll since freshly queued content legitimately transitions.
+- Play/pause buttons pulse (`.symbolEffect(.pulse, isActive:)`) while transitioning: `PlaybackIconView` gained a defaulted `isTransitioning` parameter (mini player + `MediaControlsView`), and the large player and tvOS player buttons apply the effect directly. Clic Mini and the Watch are untouched — they run on SonosKitMini, whose device model has no transitioning state yet.
+
 ---
 
 ## 2026.6
