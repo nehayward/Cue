@@ -10,6 +10,7 @@ struct PlayableContentRowView: View {
     private static let swipeableTypes: Set<ContentType> = [.playlist, .libraryPlaylist, .album, .track, .libraryTrack, .libraryAlbum]
     
     @Environment(Router.self) private var router: Router?
+    @Environment(\.dismiss) private var dismiss
     @Environment(ContentToAdd.self) private var adding: ContentToAdd?
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
@@ -153,6 +154,13 @@ struct PlayableContentRowView: View {
                     AudioPlaybackService.shared.stopPreview()
                 } else {
                     play()
+                    // From the empty-queue history list, start playback and get
+                    // out of the way instead of flashing the queue in behind it.
+                    // Skip when there's no group yet — play() puts up a group
+                    // picker we'd otherwise dismiss along with this sheet.
+                    if dismissOnComplete, selectedGroupService?.group != nil {
+                        dismiss()
+                    }
                 }
             }
         }
