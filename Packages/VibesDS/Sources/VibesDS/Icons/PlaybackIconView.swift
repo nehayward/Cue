@@ -5,13 +5,15 @@ public struct PlaybackIconView: View {
     var value: Double
     var total: Double
     var isPlaying: Bool
-    
-    public init(value: Double, total: Double, isPlaying: Bool) {
+    var isTransitioning: Bool
+
+    public init(value: Double, total: Double, isPlaying: Bool, isTransitioning: Bool = false) {
         self.value = value
         self.total = total
         self.isPlaying = isPlaying
+        self.isTransitioning = isTransitioning
     }
-    
+
     public var body: some View {
         VibeGaugeView(value: value, total: total, color: isPlaying ? Color.primary : Color.secondary, lineWidth: 2.5)
             .overlay(alignment: .center) {
@@ -20,6 +22,7 @@ public struct PlaybackIconView: View {
                     .scaledToFit()
                     .foregroundStyle(isPlaying ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color.secondary))
                     .contentTransition(.symbolEffect(.replace))
+                    .symbolEffect(.pulse, isActive: isTransitioning)
                     .frame(width: 12, height: 12, alignment: .center)
                     .padding(.leading, !isPlaying ? 2 : 0)
             }

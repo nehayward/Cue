@@ -24,7 +24,10 @@ struct AlertView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    if let imageName = alertService.alert.imageName, !imageName.isEmpty {
+                    if alertService.alert.isLoading {
+                        ProgressView()
+                            .tint(.secondary)
+                    } else if let imageName = alertService.alert.imageName, !imageName.isEmpty {
                         Image(systemName: imageName)
                     }
                 }
