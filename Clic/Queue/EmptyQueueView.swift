@@ -11,6 +11,7 @@ struct EmptyQueueView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService
     @Environment(Router.self) private var router: Router?
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
+    @Environment(\.dismiss) private var dismiss
 
     var title: String
     var message: String
@@ -108,7 +109,7 @@ struct EmptyQueueView: View {
 
             VStack(spacing: 4) {
                 ForEach(recentlyPlayed) { item in
-                    PlayableContentRowView(item: item)
+                    PlayableContentRowView(item: item, dismissOnComplete: true)
                 }
             }
         }
@@ -144,6 +145,8 @@ struct EmptyQueueView: View {
                 return
             }
             try await enqueue(group)
+            // Playback's started — close the queue rather than flashing it in.
+            dismiss()
         }
     }
 }
