@@ -107,6 +107,13 @@ Adds Pandora as a browsable, searchable, playable service over the Sonos SMAPI p
 - Both windows now set `hasShadow = !PanelBackground.drawsOwnShadow`, dropping the window shadow on 26 since glass already separates itself from the desktop.
 - Behavior note: the menu bar window's hosting view has `translatesAutoresizingMaskIntoConstraints = false` with no constraints ever added — it was just `addSubview`'d into the effect view. `wrap` preserves that exactly on the fallback path (it skips frame/autoresizing for constraint-driven content), but `NSGlassEffectView` pins its `contentView`, so on macOS 26 the hosting view now fills the window.
 
+### Live Activity dismissed by a volume tap
+- Tapping a volume number in the Live Activity from another app dismissed the Live Activity outright. `SetVolumeIntent` (and the relative-volume intents) set the volume and then call `LiveActivityManager.refresh()`. A `LiveActivityIntent` runs in the app's process, so when Clic isn't already running iOS launches it in the background purely for that intent — and in that fresh process `SonosService.groups` is still empty, because `getGroupCoordinatorWithRoom` fetches groups over the network but only `load()` assigns `service.groups`. `refresh()` read the empty list as "this room no longer exists" and ran its fallback, which ended **every** activity with `.immediate`.
+- `refresh()` now loads the topology when `groups` is empty, and returns without touching any activity if it's *still* empty. An unreachable system (off Wi-Fi, speakers asleep, load failed) is indistinguishable from a removed room, so the safe reading is to leave the activities alone and let the next refresh correct them.
+- The missing-group fallback ends only the activity whose room is absent, instead of the whole set — one stale room could previously take every other room's Live Activity down with it.
+- The per-speaker fetch failure path now `continue`s to the next activity rather than `return`ing out of the loop, so one unreachable coordinator no longer stops the remaining activities from updating.
+- `PlaybackIntent` never showed this: it calls `createActivity(id:)` first, which already does `load(useCache: true)`. The fix lives in `refresh()` rather than in each intent so every caller — volume, mute, night mode, speech enhancement, sleep timer — is covered by one guard. The added load only runs when `groups` is empty, so the in-app refresh path (foreground/inactive scene changes) is unaffected.
+
 ---
 
 ## 2026.6

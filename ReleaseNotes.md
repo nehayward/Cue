@@ -21,6 +21,7 @@
 - The IP address field no longer marks an address wrong while you're still typing it, and shows a spinner while it checks. A wrong address now tints the field red instead of adding an error icon that looked like a second clear button
 - Fixed the speaker you pick on the Connectivity screen not sticking — the tick would flash onto it and jump back to another speaker. Your choice now persists, and Clic genuinely uses that speaker for album artwork, your library and favorites
 - Clic's automatic speaker pick now prefers a speaker wired to your router, as it always said it did — previously the wired preference was applied and then discarded, so it could settle on a speaker over Wi-Fi
+- Fixed the Live Activity vanishing when you set the volume from it while in another app — and a speaker that's briefly unreachable no longer dismisses your other rooms' Live Activities along with it
 
 # 2026.6
 
