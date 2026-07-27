@@ -265,6 +265,15 @@ public final class SonosService {
         sorted.first(where: { $0.coordinatorID == id})
     }
 
+    /// The room whose playback state a given room is actually hearing.
+    /// Grouped rooms stream from their group coordinator, and only the
+    /// coordinator's `track`/`isPlaying` are kept fresh — so resolve
+    /// through the coordinator, falling back to the room itself when it
+    /// isn't part of a known group.
+    public func playbackRoom(for room: Room) -> Room {
+        groups.first(where: { $0.rooms.contains(where: { $0.id == room.id }) })?.coordinatorRoom ?? room
+    }
+
     /// Copies battery state from a freshly-parsed `updateGroup` into the
     /// matching rooms of an already-stored `storedGroup`. Iterates every
     /// room — not just the coordinator — so a battery speaker (Move)
@@ -478,24 +487,40 @@ public final class SonosService {
 
             if roomGroup.playbackService == .radio {
                 if let mediaInfo = await mediaInfo, let title = mediaInfo.title, !title.isEmpty {
-                    if roomGroup.coordinatorRoom.radioStation != title, !title.isEmpty {
+                    if roomGroup.coordinatorRoom.radioStation != title {
                         roomGroup.coordinatorRoom.radioStation = title
-                    }
-                    
-                    if roomGroup.coordinatorRoom.track.radioStationArtworkURL != mediaInfo.artwork {
+                        // Station changed: the old station's art no longer
+                        // applies (the nil-gate below would keep it forever
+                        // while idle). Take the new station's metadata art
+                        // now; the parser-derived art (preferred) lands with
+                        // the next non-empty track.
                         roomGroup.coordinatorRoom.track.radioStationArtworkURL = mediaInfo.artwork
+                    } else if roomGroup.coordinatorRoom.track.radioStationArtworkURL == nil,
+                              let stationArt = mediaInfo.artwork {
+                        // Don't clobber the station art the parser already derived
+                        // from the position info; only fill it in if still missing.
+                        roomGroup.coordinatorRoom.track.radioStationArtworkURL = stationArt
                     }
                 }
             } else if roomGroup.coordinatorRoom.radioStation != nil {
                 roomGroup.coordinatorRoom.radioStation = nil
             }
 
-            if awaitedTrack == .empty {
-                if roomGroup.coordinatorRoom.track != .empty {
+            if awaitedTrack.isEmpty {
+                // An idle radio player keeps its station branding. Build the
+                // resting track first and only assign on change — comparing
+                // against a bare `.empty` while the radio branch above
+                // re-stamps station art made every pulse alternate between
+                // the two states, flickering the player (and mini player)
+                // and deleting the widget artwork file each second.
+                var restingTrack = Track.empty
+                if roomGroup.playbackService == .radio {
+                    restingTrack.radioStationArtworkURL = awaitedTrack.radioStationArtworkURL
+                        ?? roomGroup.coordinatorRoom.track.radioStationArtworkURL
+                }
+                if roomGroup.coordinatorRoom.track != restingTrack {
                     ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
-                    roomGroup.coordinatorRoom.track = .empty
-                    roomGroup.coordinatorRoom.track.downloadedArtworkURL = nil
-                    roomGroup.coordinatorRoom.track.sonosAlbumArtURL = nil
+                    roomGroup.coordinatorRoom.track = restingTrack
                 }
                 return
             }
@@ -529,6 +554,15 @@ public final class SonosService {
                 }
                 if !awaitedTrack.album.isEmpty, roomGroup.coordinatorRoom.track.album != awaitedTrack.album {
                     roomGroup.coordinatorRoom.track.album = awaitedTrack.album
+                }
+                // TrackDuration can land a pulse late — Sonos reports 0:00:00
+                // while a stream is still opening (e.g. right after switching
+                // from a radio station to a queue track). Without this the
+                // first-pulse 0 sticks for the whole song and the progress bar
+                // stays hidden. Gate on non-zero so a transient 0 during
+                // buffering can't clobber a known length.
+                if awaitedTrack.duration > 0, roomGroup.coordinatorRoom.track.duration != awaitedTrack.duration {
+                    roomGroup.coordinatorRoom.track.duration = awaitedTrack.duration
                 }
                 return
             }
@@ -708,6 +742,13 @@ public final class SonosService {
         KeychainTokenRefreshHandler.shared.setCredentials(for: server)
     }
     
+    /// Resolves the SMAPI endpoint for a Sonos service id (e.g. "303" for Sonos
+    /// Radio) by querying a player's available-services descriptor list.
+    public func smapiEndpoint(for serviceID: String) async -> URL? {
+        guard let sonosIP = prioritizedIP() else { return nil }
+        return await api.availableServiceURI(IP: sonosIP, serviceID: serviceID)
+    }
+
     public func getCredentials() async -> (String, String)? {
         guard let sonosIP = try? await getGroupsFast().first?.ip else { return nil }
         let preferredHouseHoldName = await api.getHouseHoldID(for: sonosIP)
@@ -796,18 +837,52 @@ public final class SonosService {
                     }
 
                     if roomGroup.playbackService == .radio {
-                        if let mediaInfo = await mediaInfo, let title = mediaInfo.title, !title.isEmpty {
-                            if roomGroup.coordinatorRoom.radioStation != title, !title.isEmpty {
-                                roomGroup.coordinatorRoom.radioStation = title
-                            }
+                        let info = await mediaInfo
+                        if let title = info?.title, !title.isEmpty, roomGroup.coordinatorRoom.radioStation != title {
+                            roomGroup.coordinatorRoom.radioStation = title
+                            // Station changed — twin of `load()`: the previous
+                            // station's art must not survive the switch. Take the
+                            // new station's metadata art (or nil if it has none —
+                            // a placeholder beats the wrong station's branding).
+                            // Without this, the resting-track fallback below kept
+                            // the old art whenever the new station's URIMetadata
+                            // carried no albumArtURI.
+                            roomGroup.coordinatorRoom.track.radioStationArtworkURL = info?.artwork
+                        }
+                        // Prefer the station art the parser already pulled from the
+                        // position info; otherwise use the one round-tripped via the
+                        // radio URIMetadata's albumArtURI. Never clobber a known value
+                        // with nil. artworkURL uses this only as a last resort (ads /
+                        // spoken breaks) so the player stays branded, not a blank note.
+                        if awaitedTrack.radioStationArtworkURL == nil, let stationArt = info?.artwork {
+                            awaitedTrack.radioStationArtworkURL = stationArt
                         }
                     } else if roomGroup.coordinatorRoom.radioStation != nil {
                         roomGroup.coordinatorRoom.radioStation = nil
                     }
 
-                    if awaitedTrack == .empty {
-                        // Active speaker briefly returning empty is usually a transient —
-                        // keep the previous track on screen, let the next pulse settle.
+                    if awaitedTrack.isEmpty {
+                        // Radio: settle into the station-branded resting track (twin
+                        // of the selected-group path in `load()`). Without this the
+                        // background poll never wrote station art to the room, so the
+                        // mini player only got artwork after the large player had been
+                        // opened once (only `load()`'s selected path filled it in).
+                        // The radio branch above already stamped parser/metadata
+                        // station art onto `awaitedTrack`.
+                        if roomGroup.playbackService == .radio {
+                            var restingTrack = Track.empty
+                            restingTrack.radioStationArtworkURL = awaitedTrack.radioStationArtworkURL
+                                ?? roomGroup.coordinatorRoom.track.radioStationArtworkURL
+                            if roomGroup.coordinatorRoom.track != restingTrack {
+                                roomGroup.coordinatorRoom.track = restingTrack
+                            }
+                            return
+                        }
+                        // Non-radio: an active speaker briefly returning empty is
+                        // usually a transient — keep the previous track on screen,
+                        // let the next pulse settle. `isEmpty`, not `== .empty`, so
+                        // an art-stamped empty track can't slip past this early
+                        // return into the new-track path every pulse.
                         return
                     }
 
@@ -834,6 +909,12 @@ public final class SonosService {
                         }
                         if !awaitedTrack.album.isEmpty, roomGroup.coordinatorRoom.track.album != awaitedTrack.album {
                             roomGroup.coordinatorRoom.track.album = awaitedTrack.album
+                        }
+                        // See twin site in `load()` — TrackDuration can arrive a
+                        // pulse late (0:00:00 while the stream opens); reconcile
+                        // it so the progress bar doesn't stay hidden all song.
+                        if awaitedTrack.duration > 0, roomGroup.coordinatorRoom.track.duration != awaitedTrack.duration {
+                            roomGroup.coordinatorRoom.track.duration = awaitedTrack.duration
                         }
                         return
                     }
@@ -993,10 +1074,13 @@ public final class SonosService {
                     //                        roomGroup.tvSettings?.audioInputFormat = .dolbyAtmosTrueHD
                     //                        return
                     //                    }
+                    // Apply synchronously — the closure is already @MainActor.
+                    // Deferring through a fire-and-forget Task let a stale
+                    // pre-switch reading (e.g. `.radio` fetched just before a
+                    // queue-item tap re-pointed the transport) land after the
+                    // optimistic `.queue` write from `markSwitchedToQueue`.
                     if let playbackService = await playbackService(ip: roomGroup.ip), roomGroup.playbackService != playbackService {
-                        Task { @MainActor in
-                            roomGroup.playbackService = playbackService
-                        }
+                        roomGroup.playbackService = playbackService
                     }
 
                     // TODO: Move into playback
@@ -1606,7 +1690,7 @@ public final class SonosService {
             return track.artwork
         case .tuneIn:
             return nil
-        case .airplay, .unknown, .library:
+        case .airplay, .unknown, .library, .sonosRadio, .pandora:
             return nil
         }
     }
@@ -1727,7 +1811,7 @@ public final class SonosService {
             }
 
             return (Track.Metadata(ISRC: nil, openInURL: nil, contentType: .track), artworkURL.album.images?.biggestImageURL)
-        case .airplay, .library:
+        case .airplay, .library, .sonosRadio, .pandora:
             return (nil, nil)
         }
     }
@@ -2201,6 +2285,7 @@ public final class SonosService {
     
     public func switchToQueueInput(group: GroupRoom) async {
         await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        await markSwitchedToQueue(group: group)
     }
 
     public func togglePlayback(ip: String) async {
@@ -2306,13 +2391,33 @@ public final class SonosService {
     }
 
     public func seek(trackNumber: Int, on group: GroupRoom) async {
-        let queueActive = group.playbackService == .queue
-        if !queueActive {
+        // Don't trust the cached playbackService here — after backgrounding
+        // (or another controller changing the source) it can lag the device.
+        // A stale `.queue` would skip the transport switch, so the Seek
+        // silently no-ops against the live stream and playback stays stuck on
+        // radio. One GetMediaInfo round-trip on a tap is cheap; fall back to
+        // the cached value if the device doesn't answer.
+        let currentService = await playbackService(ip: group.ip) ?? group.playbackService
+        if currentService != .queue {
             await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+            await markSwitchedToQueue(group: group)
         }
         await api.seek(trackNumber: trackNumber, IP: group.coordinatorRoom.ip)
         try? await Task.sleep(for: .milliseconds(80))
         try? await updateGroups(from: [group])
+    }
+
+    /// The AVTransport was just pointed at the group's queue. Reflect that
+    /// locally right away instead of waiting on the next mediaInfo pulse —
+    /// otherwise the player keeps rendering the previous source (the
+    /// radio-station caption stays up, and the queue's now-playing highlight,
+    /// which requires `.queue`, never lights) until the round-trip lands.
+    /// A later pulse re-verifies against the device and corrects this if the
+    /// switch didn't stick.
+    @MainActor
+    private func markSwitchedToQueue(group: GroupRoom) {
+        group.playbackService = .queue
+        group.coordinatorRoom.radioStation = nil
     }
 
     public func getFavoriteList() async {
@@ -2377,6 +2482,7 @@ public final class SonosService {
                 return
             }
             await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+            await markSwitchedToQueue(group: group)
             return
         }
 
@@ -2845,29 +2951,25 @@ public final class SonosService {
 
     func prioritizedIP() -> String? {
         let allRooms = groups.flatMap(\.rooms)
-        let sortedRooms = allRooms.sorted { lhs, rhs in
-            // Ethernet-enabled rooms should come last
-            let lhsEthernet = lhs.ethernetEnabled ? 1 : 0
-            let rhsEthernet = rhs.ethernetEnabled ? 1 : 0
-            return lhsEthernet < rhsEthernet
+
+        // An explicit choice from the Connectivity screen wins over the heuristic
+        // below — otherwise picking a speaker there changed nothing, since every
+        // system-wide lookup (artwork, library, favorites) resolves through here.
+        // Gated on the speaker still being part of the current system so a pin
+        // left over from another household or network can't strand every lookup
+        // on an address nothing answers.
+        let pinnedIP = sonosSystemDiscoverService.preferredSpeakerIP
+        if !pinnedIP.isEmpty, allRooms.contains(where: { $0.ip == pinnedIP }) {
+            return pinnedIP
         }
-        
-        // Filter out portable models like Roam and Move
-        let filteredRooms = sortedRooms.filter { room in
-            guard let modelName = room.info?.modelDisplayName.lowercased() else { return false }
-            let excludedModels = ["roam", "move", "play"]
-            return !excludedModels.contains { modelName.contains($0) }
-        }
-        
-        // Return the best matching room IP
-        if let bestRoom = filteredRooms.sorted(by: {
-            ($0.info?.model ?? "").localizedStandardCompare($1.info?.model ?? "") == .orderedDescending
-        }).first {
-            return bestRoom.ip
-        }
-        
-        // Fallback
-        return allRooms.first?.ip
+
+        // No explicit choice — defer to the single automatic heuristic in
+        // `priorityDevice()`. This used to be a second, divergent copy that
+        // computed an ethernet ordering and then threw it away by re-sorting on
+        // model name alone, so the automatic path silently ignored the wired
+        // preference it claimed to have (and dropped speakers whose `info`
+        // hadn't loaded, which `priorityDevice` keeps).
+        return priorityDevice()?.ip
     }
     
     func priorityDevice() -> Room? {
@@ -2897,6 +2999,21 @@ public final class SonosService {
         return sortedRooms.first ?? allRooms.first
     }
     
+    /// The speaker the automatic heuristic currently resolves to, without
+    /// changing anything. Lets the Connectivity screen name the speaker its
+    /// "Automatic" option would use instead of leaving it abstract.
+    @MainActor
+    public func automaticSpeakerChoice() -> Room? {
+        priorityDevice()
+    }
+
+    /// Clears an explicit speaker choice, returning to the automatic pick. Takes
+    /// effect immediately — `prioritizedIP()` resolves per call, so no reload.
+    @MainActor
+    public func useAutomaticSpeaker() {
+        sonosSystemDiscoverService.setPreferredSpeaker("")
+    }
+
     /// Prioritise the best current speaker (wired/newer, non-portable) by pinning
     /// its IP through the same path as manual Connect-by-IP, so it resolves and
     /// adopts the correct household even when there isn't one yet. Returns the
@@ -2915,8 +3032,19 @@ public final class SonosService {
     /// resolves + adopts the household when possible, then reconnects.
     @MainActor
     public func setStaticIP(ip: String) async {
+        // Remember this as the user's explicit choice. A legacy pin alone won't
+        // hold: the `load` below re-races every known IP, and whichever speaker
+        // answers first rewrites `lastKnownIP` and re-mirrors it over the legacy
+        // key — which is why the selection used to flash onto the tapped speaker
+        // and then jump back.
+        sonosSystemDiscoverService.setPreferredSpeaker(ip)
         // Discovery-independent pin so a hand-entered IP connects regardless of
-        // whether identity resolution or Bonjour succeed.
+        // whether identity resolution or Bonjour succeed. MUST come after the
+        // line above: setPreferredSpeaker re-mirrors, and this IP isn't in the
+        // household's knownIPs until `adoptHousehold` below runs — so mirroring
+        // first would resolve back to the old address and, if the household
+        // lookup then fails, strand the legacy key there. Pinning last leaves
+        // the hand-entered IP as the standing value on that path.
         sonosSystemDiscoverService.pinLegacyIP(ip)
         let householdID = await api.getHouseHoldID(for: ip)
         if !householdID.isEmpty {

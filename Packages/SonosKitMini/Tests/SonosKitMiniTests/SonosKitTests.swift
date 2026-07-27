@@ -4,6 +4,29 @@ import XCTest
 final class SonosKitTests: XCTestCase {
     let sonosService = SonosMiniService.shared
 
+    func testHouseholdControlIDParseFromStatusZP() throws {
+        // S1 players (ZP100 etc.) don't report CurrentMuseHouseholdId; their
+        // household comes from /status/zp's HouseholdControlID instead.
+        let statusZP = """
+        <?xml version="1.0" ?>
+        <ZPSupportInfo><ZPInfo><ZoneName>Living Room</ZoneName>\
+        <LocalUID>RINCON_000E58AAAAAA01400</LocalUID>\
+        <HouseholdControlID>Sonos_vKO8NuKV8cwCRWMPY4z5xErrhA</HouseholdControlID>\
+        </ZPInfo></ZPSupportInfo>
+        """
+        let value = GenericXMLParser(targetElement: "HouseholdControlID").parseXML(statusZP)
+        XCTAssertEqual(value, "Sonos_vKO8NuKV8cwCRWMPY4z5xErrhA")
+    }
+
+    func testMuseHouseholdIDSharesStatusZPBase() throws {
+        // The Muse id carries a trailing ".yyy" that /status/zp's value doesn't.
+        // Both must normalise to the same base or the S1 and S2 halves of one
+        // household get filed as two separate systems.
+        let muse = "Sonos_vKO8NuKV8cwCRWMPY4z5xErrhA.abcdef123456"
+        let statusZP = "Sonos_vKO8NuKV8cwCRWMPY4z5xErrhA"
+        XCTAssertEqual(muse.components(separatedBy: ".").first, statusZP)
+    }
+
 //    func testXMLParse() throws {
 //        let zone = Bundle.module.url(forResource: "Zone", withExtension: "xml")
 //        let zoneXML = try! String(contentsOf: zone!)

@@ -23,6 +23,12 @@ public struct Track: Identifiable, Hashable, Sendable {
     /// song to consumers comparing `unique`.
     public var unique: String { trackID + name }
 
+    /// True when the device reported no current track (no ID and no title).
+    /// Distinct from `== .empty`: a radio source attaches station artwork to
+    /// an otherwise-empty track (ads / idle station), which full equality
+    /// treats as "not empty".
+    public var isEmpty: Bool { trackID.isEmpty && name.isEmpty }
+
     public let trackID: String
     public var name: String
     public var song: String { metadata?.song ?? name }
@@ -30,10 +36,12 @@ public struct Track: Identifiable, Hashable, Sendable {
     public var album: String
 
     public var artworkURL: URL? {
-        if trackID.isEmpty, name.isEmpty { return nil }
         if let downloadedArtworkURL { return downloadedArtworkURL }
-        if let radioStationArtworkURL { return radioStationArtworkURL }
-        return sonosAlbumArtURL
+        // Prefer the per-track art Sonos reports; fall back to the station logo
+        // when the track has none (e.g. ads / spoken breaks, where the track is
+        // otherwise empty — so this fallback runs before any empty-track check).
+        if let sonosAlbumArtURL { return sonosAlbumArtURL }
+        return radioStationArtworkURL
     }
 
     public var downloadedArtworkURL: URL?

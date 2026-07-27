@@ -112,8 +112,8 @@ struct TVView: View {
                 HStack(spacing: 0) {
                     Button {
                         Task {
-                            await sonosService.setRelativeGroupVolume(ip: device.ip, volume: -2)
-                            deviceBinding.groupVolume.wrappedValue = max(0, device.groupVolume - 2)
+                            await sonosService.setRelativeGroupVolume(ip: device.ip, volume: -1)
+                            deviceBinding.groupVolume.wrappedValue = max(0, device.groupVolume - 1)
                         }
                     } label: {
                         Image(systemName: "minus")
@@ -130,8 +130,8 @@ struct TVView: View {
                         .monospacedDigit()
                     Button {
                         Task {
-                            await sonosService.setRelativeVolume(ip: device.ip, volume: 2)
-                            deviceBinding.groupVolume.wrappedValue = min(100, device.groupVolume + 2)
+                            await sonosService.setRelativeVolume(ip: device.ip, volume: 1)
+                            deviceBinding.groupVolume.wrappedValue = min(100, device.groupVolume + 1)
                         }
                     } label: {
                         Image(systemName: "plus")

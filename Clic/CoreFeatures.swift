@@ -53,21 +53,22 @@ final class CoreFeatures {
     /// and would otherwise see a tab that returns no playable results.
     @MainActor
     func syncEnabledServices(from installed: Set<SonosServiceType>) {
-        let mapping: [(MediaSearchService, SonosServiceType)] = [
-            (.apple, .appleMusic),
-            (.plex, .plex),
-            (.spotify, .spotify),
-            (.tidal, .tidal),
-            (.tuneIn, .tunein),
-            (.soundcloud, .soundcloud),
-            (.deezer, .deezer)
-        ]
-
-        for (service, sonosType) in mapping {
-            setFeature(value: installed.contains(sonosType), service.title)
+        for service in MediaSearchService.allCases {
+            setFeature(value: service.isAuthorized(on: installed), service.title)
         }
-        // Local library never depends on Sonos.
-        setFeature(value: true, MediaSearchService.library.title)
+    }
+
+    /// Disable any service the user no longer has authorized in Sonos.
+    /// Unlike `syncEnabledServices` this never re-enables anything, so a
+    /// manual "off" choice survives. Called whenever the Services screen
+    /// gets a fresh (non-empty) discovery result, so search/browse stop
+    /// offering services that can't return playable results.
+    @MainActor
+    func disableUnauthorizedServices(from installed: Set<SonosServiceType>) {
+        for service in MediaSearchService.allCases
+        where !service.isAuthorized(on: installed) && isEnabled(service) {
+            setFeature(value: false, service.title)
+        }
     }
 
     /// Preferred default service after discovery — Apple Music first, then
@@ -83,6 +84,8 @@ final class CoreFeatures {
         if installed.contains(.soundcloud) { return .soundcloud }
         if installed.contains(.deezer) { return .deezer }
         if installed.contains(.tunein) { return .tuneIn }
+        if installed.contains(.pandora) { return .pandora }
+        if installed.contains(.sonosRadio) { return .sonosRadio }
         return .library
     }
 

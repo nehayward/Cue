@@ -404,9 +404,9 @@ struct QueueListView: View {
 
     private var volumeRow: some View {
         HStack(spacing: 8) {
-            volumeButton(symbol: "minus") { groupVolume = max(0, groupVolume - 2) }
+            volumeButton(symbol: "minus") { groupVolume = max(0, groupVolume - 1) }
             VibeSlider(value: $groupVolume, step: 1, showValue: true)
-            volumeButton(symbol: "plus") { groupVolume = min(100, groupVolume + 2) }
+            volumeButton(symbol: "plus") { groupVolume = min(100, groupVolume + 1) }
         }
         .frame(height: 28)
     }

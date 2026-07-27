@@ -15,6 +15,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
     case tuneIn
     case soundcloud
     case deezer
+    case sonosRadio
+    case pandora
 
     public var title: String {
         switch self {
@@ -34,9 +36,13 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             "SoundCloud"
         case .deezer:
             "Deezer"
+        case .sonosRadio:
+            "Sonos Radio"
+        case .pandora:
+            "Pandora"
         }
     }
-    
+
     public var isBrowseSupported: Bool {
         switch self {
         case .apple:
@@ -54,6 +60,10 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         case .soundcloud:
             true
         case .deezer:
+            true
+        case .sonosRadio:
+            true
+        case .pandora:
             true
         }
     }
@@ -85,6 +95,24 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: librarySymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+        case .sonosRadio, .pandora:
+            // These assets are full-colour badges (original rendering); don't
+            // template-tint them or the artwork collapses into a solid blob.
+            #if targetEnvironment(macCatalyst)
+            // Catalyst renders unrasterized asset images at full size inside menus,
+            // so pre-rasterize to a small badge while keeping the original colours.
+            let base = UIImage(named: self.title, in: .module, with: nil)!
+            let resized = base.resized(to: CGSize(width: 16, height: 16))
+
+            SwiftUI.Image(uiImage: resized)
+                .renderingMode(.original)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+            #else
+            SwiftUI.Image(self.title, bundle: .module)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+            #endif
         case .tuneIn, .soundcloud, .deezer:
             #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .module, with: nil)!
@@ -108,7 +136,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             let base = UIImage(named: self.rawValue.capitalized, in: .module, with: nil)!
             let templated = base.withRenderingMode(.alwaysTemplate)
             let resized = templated.resized(to: CGSize(width: 16, height: 16)).withTintColor(.label)
-            
+
             SwiftUI.Image(uiImage: resized)
                 .renderingMode(.template)
                 .resizable()
@@ -135,6 +163,22 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
+        case .sonosRadio, .pandora:
+#if targetEnvironment(macCatalyst)
+            // Catalyst renders unrasterized asset images at full size inside menus,
+            // so pre-rasterize to a small badge while keeping the original colours.
+            let base = UIImage(named: self.title, in: .module, with: nil)!
+            let resized = base.resized(to: CGSize(width: 16, height: 16))
+
+            SwiftUI.Image(uiImage: resized)
+                .renderingMode(.original)
+                .resizable()
+                .scaledToFit()
+#else
+            SwiftUI.Image(self.title, bundle: .module)
+                .resizable()
+                .scaledToFit()
+#endif
         case .tuneIn, .soundcloud, .deezer:
 #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .module, with: nil)!
@@ -192,6 +236,10 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             Color(red: 255.0 / 255.0, green: 85.0 / 255.0, blue: 0 / 255.0)
         case .deezer:
             Color(red: 161.0 / 255.0, green: 0 / 255.0, blue: 255.0 / 255.0)
+        case .sonosRadio:
+                .primary
+        case .pandora:
+            Color(red: 54.0 / 255.0, green: 104.0 / 255.0, blue: 255.0 / 255.0)
         }
     }
 }

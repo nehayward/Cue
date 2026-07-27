@@ -38,11 +38,11 @@ struct SelectGroupView: View {
     }
     
     private var playingRooms: [Room] {
-        activeRooms.filter { $0.isPlaying }
+        activeRooms.filter { sonosService.playbackRoom(for: $0).isPlaying }
     }
-    
+
     private var otherRooms: [Room] {
-        activeRooms.filter { !$0.isPlaying }
+        activeRooms.filter { !sonosService.playbackRoom(for: $0).isPlaying }
     }
     
     var body: some View {
@@ -169,7 +169,7 @@ struct SelectGroupView: View {
                     VStack {
                         HStack {
                             Button {
-                                groupVolume = max(0, groupVolume - 2)
+                                groupVolume = max(0, groupVolume - 1)
                             } label: {
                                 Image(systemName: "minus")
                                     .frame(width: 24, height: 24)
@@ -180,7 +180,7 @@ struct SelectGroupView: View {
                             .buttonRepeatBehavior(.enabled)
                             VibeSlider(value: $groupVolume, step: 1, showValue: true)
                             Button {
-                                groupVolume = min(100, groupVolume + 2)
+                                groupVolume = min(100, groupVolume + 1)
                             } label: {
                                 Image(systemName: "plus")
                                     .frame(width: 24, height: 24)
@@ -270,17 +270,23 @@ struct SelectGroupView: View {
         .animation(.interactiveSpring, value: sonosService.sorted)
         .animation(.interactiveSpring, value: selections)
         .animation(.interactiveSpring, value: playingRooms.map(\.id))
-        .animation(.interactiveSpring, value: activeRooms.map { "\($0.id)-\($0.isPlaying)-\($0.track.name)" })
+        .animation(.interactiveSpring, value: activeRooms.map {
+            let playbackRoom = sonosService.playbackRoom(for: $0)
+            return "\($0.id)-\(playbackRoom.isPlaying)-\(playbackRoom.track.name)"
+        })
     }
     
     @ViewBuilder
     private func roomRow(room: Room) -> some View {
+        // Grouped rooms hear the coordinator's stream, so show its track —
+        // a member room's own `track` goes stale once it joins a group.
+        let playbackRoom = sonosService.playbackRoom(for: room)
         Menu {
-            if !room.track.name.isEmpty {
+            if !playbackRoom.track.name.isEmpty {
                 Section {
-                    Label(room.track.name, systemImage: "music.note")
-                    if !room.track.artist.isEmpty {
-                        Label(room.track.artist, systemImage: "person.fill")
+                    Label(playbackRoom.track.name, systemImage: "music.note")
+                    if !playbackRoom.track.artist.isEmpty {
+                        Label(playbackRoom.track.artist, systemImage: "person.fill")
                     }
                 }
             }
@@ -321,11 +327,11 @@ struct SelectGroupView: View {
                     Text(room.name)
                         .font(.body.weight(.semibold))
 
-                    if !room.track.name.isEmpty {
-                        Text(room.track.name)
+                    if !playbackRoom.track.name.isEmpty {
+                        Text(playbackRoom.track.name)
                             .font(.caption)
                             .lineLimit(1)
-                            .foregroundStyle(room.isPlaying ? .accent : .secondary)
+                            .foregroundStyle(playbackRoom.isPlaying ? .accent : .secondary)
                     }
                 }
 

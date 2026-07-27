@@ -267,7 +267,7 @@ final class XMLParserSonos {
             radioTitle = try? parseValue(xml: currentURIMetaData, named: "dc:title").removingHTMLEntities()
             let albumArt = try? parseValue(xml: currentURIMetaData, named: "upnp:albumArtURI").removingHTMLEntities()
 //            albumArt = albumArt?.replacingOccurrences(of: "logoq.png", with: "logod.jpg")
-            albumArtURL = URL(string: albumArt ?? "")
+            albumArtURL = URL(string: albumArt ?? "")?.sonosRadioArtwork()
         }
         
         return PlaybackMediaInfo(playbackService: playbackService, artwork: albumArtURL, title: radioTitle)

@@ -7,7 +7,6 @@ final class RemoteFeatureFlags {
 
     enum Flag: String, CaseIterable {
         case lastFM
-        case hardwareVolumeControl
     }
 
     private let url = URL(string: "https://api.clic.dance/flags")!

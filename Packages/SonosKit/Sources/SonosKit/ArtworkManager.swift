@@ -12,6 +12,11 @@ public final class ArtworkManager {
     // Cache to track failed URLs and their retry attempts
     private var failedURLCache: [URL: (attempts: Int, lastAttempt: Date)] = [:]
     private let maxRetryAttempts = 3
+    /// How long a URL that exhausted its retries stays blacklisted. Artwork
+    /// hosts fail transiently (Sonos Radio's proxy 503s under load), so a
+    /// permanent per-session blacklist would keep art broken long after the
+    /// host recovers.
+    private let failedURLRetryCooldown: TimeInterval = 3600
     private let retryCacheQueue = DispatchQueue(label: "com.clic.artwork.retrycache", attributes: .concurrent)
 
     public init() {
@@ -51,7 +56,11 @@ public final class ArtworkManager {
     private func downloadAndProcessImageWithRetry(from url: URL) async throws -> Data? {
         // Check if this URL has exceeded max retry attempts
         if let failedEntry = getFailedURLCache(for: url), failedEntry.attempts >= maxRetryAttempts {
-            return nil
+            guard Date().timeIntervalSince(failedEntry.lastAttempt) >= failedURLRetryCooldown else {
+                return nil
+            }
+            // Cooldown passed — give the URL a fresh set of attempts.
+            clearFailedURLCache(for: url)
         }
         
         var lastError: Error?

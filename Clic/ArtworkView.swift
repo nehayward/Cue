@@ -11,16 +11,15 @@ struct ArtworkView: View {
     var isDraggable: Bool = false
     var showBadge: Bool = true
     var shouldFade: Bool = false
+    // Renders just the artwork — no badge, rounded-corner clip, shadow, or
+    // alarm tracking. For the full-screen blurred background copies of the
+    // player, where those decorations are invisible under the blur but still
+    // cost render time on every frame of a crossfade.
+    var isBackground: Bool = false
 
-    @State private var defaultFadeDuration: Double = 0.3
+    private let defaultFadeDuration: Double = 0.3
     @State private var alarmRunning: Bool = false
     @State private var currentImage: UIImage?
-
-    // Snapshot of `shouldFade` taken when the artwork URL changes — see the
-    // `.task` below. The fade must be decided at skip time, not when the
-    // (possibly slow) image load lands, otherwise a late load fades in even
-    // though the user tapped Next.
-    @State private var animateArtworkChange: Bool = false
 
     var cornerRadius: CGFloat {
         UIDevice.current.userInterfaceIdiom == .phone ? 8 : 16
@@ -31,7 +30,12 @@ struct ArtworkView: View {
         let service = String(describing: track.musicService)
         if !track.album.isEmpty { return "\(track.album).\(service).player" }
         if !track.name.isEmpty  { return "\(track.name).\(service).player" }
-        return track.trackID + ".player"
+        if !track.trackID.isEmpty { return track.trackID + ".player" }
+        // Identity-less track (an idle radio player's resting track has no
+        // album/name/trackID): key by the artwork URL. A bare ".player" key
+        // was shared by every idle radio room, so each room's player showed
+        // whichever station's art happened to be cached first.
+        return (track.artworkURL?.absoluteString ?? "") + ".player"
     }
 
     private var artworkRequest: ImageRequest? {
@@ -60,117 +64,165 @@ struct ArtworkView: View {
 
     var body: some View {
         VStack {
-            VStack {
-                if let displayImage {
-                    Image(uiImage: displayImage)
-                        .resizable()
-                        .aspectRatio(contentMode: showBadge ? .fit : .fill)
+            decoratedArtwork
+                .overlay {
+                    if group.isMuted, showBadge {
+                        Button {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            Task {
+                                await SonosService.shared.setGroupMute(group: group, mute: false)
+                                withAnimation {
+                                    group.isMuted.toggle()
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "speaker.slash.fill")
+                                .resizable()
+                                .scaledToFit()
+                                .symbolRenderingMode(.hierarchical)
+                                .foregroundStyle(.primary)
+                                .bold()
+                                .scaleEffect(0.5)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .foregroundStyle(.ultraThinMaterial)
+                                }
+                                .tint(.primary)
+                        }
+                        .buttonStyle(.plain)
                         .transition(.opacity)
-                        .animation(.smooth(duration: animateArtworkChange ? defaultFadeDuration : 0), value: displayImage)
-                } else {
-                    Rectangle()
-                        .foregroundStyle(.thickMaterial)
-                        .aspectRatio(contentMode: .fit)
-                        .overlay {
-                            if group.playbackService != .lineIn && group.coordinatorRoom.track.sonosAlbumArtURL == nil && showBadge && displayImage == nil {
-                                Image(systemName: "music.note")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .foregroundStyle(.secondary)
-                                    .fontWeight(.light)
-                                    .scaleEffect(0.5)
-                                    .tint(Color.primary.gradient)
-                            }
-                            if group.playbackService == .lineIn, showBadge {
-                                Image(systemName: "audio.jack.stereo")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .foregroundStyle(.primary)
-                                    .fontWeight(.light)
-                                    .scaleEffect(0.5)
-                                    .tint(Color.primary.gradient)
-                            }
-                        }
-                }
-            }
-            .overlay(alignment: .bottomTrailing) {
-                ArtworkBadgeView(group: group, alarmRunning: alarmRunning)
-                    .opacity(showBadge ? 1 : 0 )
-                    .contentTransition(.identity)
-            }
-            #if DEBUG && SCREENSHOT
-            .overlay {
-                Rectangle()
-                    .foregroundStyle(.ultraThinMaterial)
-            }
-            #endif
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .shadow(radius: 2)
-            .if(isDraggable) {
-                $0.draggable(group.coordinatorRoom.track.toPlayable)
-            }
-            .overlay {
-                if group.isMuted, showBadge {
-                    Button {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        Task {
-                            await SonosService.shared.setGroupMute(group: group, mute: false)
-                            withAnimation {
-                                group.isMuted.toggle()
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "speaker.slash.fill")
-                            .resizable()
-                            .scaledToFit()
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(.primary)
-                            .bold()
-                            .scaleEffect(0.5)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                            .background {
-                                RoundedRectangle(cornerRadius: 8)
-                                    .foregroundStyle(.ultraThinMaterial)
-                            }
-                            .tint(.primary)
                     }
-                    .buttonStyle(.plain)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                // Async load that auto-cancels when the URL changes. SwiftUI
+                // discards the in-flight load on id change so a slow request for
+                // the previous track can't complete after a fast one for the new
+                // track and overwrite `currentImage` with stale art. Initial
+                // value comes from `init()`'s synchronous cache lookup, so this
+                // only fires for cache misses or URL changes.
+                .task(id: group.coordinatorRoom.track.artworkURL) {
+                    // Decide the fade up front. `shouldFade` is reliably false
+                    // right after a user skip (LargePlayerView only flips it back
+                    // true ~200ms later), so snapshotting here means a slow image
+                    // load can't fade in after the fact.
+                    let fade = shouldFade
+                    guard let artworkRequest else {
+                        setImage(nil, fade: fade)
+                        return
+                    }
+                    if let cached = ImagePipeline.shared.cache.cachedImage(for: artworkRequest) {
+                        setImage(cached.image, fade: fade)
+                        return
+                    }
+                    do {
+                        let image = try await ImagePipeline.shared.image(for: artworkRequest)
+                        setImage(image, fade: fade)
+                    } catch {
+                        // Swallow errors silently — the Sonos proxy for Spotify is
+                        // unreliable right at track boundaries (the speaker may not
+                        // have fetched the new art yet). Keeping the previous image
+                        // is better than flashing a grey placeholder.
+                    }
+                }
+        }
+    }
+
+    // Base image stack shared by the foreground player artwork and the
+    // blurred background copies. ZStack so that during a crossfade the
+    // outgoing and incoming artwork overlap in place instead of stacking.
+    // The fade is a plain identity-swap opacity transition, animated only
+    // by the explicit transaction in `setImage` — there is deliberately no
+    // persistent `.animation(value:)` here. Keying an implicit animation on
+    // the UIImage instance made every back-to-back load at track boundaries
+    // (Sonos proxy URL, then CDN URL) restart and interrupt the fade, and
+    // let it animate layout of the full-screen blurred background copies of
+    // this view — the stutter that motivated this rewrite.
+    private var artworkStack: some View {
+        ZStack {
+            if let displayImage {
+                Image(uiImage: displayImage)
+                    .resizable()
+                    .aspectRatio(contentMode: showBadge ? .fit : .fill)
+                    .id(displayImage)
                     .transition(.opacity)
-                }
+            } else {
+                Rectangle()
+                    .foregroundStyle(.thickMaterial)
+                    .aspectRatio(contentMode: .fit)
+                    .overlay {
+                        if group.playbackService != .lineIn && group.coordinatorRoom.track.sonosAlbumArtURL == nil && showBadge && displayImage == nil {
+                            Image(systemName: "music.note")
+                                .resizable()
+                                .scaledToFit()
+                                .foregroundStyle(.secondary)
+                                .fontWeight(.light)
+                                .scaleEffect(0.5)
+                                .tint(Color.primary.gradient)
+                        }
+                        if group.playbackService == .lineIn, showBadge {
+                            Image(systemName: "audio.jack.stereo")
+                                .resizable()
+                                .scaledToFit()
+                                .foregroundStyle(.primary)
+                                .fontWeight(.light)
+                                .scaleEffect(0.5)
+                                .tint(Color.primary.gradient)
+                        }
+                    }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .onChange(of: group.rooms.contains(where: \.alarmRunning), initial: true) { old, new in
-                alarmRunning = new
+        }
+        #if DEBUG && SCREENSHOT
+        .overlay {
+            Rectangle()
+                .foregroundStyle(.ultraThinMaterial)
+        }
+        #endif
+    }
+
+    // The badge, rounded-corner clip, shadow, and alarm tracking are
+    // invisible under the background blur but still cost render time on
+    // every frame of a crossfade, so background copies render the bare
+    // artwork stack.
+    @ViewBuilder
+    private var decoratedArtwork: some View {
+        if isBackground {
+            artworkStack
+        } else {
+            let decorated = artworkStack
+                .overlay(alignment: .bottomTrailing) {
+                    ArtworkBadgeView(group: group, alarmRunning: alarmRunning)
+                        .opacity(showBadge ? 1 : 0)
+                        .contentTransition(.identity)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .shadow(radius: 2)
+                .onChange(of: group.rooms.contains(where: \.alarmRunning), initial: true) { old, new in
+                    alarmRunning = new
+                }
+            if isDraggable {
+                decorated.draggable(group.coordinatorRoom.track.toPlayable)
+            } else {
+                decorated
             }
-            // Async load that auto-cancels when the URL changes. SwiftUI
-            // discards the in-flight load on id change so a slow request for
-            // the previous track can't complete after a fast one for the new
-            // track and overwrite `currentImage` with stale art. Initial
-            // value comes from `init()`'s synchronous cache lookup, so this
-            // only fires for cache misses or URL changes.
-            .task(id: group.coordinatorRoom.track.artworkURL) {
-                // Decide the fade up front. `shouldFade` is reliably false
-                // right after a user skip (LargePlayerView only flips it back
-                // true ~200ms later), so snapshotting here means a slow image
-                // load can't fade in after the fact.
-                animateArtworkChange = shouldFade
-                guard let artworkRequest else {
-                    currentImage = nil
-                    return
-                }
-                if let cached = ImagePipeline.shared.cache.cachedImage(for: artworkRequest) {
-                    currentImage = cached.image
-                    return
-                }
-                do {
-                    let image = try await ImagePipeline.shared.image(for: artworkRequest)
-                    currentImage = image
-                } catch {
-                    // Swallow errors silently — the Sonos proxy for Spotify is
-                    // unreliable right at track boundaries (the speaker may not
-                    // have fetched the new art yet). Keeping the previous image
-                    // is better than flashing a grey placeholder.
-                }
+        }
+    }
+
+    // The only place an artwork swap is animated. Scoping the animation to
+    // this one transaction (instead of a persistent `.animation` modifier)
+    // means unrelated body re-evaluations — playback ticks, mute toggles,
+    // layout changes — can never kick off or restart a fade.
+    private func setImage(_ image: UIImage?, fade: Bool) {
+        guard image !== currentImage else { return }
+        if fade {
+            withAnimation(.smooth(duration: defaultFadeDuration)) {
+                currentImage = image
+            }
+        } else {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                currentImage = image
             }
         }
     }
