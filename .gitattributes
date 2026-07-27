@@ -1,0 +1,11 @@
+# Changelog files are append-only bullet lists. Parallel feature branches each
+# add entries to the end of the same section, which conflicts on every merge
+# even though the changes never contradict each other. The union merge driver
+# keeps both sides' lines instead of raising a conflict.
+#
+# Caveat: union merges silently, so it will NOT flag the one case that needs a
+# human — two branches each creating the same new "# YYYY.N" version heading,
+# which yields a duplicate heading. Check the top of the file after a merge
+# that lands on a version bump.
+ReleaseNotes.md merge=union
+Changelog.md    merge=union

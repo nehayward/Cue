@@ -78,6 +78,20 @@ the exceptions.
 
 6. **Leave older version sections untouched.**
 
+## Merge behavior
+
+Both files are marked `merge=union` in `.gitattributes`, so parallel branches
+appending to the same subsection merge cleanly instead of conflicting — git
+keeps both sides' lines. Two rules keep this working:
+
+- **Only append.** Never reflow, reorder, or reword an existing bullet as part
+  of adding a new one. Union merge resolves per-line, so a line edited on two
+  branches survives twice, as two near-duplicate bullets.
+- **Creating a new `# YYYY.N` heading is the one risky edit.** If two branches
+  each add the same new version heading, union merge produces a duplicate
+  heading with no conflict marker to warn anyone. When step 2 tells you to
+  create a heading, check the top of the file after merging `main`.
+
 ## Writing style
 
 These entries become the App Store "What's New" text — write for end users, not
