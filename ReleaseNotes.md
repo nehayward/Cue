@@ -22,7 +22,8 @@
 - Fixed the speaker you pick on the Connectivity screen not sticking — the tick would flash onto it and jump back to another speaker. Your choice now persists, and Clic genuinely uses that speaker for album artwork, your library and favorites
 - Clic's automatic speaker pick now prefers a speaker wired to your router, as it always said it did — previously the wired preference was applied and then discarded, so it could settle on a speaker over Wi-Fi
 - Scenes now play on the speakers that are available — if a speaker is unplugged or offline, the scene runs on the rest instead of doing nothing
-
+- Playing a long playlist no longer feels like the tap was dropped — if Sonos needs more than a moment, the banner shows a spinner with what's loading, then confirms once it's ready
+- The play button now pulses while your speaker is getting a song ready — in the mini player, the player, the speaker list, and on Apple TV
 
 # 2026.6
 

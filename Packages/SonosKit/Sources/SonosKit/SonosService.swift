@@ -456,8 +456,9 @@ public final class SonosService {
 
             guard !isEditing else { return }
 
+            let playbackStatus = await playbackInfo
             let isNowPlaying: Bool
-            switch await playbackInfo {
+            switch playbackStatus {
             case .playing:
                 isNowPlaying = true
             case .paused:
@@ -465,9 +466,14 @@ public final class SonosService {
             default:
                 isNowPlaying = roomGroup.coordinatorRoom.isPlaying // keep current value
             }
-            
+
             if roomGroup.coordinatorRoom.isPlaying != isNowPlaying {
                 roomGroup.coordinatorRoom.isPlaying = isNowPlaying
+            }
+
+            let isNowTransitioning = playbackStatus == .transitioning
+            if roomGroup.coordinatorRoom.isTransitioning != isNowTransitioning {
+                roomGroup.coordinatorRoom.isTransitioning = isNowTransitioning
             }
 
             if let updateGroupVolume = try? await groupVolume, !roomGroup.isEditingVolume, roomGroup.groupVolume != updateGroupVolume {
@@ -794,8 +800,9 @@ public final class SonosService {
                         }
                     }
                     
+                    let playbackStatus = await playbackInfo
                     let isNowPlaying: Bool
-                    switch await playbackInfo {
+                    switch playbackStatus {
                     case .playing:
                         isNowPlaying = true
                     case .paused:
@@ -806,6 +813,11 @@ public final class SonosService {
 
                     if roomGroup.coordinatorRoom.isPlaying != isNowPlaying {
                         roomGroup.coordinatorRoom.isPlaying = isNowPlaying
+                    }
+
+                    let isNowTransitioning = playbackStatus == .transitioning
+                    if roomGroup.coordinatorRoom.isTransitioning != isNowTransitioning {
+                        roomGroup.coordinatorRoom.isTransitioning = isNowTransitioning
                     }
                 }
             }
@@ -1048,10 +1060,12 @@ public final class SonosService {
                     switch await playbackInfo {
                     case .playing:
                         roomGroup.coordinatorRoom.isPlaying = true
+                        roomGroup.coordinatorRoom.isTransitioning = false
                     case .paused:
                         roomGroup.coordinatorRoom.isPlaying = false
+                        roomGroup.coordinatorRoom.isTransitioning = false
                     default:
-                        break
+                        roomGroup.coordinatorRoom.isTransitioning = true
                     }
                 }
             }
@@ -1145,10 +1159,12 @@ public final class SonosService {
                     switch await playbackInfo {
                     case .playing:
                         roomGroup.coordinatorRoom.isPlaying = true
+                        roomGroup.coordinatorRoom.isTransitioning = false
                     case .paused:
                         roomGroup.coordinatorRoom.isPlaying = false
+                        roomGroup.coordinatorRoom.isTransitioning = false
                     default:
-                        break
+                        roomGroup.coordinatorRoom.isTransitioning = true
                     }
 
                     if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume, roomGroup.groupVolume != groupVolumeAwaited {
@@ -1432,6 +1448,7 @@ public final class SonosService {
         for group in relevantGroups {
             let playback = await getPlaybackInfo(ip: group.ip)
             group.coordinatorRoom.isPlaying = (playback == .playing)
+            group.coordinatorRoom.isTransitioning = (playback == .transitioning)
         }
 
         // Pick a coordinator without ever bailing out:
@@ -2059,8 +2076,10 @@ public final class SonosService {
         if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) {
             for room in group.rooms {
                 room.isPlaying = false
+                room.isTransitioning = false
             }
             group.coordinatorRoom.isPlaying = false
+            group.coordinatorRoom.isTransitioning = false
         }
 
         isEditing = true

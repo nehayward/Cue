@@ -337,6 +337,7 @@ struct TVPlayerView: View {
                     .resizable()
                     .scaledToFit()
                     .contentTransition(.symbolEffect(.automatic))
+                    .symbolEffect(.pulse, isActive: group.coordinatorRoom.isTransitioning)
                     .frame(width: 32, height: 32)
             }
             .buttonBorderShape(.circle)
