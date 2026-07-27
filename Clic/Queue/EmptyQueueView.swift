@@ -31,6 +31,16 @@ struct EmptyQueueView: View {
 
     private var hasHistory: Bool { !recentlyPlayed.isEmpty }
 
+    /// History entries that can actually be added to the queue. Radio stations
+    /// (and artists/folders) set the transport or navigate instead of queueing,
+    /// so they can't take part in a shuffle-into-queue.
+    private var shuffleItems: [PlayableContent] {
+        recentlyPlayed.filter { content in
+            let type = content.content.type
+            return type.isTrack || type.isPlaylist || type == .album || type == .libraryAlbum
+        }
+    }
+
     var body: some View {
         GeometryReader { proxy in
             ScrollView {
@@ -72,11 +82,11 @@ struct EmptyQueueView: View {
         } label: {
             Label("Search Music", systemImage: "magnifyingglass")
                 .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.bordered)
         .buttonBorderShape(.capsule)
+        .controlSize(.large)
+        .tint(.accent)
     }
 
     private var recentlySection: some View {
@@ -88,7 +98,7 @@ struct EmptyQueueView: View {
 
                 Spacer()
 
-                if recentlyPlayed.count > 1 {
+                if shuffleItems.count > 1 {
                     Button(action: shufflePlay) {
                         Label("Shuffle", systemImage: "shuffle")
                             .font(.subheadline.weight(.semibold))
@@ -110,7 +120,7 @@ struct EmptyQueueView: View {
     /// deterministic and doesn't depend on play-mode timing: the first item
     /// replaces the queue and plays, the rest append in shuffled order.
     private func shufflePlay() {
-        let items = recentlyPlayed.shuffled()
+        let items = shuffleItems.shuffled()
         guard !items.isEmpty else { return }
 
         Task { @MainActor in
