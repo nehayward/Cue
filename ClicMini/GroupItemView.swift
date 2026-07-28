@@ -280,16 +280,23 @@ struct GroupItemView: View {
             // whole button's identity every second and was retained by the run
             // loop until invalidated — this is structured and tears down with
             // the row.
-            if device.isPlaying {
-                TimelineView(.periodic(from: .now, by: 1.0)) { _ in
+            Group {
+                if device.isPlaying {
+                    TimelineView(.periodic(from: .now, by: 1.0)) { _ in
+                        PlaybackIconView(value: device.progress, total: 1, isPlaying: device.isPlaying)
+                    }
+                } else {
                     PlaybackIconView(value: device.progress, total: 1, isPlaying: device.isPlaying)
                 }
-            } else {
-                PlaybackIconView(value: device.progress, total: 1, isPlaying: device.isPlaying)
             }
+            // The icon itself is only 24pt and its ring is a thin stroke, so
+            // hit-testing the drawn shape alone left a tiny target. Match the
+            // next button's 44pt area and make the whole square tappable — the
+            // progress ring and the space around it now toggle playback.
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .contentShape(.rect)
         .disabled(!device.availableActions.contains(.play))
     }
 
