@@ -67,7 +67,12 @@ struct QueueCellView: View {
                     // Remove from local array first for immediate UI feedback
                     onLocalDelete?(track)
                     try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
-                    group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+                    // Keep the last known total on a failed fetch — zeroing it
+                    // makes the queue toolbar gauge read as full/empty until
+                    // the next refresh.
+                    if let total = try? await SonosService.shared.getQueueTotal(group: group) {
+                        group.coordinatorRoom.queueTotal = total
+                    }
                 }
             } label: {
                 Label("Delete", systemImage: "trash")
@@ -141,7 +146,12 @@ fileprivate struct QueueCellMenuView: View {
                     onLocalDelete?(track)
 
                     try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
-                    group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+                    // Keep the last known total on a failed fetch — zeroing it
+                    // makes the queue toolbar gauge read as full/empty until
+                    // the next refresh.
+                    if let total = try? await SonosService.shared.getQueueTotal(group: group) {
+                        group.coordinatorRoom.queueTotal = total
+                    }
                 }
             } label: {
                 Label("Remove", systemImage: "trash")

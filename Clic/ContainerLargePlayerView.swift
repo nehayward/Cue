@@ -1,22 +1,31 @@
 import SwiftUI
 import SonosKit
 import VibesDS
+import Defaults
 
 struct ContainerLargePlayerView: View {
+    @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    
+
     @State var refreshID = UUID()
-    
+
+    // When true this container shows the search/browse/queue toolbar and also
+    // hosts the ellipsis menu on its trailing edge (LargePlayerView skips its
+    // own copy so the menu doesn't lead the group).
+    private var showsInspectorToolbar: Bool {
+        (UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .vision) && horizontalSizeClass != .compact
+    }
+
     var body: some View {
         VStack {
             if let id = router.selectedID, sonosService.groups.contains(where: { $0.coordinatorID == id }) {
-                LargePlayerView(coordinatorID: id)
+                LargePlayerView(coordinatorID: id, showsEllipsisToolbarItem: !showsInspectorToolbar)
                     .toolbar {
                         ToolbarItemGroup(placement: .primaryAction) {
-                            if UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .vision, horizontalSizeClass != .compact {
+                            if showsInspectorToolbar {
                                 Button {
                                     if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
                                         router.toggleInspector(.search(group: sonosService.sorted[group]))
@@ -98,6 +107,12 @@ struct ContainerLargePlayerView: View {
                                 }
                                 .id(refreshID)
                                 .help("Queue")
+
+                                if let groupIndex = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                                    MenuInfoView(group: sonosService.sorted[groupIndex], showArtworkOnly: $showArtworkOnly)
+                                        .tint(.primary)
+                                        .id(refreshID)
+                                }
                             }
                         }
                     }

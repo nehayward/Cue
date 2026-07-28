@@ -21,6 +21,9 @@
 - The IP address field no longer marks an address wrong while you're still typing it, and shows a spinner while it checks. A wrong address now tints the field red instead of adding an error icon that looked like a second clear button
 - Fixed the speaker you pick on the Connectivity screen not sticking — the tick would flash onto it and jump back to another speaker. Your choice now persists, and Clic genuinely uses that speaker for album artwork, your library and favorites
 - Clic's automatic speaker pick now prefers a speaker wired to your router, as it always said it did — previously the wired preference was applied and then discarded, so it could settle on a speaker over Wi-Fi
+- Refreshed the bottom controls on the player and the speaker list with a glass toolbar look — earlier iOS versions get a matching frosted style
+- The player's ••• menu now sits at the end of the toolbar on iPad and Mac, after Search, Browse, and Queue
+- Fixed the queue button's ring briefly showing as full when opening or closing the queue
 - Scenes now play on the speakers that are available — if a speaker is unplugged or offline, the scene runs on the rest instead of doing nothing
 - Redesigned the empty queue and Up Next screens — instead of a bare "Nothing up next", they now show your recent play history so you can tap to start something playing right away
 - Playing a long playlist no longer feels like the tap was dropped — if Sonos needs more than a moment, the banner shows a spinner with what's loading, then confirms once it's ready
