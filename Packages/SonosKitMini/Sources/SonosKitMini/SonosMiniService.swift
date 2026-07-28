@@ -8,7 +8,9 @@ import os
 @Observable
 @MainActor
 public final class SonosMiniService {
-    public static var shared = SonosMiniService()
+    // `let` so the singleton can never be swapped out — reassigning it would leak
+    // the old instance wholesale (streaming service, sockets, long-running tasks).
+    public static let shared = SonosMiniService()
     
     public var devices: [SonosDevice] = []
     
@@ -68,6 +70,7 @@ public final class SonosMiniService {
     // speaker to receive an event.
     @ObservationIgnored var metadataUpdateTasks: [String: Task<Void, Never>] = [:]
     @ObservationIgnored var groupUpdateTask: Task<Void, any Error>?
+    @ObservationIgnored private var loadWatchInFlight: Task<Void, any Error>?
 
     @ObservationIgnored private var hasAppliedDevicesCache = false
 
@@ -412,7 +415,21 @@ public final class SonosMiniService {
         //        await checkTVMode(from: devices)
     }
     
+    /// Coalesces concurrent callers onto a single in-flight load. Two overlapping
+    /// runs used to race disconnectAll/addPlayers on topology changes, closing
+    /// sockets the other run had just opened and orphaning connections.
     public func loadWatch(useCache: Bool) async throws {
+        if let inFlight = loadWatchInFlight {
+            try await inFlight.value
+            return
+        }
+        let task = Task { try await performLoadWatch(useCache: useCache) }
+        loadWatchInFlight = task
+        defer { loadWatchInFlight = nil }
+        try await task.value
+    }
+
+    private func performLoadWatch(useCache: Bool) async throws {
         let (newDevices, houseHoldID) = try await getSystem(useCache: useCache)
         let newDeviceIDs = newDevices.map({ $0.id })
         let currentDeviceIDs = devices.map({ $0.id })
@@ -464,6 +481,8 @@ public final class SonosMiniService {
         groupUpdateTask = nil
         cleanupTask?.cancel()
         cleanupTask = nil
+        loadWatchInFlight?.cancel()
+        loadWatchInFlight = nil
 
         // Clear callbacks to prevent retain cycles
         onTrackChanged = nil
@@ -1080,25 +1099,31 @@ public final class SonosMiniService {
     //    }
     //
     public func updatePlaybackState(for devices: [SonosDevice]) async throws -> [String] {
-        var ids: [String] = []
-        await withDiscardingTaskGroup { group in
+        // Collect ids through the group's results — appending to a captured var
+        // from concurrent child tasks was a data race.
+        await withTaskGroup(of: String?.self) { group in
             for device in devices.filter(\.isVisible) {
                 group.addTask { [weak self] in
-                    guard let self else { return }
-                    async let playbackInfo = self.getPlaybackInfo(ip: device.ip)
-                    switch await playbackInfo {
+                    guard let self else { return nil }
+                    switch await self.getPlaybackInfo(ip: device.ip) {
                     case .playing:
-                        ids.append(device.id)
-                        await updateDevice(device, keyPath: \.isPlaying, value: true)
+                        await self.updateDevice(device, keyPath: \.isPlaying, value: true)
+                        return device.id
                     case .paused:
-                        await updateDevice(device, keyPath: \.isPlaying, value: false)
+                        await self.updateDevice(device, keyPath: \.isPlaying, value: false)
+                        return nil
                     default:
-                        break
+                        return nil
                     }
                 }
             }
+
+            var ids: [String] = []
+            for await id in group {
+                if let id { ids.append(id) }
+            }
+            return ids
         }
-        return ids
     }
     
     public func firstPlayingDeviceID(from devices: [SonosDevice]) async throws -> String? {
@@ -1537,11 +1562,12 @@ public final class SonosMiniService {
         Task {
             await withDiscardingTaskGroup { taskGroup in
                 for device in activeDevices {
-                    taskGroup.addTask {
-                        Task {  [weak self] in
-                            guard let self else { return }
-                            await snapShotGroup(ip: device.ip)
-                        }
+                    // No nested unstructured Task — the group must own the work,
+                    // otherwise it returns immediately and the floating tasks
+                    // hold the service until they finish on their own.
+                    taskGroup.addTask { [weak self] in
+                        guard let self else { return }
+                        await self.snapShotGroup(ip: device.ip)
                     }
                 }
             }

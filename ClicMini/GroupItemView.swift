@@ -8,9 +8,6 @@ struct GroupItemView: View {
     @Binding var expandedGroupIDs: Set<String>
     @State private var hovered: Bool = false
     @State private var showing: Bool = false
-    @State private var updateTrigger = false
-    @State private var timer: Timer?
-    @State private var isTimerEnabled = true
     @State private var miniSettingsService = MiniSettingsService.shared
     @State private var sonosServiceMini = SonosMiniService.shared
     @State private var isHovering: Bool = false
@@ -275,58 +272,34 @@ struct GroupItemView: View {
                 await SonosMiniService.shared.togglePlayback(ip: device.ip)
             }
         } label: {
-            PlaybackIconView(value: device.progress, total: 1, isPlaying: device.isPlaying)
+            // While playing, a periodic 1 Hz TimelineView re-renders just this
+            // small icon so the extrapolated progress stays live. `.periodic` is
+            // a plain timer schedule (no display link), and the view isn't even
+            // mounted when idle, so nothing ticks for paused speakers. Unlike
+            // the previous run-loop Timer + .id() approach — which rebuilt the
+            // whole button's identity every second and was retained by the run
+            // loop until invalidated — this is structured and tears down with
+            // the row.
+            Group {
+                if device.isPlaying {
+                    TimelineView(.periodic(from: .now, by: 1.0)) { _ in
+                        PlaybackIconView(value: device.progress, total: 1, isPlaying: device.isPlaying)
+                    }
+                } else {
+                    PlaybackIconView(value: device.progress, total: 1, isPlaying: device.isPlaying)
+                }
+            }
+            // The icon itself is only 24pt and its ring is a thin stroke, so
+            // hit-testing the drawn shape alone left a tiny target. Match the
+            // next button's 44pt area and make the whole square tappable — the
+            // progress ring and the space around it now toggle playback.
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .contentShape(.rect)
         .disabled(!device.availableActions.contains(.play))
-        .onAppear {
-            startTimer()
-        }
-        .onDisappear {
-            stopTimer()
-        }
-        .onChange(of: device.isPlaying) {
-            if device.isPlaying && isTimerEnabled {
-                startTimer()
-            } else {
-                stopTimer()
-            }
-        }
-        .id(updateTrigger) // Force view refresh when updateTrigger changes
     }
-    
-    /// Start the update timer
-    private func startTimer() {
-        guard timer == nil && isTimerEnabled else { return }
-        
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            if device.isPlaying {
-                updateTrigger.toggle()
-            }
-        }
-    }
-    
-    /// Stop the update timer
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
-    }
-    
-    /// Enable timer updates
-    func enableTimer() {
-        isTimerEnabled = true
-        if device.isPlaying{
-            startTimer()
-        }
-    }
-    
-    /// Disable timer updates
-    func disableTimer() {
-        isTimerEnabled = false
-        stopTimer()
-    }
-    
+
     private func playPauseLabel(for device: SonosDevice) -> some View {
         Image(systemName: device.isPlaying ? "pause.fill" : "play.fill")
             .font(.body)

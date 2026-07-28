@@ -23,11 +23,20 @@ struct ClicMiniApp: App {
     /// Notification name for show menu requests from main Clic app
     static let showMenuNotification = Notification.Name("com.clic.mini.showMenu")
 
+    /// Guards the app-lifetime registrations below. If SwiftUI ever re-creates
+    /// the App struct, running them again would stack duplicate notification
+    /// observers, keyboard-shortcut handlers, and callbacks — each a small leak
+    /// and a source of double-fired actions.
+    @MainActor private static var didRegisterGlobalHandlers = false
+
     init() {
         // Initialize global services to ensure they're set up
         _ = GlobalMediaControlService.shared
         _ = SonosMiniService.shared
         _ = MiniSettingsService.shared
+
+        guard !Self.didRegisterGlobalHandlers else { return }
+        Self.didRegisterGlobalHandlers = true
 
         KeyboardShortcuts.onKeyUp(for: .toggleClicMini) {
             Self.clickStatusItem()
@@ -81,6 +90,14 @@ struct ClicMiniApp: App {
         ImageCache.default.memoryStorage.config.expiration = .seconds(300)  // 5 minutes in memory
         ImageCache.default.diskStorage.config.sizeLimit = 20 * 1024 * 1024  // 20MB
         ImageCache.default.diskStorage.config.expiration = .days(1)
+
+        // Menu bar apps run for weeks — trim image caches and re-accumulating
+        // device data on a 24h cadence, same as the Watch app already does.
+        SonosMiniService.shared.onPeriodicCleanup = {
+            ImageCache.default.clearMemoryCache()
+            ImageCache.default.cleanExpiredDiskCache()
+        }
+        SonosMiniService.shared.startPeriodicCleanup()
 
         Task {
             try? await Task.sleep(for: .milliseconds(200))
