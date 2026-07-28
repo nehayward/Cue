@@ -2363,8 +2363,11 @@ public final class SonosService {
             throw SonosAPIError.deviceNotFound
         }
         
-        // Create rooms for grouping
-        let rooms = discoveredSceneRooms.map { Room(id: $0.id, ip: $0.ip, name: $0.name) }
+        // Create rooms for grouping.
+        // NB: don't name this `rooms` — a local of that name shadows the
+        // `rooms` property used above, and the compiler then reports a
+        // circular reference while inferring its type.
+        let groupRooms = discoveredSceneRooms.map { Room(id: $0.id, ip: $0.ip, name: $0.name) }
         
         // Create the group
         if scene.volumeOnly {
@@ -2380,7 +2383,7 @@ public final class SonosService {
             return
         }
         
-        guard let newGroup = await speedGroup(rooms: rooms) else {
+        guard let newGroup = await speedGroup(rooms: groupRooms) else {
             throw SonosAPIError.deviceNotFound
         }
         

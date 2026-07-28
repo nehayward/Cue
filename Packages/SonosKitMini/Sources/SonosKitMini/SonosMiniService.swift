@@ -2015,8 +2015,11 @@ public final class SonosMiniService {
             throw SonosDiscoveryError.sonosSystemNotFound
         }
         
-        // Create rooms for grouping
-        let devices = discoveredSceneRooms.map {
+        // Create rooms for grouping.
+        // NB: don't name this `devices` — a local of that name shadows the
+        // `devices` property used above, and the compiler then reports a
+        // circular reference while inferring its type.
+        let groupDevices = discoveredSceneRooms.map {
             SonosDevice(
                 name: $0.name,
                 id: $0.id,
@@ -2028,9 +2031,9 @@ public final class SonosMiniService {
                 state: .active
             )
         }
-        
+
         // Create the group
-        guard let newGroup = await speedGroup(devices: devices) else {
+        guard let newGroup = await speedGroup(devices: groupDevices) else {
             throw SonosDiscoveryError.sonosSystemNotFound
         }
         
