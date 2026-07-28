@@ -456,8 +456,9 @@ public final class SonosService {
 
             guard !isEditing else { return }
 
+            let playbackStatus = await playbackInfo
             let isNowPlaying: Bool
-            switch await playbackInfo {
+            switch playbackStatus {
             case .playing:
                 isNowPlaying = true
             case .paused:
@@ -465,9 +466,14 @@ public final class SonosService {
             default:
                 isNowPlaying = roomGroup.coordinatorRoom.isPlaying // keep current value
             }
-            
+
             if roomGroup.coordinatorRoom.isPlaying != isNowPlaying {
                 roomGroup.coordinatorRoom.isPlaying = isNowPlaying
+            }
+
+            let isNowTransitioning = playbackStatus == .transitioning
+            if roomGroup.coordinatorRoom.isTransitioning != isNowTransitioning {
+                roomGroup.coordinatorRoom.isTransitioning = isNowTransitioning
             }
 
             if let updateGroupVolume = try? await groupVolume, !roomGroup.isEditingVolume, roomGroup.groupVolume != updateGroupVolume {
@@ -794,8 +800,9 @@ public final class SonosService {
                         }
                     }
                     
+                    let playbackStatus = await playbackInfo
                     let isNowPlaying: Bool
-                    switch await playbackInfo {
+                    switch playbackStatus {
                     case .playing:
                         isNowPlaying = true
                     case .paused:
@@ -806,6 +813,11 @@ public final class SonosService {
 
                     if roomGroup.coordinatorRoom.isPlaying != isNowPlaying {
                         roomGroup.coordinatorRoom.isPlaying = isNowPlaying
+                    }
+
+                    let isNowTransitioning = playbackStatus == .transitioning
+                    if roomGroup.coordinatorRoom.isTransitioning != isNowTransitioning {
+                        roomGroup.coordinatorRoom.isTransitioning = isNowTransitioning
                     }
                 }
             }
@@ -1048,10 +1060,12 @@ public final class SonosService {
                     switch await playbackInfo {
                     case .playing:
                         roomGroup.coordinatorRoom.isPlaying = true
+                        roomGroup.coordinatorRoom.isTransitioning = false
                     case .paused:
                         roomGroup.coordinatorRoom.isPlaying = false
+                        roomGroup.coordinatorRoom.isTransitioning = false
                     default:
-                        break
+                        roomGroup.coordinatorRoom.isTransitioning = true
                     }
                 }
             }
@@ -1145,10 +1159,12 @@ public final class SonosService {
                     switch await playbackInfo {
                     case .playing:
                         roomGroup.coordinatorRoom.isPlaying = true
+                        roomGroup.coordinatorRoom.isTransitioning = false
                     case .paused:
                         roomGroup.coordinatorRoom.isPlaying = false
+                        roomGroup.coordinatorRoom.isTransitioning = false
                     default:
-                        break
+                        roomGroup.coordinatorRoom.isTransitioning = true
                     }
 
                     if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume, roomGroup.groupVolume != groupVolumeAwaited {
@@ -1432,6 +1448,7 @@ public final class SonosService {
         for group in relevantGroups {
             let playback = await getPlaybackInfo(ip: group.ip)
             group.coordinatorRoom.isPlaying = (playback == .playing)
+            group.coordinatorRoom.isTransitioning = (playback == .transitioning)
         }
 
         // Pick a coordinator without ever bailing out:
@@ -1690,7 +1707,7 @@ public final class SonosService {
             return track.artwork
         case .tuneIn:
             return nil
-        case .airplay, .unknown, .library, .sonosRadio:
+        case .airplay, .unknown, .library, .sonosRadio, .pandora:
             return nil
         }
     }
@@ -1811,7 +1828,7 @@ public final class SonosService {
             }
 
             return (Track.Metadata(ISRC: nil, openInURL: nil, contentType: .track), artworkURL.album.images?.biggestImageURL)
-        case .airplay, .library, .sonosRadio:
+        case .airplay, .library, .sonosRadio, .pandora:
             return (nil, nil)
         }
     }
@@ -2059,8 +2076,10 @@ public final class SonosService {
         if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) {
             for room in group.rooms {
                 room.isPlaying = false
+                room.isTransitioning = false
             }
             group.coordinatorRoom.isPlaying = false
+            group.coordinatorRoom.isTransitioning = false
         }
 
         isEditing = true
@@ -2324,20 +2343,24 @@ public final class SonosService {
             try await updateHousehold()
         }
         
-        // Create a lookup dictionary for better performance
-        let roomLookup = Dictionary(uniqueKeysWithValues: rooms.map { ($0.id, $0) })
-        
-        // Map scene rooms to discovered rooms with better error handling
-        let discoveredSceneRooms = try scene.rooms.map { sceneRoom in
-            guard let existingRoom = roomLookup[sceneRoom.id] else {
-                throw SonosAPIError.deviceNotFound
-            }
+        // Refresh discovery once if a scene room is missing — it may just be stale
+        if scene.rooms.contains(where: { sceneRoom in !rooms.contains { $0.id == sceneRoom.id } }) {
+            try? await updateHousehold()
+        }
+
+        // Run with whichever scene rooms are reachable; skip unplugged/offline speakers
+        let discoveredSceneRooms = scene.rooms.compactMap { sceneRoom -> SceneRoom? in
+            guard let existingRoom = rooms.first(where: { $0.id == sceneRoom.id }) else { return nil }
             return SceneRoom(
-                id: existingRoom.id, 
-                ip: existingRoom.ip, 
-                name: existingRoom.name, 
+                id: existingRoom.id,
+                ip: existingRoom.ip,
+                name: existingRoom.name,
                 volume: sceneRoom.volume
             )
+        }
+
+        guard !discoveredSceneRooms.isEmpty else {
+            throw SonosAPIError.deviceNotFound
         }
         
         // Create rooms for grouping

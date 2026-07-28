@@ -3,6 +3,8 @@
 –– New Features ––
 - Sonos Radio: Search Sonos Radio stations and browse them by genre, then play any station on any room or group — the SONOS badge appears on the artwork, and the station's artwork is shown during ad breaks
 - Smarter Services settings: the Services screen now shows what's actually on your Sonos — services you've authorized get show/hide toggles, ones you haven't set up yet link straight to the Sonos app to sign in, and services Clic doesn't support yet are listed too. Pull down to refresh after adding one
+- Pandora: Browse your Pandora stations, search for new ones, and play any station on any room or group — sign in through the Sonos app and it works in Clic automatically
+- Pandora Thumbs: Thumb a song up or down right from the player to tune what the station plays next — and set any Pandora station as an alarm
 
 –– Bug Fixes & Improvements ––
 - Fixed album artwork stuttering the player during song changes — the crossfade is now one smooth dissolve
@@ -22,6 +24,10 @@
 - Refreshed the bottom controls on the player and the speaker list with a glass toolbar look — earlier iOS versions get a matching frosted style
 - The player's ••• menu now sits at the end of the toolbar on iPad and Mac, after Search, Browse, and Queue
 - Fixed the queue button's ring briefly showing as full when opening or closing the queue
+- Scenes now play on the speakers that are available — if a speaker is unplugged or offline, the scene runs on the rest instead of doing nothing
+- Redesigned the empty queue and Up Next screens — instead of a bare "Nothing up next", they now show your recent play history so you can tap to start something playing right away
+- Playing a long playlist no longer feels like the tap was dropped — if Sonos needs more than a moment, the banner shows a spinner with what's loading, then confirms once it's ready
+- The play button now pulses while your speaker is getting a song ready — in the mini player, the player, the speaker list, and on Apple TV
 
 # 2026.6
 

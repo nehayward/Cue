@@ -149,6 +149,36 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
         return credentials
     }
     
+    /// The UDN of the media server backing `serviceType`'s credentials — the
+    /// same account `getCredentials(for:)` reads its token from, chosen with
+    /// the same primary-server rules.
+    ///
+    /// The UDN *is* the service-account cdudn
+    /// (`SA_RINCON60423_X_#Svc60423-62fe75eb-Token`), and its middle segment is
+    /// the account serial that some services require in the SMAPI householdId.
+    func serverUDN(for serviceType: SonosServiceType) -> String? {
+        guard let householdId,
+              let servers = KeychainManager.shared.getMediaServers(householdId: householdId) else {
+            return nil
+        }
+        let serviceServers = servers.filter { $0.type == serviceType }
+        if serviceServers.count > 1,
+           let primaryServer, let primaryKey = getKey(for: serviceType),
+           let primaryUDN = primaryServer[primaryKey],
+           let match = serviceServers.first(where: { $0.id == primaryUDN }) {
+            return match.id
+        }
+        return serviceServers.first?.id
+    }
+
+    /// The account serial from a Sonos service UDN — the middle segment of
+    /// `SA_RINCON<sid>_X_#Svc<sid>-<serial>-Token`.
+    static func accountSerial(fromUDN udn: String) -> String? {
+        let parts = udn.components(separatedBy: "-")
+        guard parts.count >= 3, !parts[1].isEmpty else { return nil }
+        return parts[1]
+    }
+
     func getAccessToken(for serviceType: SonosServiceType) async throws -> String? {
         guard let credentials = try await getCredentials(for: serviceType) else {
             return nil

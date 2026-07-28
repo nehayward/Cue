@@ -1995,20 +1995,24 @@ public final class SonosMiniService {
             try await updateHousehold()
         }
         
-        // Create a lookup dictionary for better performance
-        let roomLookup = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0) })
-        
-        // Map scene rooms to discovered rooms with better error handling
-        let discoveredSceneRooms = try scene.rooms.map { sceneRoom in
-            guard let existingRoom = roomLookup[sceneRoom.id] else {
-                throw SonosDiscoveryError.sonosSystemNotFound
-            }
+        // Refresh discovery once if a scene room is missing — it may just be stale
+        if scene.rooms.contains(where: { sceneRoom in !devices.contains { $0.id == sceneRoom.id } }) {
+            try? await updateHousehold()
+        }
+
+        // Run with whichever scene rooms are reachable; skip unplugged/offline speakers
+        let discoveredSceneRooms = scene.rooms.compactMap { sceneRoom -> SceneRoom? in
+            guard let existingRoom = devices.first(where: { $0.id == sceneRoom.id }) else { return nil }
             return SceneRoom(
                 id: existingRoom.id,
                 ip: existingRoom.ip,
                 name: existingRoom.name,
                 volume: sceneRoom.volume
             )
+        }
+
+        guard !discoveredSceneRooms.isEmpty else {
+            throw SonosDiscoveryError.sonosSystemNotFound
         }
         
         // Create rooms for grouping
