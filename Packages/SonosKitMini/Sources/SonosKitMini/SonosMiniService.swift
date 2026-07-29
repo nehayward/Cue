@@ -50,15 +50,45 @@ public final class SonosMiniService {
     // Callback for track changes
     @ObservationIgnored public var onTrackChanged: ((SonosDevice, SonosTrack) -> Void)?
     @ObservationIgnored private lazy var api = SonosAPI()
+    /// Address published by the main app (or entered by hand on the Watch).
+    /// Clic Mini has never written this key, only read it.
+    @ObservationIgnored private var storedIP: String {
+        NSUbiquitousKeyValueStore.default.string(forKey: "sonos_ip")
+            ?? UserDefaults.standard.string(forKey: "sonos_ip")
+            ?? ""
+    }
+
+    /// Address found by Bonjour discovery this session. Only consulted when
+    /// `storedIP` is empty or has stopped answering, so an address the user
+    /// enters explicitly always takes precedence over one we guessed.
+    @ObservationIgnored private var resolvedIP: String?
+
+    /// Address that most recently failed to answer. Recorded rather than erased
+    /// so a stale stored value can be stepped past without discarding it — if the
+    /// speaker comes back at that address it gets used again.
+    @ObservationIgnored private var unreachableIP: String?
+
+    /// In-flight discovery, shared by concurrent callers. `discoverDevices`
+    /// rejects overlapping searches outright, so without this the second caller
+    /// would fail rather than wait.
+    @ObservationIgnored private var ipResolutionTask: Task<String, Never>?
+
+    /// When discovery last came back empty. A failed search burns the full
+    /// timeout, and callers such as `getNowPlayingID` retry freely, so failures
+    /// are rate limited instead of stalling every request that follows.
+    @ObservationIgnored private var lastFailedDiscovery: Date?
+
+    private static let discoveryRetryInterval: TimeInterval = 30
+
     @ObservationIgnored private var cachedIP: String {
 #if DEBUG
         return "192.168.4.153"
 #else
-        NSUbiquitousKeyValueStore.default.string(forKey: "sonos_ip")
-            ?? UserDefaults.standard.string(forKey: "sonos_ip")
-            ?? ""
+        let stored = storedIP
+        if !stored.isEmpty, stored != unreachableIP { return stored }
+        return resolvedIP ?? stored
 #endif
-        
+
     }
     
     @ObservationIgnored public lazy var streamingService = SonosStreamingService(eventHandler: self)
@@ -1271,15 +1301,103 @@ public final class SonosMiniService {
     //    }
     //
     public func getDevices(useCache: Bool) async throws -> [SonosDevice] {
-        let devices = try await api.getDevices(ipAddress: cachedIP)
-        return devices
+        try await devicesWithIP().0
     }
-    
-    public func getSystem(useCache: Bool) async throws -> ([SonosDevice], String?) {
-        async let devices = api.getDevices(ipAddress: cachedIP)
-        async let houseHoldID = api.getHouseHoldID(for: cachedIP)
 
-        return await (try devices, houseHoldID)
+    public func getSystem(useCache: Bool) async throws -> ([SonosDevice], String?) {
+        let (devices, ip) = try await devicesWithIP()
+        guard !ip.isEmpty else { return (devices, nil) }
+        // Read the household from whichever address actually answered, which is
+        // not necessarily the one we started with.
+        return (devices, await api.getHouseHoldID(for: ip))
+    }
+
+    // MARK: - Speaker address resolution
+
+    /// Fetches the device list, reporting the address that produced it.
+    ///
+    /// Discovery is only reached when the stored address cannot answer, so the
+    /// common path costs nothing extra.
+    private func devicesWithIP() async throws -> ([SonosDevice], String) {
+        let ip = await resolveIP()
+        guard !ip.isEmpty else { return ([], "") }
+
+        let devices = try await api.getDevices(ipAddress: ip)
+        if !devices.isEmpty {
+            if unreachableIP == ip { unreachableIP = nil }
+            return (devices, ip)
+        }
+
+        // `api.getDevices` swallows transport errors and reports an empty array,
+        // so an unreachable speaker is indistinguishable from a silent one here.
+        // Re-discovering once before giving up is what lets Mini recover when the
+        // cached speaker takes a new DHCP lease or drops off the network.
+        let fresh = await rediscoverIP(after: ip)
+        guard !fresh.isEmpty, fresh != ip else { return (devices, ip) }
+        return (try await api.getDevices(ipAddress: fresh), fresh)
+    }
+
+    /// The address to talk to, discovering one if nothing usable is stored.
+    ///
+    /// Clic Mini only ever consumed `sonos_ip`, which the main app and the Watch
+    /// publish through iCloud. On a Mac where Clic itself has never run, or before
+    /// iCloud has synced, that left every request aimed at "" with no route to
+    /// recovery even though a full discovery service was already available here.
+    private func resolveIP() async -> String {
+        let ip = cachedIP
+        if !ip.isEmpty { return ip }
+        return await discoverAndStoreIP()
+    }
+
+    private func rediscoverIP(after failed: String) async -> String {
+        unreachableIP = failed
+        if let known = resolvedIP, known != failed { return known }
+        return await discoverAndStoreIP()
+    }
+
+    private func discoverAndStoreIP() async -> String {
+        if let inFlight = ipResolutionTask { return await inFlight.value }
+
+        if let lastFailure = lastFailedDiscovery,
+           Date().timeIntervalSince(lastFailure) < Self.discoveryRetryInterval {
+            return ""
+        }
+
+        let task = Task<String, Never> { [weak self] in
+            guard let self else { return "" }
+            return await self.discoverIP()
+        }
+        ipResolutionTask = task
+        let ip = await task.value
+        ipResolutionTask = nil
+
+        guard !ip.isEmpty else {
+            lastFailedDiscovery = Date()
+            return ip
+        }
+        lastFailedDiscovery = nil
+        resolvedIP = ip
+        if unreachableIP == ip { unreachableIP = nil }
+        // Deliberately local. The iCloud copy of `sonos_ip` belongs to the main
+        // app, which re-points and clears it on purpose; writing it from Mini
+        // would resurrect an address the user just disconnected elsewhere.
+        UserDefaults.standard.set(ip, forKey: "sonos_ip")
+        return ip
+    }
+
+    private func discoverIP() async -> String {
+        guard let ips = try? await discoveryService.discoverAllDevices(), !ips.isEmpty else { return "" }
+
+        guard let preferred = preferredHouseHold, !preferred.isEmpty else {
+            return ips.first ?? ""
+        }
+
+        // Honour the household the user picked — landing on a neighbouring Sonos
+        // system would silently swap which speakers Mini controls.
+        for ip in ips {
+            if await api.householdIdentity(for: ip) == preferred { return ip }
+        }
+        return ips.first ?? ""
     }
 
     public var preferredHouseHold: String? {
@@ -1328,7 +1446,9 @@ public final class SonosMiniService {
 
     @MainActor
     public func updateDevices(useCache: Bool = true) async throws {
-        let newDevices = try await api.getDevices(ipAddress: cachedIP)
+        // Routed through getDevices so this path gets the same discovery fallback
+        // rather than firing at a stale address forever.
+        let newDevices = try await getDevices(useCache: useCache)
         let newDeviceIDs = newDevices.map({ $0.id })
         let currentDeviceIDs = devices.map({ $0.id })
         
