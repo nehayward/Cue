@@ -87,7 +87,10 @@ final class SonosSystemDiscoveryService {
         stopBrowsing()
         
         let params = NWParameters()
-        params.requiredInterfaceType = .wifi
+        // Match the main app: browse every non-cellular interface rather than
+        // requiring Wi-Fi. Desktop Macs are frequently on Ethernet, and pinning
+        // to .wifi meant discovery found nothing on a wired connection.
+        params.prohibitedInterfaceTypes = [.cellular]
         params.allowFastOpen = true
         
         let browser = NWBrowser(for: .bonjour(type: sonosServiceType, domain: nil), using: params)
