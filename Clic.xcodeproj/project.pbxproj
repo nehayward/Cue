@@ -1531,7 +1531,6 @@
 				INFOPLIST_FILE = ClicMini/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Clic Mini";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_LSBackgroundOnly = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -1574,7 +1573,6 @@
 				INFOPLIST_FILE = ClicMini/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Clic Mini";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_LSBackgroundOnly = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -1615,7 +1613,6 @@
 				INFOPLIST_FILE = ClicMini/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Clic Mini";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_LSBackgroundOnly = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
