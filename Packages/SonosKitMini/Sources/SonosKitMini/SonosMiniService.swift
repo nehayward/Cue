@@ -1346,13 +1346,66 @@ public final class SonosMiniService {
     private func resolveIP() async -> String {
         let ip = cachedIP
         if !ip.isEmpty { return ip }
+        if let fromHousehold = await resolveFromHouseholds(excluding: []) { return fromHousehold }
         return await discoverAndStoreIP()
     }
 
     private func rediscoverIP(after failed: String) async -> String {
         unreachableIP = failed
         if let known = resolvedIP, known != failed { return known }
+        // The household's other speakers are worth a try before Bonjour: probing
+        // them is a few HTTP round trips against known addresses, where discovery
+        // costs a multi-second browse and needs Local Network permission that a
+        // direct request to an already-known speaker does not re-prompt for.
+        if let fromHousehold = await resolveFromHouseholds(excluding: [failed]) { return fromHousehold }
         return await discoverAndStoreIP()
+    }
+
+    /// Picks a reachable speaker from the addresses the main app recorded for the
+    /// active household, remembering whichever answers.
+    ///
+    /// This is what lets Mini stand up on a Mac where it has never run: the
+    /// household list syncs through iCloud, so the addresses are already there
+    /// before Mini has ever discovered anything itself.
+    private func resolveFromHouseholds(excluding: Set<String>) async -> String? {
+        let preferred = preferredHouseHold
+        guard let household = SonosHouseholdRecord.active(preferring: preferred) else { return nil }
+
+        let candidates = household.candidateIPs.filter { !excluding.contains($0) }
+        guard !candidates.isEmpty else { return nil }
+
+        guard let ip = await firstRespondingIP(among: candidates, matching: preferred) else { return nil }
+
+        resolvedIP = ip
+        if unreachableIP == ip { unreachableIP = nil }
+        UserDefaults.standard.set(ip, forKey: "sonos_ip")
+        return ip
+    }
+
+    /// Probes candidates concurrently and returns the first that answers, so one
+    /// speaker that has left the network cannot hold up the others.
+    private func firstRespondingIP(among ips: [String], matching householdID: String?) async -> String? {
+        await withTaskGroup(of: String?.self) { group in
+            for ip in ips {
+                group.addTask { [weak self] in
+                    guard let self else { return nil }
+                    guard let identity = await self.api.householdIdentity(for: ip) else { return nil }
+                    // A recorded address can be handed to a different device by
+                    // DHCP, so confirm it is still the household we want rather
+                    // than silently adopting a neighbour's system.
+                    if let householdID, !householdID.isEmpty, identity != householdID { return nil }
+                    return ip
+                }
+            }
+
+            for await responder in group {
+                if let responder {
+                    group.cancelAll()
+                    return responder
+                }
+            }
+            return nil
+        }
     }
 
     private func discoverAndStoreIP() async -> String {

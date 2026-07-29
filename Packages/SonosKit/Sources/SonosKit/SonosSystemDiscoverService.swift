@@ -29,13 +29,41 @@ class SonosStorageIP: ObservableObject {
     /// and the Watch app — keep following the active system. Also read once on
     /// first launch to migrate a pre-household install (see getFirstIP).
     @CloudStorage("sonos_ip") var legacyIP = ""
-    @CloudStorage("sonos_known_households") var knownHouseholds: [SonosHousehold] = []
+
+    /// CloudStorage persists only primitives and `RawRepresentable` values — it has
+    /// no `Codable` overload in any released version — so the collections below are
+    /// held as JSON strings and surfaced through computed properties. Clic Mini
+    /// reads `sonos_known_households` straight out of the key-value store, so this
+    /// encoding is load-bearing for that app too.
+    @CloudStorage("sonos_known_households") private var knownHouseholdsJSON = ""
+    @CloudStorage("sonos_removed_households") private var removedHouseholdsJSON = ""
+
+    var knownHouseholds: [SonosHousehold] {
+        get { Self.decode([SonosHousehold].self, from: knownHouseholdsJSON) ?? [] }
+        set { knownHouseholdsJSON = Self.encode(newValue) ?? knownHouseholdsJSON }
+    }
+
     /// Households the user explicitly removed. Kept in the SAME synced store as
     /// `knownHouseholds` (not device-local UserDefaults) so it is visible to the
     /// widget/intent extension processes that also run getGroups — otherwise they
     /// would re-adopt a deleted home and write it back into the synced list — and
     /// so a deletion on one device doesn't get resurrected by another.
-    @CloudStorage("sonos_removed_households") var removedHouseholds: [String] = []
+    var removedHouseholds: [String] {
+        get { Self.decode([String].self, from: removedHouseholdsJSON) ?? [] }
+        set { removedHouseholdsJSON = Self.encode(newValue) ?? removedHouseholdsJSON }
+    }
+
+    private static func decode<T: Decodable>(_ type: T.Type, from json: String) -> T? {
+        guard !json.isEmpty, let data = json.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
+    }
+
+    /// Returns nil rather than an empty string on failure, so a value that cannot
+    /// be encoded leaves the stored one intact instead of wiping every household.
+    private static func encode<T: Encodable>(_ value: T) -> String? {
+        guard let data = try? JSONEncoder().encode(value) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
     /// The speaker the user explicitly chose to run system-wide lookups through.
     /// Deliberately SEPARATE from `legacyIP`/`lastKnownIP`: those answer "an
     /// address that reaches this household" and are rewritten by the reconnect
