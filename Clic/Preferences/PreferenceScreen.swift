@@ -39,8 +39,8 @@ struct PreferenceScreen: View {
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
     @AppStorage(Defaults.AppStorageKeys.useHardwareVolumeButtons) private var useHardwareVolumeButtons: Bool = false
     // Defaults to true: Now Playing is the default Lock Screen surface for Clic
-    // Super. `lockScreenSurface` still shows Live Activity to anyone without a
-    // subscription, because that's what they're actually getting.
+    // Super. `NowPlayingSessionService.isEnabled` still requires the
+    // subscription, so this being on doesn't start anything on its own.
     @AppStorage(Defaults.AppStorageKeys.lockScreenNowPlaying) private var lockScreenNowPlaying: Bool = true
     // Defaults to true: this switch arrived after Live Activities shipped, so an
     // absent value has to mean the behaviour every existing install already has.
@@ -585,7 +585,7 @@ struct PreferenceScreen: View {
                             }
                             Picker("Lock Screen", selection: lockScreenSurfaceBinding) {
                                 ForEach(LockScreenSurface.allCases) { surface in
-                                    lockScreenSegment(surface).tag(surface)
+                                    Text(surface.title).tag(surface)
                                 }
                             }
                             .pickerStyle(.segmented)
@@ -593,23 +593,6 @@ struct PreferenceScreen: View {
                             Text(lockScreenSurface.footnote)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            if !subscriptionService.subscription.isActive {
-                                // Says what the lock on the segment means. The
-                                // segment can't be greyed out on its own —
-                                // `.segmented` styles the control, not its
-                                // parts — so the state is spelled out instead.
-                                Text("\(Image(systemName: "lock.fill")) Now Playing needs Clic Super.")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                        // Anywhere on the row, not just the locked segment: the
-                        // picker's own controls still take their taps first, so
-                        // Live Activity and Off keep working without Super.
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            guard !subscriptionService.subscription.isActive else { return }
-                            presentPaywall()
                         }
                     } icon: {
                         Image(systemName: "lock.iphone")
@@ -624,6 +607,21 @@ struct PreferenceScreen: View {
                                     .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.65, blue: 0.95), Color(red: 0.2, green: 0.45, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
                             )
                             .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+                    // Greyed out without Super, the same way the Scenes row is.
+                    // Every option here needs a subscription — `ClicApp` won't
+                    // even start a Live Activity without one — so there is
+                    // nothing to leave enabled.
+                    .disabled(!subscriptionService.subscription.isActive)
+                    // Outside the `.disabled`, so it still takes taps: a
+                    // disabled row can't open the paywall by itself.
+                    .overlay {
+                        if !subscriptionService.subscription.isActive {
+                            Rectangle()
+                                .fill(.clear)
+                                .contentShape(Rectangle())
+                                .onTapGesture(perform: presentPaywall)
+                        }
                     }
 #endif
                     if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
@@ -651,7 +649,7 @@ struct PreferenceScreen: View {
                                 )
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
-                        .disabled(lockScreenSurface != .liveActivity)
+                        .disabled(!subscriptionService.subscription.isActive || lockScreenSurface != .liveActivity)
 
                         Label {
                             Stepper(value: $liveActivityStep, in: 1...10) {
@@ -673,7 +671,7 @@ struct PreferenceScreen: View {
                                 )
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
-                        .disabled(lockScreenSurface != .liveActivity)
+                        .disabled(!subscriptionService.subscription.isActive || lockScreenSurface != .liveActivity)
                     }
                 } header: {
                     Text("Lock Screen")
@@ -1117,8 +1115,6 @@ struct PreferenceScreen: View {
             }
         }
 
-        var requiresSuper: Bool { self == .nowPlaying }
-
         var footnote: String {
             switch self {
             case .liveActivity:
@@ -1137,33 +1133,15 @@ struct PreferenceScreen: View {
         router.presentedFullScreenCover = .paywall
     }
 
-    /// Marks the Super-only option with a lock instead of disabling it: a
-    /// disabled segment can't be tapped, and the tap is what opens the paywall.
-    ///
-    /// The lock is interpolated into the `Text` rather than composed in an
-    /// `HStack` because `.segmented` renders text and images only — a stack
-    /// silently collapses to nothing.
-    @ViewBuilder
-    private func lockScreenSegment(_ surface: LockScreenSurface) -> some View {
-        if surface.requiresSuper, !subscriptionService.subscription.isActive {
-            Text("\(Image(systemName: "lock.fill")) \(surface.title)")
-        } else {
-            Text(surface.title)
-        }
-    }
-
     /// Derived, never stored: two booleans already describe this, and a third
     /// copy would be one more thing to keep in step.
     ///
-    /// The subscription is part of the derivation, not just the write path.
-    /// `lockScreenNowPlaying` defaults to *on*, but `NowPlayingSessionService`
-    /// won't run without Super — so showing **Now Playing** as selected to
-    /// someone who is actually getting Live Activities would be a lie about what
-    /// their Lock Screen does. They see the truth, with the locked option
-    /// alongside it; buying Super moves them onto it with no second step,
-    /// because the preference was already on.
+    /// No subscription check here, deliberately. Nothing in this section runs
+    /// without Super — `ClicApp` won't start a Live Activity either — so the
+    /// whole row is disabled rather than partly usable, and what it shows while
+    /// greyed is an honest preview of what a subscriber would get.
     private var lockScreenSurface: LockScreenSurface {
-        if lockScreenNowPlaying, subscriptionService.subscription.isActive { return .nowPlaying }
+        if lockScreenNowPlaying { return .nowPlaying }
         return liveActivities ? .liveActivity : .off
     }
 

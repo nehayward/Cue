@@ -76,16 +76,25 @@ it down, and a toggle can't do that. `trackCardState` reads `isEnabled`, so the
 own. That also covers cold launch, where `checkSubscription()` hasn't returned
 yet and the session simply starts a moment later.
 
-In Preferences the row carries a `SuperBadge` while unsubscribed, the **Now
-Playing** segment carries a lock, and selecting it presents the paywall *without
-writing the preference* — so the picker snaps back by itself and the service
-never sees a value it would have to undo. Moving away from it always goes
-through, so a lapsed subscriber isn't stuck on a setting they can't change.
+In Preferences the **whole row** is `.disabled` while unsubscribed, greyed with a
+`SuperBadge` exactly like the Scenes row, and a clear overlay opens the paywall
+on tap — the overlay sits outside the `.disabled` so it still takes the tap,
+which a disabled row can't.
 
-The segment is marked, not `.disabled`: a disabled segment can't be tapped, and
-the tap is what opens the paywall. The lock is interpolated into the segment's
-`Text` because `.segmented` renders text and images only — an `HStack` collapses
-to nothing there.
+Gating the *row* rather than the Now Playing segment took a wrong turn first.
+`.segmented` renders each label through `UISegmentedControl`, which takes the
+label's plain string: an SF Symbol interpolated into the segment's `Text` is
+dropped on the way, and there is no way to grey one segment — `.disabled` is
+all-or-nothing. That looked like a reason to leave the picker enabled and gate
+the write instead. It wasn't: **every** option here needs Super, because
+`ClicApp` guards `createActivity` on the subscription too, so a non-subscriber
+gets no Live Activity either. There was never anything to leave enabled.
+
+The write path keeps its own guard anyway — selecting Now Playing without a
+subscription presents the paywall and writes nothing, so the picker snaps back
+and the service never sees a value it would have to undo. Unreachable while the
+row is disabled, and worth keeping: it's the invariant stated where the write
+happens.
 
 ### The preference defaults to on
 
@@ -99,12 +108,12 @@ Two consequences to hold together:
 - **It doesn't leak to non-subscribers.** `isEnabled` is preference **and**
   subscription, so nothing takes over their audio; `reconcileLiveActivities()`
   likewise reads `isEnabled`, so their Live Activities keep running.
-- **The picker shows what's actually happening, not what's stored.**
-  `lockScreenSurface` requires the subscription before reporting `.nowPlaying`;
-  otherwise a user getting Live Activities would see Now Playing selected. Buying
-  Super moves them onto it with no second step, since the preference was already
-  on — and a subscriber who explicitly chose Live Activity has `false` stored, so
-  the default never reaches them.
+- **The picker shows the stored preference, greyed.** No subscription check in
+  `lockScreenSurface`: with the whole row disabled there's no half-usable state
+  to describe, and what it shows while greyed is an honest preview of what a
+  subscriber gets. Buying Super needs no second step, since the preference was
+  already on — and a subscriber who explicitly chose Live Activity has `false`
+  stored, so the default never reaches them.
 
 ## Live Activities
 
