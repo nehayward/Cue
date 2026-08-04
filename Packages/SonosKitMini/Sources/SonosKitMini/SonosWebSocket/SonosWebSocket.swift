@@ -201,28 +201,31 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         
         let newTask = Task { [weak self] in
             var isAlive = true
-            
+
             while isAlive {
-                guard let self = self else { break }
-                
-                // Get current task safely
-                guard let task = self.task,
-                      task.closeCode == .invalid else {
+                // Grab what this iteration needs without keeping `self` alive
+                // across the (potentially indefinite) receive await below. Holding
+                // a strong `self` while receive() blocks would keep the socket
+                // pinned even after close() releases every other reference.
+                guard let currentTask = self?.task,
+                      currentTask.closeCode == .invalid else {
                     break
                 }
-                
+
                 // Capture debug flag for this iteration
-                let shouldDebug = self.debug
-                
+                let shouldDebug = self?.debug ?? false
+
                 do {
-                    let value = try await task.receive()
-                    
+                    let value = try await currentTask.receive()
+
+                    guard let self = self else { break }
+
                     // Mark as connected on successful receive - reset reconnect attempts
                     self.reconnectAttempts = 0
                     if shouldDebug {
                         print("DEBUG: WebSocket connected successfully")
                     }
-                    
+
                     if case let .string(message) = value {
                         if shouldDebug {
                             print(message.prettyPrinted)
@@ -230,35 +233,39 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
                         await self.dispatchMessage(message)
                     }
                 } catch {
-                    
+                    guard let self = self else { break }
+
                     // Check if this is a "Socket is not connected" error (NSPOSIXErrorDomain Code=57)
                     let isSocketNotConnectedError = (error as NSError).domain == NSPOSIXErrorDomain && (error as NSError).code == 57
-                    
+
                     if shouldDebug && !isSocketNotConnectedError {
                         print("DEBUG: WebSocket error: \(error)")
                     }
-                    
+
                     // Check if this is a connection reset error or normal disconnection
                     if let urlError = error as? URLError,
                        urlError.code == .networkConnectionLost ||
                        (error as NSError).code == 54 { // Connection reset by peer
-                        
+
                         if shouldDebug {
                             print("DEBUG: Connection reset detected, attempting reconnection...")
                         }
-                        
+
                         // Don't finish continuations immediately, try to reconnect
                         await self.attemptReconnection()
                     } else if isSocketNotConnectedError {
                         // Socket not connected - likely during graceful shutdown, just exit quietly
                         isAlive = false
                     } else {
-                        // Other errors - finish continuations
+                        // Other errors — finish continuations and tear the session
+                        // down so the URLSession→delegate retain cycle is broken
+                        // and the socket can actually deallocate.
                         self.volumeContinuation?.finish(throwing: error)
                         self.playbackContinuation?.finish(throwing: error)
                         self.trackInfoContinuation?.finish(throwing: error)
                         self.groupVolumeContinuation?.finish(throwing: error)
                         self.groupContinuation?.finish(throwing: error)
+                        self.close()
                         isAlive = false
                     }
                 }
@@ -343,11 +350,19 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
             if shouldDebug {
                 print("DEBUG: Max reconnection attempts reached")
             }
-            // Finish continuations after max attempts
+            // Finish ALL continuations after max attempts (groupVolume included —
+            // omitting it left that monitor loop suspended forever, retaining the
+            // socket through its strong stream reference).
             volumeContinuation?.finish(throwing: URLError(.networkConnectionLost))
             playbackContinuation?.finish(throwing: URLError(.networkConnectionLost))
             trackInfoContinuation?.finish(throwing: URLError(.networkConnectionLost))
+            groupVolumeContinuation?.finish(throwing: URLError(.networkConnectionLost))
             groupContinuation?.finish(throwing: URLError(.networkConnectionLost))
+            // Tear down the session too. URLSession strongly retains its delegate
+            // (self) until invalidated, so a dead socket that is never closed can
+            // never deallocate — it would sit fully allocated until the next
+            // refresh cycle happened to replace it.
+            close()
             return
         }
         
@@ -690,6 +705,10 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     }
     
     public func connectAndSubscribeToGroupVolume(groupId: String) async throws -> SonosVolumeWebSocketStream? {
+        // A closed socket has no session/task: without this guard we would hand
+        // back a stream that nothing ever feeds or finishes, suspending the
+        // caller's for-await forever and leaking its task + this socket.
+        guard session != nil, task != nil else { return nil }
         // Only connect if not already connected
         task?.resume()
         startMessageReceiver()
@@ -754,6 +773,8 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
      * ```
      */
     public func connectAndSubscribeToPlayerVolume(playerId: String) async throws -> SonosVolumeWebSocketStream? {
+        // See connectAndSubscribeToGroupVolume — never vend a stream after close().
+        guard session != nil, task != nil else { return nil }
         // Only connect if not already connected
         task?.resume()
         startMessageReceiver()
@@ -815,6 +836,8 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
      * ```
      */
     public func connectAndSubscribeToPlayback(groupID: String) async throws -> SonosPlaybackWebSocketStream? {
+        // See connectAndSubscribeToGroupVolume — never vend a stream after close().
+        guard session != nil, task != nil else { return nil }
         // Only connect if not already connected
         task?.resume()
         startMessageReceiver()
@@ -880,6 +903,8 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
      * ```
      */
     public func connectAndSubscribeToMetadata(groupId: String) async throws -> SonosTrackWebSocketStream? {
+        // See connectAndSubscribeToGroupVolume — never vend a stream after close().
+        guard session != nil, task != nil else { return nil }
         // Only connect if not already connected
         task?.resume()
         startMessageReceiver()
@@ -943,6 +968,8 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
      * ```
      */
     public func connectAndSubscribeToGroup(householdId: String) async throws -> SonosGroupWebSocketStream? {
+        // See connectAndSubscribeToGroupVolume — never vend a stream after close().
+        guard session != nil, task != nil else { return nil }
         // Only connect if not already connected
         task?.resume()
         startMessageReceiver()

@@ -206,6 +206,7 @@ struct SpeakerListScreen: View {
                     Label("Scenes", systemImage:"bolt.fill")
                         .labelStyle(.iconOnly)
                         .allowsHitTesting(false)
+                        .glassToolbarIcon()
                 } primaryAction: {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     if subscriptionService.subscription.isActive {
@@ -226,6 +227,7 @@ struct SpeakerListScreen: View {
                 } label: {
                     Label("Search", systemImage: "magnifyingglass")
                         .labelStyle(.iconOnly)
+                        .glassToolbarIcon()
                 }
                 .tint(.primary)
                 Spacer()
@@ -235,6 +237,7 @@ struct SpeakerListScreen: View {
                 } label: {
                     Label("Browse", image: "home.fill")
                         .labelStyle(.iconOnly)
+                        .glassToolbarIcon()
                 }
                 .tint(.primary)
             }

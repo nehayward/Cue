@@ -46,13 +46,6 @@ struct UpNextContentView: View {
                     }
                 }
                 .onMove(perform: move)
-                
-                if upNext.isEmpty, !isLoading {
-                    ContentUnavailableView("Nothing up next", systemImage: "music.note.list")
-                        .transition(.opacity)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                }
 
                 // Fixed-height spacer prevents layout shift during pagination
                 if hasMoreTracks() {
@@ -119,6 +112,12 @@ struct UpNextContentView: View {
             .overlay {
                 if isLoading, upNext.isEmpty {
                     ProgressView()
+                } else if upNext.isEmpty {
+                    EmptyQueueView(
+                        title: "Nothing up next",
+                        message: "When something's playing, what's coming up shows here. Tap below to start something new."
+                    )
+                    .transition(.opacity)
                 }
             }
         }
@@ -139,7 +138,11 @@ struct UpNextContentView: View {
             isLoading = false
             hasLoaded = true
         }
-        group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+        // Keep the last known total on a failed fetch — zeroing it makes the
+        // queue toolbar gauge read as full/empty until the next refresh.
+        if let total = try? await SonosService.shared.getQueueTotal(group: group) {
+            group.coordinatorRoom.queueTotal = total
+        }
     }
     
     private func hasMoreTracks() -> Bool {
@@ -202,7 +205,11 @@ struct UpNextContentView: View {
             guard let position = track.metadata?.position else { continue }
             try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
         }
-        group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+        // Keep the last known total on a failed fetch — zeroing it makes the
+        // queue toolbar gauge read as full/empty until the next refresh.
+        if let total = try? await SonosService.shared.getQueueTotal(group: group) {
+            group.coordinatorRoom.queueTotal = total
+        }
         selection.removeAll()
     }
     
