@@ -76,11 +76,35 @@ it down, and a toggle can't do that. `trackCardState` reads `isEnabled`, so the
 own. That also covers cold launch, where `checkSubscription()` hasn't returned
 yet and the session simply starts a moment later.
 
-In Preferences the row carries a `SuperBadge` while unsubscribed, and enabling
-presents the paywall *without writing the preference* — so the toggle snaps back
-by itself and the service never sees a value it would have to undo. Turning it
-off always goes through, so a lapsed subscriber isn't stuck with a preference
-they can't clear.
+In Preferences the row carries a `SuperBadge` while unsubscribed, the **Now
+Playing** segment carries a lock, and selecting it presents the paywall *without
+writing the preference* — so the picker snaps back by itself and the service
+never sees a value it would have to undo. Moving away from it always goes
+through, so a lapsed subscriber isn't stuck on a setting they can't change.
+
+The segment is marked, not `.disabled`: a disabled segment can't be tapped, and
+the tap is what opens the paywall. The lock is interpolated into the segment's
+`Text` because `.segmented` renders text and images only — an `HStack` collapses
+to nothing there.
+
+### The preference defaults to on
+
+`lockScreenNowPlaying` is **on when unset** (`UserDefaults
+.lockScreenNowPlayingEnabled` — never `bool(forKey:)`, which reads unset as off
+and would make the default unreachable). Now Playing is the Lock Screen surface
+Super is meant to give you, so a subscriber shouldn't have to go and find it.
+
+Two consequences to hold together:
+
+- **It doesn't leak to non-subscribers.** `isEnabled` is preference **and**
+  subscription, so nothing takes over their audio; `reconcileLiveActivities()`
+  likewise reads `isEnabled`, so their Live Activities keep running.
+- **The picker shows what's actually happening, not what's stored.**
+  `lockScreenSurface` requires the subscription before reporting `.nowPlaying`;
+  otherwise a user getting Live Activities would see Now Playing selected. Buying
+  Super moves them onto it with no second step, since the preference was already
+  on — and a subscriber who explicitly chose Live Activity has `false` stored, so
+  the default never reaches them.
 
 ## Live Activities
 

@@ -38,7 +38,10 @@ struct PreferenceScreen: View {
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
     @AppStorage(Defaults.AppStorageKeys.useHardwareVolumeButtons) private var useHardwareVolumeButtons: Bool = false
-    @AppStorage(Defaults.AppStorageKeys.lockScreenNowPlaying) private var lockScreenNowPlaying: Bool = false
+    // Defaults to true: Now Playing is the default Lock Screen surface for Clic
+    // Super. `lockScreenSurface` still shows Live Activity to anyone without a
+    // subscription, because that's what they're actually getting.
+    @AppStorage(Defaults.AppStorageKeys.lockScreenNowPlaying) private var lockScreenNowPlaying: Bool = true
     // Defaults to true: this switch arrived after Live Activities shipped, so an
     // absent value has to mean the behaviour every existing install already has.
     // Shared suite — the widget intents start activities from another process.
@@ -411,7 +414,7 @@ struct PreferenceScreen: View {
                             }
                             Picker("Lock Screen", selection: lockScreenSurfaceBinding) {
                                 ForEach(LockScreenSurface.allCases) { surface in
-                                    Text(surface.title).tag(surface)
+                                    lockScreenSegment(surface).tag(surface)
                                 }
                             }
                             .pickerStyle(.segmented)
@@ -1073,9 +1076,10 @@ struct PreferenceScreen: View {
     /// silently moved each other, which is what the pair looked like from the
     /// outside.
     private enum LockScreenSurface: String, CaseIterable, Identifiable {
-        /// A Clic card, per playing speaker. The default, and what shipped first.
+        /// A Clic card, per playing speaker. What everyone gets without Super.
         case liveActivity
-        /// The system Now Playing card, driven by the silent audio session.
+        /// The system Now Playing card, driven by the silent audio session. The
+        /// default with Clic Super — the preference is on unless turned off.
         case nowPlaying
         case off
 
@@ -1089,6 +1093,8 @@ struct PreferenceScreen: View {
             }
         }
 
+        var requiresSuper: Bool { self == .nowPlaying }
+
         var footnote: String {
             switch self {
             case .liveActivity:
@@ -1101,10 +1107,33 @@ struct PreferenceScreen: View {
         }
     }
 
+    /// Marks the Super-only option with a lock instead of disabling it: a
+    /// disabled segment can't be tapped, and the tap is what opens the paywall.
+    ///
+    /// The lock is interpolated into the `Text` rather than composed in an
+    /// `HStack` because `.segmented` renders text and images only — a stack
+    /// silently collapses to nothing.
+    @ViewBuilder
+    private func lockScreenSegment(_ surface: LockScreenSurface) -> some View {
+        if surface.requiresSuper, !subscriptionService.subscription.isActive {
+            Text("\(Image(systemName: "lock.fill")) \(surface.title)")
+        } else {
+            Text(surface.title)
+        }
+    }
+
     /// Derived, never stored: two booleans already describe this, and a third
     /// copy would be one more thing to keep in step.
+    ///
+    /// The subscription is part of the derivation, not just the write path.
+    /// `lockScreenNowPlaying` defaults to *on*, but `NowPlayingSessionService`
+    /// won't run without Super — so showing **Now Playing** as selected to
+    /// someone who is actually getting Live Activities would be a lie about what
+    /// their Lock Screen does. They see the truth, with the locked option
+    /// alongside it; buying Super moves them onto it with no second step,
+    /// because the preference was already on.
     private var lockScreenSurface: LockScreenSurface {
-        if lockScreenNowPlaying { return .nowPlaying }
+        if lockScreenNowPlaying, subscriptionService.subscription.isActive { return .nowPlaying }
         return liveActivities ? .liveActivity : .off
     }
 

@@ -178,8 +178,11 @@ final class NowPlayingSessionService {
         evaluate()
     }
 
+    /// Unset means on — this is the default Lock Screen surface for Super. The
+    /// subscription half of `isEnabled` is what keeps that from running for
+    /// everyone.
     private var isPreferenceOn: Bool {
-        UserDefaults.standard.bool(forKey: AppStorageKeys.lockScreenNowPlaying)
+        UserDefaults.standard.lockScreenNowPlayingEnabled
     }
 
     /// Clic Super, and the preference. Gated here rather than only at the toggle

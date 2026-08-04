@@ -28,7 +28,22 @@ public enum AppStorageKeys {
     public static let latestReleaseHeadline = "\(Prefix.id).latestReleaseHeadline"
     public static let useHardwareVolumeButtons = "\(Prefix.id).useHardwareVolumeButtons"
     /// Mirrors the playing group onto the Lock Screen / Control Center Now
-    /// Playing card by holding a silent audio session. Off by default — it
-    /// takes over the phone's audio output while it runs.
+    /// Playing card by holding a silent audio session. **On** when unset: it's
+    /// the default Lock Screen surface for Clic Super. Read it through
+    /// `UserDefaults.lockScreenNowPlayingEnabled`, never `bool(forKey:)`, which
+    /// reads unset as off and would leave the default unreachable.
+    ///
+    /// Being on is not enough to run — `NowPlayingSessionService.isEnabled` also
+    /// requires an active subscription, so an unsubscribed user with the default
+    /// keeps Live Activities and nothing takes over their audio.
     public static let lockScreenNowPlaying = "\(Prefix.id).lockScreenNowPlaying"
+}
+
+public extension UserDefaults {
+    /// One accessor, so the unset-means-on default can't be got wrong at a call
+    /// site. An explicit `false` — someone who turned it off — still reads false.
+    var lockScreenNowPlayingEnabled: Bool {
+        get { object(forKey: AppStorageKeys.lockScreenNowPlaying) as? Bool ?? true }
+        set { set(newValue, forKey: AppStorageKeys.lockScreenNowPlaying) }
+    }
 }
