@@ -443,6 +443,16 @@ screen.
 
 ## Shape
 
+Everything app-side lives in **`Clic/Services/NowPlaying/`** — the whole feature
+is that folder plus four lines elsewhere. The project uses Xcode 16 synchronized
+folders, so the directory *is* the group; no `project.pbxproj` entry to keep in
+step.
+
+`AudioSessionArbiter` sits in there too, which needs a word: it is deliberately
+feature-agnostic — `AudioPlaybackService` asks *it*, never this feature — and the
+folder is about lifetime, not dependency direction. It's here because it exists
+only for this feature and goes when the feature goes.
+
 | Type | Job |
 |---|---|
 | `NowPlayingSessionService` | Coordinator: gating, which group to mirror, the observation loop, publishing, commands, favorites |
@@ -517,8 +527,7 @@ them:
 
 After the dependency inversions, no pre-existing type names it. To remove:
 
-1. Delete `NowPlayingSessionService.swift`, `SilentAudioSession.swift`,
-   `AudioSessionArbiter.swift`, and `Docs/LockScreenNowPlaying.md`.
+1. Delete `Clic/Services/NowPlaying/` and `Docs/LockScreenNowPlaying.md`.
 2. Delete the `activate()` call in `ClicApp.onAppear`, the `lockScreenNowPlaying`
    key, and `UIBackgroundModes` from `Info.plist`.
 3. In `PreferenceScreen`, drop the `nowPlaying` case from `LockScreenSurface`
