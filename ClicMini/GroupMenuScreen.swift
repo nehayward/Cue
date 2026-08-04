@@ -79,11 +79,17 @@ struct GroupMenuScreen: View {
             // don't trigger a metadata event.
             await sonosServiceMini.refreshQueueTotals()
         }
-        .overlay { GroupMenuEmptyOverlay(isLoading: isLoading, isEmpty: filteredDeviceBindings.isEmpty) }
+        .overlay {
+            // Scoped to the overlay on purpose. On `mainContent` this animated
+            // every row whenever isLoading flipped — and it flips in the .task
+            // that runs on the same update as onAppear, which is what made the
+            // now-playing title animate into place as the panel opened.
+            GroupMenuEmptyOverlay(isLoading: isLoading, isEmpty: filteredDeviceBindings.isEmpty)
+                .animation(.snappy, value: isLoading)
+        }
         .onChange(of: filteredDeviceBindings.map(\.wrappedValue.id)) { _, ids in
             expandedGroupIDs.formIntersection(ids)
         }
-        .animation(.snappy, value: isLoading)
         .animation(.snappy, value: sonosServiceMini.devices.map(\.isPlaying))
         .safeArea(edge: .bottom) {
             GroupMenuBottomBar(scenes: scenes)

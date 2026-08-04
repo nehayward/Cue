@@ -122,13 +122,24 @@ struct GroupItemView: View {
                             //                            }
                             
                             VStack(alignment: .leading) {
-                                if isVisible {
-                                    MarqueeText(device.track.song)
-                                        .transition(.identity)
-                                } else {
-                                    Text(device.track.song)
-                                        .frame(maxWidth: .infinity)
-                                        .transition(.identity)
+                                // Both branches must lay out identically: the swap
+                                // happens the instant the panel opens (isVisible flips
+                                // in GroupMenuScreen.onAppear), so any difference in
+                                // alignment reads as the title sliding across the row.
+                                // The transaction override keeps an ambient animation
+                                // from an unrelated state change in the same update
+                                // (e.g. isLoading) from animating that swap.
+                                Group {
+                                    if isVisible {
+                                        MarqueeText(device.track.song)
+                                    } else {
+                                        Text(device.track.song)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .transition(.identity)
+                                .transaction { transaction in
+                                    transaction.animation = nil
                                 }
                                 Text(device.track.artist)
                                     .foregroundStyle(.secondary)
