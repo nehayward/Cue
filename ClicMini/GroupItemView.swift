@@ -129,7 +129,7 @@ struct GroupItemView: View {
                                 // The transaction override keeps an ambient animation
                                 // from an unrelated state change in the same update
                                 // (e.g. isLoading) from animating that swap.
-                                Group {
+                                VStack(alignment: .leading) {
                                     if isVisible {
                                         MarqueeText(device.track.song)
                                     } else {
