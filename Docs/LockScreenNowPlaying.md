@@ -106,8 +106,10 @@ Super is meant to give you, so a subscriber shouldn't have to go and find it.
 Two consequences to hold together:
 
 - **It doesn't leak to non-subscribers.** `isEnabled` is preference **and**
-  subscription, so nothing takes over their audio; `reconcileLiveActivities()`
-  likewise reads `isEnabled`, so their Live Activities keep running.
+  subscription, so nothing takes over their audio and `reconcileLiveActivities()`
+  (which reads the same thing) doesn't fire. Not that they'd notice the second
+  part — `ClicApp` guards `createActivity` on the subscription, so they have no
+  Live Activities to suspend.
 - **The picker shows the stored preference, greyed.** No subscription check in
   `lockScreenSurface`: with the whole row disabled there's no half-usable state
   to describe, and what it shows while greyed is an honest preview of what a
