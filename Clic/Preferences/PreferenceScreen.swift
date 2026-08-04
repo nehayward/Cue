@@ -396,6 +396,45 @@ struct PreferenceScreen: View {
                         .foregroundStyle(.primary)
                 }
                 Section {
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                    // First in the section, and one control rather than two
+                    // toggles: the two surfaces are mutually exclusive, and a
+                    // pair of switches that silently move each other reads as a
+                    // bug. A picker says "pick one" on its face.
+                    Label {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 6) {
+                                Text("Lock Screen")
+                                if !subscriptionService.subscription.isActive {
+                                    SuperBadge()
+                                }
+                            }
+                            Picker("Lock Screen", selection: lockScreenSurfaceBinding) {
+                                ForEach(LockScreenSurface.allCases) { surface in
+                                    Text(surface.title).tag(surface)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            Text(lockScreenSurface.footnote)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "lock.iphone")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.65, blue: 0.95), Color(red: 0.2, green: 0.45, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+#endif
                     Label {
                         Toggle(isOn: $replaceQueueByDefault) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -421,61 +460,6 @@ struct PreferenceScreen: View {
                             .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
 #if os(iOS) && !targetEnvironment(macCatalyst)
-                    Label {
-                        Toggle(isOn: lockScreenNowPlayingBinding) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 6) {
-                                    Text("Lock Screen Controls")
-                                    if !subscriptionService.subscription.isActive {
-                                        SuperBadge()
-                                    }
-                                }
-                                Text("Show the playing speaker on the Lock Screen and in Control Center. Clic takes over your iPhone's audio and volume while a speaker is playing, and turns off Live Activities — both use the same space.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .tint(.accent)
-                    } icon: {
-                        Image(systemName: "lock.iphone")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(.white)
-                            .bold()
-                            .padding(8)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.65, blue: 0.95), Color(red: 0.2, green: 0.45, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            )
-                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                    }
-
-                    Label {
-                        Toggle(isOn: liveActivitiesBinding) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Live Activities")
-                                Text(liveActivitiesFootnote)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .tint(.accent)
-                    } icon: {
-                        Image(systemName: "bell.badge.waveform.fill")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(.white)
-                            .bold()
-                            .padding(8)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.55, blue: 0.35), Color(red: 0.85, green: 0.35, blue: 0.25)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            )
-                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                    }
-
                     Label {
                         Toggle(isOn: $useHardwareVolumeButtons) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -1084,59 +1068,82 @@ struct PreferenceScreen: View {
             : latestReleaseHeadline
     }
 
-    /// Lock Screen Controls is Clic Super. Enabling without a subscription
-    /// presents the paywall and leaves the stored value alone, so the toggle
-    /// snaps back on its own — no write, and nothing for
-    /// `NowPlayingSessionService` to pick up and immediately undo. Turning it
-    /// *off* always goes through, so a lapsed subscriber isn't stuck with a
-    /// preference they can't clear.
-    private var lockScreenNowPlayingBinding: Binding<Bool> {
-        Binding(
-            get: { lockScreenNowPlaying },
-            set: { isOn in
-                guard isOn else {
-                    lockScreenNowPlaying = false
-                    return
-                }
-                guard subscriptionService.subscription.isActive else {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    Analytics.shared.track(.viewedPaywall)
-                    router.presentedFullScreenCover = .paywall
-                    return
-                }
-                lockScreenNowPlaying = true
-            }
-        )
-    }
+    /// What the Lock Screen shows while a speaker is playing. The three states
+    /// are exclusive by construction — one picker instead of two switches that
+    /// silently moved each other, which is what the pair looked like from the
+    /// outside.
+    private enum LockScreenSurface: String, CaseIterable, Identifiable {
+        /// A Clic card, per playing speaker. The default, and what shipped first.
+        case liveActivity
+        /// The system Now Playing card, driven by the silent audio session.
+        case nowPlaying
+        case off
 
-    /// Live Activities and Lock Screen Controls are two renderings of the same
-    /// thing in the same place, so the toggles are mutually exclusive. Turning
-    /// this on clears Lock Screen Controls *first*, so the defaults change it
-    /// posts can't be read by `NowPlayingSessionService` as "still on" and
-    /// bounce this straight back off.
-    private var liveActivitiesBinding: Binding<Bool> {
-        Binding(
-            get: { liveActivities },
-            set: { isOn in
-                guard isOn else {
-                    liveActivities = false
-                    liveActivitiesSuspendedByLockScreen = false
-                    return
-                }
-                lockScreenNowPlaying = false
-                liveActivitiesSuspendedByLockScreen = false
-                liveActivities = true
-            }
-        )
-    }
+        var id: String { rawValue }
 
-    /// Says why the switch moved when Clic is the one that moved it. A card that
-    /// silently stopped appearing reads as a bug.
-    private var liveActivitiesFootnote: String {
-        if liveActivitiesSuspendedByLockScreen {
-            return "Turned off while Lock Screen Controls is on — they share the Lock Screen. Turn this back on to swap, or turn Lock Screen Controls off to restore it."
+        var title: String {
+            switch self {
+            case .liveActivity: return "Live Activity"
+            case .nowPlaying: return "Now Playing"
+            case .off: return "Off"
+            }
         }
-        return "Show a live card on the Lock Screen and Dynamic Island for each playing speaker."
+
+        var footnote: String {
+            switch self {
+            case .liveActivity:
+                return "A Clic card on the Lock Screen and Dynamic Island for each playing speaker."
+            case .nowPlaying:
+                return "The system player on the Lock Screen and in Control Center, with artwork and a volume slider. Clic takes over your iPhone's audio and volume while a speaker is playing."
+            case .off:
+                return "Nothing on the Lock Screen while a speaker is playing."
+            }
+        }
+    }
+
+    /// Derived, never stored: two booleans already describe this, and a third
+    /// copy would be one more thing to keep in step.
+    private var lockScreenSurface: LockScreenSurface {
+        if lockScreenNowPlaying { return .nowPlaying }
+        return liveActivities ? .liveActivity : .off
+    }
+
+    /// Now Playing is Clic Super. Selecting it without a subscription presents
+    /// the paywall and writes nothing, so the picker snaps back on its own and
+    /// `NowPlayingSessionService` never sees a value it would have to undo.
+    /// Moving *away* from it always goes through, so a lapsed subscriber isn't
+    /// stuck on a setting they can't change.
+    private var lockScreenSurfaceBinding: Binding<LockScreenSurface> {
+        Binding(
+            get: { lockScreenSurface },
+            set: { surface in
+                switch surface {
+                case .nowPlaying:
+                    guard subscriptionService.subscription.isActive else {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        Analytics.shared.track(.viewedPaywall)
+                        router.presentedFullScreenCover = .paywall
+                        return
+                    }
+                    // Only this one write. `NowPlayingSessionService.reconcile-
+                    // LiveActivities()` turns Live Activities off and records
+                    // that it was the cause, so moving back restores them —
+                    // duplicating that here would give the invariant two owners.
+                    lockScreenNowPlaying = true
+                case .liveActivity:
+                    // Clear Lock Screen Controls *first*: the defaults change
+                    // each write posts is what wakes the service, and it would
+                    // otherwise read "still on" and turn these straight back off.
+                    lockScreenNowPlaying = false
+                    liveActivitiesSuspendedByLockScreen = false
+                    liveActivities = true
+                case .off:
+                    lockScreenNowPlaying = false
+                    liveActivitiesSuspendedByLockScreen = false
+                    liveActivities = false
+                }
+            }
+        )
     }
 
     private var subscriptionStatusLine: Text {

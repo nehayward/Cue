@@ -88,14 +88,16 @@ Both features draw a Sonos group on the Lock Screen, so they don't both run.
 `reconcileLiveActivities()` (called at the top of `evaluate()`) turns Live
 Activities off while Lock Screen Controls is on.
 
-It does that by **moving a switch the user can see**, in Preferences, rather than
-suppressing the feature quietly — a card that stopped appearing with no
-explanation reads as a bug. The footnote under the switch changes to say what
-turned it off and how to swap back.
+In Preferences the two are **one segmented control**, first in the Playback
+section: `Live Activity | Now Playing | Off`. They were a pair of switches that
+moved each other, which from the outside is indistinguishable from a bug; a
+picker says "pick one" on its face and the footnote under it describes whichever
+is selected. The selection is derived from the two booleans (`lockScreenSurface`)
+rather than stored — a third copy would be one more thing to keep in step.
 
 `liveActivitiesSuspendedByLockScreen` records that *this* is what turned them
-off, so turning Lock Screen Controls back off restores them. Without it the user
-lands with neither Lock Screen surface and nothing pointing at why.
+off, so moving the picker off **Now Playing** restores them. Without it the user
+lands on **Off** having never chosen it.
 
 Two details that aren't obvious:
 
@@ -111,10 +113,15 @@ Two details that aren't obvious:
   drops. So this stays a deletable two lines, and the switch keeps working on its
   own afterwards.
 
-The Preferences binding for Live Activities clears `lockScreenNowPlaying`
-*before* setting its own flag — otherwise the defaults change it posts can be
-read here as "Lock Screen Controls is still on" and bounce the switch straight
-back off.
+Two ordering rules in `lockScreenSurfaceBinding`:
+
+- Selecting **Live Activity** or **Off** clears `lockScreenNowPlaying` *before*
+  writing the Live Activities flag. Each write posts a defaults change, which is
+  what wakes this service — write them the other way round and it reads "Lock
+  Screen Controls is still on" and turns the flag straight back off.
+- Selecting **Now Playing** writes *only* `lockScreenNowPlaying`, and lets
+  `reconcileLiveActivities()` do the rest. Setting the Live Activities flag there
+  too would give the invariant two owners.
 
 ## Ownership: not the view layer
 
@@ -470,14 +477,14 @@ After the dependency inversions, no pre-existing type names it. To remove:
 
 1. Delete `NowPlayingSessionService.swift`, `SilentAudioSession.swift`,
    `AudioSessionArbiter.swift`, and `Docs/LockScreenNowPlaying.md`.
-2. Delete the `activate()` call in `ClicApp.onAppear`, the preference row and
-   its `Binding` in `PreferenceScreen`, the `lockScreenNowPlaying` key, and
-   `UIBackgroundModes` from `Info.plist`.
-3. Delete `reconcileLiveActivities()` and its `evaluate()` call, and the
-   `liveActivitiesSuspendedByLockScreen` key. The Live Activities switch itself
-   stays: `LiveActivityManager` reads it directly and it's a useful control on
-   its own, so removing this feature just leaves it permanently under the user's
-   control.
+2. Delete the `activate()` call in `ClicApp.onAppear`, the `lockScreenNowPlaying`
+   key, and `UIBackgroundModes` from `Info.plist`.
+3. In `PreferenceScreen`, drop the `nowPlaying` case from `LockScreenSurface`
+   along with `lockScreenNowPlaying` — the picker becomes `Live Activity | Off`
+   and keeps working. Delete `reconcileLiveActivities()`, its `evaluate()` call,
+   and the `liveActivitiesSuspendedByLockScreen` key. The Live Activities switch
+   itself stays: `LiveActivityManager` reads it directly and it's a useful
+   control on its own.
 4. In `AudioPlaybackService`, drop the `AudioSessionArbiter.shared.handBack()`
    line (or leave it — with nothing claiming, it returns false and the original
    behaviour stands).
