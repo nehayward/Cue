@@ -39,6 +39,13 @@ struct PreferenceScreen: View {
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
     @AppStorage(Defaults.AppStorageKeys.useHardwareVolumeButtons) private var useHardwareVolumeButtons: Bool = false
     @AppStorage(Defaults.AppStorageKeys.lockScreenNowPlaying) private var lockScreenNowPlaying: Bool = false
+    // Defaults to true: this switch arrived after Live Activities shipped, so an
+    // absent value has to mean the behaviour every existing install already has.
+    // Shared suite — the widget intents start activities from another process.
+    @AppStorage(Defaults.GroupStorageKeys.liveActivities, store: Defaults.GroupStorageKeys.storage)
+    private var liveActivities: Bool = true
+    @AppStorage(Defaults.GroupStorageKeys.liveActivitiesSuspendedByLockScreen, store: Defaults.GroupStorageKeys.storage)
+    private var liveActivitiesSuspendedByLockScreen: Bool = false
 
     private var hasUnseenWhatsNew: Bool {
         // Strict: the worker must have returned 200 for this bundle's
@@ -423,7 +430,7 @@ struct PreferenceScreen: View {
                                         SuperBadge()
                                     }
                                 }
-                                Text("Show the playing speaker on the Lock Screen and in Control Center. Clic takes over your iPhone's audio and volume while a speaker is playing.")
+                                Text("Show the playing speaker on the Lock Screen and in Control Center. Clic takes over your iPhone's audio and volume while a speaker is playing, and turns off Live Activities — both use the same space.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -440,6 +447,31 @@ struct PreferenceScreen: View {
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
                                     .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.65, blue: 0.95), Color(red: 0.2, green: 0.45, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+
+                    Label {
+                        Toggle(isOn: liveActivitiesBinding) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Live Activities")
+                                Text(liveActivitiesFootnote)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .tint(.accent)
+                    } icon: {
+                        Image(systemName: "bell.badge.waveform.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.55, blue: 0.35), Color(red: 0.85, green: 0.35, blue: 0.25)], startPoint: .topLeading, endPoint: .bottomTrailing))
                             )
                             .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
@@ -1075,6 +1107,36 @@ struct PreferenceScreen: View {
                 lockScreenNowPlaying = true
             }
         )
+    }
+
+    /// Live Activities and Lock Screen Controls are two renderings of the same
+    /// thing in the same place, so the toggles are mutually exclusive. Turning
+    /// this on clears Lock Screen Controls *first*, so the defaults change it
+    /// posts can't be read by `NowPlayingSessionService` as "still on" and
+    /// bounce this straight back off.
+    private var liveActivitiesBinding: Binding<Bool> {
+        Binding(
+            get: { liveActivities },
+            set: { isOn in
+                guard isOn else {
+                    liveActivities = false
+                    liveActivitiesSuspendedByLockScreen = false
+                    return
+                }
+                lockScreenNowPlaying = false
+                liveActivitiesSuspendedByLockScreen = false
+                liveActivities = true
+            }
+        )
+    }
+
+    /// Says why the switch moved when Clic is the one that moved it. A card that
+    /// silently stopped appearing reads as a bug.
+    private var liveActivitiesFootnote: String {
+        if liveActivitiesSuspendedByLockScreen {
+            return "Turned off while Lock Screen Controls is on — they share the Lock Screen. Turn this back on to swap, or turn Lock Screen Controls off to restore it."
+        }
+        return "Show a live card on the Lock Screen and Dynamic Island for each playing speaker."
     }
 
     private var subscriptionStatusLine: Text {

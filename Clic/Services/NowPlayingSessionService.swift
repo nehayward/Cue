@@ -312,6 +312,34 @@ final class NowPlayingSessionService {
         idleTimeoutTask = nil
     }
 
+    /// Live Activities and this card are two renderings of the same thing in the
+    /// same place, so they don't both run: whichever is on wins the Lock Screen.
+    ///
+    /// The switch is the user's, in Preferences, and this moves it visibly rather
+    /// than suppressing Live Activities behind their back — a card that silently
+    /// stopped appearing reads as a bug. `liveActivitiesSuspendedByLockScreen`
+    /// records that *this* is what turned them off, so turning Lock Screen
+    /// Controls back off restores them; without it the user ends up with neither
+    /// surface and nothing to suggest why.
+    ///
+    /// Nothing here talks to `LiveActivityManager`. It watches the same
+    /// preference and ends what's on screen itself, so this stays a two-line
+    /// deletion and the switch keeps working on its own afterwards.
+    private func reconcileLiveActivities() {
+        let defaults = GroupStorageKeys.defaults
+        if isEnabled {
+            guard defaults.liveActivitiesEnabled else { return }
+            print("\(nowPlayingLogPrefix) Lock Screen Controls on — turning Live Activities off")
+            defaults.liveActivitiesEnabled = false
+            defaults.set(true, forKey: GroupStorageKeys.liveActivitiesSuspendedByLockScreen)
+        } else {
+            guard defaults.bool(forKey: GroupStorageKeys.liveActivitiesSuspendedByLockScreen) else { return }
+            print("\(nowPlayingLogPrefix) Lock Screen Controls off — restoring Live Activities")
+            defaults.set(false, forKey: GroupStorageKeys.liveActivitiesSuspendedByLockScreen)
+            defaults.liveActivitiesEnabled = true
+        }
+    }
+
     /// TV mode has no transport to mirror and an empty track means the speaker is
     /// idle — neither is worth holding the audio session for.
     private func isMirrorable(_ group: GroupRoom) -> Bool {
@@ -367,6 +395,7 @@ final class NowPlayingSessionService {
     /// allowed to act, and since it's the only one that re-arms, the set
     /// converges back to a single live registration.
     private func evaluate() {
+        reconcileLiveActivities()
         observationGeneration += 1
         let generation = observationGeneration
 

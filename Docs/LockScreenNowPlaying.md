@@ -82,6 +82,40 @@ by itself and the service never sees a value it would have to undo. Turning it
 off always goes through, so a lapsed subscriber isn't stuck with a preference
 they can't clear.
 
+## Live Activities
+
+Both features draw a Sonos group on the Lock Screen, so they don't both run.
+`reconcileLiveActivities()` (called at the top of `evaluate()`) turns Live
+Activities off while Lock Screen Controls is on.
+
+It does that by **moving a switch the user can see**, in Preferences, rather than
+suppressing the feature quietly — a card that stopped appearing with no
+explanation reads as a bug. The footnote under the switch changes to say what
+turned it off and how to swap back.
+
+`liveActivitiesSuspendedByLockScreen` records that *this* is what turned them
+off, so turning Lock Screen Controls back off restores them. Without it the user
+lands with neither Lock Screen surface and nothing pointing at why.
+
+Two details that aren't obvious:
+
+- **The keys live in the app-group suite, not `AppStorageKeys`.** The widget
+  intents (`CreateLiveActivityIntent`, `PlaybackIntent`, …) start activities from
+  the extension's process, where `UserDefaults.standard` is a different
+  container — an app-local switch would have been invisible to exactly the call
+  sites that bypass the app. Read through `UserDefaults.liveActivitiesEnabled`,
+  never `bool(forKey:)`: the switch postdates the feature, so unset must mean
+  **on**.
+- **Nothing here talks to `LiveActivityManager`.** It watches the same preference
+  itself, refuses to create while off, and ends what's on screen when the switch
+  drops. So this stays a deletable two lines, and the switch keeps working on its
+  own afterwards.
+
+The Preferences binding for Live Activities clears `lockScreenNowPlaying`
+*before* setting its own flag — otherwise the defaults change it posts can be
+read here as "Lock Screen Controls is still on" and bounce the switch straight
+back off.
+
 ## Ownership: not the view layer
 
 `activate()` is called once from `ClicApp.onAppear`; from there the service
@@ -428,10 +462,15 @@ After the dependency inversions, no pre-existing type names it. To remove:
 2. Delete the `activate()` call in `ClicApp.onAppear`, the preference row and
    its `Binding` in `PreferenceScreen`, the `lockScreenNowPlaying` key, and
    `UIBackgroundModes` from `Info.plist`.
-3. In `AudioPlaybackService`, drop the `AudioSessionArbiter.shared.handBack()`
+3. Delete `reconcileLiveActivities()` and its `evaluate()` call, and the
+   `liveActivitiesSuspendedByLockScreen` key. The Live Activities switch itself
+   stays: `LiveActivityManager` reads it directly and it's a useful control on
+   its own, so removing this feature just leaves it permanently under the user's
+   control.
+4. In `AudioPlaybackService`, drop the `AudioSessionArbiter.shared.handBack()`
    line (or leave it — with nothing claiming, it returns false and the original
    behaviour stands).
-4. Optionally simplify `HardwareVolumeService` back to one owner and one mode.
+5. Optionally simplify `HardwareVolumeService` back to one owner and one mode.
 
 What stays, because it's independent of the Lock Screen and fixes real
 foreground behaviour: the whole `SonosService+LiveListening` registry, the
