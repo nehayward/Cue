@@ -454,119 +454,6 @@ struct PreferenceScreen: View {
                         .foregroundStyle(.primary)
                         .headerProminence(.increased)
                 }
-#if targetEnvironment(macCatalyst)
-                Section {
-                    // Open Clic Mini button
-                    Button {
-                        Task {
-                            do {
-                                try await menuAppLaunchAtLoginManager.bridge?.openClicMiniApp()
-                            } catch {
-                                clicMiniErrorMessage = error.localizedDescription
-                                showClicMiniError = true
-                            }
-                        }
-                    } label: {
-                        Label {
-                            HStack {
-                                Text("Open Clic Mini")
-                                Spacer()
-                                Text("Open")
-                                    .font(.subheadline.smallCaps())
-                                    .foregroundStyle(.primary)
-                                    .tint(.primary)
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 7)
-                                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.accent.gradient))
-                            }
-                        } icon: {
-                            Image(systemName: "arrow.up.forward.app")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .bold()
-                                .padding(8)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.85, blue: 0.55), Color(red: 0.25, green: 0.7, blue: 0.45)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                )
-                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                        }
-                    }
-                    .tint(.primary)
-
-                    // Auto-launch toggle
-                    Label {
-                        Toggle(isOn: $isMenuBarAppEnabled) {
-                            Text("Launch with Clic")
-                        }
-                        .tint(.accent)
-                        .onChange(of: isMenuBarAppEnabled) { _, newValue in
-                            if newValue {
-                                Task {
-                                    do {
-                                        try await menuAppLaunchAtLoginManager.bridge?.openClicMiniApp()
-                                    } catch {
-                                        clicMiniErrorMessage = error.localizedDescription
-                                        showClicMiniError = true
-                                    }
-                                }
-                            }
-                        }
-                    } icon: {
-                        Image(systemName: "play.circle.fill")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(.white)
-                            .bold()
-                            .padding(8)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(LinearGradient(colors: [Color(red: 0.4, green: 0.85, blue: 0.95), Color(red: 0.25, green: 0.7, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            )
-                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                    }
-                } header: {
-                    HStack {
-                        Text("Clic Mini (Menu Bar)")
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        HStack(spacing: 5) {
-                            Text(menuAppLaunchAtLoginManager.isRunning ? "Running" : "Not Running")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Circle()
-                                .fill(menuAppLaunchAtLoginManager.isRunning ? .green : .red)
-                                .frame(width: 6, height: 6)
-                                .shadow(color: menuAppLaunchAtLoginManager.isRunning ? .green : .red, radius: 3, x: 0, y: 0)
-                                .animation(.smooth, value: menuAppLaunchAtLoginManager.isRunning)
-                        }
-                    }
-                    .headerProminence(.increased)
-                } footer: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Control your Sonos directly from the menu bar without opening the full app.")
-                        if !menuAppLaunchAtLoginManager.isRunning {
-                            Link(destination: URL(string: "https://clic.dance/help#clicmini")!) {
-                                HStack(spacing: 4) {
-                                    Text("Having trouble?")
-                                    Image(systemName: "arrow.up.forward")
-                                        .font(.caption2)
-                                }
-                            }
-                        }
-                    }
-                }
-                .alert("Unable to Open Clic Mini", isPresented: $showClicMiniError) {
-                    Button("OK", role: .cancel) { }
-                } message: {
-                    Text(clicMiniErrorMessage)
-                }
-                #endif
-                colorSchemeSection
-                storageCacheSection
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
                 Section {
 #if os(iOS) && !targetEnvironment(macCatalyst)
@@ -680,6 +567,119 @@ struct PreferenceScreen: View {
 
                 }
 #endif
+#if targetEnvironment(macCatalyst)
+                Section {
+                    // Open Clic Mini button
+                    Button {
+                        Task {
+                            do {
+                                try await menuAppLaunchAtLoginManager.bridge?.openClicMiniApp()
+                            } catch {
+                                clicMiniErrorMessage = error.localizedDescription
+                                showClicMiniError = true
+                            }
+                        }
+                    } label: {
+                        Label {
+                            HStack {
+                                Text("Open Clic Mini")
+                                Spacer()
+                                Text("Open")
+                                    .font(.subheadline.smallCaps())
+                                    .foregroundStyle(.primary)
+                                    .tint(.primary)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 7)
+                                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.accent.gradient))
+                            }
+                        } icon: {
+                            Image(systemName: "arrow.up.forward.app")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.85, blue: 0.55), Color(red: 0.25, green: 0.7, blue: 0.45)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                        }
+                    }
+                    .tint(.primary)
+
+                    // Auto-launch toggle
+                    Label {
+                        Toggle(isOn: $isMenuBarAppEnabled) {
+                            Text("Launch with Clic")
+                        }
+                        .tint(.accent)
+                        .onChange(of: isMenuBarAppEnabled) { _, newValue in
+                            if newValue {
+                                Task {
+                                    do {
+                                        try await menuAppLaunchAtLoginManager.bridge?.openClicMiniApp()
+                                    } catch {
+                                        clicMiniErrorMessage = error.localizedDescription
+                                        showClicMiniError = true
+                                    }
+                                }
+                            }
+                        }
+                    } icon: {
+                        Image(systemName: "play.circle.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.4, green: 0.85, blue: 0.95), Color(red: 0.25, green: 0.7, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+                } header: {
+                    HStack {
+                        Text("Clic Mini (Menu Bar)")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        HStack(spacing: 5) {
+                            Text(menuAppLaunchAtLoginManager.isRunning ? "Running" : "Not Running")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Circle()
+                                .fill(menuAppLaunchAtLoginManager.isRunning ? .green : .red)
+                                .frame(width: 6, height: 6)
+                                .shadow(color: menuAppLaunchAtLoginManager.isRunning ? .green : .red, radius: 3, x: 0, y: 0)
+                                .animation(.smooth, value: menuAppLaunchAtLoginManager.isRunning)
+                        }
+                    }
+                    .headerProminence(.increased)
+                } footer: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Control your Sonos directly from the menu bar without opening the full app.")
+                        if !menuAppLaunchAtLoginManager.isRunning {
+                            Link(destination: URL(string: "https://clic.dance/help#clicmini")!) {
+                                HStack(spacing: 4) {
+                                    Text("Having trouble?")
+                                    Image(systemName: "arrow.up.forward")
+                                        .font(.caption2)
+                                }
+                            }
+                        }
+                    }
+                }
+                .alert("Unable to Open Clic Mini", isPresented: $showClicMiniError) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(clicMiniErrorMessage)
+                }
+                #endif
+                colorSchemeSection
+                storageCacheSection
                 
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
                 Section {
