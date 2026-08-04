@@ -112,12 +112,19 @@ Both features draw a Sonos group on the Lock Screen, so they don't both run.
 `reconcileLiveActivities()` (called at the top of `evaluate()`) turns Live
 Activities off while Lock Screen Controls is on.
 
-In Preferences the two are **one segmented control**, first in the Playback
-section: `Live Activity | Now Playing | Off`. They were a pair of switches that
-moved each other, which from the outside is indistinguishable from a bug; a
-picker says "pick one" on its face and the footnote under it describes whichever
-is selected. The selection is derived from the two booleans (`lockScreenSurface`)
-rather than stored — a third copy would be one more thing to keep in step.
+In Preferences the two are **one segmented control** — `Live Activity | Now
+Playing | Off` — at the top of a **Lock Screen** section. They were a pair of
+switches that moved each other, which from the outside is indistinguishable from
+a bug; a picker says "pick one" on its face and the footnote under it describes
+whichever is selected. The selection is derived from the two booleans
+(`lockScreenSurface`) rather than stored — a third copy would be one more thing
+to keep in step.
+
+The section is the old **Live Activities** section, renamed: it can't be called
+that once it holds the choice *between* surfaces. Compact Live Activities and
+Volume Steps stayed put under the picker, dimmed rather than hidden when Live
+Activity isn't the selected surface — the picker directly above says why, and the
+section doesn't resize as you move between segments.
 
 `liveActivitiesSuspendedByLockScreen` records that *this* is what turned them
 off, so moving the picker off **Now Playing** restores them. Without it the user

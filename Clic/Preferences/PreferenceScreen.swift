@@ -399,45 +399,6 @@ struct PreferenceScreen: View {
                         .foregroundStyle(.primary)
                 }
                 Section {
-#if os(iOS) && !targetEnvironment(macCatalyst)
-                    // First in the section, and one control rather than two
-                    // toggles: the two surfaces are mutually exclusive, and a
-                    // pair of switches that silently move each other reads as a
-                    // bug. A picker says "pick one" on its face.
-                    Label {
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 6) {
-                                Text("Lock Screen")
-                                if !subscriptionService.subscription.isActive {
-                                    SuperBadge()
-                                }
-                            }
-                            Picker("Lock Screen", selection: lockScreenSurfaceBinding) {
-                                ForEach(LockScreenSurface.allCases) { surface in
-                                    lockScreenSegment(surface).tag(surface)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            .labelsHidden()
-                            Text(lockScreenSurface.footnote)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    } icon: {
-                        Image(systemName: "lock.iphone")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(.white)
-                            .bold()
-                            .padding(8)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.65, blue: 0.95), Color(red: 0.2, green: 0.45, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            )
-                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                    }
-#endif
                     Label {
                         Toggle(isOn: $replaceQueueByDefault) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -608,7 +569,68 @@ struct PreferenceScreen: View {
                 storageCacheSection
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
                 Section {
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                    // The choice the rest of this section sits under, so it goes
+                    // first. One control rather than two toggles: the surfaces
+                    // are mutually exclusive, and a pair of switches that
+                    // silently move each other reads as a bug — a picker says
+                    // "pick one" on its face.
+                    Label {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 6) {
+                                Text("Lock Screen")
+                                if !subscriptionService.subscription.isActive {
+                                    SuperBadge()
+                                }
+                            }
+                            Picker("Lock Screen", selection: lockScreenSurfaceBinding) {
+                                ForEach(LockScreenSurface.allCases) { surface in
+                                    lockScreenSegment(surface).tag(surface)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            Text(lockScreenSurface.footnote)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if !subscriptionService.subscription.isActive {
+                                // Says what the lock on the segment means. The
+                                // segment can't be greyed out on its own —
+                                // `.segmented` styles the control, not its
+                                // parts — so the state is spelled out instead.
+                                Text("\(Image(systemName: "lock.fill")) Now Playing needs Clic Super.")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        // Anywhere on the row, not just the locked segment: the
+                        // picker's own controls still take their taps first, so
+                        // Live Activity and Off keep working without Super.
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            guard !subscriptionService.subscription.isActive else { return }
+                            presentPaywall()
+                        }
+                    } icon: {
+                        Image(systemName: "lock.iphone")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.65, blue: 0.95), Color(red: 0.2, green: 0.45, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+#endif
                     if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
+                        // Both of these only shape the Live Activity, so they're
+                        // dimmed rather than hidden when it isn't the chosen
+                        // surface — the picker directly above says why, and the
+                        // section doesn't resize as you move between segments.
                         Label {
                             Toggle(isOn: $isCompact) {
                                 Text("Compact Live Activities")
@@ -629,6 +651,7 @@ struct PreferenceScreen: View {
                                 )
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
+                        .disabled(lockScreenSurface != .liveActivity)
 
                         Label {
                             Stepper(value: $liveActivityStep, in: 1...10) {
@@ -650,9 +673,10 @@ struct PreferenceScreen: View {
                                 )
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
+                        .disabled(lockScreenSurface != .liveActivity)
                     }
                 } header: {
-                    Text("Live Activities")
+                    Text("Lock Screen")
                         .foregroundStyle(.primary)
                         .headerProminence(.increased)
 
@@ -1107,6 +1131,12 @@ struct PreferenceScreen: View {
         }
     }
 
+    private func presentPaywall() {
+        HapticManager.shared.fireHaptic(.buttonPress)
+        Analytics.shared.track(.viewedPaywall)
+        router.presentedFullScreenCover = .paywall
+    }
+
     /// Marks the Super-only option with a lock instead of disabling it: a
     /// disabled segment can't be tapped, and the tap is what opens the paywall.
     ///
@@ -1149,9 +1179,7 @@ struct PreferenceScreen: View {
                 switch surface {
                 case .nowPlaying:
                     guard subscriptionService.subscription.isActive else {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        Analytics.shared.track(.viewedPaywall)
-                        router.presentedFullScreenCover = .paywall
+                        presentPaywall()
                         return
                     }
                     // Only this one write. `NowPlayingSessionService.reconcile-
