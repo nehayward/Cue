@@ -8,11 +8,6 @@ import SonosKit
 import SubscriptionKit
 import UIKit
 
-// Deliberately `print`, not `Logger`: these show up in the Xcode console with no
-// filtering while the feature is being brought up on device. Every one is
-// prefixed `\(nowPlayingLogPrefix)`, so grep finds the lot when they come out.
-private let nowPlayingLogPrefix = "🎛 NowPlaying —"
-
 /// Mirrors a Sonos group onto the system Now Playing card — Lock Screen,
 /// Control Center, CarPlay, AirPods stem presses, the Watch's Now Playing app.
 ///
@@ -40,10 +35,12 @@ private let nowPlayingLogPrefix = "🎛 NowPlaying —"
 /// precisely when the Lock Screen card is the only thing on screen. Anything
 /// keyed off `onChange` silently stopped updating there.
 ///
-/// So the service owns its own observation. `activate()` arms a
-/// `withObservationTracking` loop over the model state the card reflects; that
-/// fires from `@Observable` regardless of whether any view is alive, and re-arms
-/// after each pass. Nothing in the view tree is involved.
+/// So the service owns its own observation. `activate()` starts one
+/// `for await` loop over a `changes` stream, and everything that means
+/// "re-evaluate" — an observed model write, the preference, a foreground
+/// transition, the idle window expiring — yields into it. That fires from
+/// `@Observable` regardless of whether any view is alive; nothing in the view
+/// tree is involved.
 ///
 /// ## Why the WebSocket
 ///
@@ -80,8 +77,16 @@ final class NowPlayingSessionService {
     /// Retires an in-flight session bring-up when `stop()` beats it.
     @ObservationIgnored private var sessionGeneration = 0
     @ObservationIgnored private var lastKnownPreference = false
-    @ObservationIgnored private var observationGeneration = 0
-    /// Preference and app-state notification loops, for the life of the process.
+    /// Everything that means "re-evaluate" — an observed model change, the
+    /// preference, a foreground transition, the idle window expiring — arrives
+    /// here, and one loop drains it. `bufferingNewest(1)` is what makes that
+    /// safe: a burst collapses to a single pass, which is also what keeps
+    /// `withObservationTracking`'s registrations from compounding (each fires
+    /// once and can't be cancelled, so several can be live at a time — they just
+    /// coalesce back into one pass, and the set converges to one).
+    @ObservationIgnored private let changes: AsyncStream<Void>
+    @ObservationIgnored private let notifyChanged: AsyncStream<Void>.Continuation
+    /// The loop draining `changes`, plus the notification loops feeding it.
     @ObservationIgnored private var observerTasks: [Task<Void, Never>] = []
     /// Drives the target pick — the selection wins on screen, the music wins on
     /// the Lock Screen. See `resolveTarget`.
@@ -120,7 +125,9 @@ final class NowPlayingSessionService {
         var canSeek: Bool
     }
 
-    private init() {}
+    private init() {
+        (changes, notifyChanged) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+    }
 
     // MARK: - Lifecycle
 
@@ -152,7 +159,7 @@ final class NowPlayingSessionService {
                 ) {
                     guard let self, self.isPreferenceOn != self.lastKnownPreference else { continue }
                     self.lastKnownPreference = self.isPreferenceOn
-                    self.evaluate()
+                    self.notifyChanged.yield()
                 }
             },
             // Which group the card mirrors depends on foreground vs background
@@ -160,7 +167,7 @@ final class NowPlayingSessionService {
             Task { [weak self] in
                 for await _ in center.notifications(named: UIApplication.didEnterBackgroundNotification) {
                     self?.isForeground = false
-                    self?.evaluate()
+                    self?.notifyChanged.yield()
                 }
             },
             Task { [weak self] in
@@ -170,12 +177,19 @@ final class NowPlayingSessionService {
                     // screen retires it rather than letting a stale clock expire
                     // under a user who is looking at the app.
                     self?.noteActivity()
-                    self?.evaluate()
+                    self?.notifyChanged.yield()
                 }
             },
         ]
 
-        evaluate()
+        // The one place `evaluate()` is driven from. Everything else yields.
+        // The stream is captured on its own rather than through `self`, so the
+        // task doesn't hold the service open for the loop's lifetime.
+        observerTasks.append(Task { [weak self] in
+            guard let changes = self?.changes else { return }
+            self?.evaluate()
+            for await _ in changes { self?.evaluate() }
+        })
     }
 
     /// Unset means on — this is the default Lock Screen surface for Super. The
@@ -285,25 +299,17 @@ final class NowPlayingSessionService {
             // has nothing to undo, and holding the session for it is exactly how
             // the volume buttons end up pointed at a speaker with nothing on
             // screen to explain it.
-            guard hasPlayed else {
-                print("\(nowPlayingLogPrefix) backgrounded with nothing playing — releasing")
-                return false
-            }
+            guard hasPlayed else { return false }
             self.idleSince = .now
             let grace = idleGrace
-            print("\(nowPlayingLogPrefix) paused in background — holding the card \(Int(grace))s")
             idleTimeoutTask = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(grace))
                 guard !Task.isCancelled else { return }
-                self?.evaluate()
+                self?.notifyChanged.yield()
             }
             return true
         }
-        guard Date.now.timeIntervalSince(idleSince) < idleGrace else {
-            print("\(nowPlayingLogPrefix) idle window expired — releasing")
-            return false
-        }
-        return true
+        return Date.now.timeIntervalSince(idleSince) < idleGrace
     }
 
     /// Something is playing (or we're back in the foreground) — the window is
@@ -332,12 +338,10 @@ final class NowPlayingSessionService {
         let defaults = GroupStorageKeys.defaults
         if isEnabled {
             guard defaults.liveActivitiesEnabled else { return }
-            print("\(nowPlayingLogPrefix) Lock Screen Controls on — turning Live Activities off")
             defaults.liveActivitiesEnabled = false
             defaults.set(true, forKey: GroupStorageKeys.liveActivitiesSuspendedByLockScreen)
         } else {
             guard defaults.bool(forKey: GroupStorageKeys.liveActivitiesSuspendedByLockScreen) else { return }
-            print("\(nowPlayingLogPrefix) Lock Screen Controls off — restoring Live Activities")
             defaults.set(false, forKey: GroupStorageKeys.liveActivitiesSuspendedByLockScreen)
             defaults.liveActivitiesEnabled = true
         }
@@ -392,27 +396,25 @@ final class NowPlayingSessionService {
     /// for the decision and again to register the reads doubled that work on
     /// every model change.
     ///
-    /// A `withObservationTracking` registration can't be cancelled and each pass
-    /// adds one, so registrations from earlier passes stay live and all fire on
-    /// the next mutation. The generation stamp retires them: only the newest is
-    /// allowed to act, and since it's the only one that re-arms, the set
-    /// converges back to a single live registration.
+    /// `withObservationTracking` is still the mechanism — `Observations`, the
+    /// `AsyncSequence` that would replace it outright, is iOS 26 and this ships
+    /// against 17. What the stream buys is that its registrations no longer need
+    /// policing: one can't be cancelled and every pass adds one, so several fire
+    /// on the next mutation, and `bufferingNewest(1)` collapses that burst into a
+    /// single pass. The set converges back to one on its own, where it used to
+    /// take a generation stamp to retire the stragglers.
     private func evaluate() {
         reconcileLiveActivities()
-        observationGeneration += 1
-        let generation = observationGeneration
 
         var target: GroupRoom?
         withObservationTracking {
             target = isEnabled ? resolveTarget() : nil
             if let target { trackCardState(of: target) }
         } onChange: { [weak self] in
-            // onChange fires *before* the mutation lands, so read the new value
-            // on the next main-actor turn.
-            Task { @MainActor in
-                guard let self, self.observationGeneration == generation else { return }
-                self.evaluate()
-            }
+            // Yield rather than act: `onChange` fires *before* the mutation
+            // lands, and the loop resumes on a later main-actor turn, by which
+            // point the new value is readable.
+            self?.notifyChanged.yield()
         }
 
         guard let target else {
@@ -726,7 +728,6 @@ final class NowPlayingSessionService {
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         MPNowPlayingInfoCenter.default().playbackState = snapshot.isPlaying ? .playing : .paused
-        logDiagnostics("published \(snapshot.title) — \(snapshot.isPlaying ? "playing" : "paused")")
 
         if publishedArtworkURL != snapshot.artworkURL {
             loadArtwork(from: snapshot.artworkURL, track: track)
@@ -784,25 +785,6 @@ final class NowPlayingSessionService {
         MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyArtwork] = artwork
     }
 
-    /// The card's contents and its control row come from two different places —
-    /// `nowPlayingInfo` and the command centre — and a missing button looks
-    /// identical to a missing session. This prints both so they can be told
-    /// apart.
-    private func logDiagnostics(_ context: String) {
-        let center = MPRemoteCommandCenter.shared()
-        let info = MPNowPlayingInfoCenter.default()
-        print("""
-        \(nowPlayingLogPrefix) \(context)
-           session: held=\(audioSession.isHeld) playing=\(audioSession.isPlaying)
-           commands: play=\(center.playCommand.isEnabled) pause=\(center.pauseCommand.isEnabled) \
-        toggle=\(center.togglePlayPauseCommand.isEnabled) next=\(center.nextTrackCommand.isEnabled) \
-        prev=\(center.previousTrackCommand.isEnabled) scrub=\(center.changePlaybackPositionCommand.isEnabled)
-           info: state=\(info.playbackState.rawValue) \
-        elapsed=\(info.nowPlayingInfo?[MPNowPlayingInfoPropertyElapsedPlaybackTime] ?? "nil") \
-        rate=\(info.nowPlayingInfo?[MPNowPlayingInfoPropertyPlaybackRate] ?? "nil")
-        """)
-    }
-
     // MARK: - Remote commands
 
     /// Handlers are delivered on the main thread, hence `assumeIsolated` rather
@@ -826,22 +808,22 @@ final class NowPlayingSessionService {
 
         center.playCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform("play") { service, group in await service.play(ip: group.ip) } ?? .commandFailed
+                self?.perform { service, group in await service.play(ip: group.ip) } ?? .commandFailed
             }
         }
         center.pauseCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform("pause") { service, group in await service.pause(ip: group.ip) } ?? .commandFailed
+                self?.perform { service, group in await service.pause(ip: group.ip) } ?? .commandFailed
             }
         }
         center.togglePlayPauseCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform("toggle") { service, group in await service.togglePlayPause(for: group) } ?? .commandFailed
+                self?.perform { service, group in await service.togglePlayPause(for: group) } ?? .commandFailed
             }
         }
         center.nextTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform("next") { service, group in
+                self?.perform { service, group in
                     group.coordinatorRoom.playbackPosition = 0
                     await service.next(ip: group.ip)
                 } ?? .commandFailed
@@ -849,7 +831,7 @@ final class NowPlayingSessionService {
         }
         center.previousTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform("previous") { service, group in
+                self?.perform { service, group in
                     group.coordinatorRoom.playbackPosition = 0
                     await service.previous(ip: group.ip)
                 } ?? .commandFailed
@@ -859,7 +841,7 @@ final class NowPlayingSessionService {
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             let milliseconds = event.positionTime * 1000
             return MainActor.assumeIsolated {
-                self?.perform("scrub") { service, group in
+                self?.perform { service, group in
                     group.coordinatorRoom.updatePlaybackPosition(milliseconds)
                     await service.seek(to: milliseconds, on: group)
                 } ?? .commandFailed
@@ -955,8 +937,6 @@ final class NowPlayingSessionService {
     private func toggleFavorite() -> MPRemoteCommandHandlerStatus {
         guard let track = group?.coordinatorRoom.track, canFavorite(track) else { return .noSuchContent }
 
-        print("\(nowPlayingLogPrefix) command favorite received")
-
         // Optimistic, like every other favorite surface: the write is
         // fire-and-forget from the user's point of view.
         let favorite = !isFavorite
@@ -998,14 +978,8 @@ final class NowPlayingSessionService {
     /// immediately, so the Lock Screen doesn't sit on the old state waiting for
     /// the speaker to echo back.
     private func perform(
-        _ name: String,
         _ action: @escaping (SonosService, GroupRoom) async -> Void
     ) -> MPRemoteCommandHandlerStatus {
-        // Proves the command centre is actually reaching us. A card that draws no
-        // buttons and a command centre that isn't wired look the same from the
-        // outside — but AirPods, a headset button, CarPlay, or the Control Centre
-        // module all land here even when the Lock Screen draws nothing.
-        print("\(nowPlayingLogPrefix) command \(name) received")
         guard let group else { return .noSuchContent }
         Task { @MainActor in
             await action(SonosService.shared, group)

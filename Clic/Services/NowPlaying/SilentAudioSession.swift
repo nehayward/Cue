@@ -1,10 +1,11 @@
 #if os(iOS) && !targetEnvironment(macCatalyst)
 import AVFoundation
 import Foundation
+import OSLog
 
-// Deliberately `print` while this is being brought up on device — see the note
-// in `NowPlayingSessionService`. Same prefix, so one grep finds them all.
-private let logPrefix = "🎛 NowPlaying —"
+/// Only failures are logged. Taking the session is the whole feature, so a
+/// refusal is worth a breadcrumb; everything else is silent.
+private let logger = Logger(subsystem: "com.clic", category: "NowPlaying")
 
 /// Holds an active `.playback` audio session playing silence, so iOS treats this
 /// app as the one producing audio.
@@ -133,7 +134,7 @@ final class SilentAudioSession {
                 try session.setActive(true)
                 return true
             } catch {
-                print("\(logPrefix) session failed to activate: \(error.localizedDescription)")
+                logger.error("Audio session failed to activate: \(error.localizedDescription)")
                 return false
             }
         }.value
@@ -148,7 +149,7 @@ final class SilentAudioSession {
             self.player = player
             return true
         } catch {
-            print("\(logPrefix) silent loop failed: \(error.localizedDescription)")
+            logger.error("Silent loop failed to start: \(error.localizedDescription)")
             return false
         }
     }

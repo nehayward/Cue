@@ -167,12 +167,21 @@ Two ordering rules in `lockScreenSurfaceBinding`:
 
 ## Ownership: not the view layer
 
-`activate()` is called once from `ClicApp.onAppear`; from there the service
-watches the model itself with a self-re-arming `withObservationTracking` pass
-over the target and `trackCardState` (track identity, artwork URL, duration,
-isPlaying, station, available actions — deliberately *not* `playbackPosition`,
-which ticks). The preference is read from `UserDefaults` and re-evaluated on
-`didChangeNotification`, so the toggle needs no wiring of its own.
+`activate()` is called once from `ClicApp.onAppear`. From there the service
+watches the model itself: one `for await` loop over a `changes` stream, and
+everything that means "re-evaluate" yields into it — an observed model write, the
+preference (`didChangeNotification`, so the picker needs no wiring of its own), a
+foreground transition, the idle window expiring. Each pass resolves the target
+and calls `trackCardState` (track identity, artwork URL, duration, isPlaying,
+station, available actions — deliberately *not* `playbackPosition`, which ticks).
+
+`withObservationTracking` is still the mechanism underneath; `Observations`, the
+`AsyncSequence` that replaces it outright, is iOS 26 and this ships against 17.
+What the stream buys is that its registrations stop needing to be policed. One
+can't be cancelled and every pass adds one, so several fire on the next mutation
+— `bufferingNewest(1)` collapses that burst into a single pass and the set
+converges back to one on its own. That used to take a generation stamp on every
+pass to retire the stragglers.
 
 The first version hung all of this off a root `ViewModifier`, which is wrong for
 a background feature: SwiftUI stops evaluating bodies once the app is
@@ -488,11 +497,13 @@ Deployment target is **iOS 17**, so nothing here uses an 18+ API.
   reads doubled that on every model change. Resolving *inside* the tracking
   closure gives one pass, and registers exactly the reads that produced the
   answer.
-- **Diagnostics use `print`, deliberately.** `os.Logger` would be the modern
-  choice and costs nothing in release, but its output needs console filtering to
-  see — and this feature is still being brought up on device, where the console
-  is the only instrument. Every line is prefixed `🎛 NowPlaying —`; grep that to
-  find them all when they come out.
+- **The bring-up traces are gone.** While this was being debugged on device
+  every step printed behind a `🎛 NowPlaying —` prefix; that came out for
+  release. What remains is two `Logger.error` calls in `SilentAudioSession` for
+  the paths that lose the card outright (the session refusing to activate, the
+  silent loop failing to start) and the existing `SonosAPI` logger for a
+  transport command the speaker rejected. `perform(_:)` lost its `name`
+  parameter with the trace it existed for.
 - Also: the silent WAV is a `static let` rather than rebuilt per activation; the
   `UISlider` is resolved once per attach instead of walking `subviews` on every
   read; artwork is held locally rather than read back out of `nowPlayingInfo`

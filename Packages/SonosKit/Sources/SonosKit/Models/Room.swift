@@ -174,21 +174,15 @@ extension Room {
     /// socket reported it, and would otherwise flip the flag back — invisible on
     /// screen, where the next poll corrects it, but on a Lock Screen card it
     /// reads as playback flickering.
-    ///
-    /// The trace is deliberate and temporary: seven call sites write this, and
-    /// when they disagree the only way to find out which one won is to watch
-    /// them. Remove with the rest of the `🎛 NowPlaying —` prints.
     public func setPlaying(_ playing: Bool, source: PlaybackStateSource) {
         if source != .poll {
             // Stamped even when the value is unchanged: what matters is that a
             // fast source just spoke, not that it changed its mind.
             playbackStateStampedAt = .now
         } else if hasFreshPlaybackState, isPlaying != playing {
-            print("🎛 NowPlaying — \(name): ignored poll isPlaying=\(playing), pushed state is newer")
             return
         }
         guard isPlaying != playing else { return }
-        print("🎛 NowPlaying — \(name): isPlaying \(isPlaying) → \(playing) via \(source.rawValue)")
         isPlaying = playing
     }
 
