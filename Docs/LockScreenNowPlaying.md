@@ -326,9 +326,20 @@ sides have to participate:
   song; it now adopts the store's value for the same song, and the observation pass
   reads the store so the write wakes the observation.
 
-`MusicService+Favorite.swift` and `LikeButtonView.swift` are both byte-identical
-to the copies on `claude/live-activity-like-button-57o9qu`, so if both land git
-merges them without a conflict. Don't "improve" them here — improve them there.
+`MusicService+Favorite.swift` is byte-identical to the copy on
+`claude/live-activity-like-button-57o9qu`, so if both land git merges it without
+a conflict. Don't "improve" it here — improve it there.
+
+`LikeButtonView.swift` **no longer is**, deliberately: it kept `@State isFavorite`
+in step with the store through an `onChange`, which is observation re-implemented
+by hand. The store is `@Observable` and both `MusicSearchService.isFavorite` and
+`setFavorite` write it, so the button derives from it instead — no copy, no
+`onChange` mirroring, and no way for the two to disagree. Taps write the store
+synchronously so the heart still fills on the tap rather than a hop later. What
+survives is one `onChange` that does nothing but bounce the symbol, in a single
+place regardless of which surface moved the value, gated on `seededTrackID` so
+the first read for a song (`nil → true`) doesn't animate what was never a change.
+Expect a conflict here when the two branches meet; take this side.
 
 **Where it appears:** surfaces that render feedback commands — CarPlay, some head
 units and accessories. The iOS Lock Screen card has no slot for an app-provided
