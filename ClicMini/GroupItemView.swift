@@ -126,9 +126,6 @@ struct GroupItemView: View {
                                 // happens the instant the panel opens (isVisible flips
                                 // in GroupMenuScreen.onAppear), so any difference in
                                 // alignment reads as the title sliding across the row.
-                                // The transaction override keeps an ambient animation
-                                // from an unrelated state change in the same update
-                                // (e.g. isLoading) from animating that swap.
                                 VStack(alignment: .leading) {
                                     if isVisible {
                                         MarqueeText(device.track.song)
@@ -137,17 +134,21 @@ struct GroupItemView: View {
                                     }
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .transition(.identity)
-                                .transaction { transaction in
-                                    transaction.animation = nil
-                                }
+
                                 Text(device.track.artist)
                                     .foregroundStyle(.secondary)
-                                    .transaction { transaction in
-                                        transaction.animation = nil
-                                    }
                             }
                             .lineLimit(1, reservesSpace: true)
+                            // Title and artist swap in place — no crossfade or slide
+                            // when the track changes.
+                            .contentTransition(.identity)
+                            // contentTransition only covers the text redraw; the
+                            // isVisible branch swap is a structural/layout change, so
+                            // it still needs the transaction to stay out of any ambient
+                            // animation running in the same update.
+                            .transaction { transaction in
+                                transaction.animation = nil
+                            }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         HStack {
