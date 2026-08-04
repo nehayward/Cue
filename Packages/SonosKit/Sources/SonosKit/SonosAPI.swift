@@ -897,7 +897,24 @@ final class SonosAPI: NSObject {
         if let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [], endpoint: "ZoneGroupTopology") {
             let xmlString = String(decoding: data, as: UTF8.self)
             let houseID = xmlParser.parseHouseID(xml: xmlString)
-            return houseID.components(separatedBy: ".").first ?? ""
+            if let base = houseID.components(separatedBy: ".").first, !base.isEmpty {
+                return base
+            }
+        }
+
+        // S1 players (ZP100, ZP80, older Play:5s…) don't report
+        // CurrentMuseHouseholdId — Muse is the S2 API. Every firmware generation
+        // serves /status/zp, whose <HouseholdControlID> is the same Sonos_xxx
+        // base the Muse id carries before the ".", so S1 and S2 devices of one
+        // household resolve to one consistent id.
+        if let url = URL(string: "http://\(IP):1400/status/zp"),
+           let (data, response) = try? await session.data(for: URLRequest(url: url)),
+           (response as? HTTPURLResponse)?.statusCode == 200 {
+            let xml = String(decoding: data, as: UTF8.self)
+            if let id = try? xmlParser.parseValue(xml: xml, named: "HouseholdControlID"),
+               let base = id.components(separatedBy: ".").first, !base.isEmpty {
+                return base
+            }
         }
 
         return ""

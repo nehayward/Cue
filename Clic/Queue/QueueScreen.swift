@@ -6,7 +6,6 @@ import Collections
 import Defaults
 
 struct QueueScreen: View {
-    @Environment(PlayHistoryService.self) var playHistoryService
     @AppStorage(AppStorageKeys.queueMode) private var queueMode: QueueMode = .upNext
 
     var group: GroupRoom
@@ -281,14 +280,11 @@ struct QueueScreen: View {
         .contentMargins(.bottom, 16, for: .scrollContent)
         .overlay {
             if !isLoading, group.coordinatorRoom.queue.isEmpty {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 12)], spacing: 16) {
-                    ForEach(playHistoryService.history.prefix(6)) { item in
-                        PlayableCardView(item: item, hideAction: true)
-                            .frame(width: 120, height: 120)
-                    }
-                    .fontDesign(.rounded)
-                }
-                .padding(.horizontal, 8)
+                EmptyQueueView(
+                    title: "Your queue is empty",
+                    message: "Add songs, albums, or playlists to build a queue. Pick up where you left off below."
+                )
+                .transition(.opacity)
             }
         }
         .task(id: group.coordinatorRoom.track.trackID) {
@@ -404,7 +400,11 @@ struct QueueScreen: View {
             guard let position = track.metadata?.position else { continue }
             try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
         }
-        group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+        // Keep the last known total on a failed fetch — zeroing it makes the
+        // queue toolbar gauge read as full/empty until the next refresh.
+        if let total = try? await SonosService.shared.getQueueTotal(group: group) {
+            group.coordinatorRoom.queueTotal = total
+        }
         selection.removeAll()
     }
 
@@ -429,7 +429,11 @@ struct QueueScreen: View {
             guard let position = track.metadata?.position else { continue }
             try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
         }
-        group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+        // Keep the last known total on a failed fetch — zeroing it makes the
+        // queue toolbar gauge read as full/empty until the next refresh.
+        if let total = try? await SonosService.shared.getQueueTotal(group: group) {
+            group.coordinatorRoom.queueTotal = total
+        }
         selection.removeAll()
     }
 

@@ -21,6 +21,7 @@ extension MediaSearchService {
         case .soundcloud: .soundcloud
         case .deezer: .deezer
         case .sonosRadio: .sonosRadio
+        case .pandora: .pandora
         }
     }
 

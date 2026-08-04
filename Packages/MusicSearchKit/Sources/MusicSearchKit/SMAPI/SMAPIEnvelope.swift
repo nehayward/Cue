@@ -6,6 +6,10 @@ public enum SMAPIAction {
     /// Search within a search category. `id` is the search-category id returned
     /// by browsing the service's "search" container; `term` is the user query.
     case search(id: String, term: String, index: Int, count: Int)
+    /// Browses a container. `id` is "root" for the service's top level,
+    /// "search" for its search-category list, or a container id from a prior
+    /// browse.
+    case getMetadata(id: String, index: Int, count: Int)
     /// Exchanges an expired loginToken for a fresh authToken/privateKey pair.
     case refreshAuthToken
 
@@ -14,6 +18,7 @@ public enum SMAPIAction {
         case .rateItem: "rateItem"
         case .getExtendedMetadata: "getExtendedMetadata"
         case .search: "search"
+        case .getMetadata: "getMetadata"
         case .refreshAuthToken: "refreshAuthToken"
         }
     }
@@ -27,6 +32,8 @@ public enum SMAPIAction {
             return "<getExtendedMetadata xmlns=\"\(ns)\"><id>\(id)</id></getExtendedMetadata>"
         case let .search(id, term, index, count):
             return "<search xmlns=\"\(ns)\"><id>\(id.xmlEscaped)</id><term>\(term.xmlEscaped)</term><index>\(index)</index><count>\(count)</count></search>"
+        case let .getMetadata(id, index, count):
+            return "<getMetadata xmlns=\"\(ns)\"><id>\(id.xmlEscaped)</id><index>\(index)</index><count>\(count)</count></getMetadata>"
         case .refreshAuthToken:
             return "<refreshAuthToken xmlns=\"\(ns)\"></refreshAuthToken>"
         }

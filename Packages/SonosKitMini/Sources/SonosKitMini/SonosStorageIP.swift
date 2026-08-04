@@ -63,12 +63,23 @@ final class SonosSystemDiscoveryService {
             guard !isSearching else {
                 throw SonosDiscoveryError.timeout
             }
-            isSearching = true
             discoveredIPs.removeAll()
+            // Clear a previous denial so a grant made mid-session is picked up.
+            // Otherwise the first refusal latched for the lifetime of the app.
+            permissionsDenied = false
         }
-        
+
         startBrowsing()
-        
+        // Claim the flag *after* startBrowsing(), which begins with stopBrowsing()
+        // and would clear it right back to false. Setting it beforehand left the
+        // guard above dead, so concurrent callers all browsed at once.
+        lock.withLock { isSearching = true }
+
+        // Release the browser and its connections however we leave — the success
+        // path previously returned without cancelling, so every discovery leaked
+        // an NWBrowser plus one NWConnection per speaker.
+        defer { stopBrowsing() }
+
         try await withTimeout(seconds: timeout) { [weak self] in
             guard let self else { return }
             
@@ -87,7 +98,10 @@ final class SonosSystemDiscoveryService {
         stopBrowsing()
         
         let params = NWParameters()
-        params.requiredInterfaceType = .wifi
+        // Match the main app: browse every non-cellular interface rather than
+        // requiring Wi-Fi. Desktop Macs are frequently on Ethernet, and pinning
+        // to .wifi meant discovery found nothing on a wired connection.
+        params.prohibitedInterfaceTypes = [.cellular]
         params.allowFastOpen = true
         
         let browser = NWBrowser(for: .bonjour(type: sonosServiceType, domain: nil), using: params)

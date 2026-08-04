@@ -16,6 +16,11 @@ struct LargePlayerView: View {
     // also re-resolve at start to avoid acting on a stale instance.
     let coordinatorID: String
 
+    // ContainerLargePlayerView sets this false on iPad/Mac (regular width)
+    // and hosts the ellipsis menu itself, trailing its search/browse/queue
+    // toolbar buttons.
+    var showsEllipsisToolbarItem: Bool = true
+
     @State private var isEditing: Bool = false
     @State private var shouldFade: Bool = false
     @State private var isFavorite: Bool?
@@ -259,15 +264,17 @@ struct LargePlayerView: View {
                 ToolbarItem {
                     LikeButtonView(group: group)
                 }
-                #if !os(visionOS)
-                if #available(iOS 26.0, visionOS 26.0, *) {
-                    ToolbarSpacer(.fixed)
-                }
-                #endif
-                ToolbarItem {
-                    MenuInfoView(group: group, showArtworkOnly: $showArtworkOnly)
-                        .tint(.primary)
-                        .modifier(RefreshOnForegroundModifier())
+                if showsEllipsisToolbarItem {
+                    #if !os(visionOS)
+                    if #available(iOS 26.0, visionOS 26.0, *) {
+                        ToolbarSpacer(.fixed)
+                    }
+                    #endif
+                    ToolbarItem {
+                        MenuInfoView(group: group, showArtworkOnly: $showArtworkOnly)
+                            .tint(.primary)
+                            .modifier(RefreshOnForegroundModifier())
+                    }
                 }
             }
             .toolbarTitleDisplayMode(.inline)
@@ -537,6 +544,7 @@ fileprivate struct PlayerMediaControlsView: View {
                     .resizable()
                     .scaledToFit()
                     .contentTransition(.symbolEffect(.automatic))
+                    .symbolEffect(.pulse, isActive: group.coordinatorRoom.isTransitioning)
                     .frame(width: 32, height: 32)
 
             }
@@ -696,6 +704,10 @@ fileprivate struct BottomToolbarView: View {
                     isHoveringOnQueueList = isTargeted
                 }
             }
+            .padding(.vertical, 14)
+            .padding(.horizontal, 28)
+            .frame(maxWidth: 500)
+            .glassToolbar()
         } else {
             HStack {
                 if group.rooms.count > 1 {

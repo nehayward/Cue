@@ -12,6 +12,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     case soundcloud
     case deezer
     case sonosRadio
+    case pandora
     case unknown
 
     public init?(service: String) {
@@ -34,6 +35,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             self = .deezer
         case "sonosradio":
             self = .sonosRadio
+        case "pandora":
+            self = .pandora
         default:
             return nil
         }
@@ -59,6 +62,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "deezer"
         case .sonosRadio:
             "sonosradio"
+        case .pandora:
+            "pandora"
         default:
             nil
         }
@@ -84,6 +89,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "Deezer"
         case .sonosRadio:
             "Sonos Radio"
+        case .pandora:
+            "Pandora"
         default:
             ""
         }
@@ -109,6 +116,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "deezer"
         case .sonosRadio:
             "sonosradio"
+        case .pandora:
+            "pandora"
         default:
             ""
         }
@@ -134,11 +143,13 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         case .sonosRadio:
-            // Full-colour SONOS badge (original rendering) — no template tint.
+            // The SONOS mark is designed to sit on artwork, so it keeps its
+            // original colours. Every other badge here is tinted by the call
+            // site (all three are drawn over album art in white).
             SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .tuneIn, .soundcloud, .deezer:
+        case .tuneIn, .soundcloud, .deezer, .pandora:
             SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
                 .renderingMode(.template)
                 .resizable()
@@ -170,7 +181,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .aspectRatio(contentMode: .fit)
         case .airplay, .unknown:
             EmptyView()
-        case .sonosRadio:
+        case .sonosRadio, .pandora:
             SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
@@ -223,7 +234,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             return UIImage(systemName: librarySymbolName)
         case .airplay:
             return UIImage(systemName: "airplayaudio")
-        case .tuneIn, .soundcloud, .deezer:
+        case .tuneIn, .soundcloud, .deezer, .pandora:
             return UIImage(named: self.title, in: .musicSearchKitBundle, with: nil)?
                 .resized(to: glyph).withRenderingMode(.alwaysTemplate)
         case .plex, .tidal, .spotify:
@@ -271,6 +282,17 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         }
     }
 
+    /// Service ships a recognisable badge, so its stations keep the service
+    /// icon on artwork instead of falling back to the generic `radio.fill`
+    /// glyph other radio sources use. Independent of how `icon` renders it —
+    /// Sonos Radio keeps its original colours, Pandora is tinted like the rest.
+    public var hasBrandedRadioBadge: Bool {
+        switch self {
+        case .sonosRadio, .pandora: true
+        default: false
+        }
+    }
+
     public var brandColor: Color {
         switch self {
         case .apple:
@@ -293,6 +315,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             Color(red: 161.0 / 255.0, green: 0 / 255.0, blue: 255.0 / 255.0)
         case .sonosRadio:
                 .primary
+        case .pandora:
+            Color(red: 54.0 / 255.0, green: 104.0 / 255.0, blue: 255.0 / 255.0)
         case .unknown:
                 .primary
         }
@@ -318,6 +342,7 @@ extension MusicService {
         case "soundcloud": self = .soundcloud
         case "deezer":     self = .deezer
         case "sonosRadio": self = .sonosRadio
+        case "pandora":    self = .pandora
         default:           self = .unknown
         }
     }

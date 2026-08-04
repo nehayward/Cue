@@ -29,13 +29,47 @@ class SonosStorageIP: ObservableObject {
     /// and the Watch app — keep following the active system. Also read once on
     /// first launch to migrate a pre-household install (see getFirstIP).
     @CloudStorage("sonos_ip") var legacyIP = ""
-    @CloudStorage("sonos_known_households") var knownHouseholds: [SonosHousehold] = []
+
+    /// CloudStorage persists only primitives and `RawRepresentable` values — it has
+    /// no `Codable` overload in any released version — so the collections below are
+    /// held as JSON strings and surfaced through computed properties. Clic Mini
+    /// reads `sonos_known_households` straight out of the key-value store, so this
+    /// encoding is load-bearing for that app too.
+    @CloudStorage("sonos_known_households") private var knownHouseholdsJSON = ""
+    @CloudStorage("sonos_removed_households") private var removedHouseholdsJSON = ""
+
+    var knownHouseholds: [SonosHousehold] {
+        get { Self.decode([SonosHousehold].self, from: knownHouseholdsJSON) ?? [] }
+        set { knownHouseholdsJSON = Self.encode(newValue) ?? knownHouseholdsJSON }
+    }
+
     /// Households the user explicitly removed. Kept in the SAME synced store as
     /// `knownHouseholds` (not device-local UserDefaults) so it is visible to the
     /// widget/intent extension processes that also run getGroups — otherwise they
     /// would re-adopt a deleted home and write it back into the synced list — and
     /// so a deletion on one device doesn't get resurrected by another.
-    @CloudStorage("sonos_removed_households") var removedHouseholds: [String] = []
+    var removedHouseholds: [String] {
+        get { Self.decode([String].self, from: removedHouseholdsJSON) ?? [] }
+        set { removedHouseholdsJSON = Self.encode(newValue) ?? removedHouseholdsJSON }
+    }
+
+    private static func decode<T: Decodable>(_ type: T.Type, from json: String) -> T? {
+        guard !json.isEmpty, let data = json.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
+    }
+
+    /// Returns nil rather than an empty string on failure, so a value that cannot
+    /// be encoded leaves the stored one intact instead of wiping every household.
+    private static func encode<T: Encodable>(_ value: T) -> String? {
+        guard let data = try? JSONEncoder().encode(value) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+    /// The speaker the user explicitly chose to run system-wide lookups through.
+    /// Deliberately SEPARATE from `legacyIP`/`lastKnownIP`: those answer "an
+    /// address that reaches this household" and are rewritten by the reconnect
+    /// race in `getGroups` whenever another speaker replies first. A user's pick
+    /// has to outlive that, so it gets its own key that only explicit action writes.
+    @CloudStorage("sonos_preferred_speaker_ip") var preferredSpeakerIP = ""
 }
 
 @Observable
@@ -81,6 +115,21 @@ final class SonosSystemDiscoverService {
     var knownHouseholds: [SonosHousehold] {
         get { sonosStorageIP.knownHouseholds }
         set { sonosStorageIP.knownHouseholds = newValue }
+    }
+
+    /// The speaker the user picked for system-wide lookups (groups, artwork,
+    /// library). Empty means "no preference — use the automatic heuristic".
+    var preferredSpeakerIP: String { sonosStorageIP.preferredSpeakerIP }
+
+    /// Sets the explicit speaker choice, or clears it back to the automatic pick
+    /// when passed an empty string. Only user actions call this, so the reconnect
+    /// race can never overwrite it the way it overwrites `lastKnownIP`. Re-mirrors
+    /// so Clic Mini and the Watch follow the choice too.
+    @MainActor
+    func setPreferredSpeaker(_ ip: String) {
+        guard sonosStorageIP.preferredSpeakerIP != ip else { return }
+        sonosStorageIP.preferredSpeakerIP = ip
+        mirrorLegacyIP()
     }
 
     /// Known households ordered most-recently-connected first — the order the
@@ -195,17 +244,29 @@ final class SonosSystemDiscoverService {
         browseBusy = false
     }
 
-    // Mirrors the active household's IP into the legacy `sonos_ip` key for
-    // external consumers (Clic Mini, Watch) that still read it directly. The main
-    // app never reads it except for first-launch migration. Writes the active
-    // household's IP, or clears the key when no household remains (so removing the
-    // active home doesn't leave those consumers pointed at the deleted system).
-    // Normal callers (record/switch) always have an active household; only
-    // removeHousehold reaches the empty/clear case. No-op when unchanged.
+    // Publishes `mirroredIP` to the legacy `sonos_ip` key, which Clic Mini and the
+    // Watch read directly. The main app itself only reads it for first-launch
+    // migration. No-op when unchanged.
     @MainActor
     private func mirrorLegacyIP() {
-        let ip = cachedIP
+        let ip = mirroredIP
         if sonosStorageIP.legacyIP != ip { sonosStorageIP.legacyIP = ip }
+    }
+
+    /// The address external consumers should follow: the user's pinned speaker
+    /// when it belongs to the active household, otherwise that household's last
+    /// known address, and empty when no household remains (so removing the active
+    /// home doesn't leave Mini and the Watch aimed at a deleted system).
+    ///
+    /// Both conditions earn their place. Without the pin those consumers kept
+    /// following whichever speaker won the reconnect race while the main app used
+    /// the chosen one; without the household gate, a pin left over from a
+    /// different home would aim them at a system the main app isn't even on.
+    private var mirroredIP: String {
+        guard let household = activeHousehold else { return "" }
+        let pinned = sonosStorageIP.preferredSpeakerIP
+        if !pinned.isEmpty, household.knownIPs.contains(pinned) { return pinned }
+        return household.lastKnownIP
     }
 
     // Re-mirror after a mutation that changes the active household without going

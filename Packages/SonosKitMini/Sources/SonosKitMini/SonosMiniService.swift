@@ -8,7 +8,9 @@ import os
 @Observable
 @MainActor
 public final class SonosMiniService {
-    public static var shared = SonosMiniService()
+    // `let` so the singleton can never be swapped out — reassigning it would leak
+    // the old instance wholesale (streaming service, sockets, long-running tasks).
+    public static let shared = SonosMiniService()
     
     public var devices: [SonosDevice] = []
     
@@ -48,15 +50,45 @@ public final class SonosMiniService {
     // Callback for track changes
     @ObservationIgnored public var onTrackChanged: ((SonosDevice, SonosTrack) -> Void)?
     @ObservationIgnored private lazy var api = SonosAPI()
+    /// Address published by the main app (or entered by hand on the Watch).
+    /// Clic Mini has never written this key, only read it.
+    @ObservationIgnored private var storedIP: String {
+        NSUbiquitousKeyValueStore.default.string(forKey: "sonos_ip")
+            ?? UserDefaults.standard.string(forKey: "sonos_ip")
+            ?? ""
+    }
+
+    /// Address found by Bonjour discovery this session. Only consulted when
+    /// `storedIP` is empty or has stopped answering, so an address the user
+    /// enters explicitly always takes precedence over one we guessed.
+    @ObservationIgnored private var resolvedIP: String?
+
+    /// Address that most recently failed to answer. Recorded rather than erased
+    /// so a stale stored value can be stepped past without discarding it — if the
+    /// speaker comes back at that address it gets used again.
+    @ObservationIgnored private var unreachableIP: String?
+
+    /// In-flight discovery, shared by concurrent callers. `discoverDevices`
+    /// rejects overlapping searches outright, so without this the second caller
+    /// would fail rather than wait.
+    @ObservationIgnored private var ipResolutionTask: Task<String, Never>?
+
+    /// When discovery last came back empty. A failed search burns the full
+    /// timeout, and callers such as `getNowPlayingID` retry freely, so failures
+    /// are rate limited instead of stalling every request that follows.
+    @ObservationIgnored private var lastFailedDiscovery: Date?
+
+    private static let discoveryRetryInterval: TimeInterval = 30
+
     @ObservationIgnored private var cachedIP: String {
 #if DEBUG
         return "192.168.4.153"
 #else
-        NSUbiquitousKeyValueStore.default.string(forKey: "sonos_ip")
-            ?? UserDefaults.standard.string(forKey: "sonos_ip")
-            ?? ""
+        let stored = storedIP
+        if !stored.isEmpty, stored != unreachableIP { return stored }
+        return resolvedIP ?? stored
 #endif
-        
+
     }
     
     @ObservationIgnored public lazy var streamingService = SonosStreamingService(eventHandler: self)
@@ -68,6 +100,7 @@ public final class SonosMiniService {
     // speaker to receive an event.
     @ObservationIgnored var metadataUpdateTasks: [String: Task<Void, Never>] = [:]
     @ObservationIgnored var groupUpdateTask: Task<Void, any Error>?
+    @ObservationIgnored private var loadWatchInFlight: Task<Void, any Error>?
 
     @ObservationIgnored private var hasAppliedDevicesCache = false
 
@@ -412,7 +445,21 @@ public final class SonosMiniService {
         //        await checkTVMode(from: devices)
     }
     
+    /// Coalesces concurrent callers onto a single in-flight load. Two overlapping
+    /// runs used to race disconnectAll/addPlayers on topology changes, closing
+    /// sockets the other run had just opened and orphaning connections.
     public func loadWatch(useCache: Bool) async throws {
+        if let inFlight = loadWatchInFlight {
+            try await inFlight.value
+            return
+        }
+        let task = Task { try await performLoadWatch(useCache: useCache) }
+        loadWatchInFlight = task
+        defer { loadWatchInFlight = nil }
+        try await task.value
+    }
+
+    private func performLoadWatch(useCache: Bool) async throws {
         let (newDevices, houseHoldID) = try await getSystem(useCache: useCache)
         let newDeviceIDs = newDevices.map({ $0.id })
         let currentDeviceIDs = devices.map({ $0.id })
@@ -464,6 +511,8 @@ public final class SonosMiniService {
         groupUpdateTask = nil
         cleanupTask?.cancel()
         cleanupTask = nil
+        loadWatchInFlight?.cancel()
+        loadWatchInFlight = nil
 
         // Clear callbacks to prevent retain cycles
         onTrackChanged = nil
@@ -1080,25 +1129,31 @@ public final class SonosMiniService {
     //    }
     //
     public func updatePlaybackState(for devices: [SonosDevice]) async throws -> [String] {
-        var ids: [String] = []
-        await withDiscardingTaskGroup { group in
+        // Collect ids through the group's results — appending to a captured var
+        // from concurrent child tasks was a data race.
+        await withTaskGroup(of: String?.self) { group in
             for device in devices.filter(\.isVisible) {
                 group.addTask { [weak self] in
-                    guard let self else { return }
-                    async let playbackInfo = self.getPlaybackInfo(ip: device.ip)
-                    switch await playbackInfo {
+                    guard let self else { return nil }
+                    switch await self.getPlaybackInfo(ip: device.ip) {
                     case .playing:
-                        ids.append(device.id)
-                        await updateDevice(device, keyPath: \.isPlaying, value: true)
+                        await self.updateDevice(device, keyPath: \.isPlaying, value: true)
+                        return device.id
                     case .paused:
-                        await updateDevice(device, keyPath: \.isPlaying, value: false)
+                        await self.updateDevice(device, keyPath: \.isPlaying, value: false)
+                        return nil
                     default:
-                        break
+                        return nil
                     }
                 }
             }
+
+            var ids: [String] = []
+            for await id in group {
+                if let id { ids.append(id) }
+            }
+            return ids
         }
-        return ids
     }
     
     public func firstPlayingDeviceID(from devices: [SonosDevice]) async throws -> String? {
@@ -1246,15 +1301,156 @@ public final class SonosMiniService {
     //    }
     //
     public func getDevices(useCache: Bool) async throws -> [SonosDevice] {
-        let devices = try await api.getDevices(ipAddress: cachedIP)
-        return devices
+        try await devicesWithIP().0
     }
-    
-    public func getSystem(useCache: Bool) async throws -> ([SonosDevice], String?) {
-        async let devices = api.getDevices(ipAddress: cachedIP)
-        async let houseHoldID = api.getHouseHoldID(for: cachedIP)
 
-        return await (try devices, houseHoldID)
+    public func getSystem(useCache: Bool) async throws -> ([SonosDevice], String?) {
+        let (devices, ip) = try await devicesWithIP()
+        guard !ip.isEmpty else { return (devices, nil) }
+        // Read the household from whichever address actually answered, which is
+        // not necessarily the one we started with.
+        return (devices, await api.getHouseHoldID(for: ip))
+    }
+
+    // MARK: - Speaker address resolution
+
+    /// Fetches the device list, reporting the address that produced it.
+    ///
+    /// Discovery is only reached when the stored address cannot answer, so the
+    /// common path costs nothing extra.
+    private func devicesWithIP() async throws -> ([SonosDevice], String) {
+        let ip = await resolveIP()
+        guard !ip.isEmpty else { return ([], "") }
+
+        let devices = try await api.getDevices(ipAddress: ip)
+        if !devices.isEmpty {
+            if unreachableIP == ip { unreachableIP = nil }
+            return (devices, ip)
+        }
+
+        // `api.getDevices` swallows transport errors and reports an empty array,
+        // so an unreachable speaker is indistinguishable from a silent one here.
+        // Re-discovering once before giving up is what lets Mini recover when the
+        // cached speaker takes a new DHCP lease or drops off the network.
+        let fresh = await rediscoverIP(after: ip)
+        guard !fresh.isEmpty, fresh != ip else { return (devices, ip) }
+        return (try await api.getDevices(ipAddress: fresh), fresh)
+    }
+
+    /// The address to talk to, discovering one if nothing usable is stored.
+    ///
+    /// Clic Mini only ever consumed `sonos_ip`, which the main app and the Watch
+    /// publish through iCloud. On a Mac where Clic itself has never run, or before
+    /// iCloud has synced, that left every request aimed at "" with no route to
+    /// recovery even though a full discovery service was already available here.
+    private func resolveIP() async -> String {
+        let ip = cachedIP
+        if !ip.isEmpty { return ip }
+        if let fromHousehold = await resolveFromHouseholds(excluding: []) { return fromHousehold }
+        return await discoverAndStoreIP()
+    }
+
+    private func rediscoverIP(after failed: String) async -> String {
+        unreachableIP = failed
+        if let known = resolvedIP, known != failed { return known }
+        // The household's other speakers are worth a try before Bonjour: probing
+        // them is a few HTTP round trips against known addresses, where discovery
+        // costs a multi-second browse and needs Local Network permission that a
+        // direct request to an already-known speaker does not re-prompt for.
+        if let fromHousehold = await resolveFromHouseholds(excluding: [failed]) { return fromHousehold }
+        return await discoverAndStoreIP()
+    }
+
+    /// Picks a reachable speaker from the addresses the main app recorded for the
+    /// active household, remembering whichever answers.
+    ///
+    /// This is what lets Mini stand up on a Mac where it has never run: the
+    /// household list syncs through iCloud, so the addresses are already there
+    /// before Mini has ever discovered anything itself.
+    private func resolveFromHouseholds(excluding: Set<String>) async -> String? {
+        let preferred = preferredHouseHold
+        guard let household = SonosHouseholdRecord.active(preferring: preferred) else { return nil }
+
+        let candidates = household.candidateIPs.filter { !excluding.contains($0) }
+        guard !candidates.isEmpty else { return nil }
+
+        guard let ip = await firstRespondingIP(among: candidates, matching: preferred) else { return nil }
+
+        resolvedIP = ip
+        if unreachableIP == ip { unreachableIP = nil }
+        UserDefaults.standard.set(ip, forKey: "sonos_ip")
+        return ip
+    }
+
+    /// Probes candidates concurrently and returns the first that answers, so one
+    /// speaker that has left the network cannot hold up the others.
+    private func firstRespondingIP(among ips: [String], matching householdID: String?) async -> String? {
+        await withTaskGroup(of: String?.self) { group in
+            for ip in ips {
+                group.addTask { [weak self] in
+                    guard let self else { return nil }
+                    guard let identity = await self.api.householdIdentity(for: ip) else { return nil }
+                    // A recorded address can be handed to a different device by
+                    // DHCP, so confirm it is still the household we want rather
+                    // than silently adopting a neighbour's system.
+                    if let householdID, !householdID.isEmpty, identity != householdID { return nil }
+                    return ip
+                }
+            }
+
+            for await responder in group {
+                if let responder {
+                    group.cancelAll()
+                    return responder
+                }
+            }
+            return nil
+        }
+    }
+
+    private func discoverAndStoreIP() async -> String {
+        if let inFlight = ipResolutionTask { return await inFlight.value }
+
+        if let lastFailure = lastFailedDiscovery,
+           Date().timeIntervalSince(lastFailure) < Self.discoveryRetryInterval {
+            return ""
+        }
+
+        let task = Task<String, Never> { [weak self] in
+            guard let self else { return "" }
+            return await self.discoverIP()
+        }
+        ipResolutionTask = task
+        let ip = await task.value
+        ipResolutionTask = nil
+
+        guard !ip.isEmpty else {
+            lastFailedDiscovery = Date()
+            return ip
+        }
+        lastFailedDiscovery = nil
+        resolvedIP = ip
+        if unreachableIP == ip { unreachableIP = nil }
+        // Deliberately local. The iCloud copy of `sonos_ip` belongs to the main
+        // app, which re-points and clears it on purpose; writing it from Mini
+        // would resurrect an address the user just disconnected elsewhere.
+        UserDefaults.standard.set(ip, forKey: "sonos_ip")
+        return ip
+    }
+
+    private func discoverIP() async -> String {
+        guard let ips = try? await discoveryService.discoverAllDevices(), !ips.isEmpty else { return "" }
+
+        guard let preferred = preferredHouseHold, !preferred.isEmpty else {
+            return ips.first ?? ""
+        }
+
+        // Honour the household the user picked — landing on a neighbouring Sonos
+        // system would silently swap which speakers Mini controls.
+        for ip in ips {
+            if await api.householdIdentity(for: ip) == preferred { return ip }
+        }
+        return ips.first ?? ""
     }
 
     public var preferredHouseHold: String? {
@@ -1263,7 +1459,9 @@ public final class SonosMiniService {
     }
 
     public func getHouseID(for ip: String) async -> String? {
-        return await api.getHouseHoldID(for: ip)
+        // Identity form: this is stored as `clic.household` and compared, not
+        // sent to the WebSocket.
+        return await api.householdIdentity(for: ip)
     }
 
     public func getAllHouseholdsIPs() async -> Set<String> {
@@ -1276,7 +1474,9 @@ public final class SonosMiniService {
             for ip in ips {
                 taskGroup.addTask { [weak self] in
                     guard let self else { return ("", "") }
-                    let householdID = await self.api.getHouseHoldID(for: ip)
+                    // Identity form so the S1 and S2 halves of one household
+                    // dedupe to a single entry instead of listing twice.
+                    let householdID = await self.api.householdIdentity(for: ip)
                     return (householdID ?? "", ip)
                 }
             }
@@ -1299,7 +1499,9 @@ public final class SonosMiniService {
 
     @MainActor
     public func updateDevices(useCache: Bool = true) async throws {
-        let newDevices = try await api.getDevices(ipAddress: cachedIP)
+        // Routed through getDevices so this path gets the same discovery fallback
+        // rather than firing at a stale address forever.
+        let newDevices = try await getDevices(useCache: useCache)
         let newDeviceIDs = newDevices.map({ $0.id })
         let currentDeviceIDs = devices.map({ $0.id })
         
@@ -1533,11 +1735,12 @@ public final class SonosMiniService {
         Task {
             await withDiscardingTaskGroup { taskGroup in
                 for device in activeDevices {
-                    taskGroup.addTask {
-                        Task {  [weak self] in
-                            guard let self else { return }
-                            await snapShotGroup(ip: device.ip)
-                        }
+                    // No nested unstructured Task — the group must own the work,
+                    // otherwise it returns immediately and the floating tasks
+                    // hold the service until they finish on their own.
+                    taskGroup.addTask { [weak self] in
+                        guard let self else { return }
+                        await self.snapShotGroup(ip: device.ip)
                     }
                 }
             }
@@ -1991,14 +2194,14 @@ public final class SonosMiniService {
             try await updateHousehold()
         }
         
-        // Create a lookup dictionary for better performance
-        let roomLookup = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0) })
-        
-        // Map scene rooms to discovered rooms with better error handling
-        let discoveredSceneRooms = try scene.rooms.map { sceneRoom in
-            guard let existingRoom = roomLookup[sceneRoom.id] else {
-                throw SonosDiscoveryError.sonosSystemNotFound
-            }
+        // Refresh discovery once if a scene room is missing — it may just be stale
+        if scene.rooms.contains(where: { sceneRoom in !devices.contains { $0.id == sceneRoom.id } }) {
+            try? await updateHousehold()
+        }
+
+        // Run with whichever scene rooms are reachable; skip unplugged/offline speakers
+        let discoveredSceneRooms = scene.rooms.compactMap { sceneRoom -> SceneRoom? in
+            guard let existingRoom = devices.first(where: { $0.id == sceneRoom.id }) else { return nil }
             return SceneRoom(
                 id: existingRoom.id,
                 ip: existingRoom.ip,
@@ -2006,9 +2209,16 @@ public final class SonosMiniService {
                 volume: sceneRoom.volume
             )
         }
+
+        guard !discoveredSceneRooms.isEmpty else {
+            throw SonosDiscoveryError.sonosSystemNotFound
+        }
         
-        // Create rooms for grouping
-        let devices = discoveredSceneRooms.map {
+        // Create rooms for grouping.
+        // NB: don't name this `devices` — a local of that name shadows the
+        // `devices` property used above, and the compiler then reports a
+        // circular reference while inferring its type.
+        let groupDevices = discoveredSceneRooms.map {
             SonosDevice(
                 name: $0.name,
                 id: $0.id,
@@ -2020,9 +2230,9 @@ public final class SonosMiniService {
                 state: .active
             )
         }
-        
+
         // Create the group
-        guard let newGroup = await speedGroup(devices: devices) else {
+        guard let newGroup = await speedGroup(devices: groupDevices) else {
             throw SonosDiscoveryError.sonosSystemNotFound
         }
         

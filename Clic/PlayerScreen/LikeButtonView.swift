@@ -94,6 +94,9 @@ struct LikeButtonView: View {
             }
             .tint(service.brandColor.gradient)
 
+        case .pandora:
+            ThumbsRatingView(group: group)
+
         default:
             EmptyView()
         }

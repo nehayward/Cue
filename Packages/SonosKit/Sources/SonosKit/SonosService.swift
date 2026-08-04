@@ -477,8 +477,9 @@ public final class SonosService {
 
             guard !isEditing else { return }
 
+            let playbackStatus = await playbackInfo
             let isNowPlaying: Bool
-            switch await playbackInfo {
+            switch playbackStatus {
             case .playing:
                 isNowPlaying = true
             case .paused:
@@ -486,8 +487,13 @@ public final class SonosService {
             default:
                 isNowPlaying = roomGroup.coordinatorRoom.isPlaying // keep current value
             }
-            
+
             roomGroup.coordinatorRoom.setPlaying(isNowPlaying, source: .poll)
+
+            let isNowTransitioning = playbackStatus == .transitioning
+            if roomGroup.coordinatorRoom.isTransitioning != isNowTransitioning {
+                roomGroup.coordinatorRoom.isTransitioning = isNowTransitioning
+            }
 
             if let updateGroupVolume = try? await groupVolume, !roomGroup.isEditingVolume, roomGroup.groupVolume != updateGroupVolume {
                 roomGroup.groupVolume = updateGroupVolume
@@ -813,8 +819,9 @@ public final class SonosService {
                         }
                     }
                     
+                    let playbackStatus = await playbackInfo
                     let isNowPlaying: Bool
-                    switch await playbackInfo {
+                    switch playbackStatus {
                     case .playing:
                         isNowPlaying = true
                     case .paused:
@@ -824,6 +831,11 @@ public final class SonosService {
                     }
 
                     roomGroup.coordinatorRoom.setPlaying(isNowPlaying, source: .poll)
+
+                    let isNowTransitioning = playbackStatus == .transitioning
+                    if roomGroup.coordinatorRoom.isTransitioning != isNowTransitioning {
+                        roomGroup.coordinatorRoom.isTransitioning = isNowTransitioning
+                    }
                 }
             }
         }
@@ -1065,10 +1077,12 @@ public final class SonosService {
                     switch await playbackInfo {
                     case .playing:
                         roomGroup.coordinatorRoom.setPlaying(true, source: .poll)
+                        roomGroup.coordinatorRoom.isTransitioning = false
                     case .paused:
                         roomGroup.coordinatorRoom.setPlaying(false, source: .poll)
+                        roomGroup.coordinatorRoom.isTransitioning = false
                     default:
-                        break
+                        roomGroup.coordinatorRoom.isTransitioning = true
                     }
                 }
             }
@@ -1162,10 +1176,12 @@ public final class SonosService {
                     switch await playbackInfo {
                     case .playing:
                         roomGroup.coordinatorRoom.setPlaying(true, source: .poll)
+                        roomGroup.coordinatorRoom.isTransitioning = false
                     case .paused:
                         roomGroup.coordinatorRoom.setPlaying(false, source: .poll)
+                        roomGroup.coordinatorRoom.isTransitioning = false
                     default:
-                        break
+                        roomGroup.coordinatorRoom.isTransitioning = true
                     }
 
                     if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume, roomGroup.groupVolume != groupVolumeAwaited {
@@ -1449,6 +1465,7 @@ public final class SonosService {
         for group in relevantGroups {
             let playback = await getPlaybackInfo(ip: group.ip)
             group.coordinatorRoom.setPlaying(playback == .playing, source: .poll)
+            group.coordinatorRoom.isTransitioning = (playback == .transitioning)
         }
 
         // Pick a coordinator without ever bailing out:
@@ -1709,7 +1726,7 @@ public final class SonosService {
             return track.artwork
         case .tuneIn:
             return nil
-        case .airplay, .unknown, .library, .sonosRadio:
+        case .airplay, .unknown, .library, .sonosRadio, .pandora:
             return nil
         }
     }
@@ -1830,7 +1847,7 @@ public final class SonosService {
             }
 
             return (Track.Metadata(ISRC: nil, openInURL: nil, contentType: .track), artworkURL.album.images?.biggestImageURL)
-        case .airplay, .library, .sonosRadio:
+        case .airplay, .library, .sonosRadio, .pandora:
             return (nil, nil)
         }
     }
@@ -2078,8 +2095,10 @@ public final class SonosService {
         if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) {
             for room in group.rooms {
                 room.setPlaying(false, source: .localCommand)
+                room.isTransitioning = false
             }
             group.coordinatorRoom.setPlaying(false, source: .localCommand)
+            group.coordinatorRoom.isTransitioning = false
         }
 
         isEditing = true
@@ -2343,24 +2362,31 @@ public final class SonosService {
             try await updateHousehold()
         }
         
-        // Create a lookup dictionary for better performance
-        let roomLookup = Dictionary(uniqueKeysWithValues: rooms.map { ($0.id, $0) })
-        
-        // Map scene rooms to discovered rooms with better error handling
-        let discoveredSceneRooms = try scene.rooms.map { sceneRoom in
-            guard let existingRoom = roomLookup[sceneRoom.id] else {
-                throw SonosAPIError.deviceNotFound
-            }
+        // Refresh discovery once if a scene room is missing — it may just be stale
+        if scene.rooms.contains(where: { sceneRoom in !rooms.contains { $0.id == sceneRoom.id } }) {
+            try? await updateHousehold()
+        }
+
+        // Run with whichever scene rooms are reachable; skip unplugged/offline speakers
+        let discoveredSceneRooms = scene.rooms.compactMap { sceneRoom -> SceneRoom? in
+            guard let existingRoom = rooms.first(where: { $0.id == sceneRoom.id }) else { return nil }
             return SceneRoom(
-                id: existingRoom.id, 
-                ip: existingRoom.ip, 
-                name: existingRoom.name, 
+                id: existingRoom.id,
+                ip: existingRoom.ip,
+                name: existingRoom.name,
                 volume: sceneRoom.volume
             )
         }
+
+        guard !discoveredSceneRooms.isEmpty else {
+            throw SonosAPIError.deviceNotFound
+        }
         
-        // Create rooms for grouping
-        let rooms = discoveredSceneRooms.map { Room(id: $0.id, ip: $0.ip, name: $0.name) }
+        // Create rooms for grouping.
+        // NB: don't name this `rooms` — a local of that name shadows the
+        // `rooms` property used above, and the compiler then reports a
+        // circular reference while inferring its type.
+        let groupRooms = discoveredSceneRooms.map { Room(id: $0.id, ip: $0.ip, name: $0.name) }
         
         // Create the group
         if scene.volumeOnly {
@@ -2376,7 +2402,7 @@ public final class SonosService {
             return
         }
         
-        guard let newGroup = await speedGroup(rooms: rooms) else {
+        guard let newGroup = await speedGroup(rooms: groupRooms) else {
             throw SonosAPIError.deviceNotFound
         }
         
@@ -2966,29 +2992,25 @@ public final class SonosService {
 
     func prioritizedIP() -> String? {
         let allRooms = groups.flatMap(\.rooms)
-        let sortedRooms = allRooms.sorted { lhs, rhs in
-            // Ethernet-enabled rooms should come last
-            let lhsEthernet = lhs.ethernetEnabled ? 1 : 0
-            let rhsEthernet = rhs.ethernetEnabled ? 1 : 0
-            return lhsEthernet < rhsEthernet
+
+        // An explicit choice from the Connectivity screen wins over the heuristic
+        // below — otherwise picking a speaker there changed nothing, since every
+        // system-wide lookup (artwork, library, favorites) resolves through here.
+        // Gated on the speaker still being part of the current system so a pin
+        // left over from another household or network can't strand every lookup
+        // on an address nothing answers.
+        let pinnedIP = sonosSystemDiscoverService.preferredSpeakerIP
+        if !pinnedIP.isEmpty, allRooms.contains(where: { $0.ip == pinnedIP }) {
+            return pinnedIP
         }
-        
-        // Filter out portable models like Roam and Move
-        let filteredRooms = sortedRooms.filter { room in
-            guard let modelName = room.info?.modelDisplayName.lowercased() else { return false }
-            let excludedModels = ["roam", "move", "play"]
-            return !excludedModels.contains { modelName.contains($0) }
-        }
-        
-        // Return the best matching room IP
-        if let bestRoom = filteredRooms.sorted(by: {
-            ($0.info?.model ?? "").localizedStandardCompare($1.info?.model ?? "") == .orderedDescending
-        }).first {
-            return bestRoom.ip
-        }
-        
-        // Fallback
-        return allRooms.first?.ip
+
+        // No explicit choice — defer to the single automatic heuristic in
+        // `priorityDevice()`. This used to be a second, divergent copy that
+        // computed an ethernet ordering and then threw it away by re-sorting on
+        // model name alone, so the automatic path silently ignored the wired
+        // preference it claimed to have (and dropped speakers whose `info`
+        // hadn't loaded, which `priorityDevice` keeps).
+        return priorityDevice()?.ip
     }
     
     func priorityDevice() -> Room? {
@@ -3018,6 +3040,21 @@ public final class SonosService {
         return sortedRooms.first ?? allRooms.first
     }
     
+    /// The speaker the automatic heuristic currently resolves to, without
+    /// changing anything. Lets the Connectivity screen name the speaker its
+    /// "Automatic" option would use instead of leaving it abstract.
+    @MainActor
+    public func automaticSpeakerChoice() -> Room? {
+        priorityDevice()
+    }
+
+    /// Clears an explicit speaker choice, returning to the automatic pick. Takes
+    /// effect immediately — `prioritizedIP()` resolves per call, so no reload.
+    @MainActor
+    public func useAutomaticSpeaker() {
+        sonosSystemDiscoverService.setPreferredSpeaker("")
+    }
+
     /// Prioritise the best current speaker (wired/newer, non-portable) by pinning
     /// its IP through the same path as manual Connect-by-IP, so it resolves and
     /// adopts the correct household even when there isn't one yet. Returns the
@@ -3036,8 +3073,19 @@ public final class SonosService {
     /// resolves + adopts the household when possible, then reconnects.
     @MainActor
     public func setStaticIP(ip: String) async {
+        // Remember this as the user's explicit choice. A legacy pin alone won't
+        // hold: the `load` below re-races every known IP, and whichever speaker
+        // answers first rewrites `lastKnownIP` and re-mirrors it over the legacy
+        // key — which is why the selection used to flash onto the tapped speaker
+        // and then jump back.
+        sonosSystemDiscoverService.setPreferredSpeaker(ip)
         // Discovery-independent pin so a hand-entered IP connects regardless of
-        // whether identity resolution or Bonjour succeed.
+        // whether identity resolution or Bonjour succeed. MUST come after the
+        // line above: setPreferredSpeaker re-mirrors, and this IP isn't in the
+        // household's knownIPs until `adoptHousehold` below runs — so mirroring
+        // first would resolve back to the old address and, if the household
+        // lookup then fails, strand the legacy key there. Pinning last leaves
+        // the hand-entered IP as the standing value on that path.
         sonosSystemDiscoverService.pinLegacyIP(ip)
         let householdID = await api.getHouseHoldID(for: ip)
         if !householdID.isEmpty {

@@ -13,6 +13,10 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var volume: Double = 0
     public var isMuted: Bool = false
     public var isPlaying: Bool = false
+    /// True while the transport reports TRANSITIONING — e.g. right after new
+    /// content is queued and before playback actually starts. UI uses this to
+    /// pulse the play/pause button.
+    public var isTransitioning: Bool = false
     public var track: Track = .empty
     /// Current playback position (ms) as last reported by the device or set by a
     /// local seek. Lives on `Room` rather than `Track` so the high-frequency
