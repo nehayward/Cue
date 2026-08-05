@@ -187,7 +187,7 @@ extension SonosService {
     }
 
     @MainActor
-    private func forgetLiveItems(_ playerID: String) {
+    func forgetLiveItems(_ playerID: String) {
         for source in LiveItemSource.allCases {
             lastLiveItemIDs.removeValue(forKey: liveItemKey(source, playerID))
         }

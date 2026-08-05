@@ -343,6 +343,39 @@ from what the system is already showing (a seek, or a skip from another
 controller). Steady-state cost of a playing song: one publish at the track
 change, and nothing until the next one.
 
+### The sockets are rebuilt every five minutes, and that's a hole
+
+`SonosStreamingService` runs a refresh timer that gracefully disconnects every
+socket and reconnects it on a five-minute cycle. That's the liveness guarantee —
+a socket that died quietly gets replaced — but sockets only push on *change*, so
+anything that moved during the gap was never reported. Backgrounded there is no
+poll to notice.
+
+Worse, `lastLiveItemIDs` still held the id from before the gap, so even the
+reconnect's own state event read as "no change" and fired no refetch. A song that
+changed while the sockets were down could leave the card on the previous one
+until the *next* song change — which is what "the title and art aren't staying in
+sync" looks like from the outside.
+
+`SonosEventHandler.onConnectionsRefreshed()` (default no-op, so nothing else has
+to care) now fires after the rebuild. `SonosService` forgets the item ids for
+every listening player and runs one `updateTrackInformation`, then notifies. One
+request per listener per five minutes.
+
+### Publish-path guarantees
+
+Three things stop a correct model from failing to reach the card:
+
+- **`Snapshot` carries the song's identity.** Everything else in it is display
+  text, and two tracks can legitimately share all of it — the same song from
+  another source, a station replaying an item. Without the identity the dedupe
+  reads that as "nothing changed" and leaves the previous card up.
+- **A socket (re)subscribe forces a full write** (`published = nil` before
+  `publish()`), because that is precisely when the card and the model may have
+  drifted while nothing was being pushed.
+- **Coming to the foreground re-states the card.** Cheap, and it's the one moment
+  the user is looking.
+
 ## Listener-keyed sockets
 
 The card follows the *playing* group; the player screen shows the *visible*

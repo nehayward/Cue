@@ -161,6 +161,33 @@ extension SonosService: SonosEventHandler {
         }
     }
     
+    /// Resync after the refresh timer rebuilt the sockets.
+    ///
+    /// They only push on change, so a track that changed while they were down
+    /// was never reported — and `lastLiveItemIDs` still holds the id from before
+    /// the gap, so even the reconnect's own snapshot event reads as "no change"
+    /// and no refetch fires. Backgrounded there is no poll to correct that, so
+    /// the card can sit on the previous song until the *next* song change.
+    ///
+    /// Forgetting the ids first is what makes the refetch unconditional: this
+    /// runs once per socket rebuild, so it costs one request per listener every
+    /// five minutes.
+    public func onConnectionsRefreshed() {
+        let players = Set(liveListeners.values.map(\.playerID))
+        guard !players.isEmpty else { return }
+
+        for playerID in players { forgetLiveItems(playerID) }
+
+        let groups = groups.filter { players.contains($0.coordinatorID) }
+        guard !groups.isEmpty else { return }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            try? await self.updateTrackInformation(for: groups)
+            for group in groups { self.notifyLiveUpdate(for: group) }
+        }
+    }
+
     public func onGroupUpdate(playerId: String, event: GroupEvent) {
 //        if let groupsResponse = event.groupsResponse {
 ////            for group in groupsResponse.groups {

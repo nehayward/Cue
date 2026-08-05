@@ -120,6 +120,12 @@ final class NowPlayingSessionService {
     @ObservationIgnored private var publishedArtwork: MPMediaItemArtwork?
 
     private struct Snapshot: Equatable {
+        /// Not shown anywhere — it's here so the dedupe below can't mistake a
+        /// different song for the same card. Everything else in this struct is
+        /// display text, and two tracks can legitimately share all of it (the
+        /// same song from a different source, a station replaying an item);
+        /// dropping the republish then leaves the card on the previous one.
+        var identity: String
         var title: String
         var artist: String
         var album: String
@@ -179,6 +185,10 @@ final class NowPlayingSessionService {
             Task { [weak self] in
                 for await _ in center.notifications(named: UIApplication.willEnterForegroundNotification) {
                     self?.isForeground = true
+                    // Cheap insurance at the one moment the user is looking:
+                    // re-state the card instead of trusting that every write
+                    // while backgrounded found its way through.
+                    self?.published = nil
                     // The idle window is a background rule; coming back on
                     // screen retires it rather than letting a stale clock expire
                     // under a user who is looking at the app.
@@ -519,6 +529,10 @@ final class NowPlayingSessionService {
                     as: .nowPlaying,
                     events: [.metadata, .playback, .groupVolume]
                 )
+                // Full write, not a deduped one: a subscription that just
+                // (re)opened is exactly the case where the card and the model
+                // may have drifted apart while nothing was being pushed.
+                self?.published = nil
                 self?.publish()
             }
         }
@@ -710,6 +724,7 @@ final class NowPlayingSessionService {
             .joined(separator: " • ")
 
         let snapshot = Snapshot(
+            identity: track.unique,
             title: title,
             artist: artistLine,
             album: track.album,
