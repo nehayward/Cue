@@ -447,7 +447,15 @@ final class NowPlayingSessionService {
     private func run(group: GroupRoom) {
         let sonosService = SonosService.shared
 
-        beginSessionIfNeeded()
+        // Not until the speaker is actually playing. Claiming the session stops
+        // whatever the device itself is playing — a podcast, a video — and doing
+        // that for a speaker the user merely has selected buys nothing: there's
+        // no card worth showing for it either. `isActive` keeps it once taken,
+        // so a pause doesn't hand the audio back and forth; releasing is the
+        // idle window's job.
+        if isActive || group.coordinatorRoom.isPlaying {
+            beginSessionIfNeeded()
+        }
 
         let isNewTarget = self.group?.coordinatorID != group.coordinatorID
         // Re-assign even for the same id: `SonosService` replaces `GroupRoom`
@@ -477,7 +485,12 @@ final class NowPlayingSessionService {
         // writes to a view that is no longer in any hierarchy, so the mirror
         // stops. `volumeView?.window` is nil when `volumeView` is too, which is
         // also the first-attach case.
-        if isNewTarget || volumeView?.window == nil {
+        // Only while the session is held, for the same reason. The bridge mirrors
+        // the group's level onto the device's own volume, which is fine when
+        // that volume is inaudible — and is not fine at all when the user is
+        // listening to something on the device: it would quietly drag their
+        // podcast to whatever the Sonos group happens to be set to.
+        if isActive, isNewTarget || volumeView?.window == nil {
             attachVolumeBridge(group: group)
         }
 
@@ -556,6 +569,9 @@ final class NowPlayingSessionService {
             self.isActive = true
             self.published = nil
             self.publish()
+            // The volume bridge waits on `isActive`, which only became true
+            // here — re-run the pass so it attaches now.
+            self.notifyChanged.yield()
         }
     }
 

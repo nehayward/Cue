@@ -32,10 +32,17 @@ treats Clic as the playing app while the audible output comes from the speakers.
 Non-negotiables learned the hard way:
 
 - **No category options.** `.mixWithOthers` and `.duckOthers` both let other
-  audio keep the Now Playing claim, which loses the card. It follows that
-  holding the session *does* interrupt podcasts/music on the phone — accepted,
-  and why the feature is opt-in and dropped the moment the target speaker is
-  idle.
+  audio keep the Now Playing claim, which loses the card. So holding the session
+  *does* stop whatever the device itself is playing.
+- **Which is why it isn't taken until the speaker is playing.** This used to be
+  claimed for any mirrorable target, including a paused speaker the user merely
+  had selected — so opening Clic killed a podcast to show a card for something
+  that wasn't playing. `run()` now calls `beginSessionIfNeeded()` only when the
+  target is playing (or the session is already held, so a pause doesn't hand the
+  audio back and forth; releasing is the idle window's job). The volume bridge
+  waits on the same condition: mirroring the group's level onto the device's
+  volume is harmless while that volume is inaudible, and drags the user's podcast
+  to the Sonos group's level when it isn't.
 - **`UIBackgroundModes: audio`** is required, both to keep the card's controls
   alive and to keep the WebSocket delivering: `handleScenePhase(.background)`
   cancels the SOAP pulse.
