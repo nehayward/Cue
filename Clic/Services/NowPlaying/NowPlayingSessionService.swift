@@ -340,7 +340,15 @@ final class NowPlayingSessionService {
             guard defaults.liveActivitiesEnabled else { return }
             defaults.liveActivitiesEnabled = false
             defaults.set(true, forKey: GroupStorageKeys.liveActivitiesSuspendedByLockScreen)
-        } else {
+        } else if !isPreferenceOn {
+            // Restore only when the *preference* moved off Now Playing — not
+            // whenever `isEnabled` is false. `isEnabled` is also false for the
+            // moment at launch before `checkSubscription()` returns, and
+            // restoring there put a Live Activity on the Lock Screen of someone
+            // whose setting says Now Playing: the flag flipped on, the app
+            // created an activity, and the pass that flipped it back raced the
+            // creation. A lapsed subscription needs no restore either — nothing
+            // starts a Live Activity without one.
             guard defaults.bool(forKey: GroupStorageKeys.liveActivitiesSuspendedByLockScreen) else { return }
             defaults.set(false, forKey: GroupStorageKeys.liveActivitiesSuspendedByLockScreen)
             defaults.liveActivitiesEnabled = true
@@ -508,6 +516,12 @@ final class NowPlayingSessionService {
             // `stop()` may have run while the session was coming up.
             guard self.sessionGeneration == generation else {
                 if started { self.audioSession.stop() }
+                // And nothing is running now. `run()` can't have started a
+                // replacement — `beginSessionIfNeeded` was blocked by
+                // `isStartingSession`, which only cleared a line ago — so
+                // without this the card stays down until the model happens to
+                // move again, which backgrounded may be never.
+                self.notifyChanged.yield()
                 return
             }
             guard started else { return }

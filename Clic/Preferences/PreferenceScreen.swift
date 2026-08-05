@@ -1120,7 +1120,12 @@ struct PreferenceScreen: View {
             case .liveActivity:
                 return "A Clic card on the Lock Screen and Dynamic Island for each playing speaker."
             case .nowPlaying:
-                return "The system player on the Lock Screen and in Control Center, with artwork and a volume slider. Clic takes over your iPhone's audio and volume while a speaker is playing."
+                // No promises about a volume slider: what the system player
+                // draws is the system's call and differs by device — an iPad
+                // reported artwork and buttons but no slider. The volume *bridge*
+                // is running either way, which is why the hardware buttons
+                // control the speaker there.
+                return "The system player on the Lock Screen and in Control Center. Clic takes over this device's audio and volume while a speaker is playing."
             case .off:
                 return "Nothing on the Lock Screen while a speaker is playing."
             }

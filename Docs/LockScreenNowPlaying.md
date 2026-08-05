@@ -141,6 +141,15 @@ section doesn't resize as you move between segments.
 off, so moving the picker off **Now Playing** restores them. Without it the user
 lands on **Off** having never chosen it.
 
+**The restore is gated on the preference, not on `isEnabled`.** `isEnabled` is
+also false for the moment at launch before `checkSubscription()` returns, and
+restoring there flipped Live Activities on for someone whose setting says Now
+Playing — the app then created an activity, and the next pass, which flips the
+flag back, raced the creation. Reported from the beta as "the Now Playing screen
+disappeared and I see something like a Live Activity, but preferences say Now
+Playing." A lapsed subscription needs no restore either: nothing starts a Live
+Activity without one.
+
 Two details that aren't obvious:
 
 - **The keys live in the app-group suite, not `AppStorageKeys`.** The widget
@@ -457,7 +466,22 @@ is that folder plus four lines elsewhere. The project uses Xcode 16 synchronized
 folders, so the directory *is* the group; no `project.pbxproj` entry to keep in
 step.
 
-`AudioSessionArbiter` sits in there too, which needs a word: it is deliberately
+### A retired bring-up must not go quiet
+
+`beginSessionIfNeeded()` is asynchronous and `stop()` can land while it's in
+flight; the generation stamp retires it and releases the session it took. But
+`run()` can't have started a replacement in that window — `beginSessionIfNeeded`
+was blocked by `isStartingSession`, which the retired task only clears a line
+earlier — so the feature was left with no session and nothing scheduled to try
+again. Backgrounded, "the next model change" can be never. The retired path now
+yields to `changes` so a fresh pass decides again.
+
+This became reachable when the idle window started calling `stop()` as a matter
+of routine rather than only when the feature was switched off.
+
+## Shape (cont.)
+
+`AudioSessionArbiter` sits in the folder too, which needs a word: it is deliberately
 feature-agnostic — `AudioPlaybackService` asks *it*, never this feature — and the
 folder is about lifetime, not dependency direction. It's here because it exists
 only for this feature and goes when the feature goes.
