@@ -466,6 +466,18 @@ final class NowPlayingSessionService {
             published = nil
             positionAnchor.reset()
             anchoredTrackUnique = nil
+        }
+
+        // Also when the window hosting the slider has gone. The session outlives
+        // any scene, and on iPad a scene really can be disconnected under it —
+        // a second window closed, Stage Manager rearranged — which orphans the
+        // `MPVolumeView`. The failure is quiet and asymmetric: the hardware
+        // buttons keep working, because the `outputVolume` KVO and
+        // `setGroupVolume` don't need the slider, while `syncSystemVolume()`
+        // writes to a view that is no longer in any hierarchy, so the mirror
+        // stops. `volumeView?.window` is nil when `volumeView` is too, which is
+        // also the first-attach case.
+        if isNewTarget || volumeView?.window == nil {
             attachVolumeBridge(group: group)
         }
 

@@ -428,6 +428,26 @@ without knowing what else exists; its `owner` is observed, which is what makes
 the modifier take the bridge back when the session ends. The `MPVolumeView` is parked in the key window; its slider only
 exists inside a window.
 
+### iPad
+
+Nothing here is gated by idiom — same session, same card, same bridge. Two
+things differ in practice:
+
+- **The system player's volume slider is the system's call.** A beta report from
+  an iPad had artwork and transport but no slider, with the hardware buttons
+  still controlling the speaker. Nothing in this feature draws or withholds that
+  slider; we only make the phone's volume *be* the group's. The test that settles
+  it is Apple Music on the same iPad: if its Lock Screen card has no slider
+  either, it's iPadOS. Control Center's slider is the same system volume, so it
+  moves the group either way.
+- **A scene can be disconnected under the session.** The session outlives any
+  window, and on iPad a second window closing or Stage Manager rearranging really
+  does take the `MPVolumeView`'s host away. The failure is quiet and asymmetric —
+  the hardware buttons keep working, since the `outputVolume` KVO and
+  `setGroupVolume` don't need the slider, while `syncSystemVolume()` writes into a
+  view that is in no hierarchy — so `run()` re-attaches whenever
+  `volumeView?.window` is nil, not only when the mirrored group changes.
+
 The bridge runs in **absolute** mode here, unlike the player screen's *relative*
 mode. Relative reads any change in phone volume as one step up or down on the
 group and shoves the system slider back to a midpoint near the ends to keep
