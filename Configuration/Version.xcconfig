@@ -4,4 +4,4 @@
 // the same /api/releases/<version>.json regardless of build flavor).
 // Beta keeps its own values — it has a separate lifecycle.
 VERSION_NUMBER = 2026.7
-BUILD_NUMBER = 656
+BUILD_NUMBER = 659
