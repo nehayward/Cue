@@ -38,6 +38,17 @@ struct PreferenceScreen: View {
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
     @AppStorage(Defaults.AppStorageKeys.useHardwareVolumeButtons) private var useHardwareVolumeButtons: Bool = false
+    // Defaults to true: Now Playing is the default Lock Screen surface for Clic
+    // Super. `NowPlayingSessionService.isEnabled` still requires the
+    // subscription, so this being on doesn't start anything on its own.
+    @AppStorage(Defaults.AppStorageKeys.lockScreenNowPlaying) private var lockScreenNowPlaying: Bool = true
+    // Defaults to true: this switch arrived after Live Activities shipped, so an
+    // absent value has to mean the behaviour every existing install already has.
+    // Shared suite — the widget intents start activities from another process.
+    @AppStorage(Defaults.GroupStorageKeys.liveActivities, store: Defaults.GroupStorageKeys.storage)
+    private var liveActivities: Bool = true
+    @AppStorage(Defaults.GroupStorageKeys.liveActivitiesSuspendedByLockScreen, store: Defaults.GroupStorageKeys.storage)
+    private var liveActivitiesSuspendedByLockScreen: Bool = false
 
     private var hasUnseenWhatsNew: Bool {
         // Strict: the worker must have returned 200 for this bundle's
@@ -361,17 +372,11 @@ struct PreferenceScreen: View {
                             HStack {
                                 Text("Scenes")
                                 Spacer()
-                                Text("Super")
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .textCase(.uppercase)
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color.accentColor.gradient)
-                                    )
+                                // Only while it's still something to buy — once
+                                // subscribed the badge is noise on every Super row.
+                                if !subscriptionService.subscription.isActive {
+                                    SuperBadge()
+                                }
                             }
                         } icon: {
                             Image(systemName: "bolt.fill")
@@ -449,6 +454,119 @@ struct PreferenceScreen: View {
                         .foregroundStyle(.primary)
                         .headerProminence(.increased)
                 }
+#if !targetEnvironment(macCatalyst) && !os(visionOS)
+                Section {
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                    // The choice the rest of this section sits under, so it goes
+                    // first. One control rather than two toggles: the surfaces
+                    // are mutually exclusive, and a pair of switches that
+                    // silently move each other reads as a bug — a picker says
+                    // "pick one" on its face.
+                    Label {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 6) {
+                                Text("Lock Screen")
+                                if !subscriptionService.subscription.isActive {
+                                    SuperBadge()
+                                }
+                            }
+                            Picker("Lock Screen", selection: lockScreenSurfaceBinding) {
+                                ForEach(LockScreenSurface.allCases) { surface in
+                                    Text(surface.title).tag(surface)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            Text(lockScreenSurface.footnote)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "lock.iphone")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.65, blue: 0.95), Color(red: 0.2, green: 0.45, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+                    // Greyed out without Super, the same way the Scenes row is.
+                    // Every option here needs a subscription — `ClicApp` won't
+                    // even start a Live Activity without one — so there is
+                    // nothing to leave enabled.
+                    .disabled(!subscriptionService.subscription.isActive)
+                    // Outside the `.disabled`, so it still takes taps: a
+                    // disabled row can't open the paywall by itself.
+                    .overlay {
+                        if !subscriptionService.subscription.isActive {
+                            Rectangle()
+                                .fill(.clear)
+                                .contentShape(Rectangle())
+                                .onTapGesture(perform: presentPaywall)
+                        }
+                    }
+#endif
+                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
+                        // Both of these only shape the Live Activity, so they're
+                        // dimmed rather than hidden when it isn't the chosen
+                        // surface — the picker directly above says why, and the
+                        // section doesn't resize as you move between segments.
+                        Label {
+                            Toggle(isOn: $isCompact) {
+                                Text("Compact Live Activities")
+                                Text("Removes volumes controls and reduces size of Live Activities")
+                            }
+                            .tint(.accent)
+                        } icon: {
+                            Image(systemName: "inset.filled.capsule")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.55, green: 0.45, blue: 0.95), Color(red: 0.4, green: 0.3, blue: 0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                        }
+                        .disabled(!subscriptionService.subscription.isActive || lockScreenSurface != .liveActivity)
+
+                        Label {
+                            Stepper(value: $liveActivityStep, in: 1...10) {
+                                Text("Volume Steps: ") +  Text(liveActivityStep, format: .number).bold()
+                                Text("Adjust how much the volume changes with each step in Live Activities.")
+                            }
+                            .sensoryFeedback(.levelChange, trigger: liveActivityStep)
+                        } icon: {
+                            Image(systemName: "plus.minus.capsule")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.6, green: 0.5, blue: 0.98), Color(red: 0.45, green: 0.35, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                        }
+                        .disabled(!subscriptionService.subscription.isActive || lockScreenSurface != .liveActivity)
+                    }
+                } header: {
+                    Text("Lock Screen")
+                        .foregroundStyle(.primary)
+                        .headerProminence(.increased)
+
+                }
+#endif
 #if targetEnvironment(macCatalyst)
                 Section {
                     // Open Clic Mini button
@@ -562,58 +680,6 @@ struct PreferenceScreen: View {
                 #endif
                 colorSchemeSection
                 storageCacheSection
-#if !targetEnvironment(macCatalyst) && !os(visionOS)
-                Section {
-                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
-                        Label {
-                            Toggle(isOn: $isCompact) {
-                                Text("Compact Live Activities")
-                                Text("Removes volumes controls and reduces size of Live Activities")
-                            }
-                            .tint(.accent)
-                        } icon: {
-                            Image(systemName: "inset.filled.capsule")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .bold()
-                                .padding(8)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(LinearGradient(colors: [Color(red: 0.55, green: 0.45, blue: 0.95), Color(red: 0.4, green: 0.3, blue: 0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                )
-                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                        }
-
-                        Label {
-                            Stepper(value: $liveActivityStep, in: 1...10) {
-                                Text("Volume Steps: ") +  Text(liveActivityStep, format: .number).bold()
-                                Text("Adjust how much the volume changes with each step in Live Activities.")
-                            }
-                            .sensoryFeedback(.levelChange, trigger: liveActivityStep)
-                        } icon: {
-                            Image(systemName: "plus.minus.capsule")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .bold()
-                                .padding(8)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(LinearGradient(colors: [Color(red: 0.6, green: 0.5, blue: 0.98), Color(red: 0.45, green: 0.35, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                )
-                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                        }
-                    }
-                } header: {
-                    Text("Live Activities")
-                        .foregroundStyle(.primary)
-                        .headerProminence(.increased)
-
-                }
-#endif
                 
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
                 Section {
@@ -1027,6 +1093,99 @@ struct PreferenceScreen: View {
             : latestReleaseHeadline
     }
 
+    /// What the Lock Screen shows while a speaker is playing. The three states
+    /// are exclusive by construction — one picker instead of two switches that
+    /// silently moved each other, which is what the pair looked like from the
+    /// outside.
+    private enum LockScreenSurface: String, CaseIterable, Identifiable {
+        /// A Clic card, per playing speaker. What everyone gets without Super.
+        case liveActivity
+        /// The system Now Playing card, driven by the silent audio session. The
+        /// default with Clic Super — the preference is on unless turned off.
+        case nowPlaying
+        case off
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .liveActivity: return "Live Activity"
+            case .nowPlaying: return "Now Playing"
+            case .off: return "Off"
+            }
+        }
+
+        var footnote: String {
+            switch self {
+            case .liveActivity:
+                return "A Clic card on the Lock Screen and Dynamic Island for each playing speaker."
+            case .nowPlaying:
+                // No promises about a volume slider: what the system player
+                // draws is the system's call and differs by device — an iPad
+                // reported artwork and buttons but no slider. The volume *bridge*
+                // is running either way, which is why the hardware buttons
+                // control the speaker there.
+                return "The system player on the Lock Screen and in Control Center. Clic takes over this device's audio and volume while a speaker is playing."
+            case .off:
+                return "Nothing on the Lock Screen while a speaker is playing."
+            }
+        }
+    }
+
+    private func presentPaywall() {
+        HapticManager.shared.fireHaptic(.buttonPress)
+        Analytics.shared.track(.viewedPaywall)
+        router.presentedFullScreenCover = .paywall
+    }
+
+    /// Derived, never stored: two booleans already describe this, and a third
+    /// copy would be one more thing to keep in step.
+    ///
+    /// No subscription check here, deliberately. Nothing in this section runs
+    /// without Super — `ClicApp` won't start a Live Activity either — so the
+    /// whole row is disabled rather than partly usable, and what it shows while
+    /// greyed is an honest preview of what a subscriber would get.
+    private var lockScreenSurface: LockScreenSurface {
+        if lockScreenNowPlaying { return .nowPlaying }
+        return liveActivities ? .liveActivity : .off
+    }
+
+    /// Now Playing is Clic Super. Selecting it without a subscription presents
+    /// the paywall and writes nothing, so the picker snaps back on its own and
+    /// `NowPlayingSessionService` never sees a value it would have to undo.
+    /// Moving *away* from it always goes through, so a lapsed subscriber isn't
+    /// stuck on a setting they can't change.
+    private var lockScreenSurfaceBinding: Binding<LockScreenSurface> {
+        Binding(
+            get: { lockScreenSurface },
+            set: { surface in
+                switch surface {
+                case .nowPlaying:
+                    guard subscriptionService.subscription.isActive else {
+                        presentPaywall()
+                        return
+                    }
+                    // Only this one write. `NowPlayingSessionService.reconcile-
+                    // LiveActivities()` turns Live Activities off and records
+                    // that it was the cause, so moving back restores them —
+                    // duplicating that here would give the invariant two owners.
+                    lockScreenNowPlaying = true
+                case .liveActivity:
+                    // Clear Lock Screen Controls *first*: the defaults change
+                    // each write posts is what wakes the service, and it would
+                    // otherwise read "still on" and turn these straight back off.
+                    lockScreenNowPlaying = false
+                    liveActivitiesSuspendedByLockScreen = false
+                    liveActivities = true
+                case .off:
+                    lockScreenNowPlaying = false
+                    liveActivitiesSuspendedByLockScreen = false
+                    liveActivities = false
+                }
+            }
+        )
+    }
+
     private var subscriptionStatusLine: Text {
         let info = subscriptionService.subscription.info
         let plan = info.flatMap { planName(for: $0.productIdentifier) }
@@ -1227,6 +1386,23 @@ struct PreferenceScreen: View {
         } catch {
             print("Request failed with error: \(error)")
         }
+    }
+}
+
+/// The capsule that marks a Clic Super feature in Preferences.
+struct SuperBadge: View {
+    var body: some View {
+        Text("Super")
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .textCase(.uppercase)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Color.accentColor.gradient)
+            )
     }
 }
 

@@ -1,12 +1,14 @@
 # 2026.7
 
 –– New Features ––
+- Lock Screen Controls (Super): Preferences ▸ Lock Screen now lets you pick what shows while a speaker is playing — Live Activity, Now Playing, or Off. Now Playing puts what's on Sonos into your device's own player on the Lock Screen and in Control Center: artwork, song, and the speaker it's playing on, with play/pause, skip, and scrubbing, and the volume buttons control that speaker — including changes made on the speaker or in the Sonos app. With several rooms playing, the card follows whichever one is playing while your device is locked, and stays on the speaker you're viewing while you're in the app. It all keeps working with the app closed. It's the default with Clic Super, and it replaces Live Activities while it's on — switch back and they return. Note that Clic takes over your device's audio once a speaker starts playing
 - Sonos Radio: Search Sonos Radio stations and browse them by genre, then play any station on any room or group — the SONOS badge appears on the artwork, and the station's artwork is shown during ad breaks
 - Smarter Services settings: the Services screen now shows what's actually on your Sonos — services you've authorized get show/hide toggles, ones you haven't set up yet link straight to the Sonos app to sign in, and services Clic doesn't support yet are listed too. Pull down to refresh after adding one
 - Pandora: Browse your Pandora stations, search for new ones, and play any station on any room or group — sign in through the Sonos app and it works in Clic automatically
 - Pandora Thumbs: Thumb a song up or down right from the player to tune what the station plays next — and set any Pandora station as an alarm
 
 –– Bug Fixes & Improvements ––
+- Song changes now show up right away instead of a beat later — Clic listens to your speakers directly for track and play/pause changes
 - Fixed album artwork stuttering the player during song changes — the crossfade is now one smooth dissolve
 - Fixed the player staying stuck on a radio station after playing a song from the queue — playback switches reliably, the progress bar appears again, and the station caption clears right away
 - Services you remove in the Sonos app no longer linger in Clic — they're hidden from search and browse automatically

@@ -66,6 +66,10 @@ public final class SonosService {
         rooms.removeAll()
         selectedGroup = nil
         cachedIPVerified = false
+        // The sockets point at a system we're leaving — drop the listeners and
+        // close them rather than letting the refresh timer keep them alive.
+        Task { @MainActor [weak self] in await self?.disconnectAll() }
+
     }
 
     /// Forces the next `getGroups(useCache:)` call to re-race all known-household
@@ -161,6 +165,23 @@ public final class SonosService {
     @ObservationIgnored public var isEditing: Bool = false
     @ObservationIgnored public var isGrouping: Bool = false
     @ObservationIgnored var streamingService: SonosStreamingService?
+    /// What each live listener currently wants a socket for. Keyed by listener
+    /// so the player screen and the Lock Screen session can't tear down each
+    /// other's connection — see `SonosService+LiveListening.swift`.
+    @ObservationIgnored var liveListeners: [LiveListener: LiveSubscription] = [:]
+    /// What each socket was actually built with, so reconcile can tell an
+    /// unchanged connection from one whose events, group id, or ip have moved.
+    @ObservationIgnored var liveConnections: [String: LiveSubscription] = [:]
+    /// Last item id seen on the socket, keyed by `liveItemKey` — the change
+    /// signal that triggers a targeted track refresh instead of waiting on the
+    /// poll.
+    @ObservationIgnored var lastLiveItemIDs: [String: String] = [:]
+    @ObservationIgnored var liveTrackRefreshTasks: [String: Task<Void, Never>] = [:]
+    /// Callbacks for socket events, keyed by listener so a second consumer can't
+    /// silently replace the first. Consumers that mirror playback outside
+    /// SwiftUI (the Lock Screen Now Playing card) register here instead of
+    /// polling.
+    @ObservationIgnored var liveUpdateObservers: [LiveListener: (GroupRoom) -> Void] = [:]
     @ObservationIgnored private var metadataTask: Task<Void, Never>?
     @ObservationIgnored private var hasAppliedGroupsCache = false
     @ObservationIgnored private var cachedIPVerified = false
@@ -467,9 +488,7 @@ public final class SonosService {
                 isNowPlaying = roomGroup.coordinatorRoom.isPlaying // keep current value
             }
 
-            if roomGroup.coordinatorRoom.isPlaying != isNowPlaying {
-                roomGroup.coordinatorRoom.isPlaying = isNowPlaying
-            }
+            roomGroup.coordinatorRoom.setPlaying(isNowPlaying, source: .poll)
 
             let isNowTransitioning = playbackStatus == .transitioning
             if roomGroup.coordinatorRoom.isTransitioning != isNowTransitioning {
@@ -811,9 +830,7 @@ public final class SonosService {
                         isNowPlaying = roomGroup.coordinatorRoom.isPlaying // keep current value
                     }
 
-                    if roomGroup.coordinatorRoom.isPlaying != isNowPlaying {
-                        roomGroup.coordinatorRoom.isPlaying = isNowPlaying
-                    }
+                    roomGroup.coordinatorRoom.setPlaying(isNowPlaying, source: .poll)
 
                     let isNowTransitioning = playbackStatus == .transitioning
                     if roomGroup.coordinatorRoom.isTransitioning != isNowTransitioning {
@@ -1059,10 +1076,10 @@ public final class SonosService {
                     async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
                     switch await playbackInfo {
                     case .playing:
-                        roomGroup.coordinatorRoom.isPlaying = true
+                        roomGroup.coordinatorRoom.setPlaying(true, source: .poll)
                         roomGroup.coordinatorRoom.isTransitioning = false
                     case .paused:
-                        roomGroup.coordinatorRoom.isPlaying = false
+                        roomGroup.coordinatorRoom.setPlaying(false, source: .poll)
                         roomGroup.coordinatorRoom.isTransitioning = false
                     default:
                         roomGroup.coordinatorRoom.isTransitioning = true
@@ -1158,10 +1175,10 @@ public final class SonosService {
 
                     switch await playbackInfo {
                     case .playing:
-                        roomGroup.coordinatorRoom.isPlaying = true
+                        roomGroup.coordinatorRoom.setPlaying(true, source: .poll)
                         roomGroup.coordinatorRoom.isTransitioning = false
                     case .paused:
-                        roomGroup.coordinatorRoom.isPlaying = false
+                        roomGroup.coordinatorRoom.setPlaying(false, source: .poll)
                         roomGroup.coordinatorRoom.isTransitioning = false
                     default:
                         roomGroup.coordinatorRoom.isTransitioning = true
@@ -1447,7 +1464,7 @@ public final class SonosService {
         // Refresh playback state for relevant groups so we can prefer a playing coordinator
         for group in relevantGroups {
             let playback = await getPlaybackInfo(ip: group.ip)
-            group.coordinatorRoom.isPlaying = (playback == .playing)
+            group.coordinatorRoom.setPlaying(playback == .playing, source: .poll)
             group.coordinatorRoom.isTransitioning = (playback == .transitioning)
         }
 
@@ -1645,17 +1662,19 @@ public final class SonosService {
         return track
     }
     
+    /// Points the on-screen listener at a group. Routed through the listener
+    /// registry so it can't close the Now Playing session's socket.
     @MainActor
     public func getTrackAudioInformation(ip: String, playerID: String, groupID: String) async {
-        await streamingService?.addPlayer(.init(ipAddress: ip, playerId: playerID, groupId: groupID, events: [.metadata]))
+        await listen(ip: ip, playerID: playerID, groupID: groupID, as: .viewing, events: [.metadata])
     }
-    
-    public func stopListening(playerID: String) async {
-        await streamingService?.removePlayer(playerID)
-    }
-    
-    public func disconnectAll() async {
-        await streamingService?.disconnectAll()
+
+    /// Drops the on-screen listener. The registry knows which socket it holds —
+    /// there is deliberately no player id to pass, since passing one that didn't
+    /// match would have been silently ignored.
+    @MainActor
+    public func stopViewing() async {
+        await stopListening(as: .viewing)
     }
 
     public func getArtwork(from track: Track, size: Int = 500) async -> URL? {
@@ -2075,10 +2094,10 @@ public final class SonosService {
     public func pause(ip: String) async {
         if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) {
             for room in group.rooms {
-                room.isPlaying = false
+                room.setPlaying(false, source: .localCommand)
                 room.isTransitioning = false
             }
-            group.coordinatorRoom.isPlaying = false
+            group.coordinatorRoom.setPlaying(false, source: .localCommand)
             group.coordinatorRoom.isTransitioning = false
         }
 
@@ -2092,9 +2111,9 @@ public final class SonosService {
     public func play(ip: String) async {
         if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) {
             for room in group.rooms {
-                room.isPlaying = true
+                room.setPlaying(true, source: .localCommand)
             }
-            group.coordinatorRoom.isPlaying = true
+            group.coordinatorRoom.setPlaying(true, source: .localCommand)
         }
         isEditing = true
         await api.play(ipAddress: ip)

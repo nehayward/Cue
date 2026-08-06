@@ -101,6 +101,14 @@ struct ClicApp: App {
                 AppBootstrapper.shared.didLaunch = true
                 AppBootstrapper.shared.bootstrap()
 
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                // One call for the lifetime of the process: the service watches
+                // the model itself from here on. Deliberately not a view
+                // modifier — SwiftUI stops evaluating bodies in the background,
+                // which is exactly when the Lock Screen card matters.
+                NowPlayingSessionService.shared.activate()
+#endif
+
                 // Wire callbacks before the onboarding gate so events fired
                 // during onboarding (Sonos discovery forming the first group,
                 // a paywall-step purchase) don't fall on the floor.

@@ -226,12 +226,17 @@ final class SonosAPI: NSObject {
             ("InstanceID", 0)
         ]
 
+        // A throw here used to return silently, so a pause that never reached
+        // the speaker was indistinguishable from one that worked — the model
+        // held the optimistic "paused" until a poll quietly corrected it back.
         guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Pause", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            logger.error("Pause request to \(ipAddress) failed to send")
             return
         }
 
-        if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+        let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+        if status != 200 {
+            logger.error("Pause to \(ipAddress) rejected, status \(status)")
         }
     }
 
@@ -242,12 +247,13 @@ final class SonosAPI: NSObject {
         ]
 
         guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Play", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            logger.error("Play request to \(ipAddress) failed to send")
             return
         }
 
-        if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
-            print(response)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+        if status != 200 {
+            logger.error("Play to \(ipAddress) rejected, status \(status)")
         }
     }
 

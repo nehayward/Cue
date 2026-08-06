@@ -57,6 +57,15 @@ public protocol SonosEventHandler: AnyObject {
     
     /// Called when an error occurs
     func onError(playerId: String, error: Error)
+
+    /// Called after the refresh timer has torn every socket down and rebuilt it.
+    ///
+    /// Sockets only push on *change*, so anything that changed while they were
+    /// down is simply lost — and backgrounded there is no poll to notice. The
+    /// handler uses this to resync rather than wait for the next event, which
+    /// for a track that changed during the gap may not arrive until the song
+    /// after it.
+    func onConnectionsRefreshed()
     
     /// Called at regular intervals with updated position when position ticker is enabled and track is playing
     /// This provides smooth position updates between actual Sonos position reports
@@ -70,6 +79,7 @@ public extension SonosEventHandler {
     func onPlaybackUpdate(playerId: String, event: PlaybackEvent) {}
     func onMetadataUpdate(playerId: String, event: TrackEvent) {}
     func onGroupUpdate(playerId: String, event: GroupEvent) {}
+    func onConnectionsRefreshed() {}
     func onConnectionStatusChanged(isConnected: Bool, connectionCount: Int) {}
     func onError(playerId: String, error: Error) {}
     func onPositionTick(playerId: String, currentPositionMillis: Int, isPlaying: Bool) {}
@@ -635,6 +645,10 @@ public final class SonosStreamingService {
         
         // Reconnect all players using addPlayers
         await addPlayers(configsToRefresh)
+
+        // The sockets were down for at least a second, and they only push on
+        // change — so whatever moved in that window was never reported.
+        eventHandler?.onConnectionsRefreshed()
         
         if debug {
             print("DEBUG: Connection refresh completed for \(configsToRefresh.count) players")

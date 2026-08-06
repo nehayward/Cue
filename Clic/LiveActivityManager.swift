@@ -1,5 +1,6 @@
 #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
 import ActivityKit
+import Defaults
 import Foundation
 import SonosKit
 import MusicSearchKit
@@ -13,7 +14,16 @@ final class LiveActivityManager: LiveActivityManageable {
     private let disabledActivitiesKey = "disabledLiveActivities"
     
     private var createTask: Task<Void,Error>? = nil
-    
+    /// Ends anything already on screen the moment the switch goes off. Lives
+    /// here rather than at whatever flipped it, so nothing that turns Live
+    /// Activities off has to remember to clean up after itself.
+    private var enabledObserver: Task<Void, Never>? = nil
+
+    /// The global switch. Nothing here knows *why* it moved — Preferences and
+    /// Lock Screen Controls both just write the preference. Shared suite, so the
+    /// widget intents that start activities from another process see it too.
+    private var isEnabled: Bool { GroupStorageKeys.defaults.liveActivitiesEnabled }
+
     private var disabledActivities: Set<String> {
         didSet {
             UserDefaults.standard.set(Array(disabledActivities), forKey: disabledActivitiesKey)
@@ -23,6 +33,29 @@ final class LiveActivityManager: LiveActivityManageable {
     init(sonosService: SonosService = .shared) {
         self.disabledActivities = Set(UserDefaults.standard.stringArray(forKey: disabledActivitiesKey) ?? [])
         self.sonosService = sonosService
+
+        enabledObserver = Task { [weak self] in
+            // Both locals live inside the task body: a `var` captured by a
+            // `@Sendable` closure can't be mutated from it.
+            let store = GroupStorageKeys.defaults
+            // `didChangeNotification` fires for every write to the suite, so act
+            // only on an actual transition of this one flag.
+            var lastKnown = store.liveActivitiesEnabled
+            for await _ in NotificationCenter.default.notifications(
+                named: UserDefaults.didChangeNotification,
+                object: store
+            ) {
+                let enabled = store.liveActivitiesEnabled
+                guard enabled != lastKnown else { continue }
+                lastKnown = enabled
+                guard !enabled else { continue }
+                await self?.endAll()
+            }
+        }
+    }
+
+    deinit {
+        enabledObserver?.cancel()
     }
 
     func refresh() async {
@@ -53,7 +86,7 @@ final class LiveActivityManager: LiveActivityManageable {
                     group.coordinatorRoom.updatePlaybackPosition(track.playbackPosition)
                 }
             }
-            group.coordinatorRoom.isPlaying = info.1 == .playing
+            group.coordinatorRoom.setPlaying(info.1 == .playing, source: .poll)
             group.groupVolume = info.2
             group.isMuted = info.3 ?? false
             
@@ -81,7 +114,7 @@ final class LiveActivityManager: LiveActivityManageable {
         createTask?.cancel()
         createTask = Task {
             if Task.isCancelled { return }
-            guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+            guard isEnabled, ActivityAuthorizationInfo().areActivitiesEnabled else { return }
             let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
             if shouldLoad {
                 try? await sonosService.load(useCache: true)
@@ -119,7 +152,7 @@ final class LiveActivityManager: LiveActivityManageable {
     }
 
     func createActivity(id: String) async {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        guard isEnabled, ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         
         let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
         try? await sonosService.load(useCache: true)

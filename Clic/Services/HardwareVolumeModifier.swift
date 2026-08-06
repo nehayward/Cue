@@ -21,6 +21,15 @@ private struct HardwareVolumeControlModifier: ViewModifier {
         return v
     }()
 
+    /// Reading `owner` here is what registers observation on it, so the task
+    /// re-runs when a longer-lived owner (a background session) takes the bridge
+    /// or gives it back. The service refuses or ignores the calls as
+    /// appropriate — this view doesn't need to know what else might hold it.
+    private var claimKey: String? {
+        guard enabled else { return nil }
+        return "\(group.coordinatorID)|\(HardwareVolumeService.shared.owner == .session)"
+    }
+
     func body(content: Content) -> some View {
         content
             .background {
@@ -29,7 +38,7 @@ private struct HardwareVolumeControlModifier: ViewModifier {
                         .frame(width: 1, height: 1)
                 }
             }
-            .task(id: enabled ? group.coordinatorID : nil) {
+            .task(id: claimKey) {
                 if enabled {
                     HardwareVolumeService.shared.start(
                         group: group,

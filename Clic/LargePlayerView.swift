@@ -284,7 +284,10 @@ struct LargePlayerView: View {
             // replaced `groups` since then it'd be orphaned.
             .task(id: coordinatorID) {
                 guard let group = self.group else { return }
-                await sonosService.disconnectAll()
+                // Re-points the `.viewing` listener; the registry closes the
+                // previous group's socket unless another listener (the Now
+                // Playing session) still needs it. No `disconnectAll()` here —
+                // that used to take the Lock Screen's socket down with it.
                 await sonosService.getTrackAudioInformation(ip: group.ip, playerID: group.coordinatorID, groupID: group.id)
                 group.isCrossfaded = await sonosService.isCrossfaded(for: group)
                 await sonosService.getSleepTimer(group: group)
@@ -345,7 +348,7 @@ fileprivate struct ScenePhaseSyncModifier: ViewModifier {
                     }
                 } else if scenePhase == .background {
                     Task {
-                        await sonosService.stopListening(playerID: group.coordinatorID)
+                        await sonosService.stopViewing()
                     }
                 }
             }

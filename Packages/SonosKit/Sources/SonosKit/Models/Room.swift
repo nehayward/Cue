@@ -23,6 +23,9 @@ public final class Room: Identifiable, @unchecked Sendable {
     /// position pulses from Sonos don't fire `Room.track` observation and
     /// invalidate every consumer reading any track field.
     public var playbackPosition: TimeInterval = 0
+    /// When `isPlaying` was last set from a pushed (WebSocket) event. Read
+    /// through `hasFreshPlaybackState` — see `markPlaybackState`.
+    @ObservationIgnored public private(set) var playbackStateStampedAt: Date = .distantPast
     /// Radio Station Name
     public var radioStation: String?
     public var isEditingVolume: Bool = false
@@ -149,6 +152,45 @@ public final class Room: Identifiable, @unchecked Sendable {
 extension Room {
     public func updatePlaybackPosition(_ newValue: TimeInterval) {
         playbackPosition = newValue
+    }
+
+    /// Where a playback-state write came from. The sources have very different
+    /// latencies and authority, and until they went through one funnel they
+    /// silently fought each other.
+    public enum PlaybackStateSource: String {
+        /// Pushed by the speaker over the WebSocket, ~100 ms after the fact.
+        case socket
+        /// A SOAP read — the pulse, a Live Activity refresh, a group sweep.
+        /// Always a request/response behind whatever just happened.
+        case poll
+        /// An optimistic write from a user action, before the speaker confirms.
+        case localCommand
+    }
+
+    /// The single way `isPlaying` should be written.
+    ///
+    /// Precedence: a pushed or user-initiated state wins over a polled one for
+    /// two seconds. A SOAP response captured *before* a pause lands *after* the
+    /// socket reported it, and would otherwise flip the flag back — invisible on
+    /// screen, where the next poll corrects it, but on a Lock Screen card it
+    /// reads as playback flickering.
+    public func setPlaying(_ playing: Bool, source: PlaybackStateSource) {
+        if source != .poll {
+            // Stamped even when the value is unchanged: what matters is that a
+            // fast source just spoke, not that it changed its mind.
+            playbackStateStampedAt = .now
+        } else if hasFreshPlaybackState, isPlaying != playing {
+            return
+        }
+        guard isPlaying != playing else { return }
+        isPlaying = playing
+    }
+
+    /// Whether a pushed playback state landed recently enough that a SOAP read
+    /// shouldn't overwrite it. Poll intervals here are 500–800 ms, so two
+    /// seconds covers a response that was already in flight.
+    public var hasFreshPlaybackState: Bool {
+        Date.now.timeIntervalSince(playbackStateStampedAt) < 2
     }
 }
 
