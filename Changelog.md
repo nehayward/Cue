@@ -212,6 +212,13 @@ Tapping the queue button showed the icon's progress ring briefly filled to 100%,
 - New `Room.isTransitioning`, set from the transport's TRANSITIONING state at every `getPlaybackInfo` polling site in `SonosService` (selected-group refresh, group updates, watch updates, grouping helper). `pause` clears it optimistically so a pulse stops the moment the user acts; `play` leaves it to the poll since freshly queued content legitimately transitions.
 - Play/pause buttons pulse (`.symbolEffect(.pulse, isActive:)`) while transitioning: `PlaybackIconView` gained a defaulted `isTransitioning` parameter (mini player + `MediaControlsView`), and the large player and tvOS player buttons apply the effect directly. Clic Mini and the Watch are untouched — they run on SonosKitMini, whose device model has no transitioning state yet.
 
+### Live Activity dismissed by a volume tap
+- Tapping a volume number in the Live Activity from another app dismissed the Live Activity outright. `SetVolumeIntent` (and the relative-volume intents) set the volume and then call `LiveActivityManager.refresh()`. A `LiveActivityIntent` runs in the app's process, so when Clic isn't already running iOS launches it in the background purely for that intent — and in that fresh process `SonosService.groups` is still empty, because `getGroupCoordinatorWithRoom` fetches groups over the network but only `load()` assigns `service.groups`. `refresh()` read the empty list as "this room no longer exists" and ran its fallback, which ended **every** activity with `.immediate`.
+- `refresh()` now loads the topology when `groups` is empty, and returns without touching any activity if it's *still* empty. An unreachable system (off Wi-Fi, speakers asleep, load failed) is indistinguishable from a removed room, so the safe reading is to leave the activities alone and let the next refresh correct them.
+- The missing-group fallback ends only the activity whose room is absent, instead of the whole set — one stale room could previously take every other room's Live Activity down with it.
+- The per-speaker fetch failure path now `continue`s to the next activity rather than `return`ing out of the loop, so one unreachable coordinator no longer stops the remaining activities from updating.
+- `PlaybackIntent` never showed this: it calls `createActivity(id:)` first, which already does `load(useCache: true)`. The fix lives in `refresh()` rather than in each intent so every caller — volume, mute, night mode, speech enhancement, sleep timer — is covered by one guard. The added load only runs when `groups` is empty, so the in-app refresh path (foreground/inactive scene changes) is unaffected.
+
 ---
 
 ## 2026.6

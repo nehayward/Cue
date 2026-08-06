@@ -30,6 +30,7 @@
 - Redesigned the empty queue and Up Next screens — instead of a bare "Nothing up next", they now show your recent play history so you can tap to start something playing right away
 - Playing a long playlist no longer feels like the tap was dropped — if Sonos needs more than a moment, the banner shows a spinner with what's loading, then confirms once it's ready
 - The play button now pulses while your speaker is getting a song ready — in the mini player, the player, the speaker list, and on Apple TV
+- Fixed the Live Activity vanishing when you set the volume from it while in another app — and a speaker that's briefly unreachable no longer dismisses your other rooms' Live Activities along with it
 
 # 2026.6
 
