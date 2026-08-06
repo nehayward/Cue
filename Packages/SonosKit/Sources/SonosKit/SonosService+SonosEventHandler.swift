@@ -142,12 +142,6 @@ extension SonosService: SonosEventHandler {
         let key = liveItemKey(source, group.coordinatorID)
         guard lastLiveItemIDs[key] != itemID else { return }
         lastLiveItemIDs[key] = itemID
-#if DEBUG
-        // The only thing that refreshes the track while backgrounded, so a card
-        // stuck on the previous song is either this not firing or the fetch not
-        // landing. Compiled out of release.
-        print("🎛 item → \(source.rawValue) \(itemID) on \(group.coordinatorRoom.name), refetching")
-#endif
 
         liveTrackRefreshTasks[group.coordinatorID]?.cancel()
         liveTrackRefreshTasks[group.coordinatorID] = Task { @MainActor [weak self] in

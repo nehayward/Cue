@@ -108,12 +108,6 @@ final class NowPlayingSessionService {
     /// every observation pass. Correctness lives in the registry, not here.
     @ObservationIgnored private var subscribedKey: String?
 
-#if DEBUG
-    /// Last title traced, so the DEBUG line in `publish()` fires once per song
-    /// rather than on every republish.
-    @ObservationIgnored private var publishedTitle: String?
-#endif
-
     /// Artwork is keyed by URL: the expensive part is decoding, and the same
     /// song can republish many times (pause, seek, volume).
     @ObservationIgnored private var publishedArtworkURL: URL?
@@ -791,16 +785,6 @@ final class NowPlayingSessionService {
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         MPNowPlayingInfoCenter.default().playbackState = snapshot.isPlaying ? .playing : .paused
-
-#if DEBUG
-        // Narrow on purpose, and only on a song change: the question this
-        // answers is whether a stale card means the card didn't follow the
-        // model, or the model itself never moved. Compiled out of release.
-        if snapshot.title != publishedTitle {
-            publishedTitle = snapshot.title
-            print("🎛 track → model=\(track.song) — \(track.artist) | published=\(snapshot.title) | art=\(snapshot.artworkURL?.lastPathComponent ?? "none")")
-        }
-#endif
 
         if publishedArtworkURL != snapshot.artworkURL {
             loadArtwork(from: snapshot.artworkURL, track: track)
