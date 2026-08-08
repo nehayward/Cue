@@ -149,6 +149,105 @@ final class PlaybackPositionAnchorTests: XCTestCase {
         XCTAssertEqual(afterReset.elapsed, 0, "a new song starts at the position the speaker reports")
     }
 
+    // MARK: - The display clock
+
+    /// The reason `display` exists. `Room.playbackPosition` is parsed from
+    /// `RelTime` (`h:mm:ss`), so every reading is truncated to a whole second.
+    /// A view sampling several times a second and preferring that reading — which
+    /// is what binding the scrubber straight to the model did — reproduces the
+    /// truncation: the bar sits still, then jumps a second.
+    func testDisplayGlidesBetweenWholeSecondReadings() {
+        var anchor = PlaybackPositionAnchor()
+        _ = anchor.display(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: start)
+
+        // A quarter second later the speaker still reads 20s — it will until the
+        // truncated value rolls over.
+        let quarter = start.addingTimeInterval(0.25)
+        let shown = anchor.display(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: quarter)
+
+        XCTAssertEqual(shown, 20_250, accuracy: 1, "the clock has to move even though the reading didn't")
+    }
+
+    /// And the other half: when the reading *does* roll over, it must not drag
+    /// the clock back to it. A correct interpolation legitimately sits up to a
+    /// full second above a truncated reading.
+    func testDisplayIgnoresATruncatedReadingBelowTheInterpolation() {
+        var anchor = PlaybackPositionAnchor()
+        _ = anchor.display(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: start)
+
+        // 1.5s on: the clock says 21.5s, the speaker's truncated reading says 21s.
+        let later = start.addingTimeInterval(1.5)
+        let shown = anchor.display(modelElapsed: 21_000, duration: trackDuration, isPlaying: true, now: later)
+
+        XCTAssertEqual(shown, 21_500, accuracy: 1, "truncation is not drift — it must not snap backwards")
+    }
+
+    /// Real movement still wins. This is the case the tolerance is there to let
+    /// through: someone scrubbed, skipped, or moved the track elsewhere.
+    func testDisplayFollowsARealSeek() {
+        var anchor = PlaybackPositionAnchor()
+        _ = anchor.display(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: start)
+
+        let seekedAt = start.addingTimeInterval(1)
+        let shown = anchor.display(modelElapsed: 150_000, duration: trackDuration, isPlaying: true, now: seekedAt)
+
+        XCTAssertEqual(shown, 150_000)
+    }
+
+    /// The first read after a reset has no timeline to interpolate along. Falling
+    /// through to the interpolation there anchors at zero, which leaves the rest
+    /// of the track running a second short.
+    func testDisplayTakesTheSpeakersPositionOnTheFirstRead() {
+        var anchor = PlaybackPositionAnchor()
+
+        // Under the drift tolerance, so a naive implementation would prefer its
+        // own (empty) interpolation and start the song at 0.
+        let shown = anchor.display(modelElapsed: 1_000, duration: trackDuration, isPlaying: true, now: start)
+
+        XCTAssertEqual(shown, 1_000)
+    }
+
+    func testDisplayDoesNotCreepWhilePaused() {
+        var anchor = PlaybackPositionAnchor()
+        _ = anchor.display(modelElapsed: 40_000, duration: trackDuration, isPlaying: false, now: start)
+
+        let later = start.addingTimeInterval(300)
+        let shown = anchor.display(modelElapsed: 40_000, duration: trackDuration, isPlaying: false, now: later)
+
+        XCTAssertEqual(shown, 40_000)
+    }
+
+    func testDisplayIsClampedToTheTrackLength() {
+        var anchor = PlaybackPositionAnchor()
+        _ = anchor.display(modelElapsed: 190_000, duration: trackDuration, isPlaying: true, now: start)
+
+        let later = start.addingTimeInterval(60)
+        let shown = anchor.display(modelElapsed: 190_000, duration: trackDuration, isPlaying: true, now: later)
+
+        XCTAssertEqual(shown, trackDuration)
+    }
+
+    /// The two surfaces the change exists to reconcile: the card publishes an
+    /// anchor and lets the system interpolate, the player screen interpolates
+    /// locally. Given the same readings they have to end up at the same number.
+    func testDisplayAndResolveAgreeOnTheSameReadings() {
+        var card = PlaybackPositionAnchor()
+        var screen = PlaybackPositionAnchor()
+
+        let published = card.resolve(modelElapsed: 20_000, duration: trackDuration, now: start)
+        card.commit(elapsed: published.elapsed, isPlaying: true, at: start)
+        _ = screen.display(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: start)
+
+        // 30s of playback. The card is never republished — nothing changed — so
+        // its number is the system's interpolation from the anchor.
+        let later = start.addingTimeInterval(30)
+        let cardPosition = published.elapsed + 30_000
+        // The speaker has meanwhile reported a truncated 49s (it is at 50s).
+        let screenPosition = screen.display(modelElapsed: 49_000, duration: trackDuration, isPlaying: true, now: later)
+
+        XCTAssertEqual(screenPosition, cardPosition, accuracy: 1)
+    }
+
     func testResetTakesTheSpeakersPositionAgain() {
         var anchor = PlaybackPositionAnchor()
         _ = anchor.resolve(modelElapsed: 20_000, duration: trackDuration, now: start)

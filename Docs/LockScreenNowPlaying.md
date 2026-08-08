@@ -343,6 +343,54 @@ from what the system is already showing (a seek, or a skip from another
 controller). Steady-state cost of a playing song: one publish at the track
 change, and nothing until the next one.
 
+### The player screen runs the same clock
+
+It didn't, and that's why the two surfaces disagreed by a second or two. Worth
+writing down, because the obvious fix is the wrong one.
+
+`Room.playbackPosition` is not a clock. It is parsed from AVTransport's
+`RelTime`, which Sonos formats as `h:mm:ss` — so every reading is **truncated to
+a whole second** — and it only moves when the SOAP pulse writes it, every
+500–800 ms and already a round trip stale. `PlaybackView` bound it straight to
+the scrubber, so the player screen was a 1 Hz stepper showing a number up to a
+second behind the music. The card, meanwhile, publishes an anchor and a rate and
+lets the system interpolate: continuous, and anchored to whatever reading
+happened to be current at the track change. Two different kinds of clock reading
+the same source, so they sat up to ~2 s apart for a whole song, and nothing
+corrected it — every deadband in the chain is wider than the gap (the socket
+only writes position when it is off by >1000 ms, `driftTolerance` is 2000 ms).
+
+**The wrong fix is to re-anchor the card off the model more often.** That makes
+the card quantized and laggy to match the worse surface, and it can't be tuned:
+`driftTolerance` cannot go below one second, because the truncation alone puts a
+*correct* interpolation up to a full second above the reading. Tighten it and the
+scrubber snaps backwards on every poll.
+
+So the player screen interpolates too, through the same
+`PlaybackPositionAnchor`. Both are now continuous clocks anchored on the same
+readings, so they agree by construction, and the bar glides instead of stepping.
+Costs nothing on the network — it re-reads a number the poll already fetches and
+does arithmetic in between; the tick is 250 ms and only runs while the group is
+playing and the view is on screen (`VibeSlider` springs `value`, so the tick rate
+only sets how often the target moves, not how smooth it looks).
+
+The anchor has two readers with deliberately opposite biases, which is the one
+thing to hold on to when touching it:
+
+| | Bias | Why |
+|---|---|---|
+| `resolve` (the card) | Prefer the speaker's reading | Only called when something real changed, so the fresh number is the right one |
+| `display` (the player screen) | Prefer the interpolation | Called several times a second; preferring the reading just reproduces its whole-second truncation |
+
+`display` is self-committing — for a display clock every read *is* what was
+shown — and takes the speaker's reading outright on the first read after a reset,
+since there is no timeline to interpolate along yet. Falling through to the
+interpolation there anchors at zero and leaves the rest of the track running a
+second short. Both halves are pinned by `PlaybackPositionAnchorTests`.
+
+Not done: `MiniPlayerView` and `MediaControlsView`'s `PlaybackIconView` ring read
+`playbackPosition` raw and still step. Same fix applies if it's ever worth it.
+
 ### The sockets are rebuilt every five minutes, and that's a hole
 
 `SonosStreamingService` runs a refresh timer that gracefully disconnects every
@@ -550,7 +598,7 @@ only for this feature and goes when the feature goes.
 |---|---|
 | `NowPlayingSessionService` | Coordinator: gating, which group to mirror, the observation loop, publishing, commands, favorites |
 | `SilentAudioSession` | The audio claim — session category, the silence it plays, recovery from interruptions and media-services resets |
-| `PlaybackPositionAnchor` (SonosKit) | When to re-state elapsed time and what to state. Pure value type, covered by `PlaybackPositionAnchorTests` |
+| `PlaybackPositionAnchor` (SonosKit) | When to re-state elapsed time and what to state, for both the card (`resolve`) and the player screen's scrubber (`display`). Pure value type, covered by `PlaybackPositionAnchorTests` |
 | `AudioSessionArbiter` | How a song preview hands the session back without knowing the feature exists |
 
 `SilentAudioSession` and `PlaybackPositionAnchor` came out of the service
