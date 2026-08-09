@@ -2235,7 +2235,7 @@ public final class SonosService {
 
     // MARK: TV
     public func getTVSettings(group: GroupRoom) async throws -> TVSettings {
-        try await getTVSettings(ip: group.coordinatorRoom.ip, isArcUltra: group.isArcUltra)
+        try await getTVSettings(ip: group.coordinatorRoom.ip, isArcUltra: group.isArcUltraIfKnown)
     }
 
     /// - Throws: `SpeechEnhancementError` — `.unsupported` when the soundbar has no
@@ -2300,9 +2300,11 @@ public final class SonosService {
         async let audioInputFormat = api.getAudioInputFormat(IP: ip)
         async let nightMode = api.getNightMode(IP: ip)
 
+        // `nil` means the speaker answered and has no Arc Ultra control; a throw means
+        // we couldn't reach it, which is not the same thing.
         let speechEnhanceEnabled: Bool?
-        if let known = isArcUltra {
-            speechEnhanceEnabled = known ? try await speechEnhanceState(ip: ip) : nil
+        if let known = isArcUltra, !known {
+            speechEnhanceEnabled = nil
         } else {
             speechEnhanceEnabled = try await speechEnhanceState(ip: ip)
         }
@@ -2338,25 +2340,80 @@ public final class SonosService {
     /// input format have nothing to do with speech enhancement, and letting either
     /// of those reads fail the call is what made this report "not supported" on
     /// soundbars that support it perfectly well.
+    /// `isArcUltra`: pass it when the speaker's model is already known and skip the
+    /// probe — a plain on/off then costs a single request, same as night mode.
+    /// `nil` falls back to asking the speaker.
     /// - Returns: the state the speaker was left in.
     /// - Throws: `SpeechEnhancementError`, which separates "couldn't reach the
     ///   speaker" from "this speaker has no speech enhancement".
     @discardableResult
-    public func setSpeechEnhancement(ip: String, enabled: Bool, toggle: Bool = false) async throws -> Bool {
+    public func setSpeechEnhancement(ip: String, enabled: Bool, toggle: Bool = false, isArcUltra: Bool? = nil) async throws -> Bool {
         do {
-            if let current = try await speechEnhanceState(ip: ip) {
-                let enable = toggle ? !current : enabled
-                let level: Int
-                if enable {
-                    let currentLevel = (try? await api.getDialogLevelValue(IP: ip)) ?? 1
-                    level = max(1, currentLevel)
-                } else {
-                    level = 0
-                }
-                try await setArcUltraSpeechLevel(ip, level: level)
-                return enable
+            // Which control does this speaker have? The known model is free, so use it
+            // and only ask the speaker when the model isn't known. A plain on/off on a
+            // known speaker is then a single request — same cost as night mode.
+            let levelled: Bool
+            // The Arc Ultra state, when resolving the capability already read it.
+            var knownState: Bool? = nil
+            if let isArcUltra {
+                levelled = isArcUltra
+            } else {
+                knownState = try await speechEnhanceState(ip: ip)
+                levelled = knownState != nil
             }
 
+            do {
+                return try await applySpeechEnhancement(ip: ip, enabled: enabled, toggle: toggle, levelled: levelled, currentState: knownState)
+            } catch SpeechEnhancementError.unsupported where isArcUltra != nil {
+                // The model said one thing, the speaker says another — a stale entity
+                // saved in a shortcut, say. Believe the speaker and use the other control.
+                return try await applySpeechEnhancement(ip: ip, enabled: enabled, toggle: toggle, levelled: !levelled, currentState: nil)
+            }
+        } catch let error as SpeechEnhancementError {
+            throw error
+        } catch SonosAPIError.unsupported {
+            // Only reachable when the device answered and has no DialogLevel EQ
+            // either — i.e. it isn't a soundbar.
+            throw SpeechEnhancementError.unsupported
+        } catch {
+            throw SpeechEnhancementError.unreachable
+        }
+    }
+
+    /// Sets one of the two speech-enhancement controls.
+    /// - Parameters:
+    ///   - levelled: `true` for the Arc Ultra control, `false` for on/off `DialogLevel`.
+    ///   - currentState: the Arc Ultra state if it has already been read, to save a
+    ///     round trip when toggling.
+    /// - Throws: `SpeechEnhancementError.unsupported` when the speaker doesn't have
+    ///   the control asked for, which the caller can use to try the other one.
+    private func applySpeechEnhancement(ip: String, enabled: Bool, toggle: Bool, levelled: Bool, currentState: Bool?) async throws -> Bool {
+        if levelled {
+            let enable: Bool
+            if toggle {
+                var current = currentState
+                if current == nil {
+                    current = try await speechEnhanceState(ip: ip)
+                    // A speaker that answers without the Arc Ultra control doesn't have it.
+                    guard current != nil else { throw SpeechEnhancementError.unsupported }
+                }
+                enable = !(current ?? false)
+            } else {
+                enable = enabled
+            }
+            let level: Int
+            if enable {
+                // Keep whatever intensity the speaker is already set to.
+                let currentLevel = (try? await api.getDialogLevelValue(IP: ip)) ?? 1
+                level = max(1, currentLevel)
+            } else {
+                level = 0
+            }
+            try await setArcUltraSpeechLevel(ip, level: level)
+            return enable
+        }
+
+        do {
             let enable: Bool
             if toggle {
                 let current = try await retrying { try await api.getDialogLevel(IP: ip) }
@@ -2366,14 +2423,8 @@ public final class SonosService {
             }
             try await retrying { try await api.setDialogLevel(IP: ip, enabled: enable) }
             return enable
-        } catch let error as SpeechEnhancementError {
-            throw error
         } catch SonosAPIError.unsupported {
-            // Only reachable when the device answered and has no DialogLevel EQ
-            // either — i.e. it isn't a soundbar.
             throw SpeechEnhancementError.unsupported
-        } catch {
-            throw SpeechEnhancementError.unreachable
         }
     }
 

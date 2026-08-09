@@ -32,6 +32,11 @@ struct SetSpeechLevelIntent: LiveActivityIntent {
             throw IntentError.message("Subscribe to Super in App")
         }
 
+        // Levels are Arc Ultra only — say so without a round trip when we know the model.
+        if room.isArcUltra == false {
+            throw IntentError.message("\(room.name) doesn't support Speech Level — use Set Speech Enhancement instead")
+        }
+
         do {
             try await Self.sonosService.setArcUltraSpeechLevel(room.ip, level: level.rawValue)
         } catch SpeechEnhancementError.unsupported {

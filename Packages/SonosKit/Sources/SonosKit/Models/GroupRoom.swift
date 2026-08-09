@@ -15,6 +15,11 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public var isArcUltra: Bool {
         rooms.first(where: \.isSoundbar)?.isArcUltra ?? coordinatorRoom.isArcUltra
     }
+
+    /// `nil` until the soundbar's model is known — see `Room.isArcUltraIfKnown`.
+    public var isArcUltraIfKnown: Bool? {
+        (rooms.first(where: \.isSoundbar) ?? coordinatorRoom).isArcUltraIfKnown
+    }
     public var playMode: PlayMode = .normal
     public var isMuted: Bool = false
     public var ip: String { coordinatorRoom.ip }

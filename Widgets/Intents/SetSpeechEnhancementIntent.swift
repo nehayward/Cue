@@ -44,7 +44,8 @@ struct SetSpeechEnhancementIntent: LiveActivityIntent {
             result = try await Self.sonosService.setSpeechEnhancement(
                 ip: room.ip,
                 enabled: speechEnhancement,
-                toggle: mode == .toggle
+                toggle: mode == .toggle,
+                isArcUltra: room.isArcUltra
             )
         } catch SpeechEnhancementError.unsupported {
             throw IntentError.message("\(room.name) doesn't support Speech Enhancement")

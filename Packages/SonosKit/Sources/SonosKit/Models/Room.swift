@@ -69,7 +69,14 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var isArcUltra: Bool {
         info?.modelDisplayName.lowercased().contains("arc ultra") ?? false
     }
-    
+
+    /// `nil` until the model is known. Guessing "not an Arc Ultra" from a missing
+    /// model sends the wrong EQ command, so callers that can probe the speaker
+    /// should treat `nil` as "ask it" rather than as `false`.
+    public var isArcUltraIfKnown: Bool? {
+        info == nil ? nil : isArcUltra
+    }
+
     public var supportsLineIn: Bool {
         guard let info else { return false }
         // Prefer the device-reported capability — it's authoritative across firmware/models.
