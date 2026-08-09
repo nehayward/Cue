@@ -34,8 +34,10 @@ struct SetSpeechLevelIntent: LiveActivityIntent {
 
         do {
             try await Self.sonosService.setArcUltraSpeechLevel(room.ip, level: level.rawValue)
+        } catch SpeechEnhancementError.unsupported {
+            throw IntentError.message("\(room.name) doesn't support Speech Level — use Set Speech Enhancement instead")
         } catch {
-            throw IntentError.message("Speech Level not supported")
+            throw IntentError.message("Couldn't reach \(room.name)")
         }
 
         try? await Task.sleep(for: .milliseconds(100))
