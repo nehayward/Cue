@@ -370,23 +370,61 @@ So the player screen interpolates too, through the same
 `PlaybackPositionAnchor`. Both are now continuous clocks anchored on the same
 readings, so they agree by construction, and the bar glides instead of stepping.
 Costs nothing on the network — it re-reads a number the poll already fetches and
-does arithmetic in between; the tick is 250 ms and only runs while the group is
-playing and the view is on screen (`VibeSlider` springs `value`, so the tick rate
-only sets how often the target moves, not how smooth it looks).
+does arithmetic in between.
 
-The anchor has two readers with deliberately opposite biases, which is the one
-thing to hold on to when touching it:
+The anchor has three entry points, and the split between them is the design:
 
-| | Bias | Why |
-|---|---|---|
-| `resolve` (the card) | Prefer the speaker's reading | Only called when something real changed, so the fresh number is the right one |
-| `display` (the player screen) | Prefer the interpolation | Called several times a second; preferring the reading just reproduces its whole-second truncation |
+| | Kind | Bias | Why |
+|---|---|---|---|
+| `resolve` (the card) | mutating | Prefer the speaker's reading | Only called when something real changed, so the fresh number is the right one |
+| `seat` (the scrubber) | mutating | Prefer the interpolation | Called when the *model* moves; preferring the reading would reproduce its whole-second truncation |
+| `position` (the scrubber) | **pure** | — | Called from a view body, several times a second |
 
-`display` is self-committing — for a display clock every read *is* what was
-shown — and takes the speaker's reading outright on the first read after a reset,
-since there is no timeline to interpolate along yet. Falling through to the
+`seat` takes the speaker's reading outright on the first call after a reset,
+since there is no timeline to interpolate along yet — falling through to the
 interpolation there anchors at zero and leaves the rest of the track running a
-second short. Both halves are pinned by `PlaybackPositionAnchorTests`.
+second short. `position` returns **nil** rather than zero when unseated, so the
+view falls back to the raw reading instead of flashing the bar to the start of
+the track. All of it is pinned by `PlaybackPositionAnchorTests`.
+
+### Reading the clock must not be a state change
+
+This is the part that cost real battery, so it's worth stating plainly.
+
+The first cut ticked: a `.task` loop woke 4× a second, re-committed the anchor
+and wrote `@State`. On screen that's invisible. Backgrounded it is not — and
+this feature deliberately keeps the app alive in the background, holding an audio
+session, which is exactly when nobody can see the scrubber. **`.task` is tied to
+a view's lifetime, not its visibility**, so the loop kept running with the phone
+locked: measured at 5% → 15% background CPU.
+
+`PlaybackView` now reads the clock from a `TimelineView(.animation(minimumInterval:
+0.25, paused:))` instead. Three properties make that the right shape:
+
+- **`position` is pure**, so a read writes nothing and invalidates nothing. The
+  read rate is a rendering choice rather than a cost, and the anchor moves only
+  when the speaker says something (`onChange` of position, `isPlaying`, and the
+  track).
+- **The `.animation` schedule is display-link backed**, so it stops dead when
+  nothing is being drawn — backgrounded included. `.periodic` would *not*: it is
+  a plain timer and would have reproduced the bug.
+- **`paused:`** covers the two on-screen cases that still need no ticks — a
+  paused speaker, and a source with no timeline.
+
+A full display-rate schedule (`.animation()` with no interval, or a
+`CADisplayLink`) is the wrong answer despite being the obvious one: 15–30× the
+body evaluations for a bar that moves about two points a second. `VibeSlider`
+already springs `value`, so the render server interpolates the width every frame
+regardless — frame-rate smoothness without frame-rate work.
+
+The view's state is down to two: the anchor, and `scrubbed` — non-nil only while
+a finger is down, so it doubles as the "is the user scrubbing" flag rather than
+needing a second boolean kept in step with it. The display resolves as
+**finger → clock → speaker**, each fallback covering the case above it.
+Nothing writes an extrapolated position back into `Room.playbackPosition`: it is
+documented as what the device reported or a local seek, and a view fabricating
+values into shared model state would reach every other surface and the card's own
+`resolve` input.
 
 Not done: `MiniPlayerView` and `MediaControlsView`'s `PlaybackIconView` ring read
 `playbackPosition` raw and still step. Same fix applies if it's ever worth it.

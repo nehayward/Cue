@@ -85,49 +85,57 @@ public struct PlaybackPositionAnchor {
         )
     }
 
-    /// The position to *show* right now, for a surface that redraws on its own
-    /// clock instead of being written to.
+    /// Re-seats the anchor from a fresh reading. Call this when the model moves
+    /// — **not** on a timer; the passage of time is `position(at:duration:)`'s
+    /// job and needs recording nowhere.
     ///
     /// Same interpolation as `resolve`, opposite bias — and that difference is
     /// the whole reason this exists separately. `resolve` answers "we are about
     /// to write the info center, what number goes in it", which happens only
     /// when something real changed, so preferring the speaker's fresh reading is
-    /// right there. A view redraws several times a second, and the reading is
-    /// truncated to a whole second (see `driftTolerance`) — preferring it at that
-    /// rate just reproduces the truncation, and the scrubber sits still and then
+    /// right there. A scrubber is read several times a second, and the reading
+    /// is truncated to a whole second (see `driftTolerance`) — preferring it at
+    /// that rate just reproduces the truncation, and the bar sits still and then
     /// jumps a second.
     ///
     /// So here the interpolation wins by default, and the speaker's number only
     /// intervenes once it has drifted past `driftTolerance`: a seek, a skip, or
     /// another controller moving the track.
-    ///
-    /// Self-committing, because for a display clock every read *is* what was
-    /// shown — there is no separate "did we use it" for the caller to get wrong.
-    public mutating func display(
+    public mutating func seat(
         modelElapsed: TimeInterval,
         duration: TimeInterval,
         isPlaying: Bool,
         now: Date = .now
-    ) -> TimeInterval {
-        let modelMoved = modelElapsed != lastModelElapsed
-        lastModelElapsed = modelElapsed
-
+    ) {
         let elapsed: TimeInterval
         if isAnchored {
             let interpolated = interpolation(at: now)
-            let drifted = modelMoved && abs(modelElapsed - interpolated) > Self.driftTolerance
+            let moved = modelElapsed != lastModelElapsed
+            let drifted = moved && abs(modelElapsed - interpolated) > Self.driftTolerance
             elapsed = drifted ? modelElapsed : interpolated
         } else {
-            // A first read, or the first after a track change: there is no
-            // timeline yet, so the speaker's number is all there is. Falling
-            // through to the interpolation here would anchor at zero and leave
-            // the whole track a second short.
+            // A first seat, or the first after a reset: there is no timeline
+            // yet, so the speaker's number is all there is. Falling through to
+            // the interpolation here anchors at zero and leaves the whole track
+            // running a second short.
             elapsed = modelElapsed
         }
 
-        let shown = clamped(elapsed, duration: duration)
-        commit(elapsed: shown, isPlaying: isPlaying, at: now)
-        return shown
+        lastModelElapsed = modelElapsed
+        commit(elapsed: clamped(elapsed, duration: duration), isPlaying: isPlaying, at: now)
+    }
+
+    /// Where the anchor says we are at `date` — or nil if it hasn't been seated
+    /// since the last `reset()`, which is a caller's cue to fall back to the
+    /// speaker's own reading rather than show the zero an empty anchor holds.
+    ///
+    /// Pure, unlike everything else here, because this is what a view body
+    /// calls. Nothing about time passing needs storing, so a scrubber reading it
+    /// on a `TimelineView` schedule writes no state and invalidates nothing —
+    /// which is what keeps the read rate a rendering choice instead of a cost.
+    public func position(at date: Date, duration: TimeInterval) -> TimeInterval? {
+        guard isAnchored else { return nil }
+        return clamped(interpolation(at: date), duration: duration)
     }
 
     /// Records what was actually published, so the next interpolation runs from

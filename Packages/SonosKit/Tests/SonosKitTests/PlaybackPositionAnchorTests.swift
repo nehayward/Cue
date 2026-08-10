@@ -149,103 +149,114 @@ final class PlaybackPositionAnchorTests: XCTestCase {
         XCTAssertEqual(afterReset.elapsed, 0, "a new song starts at the position the speaker reports")
     }
 
-    // MARK: - The display clock
+    // MARK: - The scrubber's clock
 
-    /// The reason `display` exists. `Room.playbackPosition` is parsed from
-    /// `RelTime` (`h:mm:ss`), so every reading is truncated to a whole second.
-    /// A view sampling several times a second and preferring that reading — which
-    /// is what binding the scrubber straight to the model did — reproduces the
-    /// truncation: the bar sits still, then jumps a second.
-    func testDisplayGlidesBetweenWholeSecondReadings() {
+    /// `position` is pure, and this is why that matters as much as the number it
+    /// returns: reading the clock is not a state change, so a view can do it on
+    /// a `TimelineView` schedule without writing anything or invalidating
+    /// anything. A version that re-committed on every read cost real CPU in the
+    /// background, where the app stays alive holding the Now Playing session.
+    func testPositionMovesWithoutBeingSeated() {
         var anchor = PlaybackPositionAnchor()
-        _ = anchor.display(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: start)
+        anchor.seat(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: start)
 
-        // A quarter second later the speaker still reads 20s — it will until the
-        // truncated value rolls over.
+        // A quarter second on the speaker still reads 20s — it will until the
+        // truncated value rolls over — and nothing has re-seated the anchor.
         let quarter = start.addingTimeInterval(0.25)
-        let shown = anchor.display(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: quarter)
 
-        XCTAssertEqual(shown, 20_250, accuracy: 1, "the clock has to move even though the reading didn't")
+        XCTAssertEqual(anchor.position(at: quarter, duration: trackDuration), 20_250, accuracy: 1)
     }
 
-    /// And the other half: when the reading *does* roll over, it must not drag
-    /// the clock back to it. A correct interpolation legitimately sits up to a
-    /// full second above a truncated reading.
-    func testDisplayIgnoresATruncatedReadingBelowTheInterpolation() {
+    /// Nil rather than zero, so the caller can fall back to the speaker's own
+    /// reading. Returning the empty anchor's zero flashed the bar to the start
+    /// of the track on the first render.
+    func testPositionIsNilUntilSeated() {
+        let anchor = PlaybackPositionAnchor()
+        XCTAssertNil(anchor.position(at: start, duration: trackDuration))
+    }
+
+    /// The reason the scrubber's bias is the opposite of the card's.
+    /// `Room.playbackPosition` is parsed from `RelTime` (`h:mm:ss`), so every
+    /// reading is truncated to a whole second — a *correct* interpolation
+    /// legitimately sits above it, and must not be dragged back down.
+    func testSeatIgnoresATruncatedReadingBelowTheInterpolation() {
         var anchor = PlaybackPositionAnchor()
-        _ = anchor.display(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: start)
+        anchor.seat(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: start)
 
         // 1.5s on: the clock says 21.5s, the speaker's truncated reading says 21s.
         let later = start.addingTimeInterval(1.5)
-        let shown = anchor.display(modelElapsed: 21_000, duration: trackDuration, isPlaying: true, now: later)
+        anchor.seat(modelElapsed: 21_000, duration: trackDuration, isPlaying: true, now: later)
 
-        XCTAssertEqual(shown, 21_500, accuracy: 1, "truncation is not drift — it must not snap backwards")
+        XCTAssertEqual(anchor.position(at: later, duration: trackDuration), 21_500, accuracy: 1,
+                       "truncation is not drift — it must not snap backwards")
     }
 
-    /// Real movement still wins. This is the case the tolerance is there to let
+    /// Real movement still wins. This is what the tolerance is there to let
     /// through: someone scrubbed, skipped, or moved the track elsewhere.
-    func testDisplayFollowsARealSeek() {
+    func testSeatFollowsARealSeek() {
         var anchor = PlaybackPositionAnchor()
-        _ = anchor.display(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: start)
+        anchor.seat(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: start)
 
         let seekedAt = start.addingTimeInterval(1)
-        let shown = anchor.display(modelElapsed: 150_000, duration: trackDuration, isPlaying: true, now: seekedAt)
+        anchor.seat(modelElapsed: 150_000, duration: trackDuration, isPlaying: true, now: seekedAt)
 
-        XCTAssertEqual(shown, 150_000)
+        XCTAssertEqual(anchor.position(at: seekedAt, duration: trackDuration), 150_000)
     }
 
-    /// The first read after a reset has no timeline to interpolate along. Falling
-    /// through to the interpolation there anchors at zero, which leaves the rest
-    /// of the track running a second short.
-    func testDisplayTakesTheSpeakersPositionOnTheFirstRead() {
+    /// The first seat after a reset has no timeline to interpolate along.
+    /// Falling through to the interpolation there anchors at zero, which leaves
+    /// the rest of the track running a second short.
+    func testFirstSeatTakesTheSpeakersPosition() {
         var anchor = PlaybackPositionAnchor()
 
-        // Under the drift tolerance, so a naive implementation would prefer its
-        // own (empty) interpolation and start the song at 0.
-        let shown = anchor.display(modelElapsed: 1_000, duration: trackDuration, isPlaying: true, now: start)
+        // Under the drift tolerance, so an implementation that preferred its own
+        // (empty) interpolation would start the song at 0.
+        anchor.seat(modelElapsed: 1_000, duration: trackDuration, isPlaying: true, now: start)
 
-        XCTAssertEqual(shown, 1_000)
+        XCTAssertEqual(anchor.position(at: start, duration: trackDuration), 1_000)
     }
 
-    func testDisplayDoesNotCreepWhilePaused() {
+    /// A pause is a rate change, and the view re-seats on it. The freeze has to
+    /// happen at the interpolated position, not at the stale reading.
+    func testPausingFreezesWhereTheClockHadCountedTo() {
         var anchor = PlaybackPositionAnchor()
-        _ = anchor.display(modelElapsed: 40_000, duration: trackDuration, isPlaying: false, now: start)
+        anchor.seat(modelElapsed: 40_000, duration: trackDuration, isPlaying: true, now: start)
 
-        let later = start.addingTimeInterval(300)
-        let shown = anchor.display(modelElapsed: 40_000, duration: trackDuration, isPlaying: false, now: later)
+        // 10s later the user pauses; the speaker's last reading is still 40s.
+        let pausedAt = start.addingTimeInterval(10)
+        anchor.seat(modelElapsed: 40_000, duration: trackDuration, isPlaying: false, now: pausedAt)
 
-        XCTAssertEqual(shown, 40_000)
+        let muchLater = pausedAt.addingTimeInterval(300)
+        XCTAssertEqual(anchor.position(at: muchLater, duration: trackDuration), 50_000, accuracy: 1)
     }
 
-    func testDisplayIsClampedToTheTrackLength() {
+    func testPositionIsClampedToTheTrackLength() {
         var anchor = PlaybackPositionAnchor()
-        _ = anchor.display(modelElapsed: 190_000, duration: trackDuration, isPlaying: true, now: start)
+        anchor.seat(modelElapsed: 190_000, duration: trackDuration, isPlaying: true, now: start)
 
         let later = start.addingTimeInterval(60)
-        let shown = anchor.display(modelElapsed: 190_000, duration: trackDuration, isPlaying: true, now: later)
-
-        XCTAssertEqual(shown, trackDuration)
+        XCTAssertEqual(anchor.position(at: later, duration: trackDuration), trackDuration)
     }
 
     /// The two surfaces the change exists to reconcile: the card publishes an
     /// anchor and lets the system interpolate, the player screen interpolates
     /// locally. Given the same readings they have to end up at the same number.
-    func testDisplayAndResolveAgreeOnTheSameReadings() {
+    func testTheScrubberAndTheCardAgreeOnTheSameReadings() {
         var card = PlaybackPositionAnchor()
         var screen = PlaybackPositionAnchor()
 
         let published = card.resolve(modelElapsed: 20_000, duration: trackDuration, now: start)
         card.commit(elapsed: published.elapsed, isPlaying: true, at: start)
-        _ = screen.display(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: start)
+        screen.seat(modelElapsed: 20_000, duration: trackDuration, isPlaying: true, now: start)
 
         // 30s of playback. The card is never republished — nothing changed — so
         // its number is the system's interpolation from the anchor.
         let later = start.addingTimeInterval(30)
         let cardPosition = published.elapsed + 30_000
         // The speaker has meanwhile reported a truncated 49s (it is at 50s).
-        let screenPosition = screen.display(modelElapsed: 49_000, duration: trackDuration, isPlaying: true, now: later)
+        screen.seat(modelElapsed: 49_000, duration: trackDuration, isPlaying: true, now: later)
 
-        XCTAssertEqual(screenPosition, cardPosition, accuracy: 1)
+        XCTAssertEqual(screen.position(at: later, duration: trackDuration), cardPosition, accuracy: 1)
     }
 
     func testResetTakesTheSpeakersPositionAgain() {
