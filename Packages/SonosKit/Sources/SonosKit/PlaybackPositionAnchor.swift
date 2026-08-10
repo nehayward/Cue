@@ -28,29 +28,18 @@ import Foundation
 ///
 /// So: the speaker's number is authoritative only when it has just moved.
 /// Otherwise carry the interpolation forward.
-///
-/// Two readers, with opposite biases — see `resolve` and `display`.
 public struct PlaybackPositionAnchor {
     /// What was last handed to the info center, and when.
     private var anchoredElapsed: TimeInterval = 0
     private var anchoredAt: Date = .distantPast
     private var anchoredWhilePlaying = false
-    /// Whether `commit` has run since the last reset. Before it has there is no
-    /// timeline to interpolate along, which `display` has to know about.
-    private var isAnchored = false
     /// The last model position seen, to distinguish "the speaker just reported
     /// this" from "this has been frozen since the poll stopped".
     private var lastModelElapsed: TimeInterval = -1
 
-    /// How far past the current estimate the speaker has to be before it's worth
-    /// re-anchoring. Below this the interpolation is already right and a
-    /// correction would only risk visible jitter.
-    ///
-    /// **It cannot go below one second.** `Room.playbackPosition` comes from
-    /// AVTransport's `RelTime`, which Sonos formats as `h:mm:ss` — so the
-    /// reading is truncated to a whole second, and a *correct* interpolation
-    /// legitimately sits up to a full second above it. Tighten this and the
-    /// position snaps backwards on every poll.
+    /// How far past the system's own estimate the speaker has to be before it's
+    /// worth re-anchoring. Below this the interpolation is already right and a
+    /// republish would only risk visible jitter.
     private static let driftTolerance: TimeInterval = 2000
 
     public struct Resolution {
@@ -61,14 +50,14 @@ public struct PlaybackPositionAnchor {
         public let drifted: Bool
     }
 
-    public init() {}
-
-    /// Resolves the position to publish, for a surface that gets *written* to.
+    /// Resolves the position to publish.
     ///
     /// - Parameters:
     ///   - modelElapsed: the speaker's reported position, in milliseconds.
     ///   - duration: track length in milliseconds; `0` for a live stream.
     ///   - now: injected so this is testable.
+    public init() {}
+
     public mutating func resolve(
         modelElapsed: TimeInterval,
         duration: TimeInterval,
@@ -77,65 +66,17 @@ public struct PlaybackPositionAnchor {
         let modelMoved = modelElapsed != lastModelElapsed
         lastModelElapsed = modelElapsed
 
-        let interpolated = interpolation(at: now)
+        let interpolated = anchoredWhilePlaying
+            ? anchoredElapsed + now.timeIntervalSince(anchoredAt) * 1000
+            : anchoredElapsed
+
+        var elapsed = max(modelMoved ? modelElapsed : interpolated, 0)
+        if duration > 0 { elapsed = min(elapsed, duration) }
 
         return Resolution(
-            elapsed: clamped(modelMoved ? modelElapsed : interpolated, duration: duration),
+            elapsed: elapsed,
             drifted: modelMoved && abs(modelElapsed - interpolated) > Self.driftTolerance
         )
-    }
-
-    /// Re-seats the anchor from a fresh reading. Call this when the model moves
-    /// — **not** on a timer; the passage of time is `position(at:duration:)`'s
-    /// job and needs recording nowhere.
-    ///
-    /// Same interpolation as `resolve`, opposite bias — and that difference is
-    /// the whole reason this exists separately. `resolve` answers "we are about
-    /// to write the info center, what number goes in it", which happens only
-    /// when something real changed, so preferring the speaker's fresh reading is
-    /// right there. A scrubber is read several times a second, and the reading
-    /// is truncated to a whole second (see `driftTolerance`) — preferring it at
-    /// that rate just reproduces the truncation, and the bar sits still and then
-    /// jumps a second.
-    ///
-    /// So here the interpolation wins by default, and the speaker's number only
-    /// intervenes once it has drifted past `driftTolerance`: a seek, a skip, or
-    /// another controller moving the track.
-    public mutating func seat(
-        modelElapsed: TimeInterval,
-        duration: TimeInterval,
-        isPlaying: Bool,
-        now: Date = .now
-    ) {
-        let elapsed: TimeInterval
-        if isAnchored {
-            let interpolated = interpolation(at: now)
-            let moved = modelElapsed != lastModelElapsed
-            let drifted = moved && abs(modelElapsed - interpolated) > Self.driftTolerance
-            elapsed = drifted ? modelElapsed : interpolated
-        } else {
-            // A first seat, or the first after a reset: there is no timeline
-            // yet, so the speaker's number is all there is. Falling through to
-            // the interpolation here anchors at zero and leaves the whole track
-            // running a second short.
-            elapsed = modelElapsed
-        }
-
-        lastModelElapsed = modelElapsed
-        commit(elapsed: clamped(elapsed, duration: duration), isPlaying: isPlaying, at: now)
-    }
-
-    /// Where the anchor says we are at `date` — or nil if it hasn't been seated
-    /// since the last `reset()`, which is a caller's cue to fall back to the
-    /// speaker's own reading rather than show the zero an empty anchor holds.
-    ///
-    /// Pure, unlike everything else here, because this is what a view body
-    /// calls. Nothing about time passing needs storing, so a scrubber reading it
-    /// on a `TimelineView` schedule writes no state and invalidates nothing —
-    /// which is what keeps the read rate a rendering choice instead of a cost.
-    public func position(at date: Date, duration: TimeInterval) -> TimeInterval? {
-        guard isAnchored else { return nil }
-        return clamped(interpolation(at: date), duration: duration)
     }
 
     /// Records what was actually published, so the next interpolation runs from
@@ -144,21 +85,6 @@ public struct PlaybackPositionAnchor {
         anchoredElapsed = elapsed
         anchoredAt = now
         anchoredWhilePlaying = isPlaying
-        isAnchored = true
-    }
-
-    /// Where the anchor says we are now. A paused anchor doesn't move.
-    private func interpolation(at now: Date) -> TimeInterval {
-        anchoredWhilePlaying
-            ? anchoredElapsed + now.timeIntervalSince(anchoredAt) * 1000
-            : anchoredElapsed
-    }
-
-    /// Nothing may go negative, and nothing may run past the end of a track that
-    /// has one — a live stream has no end to run past.
-    private func clamped(_ elapsed: TimeInterval, duration: TimeInterval) -> TimeInterval {
-        let floored = max(elapsed, 0)
-        return duration > 0 ? min(floored, duration) : floored
     }
 
     /// Forgets everything — a new track, a new speaker, a new session. The next

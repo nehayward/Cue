@@ -343,92 +343,6 @@ from what the system is already showing (a seek, or a skip from another
 controller). Steady-state cost of a playing song: one publish at the track
 change, and nothing until the next one.
 
-### The player screen runs the same clock
-
-It didn't, and that's why the two surfaces disagreed by a second or two. Worth
-writing down, because the obvious fix is the wrong one.
-
-`Room.playbackPosition` is not a clock. It is parsed from AVTransport's
-`RelTime`, which Sonos formats as `h:mm:ss` — so every reading is **truncated to
-a whole second** — and it only moves when the SOAP pulse writes it, every
-500–800 ms and already a round trip stale. `PlaybackView` bound it straight to
-the scrubber, so the player screen was a 1 Hz stepper showing a number up to a
-second behind the music. The card, meanwhile, publishes an anchor and a rate and
-lets the system interpolate: continuous, and anchored to whatever reading
-happened to be current at the track change. Two different kinds of clock reading
-the same source, so they sat up to ~2 s apart for a whole song, and nothing
-corrected it — every deadband in the chain is wider than the gap (the socket
-only writes position when it is off by >1000 ms, `driftTolerance` is 2000 ms).
-
-**The wrong fix is to re-anchor the card off the model more often.** That makes
-the card quantized and laggy to match the worse surface, and it can't be tuned:
-`driftTolerance` cannot go below one second, because the truncation alone puts a
-*correct* interpolation up to a full second above the reading. Tighten it and the
-scrubber snaps backwards on every poll.
-
-So the player screen interpolates too, through the same
-`PlaybackPositionAnchor`. Both are now continuous clocks anchored on the same
-readings, so they agree by construction, and the bar glides instead of stepping.
-Costs nothing on the network — it re-reads a number the poll already fetches and
-does arithmetic in between.
-
-The anchor has three entry points, and the split between them is the design:
-
-| | Kind | Bias | Why |
-|---|---|---|---|
-| `resolve` (the card) | mutating | Prefer the speaker's reading | Only called when something real changed, so the fresh number is the right one |
-| `seat` (the scrubber) | mutating | Prefer the interpolation | Called when the *model* moves; preferring the reading would reproduce its whole-second truncation |
-| `position` (the scrubber) | **pure** | — | Called from a view body, several times a second |
-
-`seat` takes the speaker's reading outright on the first call after a reset,
-since there is no timeline to interpolate along yet — falling through to the
-interpolation there anchors at zero and leaves the rest of the track running a
-second short. `position` returns **nil** rather than zero when unseated, so the
-view falls back to the raw reading instead of flashing the bar to the start of
-the track. All of it is pinned by `PlaybackPositionAnchorTests`.
-
-### Reading the clock must not be a state change
-
-This is the part that cost real battery, so it's worth stating plainly.
-
-The first cut ticked: a `.task` loop woke 4× a second, re-committed the anchor
-and wrote `@State`. On screen that's invisible. Backgrounded it is not — and
-this feature deliberately keeps the app alive in the background, holding an audio
-session, which is exactly when nobody can see the scrubber. **`.task` is tied to
-a view's lifetime, not its visibility**, so the loop kept running with the phone
-locked: measured at 5% → 15% background CPU.
-
-`PlaybackView` now reads the clock from a `TimelineView(.animation(minimumInterval:
-0.25, paused:))` instead. Three properties make that the right shape:
-
-- **`position` is pure**, so a read writes nothing and invalidates nothing. The
-  read rate is a rendering choice rather than a cost, and the anchor moves only
-  when the speaker says something (`onChange` of position, `isPlaying`, and the
-  track).
-- **The `.animation` schedule is display-link backed**, so it stops dead when
-  nothing is being drawn — backgrounded included. `.periodic` would *not*: it is
-  a plain timer and would have reproduced the bug.
-- **`paused:`** covers the two on-screen cases that still need no ticks — a
-  paused speaker, and a source with no timeline.
-
-A full display-rate schedule (`.animation()` with no interval, or a
-`CADisplayLink`) is the wrong answer despite being the obvious one: 15–30× the
-body evaluations for a bar that moves about two points a second. `VibeSlider`
-already springs `value`, so the render server interpolates the width every frame
-regardless — frame-rate smoothness without frame-rate work.
-
-The view's state is down to two: the anchor, and `scrubbed` — non-nil only while
-a finger is down, so it doubles as the "is the user scrubbing" flag rather than
-needing a second boolean kept in step with it. The display resolves as
-**finger → clock → speaker**, each fallback covering the case above it.
-Nothing writes an extrapolated position back into `Room.playbackPosition`: it is
-documented as what the device reported or a local seek, and a view fabricating
-values into shared model state would reach every other surface and the card's own
-`resolve` input.
-
-Not done: `MiniPlayerView` and `MediaControlsView`'s `PlaybackIconView` ring read
-`playbackPosition` raw and still step. Same fix applies if it's ever worth it.
-
 ### The sockets are rebuilt every five minutes, and that's a hole
 
 `SonosStreamingService` runs a refresh timer that gracefully disconnects every
@@ -636,7 +550,7 @@ only for this feature and goes when the feature goes.
 |---|---|
 | `NowPlayingSessionService` | Coordinator: gating, which group to mirror, the observation loop, publishing, commands, favorites |
 | `SilentAudioSession` | The audio claim — session category, the silence it plays, recovery from interruptions and media-services resets |
-| `PlaybackPositionAnchor` (SonosKit) | When to re-state elapsed time and what to state, for both the card (`resolve`) and the player screen's scrubber (`display`). Pure value type, covered by `PlaybackPositionAnchorTests` |
+| `PlaybackPositionAnchor` (SonosKit) | When to re-state elapsed time and what to state. Pure value type, covered by `PlaybackPositionAnchorTests` |
 | `AudioSessionArbiter` | How a song preview hands the session back without knowing the feature exists |
 
 `SilentAudioSession` and `PlaybackPositionAnchor` came out of the service

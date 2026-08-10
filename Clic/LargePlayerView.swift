@@ -443,174 +443,54 @@ fileprivate struct PlaybackView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Bindable var group: GroupRoom
 
-    /// Interpolates the scrubber between the speaker's readings.
-    ///
-    /// `Room.playbackPosition` is not a clock. It comes from AVTransport's
-    /// `RelTime`, which Sonos formats as `h:mm:ss` — so it is **truncated to a
-    /// whole second** — and it only moves when the SOAP pulse writes it, every
-    /// 500–800 ms and already a round trip stale. Bound straight to the slider
-    /// that made this a 1 Hz stepper sitting up to a second behind the music,
-    /// and it disagreed with the Lock Screen Now Playing card by as much as two
-    /// seconds: that surface publishes an anchor and a rate and lets the system
-    /// interpolate, so it runs a continuous clock off the same readings.
-    ///
-    /// The anchor moves only when the speaker says something. Time passing is
-    /// not a state change, so nothing here ticks — see `body`.
-    @State private var anchor = PlaybackPositionAnchor()
-    /// Non-nil only while a finger is down: the drag's value, which outranks the
-    /// clock until the seek lands. It doubles as the "is the user scrubbing"
-    /// flag, so there is no second piece of state to keep in step with it.
-    @State private var scrubbed: TimeInterval?
-
-    /// Ceiling on how often the clock is read.
-    ///
-    /// A display-rate schedule (`.animation()` with no interval, `CADisplayLink`)
-    /// would be 15–30× the body evaluations for a bar that moves about two
-    /// points a second — and `VibeSlider` already springs `value`, so the render
-    /// server interpolates the width every frame regardless of how often the
-    /// target moves. Frame-rate smoothness without frame-rate work.
-    private static let readInterval: TimeInterval = 0.25
-
     var body: some View {
-        let room = group.coordinatorRoom
-        let duration = room.track.duration
+        VStack(spacing: 0) {
+            VibeSlider(value: $group.coordinatorRoom.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24) { isEditing in
+                sonosService.isEditing = true
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
+                    group.isEditingPlayback = isEditing
+                }
 
-        // `TimelineView` rather than a timer, and the difference is the whole
-        // cost story.
-        //
-        // The `.animation` schedule is display-link backed, so it stops dead
-        // when nothing is being drawn — including the entire time this app is
-        // backgrounded, which for this feature is most of its life: it holds an
-        // audio session so the Lock Screen card can exist. A `.task` loop is
-        // tied to a view's *lifetime*, not its visibility, so it kept ticking
-        // there — state writes and view invalidation four times a second, for a
-        // scrubber nobody could see, for as long as the music played. Measured
-        // at 5% → 15% background CPU. `.periodic` would have the same problem;
-        // it's a plain timer.
-        //
-        // `paused:` then covers the two cases where an on-screen scrubber still
-        // needs no ticks: a paused speaker (the interpolation is frozen by
-        // definition) and a source with no timeline (radio, line-in — the whole
-        // view is transparent anyway).
-        TimelineView(.animation(minimumInterval: Self.readInterval, paused: !room.isPlaying || duration <= 0)) { context in
-            // The finger, the clock, the speaker — in that order. The last is
-            // the fallback for an anchor that hasn't been seated yet, which is
-            // when reading it would otherwise show the zero an empty one holds.
-            let shown = scrubbed
-                ?? anchor.position(at: context.date, duration: duration)
-                ?? room.playbackPosition
-
-            VStack(spacing: 0) {
-                VibeSlider(value: scrubBinding(showing: shown), in: 0...duration, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24) { isEditing in
-                    sonosService.isEditing = true
+                if !isEditing {
                     Task { @MainActor in
-                        try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
-                        group.isEditingPlayback = isEditing
-                    }
-
-                    guard !isEditing else { return }
-                    let target = scrubbed
-                    Task { @MainActor in
-                        if let target {
-                            group.coordinatorRoom.updatePlaybackPosition(target)
-                            await sonosService.seek(to: target, on: group)
-                        }
+                        await sonosService.seek(to: group.coordinatorRoom.playbackPosition, on: group)
                         sonosService.isEditing = false
-                        // Restart the clock from where the drag left the speaker
-                        // rather than where it had counted to, and only then hand
-                        // the display back to it.
-                        anchor.reset()
-                        seat()
-                        scrubbed = nil
                     }
                 }
-                .frame(maxWidth: 500)
-                .frame(height: 40)
-                .foregroundStyle(.primary)
-                .disabled(!group.availableActions.contains(.scrubbable))
-
-                HStack {
-                    let elapsed = Int(shown / 1000)
-                    let total = Int(duration / 1000)
-                    let usesHourFormat = total > 3600
-
-                    PlaybackTimeLabel(seconds: elapsed, usesHourFormat: usesHourFormat, isRemaining: false)
-                    Spacer()
-                    AudioInfoView(group: group)
-                        .frame(height: 12)
-                        .contentTransition(.identity)
-                    Spacer()
-                    PlaybackTimeLabel(seconds: max(0, total - elapsed), usesHourFormat: usesHourFormat, isRemaining: true)
-                }
-                .frame(maxWidth: 500)
-                .monospacedDigit()
-                .font(.caption)
             }
+            .frame(maxWidth: 500)
+            .frame(height: 40)
+            .foregroundStyle(.primary)
+            .disabled(!group.availableActions.contains(.scrubbable))
+
+            HStack {
+                let duration = Duration.milliseconds(group.coordinatorRoom.track.duration)
+                let position = Duration.milliseconds(group.coordinatorRoom.playbackPosition)
+                let timeRemaining = Duration.milliseconds(max(0, group.coordinatorRoom.track.duration - group.coordinatorRoom.playbackPosition))
+
+                let usesHourFormat = duration.components.seconds > 3600
+                let pattern: Duration.TimeFormatStyle.Pattern = usesHourFormat ? .hourMinuteSecond : .minuteSecond
+
+                Text(position.formatted(.time(pattern: pattern)))
+                    .contentTransition(.identity)
+                Spacer()
+                AudioInfoView(group: group)
+                    .frame(height: 12)
+                    .contentTransition(.identity)
+                Spacer()
+                Text("-\(timeRemaining.formatted(.time(pattern: pattern)))")
+                    .contentTransition(.identity)
+            }
+            .frame(maxWidth: 500)
+            .monospacedDigit()
+            .font(.caption)
         }
         .fontDesign(.rounded)
         .frame(maxWidth: .infinity)
         .frame(height: 60)
-        .opacity(duration.isZero ? 0 : 1)
+        .opacity(group.coordinatorRoom.track.duration.isZero ? 0 : 1)
         .animation(.spring, value: group.audioQuality)
-        .onAppear { seat() }
-        .onChange(of: room.playbackPosition) { seatFromModel() }
-        // A pause is a rate change, so the anchor has to be re-seated to freeze
-        // it — at the interpolated position, not at the stale reading.
-        .onChange(of: room.isPlaying) { seat() }
-        .onChange(of: room.track.unique) {
-            // A new song is a new timeline, so the anchor's numbers describe the
-            // old one. Same reset the Now Playing card does, for the same reason.
-            anchor.reset()
-            seat()
-        }
-    }
-
-    /// The slider is two-way and its directions have different destinations: it
-    /// shows the clock, and a drag writes `scrubbed`. Nothing here touches the
-    /// model — an extrapolated position must not leak into shared state, and the
-    /// seek on drag-end is where the speaker finds out.
-    private func scrubBinding(showing shown: TimeInterval) -> Binding<TimeInterval> {
-        Binding { shown } set: { scrubbed = $0 }
-    }
-
-    /// Re-seats the clock on the speaker's current reading.
-    private func seat() {
-        let room = group.coordinatorRoom
-        // Radio and line-in have no timeline to interpolate along; leaving the
-        // anchor unseated is what makes the view fall back to the raw reading.
-        guard room.track.duration > 0 else { return }
-        anchor.seat(
-            modelElapsed: room.playbackPosition,
-            duration: room.track.duration,
-            isPlaying: room.isPlaying
-        )
-    }
-
-    /// The model moved on its own. Ignore it while the user owns the value:
-    /// during a drag, and for the second afterwards, when `isEditingPlayback` is
-    /// held so a poll that predates the seek can't undo it. Same rule the poll
-    /// itself follows.
-    private func seatFromModel() {
-        guard scrubbed == nil, !group.isEditingPlayback else { return }
-        seat()
-    }
-}
-
-/// The elapsed / remaining labels either side of `AudioInfoView`.
-///
-/// Its own view, taking **whole seconds** rather than the scrubber's
-/// millisecond clock, so `Duration.formatted` runs once a second instead of on
-/// every tick — SwiftUI skips a child body whose inputs haven't changed.
-fileprivate struct PlaybackTimeLabel: View {
-    let seconds: Int
-    let usesHourFormat: Bool
-    let isRemaining: Bool
-
-    var body: some View {
-        let pattern: Duration.TimeFormatStyle.Pattern = usesHourFormat ? .hourMinuteSecond : .minuteSecond
-        let formatted = Duration.seconds(seconds).formatted(.time(pattern: pattern))
-        Text(isRemaining ? "-\(formatted)" : formatted)
-            .contentTransition(.identity)
     }
 }
 
