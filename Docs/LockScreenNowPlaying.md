@@ -618,6 +618,54 @@ them:
   filters and two send paths. Not done because it changes long-standing
   player-screen behaviour (1-point steps vs ~6).
 
+### Tried and reverted: interpolating the player screen's scrubber
+
+The card and the player screen disagree by a second or two, for the whole of a
+song. Worth understanding before anyone tries again, because the cause is not
+obvious and neither is the reason the fix isn't worth it.
+
+**Why they disagree.** `Room.playbackPosition` is not a clock. It is parsed from
+AVTransport's `RelTime`, which Sonos formats as `h:mm:ss` — so every reading is
+**truncated to a whole second** — and it only moves when the SOAP pulse writes
+it, every 500–800 ms and already a round trip stale. `PlaybackView` binds it
+straight to the scrubber, so the player screen is a 1 Hz stepper showing a number
+up to a second behind. The card publishes an anchor and a rate and lets iOS
+interpolate, anchored to whatever reading was current at the track change. Two
+different kinds of clock over one source, and nothing corrects the gap because
+every deadband in the chain is wider than it: the socket only writes position
+when it is off by >1000 ms, and `driftTolerance` is 2000 ms.
+
+**Why the obvious fix is wrong.** Re-anchoring the card off the model more often
+makes the card quantized and laggy to match the worse surface, and it can't be
+tuned: `driftTolerance` cannot go below one second, because the truncation alone
+puts a *correct* interpolation up to a full second above the reading. Tighten it
+and the scrubber snaps backwards on every poll.
+
+**Why the right-looking fix is also not worth it.** Two attempts at giving the
+player screen the same interpolation both cost far more CPU than they were worth,
+measured on device:
+
+- A `.task` loop reading the clock 4× a second: **5% → 15% backgrounded.**
+  `.task` is tied to a view's *lifetime*, not its visibility, and this feature
+  deliberately keeps the app alive in the background holding the audio session —
+  so the loop ran with the phone locked, for a scrubber nobody could see.
+- `TimelineView(.animation(minimumInterval: 0.25, paused:))` reading a pure
+  `position(at:)`, which should have suspended when nothing was drawn:
+  **~30%**, and the bar still didn't render smoothly.
+
+The second result is the one to explain before trying a third time — it says the
+cost is not the read rate, and probably not the schedule either. Prime suspect:
+`VibeSlider` animates its progress capsule with `.animation(.interactiveSpring,
+value:)`, so every new target restarts a spring that never settles, and layout
+runs every frame regardless of how rarely the value moves. Anything that feeds
+that slider a continuously-moving value inherits it. A fourth attempt should
+start with Instruments on `VibeSlider`, not with a different clock.
+
+**Do not** fix it by writing extrapolated positions back into
+`Room.playbackPosition`. It is documented as what the device reported or a local
+seek; a view fabricating values into it reaches every other surface and the
+card's own `resolve` input.
+
 ## Removing this feature
 
 After the dependency inversions, no pre-existing type names it. To remove:
