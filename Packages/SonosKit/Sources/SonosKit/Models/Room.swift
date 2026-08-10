@@ -72,13 +72,19 @@ public final class Room: Identifiable, @unchecked Sendable {
     /// soundbar has.
     ///
     /// The number is the stable identifier; `modelDisplayName` is a marketing string
-    /// that moves with locale and renames. Empty here means we fall back to matching
-    /// the display name — add the real numbers and that fallback stops mattering.
-    private static let arcUltraModelNumbers: Set<String> = []
+    /// that moves with locale and renames.
+    ///
+    /// - `S45` — Sonos Arc Ultra
+    ///
+    /// The display-name match below stays as a fallback: `DeviceInfo` comes from the
+    /// `/info` endpoint, and if it reports something other than the `S…` number for a
+    /// model we haven't catalogued, the substring still catches it.
+    private static let arcUltraModelNumbers: Set<String> = ["S45"]
 
     public var isArcUltra: Bool {
         guard let info else { return false }
-        if Self.arcUltraModelNumbers.contains(info.model) { return true }
+        let model = info.model.trimmingCharacters(in: .whitespaces).uppercased()
+        if Self.arcUltraModelNumbers.contains(model) { return true }
         return info.modelDisplayName.lowercased().contains("arc ultra")
     }
 
