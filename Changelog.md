@@ -219,6 +219,37 @@ Tapping the queue button showed the icon's progress ring briefly filled to 100%,
 - The per-speaker fetch failure path now `continue`s to the next activity rather than `return`ing out of the loop, so one unreachable coordinator no longer stops the remaining activities from updating.
 - `PlaybackIntent` never showed this: it calls `createActivity(id:)` first, which already does `load(useCache: true)`. The fix lives in `refresh()` rather than in each intent so every caller — volume, mute, night mode, speech enhancement, sleep timer — is covered by one guard. The added load only runs when `groups` is empty, so the in-app refresh path (foreground/inactive scene changes) is unaffected.
 
+### Speech Enhancement reported "not supported" from Shortcuts
+
+**Set Speech Enhancement** failed with `"Speech Enhancement not supported"` on soundbars that have the feature — a Playbar with two bonded surrounds in the reported case — while the same change from the app or the Sonos app worked. **Set Night Mode** in the same shortcut succeeded, which is the tell: `SetNightModeIntent` only reads `getTVSettings` when it's *toggling*, whereas `setSpeechEnhancement` loaded the whole block — night mode, audio input format, dialog level, plus an Arc Ultra probe — before setting anything, and its `catch` reported every failure in there as unsupported. In-app never hit it because the model is known there, so `getTVSettings(group:)` skipped the probe and the toggles call `setDialogLevel` directly.
+
+Two things made that read fail on hardware that supports it:
+
+- `getSpeechEnhanceEnabled` doubled as the Arc Ultra capability probe, but returned `false` when the request never landed while *throwing* on a UPnP fault. `getTVSettings` classified on `(try? …) != nil`, so a **dropped** probe read as "Arc Ultra, currently off" — and the Arc-Ultra-only reads that followed then failed on a Playbar and took the whole call with them. Sonos' embedded HTTP server drops requests when several land on one speaker together, and `getTVSettings` fires three or four concurrently.
+- `getAudioInputFormat` has nothing to do with speech enhancement, but its failure aborted the call.
+
+The fix, in `SonosAPI+TV`:
+
+- New private `getEQ`/`setEQ` helpers behind every EQ read and write. They keep "the speaker answered with a fault" (`SonosAPIError.unsupported`, new case) apart from "we never got an answer" (`.failedLoading`), and never substitute a fabricated value for a request that didn't land — that `return false` was the actual bug, since these reads double as capability probes. Collapsing six near-identical methods onto them removed more lines than the distinction added. `getNightMode`/`setNightMode` are deliberately left alone: night mode works today and its silent-success-on-dropped-write behaviour isn't worth changing in this pass.
+
+In `SonosService`:
+
+- `speechEnhanceState(ip:)` is the probe: the current value where the control exists, `nil` where the speaker answered without it, throwing where it couldn't be reached.
+- `setSpeechEnhancement` no longer goes near `getTVSettings` — it resolves the control and sets it, nothing else. It returns the state the speaker was left in (the intent previously echoed its own input, so a toggle reported the wrong value), and throws the new public `SpeechEnhancementError` so callers can say "couldn't reach Lounge" instead of blaming the feature.
+- Which control to use now comes from the **known model** rather than a probe: `SonosDeviceEntity` carries `isArcUltra`, populated by `SonosDeviceQuery` from `Room.isArcUltraIfKnown`, so a plain on/off from Shortcuts is a single request — the same cost as night mode, with no probe left to misfire. The field is optional so entities already saved inside a shortcut decode as `nil` and still probe. When the model and the speaker disagree, an `.unsupported` answer retries with the other control rather than failing.
+- `Room.isArcUltra` matches `DeviceInfo.model` against `arcUltraModelNumbers` (`S45` — Sonos Arc Ultra) before falling back to the `modelDisplayName` substring; `DeviceInfo` comes from `/info`, not the UPnP description, so the substring stays as the fallback for models not catalogued.
+- `Room`/`GroupRoom` gain `isArcUltraIfKnown` (`nil` until the model is known). `getTVSettings(group:)` uses it — it was passing plain `isArcUltra`, so an Arc Ultra whose device info hadn't loaded was silently treated as a classic soundbar rather than probed.
+- Writes that used to run as two concurrent `async let`s go one at a time, since that concurrency is what Sonos drops.
+
+`SonosKitMini` had the same probe bug in a worse form — its `getSpeechEnhanceEnabled` never threw at all, so `(try? …) != nil` was **always** true and every soundbar took the Arc Ultra branch. ClicMini and the Watch were offering speech *levels* on a Playbar, where setting one did nothing. Same `getEQ`/`setEQ` split there, with a local `SonosEQError`.
+
+Deliberately not done, or known gaps:
+
+- No retry layer. One was written and removed: with the control resolved from the model, a plain on/off is a single request and the multi-request writes are already serialised, so there was no concurrency left for retries to defend against.
+- `getEQ`/`setEQ` treat any non-200 as `.unsupported` without reading the UPnP fault code, so a transient 500 is indistinguishable from an unimplemented EQ type. Parsing the fault body is what would make that distinction real.
+- The `S45` catalogue is SonosKit-only; `SonosKitMini`'s `isArcUltra` still matches display name alone.
+- `SonosDeviceQuery.entities(for:)` ignores its `identifiers` and returns every room (pre-existing), which the new per-entity `isArcUltra` now leans on.
+
 ---
 
 ## 2026.6
