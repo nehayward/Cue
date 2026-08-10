@@ -1,12 +1,10 @@
 import Foundation
 
 extension SonosAPI {
-    /// Reads an EQ type, keeping "the device said no" and "we never got an answer"
-    /// apart. A soundbar that doesn't implement the EQ type answers with a UPnP
-    /// fault (non-200) — that's `.unsupported`. A dropped or unbuildable request is
-    /// `.failedLoading`, and must never be reported as an EQ value: these reads
-    /// double as capability probes, so a fabricated fallback silently mis-detects
-    /// the speaker.
+    /// Reads an EQ type, keeping "the device said no" (a UPnP fault — `.unsupported`)
+    /// apart from "we never got an answer" (`.failedLoading`). Never substitutes a
+    /// value for a request that didn't land: these reads double as capability probes,
+    /// so a fabricated fallback silently mis-detects the speaker.
     private func getEQ(IP: String, type: String) async throws -> Data {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),

@@ -66,20 +66,11 @@ public final class Room: Identifiable, @unchecked Sendable {
         return false
     }
 
-    /// Sonos model numbers (`DeviceInfo.model`, the "S…" identifier) for players with
-    /// the levelled Arc Ultra speech enhancement — `SpeechEnhanceEnabled` plus a
-    /// dialog intensity — rather than the plain on/off `DialogLevel` every other
-    /// soundbar has.
-    ///
-    /// The number is the stable identifier; `modelDisplayName` is a marketing string
-    /// that moves with locale and renames.
-    ///
-    /// - `S45` — Sonos Arc Ultra
-    ///
-    /// The display-name match below stays as a fallback: `DeviceInfo` comes from the
-    /// `/info` endpoint, and if it reports something other than the `S…` number for a
-    /// model we haven't catalogued, the substring still catches it.
-    private static let arcUltraModelNumbers: Set<String> = ["S45"]
+    /// Model numbers (`DeviceInfo.model`) with the levelled Arc Ultra speech
+    /// enhancement rather than the on/off `DialogLevel` every other soundbar has.
+    /// The number is stable where `modelDisplayName` moves with locale and renames —
+    /// the substring match below is the fallback for models not catalogued here.
+    private static let arcUltraModelNumbers: Set<String> = ["S45"] // Sonos Arc Ultra
 
     public var isArcUltra: Bool {
         guard let info else { return false }

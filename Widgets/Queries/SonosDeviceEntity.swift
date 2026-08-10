@@ -6,10 +6,9 @@ struct SonosDeviceEntity: AppEntity, Identifiable, Codable, IndexedEntity {
     let id: String
     let ip: String
     let name: String
-    /// Which speech-enhancement control this speaker has, resolved from its model
-    /// when the entity was built, so intents don't have to ask the speaker.
-    /// `nil` means unknown — including entities saved into a shortcut before this
-    /// existed — and callers should probe rather than assume.
+    /// Resolved from the model when the entity was built, so intents don't have to ask
+    /// the speaker. `nil` is unknown — including entities saved into a shortcut before
+    /// this existed — and means probe rather than assume.
     let isArcUltra: Bool?
 
     init(id: String, ip: String, name: String, isArcUltra: Bool? = nil) {

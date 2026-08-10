@@ -2121,7 +2121,7 @@ public final class SonosMiniService {
                 audioInputFormat: inputFormat
             )
         } else {
-            let dialogLevel = try await retrying { try await api.getDialogLevel(IP: ip) }
+            let dialogLevel = try await api.getDialogLevel(IP: ip)
             return try await SonosTVSettings(
                 nightMode: nightMode,
                 dialogLevel: dialogLevel,
@@ -2130,51 +2130,25 @@ public final class SonosMiniService {
         }
     }
 
-    /// Retries a Sonos read once — their embedded HTTP server drops requests when a
-    /// few land on the same speaker together.
-    private func retrying<T>(_ attempts: Int = 2, _ operation: () async throws -> T) async throws -> T {
-        var lastError: Error = SonosEQError.failedLoading
-        for _ in 0..<max(1, attempts) {
-            do {
-                return try await operation()
-            } catch SonosEQError.unsupported {
-                throw SonosEQError.unsupported
-            } catch {
-                lastError = error
-            }
-        }
-        throw lastError
-    }
-
     /// Reads the Arc Ultra speech-enhancement toggle, doubling as the capability probe.
     /// - Returns: the current value where supported, `nil` on soundbars that answered
     ///   and don't have it (Beam, Ray, Playbar, Playbase, Arc, Arc SL, Amp).
     private func speechEnhanceState(ip: String) async throws -> Bool? {
-        var lastError: Error = SonosEQError.failedLoading
-        for _ in 0..<2 {
-            do {
-                return try await api.getSpeechEnhanceEnabled(IP: ip)
-            } catch SonosEQError.unsupported, SonosEQError.failedParsing {
-                return nil
-            } catch {
-                lastError = error
-            }
-        }
-        throw lastError
+        do { return try await api.getSpeechEnhanceEnabled(IP: ip) }
+        catch SonosEQError.unsupported, SonosEQError.failedParsing { return nil }
     }
 
     public func setDialogLevel(_ IP: String, enabled: Bool) async throws {
-        try await retrying { try await api.setDialogLevel(IP: IP, enabled: enabled) }
+        try await api.setDialogLevel(IP: IP, enabled: enabled)
     }
 
     public func setArcUltraSpeechLevel(_ ip: String, level: SpeechLevel) async throws {
         if level == .off {
-            try await retrying { try await api.setSpeechEnhanceEnabled(IP: ip, enabled: false) }
+            try await api.setSpeechEnhanceEnabled(IP: ip, enabled: false)
         } else {
-            // Sent one at a time: Sonos' embedded HTTP server drops requests when
-            // several land on the same speaker at once.
-            try await retrying { try await api.setSpeechEnhanceEnabled(IP: ip, enabled: true) }
-            try await retrying { try await api.setDialogLevelValue(IP: ip, value: level.rawValue) }
+            // One at a time — Sonos drops requests that land on a speaker together.
+            try await api.setSpeechEnhanceEnabled(IP: ip, enabled: true)
+            try await api.setDialogLevelValue(IP: ip, value: level.rawValue)
         }
     }
 
