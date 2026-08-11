@@ -428,7 +428,14 @@ struct PreferenceScreen: View {
                         Toggle(isOn: $useHardwareVolumeButtons) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Use iPhone Volume Buttons")
-                                Text("Control selected group volume instead of iPhone volume.")
+                                // Names the Lock Screen because this switch now
+                                // gates that surface's volume slider too — same
+                                // system volume, so there is no honouring it in
+                                // one place and not the other. Names the
+                                // exception because it's a safety property, not
+                                // a limitation: on Bluetooth or headphones the
+                                // volume is the other device's.
+                                Text("Control group volume instead of iPhone volume, including from the Lock Screen. Never while connected to Bluetooth or headphones.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -1122,10 +1129,15 @@ struct PreferenceScreen: View {
             case .nowPlaying:
                 // No promises about a volume slider: what the system player
                 // draws is the system's call and differs by device — an iPad
-                // reported artwork and buttons but no slider. The volume *bridge*
-                // is running either way, which is why the hardware buttons
-                // control the speaker there.
-                return "The system player on the Lock Screen and in Control Center. Clic takes over this device's audio and volume while a speaker is playing."
+                // reported artwork and buttons but no slider.
+                //
+                // Volume is named separately from audio because it's a separate
+                // opt-in now: the bridge runs only with *Use iPhone Volume
+                // Buttons* on, and never while this device's audio is on
+                // Bluetooth, CarPlay or headphones. It used to run
+                // unconditionally, which is how a car-connect automation set a
+                // Sonos group to 100%.
+                return "The system player on the Lock Screen and in Control Center. Clic takes over this device's audio while a speaker is playing."
             case .off:
                 return "Nothing on the Lock Screen while a speaker is playing."
             }

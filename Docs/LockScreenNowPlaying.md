@@ -15,6 +15,8 @@ system Now Playing card, and how that card stays current without polling.
        │
        ├── silent .playback session (why the card renders at all)
        └── HardwareVolumeService (owner: .session, .absoluteMirror) → group volume
+                    ↑ only with "Use iPhone Volume Buttons" on, and only on
+                      the phone's own speaker — see "Where the phone is"
 ```
 
 ## The silent-audio requirement
@@ -454,10 +456,109 @@ button, so this does not put a heart on the Lock Screen; that surface's path is
 the Live Activity's own button. `dislikeCommand` stays disabled — none of these
 services take a negative signal.
 
+## Where the phone is
+
+Everything below this line exists because of one beta report, and it's the most
+important thing on this page. Paraphrased:
+
+> I came home and music was blasting from my house. My neighbour said it had
+> been on all day. Clic showed my Sonos Five pair and an Era 100 playing at
+> 100% volume. I have an automation when my phone connects to my car — it
+> increases Bluetooth volume to 100% and plays music. Toggling the iPhone volume
+> controls setting on and off didn't have any effect.
+
+That is exactly what happened, and both halves of it were this feature:
+
+- **The volume.** iOS remembers an output level *per route* and restores it when
+  a route connects. That restore arrives as an ordinary `outputVolume` change —
+  there is nothing in it to distinguish it from a finger on the Lock Screen
+  slider. In `absoluteMirror` the phone's volume *is* the group's volume, so
+  "car stereo at 100%" became "Sonos Fives at 100%", in one step, from an empty
+  house.
+- **The play.** Holding the session means holding `MPRemoteCommandCenter`, so
+  Clic was the app the automation's play command went to. A Shortcut aimed at a
+  car stereo started the speakers in the living room.
+
+Three rules follow, and they're deliberately redundant — each one alone would
+have prevented this:
+
+**1. The volume bridge is opt-in, and it's the same opt-in as the player
+screen's.** `AppStorageKeys.useHardwareVolumeButtons` — *Use iPhone Volume
+Buttons*, off when unset. This path used to take the bridge unconditionally,
+which is why toggling the switch "didn't have any effect": only
+`HardwareVolumeControlModifier` ever read it. The Lock Screen slider and the
+hardware buttons are the same system volume, so there is no honouring the switch
+for one and not the other — and certainly not honouring it on one screen while
+ignoring it from the Lock Screen with the app closed. Off, the slider moves the
+phone's own (inaudible) volume and the speakers are left alone.
+
+**2. Off the built-in speaker, the whole feature stands down.**
+`AudioOutputRoute.isExternal` is true for anything that isn't
+`.builtInSpeaker`/`.builtInReceiver` — Bluetooth, CarPlay, AirPlay, wired or
+wireless headphones. On such a route two things are true that aren't true on the
+phone's own speaker: the phone's volume is *audible and someone else's*, and the
+device on the other end can issue transport commands (a head unit's play button,
+an inline remote, an AirPods stem, an automation that fires on connect). None of
+that is Clic's to receive when the user has plainly gone somewhere else with the
+phone, so `canMirror` is false and `evaluate()` calls `stop()`.
+
+Details that matter:
+
+- `canMirror` is **split from `isEnabled`** rather than folded into it, because
+  `reconcileLiveActivities()` reads `isEnabled`: a drive to the shops must not
+  look like turning the feature off and put Live Activities back.
+- The route observer calls `stop()` **synchronously** rather than only yielding
+  into `changes`. What follows a car connecting is a play command, immediately,
+  and the drain is a main-actor turn away.
+- `perform()` re-reads the route itself before running any command. Connecting
+  changes the route and *then* posts about it, while the automation races the
+  same moment — `currentRoute` is the only account of where the phone is that is
+  guaranteed current at the instant a command arrives.
+- **The route is cached in `isRouteExternal`, not read live, and it unlatches
+  asymmetrically.** Any route change may set it; only `.oldDeviceUnavailable`
+  (the other device actually going away) or a foreground transition may clear
+  it. Read live, this oscillates: standing down deactivates the session, the
+  route reported for an *inactive* session isn't dependable, and if it reads as
+  built-in we come straight back — activating routes us to the car again, and we
+  stand down once more, flickering the user's car audio for the length of the
+  drive. Neither unlatching signal can be produced by our own teardown, so the
+  loop can't close.
+- The foreground clause is the recovery for the case where the unlatching route
+  change is never delivered: standing down gives up the `audio` background mode,
+  so the app is free to be suspended, and a device that disconnects while it is
+  suspended posts to nobody.
+
+**3. The bridge itself refuses what no gesture could have done.** Both of these
+live in `HardwareVolumeService`, so they hold even if a caller gets the gating
+wrong:
+
+- **Suspended on an external route.** The claim is kept and the bridge goes
+  inert in both directions: `syncSystemVolume()` won't push the group's level
+  onto a car stereo, and the KVO handler won't read that stereo's level back.
+- **A settle window after every route change** (`routeSettleDelay`, 1.5 s). The
+  restored level doesn't arrive with the notification, it lands a beat later, so
+  the notification alone doesn't cover it. `savedVolume` is dropped at the same
+  moment — restoring a level captured on one route onto another is the same bug
+  facing the other way.
+- **A jump guard in absolute mode** (`maxGestureStep`, 0.25). A hardware press
+  moves the system volume by one sixteenth and a slider drag arrives as a stream
+  of small changes; one jump of a quarter of the range was set
+  programmatically. It's refused, and the phone is put back where the group
+  actually is — the echo filter catches that write, so it can't recur. The cost
+  is that a *tap* on the Lock Screen slider far from its current position may
+  snap back instead of taking; drag it and it works. That trade is deliberate.
+
+None of the three is a substitute for the others. Rule 1 is the user's stated
+preference, rule 2 is about where the phone is, rule 3 is about what a human
+hand can physically do — and the reported failure would have had to beat all
+three.
+
 ## Volume
 
 While the session is held the phone's own volume is inaudible, so the hardware
-buttons and the Lock Screen slider are re-pointed at the group.
+buttons and the Lock Screen slider are re-pointed at the group — **if the user
+turned that on**, and only on the phone's own speaker. See "Where the phone is"
+above; the rest of this section describes what happens once both gates pass.
 `HardwareVolumeService` runs as `owner: .session` with `configuresAudioSession:
 false`: it skips the
 `.ambient` reconfiguration that would forfeit the Now Playing claim, and keeps
@@ -638,9 +739,12 @@ After the dependency inversions, no pre-existing type names it. To remove:
 
 What stays, because it's independent of the Lock Screen and fixes real
 foreground behaviour: the whole `SonosService+LiveListening` registry, the
-socket event handlers in `SonosService+SonosEventHandler`, `SuperBadge`, and
+socket event handlers in `SonosService+SonosEventHandler`, `SuperBadge`,
 `PlaybackPositionAnchor` (a general utility any media surface can use — the
-Live Activity has the same interpolation problem).
+Live Activity has the same interpolation problem), and
+`Clic/Services/AudioOutputRoute.swift` — `HardwareVolumeService` uses it to keep
+the player screen's bridge off a car stereo too, which has nothing to do with
+the card.
 
 ## Not done yet
 

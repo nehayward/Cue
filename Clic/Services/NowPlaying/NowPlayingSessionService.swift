@@ -76,7 +76,7 @@ final class NowPlayingSessionService {
     @ObservationIgnored private var isStartingSession = false
     /// Retires an in-flight session bring-up when `stop()` beats it.
     @ObservationIgnored private var sessionGeneration = 0
-    @ObservationIgnored private var lastKnownPreference = false
+    @ObservationIgnored private var lastKnownPreferences = Preferences(nowPlaying: false, volumeBridge: false)
     /// Everything that means "re-evaluate" — an observed model change, the
     /// preference, a foreground transition, the idle window expiring — arrives
     /// here, and one loop drains it. `bufferingNewest(1)` is what makes that
@@ -145,7 +145,8 @@ final class NowPlayingSessionService {
         guard !hasActivated else { return }
         hasActivated = true
 
-        lastKnownPreference = isPreferenceOn
+        lastKnownPreferences = preferences
+        isRouteExternal = AudioOutputRoute.isExternal
         isForeground = UIApplication.shared.applicationState != .background
 
         let center = NotificationCenter.default
@@ -155,17 +156,27 @@ final class NowPlayingSessionService {
         // observers, which do get torn down, belong to `SilentAudioSession`.
         observerTasks = [
             // `didChangeNotification` fires for every `@AppStorage` write
-            // anywhere in the app, so filter to an actual change of *this* flag.
-            // Only the preference is compared — the subscription half of
-            // `isEnabled` is observed, and arrives through `trackCardState`.
+            // anywhere in the app, so filter to an actual change of the flags
+            // this feature reads. Only preferences are compared — the
+            // subscription half of `isEnabled` is observed, and arrives through
+            // `trackCardState`.
             Task { [weak self] in
                 for await _ in center.notifications(
                     named: UserDefaults.didChangeNotification,
                     object: UserDefaults.standard
                 ) {
-                    guard let self, self.isPreferenceOn != self.lastKnownPreference else { continue }
-                    self.lastKnownPreference = self.isPreferenceOn
+                    guard let self, self.preferences != self.lastKnownPreferences else { continue }
+                    self.lastKnownPreferences = self.preferences
                     self.notifyChanged.yield()
+                }
+            },
+            // Where the device's audio is going decides whether this feature may
+            // run at all — see `canMirror`. A car connecting, headphones going
+            // in, AirPlay starting: each is a route change and each has to be
+            // re-decided, including on the way back.
+            Task { [weak self] in
+                for await notification in center.notifications(named: AVAudioSession.routeChangeNotification) {
+                    self?.updateRoute(from: notification)
                 }
             },
             // Which group the card mirrors depends on foreground vs background
@@ -179,6 +190,15 @@ final class NowPlayingSessionService {
             Task { [weak self] in
                 for await _ in center.notifications(named: UIApplication.willEnterForegroundNotification) {
                     self?.isForeground = true
+                    // The other place `isRouteExternal` may be cleared. The
+                    // unlatching route change can be missed outright — standing
+                    // down gives up the `audio` background mode, so the app is
+                    // free to be suspended, and a Bluetooth device that
+                    // disconnects while it is suspended posts to nobody. This
+                    // is the recovery, and it's safe to re-read here because a
+                    // foreground transition is the user's doing, not ours: it
+                    // can't be produced by the very teardown it would undo.
+                    self?.isRouteExternal = AudioOutputRoute.isExternal
                     // Cheap insurance at the one moment the user is looking:
                     // re-state the card instead of trusting that every write
                     // while backgrounded found its way through.
@@ -202,11 +222,40 @@ final class NowPlayingSessionService {
         })
     }
 
+    /// The user-defaults flags this feature reads, so a `didChangeNotification`
+    /// can be filtered down to an actual change in one comparison.
+    private struct Preferences: Equatable {
+        var nowPlaying: Bool
+        var volumeBridge: Bool
+    }
+
+    private var preferences: Preferences {
+        Preferences(nowPlaying: isPreferenceOn, volumeBridge: isVolumeBridgeEnabled)
+    }
+
     /// Unset means on — this is the default Lock Screen surface for Super. The
     /// subscription half of `isEnabled` is what keeps that from running for
     /// everyone.
     private var isPreferenceOn: Bool {
         UserDefaults.standard.lockScreenNowPlayingEnabled
+    }
+
+    /// **Use iPhone Volume Buttons**, off when unset — the same switch the
+    /// player screen's `hardwareVolumeControl` modifier reads.
+    ///
+    /// This path used to ignore it and take the bridge unconditionally, which
+    /// is why a beta report of a Sonos group jumping to 100% came with
+    /// "toggling the iPhone volume controls setting on and off didn't have any
+    /// effect". The switch says "Control selected group volume instead of
+    /// iPhone volume"; the Lock Screen slider and the hardware buttons are the
+    /// same system volume, so there is no honouring it for one and not the
+    /// other, and there is certainly no honouring it on one screen and not from
+    /// the Lock Screen with the app closed.
+    ///
+    /// Off is the default, and off means the Lock Screen slider moves the
+    /// phone's own (inaudible) volume and the speakers are left alone.
+    private var isVolumeBridgeEnabled: Bool {
+        UserDefaults.standard.bool(forKey: AppStorageKeys.useHardwareVolumeButtons)
     }
 
     /// Clic Super, and the preference. Gated here rather than only at the toggle
@@ -218,6 +267,62 @@ final class NowPlayingSessionService {
     /// purchase or expiry re-evaluates on its own.
     private var isEnabled: Bool {
         isPreferenceOn && SubscriptionService.shared.subscription.isActive
+    }
+
+    /// Whether the device's audio is on something other than the phone's own
+    /// speaker. Cached rather than read live, and updated asymmetrically: any
+    /// route change may set it, only the other device going away — or the user
+    /// bringing the app to the foreground — may clear it.
+    ///
+    /// The asymmetry is the whole point. Standing down deactivates the session,
+    /// and the route reported for an inactive session isn't dependable; if it
+    /// read as built-in we'd come straight back, activating would route us to
+    /// the car again, and we'd stand down once more. That loop flickers the
+    /// user's car audio for as long as they're driving. Only a positive signal
+    /// that the other device is gone unlatches it, so the loop can't close.
+    @ObservationIgnored private var isRouteExternal = false
+
+    /// Reconciles the cached route and acts on it.
+    ///
+    /// The teardown happens here rather than by yielding into `changes` and
+    /// letting `evaluate()` reach the same conclusion: what follows a car
+    /// connecting is a play command, immediately, and the drain is a main-actor
+    /// turn away. Giving the commands up on the spot is what keeps that turn
+    /// from being the one where a head unit starts the speakers at home.
+    private func updateRoute(from notification: Notification) {
+        let reason = (notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt)
+            .flatMap(AVAudioSession.RouteChangeReason.init(rawValue:))
+
+        if AudioOutputRoute.isExternal {
+            isRouteExternal = true
+        } else if reason == .oldDeviceUnavailable {
+            // Bluetooth dropped, headphones came out. The one reason trusted to
+            // unlatch — see `isRouteExternal`.
+            isRouteExternal = false
+        }
+
+        if isRouteExternal { stop() }
+        notifyChanged.yield()
+    }
+
+    /// `isEnabled`, and the device's audio still coming out of the device.
+    ///
+    /// Holding the card means holding the audio session and the remote command
+    /// centre, so whatever the *phone* is plugged into gets to drive Sonos: a
+    /// head unit's play button, an inline remote, an AirPods stem, a Shortcuts
+    /// automation that fires on connect. Reported from the beta — an automation
+    /// that sets the volume to 100% and presses play when the phone reaches the
+    /// car did both to a Sonos group at home, and left it playing at full volume
+    /// all day.
+    ///
+    /// None of that is Clic's to receive when the user has plainly gone
+    /// somewhere else with the phone, so the session stands down and hands the
+    /// card back to whatever the device itself is playing. Split from
+    /// `isEnabled` rather than folded into it because `reconcileLiveActivities`
+    /// reads that one: a drive to the shops shouldn't look like turning the
+    /// feature off and put Live Activities back.
+    private var canMirror: Bool {
+        isEnabled && !isRouteExternal
     }
 
     /// The group the card mirrors. iOS has exactly one Now Playing app and one
@@ -426,7 +531,7 @@ final class NowPlayingSessionService {
 
         var target: GroupRoom?
         withObservationTracking {
-            target = isEnabled ? resolveTarget() : nil
+            target = canMirror ? resolveTarget() : nil
             if let target { trackCardState(of: target) }
         } onChange: { [weak self] in
             // Yield rather than act: `onChange` fires *before* the mutation
@@ -500,8 +605,16 @@ final class NowPlayingSessionService {
         // that volume is inaudible — and is not fine at all when the user is
         // listening to something on the device: it would quietly drag their
         // podcast to whatever the Sonos group happens to be set to.
-        if isActive, isNewTarget || volumeView?.window == nil {
-            attachVolumeBridge(group: group)
+        // And only with the user's consent: `isVolumeBridgeEnabled` is the
+        // **Use iPhone Volume Buttons** switch, which this path used to ignore.
+        if isVolumeBridgeEnabled {
+            if isActive, isNewTarget || volumeView?.window == nil {
+                attachVolumeBridge(group: group)
+            }
+        } else {
+            // Turned off while the card was up — give the phone's volume back
+            // without waiting for the session to end.
+            detachVolumeBridge()
         }
 
         // Re-declared on any change to the socket's addressing, not just a
@@ -639,11 +752,16 @@ final class NowPlayingSessionService {
 
     /// While the session is held, the phone's own volume is inaudible — nothing
     /// plays but silence — so the hardware buttons and the Lock Screen slider
-    /// are re-pointed at the group's volume. This is the same
-    /// `HardwareVolumeService` the player screen uses, run in its
+    /// are re-pointed at the group's volume, if the user asked for that. This is
+    /// the same `HardwareVolumeService` the player screen uses, run in its
     /// session-borrowing mode; the `MPVolumeView` has to live in a window for
     /// its slider to exist, so it's parked in the key window rather than
     /// plumbed through SwiftUI.
+    ///
+    /// Both gates are the caller's: `isVolumeBridgeEnabled` (the switch) and
+    /// `canMirror` (the route). The service itself also refuses to drive an
+    /// external route and to adopt a jump no gesture could have made — see
+    /// `AudioOutputRoute` — so the two ends agree even if this one is wrong.
     private func attachVolumeBridge(group: GroupRoom) {
         // Backgrounded, no window is key any more — any window in the scene will
         // do, it only has to host the slider.
@@ -1038,6 +1156,13 @@ final class NowPlayingSessionService {
         _ action: @escaping (SonosService, GroupRoom) async -> Void
     ) -> MPRemoteCommandHandlerStatus {
         guard let group else { return .noSuchContent }
+        // The route is read here, not trusted to have been read by the
+        // notification first. Connecting to a car changes the route and *then*
+        // posts about it, while the automation's play command is racing the
+        // same moment — so `currentRoute` is the only account of where the
+        // phone is that's guaranteed to be current at the instant a command
+        // arrives. See `canMirror`.
+        guard !AudioOutputRoute.isExternal else { return .noSuchContent }
         Task { @MainActor in
             await action(SonosService.shared, group)
             publish()

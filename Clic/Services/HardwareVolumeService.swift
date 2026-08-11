@@ -60,6 +60,16 @@ final class HardwareVolumeService {
     @ObservationIgnored private var lastWrittenSystemVolume: Float?
     @ObservationIgnored private var pendingGroupVolume: Int?
     @ObservationIgnored private var volumeSendTask: Task<Void, Never>?
+    /// True while the device's audio is routed off the phone — see
+    /// `AudioOutputRoute.isExternal`. The bridge stays claimed and goes inert:
+    /// on that route the phone's volume is the *other* device's volume, in both
+    /// directions, so neither reading it nor writing it is ours to do.
+    @ObservationIgnored private var isSuspended = false
+    /// True for a moment after a route change, while the system restores the
+    /// new route's remembered level.
+    @ObservationIgnored private var isSettling = false
+    @ObservationIgnored private var routeTask: Task<Void, Never>?
+    @ObservationIgnored private var settleTask: Task<Void, Never>?
 
     // Fixed midpoint gives room for both up and down on any starting volume.
     @ObservationIgnored private let restorePoint: Float = 0.5
@@ -67,6 +77,15 @@ final class HardwareVolumeService {
     @ObservationIgnored private let extremeThreshold: Float = 0.15
     // Single-point steps for fine-grained volume control.
     @ObservationIgnored private let volumeStep = 1
+    /// The largest single jump in system volume that could have come from a
+    /// gesture. A hardware press is one sixteenth (0.0625) and a slider drag
+    /// arrives as a stream of small changes; anything bigger in one step was
+    /// set programmatically. See the refusal in `listen()`.
+    @ObservationIgnored private let maxGestureStep: Float = 0.25
+    /// How long to swallow `outputVolume` changes after a route change. The
+    /// restored level doesn't arrive with the notification — it lands a beat
+    /// later, as a change indistinguishable from a button press.
+    @ObservationIgnored private let routeSettleDelay: Duration = .milliseconds(1500)
 
     private init() {}
 
@@ -93,10 +112,12 @@ final class HardwareVolumeService {
         self.mode = mode
         self.configuresAudioSession = configuresAudioSession
         self.owner = owner
+        self.isSuspended = AudioOutputRoute.isExternal
         // Snapshot once so stop() can restore it; don't clobber across restarts.
         if savedVolume == nil {
             savedVolume = AVAudioSession.sharedInstance().outputVolume
         }
+        observeRouteChanges()
         restart()
         syncSystemVolume()
         return true
@@ -109,7 +130,11 @@ final class HardwareVolumeService {
     /// the speaker, the Sonos app, another Clic surface — so a visible slider
     /// reads the speaker's actual level rather than a leftover phone value.
     func syncSystemVolume() {
-        guard mode == .absoluteMirror, let group, let slider else { return }
+        // Not onto a car stereo or a pair of headphones. Suspended, the phone's
+        // volume is audible and belongs to that device; pushing the group's
+        // level onto it would set someone's car to whatever the speakers at
+        // home happen to be at.
+        guard !isSuspended, mode == .absoluteMirror, let group, let slider else { return }
         let target = Float(max(0, min(100, group.groupVolume)) / 100)
         // Already there (within a slider step) — writing again would only
         // generate an echo to filter.
@@ -125,10 +150,18 @@ final class HardwareVolumeService {
 
         task?.cancel()
         task = nil
+        routeTask?.cancel()
+        routeTask = nil
+        settleTask?.cancel()
+        settleTask = nil
+        isSuspended = false
+        isSettling = false
         volumeSendTask?.cancel()
         volumeSendTask = nil
         pendingGroupVolume = nil
         lastWrittenSystemVolume = nil
+        // `savedVolume` is cleared on a route change, so this can only ever
+        // restore a level onto the route it was taken from.
         if let saved = savedVolume {
             slider?.setValue(saved, animated: false)
         }
@@ -143,6 +176,60 @@ final class HardwareVolumeService {
         configuresAudioSession = true
         mode = .relativeSteps
         self.owner = nil
+    }
+
+    // MARK: - Routing
+
+    /// Watches where the device's audio is going, for as long as the bridge is
+    /// claimed. Cancelled by `stop()`.
+    private func observeRouteChanges() {
+        routeTask?.cancel()
+        routeTask = Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(
+                named: AVAudioSession.routeChangeNotification
+            ) {
+                self?.handleRouteChange()
+            }
+        }
+    }
+
+    /// A route change moves the phone's volume on its own, without anybody
+    /// touching anything: iOS remembers a level per route and restores it on
+    /// connect. Passing that on would hand the speakers whatever the car stereo
+    /// was last set to — which is exactly how a Sonos group ends up at 100%
+    /// because a phone got into a car.
+    ///
+    /// So the bridge goes quiet across the change and comes back by *writing*
+    /// the group's level out rather than reading the phone's in.
+    private func handleRouteChange() {
+        // Captured on the route we're leaving. Restoring it onto the new one in
+        // `stop()` would set some other device's volume to a level that was
+        // never its own.
+        savedVolume = nil
+        isSuspended = AudioOutputRoute.isExternal
+        beginSettling()
+    }
+
+    /// Swallows `outputVolume` changes for a moment, then re-seeds the phone
+    /// from the group.
+    private func beginSettling() {
+        isSettling = true
+        settleTask?.cancel()
+        let delay = routeSettleDelay
+        settleTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled, let self else { return }
+            self.isSettling = false
+            self.settleTask = nil
+            // Re-take the new route's level as the one to put back, now that
+            // the system has finished restoring it.
+            if self.owner != nil {
+                self.savedVolume = AVAudioSession.sharedInstance().outputVolume
+            }
+            // `syncSystemVolume` is a no-op while suspended, which is what we
+            // want: on an external route the phone keeps its own level.
+            self.syncSystemVolume()
+        }
     }
 
     // MARK: - Private
@@ -213,9 +300,33 @@ final class HardwareVolumeService {
                       let old = change.oldValue,
                       abs(new - old) > 0.001 else { return }
 
+                // Not ours to read: the audio is on a car stereo, a headset or
+                // an AirPlay device, whose volume this is — or the route just
+                // moved and the system is restoring that route's remembered
+                // level, which arrives here looking exactly like a button press.
+                guard !self.isSuspended, !self.isSettling else { return }
+
                 if self.mode == .absoluteMirror {
                     // Our own `syncSystemVolume` write coming back around.
                     if let written = self.lastWrittenSystemVolume, abs(new - written) < 0.005 { return }
+
+                    // A single change this large is not a gesture. A hardware
+                    // press moves the system volume by one sixteenth and a
+                    // slider drag arrives as a stream of small changes; one jump
+                    // of a quarter of the range is something setting the volume
+                    // programmatically — a Shortcuts automation, another app's
+                    // `MPVolumeView`, an accessory. Adopting it hands the group
+                    // that number in a single step, which is how a pair of Fives
+                    // ends up at 100% with nobody in the house.
+                    //
+                    // Refusing it leaves the two out of step, so put the phone
+                    // back where the group actually is. The echo filter above
+                    // catches that write, so this can't recur.
+                    if abs(new - old) > self.maxGestureStep {
+                        self.syncSystemVolume()
+                        return
+                    }
+
                     let volume = Int((new * 100).rounded())
                     // The codebase's convention for an in-progress volume
                     // gesture (`VolumeControlView`, `RoomVolumeView`): the poll
@@ -246,9 +357,10 @@ final class HardwareVolumeService {
         if mode == .absoluteMirror {
             // Absolute mode has no midpoint to hold — 0 and 1 are real positions,
             // meaning a silent and a full-volume speaker. Seed the slider from
-            // the group instead.
+            // the group instead. (No-op while suspended: the phone's volume
+            // belongs to whatever it's plugged into.)
             syncSystemVolume()
-        } else {
+        } else if !isSuspended {
             let initial = session.outputVolume
             if initial >= (1 - extremeThreshold) || initial <= extremeThreshold {
                 slider?.setValue(restorePoint, animated: false)
