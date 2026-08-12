@@ -142,12 +142,24 @@ to keep in step.
 
 The section is the old **Live Activities** section, renamed: it can't be called
 that once it holds the choice *between* surfaces. Compact Live Activities and
-Volume Steps stayed put under the picker, dimmed rather than hidden when Live
-Activity isn't the selected surface — the picker directly above says why, and the
-section doesn't resize as you move between segments. *Use iPhone Volume Buttons*
-later joined them, dimmed on the opposite condition (Now Playing rather than Live
-Activity) — see "Where the phone is". Reading order under the picker is
-Now Playing's row first, then the two Live Activity ones.
+Volume Steps stayed put under the picker, and *Use iPhone Volume Buttons* later
+joined them from the Playback section — see "Where the phone is". Reading order
+is Now Playing's row first, then the two Live Activity ones.
+
+**Each row is present only for the surface it configures.** They were dimmed in
+place at first, on the theory that a section which doesn't resize is easier to
+follow and the picker directly above explains the greying. In practice a list of
+permanently disabled controls reads as broken, and once there was a row for
+*each* surface the two sets had nothing in common to keep aligned — whichever
+segment you were on, most of the section was dead. The section now shows what the
+current choice can be configured with and nothing else.
+
+Insertion and removal are animated from `lockScreenSurfaceBinding`'s setter
+rather than by an `.animation` on the section, so the transition covers the one
+change the user made. A defaults write from somewhere else — another window, the
+service reconciling Live Activities — shouldn't slide rows around under them. The
+paywall path sits outside the `withAnimation` because it writes nothing: the
+picker snaps back and there are no rows to move.
 
 `liveActivitiesSuspendedByLockScreen` records that *this* is what turned them
 off, so moving the picker off **Now Playing** restores them. Without it the user
@@ -537,14 +549,14 @@ ignoring it from the Lock Screen with the app closed. Off, the slider moves the
 phone's own (inaudible) volume and the speakers are left alone.
 
 The row moved out of **Playback** and into the **Lock Screen** section for the
-same reason, directly under the picker and dimmed unless Now Playing is the
-selected surface — the same treatment Compact Live Activities and Volume Steps
-get. Once the switch decides whether the Lock Screen's slider reaches the
-speaker, a section away from the surface it gates is two volume controls with an
-invisible dependency between them.
+same reason, directly under the picker and shown only while Now Playing is the
+selected surface — see "Live Activities" for why those rows appear and disappear
+rather than greying. Once the switch decides whether the Lock Screen's slider
+reaches the speaker, a section away from the surface it gates is two volume
+controls with an invisible dependency between them.
 
 One consequence, accepted: the switch still drives the player screen's hardware
-buttons in the app, and dimming it here means that can only be *turned on* while
+buttons in the app, and hiding it here means that can only be *turned on* while
 Now Playing is selected. One switch for one system volume beats two that have to
 be kept in step, and a stored `true` keeps working on the player screen whatever
 the picker says, so nobody loses behaviour they already had. If someone

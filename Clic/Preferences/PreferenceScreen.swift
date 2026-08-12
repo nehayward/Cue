@@ -490,10 +490,11 @@ struct PreferenceScreen: View {
                         }
                     }
 
-                    // Directly under the picker, dimmed when Now Playing isn't
-                    // the chosen surface — the same treatment the two rows below
-                    // get, and for the same reason: the control it shapes is the
-                    // one the picker just selected.
+                    // Directly under the picker, and present only while Now
+                    // Playing is the chosen surface — the same treatment the
+                    // rows below get, on the opposite condition. The section
+                    // shows what the current choice can be configured with and
+                    // nothing else.
                     //
                     // It lived in **Playback** until this moved. The switch now
                     // decides whether the Lock Screen and Control Center sliders
@@ -502,49 +503,59 @@ struct PreferenceScreen: View {
                     // controls with an invisible dependency between them.
                     //
                     // Consequence to know about: the same switch still drives the
-                    // player screen's hardware buttons in the app, and dimming it
+                    // player screen's hardware buttons in the app, and hiding it
                     // here means that can only be turned on while Now Playing is
                     // selected. Deliberate — one switch for one system volume
                     // beats two switches that have to be kept in step — and the
                     // stored value keeps working on the player screen either way,
                     // so nobody loses behaviour they already had.
-                    Label {
-                        Toggle(isOn: $useHardwareVolumeButtons) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Use iPhone Volume Buttons")
-                                // Names the slider as well as the buttons —
-                                // they're the same system volume, so the switch
-                                // could never honour one and not the other. Names
-                                // the exception too: it's a safety property, not
-                                // a limitation. On Bluetooth or headphones that
-                                // volume is the other device's.
-                                Text("Volume buttons and the Lock Screen slider control the speaker instead of this device. Not while connected to Bluetooth or headphones.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                    if lockScreenSurface == .nowPlaying {
+                        Label {
+                            Toggle(isOn: $useHardwareVolumeButtons) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Use iPhone Volume Buttons")
+                                    // Names the slider as well as the buttons —
+                                    // they're the same system volume, so the
+                                    // switch could never honour one and not the
+                                    // other. Names the exception too: it's a
+                                    // safety property, not a limitation. On
+                                    // Bluetooth or headphones that volume is the
+                                    // other device's.
+                                    Text("Volume buttons and the Lock Screen slider control the speaker instead of this device. Not while connected to Bluetooth or headphones.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
+                            .tint(.accent)
+                        } icon: {
+                            Image(systemName: "button.vertical.left.press.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.5, blue: 0.3), Color(red: 0.85, green: 0.35, blue: 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
-                        .tint(.accent)
-                    } icon: {
-                        Image(systemName: "button.vertical.left.press.fill")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(.white)
-                            .bold()
-                            .padding(8)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.5, blue: 0.3), Color(red: 0.85, green: 0.35, blue: 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            )
-                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                        // Still greyed without Super, like the picker above it —
+                        // the surface is chosen, the subscription is what makes
+                        // it run.
+                        .disabled(!subscriptionService.subscription.isActive)
                     }
-                    .disabled(!subscriptionService.subscription.isActive || lockScreenSurface != .nowPlaying)
 #endif
-                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
-                        // Both of these only shape the Live Activity, so they're
-                        // dimmed rather than hidden when it isn't the chosen
-                        // surface — the picker directly above says why, and the
-                        // section doesn't resize as you move between segments.
+                    // Both of these only shape the Live Activity, so they appear
+                    // only when it's the chosen surface. They used to be dimmed
+                    // in place instead, on the theory that a section which
+                    // doesn't resize is easier to follow — in practice a list of
+                    // permanently greyed controls reads as broken, and the two
+                    // states have nothing in common to keep aligned. Insertion
+                    // and removal are animated from the picker's binding.
+                    if lockScreenSurface == .liveActivity,
+                       UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
                         Label {
                             Toggle(isOn: $isCompact) {
                                 Text("Compact Live Activities")
@@ -565,7 +576,7 @@ struct PreferenceScreen: View {
                                 )
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
-                        .disabled(!subscriptionService.subscription.isActive || lockScreenSurface != .liveActivity)
+                        .disabled(!subscriptionService.subscription.isActive)
 
                         Label {
                             Stepper(value: $liveActivityStep, in: 1...10) {
@@ -587,7 +598,7 @@ struct PreferenceScreen: View {
                                 )
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
-                        .disabled(!subscriptionService.subscription.isActive || lockScreenSurface != .liveActivity)
+                        .disabled(!subscriptionService.subscription.isActive)
                     }
                 } header: {
                     Text("Lock Screen")
@@ -1193,28 +1204,41 @@ struct PreferenceScreen: View {
         Binding(
             get: { lockScreenSurface },
             set: { surface in
-                switch surface {
-                case .nowPlaying:
-                    guard subscriptionService.subscription.isActive else {
-                        presentPaywall()
-                        return
+                // Outside the animation below: this path writes nothing, so the
+                // picker snaps back and there are no rows to move.
+                if surface == .nowPlaying, !subscriptionService.subscription.isActive {
+                    presentPaywall()
+                    return
+                }
+                // The rows under the picker belong to one surface each and are
+                // present only for it, so every selection change inserts and
+                // removes rows. Animated from the write rather than by putting
+                // `.animation` on the section, so it covers the one transition
+                // the user caused — a defaults change from anywhere else
+                // (another window, the service reconciling Live Activities)
+                // shouldn't slide rows around under them.
+                withAnimation {
+                    switch surface {
+                    case .nowPlaying:
+                        // Only this one write. `NowPlayingSessionService
+                        // .reconcileLiveActivities()` turns Live Activities off
+                        // and records that it was the cause, so moving back
+                        // restores them — duplicating that here would give the
+                        // invariant two owners.
+                        lockScreenNowPlaying = true
+                    case .liveActivity:
+                        // Clear Lock Screen Controls *first*: the defaults change
+                        // each write posts is what wakes the service, and it
+                        // would otherwise read "still on" and turn these straight
+                        // back off.
+                        lockScreenNowPlaying = false
+                        liveActivitiesSuspendedByLockScreen = false
+                        liveActivities = true
+                    case .off:
+                        lockScreenNowPlaying = false
+                        liveActivitiesSuspendedByLockScreen = false
+                        liveActivities = false
                     }
-                    // Only this one write. `NowPlayingSessionService.reconcile-
-                    // LiveActivities()` turns Live Activities off and records
-                    // that it was the cause, so moving back restores them —
-                    // duplicating that here would give the invariant two owners.
-                    lockScreenNowPlaying = true
-                case .liveActivity:
-                    // Clear Lock Screen Controls *first*: the defaults change
-                    // each write posts is what wakes the service, and it would
-                    // otherwise read "still on" and turn these straight back off.
-                    lockScreenNowPlaying = false
-                    liveActivitiesSuspendedByLockScreen = false
-                    liveActivities = true
-                case .off:
-                    lockScreenNowPlaying = false
-                    liveActivitiesSuspendedByLockScreen = false
-                    liveActivities = false
                 }
             }
         )
