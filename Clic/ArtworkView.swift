@@ -225,19 +225,18 @@ struct ArtworkView: View {
     // means unrelated body re-evaluations — playback ticks, mute toggles,
     // layout changes — can never kick off or restart a fade.
     private func setImage(_ image: UIImage?, fade: Bool) {
-        guard image !== currentImage else { return }
-
-        // Every track change delivers the same cover twice: Sonos's own proxy
-        // URL first, then the service's CDN URL once `getTrackInformation`
-        // resolves. `imageIDKey` is what says those are the same cover, and it
-        // is already the pipeline's cache id — but the two lookups hand back
-        // distinct UIImage instances, so the identity check above lets both
-        // through and the second one animates for no visible change. On a skip
-        // that is two hard swaps; on a natural change it is two crossfades,
-        // which reads as a fade to black. Keyed on the cover, one swap.
-        let key = imageIDKey
-        if image != nil, currentImage != nil, key == currentImageKey { return }
-        currentImageKey = image == nil ? nil : key
+        // Change detection is by the cover's identity, not the UIImage
+        // instance: every track change delivers the same cover twice — Sonos's
+        // own proxy URL first, then the service's CDN URL once
+        // `getTrackInformation` resolves — and the two cache lookups hand back
+        // distinct instances, so an instance check let both through and the
+        // second animated for no visible change. On a skip that was two hard
+        // swaps; on a natural change, two crossfades, which read as a fade to
+        // black. A nil image carries a nil key, so clears and first paints
+        // fall out of the same comparison.
+        let key = image == nil ? nil : imageIDKey
+        guard key != currentImageKey else { return }
+        currentImageKey = key
 
         if fade {
             withAnimation(.smooth(duration: defaultFadeDuration)) {
