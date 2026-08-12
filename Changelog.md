@@ -249,6 +249,8 @@ Deliberately not done, or known gaps:
 - `getEQ`/`setEQ` treat any non-200 as `.unsupported` without reading the UPnP fault code, so a transient 500 is indistinguishable from an unimplemented EQ type. Parsing the fault body is what would make that distinction real.
 - The `S45` catalogue is SonosKit-only; `SonosKitMini`'s `isArcUltra` still matches display name alone.
 - `SonosDeviceQuery.entities(for:)` ignores its `identifiers` and returns every room (pre-existing), which the new per-entity `isArcUltra` now leans on.
+
+Follow-up: `getEQ`/`setEQ` take `EQType` rather than a `String`, so the wire names live in one place instead of being retyped at each call — `EQType` already had `dialogLevel`, `nightMode` and `speechEnhanceEnabled`, and `getEQValue`/`setEQValue` were the only pair using it. Those two now route through the same helpers (same signatures, same swallow-on-failure behaviour), which drops their duplicated request building. `SonosKitMini` gains a three-case `EQType` of its own — the packages don't share models, but the raw values are the wire format and have to match. `getNightMode`/`setNightMode` take the enum for the argument but keep their own request handling: moving them onto the helpers would change a dropped write from silent success to a thrown error, and `SetNightModeIntent` would report that as "Night Mode not supported" — the same wrong diagnosis this section is about. That belongs with fixing the intent's messages.
 ### Background CPU while Lock Screen Controls hold the app alive
 Lock Screen Controls keep the process running on the `audio` background mode, so anything that would normally stop when a view leaves the screen doesn't. Five separate consumers, in rough order of cost:
 

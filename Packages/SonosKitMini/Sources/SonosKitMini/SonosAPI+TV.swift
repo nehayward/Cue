@@ -22,17 +22,17 @@ enum SonosEQError: Error {
 extension SonosAPI {
     /// Reads an EQ type. Throws rather than substituting a value: these reads double
     /// as capability probes, and a fabricated fallback silently mis-detects the speaker.
-    private func getEQ(IP: String, type: String) async throws -> String {
+    private func getEQ(IP: String, _ eq: EQType) async throws -> String {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),
-            ("EQType", type)
+            ("EQType", eq.rawValue)
         ]
 
         guard let (data, response) = try await sendSoapRequest(ip: IP, action: "GetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else {
             throw SonosEQError.failedLoading
         }
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-            print("GetEQ \(type) failed with \(httpResponse.statusCode)")
+            print("GetEQ \(eq.rawValue) failed with \(httpResponse.statusCode)")
             throw SonosEQError.unsupported
         }
         let xml = String(decoding: data, as: UTF8.self)
@@ -43,10 +43,10 @@ extension SonosAPI {
     }
 
     /// Writes an EQ type, with the same distinction as `getEQ`.
-    private func setEQ(IP: String, type: String, value: Int) async throws {
+    private func setEQ(IP: String, _ eq: EQType, value: Int) async throws {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),
-            ("EQType", type),
+            ("EQType", eq.rawValue),
             ("DesiredValue", value)
         ]
 
@@ -54,42 +54,41 @@ extension SonosAPI {
             throw SonosEQError.failedLoading
         }
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-            print("SetEQ \(type) failed with \(httpResponse.statusCode)")
+            print("SetEQ \(eq.rawValue) failed with \(httpResponse.statusCode)")
             throw SonosEQError.unsupported
         }
     }
 
     func getDialogLevel(IP: String) async throws -> Bool {
-        try await getEQ(IP: IP, type: "DialogLevel") == "1"
+        try await getEQ(IP: IP, .dialogLevel) == "1"
     }
 
     func setDialogLevel(IP: String, enabled: Bool) async throws {
-        try await setEQ(IP: IP, type: "DialogLevel", value: enabled ? 1 : 0)
+        try await setEQ(IP: IP, .dialogLevel, value: enabled ? 1 : 0)
     }
 
     func getSpeechEnhanceEnabled(IP: String) async throws -> Bool {
-        try await getEQ(IP: IP, type: "SpeechEnhanceEnabled") == "1"
+        try await getEQ(IP: IP, .speechEnhanceEnabled) == "1"
     }
 
     func setSpeechEnhanceEnabled(IP: String, enabled: Bool) async throws {
-        try await setEQ(IP: IP, type: "SpeechEnhanceEnabled", value: enabled ? 1 : 0)
+        try await setEQ(IP: IP, .speechEnhanceEnabled, value: enabled ? 1 : 0)
     }
 
     func getDialogLevelValue(IP: String) async throws -> Int {
-        guard let value = Int(try await getEQ(IP: IP, type: "DialogLevel")) else {
-            throw SonosEQError.failedParsing
-        }
+        let raw = try await getEQ(IP: IP, .dialogLevel)
+        guard let value = Int(raw) else { throw SonosEQError.failedParsing }
         return value
     }
 
     func setDialogLevelValue(IP: String, value: Int) async throws {
-        try await setEQ(IP: IP, type: "DialogLevel", value: value)
+        try await setEQ(IP: IP, .dialogLevel, value: value)
     }
 
     func getNightMode(IP: String) async throws -> Bool {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),
-            ("EQType", "NightMode")
+            ("EQType", EQType.nightMode.rawValue)
         ]
         
         guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return false }
@@ -107,7 +106,7 @@ extension SonosAPI {
     func setNightMode(IP: String, enabled: Bool) async throws {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),
-            ("EQType", "NightMode"),
+            ("EQType", EQType.nightMode.rawValue),
             ("DesiredValue", enabled ? 1 : 0)
         ]
         
