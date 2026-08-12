@@ -150,7 +150,6 @@ extension SonosService: SonosEventHandler {
         let key = liveItemKey(source, group.coordinatorID)
         guard lastLiveItemIDs[key] != itemID else { return }
         lastLiveItemIDs[key] = itemID
-        print("[track] event source=\(source.rawValue) id=\(itemID.suffix(24))")
 
         // One task per player, replacing any pending one. Deliberately not keyed
         // per stream: letting both run means two refreshes race, each writing
@@ -171,7 +170,7 @@ extension SonosService: SonosEventHandler {
             // first, instead of re-reading against its own result.
             let outgoing = group.coordinatorRoom.track.unique
 
-            for attempt in 1...Self.trackRefreshAttempts {
+            for _ in 0..<Self.trackRefreshAttempts {
                 try? await Task.sleep(for: Self.trackRefreshDelay)
                 guard !Task.isCancelled, let self else { return }
 
@@ -182,11 +181,8 @@ extension SonosService: SonosEventHandler {
                 // pushing too, so notify either way — but only keep asking
                 // while the transport is still on the outgoing item.
                 self.notifyLiveUpdate(for: group)
-                let moved = group.coordinatorRoom.track.unique != outgoing
-                print("[track] attempt \(attempt) moved=\(moved)")
-                if moved { return }
+                if group.coordinatorRoom.track.unique != outgoing { return }
             }
-            print("[track] gave up after \(Self.trackRefreshAttempts) attempts")
         }
     }
     

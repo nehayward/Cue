@@ -110,8 +110,6 @@ struct ArtworkView: View {
                     // true ~200ms later), so snapshotting here means a slow image
                     // load can't fade in after the fact.
                     let fade = shouldFade
-                    let surface = isBackground ? "bg" : "fg"
-                    print("[art] \(surface) task url=\(briefURL(group.coordinatorRoom.track.artworkURL)) key=\(imageIDKey) fade=\(fade)")
                     guard let artworkRequest else {
                         // Hold the outgoing image while a track change is still
                         // in flight. Sonos reports the new item before it has
@@ -121,25 +119,18 @@ struct ArtworkView: View {
                         // crossfade. A genuinely empty track (stopped, idle,
                         // TV) has no artwork to hold and still clears.
                         if group.coordinatorRoom.track.isEmpty {
-                            print("[art] \(surface) no url, track empty — clearing")
                             setImage(nil, fade: fade)
-                        } else {
-                            print("[art] \(surface) no url yet — holding previous image")
                         }
                         return
                     }
                     if let cached = ImagePipeline.shared.cache.cachedImage(for: artworkRequest) {
-                        print("[art] \(surface) cache hit")
                         setImage(cached.image, fade: fade)
                         return
                     }
                     do {
-                        print("[art] \(surface) loading…")
                         let image = try await ImagePipeline.shared.image(for: artworkRequest)
-                        print("[art] \(surface) loaded")
                         setImage(image, fade: fade)
                     } catch {
-                        print("[art] \(surface) load failed: \(error.localizedDescription)")
                         // Swallow errors silently — the Sonos proxy for Spotify is
                         // unreliable right at track boundaries (the speaker may not
                         // have fetched the new art yet). Keeping the previous image
@@ -234,11 +225,7 @@ struct ArtworkView: View {
     // means unrelated body re-evaluations — playback ticks, mute toggles,
     // layout changes — can never kick off or restart a fade.
     private func setImage(_ image: UIImage?, fade: Bool) {
-        let surface = isBackground ? "bg" : "fg"
-        guard image !== currentImage else {
-            print("[art] \(surface) same instance — no swap")
-            return
-        }
+        guard image !== currentImage else { return }
 
         // Every track change delivers the same cover twice: Sonos's own proxy
         // URL first, then the service's CDN URL once `getTrackInformation`
@@ -249,13 +236,9 @@ struct ArtworkView: View {
         // that is two hard swaps; on a natural change it is two crossfades,
         // which reads as a fade to black. Keyed on the cover, one swap.
         let key = imageIDKey
-        if image != nil, currentImage != nil, key == currentImageKey {
-            print("[art] \(surface) same cover \(key) — no swap")
-            return
-        }
+        if image != nil, currentImage != nil, key == currentImageKey { return }
         currentImageKey = image == nil ? nil : key
 
-        print("[art] \(surface) SWAP image=\(image == nil ? "nil" : "new") fade=\(fade)")
         if fade {
             withAnimation(.smooth(duration: defaultFadeDuration)) {
                 currentImage = image
@@ -292,10 +275,3 @@ struct ArtworkView: View {
 //        .environment(SonosService.shared)
 //}
 //
-
-/// Debug helper: Sonos proxy and CDN artwork URLs are long, and the tail is the
-/// part that differs between two loads of the same artwork.
-private func briefURL(_ url: URL?) -> String {
-    guard let url else { return "nil" }
-    return String(url.absoluteString.suffix(44))
-}

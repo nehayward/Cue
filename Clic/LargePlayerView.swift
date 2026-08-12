@@ -508,7 +508,6 @@ fileprivate struct PlayerMediaControlsView: View {
                 selectionTrack = Task {
                     HapticManager.shared.fireHaptic(.selection)
                     shouldFade = false
-                    print("[fade] previous pressed — no-fade window open")
                     // No refresh here: this screen holds a metadata socket open
                     // (see `getTrackAudioInformation` above), and the speaker
                     // pushes the new item as soon as it has one. Reading it
@@ -525,7 +524,6 @@ fileprivate struct PlayerMediaControlsView: View {
                     guard !Task.isCancelled else {
                         return
                     }
-                    print("[fade] no-fade window closed")
                     shouldFade = true
                 }
             } label: {
@@ -570,7 +568,6 @@ fileprivate struct PlayerMediaControlsView: View {
                     HapticManager.shared.fireHaptic(.selection)
                     group.coordinatorRoom.playbackPosition = 0
                     shouldFade = false
-                    print("[fade] next pressed — no-fade window open")
                     // Left to the socket — twin of the previous button above,
                     // including the no-fade window. Holding `isEditing` across a
                     // refresh here also parked the pulse in 500 ms sleeps, so
@@ -580,7 +577,6 @@ fileprivate struct PlayerMediaControlsView: View {
                     guard !Task.isCancelled else {
                         return
                     }
-                    print("[fade] no-fade window closed")
                     shouldFade = true
                 }
             } label: {
