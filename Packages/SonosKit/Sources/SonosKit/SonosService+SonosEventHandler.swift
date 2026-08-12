@@ -90,11 +90,6 @@ extension SonosService: SonosEventHandler {
             guard let index = groups.firstIndex(where: { $0.coordinatorID == playerId }) else {
                 return
             }
-            // Sonos names the upcoming item here, ahead of any skip. Stashing it
-            // is what lets `next(ip:)` change the player on the button press
-            // instead of after the stream has opened.
-            groups[index].nextTrack = metadata.nextItem?.track.flatMap { Track(socketItem: $0) }
-
             if let track = metadata.currentItem?.track {
                 groups[index].audioQuality = track.quality
                 groups[index].coordinatorRoom.container = metadata.container
@@ -149,11 +144,9 @@ extension SonosService: SonosEventHandler {
         lastLiveItemIDs[key] = itemID
 
         // Keyed by `key`, not by player: the two streams report the same song
-        // change a beat apart, and sharing one slot meant the metadata event
-        // cancelled the fetch the playback event had already started. A cancel
-        // landing mid-request throws that fetch away, and `lastLiveItemIDs`
-        // has already recorded the id — so nothing retries and the title waits
-        // for the pulse. Worst case now is one duplicate read per song.
+        // change a beat apart, so sharing a slot meant the metadata event
+        // cancelled the fetch the playback event had started — and with the id
+        // already recorded, nothing retried. Costs at most one duplicate read.
         liveTrackRefreshTasks[key]?.cancel()
         liveTrackRefreshTasks[key] = Task { @MainActor [weak self] in
             // The socket announces the new item a beat before AVTransport serves

@@ -179,11 +179,6 @@ public final class SonosService {
     /// Pending targeted refreshes, keyed by `liveItemKey` so the two streams
     /// don't cancel each other's fetch.
     @ObservationIgnored var liveTrackRefreshTasks: [String: Task<Void, Never>] = [:]
-    /// Locally-issued skips that haven't landed on the speaker yet, keyed by
-    /// coordinator id. See `settleSkip(_:on:)`.
-    @ObservationIgnored var skipsInFlight: [String: SkipInFlight] = [:]
-    /// Source of `SkipInFlight.token`.
-    @ObservationIgnored private var lastSkipToken: Int = 0
     /// Callbacks for socket events, keyed by listener so a second consumer can't
     /// silently replace the first. Consumers that mirror playback outside
     /// SwiftUI (the Lock Screen Now Playing card) register here instead of
@@ -518,23 +513,6 @@ public final class SonosService {
             await updateGroupMuteState(for: [roomGroup])
 
             guard var awaitedTrack = await track else {
-                return
-            }
-
-            // A local skip is mid-transition and the transport is still
-            // reporting the item it moved off. `settleSkip` owns the track until
-            // the new one lands — but keep the position ticking so a skip that
-            // turns out to be a no-op (end of queue, rejected command) doesn't
-            // freeze the progress bar for the whole settle window. Gated on the
-            // outgoing track still being the one on screen: once a predicted
-            // track has been painted, the outgoing item's position is not its
-            // position.
-            if isStaleSkipEcho(awaitedTrack, for: roomGroup) {
-                if !roomGroup.isEditingPlayback,
-                   roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique,
-                   roomGroup.coordinatorRoom.playbackPosition != awaitedTrack.playbackPosition {
-                    roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
-                }
                 return
             }
 
@@ -883,12 +861,6 @@ public final class SonosService {
                     guard var awaitedTrack = await track else {
                         return
                     }
-
-                    // Twin of the guard in `load()` — a skip is still opening
-                    // the new stream, so this is the outgoing item. Applies to
-                    // the socket-driven refresh too, which lands in the same
-                    // window.
-                    if isStaleSkipEcho(awaitedTrack, for: roomGroup) { return }
 
                     if awaitedTrack == .tv {
                         roomGroup.playbackService = .tv
@@ -2155,42 +2127,15 @@ public final class SonosService {
         isEditing = false
     }
 
-    /// A skip that has been sent to the speaker but hasn't landed yet.
-    struct SkipInFlight {
-        /// Distinguishes this skip from a later one on the same group, so a
-        /// cancelled skip can't clear the record its replacement just wrote.
-        let token: Int
-        /// `unique` of the track the skip is moving away from.
-        let outgoing: String
-    }
-
-    /// How long to keep re-reading the transport after a local skip before
-    /// giving up and taking whatever the speaker reports.
+    /// How long to keep re-reading the transport after a skip before giving up
+    /// and taking whatever the speaker reports.
     private static let skipSettleTimeout: Duration = .milliseconds(2500)
-    /// Gap between those reads. `GetPositionInfo` is a small request to a
-    /// speaker on the LAN, and this only runs while a skip is settling.
-    private static let skipSettleInterval: Duration = .milliseconds(150)
 
     @MainActor
     public func next(ip: String) async {
-        guard let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) else {
-            await api.next(ipAddress: ip)
-            return
-        }
-
-        let skip = beginSkip(on: group)
+        let outgoing = groups.first { $0.coordinatorRoom.ip == ip }?.coordinatorRoom.track.unique
         await api.next(ipAddress: ip)
-
-        // The socket already named the upcoming item, so show it now instead of
-        // leaving the outgoing song on screen for the whole transition. Consumed
-        // once: after this it describes what's playing, not what's next, and a
-        // second quick press would paint the track already on screen.
-        if let predicted = group.nextTrack {
-            group.nextTrack = nil
-            applyPredictedTrack(predicted, to: group)
-        }
-
-        await settleSkip(skip, on: group)
+        await settleSkip(ip: ip, movingOffOf: outgoing)
     }
 
     /// If playback is more than 3 seconds into the track, restarts the current track.
@@ -2205,117 +2150,38 @@ public final class SonosService {
             return
         }
 
-        guard let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) else {
-            await api.previous(ipAddress: ip)
-            return
-        }
-
-        // No prediction to paint: the socket reports the *next* item, never the
-        // previous one. The settle poll below is what keeps this responsive.
-        let skip = beginSkip(on: group)
         await api.previous(ipAddress: ip)
-        await settleSkip(skip, on: group)
-    }
-
-    /// Marks a skip as in flight and records the track it's moving away from.
-    ///
-    /// While this is set, `load()` and `updateTrackInformation` refuse to write
-    /// that track back — see `isStaleSkipEcho(_:for:)`.
-    @MainActor
-    private func beginSkip(on group: GroupRoom) -> SkipInFlight {
-        lastSkipToken += 1
-        let skip = SkipInFlight(token: lastSkipToken, outgoing: group.coordinatorRoom.track.unique)
-        skipsInFlight[group.coordinatorID] = skip
-        return skip
-    }
-
-    /// Paints the item the speaker already told us is next, so the player moves
-    /// the moment the button is pressed.
-    ///
-    /// Deliberately not registered in `attemptedTrackInfoUniques`: this is a
-    /// placeholder built from the socket's catalog metadata, and the real
-    /// AVTransport track — different id namespace, hi-res artwork, service
-    /// metadata — still has to replace it once the transition completes.
-    @MainActor
-    private func applyPredictedTrack(_ predicted: Track, to group: GroupRoom) {
-        var track = predicted
-        // A skip within a queue stays on the same service; carrying it over
-        // stops the service badge blinking to `.unknown` for the transition.
-        if track.musicService == .unknown {
-            track.musicService = group.coordinatorRoom.track.musicService
-        }
-        // Queue position only advances predictably when playing in order —
-        // shuffled, the socket names the item but not where it sits.
-        if !group.playMode.contains(.shuffle) {
-            track.position = group.coordinatorRoom.track.position + 1
-        } else {
-            track.position = group.coordinatorRoom.track.position
-        }
-        group.coordinatorRoom.track = track
-        group.coordinatorRoom.updatePlaybackPosition(0)
-        notifyLiveUpdate(for: group)
+        await settleSkip(ip: ip, movingOffOf: track?.unique)
     }
 
     /// Waits for the speaker to actually serve the new item, then refreshes.
     ///
     /// A skip on a *playing* transport is not instant: the coordinator drops
     /// into TRANSITIONING while it opens the next stream, and `GetPositionInfo`
-    /// keeps returning the outgoing item (or an empty one) until that finishes.
-    /// A single refresh fired the moment the SOAP call returns therefore reads
-    /// the *old* track and no-ops — the same trap `liveItemDidChange` sidesteps
-    /// with its 250 ms delay. Paused, the queue pointer moves immediately and
-    /// the first read is already correct, which is why only playback ever felt
-    /// slow: it fell back to the 500–800 ms pulse or a socket event.
+    /// keeps returning the outgoing item until that finishes. Refreshing once,
+    /// the moment the SOAP call returns, therefore read the *old* track and
+    /// no-opped — the same trap `liveItemDidChange` sidesteps with its 250 ms
+    /// delay — leaving the title to the 500-800 ms pulse. Paused, the queue
+    /// pointer moves immediately and the first read is already right, which is
+    /// why only playback ever felt slow.
     @MainActor
-    private func settleSkip(_ skip: SkipInFlight, on group: GroupRoom) async {
-        let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: Self.skipSettleTimeout)
+    private func settleSkip(ip: String, movingOffOf outgoing: String?) async {
+        guard let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) else { return }
 
         // Read before sleeping: a paused transport has already moved its queue
-        // pointer by the time the SOAP call returns, so that case costs no added
-        // delay and never polls at all.
-        while !Task.isCancelled {
-            if let candidate = await getTrack(ip: group.coordinatorRoom.ip),
-               // Anything but the outgoing item — or nothing at all, which is
-               // the same transition reported as an empty track.
-               !candidate.isEmpty, candidate.unique != skip.outgoing {
-                break
-            }
-            guard clock.now < deadline else { break }
-            try? await Task.sleep(for: Self.skipSettleInterval)
+        // pointer by the time the SOAP call returns, so that case never polls.
+        let deadline = ContinuousClock.now.advanced(by: Self.skipSettleTimeout)
+        while ContinuousClock.now < deadline, !Task.isCancelled {
+            let candidate = await getTrack(ip: ip)
+            // Anything but the outgoing item — or nothing at all, which is the
+            // same transition reported as an empty track.
+            if let candidate, !candidate.isEmpty, candidate.unique != outgoing { break }
+            try? await Task.sleep(for: .milliseconds(150))
         }
 
-        guard !Task.isCancelled else {
-            endSkip(skip, on: group)
-            return
-        }
-
-        // Whether the speaker moved on or we ran out of patience, take what it
-        // has now — a slow transition must not strand the predicted title on
-        // screen waiting for the pulse. Clearing first is what lets this write
-        // through `isStaleSkipEcho`.
-        endSkip(skip, on: group)
+        guard !Task.isCancelled else { return }
         try? await updateTrackInformation(for: [group])
         notifyLiveUpdate(for: group)
-    }
-
-    /// Clears the in-flight record, unless a newer skip has already replaced it.
-    @MainActor
-    private func endSkip(_ skip: SkipInFlight, on group: GroupRoom) {
-        guard skipsInFlight[group.coordinatorID]?.token == skip.token else { return }
-        skipsInFlight[group.coordinatorID] = nil
-    }
-
-    /// True when `track` is the item a local skip already moved off of.
-    ///
-    /// The speaker keeps serving the outgoing stream while the next one opens,
-    /// and both the pulse and the socket can land inside that window; writing it
-    /// back would undo the predicted title and flash the old song. An empty
-    /// track counts too — that's the same transition reported as nothing at all.
-    @MainActor
-    func isStaleSkipEcho(_ track: Track, for group: GroupRoom) -> Bool {
-        guard let skip = skipsInFlight[group.coordinatorID] else { return false }
-        return track.isEmpty || track.unique == skip.outgoing
     }
 
     public func isMuted(for group: GroupRoom) async -> Bool? {

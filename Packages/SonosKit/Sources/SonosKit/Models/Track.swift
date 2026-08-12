@@ -91,28 +91,6 @@ public struct Track: Identifiable, Hashable, Sendable {
 }
 
 public extension Track {
-    /// Builds a display-only Track from an item the metadata socket reported.
-    ///
-    /// Carries only what the player needs to render immediately — title,
-    /// artist, album, duration, art. The socket speaks the music service's
-    /// *catalog* id namespace, not the transport `trackID` the position-info
-    /// parser produces, so this is never the real track: it holds the screen
-    /// during a skip until `updateTrackInformation` replaces it. Returns nil
-    /// for an item with no title, which has nothing to show.
-    init?(socketItem: SonosTrackInfo) {
-        guard let name = socketItem.name, !name.isEmpty else { return nil }
-        let artwork = socketItem.imageUrl
-            ?? socketItem.images?.compactMap(\.url).first
-        self.init(
-            trackID: socketItem.id?.objectId ?? "",
-            name: name,
-            artist: socketItem.artist?.name ?? "",
-            album: socketItem.album?.name ?? "",
-            artworkURL: artwork.flatMap { URL(string: $0) },
-            duration: TimeInterval(socketItem.durationMillis ?? 0)
-        )
-    }
-
     static let empty = Track(trackID: "", name: "")
     static let alarm = Track(trackID: "x-rincon-buzzer:0", name: "Alarm")
     static let tv = Track(trackID: "x-sonos-htastream", name: "TV")
