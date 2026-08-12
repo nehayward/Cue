@@ -31,6 +31,9 @@
 - Playing a long playlist no longer feels like the tap was dropped — if Sonos needs more than a moment, the banner shows a spinner with what's loading, then confirms once it's ready
 - The play button now pulses while your speaker is getting a song ready — in the mini player, the player, the speaker list, and on Apple TV
 - Fixed the Live Activity vanishing when you set the volume from it while in another app — and a speaker that's briefly unreachable no longer dismisses your other rooms' Live Activities along with it
+- Fixed the player lagging behind when you skip tracks during playback — the new song's details now appear as quickly as they do when skipping from paused
+- Fixed album artwork flickering on every song change — the cover is now swapped once instead of being loaded twice
+- Fixed album artwork blanking out between songs instead of dissolving straight into the next cover
 
 # 2026.6
 
