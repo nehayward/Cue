@@ -108,7 +108,16 @@ struct ArtworkView: View {
                     // load can't fade in after the fact.
                     let fade = shouldFade
                     guard let artworkRequest else {
-                        setImage(nil, fade: fade)
+                        // Hold the outgoing image while a track change is still
+                        // in flight. Sonos reports the new item before it has
+                        // fetched that item's art, so `artworkURL` is briefly
+                        // nil — clearing here drops to the placeholder and back,
+                        // which reads as a fade to black rather than a
+                        // crossfade. A genuinely empty track (stopped, idle,
+                        // TV) has no artwork to hold and still clears.
+                        if group.coordinatorRoom.track.isEmpty {
+                            setImage(nil, fade: fade)
+                        }
                         return
                     }
                     if let cached = ImagePipeline.shared.cache.cachedImage(for: artworkRequest) {
