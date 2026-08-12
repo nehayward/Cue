@@ -599,7 +599,20 @@ public final class SonosStreamingService {
         }
     }
     
-    /// Refresh all connections by disconnecting and reconnecting all players
+    /// Replaces any socket that has stopped answering, and leaves the rest alone.
+    ///
+    /// This used to disconnect and rebuild *every* socket on the timer, whether
+    /// or not anything was wrong with it. That is the app's most expensive piece
+    /// of periodic background work: it runs with the app backgrounded — the
+    /// Lock Screen card's session keeps the process alive — and each cycle is a
+    /// teardown, a second of dead time, a fresh connection and resubscribe per
+    /// player, a radio wake, and then a `updateTrackInformation` resync through
+    /// `onConnectionsRefreshed` to cover the gap it just created.
+    ///
+    /// A ping answers the only question the rebuild was really asking. Healthy
+    /// sockets — the overwhelmingly common case — now cost one frame each way
+    /// every five minutes, which doubles as a keepalive, and the resync only
+    /// fires when there was actually a gap to cover.
     private func refreshAllConnections() async {
         // Prevent concurrent refresh operations
         var shouldRefresh: Bool {
@@ -620,38 +633,76 @@ public final class SonosStreamingService {
         }
         
         if debug {
-            print("DEBUG: Refreshing all connections...")
+            print("DEBUG: Checking connections...")
         }
-        
+
         // Get snapshot of current player configurations
         let configsToRefresh = Array(playerConfigs.values)
-        
+
         guard !configsToRefresh.isEmpty else {
             if debug {
                 print("DEBUG: No players to refresh")
             }
             return
         }
-        
-        // Gracefully disconnect all current connections without stopping the refresh timer
-        await gracefulDisconnectAll()
-        
-        // Small delay before reconnecting
-        do {
-            try await Task.sleep(for: .seconds(1))
-        } catch {
-            return // Task was cancelled
-        }
-        
-        // Reconnect all players using addPlayers
-        await addPlayers(configsToRefresh)
 
-        // The sockets were down for at least a second, and they only push on
-        // change — so whatever moved in that window was never reported.
+        // A config with no socket at all is stale by definition — that's the
+        // case a previous refresh failed to reconnect, and the one this timer
+        // most needs to catch.
+        var stale: [SonosPlayerConfig] = []
+        var healthy: [SonosWebSocket] = []
+        for config in configsToRefresh {
+            guard let socket = connections[config.playerId] else {
+                stale.append(config)
+                continue
+            }
+            if await socket.isResponsive() {
+                healthy.append(socket)
+            } else {
+                stale.append(config)
+            }
+        }
+
+        // A pong proves the connection, not the subscriptions. Sonos-side
+        // subscriptions can lapse, or be orphaned when a group id changes, and
+        // the socket then answers pings while delivering nothing — which is
+        // precisely the failure the old unconditional rebuild used to paper
+        // over. Re-issuing them is a few frames, and Sonos replies with current
+        // state, so this doubles as the resync.
+        for socket in healthy {
+            await socket.resubscribeAll()
+        }
+
+        if !stale.isEmpty {
+            // Gracefully disconnect the dead ones without stopping the refresh timer
+            await withTaskGroup(of: Void.self) { [weak self] group in
+                for config in stale {
+                    group.addTask { await self?.gracefulRemovePlayer(config.playerId) }
+                }
+            }
+
+            // Small delay before reconnecting
+            do {
+                try await Task.sleep(for: .seconds(1))
+            } catch {
+                return // Task was cancelled
+            }
+
+            // Reconnect the players whose sockets were replaced
+            await addPlayers(stale)
+        }
+
+        // Unconditionally, not just after a rebuild. This is the app's only
+        // periodic correction once the SOAP pulse is cancelled off screen, and
+        // making it conditional on a rebuild was a regression: sockets push only
+        // on *change*, so anything they failed to deliver stayed wrong until the
+        // next change — on the Lock Screen card, potentially for the rest of the
+        // song. The old five-minute rebuild called this every cycle and that,
+        // not the reconnect, was what kept the card honest.
         eventHandler?.onConnectionsRefreshed()
-        
+
         if debug {
-            print("DEBUG: Connection refresh completed for \(configsToRefresh.count) players")
+            print("DEBUG: Liveness check — \(healthy.count) resubscribed, \(stale.count) rebuilt")
         }
     }
     
@@ -676,19 +727,6 @@ public final class SonosStreamingService {
         // Capture groupId to avoid accessing config after potential deallocation during async call
         let groupId = config.groupId
         try await socket.seek(groupID: groupId, positionMillis: positionMillis)
-    }
-    
-    /// Gracefully disconnect all players without stopping the refresh timer (used during refresh)
-    private func gracefulDisconnectAll() async {
-        let playerIds = Array(connections.keys)
-        
-        await withTaskGroup(of: Void.self) { [weak self] group in
-            for playerId in playerIds {
-                group.addTask {
-                    await self?.gracefulRemovePlayer(playerId)
-                }
-            }
-        }
     }
     
     /// Disconnect all players and clean up
