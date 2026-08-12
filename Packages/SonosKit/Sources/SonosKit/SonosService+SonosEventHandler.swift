@@ -136,11 +136,13 @@ extension SonosService: SonosEventHandler {
     }
 
     /// How long the refresh waits before asking AVTransport, and how many times
-    /// it re-asks. The loop stops the moment the track moves, so a normal song
-    /// change costs one read; the retries only spend themselves on a skip, where
-    /// the coordinator is still opening the new stream.
+    /// it re-asks. Traced skips land on the first attempt; the extra two are
+    /// slack for a slow stream open. Kept low because the attempts that don't
+    /// land spend themselves in full — an event whose item never reaches
+    /// AVTransport as a different track (radio, or a pulse that already wrote
+    /// it) has no way to tell "not yet" from "nothing coming".
     static let trackRefreshDelay: Duration = .milliseconds(250)
-    static let trackRefreshAttempts = 6
+    static let trackRefreshAttempts = 3
 
     @MainActor
     func liveItemDidChange(itemID: String, from source: LiveItemSource, for group: GroupRoom) {
@@ -163,19 +165,24 @@ extension SonosService: SonosEventHandler {
             // already recorded this id, so nothing else tries again until the
             // pulse comes round, and that gap is what made a skip mid-playback
             // so much slower than one from paused.
+            // Captured once, not per attempt: the question is whether the track
+            // has moved since the event, not whether this particular call moved
+            // it. That also lets the loop stop early when the pulse gets there
+            // first, instead of re-reading against its own result.
+            let outgoing = group.coordinatorRoom.track.unique
+
             for attempt in 1...Self.trackRefreshAttempts {
                 try? await Task.sleep(for: Self.trackRefreshDelay)
                 guard !Task.isCancelled, let self else { return }
 
-                let previous = group.coordinatorRoom.track.unique
                 try? await self.updateTrackInformation(for: [group])
                 guard !Task.isCancelled else { return }
 
-                // Landed. Anything else it reconciled (artist, album, duration)
-                // is worth pushing too, so notify either way — but only keep
-                // asking while the transport is still on the outgoing item.
+                // Anything it reconciled (artist, album, duration) is worth
+                // pushing too, so notify either way — but only keep asking
+                // while the transport is still on the outgoing item.
                 self.notifyLiveUpdate(for: group)
-                let moved = group.coordinatorRoom.track.unique != previous
+                let moved = group.coordinatorRoom.track.unique != outgoing
                 print("[track] attempt \(attempt) moved=\(moved)")
                 if moved { return }
             }

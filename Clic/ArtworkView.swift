@@ -20,6 +20,9 @@ struct ArtworkView: View {
     private let defaultFadeDuration: Double = 0.3
     @State private var alarmRunning: Bool = false
     @State private var currentImage: UIImage?
+    /// `imageIDKey` of whatever `currentImage` is showing — the cover's identity
+    /// rather than the URL it happened to arrive from. See `setImage`.
+    @State private var currentImageKey: String?
 
     var cornerRadius: CGFloat {
         UIDevice.current.userInterfaceIdiom == .phone ? 8 : 16
@@ -231,15 +234,28 @@ struct ArtworkView: View {
     // means unrelated body re-evaluations — playback ticks, mute toggles,
     // layout changes — can never kick off or restart a fade.
     private func setImage(_ image: UIImage?, fade: Bool) {
-        // The line that decides whether the user sees a swap at all. Two loads
-        // of the same picture that return distinct UIImage instances both pass
-        // this check and both animate — that is what a "double load" looks like
-        // on screen, so the trace records every swap, not every load.
+        let surface = isBackground ? "bg" : "fg"
         guard image !== currentImage else {
-            print("[art] \(isBackground ? "bg" : "fg") same instance — no swap")
+            print("[art] \(surface) same instance — no swap")
             return
         }
-        print("[art] \(isBackground ? "bg" : "fg") SWAP image=\(image == nil ? "nil" : "new") fade=\(fade)")
+
+        // Every track change delivers the same cover twice: Sonos's own proxy
+        // URL first, then the service's CDN URL once `getTrackInformation`
+        // resolves. `imageIDKey` is what says those are the same cover, and it
+        // is already the pipeline's cache id — but the two lookups hand back
+        // distinct UIImage instances, so the identity check above lets both
+        // through and the second one animates for no visible change. On a skip
+        // that is two hard swaps; on a natural change it is two crossfades,
+        // which reads as a fade to black. Keyed on the cover, one swap.
+        let key = imageIDKey
+        if image != nil, currentImage != nil, key == currentImageKey {
+            print("[art] \(surface) same cover \(key) — no swap")
+            return
+        }
+        currentImageKey = image == nil ? nil : key
+
+        print("[art] \(surface) SWAP image=\(image == nil ? "nil" : "new") fade=\(fade)")
         if fade {
             withAnimation(.smooth(duration: defaultFadeDuration)) {
                 currentImage = image
