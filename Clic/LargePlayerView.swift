@@ -514,6 +514,13 @@ fileprivate struct PlayerMediaControlsView: View {
                     // ourselves the instant the command returned only ever
                     // fetched the outgoing track anyway.
                     await sonosService.previous(ip: group.coordinatorRoom.ip)
+                    // Hold the no-fade window open until well past that push.
+                    // `ArtworkView` snapshots `shouldFade` when the URL changes,
+                    // so the window has to still be open when the new track
+                    // lands or a deliberate skip crossfades instead of snapping.
+                    // It used to close 200 ms after a refresh this button ran
+                    // itself; the socket's lands later than that.
+                    try? await Task.sleep(for: .milliseconds(1500))
                     guard !Task.isCancelled else {
                         return
                     }
@@ -561,11 +568,12 @@ fileprivate struct PlayerMediaControlsView: View {
                     HapticManager.shared.fireHaptic(.selection)
                     group.coordinatorRoom.playbackPosition = 0
                     shouldFade = false
-                    // Left to the socket — twin of the previous button above.
-                    // Holding `isEditing` across a refresh here also parked the
-                    // pulse in 500 ms sleeps, so the fallback was slower than
-                    // doing nothing.
+                    // Left to the socket — twin of the previous button above,
+                    // including the no-fade window. Holding `isEditing` across a
+                    // refresh here also parked the pulse in 500 ms sleeps, so
+                    // the fallback was slower than doing nothing.
                     await sonosService.next(ip: group.coordinatorRoom.ip)
+                    try? await Task.sleep(for: .milliseconds(1500))
                     guard !Task.isCancelled else {
                         return
                     }
