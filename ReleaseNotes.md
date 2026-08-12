@@ -34,6 +34,8 @@
 - Fixed the player lagging behind when you skip tracks during playback — the new song's details now appear as quickly as they do when skipping from paused
 - Fixed album artwork flickering on every song change — the cover is now swapped once instead of being loaded twice
 - Fixed album artwork blanking out between songs instead of dissolving straight into the next cover
+- Much lighter on battery while your phone is locked with Lock Screen Controls showing — Clic was still doing a screen's worth of work behind the Lock Screen, and now goes quiet until something actually happens on your speakers
+- Fixed the Lock Screen volume slider nudging your speaker a point or two off where you set it, just from showing the card
 
 # 2026.6
 

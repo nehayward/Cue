@@ -182,9 +182,9 @@ final class SonosAPI: NSObject {
             ("InstanceID", 0)
         ]
 
-        guard let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "SnapshotGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") else { return }
-        let xml = String(decoding: data, as: UTF8.self)
-        print(xml)
+        // The response body is an empty acknowledgement — it was being decoded to
+        // a string and printed in full, which is a leftover trace, not a check.
+        _ = try? await sendSoapRequest(ip: ipAddress, action: "SnapshotGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl")
     }
 
     @MainActor
