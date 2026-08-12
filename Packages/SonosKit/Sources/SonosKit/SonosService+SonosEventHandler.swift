@@ -135,6 +135,13 @@ extension SonosService: SonosEventHandler {
         case metadata
     }
 
+    /// How long the refresh waits before asking AVTransport, and how many times
+    /// it re-asks. The loop stops the moment the track moves, so a normal song
+    /// change costs one read; the retries only spend themselves on a skip, where
+    /// the coordinator is still opening the new stream.
+    static let trackRefreshDelay: Duration = .milliseconds(250)
+    static let trackRefreshAttempts = 6
+
     @MainActor
     func liveItemDidChange(itemID: String, from source: LiveItemSource, for group: GroupRoom) {
         guard !itemID.isEmpty else { return }
@@ -149,22 +156,25 @@ extension SonosService: SonosEventHandler {
         // the image and flicker.
         liveTrackRefreshTasks[group.coordinatorID]?.cancel()
         liveTrackRefreshTasks[group.coordinatorID] = Task { @MainActor [weak self] in
-            // The socket announces the new item a beat before AVTransport serves
-            // it — fetching immediately returns the outgoing track. A skip takes
-            // longer than a beat, because the coordinator has to open the new
-            // stream first, so keep asking until the transport agrees. Nothing
-            // else will: `lastLiveItemIDs` already recorded this id, so a fetch
-            // that lands early was the last word until the pulse came round —
-            // which is what made a skip mid-playback so much slower than one
-            // from paused, where the queue pointer moves at once.
-            for _ in 0..<6 {
-                try? await Task.sleep(for: .milliseconds(250))
+            // The socket names the new item a beat before AVTransport serves it,
+            // and a skip takes longer than a beat. So re-ask until the transport
+            // agrees rather than trusting one early read — `lastLiveItemIDs` has
+            // already recorded this id, so nothing else tries again until the
+            // pulse comes round, and that gap is what made a skip mid-playback
+            // so much slower than one from paused.
+            for _ in 0..<Self.trackRefreshAttempts {
+                try? await Task.sleep(for: Self.trackRefreshDelay)
                 guard !Task.isCancelled, let self else { return }
-                let before = group.coordinatorRoom.track.unique
+
+                let previous = group.coordinatorRoom.track.unique
                 try? await self.updateTrackInformation(for: [group])
                 guard !Task.isCancelled else { return }
+
+                // Landed. Anything else it reconciled (artist, album, duration)
+                // is worth pushing too, so notify either way — but only keep
+                // asking while the transport is still on the outgoing item.
                 self.notifyLiveUpdate(for: group)
-                if group.coordinatorRoom.track.unique != before { return }
+                if group.coordinatorRoom.track.unique != previous { return }
             }
         }
     }
