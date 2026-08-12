@@ -108,7 +108,7 @@ struct ArtworkView: View {
                     // load can't fade in after the fact.
                     let fade = shouldFade
                     let surface = isBackground ? "bg" : "fg"
-                    TrackTrace.log("[art] \(surface) task url=\(TrackTrace.brief(group.coordinatorRoom.track.artworkURL)) key=\(imageIDKey) fade=\(fade)")
+                    print("[art] \(surface) task url=\(briefURL(group.coordinatorRoom.track.artworkURL)) key=\(imageIDKey) fade=\(fade)")
                     guard let artworkRequest else {
                         // Hold the outgoing image while a track change is still
                         // in flight. Sonos reports the new item before it has
@@ -118,25 +118,25 @@ struct ArtworkView: View {
                         // crossfade. A genuinely empty track (stopped, idle,
                         // TV) has no artwork to hold and still clears.
                         if group.coordinatorRoom.track.isEmpty {
-                            TrackTrace.log("[art] \(surface) no url, track empty — clearing")
+                            print("[art] \(surface) no url, track empty — clearing")
                             setImage(nil, fade: fade)
                         } else {
-                            TrackTrace.log("[art] \(surface) no url yet — holding previous image")
+                            print("[art] \(surface) no url yet — holding previous image")
                         }
                         return
                     }
                     if let cached = ImagePipeline.shared.cache.cachedImage(for: artworkRequest) {
-                        TrackTrace.log("[art] \(surface) cache hit")
+                        print("[art] \(surface) cache hit")
                         setImage(cached.image, fade: fade)
                         return
                     }
                     do {
-                        TrackTrace.log("[art] \(surface) loading…")
+                        print("[art] \(surface) loading…")
                         let image = try await ImagePipeline.shared.image(for: artworkRequest)
-                        TrackTrace.log("[art] \(surface) loaded")
+                        print("[art] \(surface) loaded")
                         setImage(image, fade: fade)
                     } catch {
-                        TrackTrace.log("[art] \(surface) load failed: \(error.localizedDescription)")
+                        print("[art] \(surface) load failed: \(error.localizedDescription)")
                         // Swallow errors silently — the Sonos proxy for Spotify is
                         // unreliable right at track boundaries (the speaker may not
                         // have fetched the new art yet). Keeping the previous image
@@ -236,10 +236,10 @@ struct ArtworkView: View {
         // this check and both animate — that is what a "double load" looks like
         // on screen, so the trace records every swap, not every load.
         guard image !== currentImage else {
-            TrackTrace.log("[art] \(isBackground ? "bg" : "fg") same instance — no swap")
+            print("[art] \(isBackground ? "bg" : "fg") same instance — no swap")
             return
         }
-        TrackTrace.log("[art] \(isBackground ? "bg" : "fg") SWAP image=\(image == nil ? "nil" : "new") fade=\(fade)")
+        print("[art] \(isBackground ? "bg" : "fg") SWAP image=\(image == nil ? "nil" : "new") fade=\(fade)")
         if fade {
             withAnimation(.smooth(duration: defaultFadeDuration)) {
                 currentImage = image
@@ -276,3 +276,10 @@ struct ArtworkView: View {
 //        .environment(SonosService.shared)
 //}
 //
+
+/// Debug helper: Sonos proxy and CDN artwork URLs are long, and the tail is the
+/// part that differs between two loads of the same artwork.
+private func briefURL(_ url: URL?) -> String {
+    guard let url else { return "nil" }
+    return String(url.absoluteString.suffix(44))
+}

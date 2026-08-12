@@ -619,7 +619,7 @@ public final class SonosService {
                 }
                 let hasDisplayableInfo = !awaitedTrack.name.isEmpty || !awaitedTrack.artist.isEmpty
                 if hasDisplayableInfo {
-                    TrackTrace.log("[track] pulse assign \"\(awaitedTrack.name)\" album=\"\(awaitedTrack.album)\" art=\(TrackTrace.brief(awaitedTrack.artworkURL))")
+                    print("[track] pulse assign \"\(awaitedTrack.name)\" album=\"\(awaitedTrack.album)\" art=\(briefURL(awaitedTrack.artworkURL))")
                     roomGroup.coordinatorRoom.track = awaitedTrack
                 }
 
@@ -651,7 +651,7 @@ public final class SonosService {
                 if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique {
                     roomGroup.coordinatorRoom.track.metadata = trackMetadata
                     if roomGroup.coordinatorRoom.track.downloadedArtworkURL != artworkURL {
-                        TrackTrace.log("[track] pulse artwork \(TrackTrace.brief(roomGroup.coordinatorRoom.track.downloadedArtworkURL)) -> \(TrackTrace.brief(artworkURL))")
+                        print("[track] pulse artwork \(briefURL(roomGroup.coordinatorRoom.track.downloadedArtworkURL)) -> \(briefURL(artworkURL))")
                         roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
                     }
                 }
@@ -966,12 +966,12 @@ public final class SonosService {
                     }
                     let hasDisplayableInfo = !awaitedTrack.name.isEmpty || !awaitedTrack.artist.isEmpty
                     if hasDisplayableInfo {
-                        TrackTrace.log("[track] refresh assign \"\(awaitedTrack.name)\" album=\"\(awaitedTrack.album)\" art=\(TrackTrace.brief(awaitedTrack.artworkURL))")
+                        print("[track] refresh assign \"\(awaitedTrack.name)\" album=\"\(awaitedTrack.album)\" art=\(briefURL(awaitedTrack.artworkURL))")
                         roomGroup.coordinatorRoom.track = awaitedTrack
                     }
 
                     guard let (trackMetadata, artworkURL) = await getTrackInformation(from: awaitedTrack) else {
-                        TrackTrace.log("[track] refresh lookup failed, keeping \(TrackTrace.brief(roomGroup.coordinatorRoom.track.artworkURL))")
+                        print("[track] refresh lookup failed, keeping \(briefURL(roomGroup.coordinatorRoom.track.artworkURL))")
                         guard hasDisplayableInfo else { return }
                         if !roomGroup.isEditingPlayback {
                             roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
@@ -999,7 +999,7 @@ public final class SonosService {
                     if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique {
                         roomGroup.coordinatorRoom.track.metadata = trackMetadata
                         if roomGroup.coordinatorRoom.track.downloadedArtworkURL != artworkURL {
-                            TrackTrace.log("[track] refresh artwork \(TrackTrace.brief(roomGroup.coordinatorRoom.track.downloadedArtworkURL)) -> \(TrackTrace.brief(artworkURL))")
+                            print("[track] refresh artwork \(briefURL(roomGroup.coordinatorRoom.track.downloadedArtworkURL)) -> \(briefURL(artworkURL))")
                             roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
                         }
                     }
@@ -3157,5 +3157,9 @@ public final class SonosService {
     }
 }
 
-
-
+/// Debug helper: Sonos proxy and CDN artwork URLs are long, and the tail is the
+/// part that differs between two loads of the same artwork.
+private func briefURL(_ url: URL?) -> String {
+    guard let url else { return "nil" }
+    return String(url.absoluteString.suffix(44))
+}
