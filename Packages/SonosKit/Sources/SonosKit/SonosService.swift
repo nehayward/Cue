@@ -176,8 +176,6 @@ public final class SonosService {
     /// signal that triggers a targeted track refresh instead of waiting on the
     /// poll.
     @ObservationIgnored var lastLiveItemIDs: [String: String] = [:]
-    /// Pending targeted refreshes, keyed by `liveItemKey` so the two streams
-    /// don't cancel each other's fetch.
     @ObservationIgnored var liveTrackRefreshTasks: [String: Task<Void, Never>] = [:]
     /// Callbacks for socket events, keyed by listener so a second consumer can't
     /// silently replace the first. Consumers that mirror playback outside

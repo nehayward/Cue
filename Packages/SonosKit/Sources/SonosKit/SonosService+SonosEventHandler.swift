@@ -122,9 +122,8 @@ extension SonosService: SonosEventHandler {
     ///
     /// Both socket streams report the current item, so this is the single
     /// change-detector for the pair: whichever event lands first wins, and the
-    /// other one no-ops. The fetch is deliberately a targeted
-    /// `updateTrackInformation` rather than a poll — that's the whole point of
-    /// holding the socket open.
+    /// other one no-ops. The fetch is deliberately targeted rather than a
+    /// general poll — that's the whole point of holding the socket open.
     /// Which socket reported the item. The two streams speak different id
     /// namespaces — `playbackStatus` carries the Sonos *queue item* id, while
     /// `metadataStatus` carries the music service's *catalog* id — so they need
@@ -143,19 +142,30 @@ extension SonosService: SonosEventHandler {
         guard lastLiveItemIDs[key] != itemID else { return }
         lastLiveItemIDs[key] = itemID
 
-        // Keyed by `key`, not by player: the two streams report the same song
-        // change a beat apart, so sharing a slot meant the metadata event
-        // cancelled the fetch the playback event had started — and with the id
-        // already recorded, nothing retried. Costs at most one duplicate read.
-        liveTrackRefreshTasks[key]?.cancel()
-        liveTrackRefreshTasks[key] = Task { @MainActor [weak self] in
+        // One task per player, replacing any pending one. Deliberately not keyed
+        // per stream: letting both run means two refreshes race, each writing
+        // `room.track` and loading artwork, and `ArtworkView` keys its view on
+        // the `UIImage` instance — so two loads of the same picture still swap
+        // the image and flicker.
+        liveTrackRefreshTasks[group.coordinatorID]?.cancel()
+        liveTrackRefreshTasks[group.coordinatorID] = Task { @MainActor [weak self] in
             // The socket announces the new item a beat before AVTransport serves
-            // it — fetching immediately returns the outgoing track.
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled, let self else { return }
-            try? await self.updateTrackInformation(for: [group])
-            guard !Task.isCancelled else { return }
-            self.notifyLiveUpdate(for: group)
+            // it — fetching immediately returns the outgoing track. A skip takes
+            // longer than a beat, because the coordinator has to open the new
+            // stream first, so keep asking until the transport agrees. Nothing
+            // else will: `lastLiveItemIDs` already recorded this id, so a fetch
+            // that lands early was the last word until the pulse came round —
+            // which is what made a skip mid-playback so much slower than one
+            // from paused, where the queue pointer moves at once.
+            for _ in 0..<6 {
+                try? await Task.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled, let self else { return }
+                let before = group.coordinatorRoom.track.unique
+                try? await self.updateTrackInformation(for: [group])
+                guard !Task.isCancelled else { return }
+                self.notifyLiveUpdate(for: group)
+                if group.coordinatorRoom.track.unique != before { return }
+            }
         }
     }
     
