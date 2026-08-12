@@ -61,6 +61,25 @@ final class HardwareVolumeService {
     @ObservationIgnored private var pendingGroupVolume: Int?
     @ObservationIgnored private var volumeSendTask: Task<Void, Never>?
 
+    /// The system volume is quantised to 16 steps, and everything about
+    /// absolute mode's echo filtering follows from that.
+    ///
+    /// `syncSystemVolume` writes a group level scaled to 0…1 — an arbitrary
+    /// value — and the system snaps it to the nearest step, so what comes back
+    /// through the KVO is up to *half a step* away from what we wrote. The
+    /// filter that had to recognise that echo allowed 0.005, which is a sixth of
+    /// the worst case, so most of our own writes were read as the user having
+    /// moved the volume: each one sent a real `setGroupVolume` to the speaker
+    /// (pulling the group's level onto the phone's 16-point grid, off by a point
+    /// or two), and the speaker's echo of *that* came back through the socket as
+    /// another model write. All of it while backgrounded, where the card is the
+    /// only thing driving anything.
+    ///
+    /// Half a step is the exact boundary: a genuine button press is a whole step
+    /// from the current position, so it is never closer than half a step to the
+    /// value we wrote, and nothing real gets swallowed.
+    @ObservationIgnored private let systemVolumeStep: Float = 1.0 / 16.0
+
     // Fixed midpoint gives room for both up and down on any starting volume.
     @ObservationIgnored private let restorePoint: Float = 0.5
     // Reset to midpoint when we're near an extreme to prevent getting stuck.
@@ -111,9 +130,12 @@ final class HardwareVolumeService {
     func syncSystemVolume() {
         guard mode == .absoluteMirror, let group, let slider else { return }
         let target = Float(max(0, min(100, group.groupVolume)) / 100)
-        // Already there (within a slider step) — writing again would only
-        // generate an echo to filter.
-        guard abs(slider.value - target) > 0.005 else { return }
+        // Already there — writing again would only generate an echo to filter.
+        // Measured against half a system step rather than an arbitrary epsilon:
+        // inside that, `target` snaps to the step the slider is already on, so
+        // the write cannot move anything. The old 0.005 wrote on group changes
+        // too small for a 16-step slider to represent at all.
+        guard abs(slider.value - target) > systemVolumeStep / 2 else { return }
         lastWrittenSystemVolume = target
         slider.setValue(target, animated: false)
     }
@@ -214,8 +236,10 @@ final class HardwareVolumeService {
                       abs(new - old) > 0.001 else { return }
 
                 if self.mode == .absoluteMirror {
-                    // Our own `syncSystemVolume` write coming back around.
-                    if let written = self.lastWrittenSystemVolume, abs(new - written) < 0.005 { return }
+                    // Our own `syncSystemVolume` write coming back around, snapped
+                    // to the nearest system step. See `systemVolumeStep`.
+                    if let written = self.lastWrittenSystemVolume,
+                       abs(new - written) < self.systemVolumeStep / 2 { return }
                     let volume = Int((new * 100).rounded())
                     // The codebase's convention for an in-progress volume
                     // gesture (`VolumeControlView`, `RoomVolumeView`): the poll

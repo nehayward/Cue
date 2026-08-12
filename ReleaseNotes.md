@@ -33,6 +33,8 @@
 - Fixed the Live Activity vanishing when you set the volume from it while in another app — and a speaker that's briefly unreachable no longer dismisses your other rooms' Live Activities along with it
 - Fixed the Set Speech Enhancement shortcut failing with "not supported" on soundbars that support it perfectly well — Playbar, Playbase, Beam, Ray and Arc. The action was reading a pile of unrelated settings first and treating any hiccup as an unsupported speaker; it now sends a single command, as fast as Set Night Mode. When a speaker genuinely can't be reached, the shortcut says so instead of blaming the feature, and it returns the state it actually left the speaker in when toggling
 - Fixed Clic Mini and Apple Watch offering Arc Ultra speech levels on soundbars that only have the on/off Speech Enhancement, where changing the level did nothing
+- Much lighter on battery while your phone is locked with Lock Screen Controls showing — Clic was still doing a screen's worth of work behind the Lock Screen, and now goes quiet until something actually happens on your speakers
+- Fixed the Lock Screen volume slider nudging your speaker a point or two off where you set it, just from showing the card
 
 # 2026.6
 

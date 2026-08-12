@@ -464,6 +464,11 @@ struct ClicApp: App {
     private func handleScenePhase(_ scenePhase: ScenePhase) {
         switch scenePhase {
         case .active:
+            // Printed like the other two: without it a scene trace reads
+            // `Inactive … Monitoring!` with no way to tell whether the app came
+            // back or something else restarted the pulse. That ambiguity is what
+            // hid `stopMonitoringOffScreen`'s bug.
+            print("Active")
             // Don't poke the network (which triggers the Local Network
             // permission prompt) until onboarding has surfaced the explanation
             // screen and the user has tapped Continue. WelcomeScreen kicks off
@@ -474,6 +479,10 @@ struct ClicApp: App {
             // instead of blocking on a now-stale cached IP. Cheap: an unchanged
             // network still wins in ms, and the flag re-verifies after one load.
             sonosService.invalidateVerifiedConnection()
+            // Re-opened before `monitor()`, and before any view `.task` that
+            // fires as the app comes back can call it — this runs first on the
+            // activation.
+            sonosService.allowsMonitoring = true
             sonosService.monitor()
 #if targetEnvironment(macCatalyst)
             // Window is open — live monitoring + `.task(id:)` keep the dock
@@ -529,12 +538,10 @@ struct ClicApp: App {
             Task {
                 await liveActivityManager.refresh()
             }
+            stopMonitoringOffScreen(scenePhase)
         case .background:
             print("Background")
-            Task {
-                sonosService.sonosPulse.cancel()
-                sonosService.watcher.cancel()
-            }
+            stopMonitoringOffScreen(scenePhase)
 #if targetEnvironment(macCatalyst)
             // Monitoring is now cancelled, so the cached model freezes. Poll
             // the selected group on a slow cadence to keep the dock menu
@@ -544,6 +551,49 @@ struct ClicApp: App {
         @unknown default:
             break
         }
+    }
+
+    /// Stops the SOAP pulse and the volume watcher, which exist to feed on-screen
+    /// UI and are the app's most expensive recurring work — `load()` plus a
+    /// per-group sweep every 500–800 ms.
+    ///
+    /// Called for `.inactive` as well as `.background`, because **the phone
+    /// locking with Clic frontmost does not reliably reach `.background`**. With
+    /// the Lock Screen card's audio session held the scene often parks at
+    /// `.inactive` instead, and keying the teardown on `.background` alone left
+    /// both loops polling with the screen off — sometimes for the whole time the
+    /// phone was locked. The scene trace behind that bug reads
+    /// `Inactive, Inactive, Inactive` with no `Background` at all.
+    ///
+    /// A transient `.inactive` — a notification banner, a Control Centre pull,
+    /// the app switcher — costs one `monitor()` restart on the way back, the
+    /// same as any foreground return. That is cheap, and much cheaper than the
+    /// case this exists to stop.
+    ///
+    /// Not on iPad: there, `.inactive` is also what a *visible* window in Split
+    /// View or Stage Manager reports when it merely isn't the focused one, and
+    /// freezing a window the user can see would be a real regression. iPad keeps
+    /// the old `.background`-only behaviour until there's a signal that
+    /// separates "not focused" from "not on screen".
+    ///
+    /// Guarded on onboarding for the same reason `.active` is: the Local Network
+    /// permission prompt makes the scene `.inactive` while it's up, and `.active`
+    /// deliberately doesn't restart monitoring before onboarding is done — so
+    /// tearing down here would stop discovery with nothing to start it again.
+    @MainActor
+    private func stopMonitoringOffScreen(_ phase: ScenePhase) {
+        guard hasOnboarded, !OnboardingDebug.forceShow else { return }
+        if phase == .inactive, UIDevice.current.userInterfaceIdiom == .pad { return }
+
+        // Shut the gate before cancelling, not after: cancelling only stops the
+        // loops that are running, and `monitor()` is called from a dozen places
+        // — a Search button, several view `.task`s, the cellular-recovery
+        // handler — any of which would restart them behind a locked screen.
+        // `SonosService.allowsMonitoring` is what makes this a guarantee rather
+        // than a race.
+        sonosService.allowsMonitoring = false
+        sonosService.sonosPulse.cancel()
+        sonosService.watcher.cancel()
     }
 
     @MainActor
