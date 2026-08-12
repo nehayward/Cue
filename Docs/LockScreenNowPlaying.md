@@ -85,10 +85,13 @@ it down, and a toggle can't do that. `trackCardState` reads `isEnabled`, so the
 own. That also covers cold launch, where `checkSubscription()` hasn't returned
 yet and the session simply starts a moment later.
 
-In Preferences the **whole row** is `.disabled` while unsubscribed, greyed with a
-`SuperBadge` exactly like the Scenes row, and a clear overlay opens the paywall
-on tap — the overlay sits outside the `.disabled` so it still takes the tap,
-which a disabled row can't.
+In Preferences the **whole row** is `.disabled` while unsubscribed, and a clear
+overlay opens the paywall on tap — the overlay sits outside the `.disabled` so it
+still takes the tap, which a disabled row can't. The `SuperBadge` is on the
+**section header**, not the row: every option in the section needs Super, so
+marking the section says what marking one row only implied. It moved there when
+the picker's row lost its title (see "Live Activities" below) and had nothing left
+to hang a badge on.
 
 Gating the *row* rather than the Now Playing segment took a wrong turn first.
 `.segmented` renders each label through `UISegmentedControl`, which takes the
@@ -136,7 +139,10 @@ In Preferences the two are **one segmented control** — `Live Activity | Now
 Playing | Off` — at the top of a **Lock Screen** section. They were a pair of
 switches that moved each other, which from the outside is indistinguishable from
 a bug; a picker says "pick one" on its face and the footnote under it describes
-whichever is selected. The selection is derived from the two booleans
+whichever is selected. **The picker's row has no title of its own** — it read
+"Lock Screen" directly beneath a section header reading "Lock Screen", and the
+segments already name the three choices, so it was the one line in the section
+carrying no information. The selection is derived from the two booleans
 (`lockScreenSurface`) rather than stored — a third copy would be one more thing
 to keep in step.
 

@@ -446,13 +446,14 @@ struct PreferenceScreen: View {
                     // silently move each other reads as a bug — a picker says
                     // "pick one" on its face.
                     Label {
+                        // No title of its own. It said "Lock Screen", directly
+                        // under a section header saying "Lock Screen" — and the
+                        // picker's own segments name the three choices, so the
+                        // label was the one line here carrying no information.
+                        // The `SuperBadge` moved up to the header, which is the
+                        // honest place for it: the whole section needs Super, not
+                        // this row.
                         VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 6) {
-                                Text("Lock Screen")
-                                if !subscriptionService.subscription.isActive {
-                                    SuperBadge()
-                                }
-                            }
                             Picker("Lock Screen", selection: lockScreenSurfaceBinding) {
                                 ForEach(LockScreenSurface.allCases) { surface in
                                     Text(surface.title).tag(surface)
@@ -605,10 +606,18 @@ struct PreferenceScreen: View {
                         .disabled(!subscriptionService.subscription.isActive)
                     }
                 } header: {
-                    Text("Lock Screen")
-                        .foregroundStyle(.primary)
-                        .headerProminence(.increased)
-
+                    // Carries the `SuperBadge` now that the picker's row has no
+                    // title to hang it on. It belongs here anyway: every option
+                    // in this section needs Super, so marking the section says
+                    // what marking one row only implied.
+                    HStack(spacing: 6) {
+                        Text("Lock Screen")
+                            .foregroundStyle(.primary)
+                        if !subscriptionService.subscription.isActive {
+                            SuperBadge()
+                        }
+                    }
+                    .headerProminence(.increased)
                 }
 #endif
 #if targetEnvironment(macCatalyst)
