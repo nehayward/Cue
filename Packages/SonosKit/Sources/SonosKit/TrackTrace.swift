@@ -1,5 +1,4 @@
 import Foundation
-import os
 
 /// Debug-only tracing for the track-change path: who writes `room.track`, how
 /// often, and how many times the artwork actually swaps as a result.
@@ -8,17 +7,12 @@ import os
 /// `ArtworkView` both log here — so a single track change reads as one
 /// timeline. Compiled out of release builds.
 ///
-/// Xcode console: filter on `[track]` or `[art]`.
-/// Console.app: subsystem `com.sonos.nick`, category `TrackTrace`.
+/// Xcode console: filter on `[track]`, `[art]`, or `[fade]`.
 public enum TrackTrace {
-    #if DEBUG
-    private static let logger = Logger(subsystem: "com.sonos.nick", category: "TrackTrace")
-    #endif
-
     /// `@autoclosure` so the interpolation isn't built at all in release.
     public static func log(_ message: @autoclosure () -> String) {
         #if DEBUG
-        logger.notice("\(message(), privacy: .public)")
+        print(message())
         #endif
     }
 
