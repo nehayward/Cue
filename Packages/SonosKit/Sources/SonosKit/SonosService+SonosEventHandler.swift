@@ -148,6 +148,7 @@ extension SonosService: SonosEventHandler {
         let key = liveItemKey(source, group.coordinatorID)
         guard lastLiveItemIDs[key] != itemID else { return }
         lastLiveItemIDs[key] = itemID
+        TrackTrace.log("[track] event source=\(source.rawValue) id=\(itemID.suffix(24))")
 
         // One task per player, replacing any pending one. Deliberately not keyed
         // per stream: letting both run means two refreshes race, each writing
@@ -162,7 +163,7 @@ extension SonosService: SonosEventHandler {
             // already recorded this id, so nothing else tries again until the
             // pulse comes round, and that gap is what made a skip mid-playback
             // so much slower than one from paused.
-            for _ in 0..<Self.trackRefreshAttempts {
+            for attempt in 1...Self.trackRefreshAttempts {
                 try? await Task.sleep(for: Self.trackRefreshDelay)
                 guard !Task.isCancelled, let self else { return }
 
@@ -174,8 +175,11 @@ extension SonosService: SonosEventHandler {
                 // is worth pushing too, so notify either way — but only keep
                 // asking while the transport is still on the outgoing item.
                 self.notifyLiveUpdate(for: group)
-                if group.coordinatorRoom.track.unique != previous { return }
+                let moved = group.coordinatorRoom.track.unique != previous
+                TrackTrace.log("[track] attempt \(attempt) moved=\(moved)")
+                if moved { return }
             }
+            TrackTrace.log("[track] gave up after \(Self.trackRefreshAttempts) attempts")
         }
     }
     
