@@ -2127,61 +2127,20 @@ public final class SonosService {
         isEditing = false
     }
 
-    /// How long to keep re-reading the transport after a skip before giving up
-    /// and taking whatever the speaker reports.
-    private static let skipSettleTimeout: Duration = .milliseconds(2500)
-
-    @MainActor
     public func next(ip: String) async {
-        let outgoing = groups.first { $0.coordinatorRoom.ip == ip }?.coordinatorRoom.track.unique
         await api.next(ipAddress: ip)
-        await settleSkip(ip: ip, movingOffOf: outgoing)
     }
 
     /// If playback is more than 3 seconds into the track, restarts the current track.
     /// Otherwise, goes to the previous track.
-    @MainActor
     public func previous(ip: String) async {
         let track = await api.getCurrentTrack(ipAddress: ip)
         let playbackPosition = track?.playbackPosition ?? 0
         if playbackPosition >= 3000 {
-            // Same song, new position — nothing to settle.
             await api.seek(to: TimeInterval(0), IP: ip)
-            return
+        } else {
+            await api.previous(ipAddress: ip)
         }
-
-        await api.previous(ipAddress: ip)
-        await settleSkip(ip: ip, movingOffOf: track?.unique)
-    }
-
-    /// Waits for the speaker to actually serve the new item, then refreshes.
-    ///
-    /// A skip on a *playing* transport is not instant: the coordinator drops
-    /// into TRANSITIONING while it opens the next stream, and `GetPositionInfo`
-    /// keeps returning the outgoing item until that finishes. Refreshing once,
-    /// the moment the SOAP call returns, therefore read the *old* track and
-    /// no-opped — the same trap `liveItemDidChange` sidesteps with its 250 ms
-    /// delay — leaving the title to the 500-800 ms pulse. Paused, the queue
-    /// pointer moves immediately and the first read is already right, which is
-    /// why only playback ever felt slow.
-    @MainActor
-    private func settleSkip(ip: String, movingOffOf outgoing: String?) async {
-        guard let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) else { return }
-
-        // Read before sleeping: a paused transport has already moved its queue
-        // pointer by the time the SOAP call returns, so that case never polls.
-        let deadline = ContinuousClock.now.advanced(by: Self.skipSettleTimeout)
-        while ContinuousClock.now < deadline, !Task.isCancelled {
-            let candidate = await getTrack(ip: ip)
-            // Anything but the outgoing item — or nothing at all, which is the
-            // same transition reported as an empty track.
-            if let candidate, !candidate.isEmpty, candidate.unique != outgoing { break }
-            try? await Task.sleep(for: .milliseconds(150))
-        }
-
-        guard !Task.isCancelled else { return }
-        try? await updateTrackInformation(for: [group])
-        notifyLiveUpdate(for: group)
     }
 
     public func isMuted(for group: GroupRoom) async -> Bool? {
@@ -2640,10 +2599,8 @@ public final class SonosService {
             shuffling: shuffling
         )
 
-        // Activate transport. The raw call, not `next(ip:)`: this isn't a skip
-        // the user is watching, and its settle poll would sit between the queue
-        // write and `play`.
-        await api.next(ipAddress: group.ip)
+        // Activate transport
+        await next(ip: group.ip)
         await play(ip: group.ip)
 
         try? await Task.sleep(for: .milliseconds(150))
@@ -2694,11 +2651,9 @@ public final class SonosService {
         for (index, content) in sequence.enumerated() {
             try await api.queuePlayable(playableContent: content, IP: group.ip, position: enqueuePosition, shuffling: shuffling)
 
-            // Start playback as soon as the first item is queued. Raw call for
-            // the same reason as `playNext` — this activates the transport, it
-            // isn't a skip to settle.
+            // Start playback as soon as the first item is queued
             if position == .now && index == 0 {
-                await api.next(ipAddress: group.ip)
+                await next(ip: group.ip)
                 await play(ip: group.ip)
             }
         }

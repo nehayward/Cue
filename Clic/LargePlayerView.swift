@@ -508,9 +508,11 @@ fileprivate struct PlayerMediaControlsView: View {
                 selectionTrack = Task {
                     HapticManager.shared.fireHaptic(.selection)
                     shouldFade = false
-                    // `previous` owns the refresh: it polls the transport until
-                    // the speaker has actually served the new item, instead of
-                    // reading once while it's still mid-transition.
+                    // No refresh here: this screen holds a metadata socket open
+                    // (see `getTrackAudioInformation` above), and the speaker
+                    // pushes the new item as soon as it has one. Reading it
+                    // ourselves the instant the command returned only ever
+                    // fetched the outgoing track anyway.
                     await sonosService.previous(ip: group.coordinatorRoom.ip)
                     guard !Task.isCancelled else {
                         return
@@ -559,10 +561,10 @@ fileprivate struct PlayerMediaControlsView: View {
                     HapticManager.shared.fireHaptic(.selection)
                     group.coordinatorRoom.playbackPosition = 0
                     shouldFade = false
-                    // `next` paints the item Sonos already named as next and
-                    // owns the refresh until the speaker serves it. Holding
-                    // `isEditing` here used to stall the pulse on top of that,
-                    // which only made the wait longer.
+                    // Left to the socket — twin of the previous button above.
+                    // Holding `isEditing` across a refresh here also parked the
+                    // pulse in 500 ms sleeps, so the fallback was slower than
+                    // doing nothing.
                     await sonosService.next(ip: group.coordinatorRoom.ip)
                     guard !Task.isCancelled else {
                         return
