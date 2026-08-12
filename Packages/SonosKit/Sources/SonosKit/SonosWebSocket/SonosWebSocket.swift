@@ -280,10 +280,71 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
      */
     private func dispatchMessage(_ message: String) async {
         let messageData = Data(message.utf8)
-        // MARK: Debug
-//        print(messageData)
 
-        // Try to decode as VolumeEvent
+        // Read the type once, then run exactly one decoder.
+        //
+        // This used to try all four event types in turn and keep whichever
+        // decoded. That is much more expensive than it looks: every `decode`
+        // re-parses the whole frame with `JSONSerialization` and then
+        // *re-serialises* each of its elements before handing them to
+        // `JSONDecoder` — so a metadata event, third in the old order, paid for
+        // three complete parse-and-reserialise passes before reaching its own,
+        // and an unrecognised frame paid for four. Every Sonos frame names its
+        // type in the header object, so there was never anything to guess at.
+        // Anything this can't name falls through to `dispatchByProbing`, the old
+        // path, rather than being dropped. The fast path is an assumption about
+        // Sonos's frame shape — that the type is a string on the first object —
+        // and an assumption that silently discards events is the worst kind. The
+        // probe costs what the old code always cost, and only runs for frames the
+        // fast path didn't recognise, which should be none.
+        guard let frame = (try? JSONSerialization.jsonObject(with: messageData)) as? [[String: Any]],
+              let type = frame.first?["type"] as? String else {
+            await dispatchByProbing(messageData, message: message)
+            return
+        }
+
+        switch type {
+        case "playbackStatus":
+            if let event = try? PlaybackEvent.decode(from: messageData) {
+                playbackContinuation?.yield(event)
+            }
+        case "metadataStatus":
+            if let event = try? TrackEvent.decode(from: messageData) {
+                trackInfoContinuation?.yield(event)
+            }
+        case "groups":
+            if let event = try? GroupEvent.decode(from: messageData) {
+                groupContinuation?.yield(event)
+            }
+        // Matched by substring, as `VolumeEvent.decode` itself does: the
+        // namespace covers `playerVolume` and `groupVolume`, and the two go to
+        // different streams.
+        case let type where type.lowercased().contains("volume"):
+            guard let event = try? VolumeEvent.decode(from: messageData) else { break }
+            if type == "groupVolume" {
+                groupVolumeContinuation?.yield(event)
+            } else {
+                volumeContinuation?.yield(event)
+            }
+        default:
+            if debug {
+                print("DEBUG: Unrecognised message type '\(type)', probing")
+            }
+            await dispatchByProbing(messageData, message: message)
+        }
+    }
+
+    /// The original routing: try every decoder in turn and keep whichever one
+    /// accepts the frame.
+    ///
+    /// Kept as the fallback behind `dispatchMessage`'s type switch, not deleted.
+    /// The switch is faster because it decodes once instead of up to four times,
+    /// but it only fires on type strings this build knows about — and a router
+    /// that drops what it doesn't recognise fails invisibly, which is precisely
+    /// how the card went stale when the periodic resync was made conditional.
+    /// This costs exactly what the old code always cost, on frames that should
+    /// never arrive.
+    private func dispatchByProbing(_ messageData: Data, message: String) async {
         if let volumeEvent = try? VolumeEvent.decode(from: messageData) {
             if volumeEvent.info.type == "groupVolume" {
                 groupVolumeContinuation?.yield(volumeEvent)
@@ -292,29 +353,50 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
             }
             return
         }
-        
-        // Try to decode as PlaybackEvent
         if let playbackEvent = try? PlaybackEvent.decode(from: messageData) {
             playbackContinuation?.yield(playbackEvent)
             return
         }
-        
-        // Try to decode as TrackEvent
         if let trackEvent = try? TrackEvent.decode(from: messageData) {
             trackInfoContinuation?.yield(trackEvent)
             return
         }
-        
-        // Try to decode as GroupEvent
         if let groupEvent = try? GroupEvent.decode(from: messageData) {
             groupContinuation?.yield(groupEvent)
             return
         }
-        
-        // If we can't decode the message, log it for debugging
+
         if debug {
             print("DEBUG: Could not decode message: \(message)")
         }
+    }
+
+    /// Round-trips a WebSocket ping, to tell a live socket from a dead one.
+    ///
+    /// `SonosStreamingService` used to rebuild every socket on a timer because
+    /// it had no way to ask. A ping is a frame out and a frame back — the
+    /// server is required to answer one — so the rebuild can be kept for the
+    /// sockets that actually need it.
+    ///
+    /// Returns false on a closed socket, an error, or no pong inside `timeout`.
+    /// A server that ignores pings therefore reads as dead, which degrades to
+    /// the old unconditional-rebuild behaviour rather than to a stale socket.
+    func isResponsive(timeout: Duration = .seconds(3)) async -> Bool {
+        guard let task, task.closeCode == .invalid else { return false }
+
+        // An `AsyncStream` rather than a continuation: `sendPing`'s handler and
+        // the timeout race each other, and resuming a continuation twice traps.
+        let (results, continuation) = AsyncStream<Bool>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        task.sendPing { error in continuation.yield(error == nil) }
+
+        let timeoutTask = Task {
+            try? await Task.sleep(for: timeout)
+            continuation.yield(false)
+        }
+        defer { timeoutTask.cancel() }
+
+        var iterator = results.makeAsyncIterator()
+        return await iterator.next() ?? false
     }
     
     /**
@@ -379,8 +461,21 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         startMessageReceiver()
     }
     
-    /// Resubscribes to all active subscriptions after reconnection
-    private func resubscribeAll() async {
+    /// Re-issues every subscription this socket holds.
+    ///
+    /// Two callers, for two different reasons. After a reconnection the new
+    /// socket has no subscriptions at all. On the liveness tick it's the cheap
+    /// half of what the old unconditional rebuild was really buying: a socket
+    /// can be alive at the transport level — it answers a ping — while its
+    /// Sonos-side subscriptions have lapsed or been orphaned by a group id
+    /// change, and then it simply goes quiet with nothing to indicate it. A
+    /// resubscribe fixes that for a few small frames instead of a teardown, and
+    /// Sonos answers one with the current state, which resyncs the model as a
+    /// side effect.
+    ///
+    /// Idempotent — subscribing to a namespace already subscribed is a no-op on
+    /// the speaker.
+    func resubscribeAll() async {
         // Capture debug flag and subscriptions to avoid accessing properties across await boundaries
         let shouldDebug = debug
         let subscriptions = activeSubscriptions

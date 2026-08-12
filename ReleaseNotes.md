@@ -34,6 +34,8 @@
 - Lock Screen Now Playing no longer controls your speaker's volume unless you ask it to — it now follows Use iPhone Volume Buttons in Preferences ▸ Playback, and that switch covers the Lock Screen and Control Center sliders as well as the buttons. Previously the switch had no effect on the Lock Screen
 - Clic now hands the Lock Screen player, its controls, and your volume straight back whenever your device's audio moves to Bluetooth, CarPlay, or headphones — so an automation that turns the volume up and presses play when you get in the car reaches your car, not the speakers at home. Everything returns when you disconnect
 - Your speakers can no longer be jumped to a new volume in one step by something you didn't touch — a shortcut, an accessory, or a device connecting. Volume changes you make by hand work exactly as before
+- Much lighter on battery while your phone is locked with Lock Screen Controls showing — Clic was still doing a screen's worth of work behind the Lock Screen, and now goes quiet until something actually happens on your speakers
+- Fixed the Lock Screen volume slider nudging your speaker a point or two off where you set it, just from showing the card
 
 # 2026.6
 

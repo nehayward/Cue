@@ -27,6 +27,9 @@ final class SilentAudioSession {
     var onRestored: (() -> Void)?
 
     private var player: AVAudioPlayer?
+    /// The rate `player`'s buffer was built at, so `reclaim()` can tell a route
+    /// that changed the hardware rate from one that didn't. See `startLoop`.
+    private var playerSampleRate: Int?
     /// One task per notification stream; cancelling them is the teardown, so
     /// there are no observer tokens to keep straight.
     private var interruptionTasks: [Task<Void, Never>] = []
@@ -94,6 +97,7 @@ final class SilentAudioSession {
         isPlaying = false
         player?.stop()
         player = nil
+        playerSampleRate = nil
         for task in interruptionTasks { task.cancel() }
         interruptionTasks.removeAll()
         // Off the main actor for the same reason as activation, and nothing is
@@ -110,6 +114,17 @@ final class SilentAudioSession {
     func reclaim() async {
         guard isHeld else { return }
         _ = await Self.configureSession()
+
+        // A new route can bring a new hardware rate with it — Bluetooth
+        // especially — and keeping a buffer built for the old one re-introduces
+        // the converter `startLoop` exists to avoid. Cheap to check, and this
+        // path already rebuilds the player for other reasons.
+        let rate = AVAudioSession.sharedInstance().sampleRate
+        if rate > 0, playerSampleRate != Int(rate) {
+            player?.stop()
+            player = nil
+        }
+
         if player?.play() != true {
             player = nil
             _ = startLoop()
@@ -126,11 +141,26 @@ final class SilentAudioSession {
     /// `.playback` with no options on purpose: `.mixWithOthers` and
     /// `.duckOthers` both let other audio keep the Now Playing claim, which is
     /// the one thing this exists to hold.
+    ///
+    /// The I/O buffer is asked to be as long as the system will allow. This
+    /// session is the app's one *continuous* background cost — it renders for as
+    /// long as the speaker plays, with the app off screen — and that cost is a
+    /// per-callback overhead multiplied by `sampleRate / bufferFrames`. At the
+    /// `.playback` default of ~23 ms that is ~43 wake-ups a second to hand the
+    /// system a buffer of zeroes; at ~100 ms it is ~10. iOS clamps the request
+    /// to what the route supports, so this asks high and takes what it gets, and
+    /// the added latency is meaningless for silence. Nothing else in the app
+    /// cares either: the only other player is a song preview, where 100 ms to
+    /// first sample is imperceptible.
     private static func configureSession() async -> Bool {
         await Task.detached(priority: .userInitiated) {
             let session = AVAudioSession.sharedInstance()
             do {
                 try session.setCategory(.playback, mode: .default, options: [])
+                // Preferred values are requests, and have to be made before
+                // activation to be considered. A refusal is not a failure —
+                // it only means the default buffer stands.
+                try? session.setPreferredIOBufferDuration(0.1)
                 try session.setActive(true)
                 return true
             } catch {
@@ -141,12 +171,24 @@ final class SilentAudioSession {
     }
 
     private func startLoop() -> Bool {
+        // Built at the route's own rate. A file that disagrees with the hardware
+        // puts a sample-rate converter in the render path for the whole session
+        // — 44.1 kHz against the 48 kHz every current iPhone runs — and it would
+        // be resampling silence into silence. Only readable once the session is
+        // active, which it is by the time this runs.
+        let rate = AVAudioSession.sharedInstance().sampleRate
+        let sampleRate = rate > 0 ? Int(rate) : 44_100
+
         do {
-            let player = try AVAudioPlayer(data: Self.silentLoopWAV, fileTypeHint: AVFileType.wav.rawValue)
+            let player = try AVAudioPlayer(
+                data: Self.silentLoopWAV(sampleRate: sampleRate),
+                fileTypeHint: AVFileType.wav.rawValue
+            )
             player.numberOfLoops = -1
             player.volume = 0
             guard player.play() else { return false }
             self.player = player
+            self.playerSampleRate = sampleRate
             return true
         } catch {
             logger.error("Silent loop failed to start: \(error.localizedDescription)")
@@ -200,13 +242,22 @@ final class SilentAudioSession {
 
     // MARK: - Silence
 
-    /// One second of 44.1 kHz mono PCM silence with a WAV header, built in
-    /// memory — no bundled asset to keep in sync across targets, and built once
-    /// rather than per activation.
-    private static let silentLoopWAV: Data = makeSilentPCMWAV(seconds: 1)
+    /// One second of mono PCM silence with a WAV header, built in memory — no
+    /// bundled asset to keep in sync across targets.
+    ///
+    /// Cached by rate rather than built per activation. There is only ever one
+    /// rate in play (the route's), so the cache holds one entry; it's keyed
+    /// anyway because a route change can legitimately move it.
+    private static var cachedLoops: [Int: Data] = [:]
 
-    private static func makeSilentPCMWAV(seconds: Double) -> Data {
-        let sampleRate = 44_100
+    private static func silentLoopWAV(sampleRate: Int) -> Data {
+        if let cached = cachedLoops[sampleRate] { return cached }
+        let data = makeSilentPCMWAV(seconds: 1, sampleRate: sampleRate)
+        cachedLoops[sampleRate] = data
+        return data
+    }
+
+    private static func makeSilentPCMWAV(seconds: Double, sampleRate: Int) -> Data {
         let channels = 1
         let bitsPerSample = 16
         let bytesPerFrame = channels * bitsPerSample / 8

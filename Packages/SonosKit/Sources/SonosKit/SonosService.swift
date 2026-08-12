@@ -196,6 +196,29 @@ public final class SonosService {
     public var isRunning: Bool { !sonosPulse.isCancelled }
     public var groupsChanged: (([GroupRoom]) -> ()) = { _ in }
 
+    /// Whether `monitor()` may start the polling loops at all.
+    ///
+    /// The loops exist to feed on-screen UI and are the app's most expensive
+    /// recurring work, so a host that knows nothing is on screen turns this off
+    /// and cancels them. Cancelling alone is not enough: `monitor()` is called
+    /// from a dozen places — scene activation, a Search button, several view
+    /// `.task`s, the cellular-recovery handler — and every one of them would
+    /// happily restart the loops behind a locked screen, with only
+    /// `isRunning` (i.e. "not currently cancelled") to stop it. This is the
+    /// single gate that closes all of them at once, so the guarantee is
+    /// "nothing can start monitoring while off screen" rather than "the one path
+    /// we thought of doesn't".
+    ///
+    /// Defaults to on and is host-driven, so the platforms that don't manage it
+    /// — tvOS, watchOS, Clic Mini — behave exactly as before. `ClicApp` sets it
+    /// from `scenePhase`.
+    ///
+    /// If you are ever debugging "monitoring won't start", check this first:
+    /// `monitor()` refuses silently by design, because the callers that hit it
+    /// while off screen are the routine case, not an error worth logging on a
+    /// loop.
+    @ObservationIgnored public var allowsMonitoring: Bool = true
+
     public init () {
         sonosPulse.cancel()
         let raw = UserDefaults.standard.integer(forKey: "groupSortOption")
@@ -312,6 +335,7 @@ public final class SonosService {
 
     @MainActor
     public func monitor(retry: Bool = true, useCache: Bool = true) {
+        guard allowsMonitoring else { return }
         if isRunning { return }
         print("Monitoring!")
 
