@@ -26,6 +26,22 @@ public enum AppStorageKeys {
     public static let lastSeenSettingsBadgeVersion = "\(Prefix.id).lastSeenSettingsBadgeVersion"
     public static let latestReleaseVersion = "\(Prefix.id).latestReleaseVersion"
     public static let latestReleaseHeadline = "\(Prefix.id).latestReleaseHeadline"
+    /// The device's volume buttons — and the Lock Screen / Control Center
+    /// slider, which are the same system volume — control the Sonos group
+    /// instead of this device. **On** when unset: it's what people expect of a
+    /// speaker controller, and the surface it drives (`Preferences ▸ Lock
+    /// Screen ▸ Now Playing`) is itself the default with Super.
+    ///
+    /// Read it through `UserDefaults.hardwareVolumeButtonsEnabled`, never
+    /// `bool(forKey:)`, which reads unset as off and would leave the default
+    /// unreachable.
+    ///
+    /// Defaulting this on is only safe because `HardwareVolumeService` stands
+    /// the bridge down on any route that isn't the phone's own speaker, and
+    /// refuses a volume jump larger than a hand could make. Read
+    /// `Docs/LockScreenNowPlaying.md` § "Where the phone is" before weakening
+    /// either — the report that produced them was a Sonos pair left at 100%
+    /// volume all day.
     public static let useHardwareVolumeButtons = "\(Prefix.id).useHardwareVolumeButtons"
     /// Mirrors the playing group onto the Lock Screen / Control Center Now
     /// Playing card by holding a silent audio session. **On** when unset: it's
@@ -45,5 +61,14 @@ public extension UserDefaults {
     var lockScreenNowPlayingEnabled: Bool {
         get { object(forKey: AppStorageKeys.lockScreenNowPlaying) as? Bool ?? true }
         set { set(newValue, forKey: AppStorageKeys.lockScreenNowPlaying) }
+    }
+
+    /// Same shape, same reason — see `AppStorageKeys.useHardwareVolumeButtons`.
+    /// The explicit-`false` case matters more here than for the surface itself:
+    /// it's how someone who turned this off after their speakers were set to
+    /// full volume keeps it off through the update that changed the default.
+    var hardwareVolumeButtonsEnabled: Bool {
+        get { object(forKey: AppStorageKeys.useHardwareVolumeButtons) as? Bool ?? true }
+        set { set(newValue, forKey: AppStorageKeys.useHardwareVolumeButtons) }
     }
 }

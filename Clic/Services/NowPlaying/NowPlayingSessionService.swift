@@ -240,7 +240,7 @@ final class NowPlayingSessionService {
         UserDefaults.standard.lockScreenNowPlayingEnabled
     }
 
-    /// **Use iPhone Volume Buttons**, off when unset — the same switch the
+    /// **Use iPhone Volume Buttons**, on when unset — the same switch the
     /// player screen's `hardwareVolumeControl` modifier reads.
     ///
     /// This path used to ignore it and take the bridge unconditionally, which
@@ -252,10 +252,15 @@ final class NowPlayingSessionService {
     /// other, and there is certainly no honouring it on one screen and not from
     /// the Lock Screen with the app closed.
     ///
-    /// Off is the default, and off means the Lock Screen slider moves the
-    /// phone's own (inaudible) volume and the speakers are left alone.
+    /// Off means the Lock Screen slider moves the phone's own (inaudible) volume
+    /// and the speakers are left alone.
+    ///
+    /// Through the accessor, never `bool(forKey:)`: this defaults to **on**, and
+    /// `bool(forKey:)` reads unset as off, which would leave the default
+    /// unreachable for everyone who never opened Preferences — i.e. exactly the
+    /// people the default is for.
     private var isVolumeBridgeEnabled: Bool {
-        UserDefaults.standard.bool(forKey: AppStorageKeys.useHardwareVolumeButtons)
+        UserDefaults.standard.hardwareVolumeButtonsEnabled
     }
 
     /// Clic Super, and the preference. Gated here rather than only at the toggle

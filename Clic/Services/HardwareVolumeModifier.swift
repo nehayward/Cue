@@ -13,7 +13,11 @@ private struct VolumeViewRepresentable: UIViewRepresentable {
 private struct HardwareVolumeControlModifier: ViewModifier {
     let group: GroupRoom
     @Environment(SonosService.self) private var sonosService
-    @AppStorage(AppStorageKeys.useHardwareVolumeButtons) private var enabled: Bool = false
+    // Defaults to true — see `AppStorageKeys.useHardwareVolumeButtons`. The
+    // literal has to match `UserDefaults.hardwareVolumeButtonsEnabled`, which is
+    // what the Lock Screen path reads; the two disagreeing would mean the buttons
+    // controlled the group on one surface and the device on the other.
+    @AppStorage(AppStorageKeys.useHardwareVolumeButtons) private var enabled: Bool = true
     @State private var volumeView: MPVolumeView = {
         let v = MPVolumeView()
         v.alpha = 0.0001

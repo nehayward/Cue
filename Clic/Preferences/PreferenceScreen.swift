@@ -37,7 +37,11 @@ struct PreferenceScreen: View {
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
-    @AppStorage(Defaults.AppStorageKeys.useHardwareVolumeButtons) private var useHardwareVolumeButtons: Bool = false
+    // Defaults to true, matching `UserDefaults.hardwareVolumeButtonsEnabled` —
+    // see `AppStorageKeys.useHardwareVolumeButtons`. The switch has to show on
+    // for someone who has never touched it, or the screen contradicts the
+    // behaviour.
+    @AppStorage(Defaults.AppStorageKeys.useHardwareVolumeButtons) private var useHardwareVolumeButtons: Bool = true
     // Defaults to true: Now Playing is the default Lock Screen surface for Clic
     // Super. `NowPlayingSessionService.isEnabled` still requires the
     // subscription, so this being on doesn't start anything on its own.

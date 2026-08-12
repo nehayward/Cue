@@ -538,15 +538,31 @@ That is exactly what happened, and both halves of it were this feature:
 Three rules follow, and they're deliberately redundant — each one alone would
 have prevented this:
 
-**1. The volume bridge is opt-in, and it's the same opt-in as the player
-screen's.** `AppStorageKeys.useHardwareVolumeButtons` — *Use iPhone Volume
-Buttons*, off when unset. This path used to take the bridge unconditionally,
+**1. The volume bridge reads a switch, and it's the same switch the player screen
+reads.** `AppStorageKeys.useHardwareVolumeButtons` — *Use iPhone Volume
+Buttons*. This path used to take the bridge unconditionally,
 which is why toggling the switch "didn't have any effect": only
 `HardwareVolumeControlModifier` ever read it. The Lock Screen slider and the
 hardware buttons are the same system volume, so there is no honouring the switch
 for one and not the other — and certainly not honouring it on one screen while
 ignoring it from the Lock Screen with the app closed. Off, the slider moves the
 phone's own (inaudible) volume and the speakers are left alone.
+
+**It is on when unset**, read through `UserDefaults.hardwareVolumeButtonsEnabled`
+— never `bool(forKey:)`, which reads unset as off and would leave the default
+unreachable for everyone who never opened Preferences, i.e. exactly the people a
+default is for. All three call sites have to agree on that literal: the two
+`@AppStorage` declarations default to `true` as well, or the buttons would
+control the group on one surface and the device on the other. Controlling the
+speaker is what people expect of a speaker controller, and the surface this
+drives is itself the default with Super.
+
+That default is only defensible because of rules 2 and 3 below. **Do not weaken
+either of them while this stays on** — on its own, rule 1 was never what made the
+reported failure impossible; it was the switch the user had already tried.
+Someone who turned it off keeps it off through the change: an explicit `false`
+reads as false, which is the whole reason for the accessor rather than a
+registered default.
 
 The row moved out of **Playback** and into the **Lock Screen** section for the
 same reason, directly under the picker and shown only while Now Playing is the
