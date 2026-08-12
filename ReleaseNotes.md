@@ -31,6 +31,8 @@
 - Playing a long playlist no longer feels like the tap was dropped — if Sonos needs more than a moment, the banner shows a spinner with what's loading, then confirms once it's ready
 - The play button now pulses while your speaker is getting a song ready — in the mini player, the player, the speaker list, and on Apple TV
 - Fixed the Live Activity vanishing when you set the volume from it while in another app — and a speaker that's briefly unreachable no longer dismisses your other rooms' Live Activities along with it
+- Much lighter on battery while your phone is locked with Lock Screen Controls showing — Clic was still doing a screen's worth of work behind the Lock Screen, and now goes quiet until something actually happens on your speakers
+- Fixed the Lock Screen volume slider nudging your speaker a point or two off where you set it, just from showing the card
 
 # 2026.6
 

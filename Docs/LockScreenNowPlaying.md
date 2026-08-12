@@ -298,14 +298,25 @@ Verified, since the whole design rests on it:
 | Running | What it costs |
 |---|---|
 | The `.nowPlaying` WebSocket (one, on the mirrored group's coordinator) | Idle until the speaker changes something — transport, metadata, or group volume |
-| `SonosStreamingService`'s connection refresh | One reconnect per socket every 5 minutes |
+| `SonosStreamingService`'s connection check | One ping per socket every 5 minutes, and a rebuild only for a socket that doesn't answer |
 | The UPnP ZoneGroupTopology subscription — the FlyingFox listener plus a renewal at 80% of the speaker's ~500 s timeout | Push, not polling: NOTIFY arrives when the topology changes. One renewal request every ~7 minutes |
 | `HardwareVolumeService`'s `outputVolume` KVO | Nothing until a volume button or the Lock Screen slider moves |
 | `updateTrackInformation` from `liveItemDidChange` | One SOAP fetch per song change — event-driven, not a poll |
 
-**Not running:** `sonosPulse` and `watcher`, the 500–800 ms SOAP loops, both
-cancelled in `handleScenePhase(.background)`. They're what would actually cost
-battery; everything above is either idle or edge-triggered.
+**Not running:** `sonosPulse` and `watcher`, the 500–800 ms SOAP loops. They're
+what would actually cost battery; everything above is either idle or
+edge-triggered.
+
+They're cancelled by `stopMonitoringOffScreen`, on **`.inactive` as well as
+`.background`** — and that distinction is the whole point. Locking the phone with
+Clic frontmost, holding this feature's audio session, does not reliably reach
+`.background`: the scene often parks at `.inactive` and stays there. Keyed on
+`.background` alone, as it originally was, both loops kept polling with the
+screen off for as long as the phone stayed locked, and the table above was simply
+not true on those runs. If you are ever measuring background cost and the number
+won't drop, check the scene trace for a `Background` that never came. iPad is
+excluded, because there `.inactive` is also what a visible-but-unfocused Split
+View window reports.
 
 The topology subscription is the one piece that isn't a WebSocket. It predates
 this feature and is push-based, so it doesn't change the cost picture — worth
@@ -343,13 +354,43 @@ from what the system is already showing (a seek, or a skip from another
 controller). Steady-state cost of a playing song: one publish at the track
 change, and nothing until the next one.
 
-### The sockets are rebuilt every five minutes, and that's a hole
+### The five-minute liveness check, and the hole it used to open
 
-`SonosStreamingService` runs a refresh timer that gracefully disconnects every
-socket and reconnects it on a five-minute cycle. That's the liveness guarantee —
-a socket that died quietly gets replaced — but sockets only push on *change*, so
-anything that moved during the gap was never reported. Backgrounded there is no
-poll to notice.
+`SonosStreamingService` runs a timer that pings every socket on a five-minute
+cycle and rebuilds only the ones that don't answer. That's the liveness
+guarantee — a socket that died quietly gets replaced.
+
+It used to rebuild **every** socket, answering or not, and that was the app's
+most expensive piece of periodic background work: a teardown, a second of dead
+time, a fresh connection and resubscribe per player, a radio wake, and then the
+resync below to cover the gap it had just created — forever, with the app off
+screen. `SonosWebSocket.isResponsive()` asks the question the rebuild was
+implicitly asking. A server that ignores pings reads as dead, so the failure mode
+is the old unconditional rebuild rather than a socket left stale.
+
+**The reconnect was never the valuable part, and cutting it alone made the card
+unreliable.** Two things the old cycle did as side effects have to survive it,
+and both were missing in the first version of this change:
+
+- **Responsive sockets are resubscribed every tick.** A pong proves the
+  connection, not the subscriptions. Sonos-side subscriptions lapse, and a group
+  id change orphans them, and in both cases the socket keeps answering pings
+  while quietly delivering nothing at all. `resubscribeAll()` is a few small
+  frames against the socket already open, and Sonos answers it with the current
+  state.
+- **`onConnectionsRefreshed()` fires every tick, not only after a rebuild.**
+  Once the pulse is cancelled off screen this is the app's *only* periodic
+  correction. Gating it on a rebuild meant anything a socket failed to deliver
+  stayed wrong until the next change — which, on a Lock Screen card mid-song, is
+  the rest of the song.
+
+The lesson generalises: this feature's reliability rested on redundancy that was
+never written down as redundancy. Before removing any recurring background work,
+check what it was accidentally correcting.
+
+The gap is real whenever a rebuild does happen, because sockets only push on
+*change*, so anything that moved during it was never reported. Backgrounded there
+is no poll to notice.
 
 Worse, `lastLiveItemIDs` still held the id from before the gap, so even the
 reconnect's own state event read as "no change" and fired no refetch. A song that
@@ -519,6 +560,21 @@ Echo filtering differs by mode for the same reason: relative can compare against
 group in ~6-point steps (the system has 16), not the 1-point steps of the player
 screen.
 
+**Absolute mode's tolerances are half a system step, and that is not an
+epsilon.** The system volume has 16 positions, so `syncSystemVolume` writes an
+arbitrary scaled level and gets back the nearest step — up to 0.031 away from
+what it wrote. Both tolerances were 0.005, a sixth of that, and the consequences
+compounded: the write went out even when the target snapped to the step the
+slider was already on, and the echo it produced was then read as *the user*
+moving the volume. That sent a real `setGroupVolume`, which pulled the group's
+level onto the phone's 16-point grid a point or two off where the user set it,
+and the speaker's echo of that came back through the socket as another model
+write — a whole round of work per group-volume change, backgrounded, for a
+slider that couldn't render the difference. Half a step is the exact boundary,
+not a fudge factor: a genuine press is a whole step from the current position, so
+it is never closer than half a step to what we wrote and nothing real is
+swallowed.
+
 ## Shape
 
 Everything app-side lives in **`Clic/Services/NowPlaying/`** — the whole feature
@@ -588,7 +644,30 @@ Deployment target is **iOS 17**, so nothing here uses an 18+ API.
   silent loop failing to start) and the existing `SonosAPI` logger for a
   transport command the speaker rejected. `perform(_:)` lost its `name`
   parameter with the trace it existed for.
-- Also: the silent WAV is a `static let` rather than rebuilt per activation; the
+- **The silent session is the one continuous cost, and it is tuned for it.** It
+  renders for as long as the speaker plays, with the app off screen, and that
+  cost is a per-callback overhead times `sampleRate / bufferFrames`. So the
+  session asks for a 100 ms I/O buffer (`setPreferredIOBufferDuration`, before
+  activation or it isn't considered) — ~10 wake-ups a second instead of the
+  `.playback` default's ~43 — and the WAV is generated at
+  `AVAudioSession.sampleRate` rather than a fixed 44.1 kHz, so there is no
+  sample-rate converter in the path resampling silence into silence on the
+  48 kHz every current iPhone runs. iOS clamps the buffer request to what the
+  route allows; a refusal just leaves the default standing. `reclaim()` rebuilds
+  the player when a route change moved the hardware rate, or the converter comes
+  back.
+- **Nothing in the app may run a view clock while this feature is on.** The
+  session keeps the process alive on the `audio` background mode, so a
+  `TimelineView` or a `.task` loop that would normally stop when its view leaves
+  the screen doesn't — it runs against the Lock Screen with nothing drawn. Two
+  measurements below record what that costs. `MarqueeText` was doing exactly
+  this in shipped code: an unpaused `TimelineView(.animation)` on the player
+  screen *and* in `MiniPlayerView`, which is mounted nearly everywhere, so it was
+  effectively always live. It now pauses on `scenePhase != .active`, and derives
+  its paused-state preference instead of writing `@State` every frame — that
+  write invalidated the modifier, which re-measured the `ViewThatFits` above it
+  on every frame.
+- Also: the silent WAV is cached per rate rather than rebuilt per activation; the
   `UISlider` is resolved once per attach instead of walking `subviews` on every
   read; artwork is held locally rather than read back out of `nowPlayingInfo`
   (whose getter copies the whole dictionary across to MediaRemote); and the
