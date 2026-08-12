@@ -20,6 +20,9 @@ struct ArtworkView: View {
     private let defaultFadeDuration: Double = 0.3
     @State private var alarmRunning: Bool = false
     @State private var currentImage: UIImage?
+    /// `imageIDKey` of whatever `currentImage` is showing — the cover's identity
+    /// rather than the URL it happened to arrive from. See `setImage`.
+    @State private var currentImageKey: String?
 
     var cornerRadius: CGFloat {
         UIDevice.current.userInterfaceIdiom == .phone ? 8 : 16
@@ -108,7 +111,16 @@ struct ArtworkView: View {
                     // load can't fade in after the fact.
                     let fade = shouldFade
                     guard let artworkRequest else {
-                        setImage(nil, fade: fade)
+                        // Hold the outgoing image while a track change is still
+                        // in flight. Sonos reports the new item before it has
+                        // fetched that item's art, so `artworkURL` is briefly
+                        // nil — clearing here drops to the placeholder and back,
+                        // which reads as a fade to black rather than a
+                        // crossfade. A genuinely empty track (stopped, idle,
+                        // TV) has no artwork to hold and still clears.
+                        if group.coordinatorRoom.track.isEmpty {
+                            setImage(nil, fade: fade)
+                        }
                         return
                     }
                     if let cached = ImagePipeline.shared.cache.cachedImage(for: artworkRequest) {
@@ -213,7 +225,19 @@ struct ArtworkView: View {
     // means unrelated body re-evaluations — playback ticks, mute toggles,
     // layout changes — can never kick off or restart a fade.
     private func setImage(_ image: UIImage?, fade: Bool) {
-        guard image !== currentImage else { return }
+        // Change detection is by the cover's identity, not the UIImage
+        // instance: every track change delivers the same cover twice — Sonos's
+        // own proxy URL first, then the service's CDN URL once
+        // `getTrackInformation` resolves — and the two cache lookups hand back
+        // distinct instances, so an instance check let both through and the
+        // second animated for no visible change. On a skip that was two hard
+        // swaps; on a natural change, two crossfades, which read as a fade to
+        // black. A nil image carries a nil key, so clears and first paints
+        // fall out of the same comparison.
+        let key = image == nil ? nil : imageIDKey
+        guard key != currentImageKey else { return }
+        currentImageKey = key
+
         if fade {
             withAnimation(.smooth(duration: defaultFadeDuration)) {
                 currentImage = image

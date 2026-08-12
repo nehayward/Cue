@@ -122,9 +122,8 @@ extension SonosService: SonosEventHandler {
     ///
     /// Both socket streams report the current item, so this is the single
     /// change-detector for the pair: whichever event lands first wins, and the
-    /// other one no-ops. The fetch is deliberately one targeted
-    /// `updateTrackInformation` (~1 request per song) rather than a poll —
-    /// that's the whole point of holding the socket open.
+    /// other one no-ops. The fetch is deliberately targeted rather than a
+    /// general poll — that's the whole point of holding the socket open.
     /// Which socket reported the item. The two streams speak different id
     /// namespaces — `playbackStatus` carries the Sonos *queue item* id, while
     /// `metadataStatus` carries the music service's *catalog* id — so they need
@@ -136,6 +135,15 @@ extension SonosService: SonosEventHandler {
         case metadata
     }
 
+    /// How long the refresh waits before asking AVTransport, and how many times
+    /// it re-asks. Traced skips land on the first attempt; the extra two are
+    /// slack for a slow stream open. Kept low because the attempts that don't
+    /// land spend themselves in full — an event whose item never reaches
+    /// AVTransport as a different track (radio, or a pulse that already wrote
+    /// it) has no way to tell "not yet" from "nothing coming".
+    static let trackRefreshDelay: Duration = .milliseconds(250)
+    static let trackRefreshAttempts = 3
+
     @MainActor
     func liveItemDidChange(itemID: String, from source: LiveItemSource, for group: GroupRoom) {
         guard !itemID.isEmpty else { return }
@@ -143,15 +151,38 @@ extension SonosService: SonosEventHandler {
         guard lastLiveItemIDs[key] != itemID else { return }
         lastLiveItemIDs[key] = itemID
 
+        // One task per player, replacing any pending one. Deliberately not keyed
+        // per stream: letting both run means two refreshes race, each writing
+        // `room.track` and loading artwork, and `ArtworkView` keys its view on
+        // the `UIImage` instance — so two loads of the same picture still swap
+        // the image and flicker.
         liveTrackRefreshTasks[group.coordinatorID]?.cancel()
         liveTrackRefreshTasks[group.coordinatorID] = Task { @MainActor [weak self] in
-            // The socket announces the new item a beat before AVTransport serves
-            // it — fetching immediately returns the outgoing track.
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled, let self else { return }
-            try? await self.updateTrackInformation(for: [group])
-            guard !Task.isCancelled else { return }
-            self.notifyLiveUpdate(for: group)
+            // The socket names the new item a beat before AVTransport serves it,
+            // and a skip takes longer than a beat. So re-ask until the transport
+            // agrees rather than trusting one early read — `lastLiveItemIDs` has
+            // already recorded this id, so nothing else tries again until the
+            // pulse comes round, and that gap is what made a skip mid-playback
+            // so much slower than one from paused.
+            // Captured once, not per attempt: the question is whether the track
+            // has moved since the event, not whether this particular call moved
+            // it. That also lets the loop stop early when the pulse gets there
+            // first, instead of re-reading against its own result.
+            let outgoing = group.coordinatorRoom.track.unique
+
+            for _ in 0..<Self.trackRefreshAttempts {
+                try? await Task.sleep(for: Self.trackRefreshDelay)
+                guard !Task.isCancelled, let self else { return }
+
+                try? await self.updateTrackInformation(for: [group])
+                guard !Task.isCancelled else { return }
+
+                // Anything it reconciled (artist, album, duration) is worth
+                // pushing too, so notify either way — but only keep asking
+                // while the transport is still on the outgoing item.
+                self.notifyLiveUpdate(for: group)
+                if group.coordinatorRoom.track.unique != outgoing { return }
+            }
         }
     }
     

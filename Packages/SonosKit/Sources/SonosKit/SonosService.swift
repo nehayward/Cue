@@ -343,7 +343,7 @@ public final class SonosService {
             guard let self else { return }
             repeat {
                 if isEditing {
-                    try? await Task.sleep(for: .milliseconds(500))
+                    try? await Task.sleep(for: .milliseconds(100))
                     continue
                 }
                 // MARK: Update room volumes
@@ -369,8 +369,12 @@ public final class SonosService {
                 do {
                     systemState.systemNotFound = false
                     systemState.systemPermissionDenied = false
+                    // Re-checked often rather than every 500 ms: this is pure
+                    // idle, and a 500 ms granularity meant a local command's
+                    // 400 ms hold cost most of a second of stale UI after it
+                    // had already finished.
                     if isEditing {
-                        try? await Task.sleep(for: .milliseconds(500))
+                        try? await Task.sleep(for: .milliseconds(100))
                         continue
                     }
                     // MARK: Update room volumes
