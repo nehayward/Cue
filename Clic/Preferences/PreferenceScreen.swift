@@ -423,39 +423,11 @@ struct PreferenceScreen: View {
                             )
                             .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
-#if os(iOS) && !targetEnvironment(macCatalyst)
-                    Label {
-                        Toggle(isOn: $useHardwareVolumeButtons) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Use iPhone Volume Buttons")
-                                // Names the Lock Screen because this switch now
-                                // gates that surface's volume slider too — same
-                                // system volume, so there is no honouring it in
-                                // one place and not the other. Names the
-                                // exception because it's a safety property, not
-                                // a limitation: on Bluetooth or headphones the
-                                // volume is the other device's.
-                                Text("Control group volume instead of iPhone volume, including from the Lock Screen. Never while connected to Bluetooth or headphones.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .tint(.accent)
-                    } icon: {
-                        Image(systemName: "button.vertical.left.press.fill")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(.white)
-                            .bold()
-                            .padding(8)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.5, blue: 0.3), Color(red: 0.85, green: 0.35, blue: 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            )
-                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                    }
-#endif
+                    // *Use iPhone Volume Buttons* used to sit here. It moved to
+                    // the Lock Screen section, under the surface picker: it now
+                    // gates that surface's slider as well as the buttons, and
+                    // two volume controls in two sections — with a dependency
+                    // between them that neither one showed — read as confusing.
                 } header: {
                     Text("Playback")
                         .foregroundStyle(.primary)
@@ -517,6 +489,56 @@ struct PreferenceScreen: View {
                                 .onTapGesture(perform: presentPaywall)
                         }
                     }
+
+                    // Directly under the picker, dimmed when Now Playing isn't
+                    // the chosen surface — the same treatment the two rows below
+                    // get, and for the same reason: the control it shapes is the
+                    // one the picker just selected.
+                    //
+                    // It lived in **Playback** until this moved. The switch now
+                    // decides whether the Lock Screen and Control Center sliders
+                    // reach the speaker, not just the buttons, so leaving it a
+                    // section away from the surface it gates meant two volume
+                    // controls with an invisible dependency between them.
+                    //
+                    // Consequence to know about: the same switch still drives the
+                    // player screen's hardware buttons in the app, and dimming it
+                    // here means that can only be turned on while Now Playing is
+                    // selected. Deliberate — one switch for one system volume
+                    // beats two switches that have to be kept in step — and the
+                    // stored value keeps working on the player screen either way,
+                    // so nobody loses behaviour they already had.
+                    Label {
+                        Toggle(isOn: $useHardwareVolumeButtons) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Use iPhone Volume Buttons")
+                                // Names the slider as well as the buttons —
+                                // they're the same system volume, so the switch
+                                // could never honour one and not the other. Names
+                                // the exception too: it's a safety property, not
+                                // a limitation. On Bluetooth or headphones that
+                                // volume is the other device's.
+                                Text("Volume buttons and the Lock Screen slider control the speaker instead of this device. Not while connected to Bluetooth or headphones.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .tint(.accent)
+                    } icon: {
+                        Image(systemName: "button.vertical.left.press.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.5, blue: 0.3), Color(red: 0.85, green: 0.35, blue: 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+                    .disabled(!subscriptionService.subscription.isActive || lockScreenSurface != .nowPlaying)
 #endif
                     if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
                         // Both of these only shape the Live Activity, so they're
