@@ -304,14 +304,13 @@ struct TVPlayerView: View {
                 selectionTrack?.cancel()
                 selectionTrack = Task {
                     self.shouldFade = false
+                    // `previous` polls the transport until the speaker has
+                    // actually served the new item — see the twin in
+                    // `LargePlayerView`.
                     await SonosService.shared.previous(ip: group.coordinatorRoom.ip)
-                    SonosService.shared.isEditing = true
-                    try? await SonosService.shared.updateTrackInformation(for: [group])
-                    try? await Task.sleep(for: .milliseconds(200))
                     guard !Task.isCancelled else {
                         return
                     }
-                    SonosService.shared.isEditing = false
                     self.shouldFade = true
                 }
             } label: {
@@ -348,15 +347,13 @@ struct TVPlayerView: View {
                 selectionTrack?.cancel()
                 selectionTrack = Task {
                     self.shouldFade = false
-                    SonosService.shared.isEditing = true
+                    // `next` paints the predicted track and owns the refresh —
+                    // see the twin in `LargePlayerView`.
                     await SonosService.shared.next(ip: group.coordinatorRoom.ip)
-                    try? await SonosService.shared.updateTrackInformation(for: [group])
-                    try? await Task.sleep(for: .milliseconds(200))
                     guard !Task.isCancelled else {
                         return
                     }
                     self.shouldFade = true
-                    SonosService.shared.isEditing = false
                 }
             } label: {
                 Image(systemName: "forward.fill")

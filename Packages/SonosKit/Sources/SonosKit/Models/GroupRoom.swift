@@ -32,6 +32,13 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public var groupVolume: Double = 0
     public var audioQuality: SonosTrackQuality? = nil
 
+    /// The item Sonos says comes next, as last reported by the metadata socket.
+    /// Read only when a skip is issued, to paint the player before the speaker
+    /// has finished opening the new stream — see `SonosService.next(ip:)`.
+    /// Observation-ignored: it changes every song and nothing renders it, so
+    /// tracking it would invalidate every group consumer for free.
+    @ObservationIgnored public var nextTrack: Track?
+
     public init(
         id: String,
         coordinatorID: String,

@@ -189,8 +189,9 @@ extension SonosService {
     @MainActor
     func forgetLiveItems(_ playerID: String) {
         for source in LiveItemSource.allCases {
-            lastLiveItemIDs.removeValue(forKey: liveItemKey(source, playerID))
+            let key = liveItemKey(source, playerID)
+            lastLiveItemIDs.removeValue(forKey: key)
+            liveTrackRefreshTasks.removeValue(forKey: key)?.cancel()
         }
-        liveTrackRefreshTasks.removeValue(forKey: playerID)?.cancel()
     }
 }

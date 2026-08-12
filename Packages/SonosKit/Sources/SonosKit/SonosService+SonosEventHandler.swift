@@ -90,6 +90,11 @@ extension SonosService: SonosEventHandler {
             guard let index = groups.firstIndex(where: { $0.coordinatorID == playerId }) else {
                 return
             }
+            // Sonos names the upcoming item here, ahead of any skip. Stashing it
+            // is what lets `next(ip:)` change the player on the button press
+            // instead of after the stream has opened.
+            groups[index].nextTrack = metadata.nextItem?.track.flatMap { Track(socketItem: $0) }
+
             if let track = metadata.currentItem?.track {
                 groups[index].audioQuality = track.quality
                 groups[index].coordinatorRoom.container = metadata.container
@@ -122,9 +127,9 @@ extension SonosService: SonosEventHandler {
     ///
     /// Both socket streams report the current item, so this is the single
     /// change-detector for the pair: whichever event lands first wins, and the
-    /// other one no-ops. The fetch is deliberately one targeted
-    /// `updateTrackInformation` (~1 request per song) rather than a poll —
-    /// that's the whole point of holding the socket open.
+    /// other one no-ops. The fetch is deliberately a targeted
+    /// `updateTrackInformation` rather than a poll — that's the whole point of
+    /// holding the socket open.
     /// Which socket reported the item. The two streams speak different id
     /// namespaces — `playbackStatus` carries the Sonos *queue item* id, while
     /// `metadataStatus` carries the music service's *catalog* id — so they need
@@ -143,8 +148,14 @@ extension SonosService: SonosEventHandler {
         guard lastLiveItemIDs[key] != itemID else { return }
         lastLiveItemIDs[key] = itemID
 
-        liveTrackRefreshTasks[group.coordinatorID]?.cancel()
-        liveTrackRefreshTasks[group.coordinatorID] = Task { @MainActor [weak self] in
+        // Keyed by `key`, not by player: the two streams report the same song
+        // change a beat apart, and sharing one slot meant the metadata event
+        // cancelled the fetch the playback event had already started. A cancel
+        // landing mid-request throws that fetch away, and `lastLiveItemIDs`
+        // has already recorded the id — so nothing retries and the title waits
+        // for the pulse. Worst case now is one duplicate read per song.
+        liveTrackRefreshTasks[key]?.cancel()
+        liveTrackRefreshTasks[key] = Task { @MainActor [weak self] in
             // The socket announces the new item a beat before AVTransport serves
             // it — fetching immediately returns the outgoing track.
             try? await Task.sleep(for: .milliseconds(250))

@@ -508,16 +508,14 @@ fileprivate struct PlayerMediaControlsView: View {
                 selectionTrack = Task {
                     HapticManager.shared.fireHaptic(.selection)
                     shouldFade = false
+                    // `previous` owns the refresh: it polls the transport until
+                    // the speaker has actually served the new item, instead of
+                    // reading once while it's still mid-transition.
                     await sonosService.previous(ip: group.coordinatorRoom.ip)
-                    sonosService.isEditing = true
-                    try? await sonosService.updateTrackInformation(for: [group])
-                    try? await Task.sleep(for: .milliseconds(200))
                     guard !Task.isCancelled else {
                         return
                     }
-                    sonosService.isEditing = false
                     shouldFade = true
-                    print("Updated")
                 }
             } label: {
                 Image(systemName: "backward.fill")
@@ -561,16 +559,15 @@ fileprivate struct PlayerMediaControlsView: View {
                     HapticManager.shared.fireHaptic(.selection)
                     group.coordinatorRoom.playbackPosition = 0
                     shouldFade = false
-                    sonosService.isEditing = true
+                    // `next` paints the item Sonos already named as next and
+                    // owns the refresh until the speaker serves it. Holding
+                    // `isEditing` here used to stall the pulse on top of that,
+                    // which only made the wait longer.
                     await sonosService.next(ip: group.coordinatorRoom.ip)
-                    try? await sonosService.updateTrackInformation(for: [group])
-                    try? await Task.sleep(for: .milliseconds(200))
                     guard !Task.isCancelled else {
                         return
                     }
                     shouldFade = true
-                    sonosService.isEditing = false
-                    print("Updated")
                 }
             } label: {
                 Image(systemName: "forward.fill")
