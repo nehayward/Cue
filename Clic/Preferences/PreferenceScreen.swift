@@ -507,13 +507,13 @@ struct PreferenceScreen: View {
                     // section away from the surface it gates meant two volume
                     // controls with an invisible dependency between them.
                     //
-                    // Consequence to know about: the same switch still drives the
-                    // player screen's hardware buttons in the app, and hiding it
-                    // here means that can only be turned on while Now Playing is
-                    // selected. Deliberate — one switch for one system volume
-                    // beats two switches that have to be kept in step — and the
-                    // stored value keeps working on the player screen either way,
-                    // so nobody loses behaviour they already had.
+                    // The switch drives the player screen's hardware buttons too,
+                    // and `HardwareVolumeControlModifier` requires the same three
+                    // conditions this row does — the switch, Now Playing, Super —
+                    // so the row is present and editable in exactly the cases
+                    // where it changes anything. Scoping the behaviour rather
+                    // than only the control is what makes hiding the row safe:
+                    // there is no state this leaves someone stuck in.
                     if lockScreenSurface == .nowPlaying {
                         Label {
                             Toggle(isOn: $useHardwareVolumeButtons) {
@@ -546,9 +546,15 @@ struct PreferenceScreen: View {
                                 )
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
-                        // Still greyed without Super, like the picker above it —
-                        // the surface is chosen, the subscription is what makes
-                        // it run.
+                        // Super-gated like everything else here, which is only
+                        // safe because `HardwareVolumeControlModifier` now
+                        // requires the same three conditions this row does — the
+                        // switch, Now Playing, and Super. Gate the row without
+                        // gating the behaviour and a non-subscriber ends up with
+                        // their volume buttons pointed at a Sonos group and this
+                        // row greyed out, with the paywall overlay on the picker
+                        // rather than here: the original beta complaint, plus the
+                        // toggle taken away.
                         .disabled(!subscriptionService.subscription.isActive)
                     }
 #endif

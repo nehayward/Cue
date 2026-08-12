@@ -577,13 +577,27 @@ rather than greying. Once the switch decides whether the Lock Screen's slider
 reaches the speaker, a section away from the surface it gates is two volume
 controls with an invisible dependency between them.
 
-One consequence, accepted: the switch still drives the player screen's hardware
-buttons in the app, and hiding it here means that can only be *turned on* while
-Now Playing is selected. One switch for one system volume beats two that have to
-be kept in step, and a stored `true` keeps working on the player screen whatever
-the picker says, so nobody loses behaviour they already had. If someone
-eventually wants in-app buttons without the card, that's a second key — not a
-second meaning for this one.
+**The switch means exactly one thing, and the player screen was made to agree.**
+`HardwareVolumeControlModifier` used to read the switch alone, so the same key
+turned on two features with different gating: a Super-and-Now-Playing one on the
+Lock Screen, and a free, always-available one in the app. That was survivable
+while the switch defaulted to off and lived in **Playback**. It stopped being
+survivable the moment the switch defaulted to *on* and moved into a Super-gated
+section shown only under Now Playing — a non-subscriber, or anyone on Live
+Activity, would get their volume buttons pointed at a Sonos group with the only
+switch for it greyed out or not on screen at all. Which is the complaint that
+started this branch, with the toggle taken away as well.
+
+So the modifier now requires the same three conditions the row does — the switch,
+`lockScreenNowPlaying`, and an active subscription. The row is present and
+editable in exactly the cases where it changes something, and there is no state
+this leaves someone stuck in. It reads the *preference* rather than
+`NowPlayingSessionService.isActive`, so the buttons still work on the player
+screen when nothing is playing yet.
+
+The cost is real and was chosen: in-app hardware volume buttons are now Clic
+Super, and only while Now Playing is the selected surface. If they should be free
+again, that's a second key with its own row — not a second meaning for this one.
 
 **2. Off the built-in speaker, the whole feature stands down.**
 `AudioOutputRoute.isExternal` is true for anything that isn't

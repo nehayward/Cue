@@ -32,6 +32,15 @@ public enum AppStorageKeys {
     /// speaker controller, and the surface it drives (`Preferences ▸ Lock
     /// Screen ▸ Now Playing`) is itself the default with Super.
     ///
+    /// It means one thing in both places that read it: *while Clic is your Lock
+    /// Screen player, this device's volume controls the speaker.* Both the Lock
+    /// Screen path and the player screen's `hardwareVolumeControl` therefore
+    /// require `lockScreenNowPlaying` and an active subscription as well —
+    /// don't add a reader that takes this key on its own. The row that sets it
+    /// is shown only under Now Playing and only with Super, so a behaviour
+    /// gated more loosely than the switch is one the user can't reach a control
+    /// for.
+    ///
     /// Read it through `UserDefaults.hardwareVolumeButtonsEnabled`, never
     /// `bool(forKey:)`, which reads unset as off and would leave the default
     /// unreachable.
