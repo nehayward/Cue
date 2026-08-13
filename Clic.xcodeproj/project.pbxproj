@@ -3406,7 +3406,7 @@
 			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 2.2.4;
+				minimumVersion = 3.0.1;
 			};
 		};
 		E92B3E912B60249B00724FA1 /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
@@ -3494,7 +3494,7 @@
 			repositoryURL = "https://github.com/kean/Nuke";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 12.3.0;
+				minimumVersion = 13.0.0;
 			};
 		};
 		E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */ = {

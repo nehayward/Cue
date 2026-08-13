@@ -1,5 +1,5 @@
 {
-  "originHash" : "8a721f9be79669fc9d3af930c8d78aba6003ef2decd41be406bc51c6af5db7fb",
+  "originHash" : "5cc08c5fe82a477b70646cb48efdf25717f2431db7d709960ec474795924a164",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sindresorhus/KeyboardShortcuts",
       "state" : {
-        "revision" : "1aef85578fdd4f9eaeeb8d53b7b4fc31bf08fe27",
-        "version" : "2.4.0"
+        "revision" : "49c3fc04ea827f816df67843bfcc57286b47ff06",
+        "version" : "3.0.1"
       }
     },
     {
@@ -69,8 +69,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kean/Nuke",
       "state" : {
-        "revision" : "83e19143355b02e9261edb2323b3e1e93287ebb9",
-        "version" : "12.9.0"
+        "revision" : "158366dcdfbda52da33d419ef16ad2d00a609e9e",
+        "version" : "13.1.0"
       }
     },
     {

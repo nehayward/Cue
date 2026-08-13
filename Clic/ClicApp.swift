@@ -812,6 +812,10 @@ private struct PlaybackTransportControls: View {
                 Task {
                     guard let group = selectedGroup else { return }
                     HapticManager.shared.fireHaptic(.selection)
+                    // Twin of the transport buttons in LargePlayerView: a
+                    // deliberate skip snaps the artwork over rather than
+                    // crossfading it.
+                    router.beginSkipWindow()
                     await sonosService.previous(ip: group.coordinatorRoom.ip)
                 }
             } label: {
@@ -825,6 +829,7 @@ private struct PlaybackTransportControls: View {
                     guard let group = selectedGroup else { return }
                     HapticManager.shared.fireHaptic(.selection)
                     group.coordinatorRoom.playbackPosition = 0
+                    router.beginSkipWindow()
                     await sonosService.next(ip: group.coordinatorRoom.ip)
                 }
             } label: {

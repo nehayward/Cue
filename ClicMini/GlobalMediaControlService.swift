@@ -3,6 +3,10 @@ import KeyboardShortcuts
 import SonosKitMini
 
 
+/// Main-actor isolated: KeyboardShortcuts registers (and fires) its handlers on
+/// the main actor, and every action here touches the HUD or SonosMiniService,
+/// which are main-actor bound too.
+@MainActor
 final class GlobalMediaControlService {
     static let shared = GlobalMediaControlService()
     
@@ -89,7 +93,7 @@ final class GlobalMediaControlService {
         for shortcut: KeyboardShortcuts.Name,
         interval: TimeInterval,
         action: @escaping @MainActor () async -> Void,
-        onRelease: (() -> Void)? = nil
+        onRelease: (@MainActor () -> Void)? = nil
     ) {
         // Setup onKeyDown to start repeating
         KeyboardShortcuts.onKeyDown(for: shortcut) { [weak self] in
@@ -135,19 +139,16 @@ final class GlobalMediaControlService {
     
     // MARK: - Action Methods
     
-    @MainActor
     private func performVolumeUp() async {
         await adjustVolume(by: 1)
     }
 
-    @MainActor
     private func performVolumeDown() async {
         await adjustVolume(by: -1)
     }
 
     /// Bumps the optimistic volume target, updates the HUD instantly, and lets the
     /// throttled sender push the absolute value to the speaker.
-    @MainActor
     private func adjustVolume(by delta: Double) async {
         // Start of a gesture: resolve the group and seed from its real volume.
         if !volumeGestureActive {
@@ -174,7 +175,6 @@ final class GlobalMediaControlService {
     /// Coalesces volume writes: sends the latest absolute target immediately, then
     /// at most once per throttle interval while it keeps moving, then a trailing
     /// send once it settles. Absolute (not relative) so coalesced sends converge.
-    @MainActor
     private func ensureVolumeSender(ip: String) {
         guard volumeSendTask == nil else { return }
         volumeSendTask = Task { @MainActor in
@@ -200,19 +200,16 @@ final class GlobalMediaControlService {
         volumeGestureActive = false
     }
 
-    @MainActor
     private func reconcileVolume(ip: String) async {
         guard let real = try? await SonosMiniService.shared.getGroupVolume(ip: ip) else { return }
         guard let index = SonosMiniService.shared.devices.firstIndex(where: { $0.ip == ip }) else { return }
         SonosMiniService.shared.devices[index].groupVolume = real
     }
     
-    @MainActor
     private func performNextTrack() async {
         await skip(forward: true)
     }
 
-    @MainActor
     private func performPreviousTrack() async {
         await skip(forward: false)
     }
@@ -222,7 +219,6 @@ final class GlobalMediaControlService {
     /// then fills in the resolved track. Rapid repeated taps stay snappy: the
     /// HUD updates immediately each tap, and a generation token ensures only the
     /// latest tap's resolved track is shown.
-    @MainActor
     private func skip(forward: Bool) async {
         // getPlayingGroup is instant for a pinned speaker and TTL-cached otherwise,
         // so this stays snappy without going stale.
@@ -266,12 +262,11 @@ final class GlobalMediaControlService {
         }
     }
 
-    @MainActor
     private func getPlayingGroup() async -> SonosDevice? {
         // Pinned speaker: a local lookup that's always current, so a pin change is
         // honored immediately. Not cached.
-        if let pinnedId = await MiniSettingsService.shared.pinnedSpeakerId,
-           let pinnedDevice = await SonosMiniService.shared.devices.first(where: { $0.id == pinnedId }) {
+        if let pinnedId = MiniSettingsService.shared.pinnedSpeakerId,
+           let pinnedDevice = SonosMiniService.shared.devices.first(where: { $0.id == pinnedId }) {
             return pinnedDevice
         }
 
@@ -280,12 +275,12 @@ final class GlobalMediaControlService {
         // and volume stay current even on a cache hit.
         if let cached = cachedNowPlaying,
            Date().timeIntervalSince(cached.at) < nowPlayingCacheTTL,
-           let live = await SonosMiniService.shared.devices.first(where: { $0.id == cached.group.id }) {
+           let live = SonosMiniService.shared.devices.first(where: { $0.id == cached.group.id }) {
             return live
         }
 
         guard let id = await SonosMiniService.shared.getNowPlayingID() else { return nil }
-        guard let group = await SonosMiniService.shared.devices.first(where: { $0.id == id }) else { return nil }
+        guard let group = SonosMiniService.shared.devices.first(where: { $0.id == id }) else { return nil }
         cachedNowPlaying = (group, Date())
         return group
     }

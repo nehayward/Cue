@@ -109,23 +109,7 @@ struct ClicMiniApp: App {
         MenuBarExtra {
             GroupMenuScreen()
         } label: {
-            HStack {
-                let image = NSImage.clicIcon.withSymbolConfiguration(.init(pointSize: 32, weight: .black))
-                Image(nsImage: image!)
-                // Show track name only if the setting is enabled
-                // Access services directly via .shared to avoid retaining references
-                if MiniSettingsService.shared.showSongTitleInMenuBar {
-                    // Show track name from pinned speaker if available, otherwise show first device
-                    if let pinnedId = MiniSettingsService.shared.pinnedSpeakerId,
-                       let pinnedDevice = SonosMiniService.shared.devices.first(where: { $0.id == pinnedId }) {
-                        Text(pinnedDevice.track.name)
-                            .animation(.spring, value: pinnedDevice.track.id)
-                    } else if let device = SonosMiniService.shared.devices.first(where: { $0.isPlaying }) {
-                        Text(device.track.name)
-                            .animation(.spring, value: device.track.id)
-                    }
-                }
-            }
+            MenuBarLabelView()
         }
         .menuBarExtraStyle(.window)
         
@@ -158,5 +142,56 @@ struct ClicMiniApp: App {
             return
         }
         button.performClick(nil)
+    }
+}
+
+/// The status item's label.
+///
+/// This has to be its own `View`, not an `HStack` inlined into the
+/// `MenuBarExtra` label closure: inlined, the reads of `devices` and the
+/// settings happen while the `App`'s scene body is being built, which runs once
+/// at launch — before `loadWatch` has populated `devices` 200ms later — and is
+/// never re-run when an `@Observable` it touched changes. The title never
+/// appeared as a result. In a `View`, the same reads are tracked normally and
+/// only this label re-renders on a track change.
+struct MenuBarLabelView: View {
+    private var settings = MiniSettingsService.shared
+    private var sonosService = SonosMiniService.shared
+
+    /// Pinned speaker if there is one, otherwise whatever is playing.
+    ///
+    /// `devices` is in discovery order, not the order the menu lists rooms, and
+    /// a room can report PLAYING with nothing to show: a soundbar on TV input
+    /// has no `dc:title` at all (the codec arrives separately as `tvAudio`), and
+    /// an idle or not-yet-resolved room carries `SonosTrack.empty`. Taking the
+    /// first playing room blindly lands on one of those and leaves the menu bar
+    /// bare while music is playing in another room, so skip the ones with no
+    /// title to show.
+    private var device: SonosDevice? {
+        if let pinnedId = settings.pinnedSpeakerId,
+           let pinned = sonosService.devices.first(where: { $0.id == pinnedId }) {
+            return pinned
+        }
+        return sonosService.devices.first { $0.isPlaying && !$0.isTVMode && !$0.track.song.isEmpty }
+    }
+
+    /// `song`, not `name` — it prefers the stream metadata title and falls back
+    /// to `name`, which is what the menu's own rows render.
+    private var title: String? {
+        guard settings.showSongTitleInMenuBar, let device, !device.isTVMode else { return nil }
+        let song = device.track.song
+        return song.isEmpty ? nil : song
+    }
+
+    var body: some View {
+        HStack {
+            if let image = NSImage.clicIcon.withSymbolConfiguration(.init(pointSize: 32, weight: .black)) {
+                Image(nsImage: image)
+            }
+            if let title {
+                Text(title)
+            }
+        }
+        .animation(.spring, value: title)
     }
 }

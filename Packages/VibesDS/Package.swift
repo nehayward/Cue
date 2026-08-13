@@ -14,7 +14,7 @@ let package = Package(
         .package(path: "../SonosKit"),
         .package(path: "../Defaults"),
         .package(url: "https://github.com/nonstrict-hq/CloudStorage", from: "0.4.0"),
-        .package(url: "https://github.com/kean/Nuke", from: "12.3.0")
+        .package(url: "https://github.com/kean/Nuke", from: "13.0.0")
     ],
     targets: [
         .target(

@@ -62,6 +62,29 @@ import SonosKit
         }
     }
 
+    /// Open while a deliberate skip is in flight, so the player hard-swaps the
+    /// artwork instead of crossfading it. The on-screen transport buttons hold
+    /// their own local window; this one exists for the ⌘← / ⌘→ menu commands,
+    /// which live in `Commands` and have no way to reach `LargePlayerView`'s
+    /// state.
+    @MainActor var isSkippingTrack = false
+    @MainActor private var skipWindowTask: Task<Void, Never>?
+
+    /// Suppresses the artwork crossfade until the skipped-to track has landed.
+    /// The duration matches the transport buttons: the speaker pushes the new
+    /// item over the metadata socket well after the command itself returns, and
+    /// `ArtworkView` snapshots the fade flag at that moment.
+    @MainActor
+    func beginSkipWindow(_ duration: Duration = .milliseconds(1500)) {
+        skipWindowTask?.cancel()
+        isSkippingTrack = true
+        skipWindowTask = Task { @MainActor in
+            try? await Task.sleep(for: duration)
+            guard !Task.isCancelled else { return }
+            isSkippingTrack = false
+        }
+    }
+
     func sheet(to: SheetDestination?) {
         presentedSheet = to
     }

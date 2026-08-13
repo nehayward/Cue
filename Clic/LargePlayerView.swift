@@ -48,6 +48,14 @@ struct LargePlayerView: View {
         sonosService.groups.first(where: { $0.coordinatorID == coordinatorID })
     }
 
+    // `shouldFade` covers skips made from this screen's own transport buttons.
+    // The ⌘← / ⌘→ menu commands live in `Commands` and can't reach that state,
+    // so they open an equivalent window on the router; either one suppresses
+    // the crossfade.
+    private var artworkShouldFade: Bool {
+        shouldFade && !router.isSkippingTrack
+    }
+
     /// Toolbar subtitle: lowest battery percentage among the group's
     /// battery-powered rooms. Nil for AC-only groups (hides the subtitle).
     private var lowestBatteryPercent: Int? {
@@ -91,7 +99,7 @@ struct LargePlayerView: View {
                     }
                     .transition(.opacity)
                 } else {
-                    ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: shouldFade)
+                    ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: artworkShouldFade)
                         .padding(.bottom, showArtworkOnly ? 0 : 12)
                         .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
                         .padding(.top, showArtworkOnly ? 100 : nil)
@@ -303,7 +311,7 @@ struct LargePlayerView: View {
             .safeAreaPadding(.bottom)
             .ignoresSafeArea(.keyboard)
             .background {
-                BackgroundViewCatalyst(group: group, shouldFade: shouldFade)
+                BackgroundViewCatalyst(group: group, shouldFade: artworkShouldFade)
             }
             .hardwareVolumeControl(group: group)
             .task(id: coordinatorID) {
