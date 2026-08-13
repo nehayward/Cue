@@ -39,18 +39,22 @@ struct SetSpeechEnhancementIntent: LiveActivityIntent {
             throw IntentError.message("Subscribe to Super in App")
         }
 
+        let result: Bool
         do {
-            try await Self.sonosService.setSpeechEnhancement(
+            result = try await Self.sonosService.setSpeechEnhancement(
                 ip: room.ip,
                 enabled: speechEnhancement,
-                toggle: mode == .toggle
+                toggle: mode == .toggle,
+                isArcUltra: room.isArcUltra
             )
+        } catch SpeechEnhancementError.unsupported {
+            throw IntentError.message("\(room.name) doesn't support Speech Enhancement")
         } catch {
-            throw IntentError.message("Speech Enhancement not supported")
+            throw IntentError.message("Couldn't reach \(room.name)")
         }
 
         try? await Task.sleep(for: .milliseconds(100))
         await Self.liveActivityManager.refresh()
-        return .result(value: speechEnhancement)
+        return .result(value: result)
     }
 }

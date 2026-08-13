@@ -66,10 +66,26 @@ public final class Room: Identifiable, @unchecked Sendable {
         return false
     }
 
+    /// Model numbers (`DeviceInfo.model`) with the levelled Arc Ultra speech
+    /// enhancement rather than the on/off `DialogLevel` every other soundbar has.
+    /// The number is stable where `modelDisplayName` moves with locale and renames —
+    /// the substring match below is the fallback for models not catalogued here.
+    private static let arcUltraModelNumbers: Set<String> = ["S45"] // Sonos Arc Ultra
+
     public var isArcUltra: Bool {
-        info?.modelDisplayName.lowercased().contains("arc ultra") ?? false
+        guard let info else { return false }
+        let model = info.model.trimmingCharacters(in: .whitespaces).uppercased()
+        if Self.arcUltraModelNumbers.contains(model) { return true }
+        return info.modelDisplayName.lowercased().contains("arc ultra")
     }
-    
+
+    /// `nil` until the model is known. Guessing "not an Arc Ultra" from a missing
+    /// model sends the wrong EQ command, so callers that can probe the speaker
+    /// should treat `nil` as "ask it" rather than as `false`.
+    public var isArcUltraIfKnown: Bool? {
+        info == nil ? nil : isArcUltra
+    }
+
     public var supportsLineIn: Bool {
         guard let info else { return false }
         // Prefer the device-reported capability — it's authoritative across firmware/models.
