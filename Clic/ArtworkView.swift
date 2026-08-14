@@ -56,12 +56,18 @@ struct ArtworkView: View {
 
     private var artworkRequest: ImageRequest? {
         guard let url = group.coordinatorRoom.track.artworkURL else { return nil }
-        return ImageRequest(
+        var request = ImageRequest(
             url: url,
             processors: [.resize(width: 500)],
-            priority: .high,
-            userInfo: [.imageIdKey: imageIDKey]
+            priority: .high
         )
+        // `imageID`, not `userInfo[.imageIdKey]`: Nuke 13 stopped reading that
+        // key — it survives only as a deprecated constant — and both the memory
+        // and data cache keys now come from `imageID`. Passing it via userInfo
+        // still compiles and silently does nothing, which split each cover into
+        // two entries (Sonos proxy URL, then service CDN URL).
+        request.imageID = imageIDKey
+        return request
     }
 
     // Synchronous memory-cache lookup used as the fallback below. On a hit

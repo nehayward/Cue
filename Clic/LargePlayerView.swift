@@ -451,9 +451,21 @@ fileprivate struct PlaybackView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Bindable var group: GroupRoom
 
+    /// `VibeSlider` animates its fill on every value change, which is what makes
+    /// playback tick along smoothly — but a track change drops the position back
+    /// to the start, and animating *that* sweeps the whole bar backwards like a
+    /// rewind. Suppress it while the position is at the very beginning, where
+    /// there is nothing to see anyway; normal ticking picks the animation back
+    /// up a couple of seconds in. Derived from the position itself rather than
+    /// latched on a timer, so it cannot get stuck in either state, and it is
+    /// read at the same body pass the new value arrives in.
+    private var positionAnimation: Animation? {
+        group.coordinatorRoom.playbackPosition < 2000 ? nil : .interactiveSpring
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            VibeSlider(value: $group.coordinatorRoom.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24) { isEditing in
+            VibeSlider(value: $group.coordinatorRoom.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, valueAnimation: positionAnimation) { isEditing in
                 sonosService.isEditing = true
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
@@ -486,6 +498,7 @@ fileprivate struct PlaybackView: View {
                 AudioInfoView(group: group)
                     .frame(height: 12)
                     .contentTransition(.identity)
+                    .animation(.spring, value: group.audioQuality)
                 Spacer()
                 Text("-\(timeRemaining.formatted(.time(pattern: pattern)))")
                     .contentTransition(.identity)
@@ -498,7 +511,6 @@ fileprivate struct PlaybackView: View {
         .frame(maxWidth: .infinity)
         .frame(height: 60)
         .opacity(group.coordinatorRoom.track.duration.isZero ? 0 : 1)
-        .animation(.spring, value: group.audioQuality)
     }
 }
 

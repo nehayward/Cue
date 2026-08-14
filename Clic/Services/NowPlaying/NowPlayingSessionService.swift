@@ -939,12 +939,15 @@ final class NowPlayingSessionService {
         // Same key and processor as `ArtworkView`, so this hits the entry the
         // player screen populated rather than downloading and decoding a second
         // copy of the same image on every track change.
-        let request = ImageRequest(
+        var request = ImageRequest(
             url: url,
             processors: [.resize(width: 500)],
-            priority: .high,
-            userInfo: [.imageIdKey: artworkCacheKey(for: track)]
+            priority: .high
         )
+        // `imageID`, not `userInfo[.imageIdKey]`: Nuke 13 stopped reading that
+        // key, so passing it there compiles and silently keys the request on
+        // its URL — which is exactly the second download this avoids.
+        request.imageID = artworkCacheKey(for: track)
         if let cached = ImagePipeline.shared.cache.cachedImage(for: request)?.image {
             attach(artwork: cached, for: url)
             return

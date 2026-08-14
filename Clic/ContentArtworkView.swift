@@ -32,6 +32,16 @@ struct ContentArtworkView: View {
         return fetchedArtworkURL
     }
     
+    // `imageID`, not `userInfo[.imageIdKey]`: Nuke 13 stopped reading that key,
+    // so passing it there compiles and silently leaves the request keyed on its
+    // URL. `imageKey` is what makes the same artwork one cache entry no matter
+    // which of the candidate URLs resolved it.
+    private var artworkRequest: ImageRequest {
+        var request = ImageRequest(url: artworkURL)
+        request.imageID = content.imageKey
+        return request
+    }
+
     private static let targetSize = CGSize(width: 150, height: 150) // 50pt * 3x scale
     
     private var placeholder: some View {
@@ -44,7 +54,7 @@ struct ContentArtworkView: View {
     }
     
     var body: some View {
-        LazyImage(request: ImageRequest(url: artworkURL, userInfo: [.imageIdKey: content.imageKey])) { state in
+        LazyImage(request: artworkRequest) { state in
             if let image = state.image {
                 image
                     .resizable()

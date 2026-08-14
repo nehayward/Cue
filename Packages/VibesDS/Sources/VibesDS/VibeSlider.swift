@@ -24,6 +24,7 @@ public struct VibeSlider: View {
     private var onEditingChanged: (Bool) -> Void
     private var range: ClosedRange<Double>
     private let step: Double.Stride
+    private let valueAnimation: Animation?
 
     /// Initializes a new instance of `VibeSlider`.
     /// - Parameters:
@@ -31,6 +32,10 @@ public struct VibeSlider: View {
     ///   - range: The range of values the slider can represent.
     ///   - step: The smallest discrete value change allowed.
     ///   - touchDelay: The delay before recognizing a touch as a drag gesture.
+    ///   - valueAnimation: How the fill moves when `value` changes. Pass `nil`
+    ///     to have it swap in place instead — the animation is applied inside
+    ///     the slider, so a caller cannot suppress it with a transaction from
+    ///     the outside.
     ///   - onEditingChanged: A closure called when editing begins and ends.
     public init(
         value: Binding<Double>,
@@ -39,6 +44,7 @@ public struct VibeSlider: View {
         baseHeight: CGFloat = 24,
         delayDrag: Bool = false,
         showValue: Bool = false,
+        valueAnimation: Animation? = .interactiveSpring,
         onEditingChanged: @escaping (Bool) -> Void = { _ in }) {
             self._value = value
             self.range = range
@@ -50,6 +56,7 @@ public struct VibeSlider: View {
             self.delayDrag = delayDrag
 #endif
             self.showValue = showValue
+            self.valueAnimation = valueAnimation
             self.onEditingChanged = onEditingChanged
         }
     
@@ -86,7 +93,7 @@ public struct VibeSlider: View {
                             }
 #endif
                             .frame(width: calculateProgressWidth(), height: baseHeight)
-                            .animation(.interactiveSpring, value: value)
+                            .animation(valueAnimation, value: value)
                     }
                 }
                 .clipShape(.capsule) // Best attempt at fixing a bug https://twitter.com/ChristianSelig/status/1757139789457829902
@@ -109,7 +116,7 @@ public struct VibeSlider: View {
                 .offset(x: offsetForValue, y: isDragging ? -24 : 0)
                 .opacity(showValue ? 1 : 0)
                 .animation(.interactiveSpring, value: isDragging)
-                .animation(.interactiveSpring, value: value)
+                .animation(valueAnimation, value: value)
         }
         .padding(.vertical, baseHeight/2)
         .gesture(dragGesture)

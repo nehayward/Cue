@@ -127,11 +127,14 @@ public struct VibeContentArtworkView: View {
     
     // MARK: - Create Image Request
     private func makeImageRequest(url: URL?, priority: ImageRequest.Priority = .veryHigh) -> ImageRequest {
-        ImageRequest(
-            url: url,
-            priority: priority,
-            userInfo: [.imageIdKey: content.id]
-        )
+        var request = ImageRequest(url: url, priority: priority)
+        // `imageID`, not `userInfo[.imageIdKey]`: Nuke 13 stopped reading that
+        // key, so passing it there compiles and silently keys each request on
+        // its URL — defeating the one-entry-per-`content.id` design this view
+        // is built around, since it tries several candidate URLs for the same
+        // artwork.
+        request.imageID = content.id
+        return request
     }
 }
 #Preview("Dua Lipa") {

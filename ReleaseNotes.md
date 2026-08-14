@@ -41,6 +41,10 @@
 - Fixed Clic Mini and Apple Watch offering Arc Ultra speech levels on soundbars that only have the on/off Speech Enhancement, where changing the level did nothing
 - Much lighter on battery while your phone is locked with Lock Screen Controls showing — Clic was still doing a screen's worth of work behind the Lock Screen, and now goes quiet until something actually happens on your speakers
 - Fixed the Lock Screen volume slider nudging your speaker a point or two off where you set it, just from showing the card
+- Fixed the player keeping the previous speaker's album artwork after switching rooms on Mac and iPad — the new room's cover appears straight away, and a room with no artwork yet no longer shows the last one
+- Skipping with the ⌘← and ⌘→ keyboard shortcuts now swaps the artwork instantly, the same as the on-screen buttons
+- Fixed the player's progress bar sweeping backwards across the whole bar when the song changes
+- Clic Mini: Fixed the song title never appearing next to the menu bar icon
 
 # 2026.6
 

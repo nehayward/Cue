@@ -1,5 +1,5 @@
 {
-  "originHash" : "2afef315978ae3ee86c2f4f8d51d7ac8dc6934479169ce9b78ae770447824d9e",
+  "originHash" : "9c238638a64cfdddd094e3cd356dda900a531354c550b92323097265b25d8698",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/kean/Nuke",
       "state" : {
-        "revision" : "0ead44350d2737db384908569c012fe67c421e4d",
-        "version" : "12.8.0"
+        "revision" : "158366dcdfbda52da33d419ef16ad2d00a609e9e",
+        "version" : "13.1.0"
       }
     },
     {

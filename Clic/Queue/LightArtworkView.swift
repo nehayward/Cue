@@ -10,9 +10,19 @@ struct LightArtworkView: View {
     var contentType: ContentType
     var showMusicSource: Bool
     @State var thumbnail: URL?
-  
+
+    // `imageID`, not `userInfo[.imageIdKey]`: Nuke 13 stopped reading that key,
+    // so passing it there compiles and silently keys the request on its URL
+    // instead. Both lookups below have to agree on `imageKey` or the
+    // `containsCachedImage` probe can't find what the row itself cached.
+    private func request(for url: URL?) -> ImageRequest {
+        var request = ImageRequest(url: url)
+        request.imageID = content.imageKey
+        return request
+    }
+
     var body: some View {
-        LazyImage(request: ImageRequest(url: thumbnail, userInfo: [.imageIdKey: content.imageKey])) { state in
+        LazyImage(request: request(for: thumbnail)) { state in
             if let image = state.image {
                 image
                     .resizable()
@@ -42,7 +52,7 @@ struct LightArtworkView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .clipped()
         .task(id: content.imageKey) {
-            if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: content.thumbnail, userInfo: [.imageIdKey: content.imageKey])) {
+            if ImagePipeline.shared.cache.containsCachedImage(for: request(for: content.thumbnail)) {
                 self.thumbnail = content.thumbnail
                 return
             }
