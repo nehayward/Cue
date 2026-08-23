@@ -281,9 +281,7 @@ public final class SonosService {
         let newSig = Set(newGroup.map(\.topologyKey))
         let oldSig = Set(groups.map(\.topologyKey))
         if !newGroup.isEmpty, newSig != oldSig {
-            carryGroupVolumes(into: newGroup)
-            self.groups = newGroup
-            self.rooms = newGroup.flatMap(\.rooms)
+            adoptGroups(newGroup)
             self.zones = OrderedDictionary(uniqueKeys: newGroup.map(\.coordinatorID), values: newGroup)
         }
     }
@@ -300,9 +298,7 @@ public final class SonosService {
         let newSig = Set(newGroup.map(\.topologyKey))
         let oldSig = Set(groups.map(\.topologyKey))
         if !newGroup.isEmpty, newSig != oldSig {
-            carryGroupVolumes(into: newGroup)
-            self.groups = newGroup
-            self.rooms = newGroup.flatMap(\.rooms)
+            adoptGroups(newGroup)
             self.zones = OrderedDictionary(uniqueKeys: newGroup.map(\.coordinatorID), values: newGroup)
         }
     }
@@ -335,20 +331,25 @@ public final class SonosService {
         storedGroup.coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
     }
 
-    /// Freshly-parsed topology carries no volume: `GroupRoom.groupVolume`
-    /// starts at its 0 default (and `isMuted` at false), so replacing `groups`
-    /// with the new instances flashes every consumer — the player's slider,
-    /// the Lock Screen mirror — to 0 until the next volume read lands, and
-    /// the mirror then pushes that 0 at the phone's slider. Seed each new
-    /// group from the instance it replaces. After a membership change the
+    /// The one doorway for replacing `groups` (and `rooms`) with a
+    /// freshly-parsed topology.
+    ///
+    /// A fresh parse carries no volume: `GroupRoom.groupVolume` starts at its
+    /// 0 default (and `isMuted` at false), so swapping the instances in
+    /// directly flashes every consumer — the player's slider, the Lock Screen
+    /// mirror — to 0 until the next volume read lands, and the mirror then
+    /// pushes that 0 at the phone's slider. Each new group first inherits
+    /// those from the instance it replaces. After a membership change the
     /// carried value is the old average — off by a little, corrected by the
     /// next poll or socket event, and far closer than 0.
-    private func carryGroupVolumes(into newGroups: [GroupRoom]) {
+    private func adoptGroups(_ newGroups: [GroupRoom]) {
         for newGroup in newGroups {
             guard let current = groups.first(where: { $0.coordinatorID == newGroup.coordinatorID }) else { continue }
             newGroup.groupVolume = current.groupVolume
             newGroup.isMuted = current.isMuted
         }
+        groups = newGroups
+        rooms = newGroups.flatMap(\.rooms)
     }
 
     @MainActor
@@ -460,9 +461,7 @@ public final class SonosService {
         let oldSig = Set(groups.map(\.topologyKey))
         if !newGroup.isEmpty, newSig != oldSig, !isGrouping {
             await updateGroupsRooms(from: newGroup)
-            carryGroupVolumes(into: newGroup)
-            self.groups = newGroup
-            self.rooms = newGroup.flatMap(\.rooms)
+            adoptGroups(newGroup)
             applyGroupsCacheIfMatching()
             refreshGroup = true
             print("Refreshed")
@@ -1112,9 +1111,7 @@ public final class SonosService {
         let newSig = Set(newGroup.map(\.topologyKey))
         let oldSig = Set(groups.map(\.topologyKey))
         if !newGroup.isEmpty, newSig != oldSig {
-            carryGroupVolumes(into: newGroup)
-            self.groups = newGroup
-            self.rooms = newGroup.flatMap(\.rooms)
+            adoptGroups(newGroup)
         }
 
         await withDiscardingTaskGroup { group in

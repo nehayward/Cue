@@ -42,8 +42,19 @@ final class HardwareVolumeService {
     /// re-runs and takes it back when the claim is released.
     private(set) var owner: Owner?
 
-    @ObservationIgnored private var group: GroupRoom?
+    /// The mirrored target, held as the coordinator's id and resolved against
+    /// `SonosService` at time of use. Topology changes replace `GroupRoom`
+    /// instances, and a bridge that kept one went on mirroring — and measuring
+    /// the next press against — an orphan whose volume never moves again.
+    /// Resolving late means there is nothing to re-point; while the id has no
+    /// group (mid-regroup, or a coordinator that was absorbed) the bridge is
+    /// simply inert until the model catches up.
+    @ObservationIgnored private var groupID: String?
     @ObservationIgnored private var sonosService: SonosService?
+    private var group: GroupRoom? {
+        guard let groupID else { return nil }
+        return sonosService?.groups.first(where: { $0.coordinatorID == groupID })
+    }
     @ObservationIgnored private var volumeView: MPVolumeView?
     /// Resolved once per attach: reading it walks `subviews` and allocates.
     @ObservationIgnored private var slider: UISlider?
@@ -131,7 +142,7 @@ final class HardwareVolumeService {
     ) -> Bool {
         if let current = self.owner, current == .session, owner != .session { return false }
 
-        self.group = group
+        self.groupID = group.coordinatorID
         self.sonosService = sonosService
         self.volumeView = volumeView
         self.slider = volumeView.subviews.compactMap { $0 as? UISlider }.first
@@ -178,19 +189,6 @@ final class HardwareVolumeService {
         slider.setValue(target, animated: false)
     }
 
-    /// Re-points the bridge at the current `GroupRoom` instance for the target
-    /// it already serves. `SonosService` replaces instances on topology
-    /// changes; left holding the old one, the mirror follows an orphan whose
-    /// volume never moves again, and the next press becomes an absolute level
-    /// read off a stale slider — which is how removing a speaker from a group
-    /// used to drag the remaining room's volume down. Ignored when `owner`
-    /// doesn't hold the bridge or the instance is already current.
-    func retarget(group: GroupRoom, as owner: Owner = .playerScreen) {
-        guard self.owner == owner, self.group !== group else { return }
-        self.group = group
-        syncSystemVolume()
-    }
-
     /// Releases the claim. Ignored when someone else holds it, so a view tearing
     /// down can't stop a session it never owned.
     func stop(as owner: Owner = .playerScreen) {
@@ -214,7 +212,7 @@ final class HardwareVolumeService {
             slider?.setValue(saved, animated: false)
         }
         savedVolume = nil
-        group = nil
+        groupID = nil
         sonosService = nil
         volumeView = nil
         slider = nil
@@ -366,18 +364,6 @@ final class HardwareVolumeService {
                         return
                     }
 
-                    // While the app is regrouping, the group's reported volume
-                    // moves for structural reasons — members joining or leaving
-                    // shift the average — and the mirror is busy chasing it.
-                    // Nothing arriving here is a hand on a button; adopting it
-                    // would send the group an absolute level read off a slider
-                    // that is mid-correction. Absorb it and keep the slider on
-                    // the group instead.
-                    if self.sonosService?.isGrouping == true {
-                        self.syncSystemVolume()
-                        return
-                    }
-
                     // A hardware button press: the system volume moves exactly
                     // one of its 16 steps, boundary to boundary — a drag
                     // reports arbitrary in-between values and can't match.
@@ -386,13 +372,26 @@ final class HardwareVolumeService {
                     // player screen's relative mode does, then put the slider
                     // back on the group's level so the next press is measured
                     // from the truth (that write is swallowed as an echo
-                    // above).
+                    // above). Ahead of the regroup absorb below on purpose: a
+                    // relative step is safe whatever the topology is doing.
                     if let step = self.singleButtonStep(from: old, to: new) {
                         group.groupVolume = max(0, min(100, group.groupVolume + Double(step)))
                         if let sonosService = self.sonosService {
                             let ip = group.ip
                             Task { await sonosService.setRelativeGroupVolume(ip: ip, volume: step) }
                         }
+                        self.syncSystemVolume()
+                        return
+                    }
+
+                    // While the app is regrouping, the group's reported volume
+                    // moves for structural reasons — members joining or leaving
+                    // shift the average — and the mirror is busy chasing it.
+                    // Anything else arriving here is not a hand on the slider;
+                    // adopting it would send the group an absolute level read
+                    // off a slider that is mid-correction. Absorb it and keep
+                    // the slider on the group instead.
+                    if self.sonosService?.isGrouping == true {
                         self.syncSystemVolume()
                         return
                     }

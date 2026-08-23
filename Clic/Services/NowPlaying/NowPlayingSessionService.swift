@@ -649,13 +649,9 @@ final class NowPlayingSessionService {
             }
         }
 
-        // Re-point the bridge before syncing: topology changes replace
-        // `GroupRoom` instances (the re-assign above), and `attachVolumeBridge`
-        // only re-runs for a new coordinator or a lost window — without this
-        // the bridge keeps mirroring the orphaned instance, whose volume never
-        // moves again, and the next press sends that stale level to the group.
-        HardwareVolumeService.shared.retarget(group: group, as: .session)
-        // Group volume is tracked, so this runs whenever it moves.
+        // Group volume is tracked, so this runs whenever it moves. The bridge
+        // resolves its group by coordinator id at time of use, so the instance
+        // replacement handled by the re-assign above never orphans it.
         HardwareVolumeService.shared.syncSystemVolume()
         publish()
     }
