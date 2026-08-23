@@ -53,9 +53,13 @@ private struct HardwareVolumeControlModifier: ViewModifier {
     /// re-runs when a longer-lived owner (a background session) takes the bridge
     /// or gives it back. The service refuses or ignores the calls as
     /// appropriate — this view doesn't need to know what else might hold it.
+    ///
+    /// The instance identity is part of the key: `SonosService` replaces
+    /// `GroupRoom` instances on topology changes, and the bridge has to be
+    /// re-pointed at the live one or its reads and writes land on an orphan.
     private var claimKey: String? {
         guard enabled else { return nil }
-        return "\(group.coordinatorID)|\(HardwareVolumeService.shared.owner == .session)"
+        return "\(group.coordinatorID)|\(ObjectIdentifier(group).hashValue)|\(HardwareVolumeService.shared.owner == .session)"
     }
 
     func body(content: Content) -> some View {

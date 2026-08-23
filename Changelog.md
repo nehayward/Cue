@@ -4,6 +4,18 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ---
 
+## Unreleased
+
+### Volume fixes around the Lock Screen mirror (iPhone)
+
+Beta report: since 2026.7 the volume moves several points per button press, and removing a speaker from a group lowers the remaining room's volume. Both traced to the Now Playing bridge's absolute mode, which owns the hardware buttons whenever the mirror is up (`Owner.session` outranks the player screen).
+
+- **Hardware presses move the group by 1 point again.** Absolute mode mapped a press through the absolute scale, and one system step is a sixteenth of the slider — so every press jumped the group ~6 points (a consequence 2026.7 shipped knowingly; users read it as the volume becoming hard to adjust). A press has a signature a drag can't produce — exactly one system step, boundary to boundary, where a drag reports arbitrary in-between values — so `HardwareVolumeService` now recognises it (`singleButtonStep`) and sends the same single-point `setRelativeGroupVolume` the player screen's relative mode sends, then re-seeds the slider from the group's level so the next press measures from the truth. Drags keep the absolute scale, so the Lock Screen slider still behaves as a level.
+- **Removing a speaker no longer drags the remaining room's volume down.** Three holes in the mirror's path, all hit by a regroup:
+  - Topology changes replace `GroupRoom` instances, and the bridge kept the orphan: `attachVolumeBridge` only re-ran for a new coordinator or a lost window, so the mirror froze on the old group average while the speaker moved on — and the next press sent that stale slider position as an absolute `setGroupVolume` (main room at 40, old average 30: one press *up* set it to ~37). `run()` now calls `HardwareVolumeService.retarget(group:as:)` each pass, and `HardwareVolumeControlModifier` keys its claim on the instance identity too.
+  - Freshly-parsed topology carries `groupVolume`'s default of 0 (and `isMuted`'s false), so replacing `groups` flashed every consumer to 0 until the next read — and the mirror would push that 0 at the phone's slider. `carryGroupVolumes(into:)` seeds new instances from the ones they replace at all four replacement sites.
+  - The echo filter remembered only the last write, and regroups write in bursts — the echo of write A compared against the memory of write B read as the user's hand and sent a mid-correction level to the group. `recentSystemVolumeWrites` keeps the last few (echoes arrive in write order; a match retires everything older), and while `SonosService.isGrouping` the mirror absorbs volume changes rather than interpreting any of them as gestures.
+
 ## 2026.7
 
 ### Lock Screen Now Playing (iPhone)
