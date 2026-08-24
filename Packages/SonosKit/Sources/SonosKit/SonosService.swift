@@ -331,8 +331,11 @@ public final class SonosService {
         storedGroup.coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
     }
 
-    /// The one doorway for replacing `groups` (and `rooms`) with a
-    /// freshly-parsed topology.
+    /// The doorway for replacing a *populated* `groups` (and `rooms`) with a
+    /// freshly-parsed topology — every replacement inside this service goes
+    /// through here. (External call sites that seed `groups` from empty — the
+    /// TV app's first load, previews — have nothing to carry and assign
+    /// directly.)
     ///
     /// A fresh parse carries no volume: `GroupRoom.groupVolume` starts at its
     /// 0 default (and `isMuted` at false), so swapping the instances in
