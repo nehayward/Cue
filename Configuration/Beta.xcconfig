@@ -1,7 +1,0 @@
-VERSION_NUMBER = 2025.1
-BUILD_NUMBER = 255
-BUNDLE_ID = com.nick.clic.beta
-MAC_ENABLED = YES
-NAME = Clic (Beta)
-PRODUCT_NAME = Clic
-ICON = AppIcon

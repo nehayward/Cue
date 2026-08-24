@@ -1,9 +1,9 @@
 #include "Version.xcconfig"
 
-BUNDLE_ID = com.nick.Clic
+BUNDLE_ID = dance.aux
 //BUNDLE_ID = com.nick.clic.debug
 MAC_ENABLED = NO
 NAME = Clic
-PRODUCT_NAME = Clic
+PRODUCT_NAME = Aux
 ICON = AppIcon
 //SCREENSHOT = SCREENSHOT
