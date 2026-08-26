@@ -109,10 +109,12 @@ struct FavoriteMenuButton: View {
                     isFavorite = fetched > 0
                 }
             case .subsonic:
-                if contentType.isTrack {
-                    isFavorite = await MusicSearchService.shared.isSubsonicTrackLiked(id: contentID)
-                } else if let starred = item.metadata?.userRating {
+                // The mapping carries starred state as userRating; only rows
+                // without it (Sonos queue items) need the network read.
+                if let starred = item.metadata?.userRating {
                     isFavorite = starred > 0
+                } else if contentType.isTrack {
+                    isFavorite = await MusicSearchService.shared.isSubsonicTrackLiked(id: contentID)
                 }
             default:
                 break

@@ -287,6 +287,24 @@ public enum MusicService: Sendable, Codable, CaseIterable {
 
     /// Service supports favoriting / liking individual tracks.
     /// Plex favorites via its 0–10 track rating (10 = favorite) — see `LikeButtonView`.
+    /// Service previews play the full-track stream (it has no short preview
+    /// clips), so the preview player streams progressively instead of
+    /// downloading first.
+    public var streamsFullTrackPreview: Bool {
+        switch self {
+        case .plex, .subsonic: true
+        default: false
+        }
+    }
+
+    /// Service has no Sonos-browsable container URIs — albums, artists and
+    /// playlists are expanded into their tracks before queueing (each track
+    /// plays as a direct HTTP stream). Pairs with the empty container-URI
+    /// cases in `PlayableContent.uri`.
+    public var queuesContainersAsTracks: Bool {
+        self == .subsonic
+    }
+
     /// Subsonic favorites via star/unstar on the server.
     public var supportsFavoriteTrack: Bool {
         switch self {

@@ -175,7 +175,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             // straight from the server. Single-escaped for the SOAP body like
             // the other URIs here, so the speaker receives the exact URL.
             guard let stream = subsonicStreamURL?.absoluteString else { return "" }
-            return stream.replacingOccurrences(of: "&", with: "&amp;")
+            return stream.escaped
         case (.album, .subsonic), (.artist, .subsonic), (.playlist, .subsonic):
             // No container URIs without a Sonos service id — SonosService
             // expands these into their tracks before queueing.
@@ -452,20 +452,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     }
 
     /// DLNA protocolInfo for the Subsonic stream's `&lt;res&gt;`: the real MIME
-    /// type when the suffix identifies one, wildcard otherwise.
+    /// type when the suffix (carried as `audioCodec`) identifies one,
+    /// wildcard otherwise.
     private var subsonicProtocolInfo: String {
-        let mime: String? = switch metadata?.audioCodec?.lowercased() ?? "" {
-        case "flac": "audio/flac"
-        case "mp3": "audio/mpeg"
-        case "m4a", "aac", "mp4", "alac": "audio/mp4"
-        case "ogg", "oga", "vorbis": "audio/ogg"
-        case "opus": "audio/opus"
-        case "wav": "audio/wav"
-        case "aif", "aiff": "audio/aiff"
-        case "wma": "audio/x-ms-wma"
-        default: nil
-        }
-        return "http-get:*:\(mime ?? "*"):*"
+        "http-get:*:\(SubsonicAPI.mimeType(forSuffix: metadata?.audioCodec) ?? "*"):*"
     }
 
     /// The `cdudn` service-account token for this content's service, used where

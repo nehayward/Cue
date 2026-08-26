@@ -62,8 +62,6 @@ public final class SubsonicAPI {
         Self.storedServerURL != nil && !username.isEmpty && !password.isEmpty
     }
 
-    public var serverURL: URL? { Self.storedServerURL }
-
     public init(session: URLSession = .shared) {
         self.session = session
         let defaults = UserDefaults.standard
@@ -149,10 +147,6 @@ public final class SubsonicAPI {
         return indexes.flatMap { $0.artist ?? [] }
     }
 
-    public func randomSongs(size: Int = 50) async -> [SubsonicSong] {
-        await get("getRandomSongs", queryItems: [URLQueryItem(name: "size", value: "\(size)")])?.randomSongs?.song ?? []
-    }
-
     /// Every song in the library, paginated. `search3` with an empty query,
     /// which OpenSubsonic servers (Navidrome, …) define as "match everything";
     /// older servers may return nothing, and callers degrade gracefully.
@@ -164,10 +158,6 @@ public final class SubsonicAPI {
             URLQueryItem(name: "albumCount", value: "0"),
             URLQueryItem(name: "artistCount", value: "0")
         ])?.searchResult3?.song ?? []
-    }
-
-    public func starred() async -> SubsonicStarred? {
-        await get("getStarred2")?.starred2
     }
 
     // MARK: - Playlist management
@@ -256,6 +246,23 @@ public final class SubsonicAPI {
             URLQueryItem(name: "ext", value: ".\(fileExtension)")
         ]
         return components.url ?? url
+    }
+
+    /// The MIME type for a song's file suffix, or nil when unrecognized.
+    /// Lives here so suffix knowledge (this and the `ext=` URL hint) stays in
+    /// one place; DIDL consumers wrap it in protocolInfo themselves.
+    public static func mimeType(forSuffix suffix: String?) -> String? {
+        switch suffix?.lowercased() ?? "" {
+        case "flac": "audio/flac"
+        case "mp3": "audio/mpeg"
+        case "m4a", "aac", "mp4", "alac": "audio/mp4"
+        case "ogg", "oga", "vorbis": "audio/ogg"
+        case "opus": "audio/opus"
+        case "wav": "audio/wav"
+        case "aif", "aiff": "audio/aiff"
+        case "wma": "audio/x-ms-wma"
+        default: nil
+        }
     }
 
     /// Cover art URL for a `coverArt` id. `size` asks the server to scale.

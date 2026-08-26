@@ -12,11 +12,7 @@ public struct SubsonicSong: Decodable, Sendable {
     public let coverArt: String?
     /// Seconds.
     public let duration: Int?
-    public let bitRate: Int?
     public let suffix: String?
-    public let contentType: String?
-    public let track: Int?
-    public let year: Int?
     /// Present (an ISO date) when the song is starred by the current user.
     public let starred: String?
 }

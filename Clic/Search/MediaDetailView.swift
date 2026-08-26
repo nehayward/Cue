@@ -580,9 +580,10 @@ struct MediaDetailView: View {
                 albumID = await musicSearchService.lookupSubsonicTrack(with: playableContent.content.id)?.metadata?.albumID
             }
             guard let albumID else { return }
-            guard let album = await musicSearchService.lookupSubsonicAlbum(with: albumID) else { return }
-            content = album
-            newTracks = await musicSearchService.lookupSubsonicAlbumTracks(id: albumID)
+            // One getAlbum response carries the album and its tracks.
+            guard let result = await musicSearchService.lookupSubsonicAlbumWithTracks(id: albumID) else { return }
+            content = result.album
+            newTracks = result.tracks
             isLoadingMore = false
         default:
             return

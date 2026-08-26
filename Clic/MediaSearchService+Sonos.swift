@@ -35,4 +35,15 @@ extension MediaSearchService {
         guard let sonosServiceType else { return true }
         return installed.contains(sonosServiceType)
     }
+
+    /// The in-app management sheet for services configured (at least partly)
+    /// in Clic itself rather than the Sonos app. The Services rows open this
+    /// on tap.
+    var managementSheet: SheetDestination? {
+        switch self {
+        case .plex: .plexManagement
+        case .subsonic: .subsonicManagement
+        default: nil
+        }
+    }
 }

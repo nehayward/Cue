@@ -1113,13 +1113,12 @@ struct ArtistDetailView: View {
     }
 
     private func loadSubsonicArtistData(id: String) async {
-        async let artist = MusicSearchService.shared.lookupSubsonicArtist(id: id)
-        async let artistAlbums = MusicSearchService.shared.lookupSubsonicArtistAlbums(id: id)
-        if let artistResult = await artist {
-            artistContent = artistResult
-            artworkURL = artistResult.artwork
+        // One getArtist response carries the artist and their albums.
+        if let result = await MusicSearchService.shared.lookupSubsonicArtistWithAlbums(id: id) {
+            artistContent = result.artist
+            artworkURL = result.artist.artwork
+            albums = result.albums
         }
-        albums = await artistAlbums
         // Top songs are keyed by artist name; servers without play data
         // return nothing and the section just stays hidden.
         let artistName = artistContent?.title ?? playableContent.metadata?.artist ?? ""

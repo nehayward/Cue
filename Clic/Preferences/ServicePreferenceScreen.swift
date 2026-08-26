@@ -68,7 +68,7 @@ struct ServicePreferenceScreen: View {
         List {
             Section {
                 ForEach(connectedServices, id: \.self) { service in
-                    if service == .plex || service == .subsonic {
+                    if let managementSheet = service.managementSheet {
                         // Whole cell opens the service's management sheet; the
                         // trailing switch still handles its own touches.
                         Toggle(isOn: coreFeatures.enabledServices(service)) {
@@ -77,7 +77,7 @@ struct ServicePreferenceScreen: View {
                         .tint(.accent)
                         .contentShape(.rect)
                         .onTapGesture {
-                            router.presentedSheet = service == .plex ? .plexManagement : .subsonicManagement
+                            router.presentedSheet = managementSheet
                         }
                     } else {
                         Toggle(isOn: coreFeatures.enabledServices(service)) {

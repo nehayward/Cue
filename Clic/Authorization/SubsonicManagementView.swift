@@ -17,8 +17,7 @@ struct SubsonicManagementView: View {
     @State private var testResult: SubsonicAPI.PingResult?
 
     private var isConnected: Bool {
-        if case .success = testResult { return true }
-        return false
+        testResult == .success
     }
 
     var body: some View {
@@ -118,12 +117,12 @@ struct SubsonicManagementView: View {
         }
     }
 
-    /// Writes the edited values through to stored settings — only when they
-    /// changed, so the auth salt isn't needlessly rotated.
+    /// Writes the edited values through to stored settings. The salt only
+    /// rotates on an actual password change — the model guards that itself.
     private func apply() {
-        if subsonic.serverAddress != serverAddress { subsonic.serverAddress = serverAddress }
-        if subsonic.username != username { subsonic.username = username }
-        if subsonic.password != password { subsonic.password = password }
+        subsonic.serverAddress = serverAddress
+        subsonic.username = username
+        subsonic.password = password
     }
 
     private func testConnection() async {

@@ -23,9 +23,7 @@ struct SubsonicResponseBody: Decodable {
     let playlists: SubsonicPlaylistList?
     let playlist: SubsonicPlaylist?
     let albumList2: SubsonicAlbumList?
-    let randomSongs: SubsonicSongList?
     let topSongs: SubsonicSongList?
-    let starred2: SubsonicStarred?
 
     var isOK: Bool { status == "ok" }
 }
@@ -60,10 +58,4 @@ struct SubsonicAlbumList: Decodable {
 
 struct SubsonicSongList: Decodable {
     let song: [SubsonicSong]?
-}
-
-public struct SubsonicStarred: Decodable, Sendable {
-    public let artist: [SubsonicArtist]?
-    public let album: [SubsonicAlbum]?
-    public let song: [SubsonicSong]?
 }

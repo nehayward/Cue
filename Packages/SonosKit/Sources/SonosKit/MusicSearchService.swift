@@ -708,8 +708,10 @@ public final class MusicSearchService {
             return true // Plex playlists live on the user's own server.
         case .subsonic:
             // Editable when owned by the signed-in user (missing owner counts
-            // as owned — older servers omit it).
-            guard let owner = await subsonic.playlist(for: id)?.owner else { return true }
+            // as owned — older servers omit it). Answered from the playlist
+            // index, which carries `owner` without each playlist's full
+            // entry payload.
+            guard let owner = await subsonic.playlists().first(where: { $0.id == id })?.owner else { return true }
             return owner == subsonic.username
         default:
             return false
@@ -2148,12 +2150,23 @@ public final class MusicSearchService {
         (await subsonic.album(for: id)?.song ?? []).map(\.toPlayable)
     }
 
+    /// One `getAlbum` fetch answering both the album header and its tracks —
+    /// they arrive in the same response, so fetching them separately would
+    /// hit the identical endpoint twice.
+    public func lookupSubsonicAlbumWithTracks(id: String) async -> (album: PlayableContent, tracks: [PlayableContent])? {
+        guard let album = await subsonic.album(for: id) else { return nil }
+        return (album.toPlayable, (album.song ?? []).map(\.toPlayable))
+    }
+
     public func lookupSubsonicArtist(id: String) async -> PlayableContent? {
         await subsonic.artist(for: id)?.toPlayable
     }
 
-    public func lookupSubsonicArtistAlbums(id: String) async -> [PlayableContent] {
-        (await subsonic.artist(for: id)?.album ?? []).map(\.toPlayable)
+    /// One `getArtist` fetch answering both the artist header and their
+    /// albums — same single-response reasoning as the album variant.
+    public func lookupSubsonicArtistWithAlbums(id: String) async -> (artist: PlayableContent, albums: [PlayableContent])? {
+        guard let artist = await subsonic.artist(for: id) else { return nil }
+        return (artist.toPlayable, (artist.album ?? []).map(\.toPlayable))
     }
 
     public func lookupSubsonicPlaylist(with id: String) async -> PlayableContent? {
@@ -2174,15 +2187,27 @@ public final class MusicSearchService {
         case .playlist:
             return await lookupSubsonicPlaylistTracks(id: content.content.id)
         case .artist:
-            // Every album, oldest first, flattened. Capped so a prolific
-            // artist can't push thousands of AddURIToQueue calls.
-            let albums = await subsonic.artist(for: content.content.id)?.album ?? []
-            var tracks: [PlayableContent] = []
-            for album in albums.sorted(by: { ($0.year ?? 0) < ($1.year ?? 0) }) {
-                tracks.append(contentsOf: await lookupSubsonicAlbumTracks(id: album.id))
-                if tracks.count >= 200 { break }
+            // Every album, oldest first, flattened. Albums are fetched
+            // concurrently and reassembled in order — serial fetches put
+            // N round trips between the tap and first sound. Bounded (30
+            // albums / 200 tracks) so a prolific artist can't push thousands
+            // of requests and AddURIToQueue calls.
+            let albums = (await subsonic.artist(for: content.content.id)?.album ?? [])
+                .sorted { ($0.year ?? 0) < ($1.year ?? 0) }
+                .prefix(30)
+            let tracksByAlbum = await withTaskGroup(of: (Int, [PlayableContent]).self) { group in
+                for (index, album) in albums.enumerated() {
+                    group.addTask {
+                        (index, await self.lookupSubsonicAlbumTracks(id: album.id))
+                    }
+                }
+                var results = [[PlayableContent]](repeating: [], count: albums.count)
+                for await (index, tracks) in group {
+                    results[index] = tracks
+                }
+                return results
             }
-            return tracks
+            return Array(tracksByAlbum.flatMap { $0 }.prefix(200))
         default:
             return []
         }
@@ -2210,27 +2235,8 @@ public final class MusicSearchService {
         await subsonic.songs(size: 50, offset: offset).map(\.toPlayable)
     }
 
-    public func subsonicStarredTracks(offset: Int = 0) async -> [PlayableContent] {
-        guard offset == 0 else { return [] }
-        return (await subsonic.starred()?.song ?? []).map(\.toPlayable)
-    }
-
-    public func subsonicStarredAlbums(offset: Int = 0) async -> [PlayableContent] {
-        guard offset == 0 else { return [] }
-        return (await subsonic.starred()?.album ?? []).map(\.toPlayable)
-    }
-
-    public func subsonicStarredArtists(offset: Int = 0) async -> [PlayableContent] {
-        guard offset == 0 else { return [] }
-        return (await subsonic.starred()?.artist ?? []).map(\.toPlayable)
-    }
-
     public func subsonicRecentAlbums(offset: Int = 0) async -> [PlayableContent] {
         await subsonic.albumList(type: "newest", size: 50, offset: offset).map(\.toPlayable)
-    }
-
-    public func subsonicRandomSongs() async -> [PlayableContent] {
-        await subsonic.randomSongs(size: 50).map(\.toPlayable)
     }
 
     // MARK: - Subsonic playlists
