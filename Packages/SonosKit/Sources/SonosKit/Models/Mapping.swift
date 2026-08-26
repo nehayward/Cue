@@ -1076,7 +1076,10 @@ extension SubsonicAlbum {
                 artist: artist,
                 artistID: artistId,
                 album: displayName,
-                albumID: id
+                albumID: id,
+                // Release year as a date so the artist screen's year sorting
+                // (and Discography's oldest-first playback) can order albums.
+                albumYear: year.flatMap { Calendar.current.date(from: DateComponents(year: $0)) }
             )
         )
     }
