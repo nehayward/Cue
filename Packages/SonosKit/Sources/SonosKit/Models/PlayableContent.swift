@@ -174,7 +174,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             // Subsonic has no Sonos service id — the speaker streams the file
             // straight from the server. Single-escaped for the SOAP body like
             // the other URIs here, so the speaker receives the exact URL.
-            guard let stream = SubsonicAPI.streamURL(for: id)?.absoluteString else { return "" }
+            guard let stream = subsonicStreamURL?.absoluteString else { return "" }
             return stream.replacingOccurrences(of: "&", with: "&amp;")
         case (.album, .subsonic), (.artist, .subsonic), (.playlist, .subsonic):
             // No container URIs without a Sonos service id — SonosService
@@ -392,7 +392,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             // &lt;res&gt; carrying the stream URL: "-1" ids belong to radio
             // metadata on SetAVTransportURI and AddURIToQueue rejects them.
             return """
-    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;dc:creator&gt;\((metadata?.artist ?? "").metaDataTitle)&lt;/dc:creator&gt;&lt;upnp:album&gt;\((metadata?.album ?? "").metaDataTitle)&lt;/upnp:album&gt;&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;res protocolInfo="http-get:*:*:*"&gt;\(SubsonicAPI.streamURL(for: id)?.absoluteString.didlEscaped ?? "")&lt;/res&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;dc:creator&gt;\((metadata?.artist ?? "").metaDataTitle)&lt;/dc:creator&gt;&lt;upnp:album&gt;\((metadata?.album ?? "").metaDataTitle)&lt;/upnp:album&gt;&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;res protocolInfo="\(subsonicProtocolInfo)"&gt;\(subsonicStreamURL?.absoluteString.didlEscaped ?? "")&lt;/res&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
     """
         case (.unique, _):
             return metadata?.URIMetadata ?? ""
@@ -426,6 +426,29 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     }
     
     private var deezerServiceToken: String { "SA_RINCON519_X_#Svc519-0-Token" }
+
+    /// The Subsonic stream URL for this track, carrying the file suffix
+    /// (stored as `audioCodec`) so Sonos can classify the format.
+    private var subsonicStreamURL: URL? {
+        SubsonicAPI.streamURL(for: id, fileExtension: metadata?.audioCodec)
+    }
+
+    /// DLNA protocolInfo for the Subsonic stream's `&lt;res&gt;`: the real MIME
+    /// type when the suffix identifies one, wildcard otherwise.
+    private var subsonicProtocolInfo: String {
+        let mime: String? = switch metadata?.audioCodec?.lowercased() ?? "" {
+        case "flac": "audio/flac"
+        case "mp3": "audio/mpeg"
+        case "m4a", "aac", "mp4", "alac": "audio/mp4"
+        case "ogg", "oga", "vorbis": "audio/ogg"
+        case "opus": "audio/opus"
+        case "wav": "audio/wav"
+        case "aif", "aiff": "audio/aiff"
+        case "wma": "audio/x-ms-wma"
+        default: nil
+        }
+        return "http-get:*:\(mime ?? "*"):*"
+    }
 
     /// The `cdudn` service-account token for this content's service, used where
     /// the metadata is built generically rather than per `(type, service)` —

@@ -69,6 +69,18 @@ final class SubsonicTests: XCTestCase {
         XCTAssertEqual(items["c"], "Clic")
     }
 
+    /// Sonos classifies plain-HTTP queue items by the extension it finds in
+    /// the URL (UPnP 804 without one), so the song's suffix rides along as a
+    /// trailing `ext` parameter the server ignores.
+    func testStreamURLAppendsFileExtensionHint() throws {
+        storeCredentials()
+        let url = try XCTUnwrap(SubsonicAPI.streamURL(for: "300001", fileExtension: "FLAC"))
+        XCTAssertTrue(url.absoluteString.hasSuffix("ext=.flac"))
+
+        let plain = try XCTUnwrap(SubsonicAPI.streamURL(for: "300001"))
+        XCTAssertFalse(plain.absoluteString.contains("ext="))
+    }
+
     func testCoverArtURLScalesAndNilsOutForMissingID() {
         storeCredentials()
         XCTAssertNil(SubsonicAPI.coverArtURL(for: nil))

@@ -1037,8 +1037,9 @@ extension SubsonicSong {
                 location: nil
             ),
             // Like Plex, there is no short clip — the full-track stream is the
-            // preview, played through the streaming AVPlayer path.
-            previewURL: SubsonicAPI.streamURL(for: id),
+            // preview, played through the streaming AVPlayer path. Same URL
+            // shape as playback (suffix included) so the two share caching.
+            previewURL: SubsonicAPI.streamURL(for: id, fileExtension: suffix),
             metadata: .init(
                 duration: duration.map { Duration.seconds($0) },
                 popularity: nil,

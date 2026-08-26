@@ -188,8 +188,22 @@ public final class SubsonicAPI {
     /// when the password changes, keeping the URL stable for a given login —
     /// queue rows survive relaunches and artwork caching stays keyed to one
     /// URL.
-    public static func streamURL(for id: String) -> URL? {
-        storedURL(endpoint: "stream", queryItems: [URLQueryItem(name: "id", value: id)])
+    ///
+    /// `fileExtension` (the song's `suffix`, e.g. "flac") is appended as a
+    /// trailing `ext=.flac` parameter. The server ignores the unknown
+    /// parameter; Sonos classifies plain-HTTP queue items by the extension it
+    /// finds in the URL and rejects extension-less ones with UPnP error 804,
+    /// since `/rest/stream?id=…` gives it nothing to sniff.
+    public static func streamURL(for id: String, fileExtension: String? = nil) -> URL? {
+        guard let url = storedURL(endpoint: "stream", queryItems: [URLQueryItem(name: "id", value: id)]) else { return nil }
+        guard let fileExtension = fileExtension?.trimmingCharacters(in: .whitespaces).lowercased(),
+              !fileExtension.isEmpty,
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        else { return url }
+        components.queryItems = (components.queryItems ?? []) + [
+            URLQueryItem(name: "ext", value: ".\(fileExtension)")
+        ]
+        return components.url ?? url
     }
 
     /// Cover art URL for a `coverArt` id. `size` asks the server to scale.
