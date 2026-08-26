@@ -2694,9 +2694,16 @@ public final class SonosService {
         if playable.content.service == .subsonic, !playable.content.type.isTrack, !playable.content.type.isRadio {
             let tracks = await musicSearch.subsonicContainerTracks(for: playable)
             guard !tracks.isEmpty else { throw SonosServiceError.cantPlayContent(upnpCode: nil) }
-            if position == .now || position == .replace {
+            switch position {
+            case .replace:
                 try await replaceQueueWithSubsonicTracks(tracks, group: group, index: index ?? 0)
-            } else {
+            case .now:
+                // Match the other services' "Play Now": start at the tapped
+                // track and insert into the existing queue rather than
+                // wiping it.
+                let start = min(max(index ?? 0, 0), tracks.count - 1)
+                try await playNext(Array(tracks[start...]), on: group)
+            default:
                 try await queue(contents: tracks, group: group, position: position)
             }
             return
@@ -2715,6 +2722,9 @@ public final class SonosService {
     /// Clears the queue, enqueues the expanded tracks in order, and starts
     /// playback at `index` (0-based within the new queue).
     private func replaceQueueWithSubsonicTracks(_ tracks: [PlayableContent], group: GroupRoom, index: Int) async throws {
+        // Clamp so an out-of-range start (container shrank server-side, or an
+        // artist expansion hit its cap) still triggers playback.
+        let index = min(max(index, 0), tracks.count - 1)
         if index > 0, group.playMode != .normal {
             await setPlayMode(group.ip, mode: .normal)
             group.playMode = .normal

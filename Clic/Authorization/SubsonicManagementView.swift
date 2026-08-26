@@ -84,6 +84,10 @@ struct SubsonicManagementView: View {
                             password = ""
                             testResult = nil
                             apply()
+                            // Mirror the connect path, which enables the
+                            // service — otherwise the Settings toggle stays
+                            // visually on for a service that can't play.
+                            CoreFeatures.shared.enabledServices(.subsonic).wrappedValue = false
                         }
                     }
                 }
