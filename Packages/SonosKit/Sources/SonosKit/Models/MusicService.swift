@@ -169,7 +169,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         case .subsonic:
-            SwiftUI.Image(systemName: "server.rack")
+            SwiftUI.Image(systemName: "externaldrive.fill.badge.icloud")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         case .airplay:
@@ -193,7 +193,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         case .subsonic:
-            SwiftUI.Image(systemName: "server.rack")
+            SwiftUI.Image(systemName: "externaldrive.fill.badge.icloud")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .foregroundStyle(brandColor.gradient)
@@ -253,7 +253,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         case .airplay:
             return UIImage(systemName: "airplayaudio")
         case .subsonic:
-            return UIImage(systemName: "server.rack")
+            return UIImage(systemName: "externaldrive.fill.badge.icloud")
         case .tuneIn, .soundcloud, .deezer, .pandora:
             return UIImage(named: self.title, in: .musicSearchKitBundle, with: nil)?
                 .resized(to: glyph).withRenderingMode(.alwaysTemplate)

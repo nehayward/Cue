@@ -103,7 +103,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         case .subsonic:
             // SF Symbol, not a bundle asset — Subsonic-compatible servers
             // (Navidrome, Airsonic, …) don't share one brand mark.
-            SwiftUI.Image(systemName: "server.rack")
+            SwiftUI.Image(systemName: "externaldrive.fill.badge.icloud")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .foregroundStyle(brandColor.gradient)
@@ -176,7 +176,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
         case .subsonic:
-            Image(systemName: "server.rack")
+            Image(systemName: "externaldrive.fill.badge.icloud")
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
