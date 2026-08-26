@@ -1,5 +1,14 @@
 # 2026.8
 
+–– New Features ––
+- Subsonic & Navidrome: Play your self-hosted music library on Sonos. Connect any Subsonic-compatible server (Navidrome, Airsonic, Gonic, and more) with its address and login under Settings ▸ Services, and your speakers stream your music straight from the server — no Sonos account involved, with your password kept in the device keychain
+- Subsonic search and browse: Search your server's songs, albums and artists alongside your other services, browse your whole library — Artists, Albums, Songs, Recently Added, and Playlists — and open artist pages complete with top songs and a playable discography
+- Subsonic playlists and favorites: Create playlists, add and remove songs, and delete playlists right from Clic; star songs with the heart in the player and menus, and preview any song before sending it to a speaker
+
+–– Bug Fixes & Improvements ––
+- Discography on artist pages now starts fresh — it clears the queue and plays every album in order, oldest first, starting as soon as the first song is ready. Play Next and Play Last are still in the ••• menu
+- Restored the Favorite option in Deezer song menus — it had quietly gone missing from the ••• menu
+
 # 2026.7
 
 –– New Features ––

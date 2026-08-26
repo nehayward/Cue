@@ -4,6 +4,30 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ---
 
+## 2026.8
+
+### Subsonic / Navidrome integration
+Full integration for Subsonic-compatible self-hosted servers (Navidrome, Airsonic, Gonic, …), modeled on the Plex/Deezer service pattern per `Docs/AddingMusicService.md`.
+
+- `SubsonicAPI` (MusicSearchKit): REST client using the salted-token auth scheme (`t = md5(password + salt)` — the password itself is never sent). Search (`search3`), ID3 lookups, playlists (create/update/delete — removal is by 0-based position per the API), `getTopSongs`, star/unstar, album lists, and deterministic stream/cover-art URL builders. Password and salt live in the keychain (`kSecClassGenericPassword`, after-first-unlock) behind an in-memory cache, with silent migration from the pre-keychain UserDefaults location; server address and username stay in UserDefaults.
+- Playback is direct HTTP: the speaker fetches the self-authenticating stream URL itself. Three Sonos gotchas are encoded in the mechanism: plain-HTTP queue items need an extension hint in the URL (`ext=.flac`-style trailing parameter — UPnP error 804 without one), DIDL metadata must use empty item ids (radio-style `-1` ids are rejected by `AddURIToQueue`), and the `res` element must carry `duration="H:MM:SS"` or `GetPositionInfo` reports 0:00 and the player has no progress bar.
+- Containers (album/artist/playlist) have no Sonos-browsable URI, so `SonosService` expands them into tracks before queueing — single items and lists (Discography, play-all) alike — via `MusicSearchService.containerTracks(for:)`, with albums fetched concurrently and `queue(contents:startIndex:)` starting playback as soon as the requested track lands.
+- `MusicServiceParser` identifies `/rest/stream` URIs (ordered ahead of the Plex `:3:` heuristic) and recovers the song id from the `id` query parameter, so queue rows and now-playing resolve service, metadata and artwork.
+- App surfaces: `SubsonicManagementView` (server/username/password + ping test, reachable from Services and the browse screen), `SubsonicBrowseScreen`, generic `ServiceSearchView` search, artist/album/playlist detail loading, previews via the full-track stream (`previewURL`, `MusicService.streamsFullTrackPreview`), and the failed-to-queue alert names the UPnP error code and opens the management sheet on tap.
+
+### DirectStreamProvider extraction
+The direct-HTTP mechanism is service-agnostic, ready for a Jellyfin/Emby port:
+
+- `DirectStreamProvider` (MusicSearchKit) is the stream-URL contract (deterministic, self-authenticating, extension-hinted); `SubsonicAPI` is the first conformer, `AudioMIMEType` holds the shared suffix→MIME table.
+- `MusicService.directStreamProvider` maps service → provider and derives `queuesContainersAsTracks`; `PlayableContent`'s track URI and DIDL metadata are generic direct-stream branches.
+- App-side arms for a ported service: `MediaSearchService.isConfiguredInClic` + `managementSheet` (drive the Services rows, not-connected copy, and the queue-failure alert). Porting checklist appended to `Docs/AddingMusicService.md`.
+
+### Discography and menu fixes
+- The artist page's headline Discography button plays `.replace` with `startIndex: 0` (was `.next`): clear the queue, all albums oldest-first, playback starting once the first item is queued. `SubsonicAlbum.toPlayable` now populates `metadata.albumYear` so the year sort works for Subsonic.
+- The song-menu Favorite gate now reads `MusicService.supportsFavoriteTrack` instead of a hardcoded allowlist — which restores the Deezer entry the list had drifted out of sync with.
+
+---
+
 ## 2026.7
 
 ### Lock Screen Now Playing (iPhone)
