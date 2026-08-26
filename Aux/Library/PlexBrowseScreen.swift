@@ -86,6 +86,15 @@ struct PlexBrowseScreen: View {
                         .environment(router)
                 }
             }
+            .overlay {
+                if plexAuthenticator.authToken == nil {
+                    Button {
+                        plexAuthenticator.authenticate()
+                    } label: {
+                        Text("Here")
+                    }
+                }
+            }
     #if !targetEnvironment(macCatalyst)
             .addDismiss {
                 dismiss()

@@ -682,6 +682,17 @@ public final class AppleMusicAPI {
 //        }
 //      }
 
+    /// Fetches full MusicKit `Song`s for Apple Music catalog song ids. Sonos
+    /// playback only needs the id baked into a URI, but local on-device
+    /// playback queues `Song` values into `ApplicationMusicPlayer`, so this is
+    /// the path that turns a search result back into something playable here.
+    public func songs(ids: [String]) async throws -> [Song] {
+        guard await requestMusicAuthorization() else { return [] }
+        let request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: ids.map { MusicItemID($0) })
+        let response = try await request.response()
+        return Array(response.items)
+    }
+
     public func requestMusicAuthorization() async -> Bool {
         let status = await MusicAuthorization.request()
 

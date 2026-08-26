@@ -17,6 +17,223 @@ import CoreSpotlight
 import WidgetKit
 #endif
 
+/// Full-screen view of what's playing locally on this device, opened from the
+/// tab bar accessory. All state comes from `LocalPlaybackService` — the same
+/// `PlayableContent` the search returned, no extra lookups.
+struct PlayerView: View {
+    @Environment(\.dismiss) private var dismiss
+    var animation: Namespace.ID
+
+    private var playback: LocalPlaybackService { .shared }
+
+    var body: some View {
+        VStack(spacing: 24) {
+            HStack {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.title3.bold())
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button {
+                    playback.stop()
+                    dismiss()
+                } label: {
+                    Image(systemName: "stop.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal)
+
+            Spacer()
+
+            if let item = playback.nowPlaying {
+                ContentArtworkView(content: item, showMusicSource: false, preferredSize: 600)
+                    .frame(maxWidth: 320, maxHeight: 320)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .matchedGeometryEffect(id: "a", in: animation)
+
+                VStack(spacing: 4) {
+                    Text(item.title)
+                        .font(.title3.bold())
+                        .lineLimit(1)
+                    Text(item.subtitle)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .padding(.horizontal)
+
+                VStack(spacing: 4) {
+                    ProgressView(
+                        value: min(playback.progress, max(playback.duration, 1)),
+                        total: max(playback.duration, 1)
+                    )
+                    HStack {
+                        Text(Duration.seconds(playback.progress), format: .time(pattern: .minuteSecond))
+                        Spacer()
+                        Text(Duration.seconds(playback.duration), format: .time(pattern: .minuteSecond))
+                    }
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 32)
+
+                HStack(spacing: 48) {
+                    Button {
+                        playback.previous()
+                    } label: {
+                        Image(systemName: "backward.fill")
+                    }
+
+                    Button {
+                        playback.togglePlayback()
+                    } label: {
+                        Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 44))
+                            .contentTransition(.symbolEffect(.replace))
+                    }
+
+                    Button {
+                        playback.next()
+                    } label: {
+                        Image(systemName: "forward.fill")
+                    }
+                }
+                .font(.title)
+                .foregroundStyle(.primary)
+            } else {
+                ContentUnavailableView("Nothing Playing", systemImage: "iphone.radiowaves.left.and.right")
+            }
+
+            Spacer()
+
+            if !playback.upNext.isEmpty {
+                upNextList
+            }
+        }
+        .padding(.vertical)
+        .fontDesign(.rounded)
+    }
+
+    /// The rest of the local queue; tapping a row jumps playback to it.
+    private var upNextList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Up Next")
+                .font(.headline)
+                .padding(.horizontal)
+
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(playback.upNext.enumerated()), id: \.element.trackID) { offset, item in
+                        Button {
+                            playback.play(at: playback.currentIndex + 1 + offset)
+                        } label: {
+                            HStack(spacing: 12) {
+                                ContentArtworkView(content: item, showMusicSource: false)
+                                    .frame(width: 36, height: 36)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                VStack(alignment: .leading) {
+                                    Text(item.title)
+                                        .font(.callout)
+                                        .lineLimit(1)
+                                    Text(item.subtitle)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(.rect)
+                            .padding(.horizontal)
+                            .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .frame(maxHeight: 220)
+        }
+    }
+}
+
+/// Tab bar accessory mini player for local (on-this-device) playback. Tapping
+/// the track opens the full `PlayerView`; the trailing controls act in place.
+struct MusicPlaybackView: View {
+    @Environment(\.tabViewBottomAccessoryPlacement) var placement
+    @State private var showPlayer: Bool = false
+    @Namespace private var animation
+
+    private var playback: LocalPlaybackService { .shared }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button {
+                showPlayer.toggle()
+            } label: {
+                HStack(spacing: 12) {
+                    if let item = playback.nowPlaying {
+                        ContentArtworkView(content: item, showMusicSource: false)
+                            .frame(width: 40, height: 40)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .matchedGeometryEffect(id: "a", in: animation)
+                        VStack(alignment: .leading) {
+                            Text(item.title)
+                                .font(.callout.bold())
+                                .lineLimit(1)
+                            if placement != .inline {
+                                Text(item.subtitle)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    } else {
+                        Image(systemName: "iphone.radiowaves.left.and.right")
+                            .foregroundStyle(.secondary)
+                        Text("Not Playing")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .matchedTransitionSource(id: "A", in: animation)
+
+            if playback.isActive {
+                Button {
+                    playback.togglePlayback()
+                } label: {
+                    Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.plain)
+                .font(.title3)
+
+                if placement != .inline {
+                    Button {
+                        playback.next()
+                    } label: {
+                        Image(systemName: "forward.fill")
+                    }
+                    .buttonStyle(.plain)
+                    .font(.title3)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .fullScreenCover(isPresented: $showPlayer) {
+            PlayerView(animation: animation)
+                .presentationBackgroundInteraction(.enabled)
+                .navigationTransition(.zoom(sourceID: "A", in: animation))
+        }
+    }
+}
+
 @main
 struct AppAux: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -69,395 +286,394 @@ struct AppAux: App {
     
     var body: some Scene {
         WindowGroup {
-            NavigationSplitView {
-                SpeakerListScreen()
-                    .navigationSplitViewColumnWidth(min: 320, ideal: 340, max: 400)
-            } detail: {
-                ContainerLargePlayerView()
+            TabView {
+                Tab {
+                    List {
+                        ForEach(0..<10000) { i in
+                            Text(i, format: .number)
+                        }
+                    }
+                    .background(.purple)
+                }
+                Tab("Alerts", systemImage: "bell") {
+                    Screens.search
+                }
+                Tab("Browse", systemImage: "bell") {
+                    Screens.browse
+                }
             }
-            // Inspector first, sheets outside it: modifiers apply inside-out,
-            // and a `.sheet` hosted *inside* `.inspector` gets torn down when
-            // the inspector restructures (column ↔ sheet on iPad size-class
-            // changes, Catalyst window resizes) — dismissing the presented
-            // sheet out from under the user.
-            .withInspector(inspectorDestination: $router.inspectorSheet)
-            .withSheetDestinations(sheetDestinations: $router.presentedSheet)
-            .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
-            .visionOrnament(router: router)
-            .withAlert()
-            .environment(router)
-            .environment(sonosService)
-            .environment(subscriptionService)
-            .environment(alertService)
-            .environment(musicSearchService)
-            .environment(audioPlaybackService)
-            .environment(playlistContainer)
-            .environment(playHistoryService)
-            .environment(miniPlayerManager)
+            .tabBarMinimizeBehavior(.onScrollDown)
+            .tabViewBottomAccessory {
+                MusicPlaybackView()
+            }
+            .withEnvironments()
             .environment(plexRatingCache)
-            .onOpenURL(perform: handle)
-            .onAppear {
-                guard !AppBootstrapper.shared.didLaunch else { return }
-                AppBootstrapper.shared.didLaunch = true
-                AppBootstrapper.shared.bootstrap()
-
-#if os(iOS) && !targetEnvironment(macCatalyst)
-                // One call for the lifetime of the process: the service watches
-                // the model itself from here on. Deliberately not a view
-                // modifier — SwiftUI stops evaluating bodies in the background,
-                // which is exactly when the Lock Screen card matters.
-                NowPlayingSessionService.shared.activate()
-#endif
-
-                // Wire callbacks before the onboarding gate so events fired
-                // during onboarding (Sonos discovery forming the first group,
-                // a paywall-step purchase) don't fall on the floor.
-                SonosService.shared.groupsChanged = { groups in
-                    guard subscriptionService.subscription.isActive else { return }
-                    liveActivityManager.createActivity(shouldLoad: false)
-                }
-
-                SubscriptionService.shared.subscriptionUpdated = { subscription in
-                    activeSubscription = subscription.isActive
-#if canImport(WidgetKit)
-                    if #available(visionOS 26.0, *) {
-                        WidgetCenter.shared.reloadAllTimelines()
-                    }
-#endif
-                }
-                
-                Task.detached(priority: .utility) {
-                    await LatestReleaseFetcher.refresh()
-                }
-
-                if !hasOnboarded || OnboardingDebug.forceShow {
-                    router.presentedFullScreenCover = .onboard
-                    return
-                }
-
-                Task { @MainActor in
-                    try? await SubscriptionService.shared.checkSubscription()
-                }
-
-#if targetEnvironment(macCatalyst)
-                if isMenuBarAppEnabled {
-                    Task {
-                        try? await Task.sleep(for: .seconds(2))
-                        do {
-                            try await menuAppLaunchAtLoginManager.bridge?.openClicMiniApp()
-                        } catch {
-                            print("Failed to launch ClicMini: \(error.localizedDescription)")
-                        }
-                    }
-                }
-                if let bridge = menuAppLaunchAtLoginManager.bridge {
-                    DockMenuCoordinator.shared.install(
-                        bridge: bridge,
-                        router: router,
-                        sonosService: sonosService
-                    )
-                }
-#endif
-                // Try and restore selected groupID
-                if let savedGroupID = savedGroupID {
-                    Task {
-                        let startTime = Date.now
-                        while sonosService.sorted.isEmpty && Date.now.timeIntervalSince(startTime) < 5 {
-                            try? await Task.sleep(for: .milliseconds(100))
-                        }
-
-                        if sonosService.sorted.contains(where: { $0.coordinatorID == savedGroupID }) {
-                            router.selectedID = savedGroupID
-                        }
-                    }
-                }
-
-                // iPad/Mac: Auto-select first group and restore queue state
-                if UIDevice.current.userInterfaceIdiom != .phone {
-                    Task {
-                        let startTime = Date.now
-                        while sonosService.sorted.isEmpty && Date.now.timeIntervalSince(startTime) < 5 {
-                          try? await Task.sleep(for: .milliseconds(100))
-                        }
-                        try? await Task.sleep(for: .milliseconds(400))
-
-                        // Auto-select first group if none selected (iPad initial launch)
-                        if router.selectedID == nil {
-                            sonosService.selectedGroup = sonosService.sorted.first
-                            router.selectedID = sonosService.sorted.first?.coordinatorID
-                        }
-
-                        // Restore queue inspector if it was open
-                        if queueInspectorVisible {
-                            if let savedGroupID = savedGroupID,
-                               let group = sonosService.sorted.first(where: { $0.coordinatorID == savedGroupID }) {
-
-                                router.inspectorSheet = .queue(group: group)
-                            } else if let selectedID = router.selectedID,
-                                      let group = sonosService.sorted.first(where: { $0.coordinatorID == selectedID }) {
-                                // Fall back to currently selected group
-                                router.inspectorSheet = .queue(group: group)
-                            } else if let firstGroup = sonosService.sorted.first {
-                                // Fall back to first available group
-                                router.inspectorSheet = .queue(group: firstGroup)
-                            }
-                        }
-                    }
-                }
-
-                Task {
-                    ClicAppShortcutProvider.updateAppShortcutParameters()
-                }
-            }
-#if targetEnvironment(macCatalyst)
-            .frame(minWidth: 800, minHeight: 500)
-#endif
-            .fontDesign(.rounded)
-            .onContinueUserActivity(CSSearchableItemActionType) { activity in
-                guard let userInfo = activity.userInfo, let itemIdentifier = userInfo[CSSearchableItemActivityIdentifier] as? String else {
-                    return
-                }
-                if itemIdentifier.starts(with: "SonosDeviceEntity/") {
-                    let deviceID = itemIdentifier.replacingOccurrences(of: "SonosDeviceEntity/", with: "")
-                    
-                    Task {
-                        guard let group = await sonosService.getGroupCoordinatorWithRoom(roomID: deviceID) else { return }
-                        router.selectedID = group.coordinatorID
-                    }
-                }
-            }
-            .preferredColorScheme(colorScheme.scheme)
-#if targetEnvironment(macCatalyst)
-            // Single source of truth for dock-menu refresh. The RefreshKey
-            // reads selectedID, the current group's track + isPlaying, and
-            // the list of available groups — so any change re-fires the task,
-            // and SwiftUI auto-cancels any in-flight refresh from the
-            // previous key. `.task` is a View modifier, so it must live
-            // inside WindowGroup, not on the Scene.
-            .task(id: dockRefreshKey) {
-                await DockMenuCoordinator.shared.refresh()
-            }
-#endif
+            .tabViewStyle(.sidebarAdaptable)
+            //            .withAlert()
         }
-        .windowResizability(.contentMinSize)
-        .onChange(of: scenePhase) {
-            handleScenePhase(scenePhase)
-        }
-        .onChange(of: subscriptionService.subscription, initial: true) { oldValue, newValue in
-            activeSubscription =  newValue.isActive
-        }
-        .onChange(of: router.selectedID) {
-            // No inspector re-targeting here: InspectorContentView (and the
-            // visionOS ornament) resolve the selected group live from
-            // router.selectedID, so the destination enum's captured group is
-            // only a fallback.
-            savedGroupID = router.selectedID
-        }
-        .onChange(of: sonosService.groups) {
-            if sonosService.rooms.count == previousCount {
-                return
-            }
-
-            Analytics.shared.track(.numberOfDevices, with: ["Device Count" : sonosService.rooms.count,
-                                                            "Subscriber": subscriptionService.subscription.isActive])
-            previousCount = sonosService.rooms.count
-        }
-        .onChange(of: sonosService.sortedRooms) {
-            if #available(iOS 18.0, *) {
-                Task {
-                    try? await CSSearchableIndex.default().deleteAllSearchableItems()
-                    try? await CSSearchableIndex.default().indexAppEntities(
-                        sonosService.sortedRooms.map { SonosDeviceEntity(id: $0.id, ip: $0.ip, name: $0.name)}
-                    )
-                }
-            }
-        }
-        .onChange(of: router.inspectorSheet) { oldValue, newValue in
-            if UIDevice.current.userInterfaceIdiom != .phone  {
-                queueInspectorVisible = (newValue?.id == "queue")
-            }
-        }
-        .onChange(of: sonosService.isCellular) { oldValue, isCellular in
-            if isCellular {
-                router.selectedID = nil
-                router.inspectorSheet = nil
-                sonosService.clearDevices()
-                alertService.showAlert(with: "On Cellular", imageName: "wifi.slash")
-            } else if oldValue {
-                // Coming back from cellular to WiFi - restart discovery
-                sonosService.monitor()
-            }
-        }
-        .commands {
-            SidebarCommands()
-            CommandGroup(replacing: .appSettings) {
-                Button {
-                    Router.main.presentedSheet = .settings()
-                } label: {
-                    Label("Settings", systemImage: "gear")
-                }
-                .keyboardShortcut(",", modifiers: .command)
-            }
-            CommandGroup(after: .sidebar) {
-                Divider()
-                Button {
-                    if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                        router.toggleInspector(.search(group: sonosService.sorted[group]))
-                    }
-                } label: {
-                    Label("\(router.inspectorSheet?.id ?? "" == "search" ? "Hide" : "Show") Search", systemImage: "magnifyingglass")
-                }
-                .keyboardShortcut("s", modifiers: [])
-
-                Button {
-                    if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                        router.toggleInspector(.browse(group: sonosService.sorted[group]))
-                    }
-                } label: {
-                    Label("\(router.inspectorSheet?.id ?? "" == "browse" ? "Hide" : "Show") Browse", image: "home.fill")
-                }
-                .keyboardShortcut("b", modifiers: [])
-
-                Button {
-                    if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                        router.toggleInspector(.queue(group: sonosService.sorted[group]))
-                    }
-                } label: {
-                    Label("\(router.inspectorSheet?.id ?? "" == "queue" ? "Hide" : "Show") Queue", systemImage: "list.dash")
-                }
-                .keyboardShortcut("q", modifiers: [])
-                
-                Button {
-                    router.sheet(to: .settings(destination: .alarms))
-                } label: {
-                    Label("Show Alarms", systemImage: "alarm.fill")
-                }
-                .keyboardShortcut("a", modifiers: [.shift, .command])
-                
-                Toggle(isOn: $showArtworkOnly) {
-                    Label("Album Cover Only", systemImage: "photo")
-                    Text("Hide titles and controls.")
-                }
-                .keyboardShortcut("f", modifiers: [.shift, .command])
-            }
-            CommandMenu("Playback") {
-                PlaybackTransportControls(router: router, sonosService: sonosService)
-
-                Button {
-                    Task {
-                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                            HapticManager.shared.fireHaptic(.selection)
-                            let newPosition = group.coordinatorRoom.playbackPosition + 15000
-                            await sonosService.seek(to: newPosition, on: group)
-                        }
-                    }
-                } label: {
-                    Label("Seek Forward", systemImage: "goforward")
-                }
-                .keyboardShortcut(.rightArrow, modifiers: .option)
-                .disabled(router.selectedID == nil)
-
-                Button {
-                    Task {
-                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                            HapticManager.shared.fireHaptic(.selection)
-                            let newPosition = max(0, group.coordinatorRoom.playbackPosition - 15000)
-                            await sonosService.seek(to: newPosition, on: group)
-                        }
-                    }
-                } label: {
-                    Label("Seek Backward", systemImage: "gobackward")
-                }
-                .keyboardShortcut(.leftArrow, modifiers: .option)
-                .disabled(router.selectedID == nil)
-
-                Divider()
-
-                Button {
-                    Task {
-                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                            var currentPlayMode = group.playMode
-                            if currentPlayMode.contains(.shuffle) {
-                                currentPlayMode.remove(.shuffle)
-                            } else {
-                                currentPlayMode.insert(.shuffle)
-                            }
-                            group.playMode = currentPlayMode
-                            await sonosService.setPlayMode(group.ip, mode: currentPlayMode)
-                        }
-                    }
-                } label: {
-                    Label("Shuffle", systemImage: "shuffle")
-                }
-                .keyboardShortcut("s")
-                .disabled(router.selectedID == nil)
-
-                Button {
-                    Task {
-                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                            var currentPlayMode = group.playMode
-                            if !currentPlayMode.isRepeatEnabled {
-                                currentPlayMode.insert(.repeatAll)
-                            } else if currentPlayMode.isRepeatAllEnabled {
-                                currentPlayMode.remove(.repeatAll)
-                                currentPlayMode.insert(.repeatOne)
-                            } else {
-                                currentPlayMode.remove(.repeatOne)
-                                currentPlayMode.remove(.repeatAll)
-                            }
-                            group.playMode = currentPlayMode
-                            await sonosService.setPlayMode(group.ip, mode: currentPlayMode)
-                        }
-                    }
-                } label: {
-                    if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                        Label("Repeat", systemImage: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
-                    } else {
-                        Label("Repeat", systemImage: "repeat")
-                    }
-                }
-                .keyboardShortcut("r")
-                .disabled(router.selectedID == nil)
-
-                Divider()
-
-                Button {
-                    if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                        router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
-                    }
-                } label: {
-                    Label("Open Album", systemImage: "smallcircle.circle.fill")
-                }
-                .keyboardShortcut("i", modifiers: [.shift, .command])
-                .disabled(router.selectedID == nil)
-
-                Button {
-                    if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                        router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
-                    }
-                } label: {
-                    Label("Open Artist", systemImage: "music.mic")
-                }
-                .keyboardShortcut("i", modifiers: [.command])
-                .disabled(router.selectedID == nil)
-            }
-//            CommandGroup(after: .windowArrangement) {
-//                Button {
-//                    openWindow(id: "mini")
-//                } label: {
-//                    Text("Mini Player")
+//            .onOpenURL(perform: handle)
+//            .onAppear {
+//                guard !AppBootstrapper.shared.didLaunch else { return }
+//                AppBootstrapper.shared.didLaunch = true
+//                AppBootstrapper.shared.bootstrap()
+//
+//#if os(iOS) && !targetEnvironment(macCatalyst)
+//                // One call for the lifetime of the process: the service watches
+//                // the model itself from here on. Deliberately not a view
+//                // modifier — SwiftUI stops evaluating bodies in the background,
+//                // which is exactly when the Lock Screen card matters.
+//                NowPlayingSessionService.shared.activate()
+//#endif
+//
+//                // Wire callbacks before the onboarding gate so events fired
+//                // during onboarding (Sonos discovery forming the first group,
+//                // a paywall-step purchase) don't fall on the floor.
+//                SonosService.shared.groupsChanged = { groups in
+//                    guard subscriptionService.subscription.isActive else { return }
+//                    liveActivityManager.createActivity(shouldLoad: false)
 //                }
-//                .keyboardShortcut("0")
+//
+//                SubscriptionService.shared.subscriptionUpdated = { subscription in
+//                    activeSubscription = subscription.isActive
+//#if canImport(WidgetKit)
+//                    if #available(visionOS 26.0, *) {
+//                        WidgetCenter.shared.reloadAllTimelines()
+//                    }
+//#endif
+//                }
+//                
+//                Task.detached(priority: .utility) {
+//                    await LatestReleaseFetcher.refresh()
+//                }
+//
+//                if !hasOnboarded || OnboardingDebug.forceShow {
+//                    router.presentedFullScreenCover = .onboard
+//                    return
+//                }
+//
+//                Task { @MainActor in
+//                    try? await SubscriptionService.shared.checkSubscription()
+//                }
+//
+//#if targetEnvironment(macCatalyst)
+//                if isMenuBarAppEnabled {
+//                    Task {
+//                        try? await Task.sleep(for: .seconds(2))
+//                        do {
+//                            try await menuAppLaunchAtLoginManager.bridge?.openClicMiniApp()
+//                        } catch {
+//                            print("Failed to launch ClicMini: \(error.localizedDescription)")
+//                        }
+//                    }
+//                }
+//                if let bridge = menuAppLaunchAtLoginManager.bridge {
+//                    DockMenuCoordinator.shared.install(
+//                        bridge: bridge,
+//                        router: router,
+//                        sonosService: sonosService
+//                    )
+//                }
+//#endif
+//                // Try and restore selected groupID
+//                if let savedGroupID = savedGroupID {
+//                    Task {
+//                        let startTime = Date.now
+//                        while sonosService.sorted.isEmpty && Date.now.timeIntervalSince(startTime) < 5 {
+//                            try? await Task.sleep(for: .milliseconds(100))
+//                        }
+//
+//                        if sonosService.sorted.contains(where: { $0.coordinatorID == savedGroupID }) {
+//                            router.selectedID = savedGroupID
+//                        }
+//                    }
+//                }
+//
+//                // iPad/Mac: Auto-select first group and restore queue state
+//                if UIDevice.current.userInterfaceIdiom != .phone {
+//                    Task {
+//                        let startTime = Date.now
+//                        while sonosService.sorted.isEmpty && Date.now.timeIntervalSince(startTime) < 5 {
+//                          try? await Task.sleep(for: .milliseconds(100))
+//                        }
+//                        try? await Task.sleep(for: .milliseconds(400))
+//
+//                        // Auto-select first group if none selected (iPad initial launch)
+//                        if router.selectedID == nil {
+//                            sonosService.selectedGroup = sonosService.sorted.first
+//                            router.selectedID = sonosService.sorted.first?.coordinatorID
+//                        }
+//
+//                        // Restore queue inspector if it was open
+//                        if queueInspectorVisible {
+//                            if let savedGroupID = savedGroupID,
+//                               let group = sonosService.sorted.first(where: { $0.coordinatorID == savedGroupID }) {
+//
+//                                router.inspectorSheet = .queue(group: group)
+//                            } else if let selectedID = router.selectedID,
+//                                      let group = sonosService.sorted.first(where: { $0.coordinatorID == selectedID }) {
+//                                // Fall back to currently selected group
+//                                router.inspectorSheet = .queue(group: group)
+//                            } else if let firstGroup = sonosService.sorted.first {
+//                                // Fall back to first available group
+//                                router.inspectorSheet = .queue(group: firstGroup)
+//                            }
+//                        }
+//                    }
+//                }
+//
+//                Task {
+//                    ClicAppShortcutProvider.updateAppShortcutParameters()
+//                }
 //            }
-        }
-//        Window(id: "mini") {
-//            VStack {
-//                MiniPlayerView()
-//                    .environment(SelectedGroupService(group: sonosService.selectedGroup))
-//                    .withEnvironments()
+//#if targetEnvironment(macCatalyst)
+//            .frame(minWidth: 800, minHeight: 500)
+//#endif
+//            .fontDesign(.rounded)
+//            .onContinueUserActivity(CSSearchableItemActionType) { activity in
+//                guard let userInfo = activity.userInfo, let itemIdentifier = userInfo[CSSearchableItemActivityIdentifier] as? String else {
+//                    return
+//                }
+//                if itemIdentifier.starts(with: "SonosDeviceEntity/") {
+//                    let deviceID = itemIdentifier.replacingOccurrences(of: "SonosDeviceEntity/", with: "")
+//                    
+//                    Task {
+//                        guard let group = await sonosService.getGroupCoordinatorWithRoom(roomID: deviceID) else { return }
+//                        router.selectedID = group.coordinatorID
+//                    }
+//                }
+//            }
+//            .preferredColorScheme(colorScheme.scheme)
+//#if targetEnvironment(macCatalyst)
+//            // Single source of truth for dock-menu refresh. The RefreshKey
+//            // reads selectedID, the current group's track + isPlaying, and
+//            // the list of available groups — so any change re-fires the task,
+//            // and SwiftUI auto-cancels any in-flight refresh from the
+//            // previous key. `.task` is a View modifier, so it must live
+//            // inside WindowGroup, not on the Scene.
+//            .task(id: dockRefreshKey) {
+//                await DockMenuCoordinator.shared.refresh()
+//            }
+//#endif
+//        }
+//        .windowResizability(.contentMinSize)
+//        .onChange(of: scenePhase) {
+//            handleScenePhase(scenePhase)
+//        }
+//        .onChange(of: subscriptionService.subscription, initial: true) { oldValue, newValue in
+//            activeSubscription =  newValue.isActive
+//        }
+//        .onChange(of: router.selectedID) {
+//            // No inspector re-targeting here: InspectorContentView (and the
+//            // visionOS ornament) resolve the selected group live from
+//            // router.selectedID, so the destination enum's captured group is
+//            // only a fallback.
+//            savedGroupID = router.selectedID
+//        }
+//        .onChange(of: sonosService.groups) {
+//            if sonosService.rooms.count == previousCount {
+//                return
+//            }
+//
+//            Analytics.shared.track(.numberOfDevices, with: ["Device Count" : sonosService.rooms.count,
+//                                                            "Subscriber": subscriptionService.subscription.isActive])
+//            previousCount = sonosService.rooms.count
+//        }
+//        .onChange(of: sonosService.sortedRooms) {
+//            if #available(iOS 18.0, *) {
+//                Task {
+//                    try? await CSSearchableIndex.default().deleteAllSearchableItems()
+//                    try? await CSSearchableIndex.default().indexAppEntities(
+//                        sonosService.sortedRooms.map { SonosDeviceEntity(id: $0.id, ip: $0.ip, name: $0.name)}
+//                    )
+//                }
 //            }
 //        }
-//        .windowResizability(.contentSize)
+//        .onChange(of: router.inspectorSheet) { oldValue, newValue in
+//            if UIDevice.current.userInterfaceIdiom != .phone  {
+//                queueInspectorVisible = (newValue?.id == "queue")
+//            }
+//        }
+//        .onChange(of: sonosService.isCellular) { oldValue, isCellular in
+//            if isCellular {
+//                router.selectedID = nil
+//                router.inspectorSheet = nil
+//                sonosService.clearDevices()
+//                alertService.showAlert(with: "On Cellular", imageName: "wifi.slash")
+//            } else if oldValue {
+//                // Coming back from cellular to WiFi - restart discovery
+//                sonosService.monitor()
+//            }
+//        }
+//        .commands {
+//            SidebarCommands()
+//            CommandGroup(replacing: .appSettings) {
+//                Button {
+//                    Router.main.presentedSheet = .settings()
+//                } label: {
+//                    Label("Settings", systemImage: "gear")
+//                }
+//                .keyboardShortcut(",", modifiers: .command)
+//            }
+//            CommandGroup(after: .sidebar) {
+//                Divider()
+//                Button {
+//                    if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+//                        router.toggleInspector(.search(group: sonosService.sorted[group]))
+//                    }
+//                } label: {
+//                    Label("\(router.inspectorSheet?.id ?? "" == "search" ? "Hide" : "Show") Search", systemImage: "magnifyingglass")
+//                }
+//                .keyboardShortcut("s", modifiers: [])
+//
+//                Button {
+//                    if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+//                        router.toggleInspector(.browse(group: sonosService.sorted[group]))
+//                    }
+//                } label: {
+//                    Label("\(router.inspectorSheet?.id ?? "" == "browse" ? "Hide" : "Show") Browse", image: "home.fill")
+//                }
+//                .keyboardShortcut("b", modifiers: [])
+//
+//                Button {
+//                    if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+//                        router.toggleInspector(.queue(group: sonosService.sorted[group]))
+//                    }
+//                } label: {
+//                    Label("\(router.inspectorSheet?.id ?? "" == "queue" ? "Hide" : "Show") Queue", systemImage: "list.dash")
+//                }
+//                .keyboardShortcut("q", modifiers: [])
+//                
+//                Button {
+//                    router.sheet(to: .settings(destination: .alarms))
+//                } label: {
+//                    Label("Show Alarms", systemImage: "alarm.fill")
+//                }
+//                .keyboardShortcut("a", modifiers: [.shift, .command])
+//                
+//                Toggle(isOn: $showArtworkOnly) {
+//                    Label("Album Cover Only", systemImage: "photo")
+//                    Text("Hide titles and controls.")
+//                }
+//                .keyboardShortcut("f", modifiers: [.shift, .command])
+//            }
+//            CommandMenu("Playback") {
+//                PlaybackTransportControls(router: router, sonosService: sonosService)
+//
+//                Button {
+//                    Task {
+//                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+//                            HapticManager.shared.fireHaptic(.selection)
+//                            let newPosition = group.coordinatorRoom.playbackPosition + 15000
+//                            await sonosService.seek(to: newPosition, on: group)
+//                        }
+//                    }
+//                } label: {
+//                    Label("Seek Forward", systemImage: "goforward")
+//                }
+//                .keyboardShortcut(.rightArrow, modifiers: .option)
+//                .disabled(router.selectedID == nil)
+//
+//                Button {
+//                    Task {
+//                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+//                            HapticManager.shared.fireHaptic(.selection)
+//                            let newPosition = max(0, group.coordinatorRoom.playbackPosition - 15000)
+//                            await sonosService.seek(to: newPosition, on: group)
+//                        }
+//                    }
+//                } label: {
+//                    Label("Seek Backward", systemImage: "gobackward")
+//                }
+//                .keyboardShortcut(.leftArrow, modifiers: .option)
+//                .disabled(router.selectedID == nil)
+//
+//                Divider()
+//
+//                Button {
+//                    Task {
+//                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+//                            var currentPlayMode = group.playMode
+//                            if currentPlayMode.contains(.shuffle) {
+//                                currentPlayMode.remove(.shuffle)
+//                            } else {
+//                                currentPlayMode.insert(.shuffle)
+//                            }
+//                            group.playMode = currentPlayMode
+//                            await sonosService.setPlayMode(group.ip, mode: currentPlayMode)
+//                        }
+//                    }
+//                } label: {
+//                    Label("Shuffle", systemImage: "shuffle")
+//                }
+//                .keyboardShortcut("s")
+//                .disabled(router.selectedID == nil)
+//
+//                Button {
+//                    Task {
+//                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+//                            var currentPlayMode = group.playMode
+//                            if !currentPlayMode.isRepeatEnabled {
+//                                currentPlayMode.insert(.repeatAll)
+//                            } else if currentPlayMode.isRepeatAllEnabled {
+//                                currentPlayMode.remove(.repeatAll)
+//                                currentPlayMode.insert(.repeatOne)
+//                            } else {
+//                                currentPlayMode.remove(.repeatOne)
+//                                currentPlayMode.remove(.repeatAll)
+//                            }
+//                            group.playMode = currentPlayMode
+//                            await sonosService.setPlayMode(group.ip, mode: currentPlayMode)
+//                        }
+//                    }
+//                } label: {
+//                    if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+//                        Label("Repeat", systemImage: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
+//                    } else {
+//                        Label("Repeat", systemImage: "repeat")
+//                    }
+//                }
+//                .keyboardShortcut("r")
+//                .disabled(router.selectedID == nil)
+//
+//                Divider()
+//
+//                Button {
+//                    if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+//                        router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
+//                    }
+//                } label: {
+//                    Label("Open Album", systemImage: "smallcircle.circle.fill")
+//                }
+//                .keyboardShortcut("i", modifiers: [.shift, .command])
+//                .disabled(router.selectedID == nil)
+//
+//                Button {
+//                    if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+//                        router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
+//                    }
+//                } label: {
+//                    Label("Open Artist", systemImage: "music.mic")
+//                }
+//                .keyboardShortcut("i", modifiers: [.command])
+//                .disabled(router.selectedID == nil)
+//            }
+////            CommandGroup(after: .windowArrangement) {
+////                Button {
+////                    openWindow(id: "mini")
+////                } label: {
+////                    Text("Mini Player")
+////                }
+////                .keyboardShortcut("0")
+////            }
+//        }
+////        Window(id: "mini") {
+////            VStack {
+////                MiniPlayerView()
+////                    .environment(SelectedGroupService(group: sonosService.selectedGroup))
+////                    .withEnvironments()
+////            }
+////        }
+////        .windowResizability(.contentSize)
     }
 
     @MainActor

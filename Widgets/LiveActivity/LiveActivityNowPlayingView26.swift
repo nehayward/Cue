@@ -97,7 +97,7 @@ struct LiveActivityNowPlayingView26: View {
                     .invalidatableContent()
                     Spacer()
                     HStack(spacing: 0) {
-                        Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
+                        Button(intent: PlaybackIntent(room: context.attributes.room)) {
                             Image(systemName: "playpause.fill")
                                 .frame(width: 24, height: 24)
                         }

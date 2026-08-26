@@ -82,23 +82,6 @@ struct NowPlayingWidgetViewMedium: View {
                         }
                 }
             }
-            .overlay(alignment: .bottomTrailing) {
-                HStack {
-                    Button(intent: TogglePlaybackIntent(room: room)) {
-                        Image(systemName: "playpause.fill")
-                            .padding(2)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.secondary)
-
-                    Button(intent: NextIntent(room: room)) {
-                        Image(systemName: "forward.fill")
-                            .padding(2)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.secondary)
-                }
-            }
         } else {
             VStack {
                 Text("Nothing playing")

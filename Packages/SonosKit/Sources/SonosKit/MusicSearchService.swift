@@ -1096,6 +1096,12 @@ public final class MusicSearchService {
             }
     }
 
+    /// Full MusicKit `Song`s for Apple Music catalog ids, for playing songs
+    /// locally on this device via `ApplicationMusicPlayer`.
+    public func appleSongs(ids: [String]) async throws -> [Song] {
+        try await apple.songs(ids: ids)
+    }
+
     public func appleLibraryLookup(id: String) async -> AppleLibraryContainer? {
         if let container = try? await apple.librarySongCatalog(id: id) {
             return container

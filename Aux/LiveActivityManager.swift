@@ -4,7 +4,6 @@ import Defaults
 import Foundation
 import SonosKit
 import MusicSearchKit
-import UIKit
 import SwiftUI
 
 @Observable

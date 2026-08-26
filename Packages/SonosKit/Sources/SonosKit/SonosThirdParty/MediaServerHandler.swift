@@ -7,7 +7,9 @@
 
 import FlyingFox
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#endif
 import Network
 
 
@@ -48,7 +50,7 @@ final class MediaServerHandler {
     }
     
     private func setupNotificationObservers() {
-        #if !targetEnvironment(macCatalyst) && os(iOS)
+        #if !targetEnvironment(macCatalyst) && os(iOS) && canImport(UIKit)
         // Mac Catalyst uses iOS APIs
         NotificationCenter.default.addObserver(
             self,

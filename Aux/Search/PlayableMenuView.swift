@@ -104,6 +104,47 @@ struct PlayableMenuView: View {
                     SongPreviewButton(previewURL: previewURL, streaming: item.content.service == .plex)
                 }
                 
+                if LocalPlaybackService.shared.canPlayLocally(item) || LocalPlaybackService.shared.canPlayAlbumLocally(item) {
+                    Menu {
+                        Button {
+                            playOnDevice { try await LocalPlaybackService.shared.play(localItems()) }
+                        } label: {
+                            Label("Play", systemImage: "play.fill")
+                        }
+
+                        Button {
+                            playOnDevice(subtitle: "Playing next on this device") {
+                                try await LocalPlaybackService.shared.playNext(localItems())
+                            }
+                        } label: {
+                            Label("Play Next", systemImage: "text.insert")
+                        }
+
+                        Button {
+                            playOnDevice(subtitle: "Added to device queue") {
+                                try await LocalPlaybackService.shared.addToQueue(localItems())
+                            }
+                        } label: {
+                            Label("Add to Queue", systemImage: "text.append")
+                        }
+
+                        if LocalPlaybackService.shared.nowPlaying == item {
+                            Button {
+                                LocalPlaybackService.shared.stop()
+                            } label: {
+                                Label("Stop", systemImage: "stop.fill")
+                            }
+                        }
+
+                        localDownloadSection
+                    } label: {
+                        Label("This Device", systemImage: "iphone.radiowaves.left.and.right")
+                    }
+                    .onAppear {
+                        AppleDownloadsIndex.shared.refreshIfNeeded()
+                    }
+                }
+
                 if (item.content.service == .apple && [.track, .libraryTrack].contains(item.content.type))
                     || (item.content.service == .spotify && item.content.type == .track) {
                     Button {
@@ -258,6 +299,80 @@ struct PlayableMenuView: View {
                 return
             }
             try await enqueueFolder(group, .replace)
+        }
+    }
+
+    /// Download state and actions inside the "This Device" submenu. Plex
+    /// tracks download into our own storage; Apple tracks can only be badged
+    /// (the Music app owns those downloads — see `AppleDownloadsIndex`).
+    @ViewBuilder
+    private var localDownloadSection: some View {
+        if item.content.service == .plex {
+            if item.content.type == .track {
+                if PlexDownloadService.shared.isDownloaded(item) {
+                    Button(role: .destructive) {
+                        PlexDownloadService.shared.removeDownload(item)
+                    } label: {
+                        Label("Remove Download", systemImage: "trash")
+                    }
+                } else if PlexDownloadService.shared.isDownloading(item) {
+                    Label("Downloading…", systemImage: "arrow.down.circle.dotted")
+                } else if item.previewURL != nil {
+                    Button {
+                        PlexDownloadService.shared.download(item)
+                        alertService.showAlertContent(with: item, subtitle: "Downloading", symbolName: "arrow.down.circle")
+                    } label: {
+                        Label("Download", systemImage: "arrow.down.circle")
+                    }
+                }
+            } else if item.content.type == .album {
+                Button {
+                    downloadPlexAlbum()
+                } label: {
+                    Label("Download Album", systemImage: "arrow.down.circle")
+                }
+            }
+        } else if AppleDownloadsIndex.shared.isDownloaded(item) {
+            Label("Downloaded", systemImage: "arrow.down.circle.fill")
+        }
+    }
+
+    /// The items a local-queue action should operate on: the track itself, or
+    /// an album's fetched tracks.
+    private func localItems() async throws -> [PlayableContent] {
+        if LocalPlaybackService.shared.canPlayLocally(item) { return [item] }
+        let tracks = await LocalPlaybackService.shared.albumTracks(for: item)
+        guard !tracks.isEmpty else { throw LocalPlaybackService.LocalPlaybackError.nothingPlayable }
+        return tracks
+    }
+
+    private func downloadPlexAlbum() {
+        Task { @MainActor in
+            let tracks = await LocalPlaybackService.shared.albumTracks(for: item)
+            guard !tracks.isEmpty else {
+                alertService.showAlert(with: "Couldn't load album tracks", imageName: "exclamationmark.triangle")
+                return
+            }
+            tracks.forEach { PlexDownloadService.shared.download($0) }
+            alertService.showAlertContent(with: item, subtitle: "Downloading \(tracks.count) songs", symbolName: "arrow.down.circle")
+        }
+    }
+
+    /// Runs a local-playback queue action (play / play next / add to queue) on
+    /// this device instead of a Sonos group. Apple tracks need an Apple Music
+    /// subscription — failures surface as alerts.
+    private func playOnDevice(
+        subtitle: LocalizedStringKey = "Playing on this device",
+        action: @escaping () async throws -> Void
+    ) {
+        Task { @MainActor in
+            hideKeyboard()
+            do {
+                try await action()
+                alertService.showAlertContent(with: item, subtitle: subtitle, symbolName: "iphone.radiowaves.left.and.right")
+            } catch {
+                alertService.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
+            }
         }
     }
 

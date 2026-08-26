@@ -12,16 +12,6 @@ struct RemoteWidgetEntryView: View {
         ZStack {
             if let room = entry.configuration.room {
                 switch widgetFamily {
-                case .accessoryRectangular:
-                    RemoteWidgetRectangularView(entry: entry)
-                case .accessoryCircular:
-                    RemoteWidgetAccessoryCircularView(entry: entry)
-                case .systemMedium:
-                    RemoteWidgetMediumView(entry: entry)
-                case .systemLarge:
-                    RemoteWidgetLargeView(entry: entry)
-                case .systemExtraLarge:
-                    RemoteWidgetExtraLargeView(entry: entry)
                 default:
                     VStack(spacing: 0) {
                         Text(entry.name ?? room.name)
@@ -61,29 +51,6 @@ struct RemoteWidgetEntryView: View {
                                     )
                                     .opacity(theater.speechIsActive ? 1 : 0.4)
                                     .invalidatableContent()
-                                }
-                            } else {
-                                VStack(spacing: 12) {
-                                    Button(intent: TogglePlaybackIntent(room: room)) {
-                                        Image(systemName: "playpause.fill")
-                                            .font(.caption)
-                                            .foregroundStyle(.thickMaterial)
-                                            .frame(width: 40, height: 40)
-                                            .widgetAccentable()
-                                    }
-                                    .buttonBorderShape(.circle)
-                                    .background(.primary, in: Capsule())
-
-                                    Button(intent: NextIntent(room: room)) {
-                                        Image(systemName: "forward.fill")
-                                            .font(.caption)
-                                            .foregroundStyle(.thickMaterial)
-                                            .frame(width: 40, height: 40)
-                                            .widgetAccentable()
-                                    }
-                                    .buttonBorderShape(.circle)
-                                    .tint(.secondary)
-                                    .background(.primary, in: Capsule())
                                 }
                             }
                             VStack(spacing: 12) {

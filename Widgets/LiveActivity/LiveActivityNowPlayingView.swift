@@ -97,7 +97,7 @@ struct LiveActivityNowPlayingView: View {
                     .invalidatableContent()
                     Spacer()
                     HStack(spacing: 0) {
-                        Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
+                        Button(intent: PlaybackIntent(room: context.attributes.room)) {
                             Image(systemName: "playpause.fill")
                                 .frame(width: 24, height: 24)
                         }
@@ -125,15 +125,15 @@ struct LiveActivityNowPlayingView: View {
                     .frame(width: 32, height: 28)
                     .foregroundStyle(settings.nightMode ? Color.primary : .secondary.opacity(0.8))
                     
-                    Toggle(isOn: context.state.isMuted, intent: MuteIntent(room: context.attributes.room, mute: .toggle)) {
-                        Label("", systemImage: context.state.isMuted ? "speaker.slash.fill" : "speaker.fill")
-                    }
-                    .tint(context.state.isMuted ? .accent : .primary)
-                    .labelStyle(.iconOnly)
-                    .symbolRenderingMode(.hierarchical)
-                    .toggleStyle(.button)
-                    .frame(width: 32, height: 28)
-                    .foregroundStyle(context.state.isMuted ? Color.primary : .secondary.opacity(0.8))
+//                    Toggle(isOn: context.state.isMuted, intent: MuteIntent(room: context.attributes.room, mute: .toggle)) {
+//                        Label("", systemImage: context.state.isMuted ? "speaker.slash.fill" : "speaker.fill")
+//                    }
+//                    .tint(context.state.isMuted ? .accent : .primary)
+//                    .labelStyle(.iconOnly)
+//                    .symbolRenderingMode(.hierarchical)
+//                    .toggleStyle(.button)
+//                    .frame(width: 32, height: 28)
+//                    .foregroundStyle(context.state.isMuted ? Color.primary : .secondary.opacity(0.8))
                     
                     Toggle(isOn: settings.speechIsActive, intent: SetSpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.speechIsActive)) {
                         Label("Speech Enhancement", systemImage: "person.wave.2.fill")

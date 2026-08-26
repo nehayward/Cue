@@ -157,7 +157,10 @@ public final class ArtworkManager {
         )
         
         let imageContainer = try await ImagePipeline.shared.image(for: request)
+        #if canImport(UIKit)
         return imageContainer.jpegData(compressionQuality: 1)
+        #endif
+        return nil
     }
     
     public func removeArtwork(coordinatorRoom: String) {

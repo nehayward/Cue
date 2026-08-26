@@ -7,9 +7,11 @@ final public class Analytics {
 
     public func configure(token: String, userID: String) {
         self.userID = userID
+        #if canImport(UIKit)
         let mixpanel = Mixpanel.initialize(token: token, trackAutomaticEvents: false, flushInterval: 15)
         mixpanel.identify(distinctId: userID)
         self.mixpanel = mixpanel
+        #endif
     }
 
     public func track(_ event: AnalyticEvents, with metadata: [String: MixpanelType] = [:]) {

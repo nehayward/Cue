@@ -1,6 +1,8 @@
 import CloudStorage
 import CloudKit
+#if canImport(UIKit)
 import UIKit
+#endif
 import Observation
 import RevenueCat
 import Foundation
@@ -52,6 +54,7 @@ public final class SubscriptionService {
         Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "DEBUG"])
         return
 #endif
+        #if canImport(UIKit)
         if UIApplication.shared.isRunningInTestFlightEnvironment() {
             Purchases.logLevel = .error
             Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
@@ -60,6 +63,7 @@ public final class SubscriptionService {
             Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "TESTFLIGHT"])
             return
         }
+        #endif
 
         Purchases.logLevel = .error
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
@@ -92,9 +96,11 @@ public final class SubscriptionService {
     }
 
     private func monitorChanges() {
+        #if canImport(UIKit)
         if UIApplication.shared.isRunningInTestFlightEnvironment() {
             return
         }
+        #endif
 
         subscriptionTask?.cancel()
         subscriptionTask = Task { @MainActor in
@@ -123,10 +129,12 @@ public final class SubscriptionService {
 //        }
         return
 #endif
+        #if canImport(UIKit)
         if await UIApplication.shared.isRunningInTestFlightEnvironment() {
             subscription = .active
             return
         }
+        #endif
 
         let customerInfo = try await Purchases.shared.customerInfo()
         if !customerInfo.activeSubscriptions.isEmpty {
@@ -145,7 +153,7 @@ public final class SubscriptionService {
 
 }
 
-
+#if canImport(UIKit)
 extension UIApplication {
 
     // MARK: Public
@@ -201,6 +209,7 @@ extension UIApplication {
 #endif
     }
 }
+#endif
 
 #if targetEnvironment(macCatalyst) || os(macOS)
 extension Bundle {
