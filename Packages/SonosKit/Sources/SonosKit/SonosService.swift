@@ -1752,6 +1752,9 @@ public final class SonosService {
         case .deezer:
             guard let track = await musicSearch.lookupDeezerTrack(with: track.trackID) else { return nil }
             return track.artwork
+        case .subsonic:
+            guard let track = await musicSearch.lookupSubsonicTrack(with: track.trackID) else { return nil }
+            return track.artwork
         case .tuneIn:
             return nil
         case .airplay, .unknown, .library, .sonosRadio, .pandora:
@@ -1867,6 +1870,19 @@ public final class SonosService {
                     artist: deezerTrack.metadata?.artist
                 ),
                 deezerTrack.artwork
+            )
+        case .subsonic:
+            guard let subsonicTrack = await musicSearch.lookupSubsonicTrack(with: track.trackID) else { return (nil, nil) }
+            return (
+                Track.Metadata(
+                    ISRC: nil,
+                    openInURL: nil,
+                    contentType: .track,
+                    song: nil,
+                    album: subsonicTrack.metadata?.album,
+                    artist: subsonicTrack.metadata?.artist
+                ),
+                subsonicTrack.artwork
             )
         case .unknown:
             if track.metadata?.contentType != .track { return (nil, nil) }
@@ -2107,6 +2123,14 @@ public final class SonosService {
             return await musicSearch.lookupDeezerAlbum(with: id)
         case (.playlist, .deezer):
             return await musicSearch.lookupDeezerPlaylist(with: id)
+        case (.track, .subsonic):
+            return await musicSearch.lookupSubsonicTrack(with: id)
+        case (.album, .subsonic):
+            return await musicSearch.lookupSubsonicAlbum(with: id)
+        case (.artist, .subsonic):
+            return await musicSearch.lookupSubsonicArtist(id: id)
+        case (.playlist, .subsonic):
+            return await musicSearch.lookupSubsonicPlaylist(with: id)
         case (.playlist, .library):
             let playlist = await libraryPlaylistLookup(ID: id)
             return playlist
@@ -2650,6 +2674,10 @@ public final class SonosService {
     }
     
     public func replaceQueue(playable: PlayableContent, group: GroupRoom, index: Int = 0) async throws {
+        if playable.content.service == .subsonic, !playable.content.type.isTrack {
+            try await replaceQueueWithSubsonicContainer(playable, group: group, index: index)
+            return
+        }
         if index > 0, !playable.content.type.isTrack, group.playMode != .normal {
             await setPlayMode(group.ip, mode: .normal)
         }
@@ -2660,7 +2688,53 @@ public final class SonosService {
     }
 
     public func queue(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, index: Int? = nil) async throws {
+        // A Subsonic album/playlist/artist has no container URI Sonos can
+        // browse (playback is direct HTTP against the user's server), so
+        // expand it into its tracks and queue those.
+        if playable.content.service == .subsonic, !playable.content.type.isTrack, !playable.content.type.isRadio {
+            let tracks = await musicSearch.subsonicContainerTracks(for: playable)
+            guard !tracks.isEmpty else { throw SonosServiceError.cantPlayContent(upnpCode: nil) }
+            if position == .now || position == .replace {
+                try await replaceQueueWithSubsonicTracks(tracks, group: group, index: index ?? 0)
+            } else {
+                try await queue(contents: tracks, group: group, position: position)
+            }
+            return
+        }
         try await queuePlayable(playable: playable, group: group, position: position, index: index)
+        try? await Task.sleep(for: .milliseconds(120))
+        try? await updateGroups(from: [group])
+    }
+
+    private func replaceQueueWithSubsonicContainer(_ playable: PlayableContent, group: GroupRoom, index: Int) async throws {
+        let tracks = await musicSearch.subsonicContainerTracks(for: playable)
+        guard !tracks.isEmpty else { throw SonosServiceError.cantPlayContent(upnpCode: nil) }
+        try await replaceQueueWithSubsonicTracks(tracks, group: group, index: index)
+    }
+
+    /// Clears the queue, enqueues the expanded tracks in order, and starts
+    /// playback at `index` (0-based within the new queue).
+    private func replaceQueueWithSubsonicTracks(_ tracks: [PlayableContent], group: GroupRoom, index: Int) async throws {
+        if index > 0, group.playMode != .normal {
+            await setPlayMode(group.ip, mode: .normal)
+            group.playMode = .normal
+        }
+        if group.playbackService != .queue {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+            await markSwitchedToQueue(group: group)
+        }
+        await api.removeAllTrackFromQueue(IP: group.ip)
+        for (position, track) in tracks.enumerated() {
+            try await api.queuePlayable(playableContent: track, IP: group.ip, position: .end, shuffling: false)
+            // Start playback as soon as the first reachable-from-index track
+            // is queued, then keep filling the queue behind it.
+            if position == index {
+                if index > 0 {
+                    await seek(trackNumber: index + 1, on: group)
+                }
+                await api.play(ipAddress: group.ip)
+            }
+        }
         try? await Task.sleep(for: .milliseconds(120))
         try? await updateGroups(from: [group])
     }

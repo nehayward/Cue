@@ -17,6 +17,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
     case deezer
     case sonosRadio
     case pandora
+    case subsonic
 
     public var title: String {
         switch self {
@@ -40,6 +41,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             "Sonos Radio"
         case .pandora:
             "Pandora"
+        case .subsonic:
+            "Subsonic"
         }
     }
 
@@ -64,6 +67,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         case .sonosRadio:
             true
         case .pandora:
+            true
+        case .subsonic:
             true
         }
     }
@@ -95,6 +100,13 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: librarySymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+        case .subsonic:
+            // SF Symbol, not a bundle asset — Subsonic-compatible servers
+            // (Navidrome, Airsonic, …) don't share one brand mark.
+            SwiftUI.Image(systemName: "server.rack")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor.gradient)
         case .sonosRadio, .pandora:
             // These assets are full-colour badges (original rendering); don't
             // template-tint them or the artwork collapses into a solid blob.
@@ -160,6 +172,11 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .foregroundStyle(brandColor.gradient)
         case .library:
             Image(systemName: librarySymbolName)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(brandColor.gradient)
+        case .subsonic:
+            Image(systemName: "server.rack")
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
@@ -240,6 +257,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .primary
         case .pandora:
             Color(red: 54.0 / 255.0, green: 104.0 / 255.0, blue: 255.0 / 255.0)
+        case .subsonic:
+            Color(red: 255.0 / 255.0, green: 184.0 / 255.0, blue: 0 / 255.0)
         }
     }
 }

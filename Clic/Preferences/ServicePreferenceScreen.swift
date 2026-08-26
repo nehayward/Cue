@@ -68,16 +68,16 @@ struct ServicePreferenceScreen: View {
         List {
             Section {
                 ForEach(connectedServices, id: \.self) { service in
-                    if service == .plex {
-                        // Whole cell opens Plex management; the trailing
-                        // switch still handles its own touches.
+                    if service == .plex || service == .subsonic {
+                        // Whole cell opens the service's management sheet; the
+                        // trailing switch still handles its own touches.
                         Toggle(isOn: coreFeatures.enabledServices(service)) {
                             serviceToggleLabel(for: service)
                         }
                         .tint(.accent)
                         .contentShape(.rect)
                         .onTapGesture {
-                            router.presentedSheet = .plexManagement
+                            router.presentedSheet = service == .plex ? .plexManagement : .subsonicManagement
                         }
                     } else {
                         Toggle(isOn: coreFeatures.enabledServices(service)) {
@@ -126,18 +126,24 @@ struct ServicePreferenceScreen: View {
                 Section {
                     ForEach(notConnectedServices, id: \.self) { service in
                         Button {
-                            openSonosApp()
+                            // Subsonic has no Sonos account — connecting means
+                            // entering the server details in Clic.
+                            if service == .subsonic {
+                                router.presentedSheet = .subsonicManagement
+                            } else {
+                                openSonosApp()
+                            }
                         } label: {
                             Label {
                                 HStack {
                                     VStack(alignment: .leading) {
                                         Text(service.title)
-                                        Text("Sign in with the Sonos app")
+                                        Text(service == .subsonic ? "Connect your server" : "Sign in with the Sonos app")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    Image(systemName: "arrow.up.forward.app")
+                                    Image(systemName: service == .subsonic ? "chevron.right" : "arrow.up.forward.app")
                                         .font(.callout)
                                         .foregroundStyle(.secondary)
                                 }
@@ -326,6 +332,17 @@ struct ServicePreferenceScreen: View {
             Label {
                 Text(service.title)
                 Text(musicSearchService.isPlexAuthorized ? "Manage" : "Sign In")
+                    .foregroundStyle(.accent)
+            } icon: {
+                service.iconForMusicService
+                    .frame(width: 24, height: 24)
+            }
+        } else if service == .subsonic {
+            // Subsonic is configured entirely in Clic — same tappable-cell
+            // treatment as Plex.
+            Label {
+                Text(service.title)
+                Text(musicSearchService.isSubsonicConfigured ? "Manage" : "Connect")
                     .foregroundStyle(.accent)
             } icon: {
                 service.iconForMusicService

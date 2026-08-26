@@ -67,6 +67,7 @@ public final class MusicSearchService {
         tokenRefreshHandler: KeychainTokenRefreshHandler.shared
     )
     private let deezer = DeezerAPI()
+    private let subsonic = SubsonicAPI.shared
     /// Persisting the rotated token means the next launch's stored credentials
     /// are already fresh, skipping the 401 → refreshAuthToken → retry round
     /// trips on every cold start.
@@ -211,6 +212,8 @@ public final class MusicSearchService {
                             await self.searchSonosRadio(query: capturedQuery)
                         case .pandora:
                             await self.searchPandora(query: capturedQuery)
+                        case .subsonic:
+                            await self.searchSubsonic(query: capturedQuery)
                         }
                     }
                     // If we were cancelled during the fetch, the API may have returned []
@@ -2103,5 +2106,119 @@ public final class MusicSearchService {
                 location: URL(string: "https://www.deezer.com/playlist/\(playlist.id)")
             )
         )
+    }
+
+    // MARK: - Subsonic
+
+    /// Whether a Subsonic-compatible server is configured in Clic. Unlike the
+    /// streaming services there is no Sonos-side account — the server address
+    /// and credentials entered in Settings are the whole authorization.
+    public var isSubsonicConfigured: Bool {
+        subsonic.isConfigured
+    }
+
+    private func searchSubsonic(query: String) async -> [PlayableContent] {
+        guard subsonic.isConfigured, let result = await subsonic.search(query: query) else { return [] }
+        var content: [PlayableContent] = []
+        content.append(contentsOf: (result.song ?? []).map(\.toPlayable))
+        content.append(contentsOf: (result.album ?? []).map(\.toPlayable))
+        content.append(contentsOf: (result.artist ?? []).map(\.toPlayable))
+        return sortContentByIntelligentSearch(playableContent: content, query: query)
+    }
+
+    public func lookupSubsonicTrack(with id: String) async -> PlayableContent? {
+        await subsonic.song(for: id)?.toPlayable
+    }
+
+    public func lookupSubsonicAlbum(with id: String) async -> PlayableContent? {
+        await subsonic.album(for: id)?.toPlayable
+    }
+
+    public func lookupSubsonicAlbumTracks(id: String) async -> [PlayableContent] {
+        (await subsonic.album(for: id)?.song ?? []).map(\.toPlayable)
+    }
+
+    public func lookupSubsonicArtist(id: String) async -> PlayableContent? {
+        await subsonic.artist(for: id)?.toPlayable
+    }
+
+    public func lookupSubsonicArtistAlbums(id: String) async -> [PlayableContent] {
+        (await subsonic.artist(for: id)?.album ?? []).map(\.toPlayable)
+    }
+
+    public func lookupSubsonicPlaylist(with id: String) async -> PlayableContent? {
+        await subsonic.playlist(for: id)?.toPlayable
+    }
+
+    public func lookupSubsonicPlaylistTracks(id: String) async -> [PlayableContent] {
+        (await subsonic.playlist(for: id)?.entry ?? []).map(\.toPlayable)
+    }
+
+    /// The tracks inside a Subsonic container, in play order. Used to expand
+    /// albums/playlists/artists into individually queueable stream URLs,
+    /// since direct-HTTP playback has no container URI for Sonos to browse.
+    public func subsonicContainerTracks(for content: PlayableContent) async -> [PlayableContent] {
+        switch content.content.type {
+        case .album:
+            return await lookupSubsonicAlbumTracks(id: content.content.id)
+        case .playlist:
+            return await lookupSubsonicPlaylistTracks(id: content.content.id)
+        case .artist:
+            // Every album, oldest first, flattened. Capped so a prolific
+            // artist can't push thousands of AddURIToQueue calls.
+            let albums = await subsonic.artist(for: content.content.id)?.album ?? []
+            var tracks: [PlayableContent] = []
+            for album in albums.sorted(by: { ($0.year ?? 0) < ($1.year ?? 0) }) {
+                tracks.append(contentsOf: await lookupSubsonicAlbumTracks(id: album.id))
+                if tracks.count >= 200 { break }
+            }
+            return tracks
+        default:
+            return []
+        }
+    }
+
+    // MARK: - Subsonic user library
+
+    public func subsonicUserPlaylists(offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        return await subsonic.playlists().map(\.toPlayable)
+    }
+
+    public func subsonicStarredTracks(offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        return (await subsonic.starred()?.song ?? []).map(\.toPlayable)
+    }
+
+    public func subsonicStarredAlbums(offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        return (await subsonic.starred()?.album ?? []).map(\.toPlayable)
+    }
+
+    public func subsonicStarredArtists(offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        return (await subsonic.starred()?.artist ?? []).map(\.toPlayable)
+    }
+
+    public func subsonicRecentAlbums(offset: Int = 0) async -> [PlayableContent] {
+        await subsonic.albumList(type: "newest", size: 50, offset: offset).map(\.toPlayable)
+    }
+
+    public func subsonicRandomSongs() async -> [PlayableContent] {
+        await subsonic.randomSongs(size: 50).map(\.toPlayable)
+    }
+
+    // MARK: - Subsonic favorites
+
+    public func likeSubsonicTrack(id: String) async -> Bool {
+        await subsonic.star(id: id)
+    }
+
+    public func unlikeSubsonicTrack(id: String) async -> Bool {
+        await subsonic.unstar(id: id)
+    }
+
+    public func isSubsonicTrackLiked(id: String) async -> Bool {
+        await subsonic.isStarred(id: id)
     }
 }

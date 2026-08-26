@@ -77,7 +77,7 @@ struct LikeButtonView: View {
             .onChange(of: plexRating > 0, bounce)
             .tint(MusicService.plex.brandColor.gradient)
 
-        case .spotify, .soundcloud, .apple, .deezer:
+        case .spotify, .soundcloud, .apple, .deezer, .subsonic:
             Button {
                 let newFavorite = !isFavorite
                 // Optimistic, and synchronous so the heart fills on the tap

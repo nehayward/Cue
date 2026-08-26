@@ -593,6 +593,10 @@ struct ArtistDetailView: View {
             await loadDeezerTrackArtist()
         case (.album, .deezer):
             await loadDeezerAlbumArtist()
+        case (.artist, .subsonic):
+            await loadSubsonicArtistData(id: playableContent.content.id)
+        case (.track, .subsonic), (.album, .subsonic):
+            await loadSubsonicTrackOrAlbumArtist()
         default:
             break
         }
@@ -1086,6 +1090,35 @@ struct ArtistDetailView: View {
             artworkURL = artistResult.artwork
         }
         tracks = await topTracks
+        albums = await artistAlbums
+    }
+
+    // MARK: - Subsonic Loading
+
+    private func loadSubsonicTrackOrAlbumArtist() async {
+        let artistID: String?
+        if let existing = playableContent.metadata?.artistID {
+            artistID = existing
+        } else if playableContent.content.type.isTrack {
+            artistID = await MusicSearchService.shared.lookupSubsonicTrack(with: playableContent.content.id)?.metadata?.artistID
+        } else {
+            artistID = await MusicSearchService.shared.lookupSubsonicAlbum(with: playableContent.content.id)?.metadata?.artistID
+        }
+        guard let artistID else {
+            artworkURL = playableContent.artwork
+            artistContent = playableContent
+            return
+        }
+        await loadSubsonicArtistData(id: artistID)
+    }
+
+    private func loadSubsonicArtistData(id: String) async {
+        async let artist = MusicSearchService.shared.lookupSubsonicArtist(id: id)
+        async let artistAlbums = MusicSearchService.shared.lookupSubsonicArtistAlbums(id: id)
+        if let artistResult = await artist {
+            artistContent = artistResult
+            artworkURL = artistResult.artwork
+        }
         albums = await artistAlbums
     }
 

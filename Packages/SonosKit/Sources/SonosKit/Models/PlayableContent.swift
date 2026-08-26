@@ -2,6 +2,7 @@ import Foundation
 import CoreTransferable
 import UniformTypeIdentifiers
 import Defaults
+import MusicSearchKit
 
 public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Sendable {
     public var id: String { content.id }
@@ -168,6 +169,16 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         case (.playlist, .deezer):
             return "x-rincon-cpcontainer:0006006cplaylist_spotify%3Aplaylist-\(id)"
         case (.artist, .deezer):
+            return ""
+        case (.track, .subsonic):
+            // Subsonic has no Sonos service id — the speaker streams the file
+            // straight from the server. Single-escaped for the SOAP body like
+            // the other URIs here, so the speaker receives the exact URL.
+            guard let stream = SubsonicAPI.streamURL(for: id)?.absoluteString else { return "" }
+            return stream.replacingOccurrences(of: "&", with: "&amp;")
+        case (.album, .subsonic), (.artist, .subsonic), (.playlist, .subsonic):
+            // No container URIs without a Sonos service id — SonosService
+            // expands these into their tracks before queueing.
             return ""
         case (.unique, _):
             return id
@@ -372,6 +383,13 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         case (.playlist, .library):
             return """
     &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="\(id.components(separatedBy: "#").last ?? "")" parentID="SQ:" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;res&gt;\(id)&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    """
+        case (.track, .subsonic):
+            // Direct-HTTP item, so the speaker's own UDN token
+            // (RINCON_AssociatedZPUDN) stands in for a service account — the
+            // same shape the local library uses.
+            return """
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="-1" parentID="-1" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;dc:creator&gt;\((metadata?.artist ?? "").metaDataTitle)&lt;/dc:creator&gt;&lt;upnp:album&gt;\((metadata?.album ?? "").metaDataTitle)&lt;/upnp:album&gt;&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
     """
         case (.unique, _):
             return metadata?.URIMetadata ?? ""

@@ -57,6 +57,13 @@ struct FavoriteMenuButton: View {
                     let rating = newFavorite ? 10.0 : 0.0
                     plexRatingCache.set(rating, for: contentID)
                     await MusicSearchService.shared.ratePlexTrack(trackID: contentID, rating: Int(rating))
+                case .subsonic:
+                    // star/unstar works for songs, albums and artists alike.
+                    if newFavorite {
+                        await MusicSearchService.shared.likeSubsonicTrack(id: contentID)
+                    } else {
+                        await MusicSearchService.shared.unlikeSubsonicTrack(id: contentID)
+                    }
                 default:
                     break
                 }
@@ -100,6 +107,12 @@ struct FavoriteMenuButton: View {
                     let fetched = await MusicSearchService.shared.getPlexTrackRating(trackID: contentID) ?? 0
                     plexRatingCache.set(fetched, for: contentID)
                     isFavorite = fetched > 0
+                }
+            case .subsonic:
+                if contentType.isTrack {
+                    isFavorite = await MusicSearchService.shared.isSubsonicTrackLiked(id: contentID)
+                } else if let starred = item.metadata?.userRating {
+                    isFavorite = starred > 0
                 }
             default:
                 break

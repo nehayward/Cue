@@ -22,13 +22,16 @@ extension MediaSearchService {
         case .deezer: .deezer
         case .sonosRadio: .sonosRadio
         case .pandora: .pandora
+        case .subsonic: nil
         }
     }
 
     /// Whether the user can actually play from this service, given the set of
     /// services discovered on their Sonos system. Services with no Sonos
-    /// counterpart (Library) are always available.
+    /// counterpart (Library) are always available. Subsonic bypasses Sonos
+    /// entirely — it's "authorized" once a server is configured in Clic.
     func isAuthorized(on installed: Set<SonosServiceType>) -> Bool {
+        if self == .subsonic { return SubsonicAPI.shared.isConfigured }
         guard let sonosServiceType else { return true }
         return installed.contains(sonosServiceType)
     }

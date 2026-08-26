@@ -27,6 +27,7 @@ enum SheetDestination: Identifiable, Equatable {
     case speakerSettings(room: Room)
     case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async throws -> Void)? = nil, onQueueSelection: ((GroupRoom, QueuePosition) async throws -> Void)? = nil, defaultPosition: QueuePosition = .now, content: PlayableContent? = nil)
     case plexManagement
+    case subsonicManagement
     case volumeControlsScreen(groupID: String)
     case onboard
     case newsletter
@@ -84,6 +85,8 @@ enum SheetDestination: Identifiable, Equatable {
             "selectGroup"
         case .plexManagement:
             "plexManagement"
+        case .subsonicManagement:
+            "subsonicManagement"
         case .volumeControlsScreen:
             "volumeControlsScreen"
         case .favorites:

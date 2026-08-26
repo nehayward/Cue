@@ -12,6 +12,7 @@ public final class MusicServiceParser {
     private let soundcloudPattern = #/soundcloud:tracks:(\d+)/#
     private let deezerPattern = #/deezer:tracks:(\d+)|tr-[a-z]+:(\d+)/#
     private let tuneinPattern = #/:(.*?)\?/#
+    private let subsonicPattern = #/[?&]id=([^&]+)/#
     private lazy var plexRegex = try? NSRegularExpression(pattern: "([^:]+:\\d+:\\d+)")
     
     public func lookup(uri: String, serviceID: String, type: ContentType) -> (MusicService, TrackID, ContentType)? {
@@ -84,6 +85,11 @@ public final class MusicServiceParser {
             }
         case .plex:
             return (uri, nil)
+        case .subsonic:
+            // Stream URL — the song id is the `id` query parameter.
+            let id = extractSubsonicTrackID(from: uri.removingPercentEncoding ?? uri)
+            guard !id.isEmpty else { return nil }
+            return (id, .track)
         case .library:
             return (uri, nil)
         default:
@@ -118,6 +124,11 @@ public final class MusicServiceParser {
         if uri.range(of: "sid=236", options: .caseInsensitive) != nil || xml?.contains("Svc60423") == true {
             return .pandora
         }
+
+        // Subsonic tracks are plain HTTP hits on the server's REST stream
+        // endpoint. Checked before the positional `:3:` Plex heuristic so a
+        // server address containing that shape can't flip the player to Plex.
+        if decodedURI.contains("/rest/stream") { return .subsonic }
 
         if decodedURI.contains(":3:") { return .plex }
 
@@ -168,9 +179,17 @@ public final class MusicServiceParser {
         // TuneIn extractor (":(.*?)?") recovers the prefixed station id
         // (e.g. sonos:2997, ST:12345).
         case .sonosRadio, .pandora: return extractTuneInTrackID(from: uri)
+        case .subsonic: return extractSubsonicTrackID(from: uri)
         case .library, .unknown: return uri
         case .airplay: return ""
         }
+    }
+
+    private func extractSubsonicTrackID(from uri: String) -> TrackID {
+        if let result = try? subsonicPattern.firstMatch(in: uri) {
+            return String(result.1)
+        }
+        return ""
     }
     
     private func extractAppleTrackID(from uri: String) -> TrackID {

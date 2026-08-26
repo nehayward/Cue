@@ -1021,3 +1021,97 @@ extension TuneInStation {
         )
     }
 }
+
+// MARK: Subsonic
+extension SubsonicSong {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: title ?? "",
+            subtitle: [artist ?? "", suffix?.uppercased() ?? ""].filter { !$0.isEmpty }.joined(separator: " • "),
+            thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            content: .init(
+                service: .subsonic,
+                id: id,
+                type: .track,
+                location: nil
+            ),
+            metadata: .init(
+                duration: duration.map { Duration.seconds($0) },
+                popularity: nil,
+                artist: artist,
+                artistID: artistId,
+                album: album,
+                albumID: albumId,
+                audioCodec: suffix,
+                userRating: starred != nil ? 1 : nil
+            )
+        )
+    }
+}
+
+extension SubsonicAlbum {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: displayName,
+            subtitle: [
+                artist ?? "",
+                year.map(String.init) ?? "",
+                songCount.flatMap(\.songCountLabel) ?? ""
+            ].filter { !$0.isEmpty }.joined(separator: " • "),
+            thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            content: .init(
+                service: .subsonic,
+                id: id,
+                type: .album,
+                location: nil
+            ),
+            metadata: .init(
+                popularity: nil,
+                artist: artist,
+                artistID: artistId,
+                album: displayName,
+                albumID: id
+            )
+        )
+    }
+}
+
+extension SubsonicArtist {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: name ?? "",
+            subtitle: "",
+            thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            content: .init(
+                service: .subsonic,
+                id: id,
+                type: .artist,
+                location: nil
+            ),
+            metadata: .init(popularity: nil)
+        )
+    }
+}
+
+extension SubsonicPlaylist {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: name ?? "",
+            subtitle: [
+                owner ?? "",
+                songCount.flatMap(\.songCountLabel) ?? ""
+            ].filter { !$0.isEmpty }.joined(separator: " • "),
+            thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            content: .init(
+                service: .subsonic,
+                id: id,
+                type: .playlist,
+                location: nil
+            )
+        )
+    }
+}

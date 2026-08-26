@@ -173,6 +173,8 @@ extension View {
                             .environment(selectedGroupService)
                     case .plexManagement:
                         PlexManagementView()
+                    case .subsonicManagement:
+                        SubsonicManagementView()
                     case let .volumeControlsScreen(groupID: groupID):
                         VolumeControlsScreen(groupID: groupID)
                     case .newsletter:
@@ -463,6 +465,7 @@ extension View {
             .environment(SonosRadioBrowseService.shared)
             .environment(PandoraBrowseService.shared)
             .environment(PlexBrowseService.shared)
+            .environment(SubsonicBrowseService.shared)
             .environment(LibraryBrowseService.shared)
             .environment(MiniPlayerManger.shared)
             .environment(CoreFeatures.shared)
