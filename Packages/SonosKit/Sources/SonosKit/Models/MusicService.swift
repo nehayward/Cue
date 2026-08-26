@@ -297,12 +297,23 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         }
     }
 
+    /// The API that builds this service's direct stream URLs, for services
+    /// whose tracks Sonos plays as plain HTTP streams. Adding an arm here is
+    /// what turns on the direct-HTTP playback mechanism for a service — see
+    /// `DirectStreamProvider`.
+    public var directStreamProvider: DirectStreamProvider.Type? {
+        switch self {
+        case .subsonic: SubsonicAPI.self
+        default: nil
+        }
+    }
+
     /// Service has no Sonos-browsable container URIs — albums, artists and
     /// playlists are expanded into their tracks before queueing (each track
     /// plays as a direct HTTP stream). Pairs with the empty container-URI
     /// cases in `PlayableContent.uri`.
     public var queuesContainersAsTracks: Bool {
-        self == .subsonic
+        directStreamProvider != nil
     }
 
     /// Subsonic favorites via star/unstar on the server.

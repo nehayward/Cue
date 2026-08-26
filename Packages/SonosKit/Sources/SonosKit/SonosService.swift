@@ -2691,7 +2691,7 @@ public final class SonosService {
         // A container from a direct-HTTP service has no URI Sonos can browse,
         // so expand it into its tracks and queue those.
         if playable.content.service.queuesContainersAsTracks, !playable.content.type.isTrack, !playable.content.type.isRadio {
-            let tracks = await musicSearch.subsonicContainerTracks(for: playable)
+            let tracks = await musicSearch.containerTracks(for: playable)
             guard !tracks.isEmpty else { throw SonosServiceError.cantPlayContent(upnpCode: nil) }
             switch position {
             case .replace:
@@ -2728,7 +2728,7 @@ public final class SonosService {
             for (index, content) in contents.enumerated() {
                 group.addTask {
                     if needsExpansion(content) {
-                        return (index, await musicSearch.subsonicContainerTracks(for: content))
+                        return (index, await musicSearch.containerTracks(for: content))
                     }
                     return (index, [content])
                 }

@@ -13,7 +13,7 @@ import Security
 /// Requests authenticate with the salted-token scheme from API 1.13+:
 /// `t = md5(password + salt)` — the password itself is never sent.
 @Observable
-public final class SubsonicAPI {
+public final class SubsonicAPI: DirectStreamProvider {
     public static let shared = SubsonicAPI()
 
     public static let apiVersion = "1.16.1"
@@ -246,23 +246,6 @@ public final class SubsonicAPI {
             URLQueryItem(name: "ext", value: ".\(fileExtension)")
         ]
         return components.url ?? url
-    }
-
-    /// The MIME type for a song's file suffix, or nil when unrecognized.
-    /// Lives here so suffix knowledge (this and the `ext=` URL hint) stays in
-    /// one place; DIDL consumers wrap it in protocolInfo themselves.
-    public static func mimeType(forSuffix suffix: String?) -> String? {
-        switch suffix?.lowercased() ?? "" {
-        case "flac": "audio/flac"
-        case "mp3": "audio/mpeg"
-        case "m4a", "aac", "mp4", "alac": "audio/mp4"
-        case "ogg", "oga", "vorbis": "audio/ogg"
-        case "opus": "audio/opus"
-        case "wav": "audio/wav"
-        case "aif", "aiff": "audio/aiff"
-        case "wma": "audio/x-ms-wma"
-        default: nil
-        }
     }
 
     /// Cover art URL for a `coverArt` id. `size` asks the server to scale.

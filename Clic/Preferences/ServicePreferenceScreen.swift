@@ -126,10 +126,11 @@ struct ServicePreferenceScreen: View {
                 Section {
                     ForEach(notConnectedServices, id: \.self) { service in
                         Button {
-                            // Subsonic has no Sonos account — connecting means
-                            // entering the server details in Clic.
-                            if service == .subsonic {
-                                router.presentedSheet = .subsonicManagement
+                            // Self-hosted services have no Sonos account —
+                            // connecting means entering the server details
+                            // in Clic.
+                            if service.isConfiguredInClic != nil, let sheet = service.managementSheet {
+                                router.presentedSheet = sheet
                             } else {
                                 openSonosApp()
                             }
@@ -138,12 +139,12 @@ struct ServicePreferenceScreen: View {
                                 HStack {
                                     VStack(alignment: .leading) {
                                         Text(service.title)
-                                        Text(service == .subsonic ? "Connect your server" : "Sign in with the Sonos app")
+                                        Text(service.isConfiguredInClic != nil ? "Connect your server" : "Sign in with the Sonos app")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    Image(systemName: service == .subsonic ? "chevron.right" : "arrow.up.forward.app")
+                                    Image(systemName: service.isConfiguredInClic != nil ? "chevron.right" : "arrow.up.forward.app")
                                         .font(.callout)
                                         .foregroundStyle(.secondary)
                                 }

@@ -100,6 +100,16 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     }
     
     public var uri: String {
+        // Direct-HTTP services have no Sonos service id: a track's URI is its
+        // self-authenticating stream URL (single-escaped for the SOAP body
+        // like the other URIs here, so the speaker receives the exact URL),
+        // and containers have no URI at all — SonosService expands them into
+        // their tracks before queueing.
+        if content.service.directStreamProvider != nil,
+           [.track, .album, .artist, .playlist].contains(content.type) {
+            guard content.type == .track, let stream = directStreamURL?.absoluteString else { return "" }
+            return stream.escaped
+        }
         switch (content.type, content.service) {
         case (.track, .spotify):
             return "x-sonos-spotify:spotify%3atrack%3a\(id)?sid=12&amp;amp;sn=1"
@@ -170,16 +180,6 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return "x-rincon-cpcontainer:0006006cplaylist_spotify%3Aplaylist-\(id)"
         case (.artist, .deezer):
             return ""
-        case (.track, .subsonic):
-            // Subsonic has no Sonos service id — the speaker streams the file
-            // straight from the server. Single-escaped for the SOAP body like
-            // the other URIs here, so the speaker receives the exact URL.
-            guard let stream = subsonicStreamURL?.absoluteString else { return "" }
-            return stream.escaped
-        case (.album, .subsonic), (.artist, .subsonic), (.playlist, .subsonic):
-            // No container URIs without a Sonos service id — SonosService
-            // expands these into their tracks before queueing.
-            return ""
         case (.unique, _):
             return id
         default:
@@ -195,6 +195,19 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     }
     
     public var URIMetadata: String {
+        // Direct-HTTP item, so the speaker's own UDN token
+        // (RINCON_AssociatedZPUDN) stands in for a service account — the same
+        // shape the local library uses. Empty item/parent ids (the saved-queue
+        // add and library items use the same); "-1" ids belong to radio
+        // metadata on SetAVTransportURI and AddURIToQueue rejects them. The
+        // &lt;res&gt; carries the stream URL, its MIME type, and the duration
+        // Sonos can't learn from the stream itself (no progress bar without
+        // it).
+        if content.type == .track, content.service.directStreamProvider != nil {
+            return """
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;dc:creator&gt;\((metadata?.artist ?? "").metaDataTitle)&lt;/dc:creator&gt;&lt;upnp:album&gt;\((metadata?.album ?? "").metaDataTitle)&lt;/upnp:album&gt;&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;res protocolInfo="\(directStreamProtocolInfo)"\(directStreamResDurationAttribute)&gt;\(directStreamURL?.absoluteString.didlEscaped ?? "")&lt;/res&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    """
+        }
         switch (content.type, content.service) {
         case (.track, .spotify):
             return """
@@ -384,16 +397,6 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return """
     &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="\(id.components(separatedBy: "#").last ?? "")" parentID="SQ:" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;res&gt;\(id)&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
     """
-        case (.track, .subsonic):
-            // Direct-HTTP item, so the speaker's own UDN token
-            // (RINCON_AssociatedZPUDN) stands in for a service account — the
-            // same shape the local library uses. Empty item/parent ids (the
-            // saved-queue add and library items use the same) and an explicit
-            // &lt;res&gt; carrying the stream URL: "-1" ids belong to radio
-            // metadata on SetAVTransportURI and AddURIToQueue rejects them.
-            return """
-    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;dc:creator&gt;\((metadata?.artist ?? "").metaDataTitle)&lt;/dc:creator&gt;&lt;upnp:album&gt;\((metadata?.album ?? "").metaDataTitle)&lt;/upnp:album&gt;&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;res protocolInfo="\(subsonicProtocolInfo)"\(subsonicResDurationAttribute)&gt;\(subsonicStreamURL?.absoluteString.didlEscaped ?? "")&lt;/res&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
-    """
         case (.unique, _):
             return metadata?.URIMetadata ?? ""
         default:
@@ -427,18 +430,18 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     
     private var deezerServiceToken: String { "SA_RINCON519_X_#Svc519-0-Token" }
 
-    /// The Subsonic stream URL for this track, carrying the file suffix
+    /// The direct stream URL for this track, carrying the file suffix
     /// (stored as `audioCodec`) so Sonos can classify the format.
-    private var subsonicStreamURL: URL? {
-        SubsonicAPI.streamURL(for: id, fileExtension: metadata?.audioCodec)
+    private var directStreamURL: URL? {
+        content.service.directStreamProvider?.streamURL(for: id, fileExtension: metadata?.audioCodec)
     }
 
-    /// `duration="H:MM:SS"` attribute for the Subsonic stream's `&lt;res&gt;`
+    /// `duration="H:MM:SS"` attribute for a direct stream's `&lt;res&gt;`
     /// (leading space included), or empty when the length is unknown. Sonos
     /// reports TrackDuration for direct-HTTP items from this attribute — the
     /// stream itself tells it nothing — and without it the player has no
     /// progress bar.
-    private var subsonicResDurationAttribute: String {
+    private var directStreamResDurationAttribute: String {
         guard let duration = metadata?.duration else { return "" }
         let totalSeconds = Int(duration.components.seconds)
         guard totalSeconds > 0 else { return "" }
@@ -451,11 +454,11 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         return " duration=\"\(formatted)\""
     }
 
-    /// DLNA protocolInfo for the Subsonic stream's `&lt;res&gt;`: the real MIME
+    /// DLNA protocolInfo for a direct stream's `&lt;res&gt;`: the real MIME
     /// type when the suffix (carried as `audioCodec`) identifies one,
     /// wildcard otherwise.
-    private var subsonicProtocolInfo: String {
-        "http-get:*:\(SubsonicAPI.mimeType(forSuffix: metadata?.audioCodec) ?? "*"):*"
+    private var directStreamProtocolInfo: String {
+        "http-get:*:\(AudioMIMEType.forSuffix(metadata?.audioCodec) ?? "*"):*"
     }
 
     /// The `cdudn` service-account token for this content's service, used where

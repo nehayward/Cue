@@ -2177,10 +2177,18 @@ public final class MusicSearchService {
         (await subsonic.playlist(for: id)?.entry ?? []).map(\.toPlayable)
     }
 
-    /// The tracks inside a Subsonic container, in play order. Used to expand
-    /// albums/playlists/artists into individually queueable stream URLs,
-    /// since direct-HTTP playback has no container URI for Sonos to browse.
-    public func subsonicContainerTracks(for content: PlayableContent) async -> [PlayableContent] {
+    /// The tracks inside a direct-HTTP service's container, in play order —
+    /// the expansion behind `MusicService.queuesContainersAsTracks`, since
+    /// those services have no container URI for Sonos to browse. Add a
+    /// service arm here when porting another `DirectStreamProvider`.
+    public func containerTracks(for content: PlayableContent) async -> [PlayableContent] {
+        switch content.content.service {
+        case .subsonic: return await subsonicContainerTracks(for: content)
+        default: return []
+        }
+    }
+
+    private func subsonicContainerTracks(for content: PlayableContent) async -> [PlayableContent] {
         switch content.content.type {
         case .album:
             return await lookupSubsonicAlbumTracks(id: content.content.id)
