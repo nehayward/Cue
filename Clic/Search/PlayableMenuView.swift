@@ -69,7 +69,7 @@ struct PlayableMenuView: View {
                     }
                 }
 
-                if [.spotify, .plex, .deezer].contains(item.content.service) {
+                if [.spotify, .plex, .deezer, .subsonic].contains(item.content.service) {
                     Button(role: .destructive) {
                         router.sheet(to: .confirmDeletePlaylist(content: item))
                     } label: {
@@ -97,7 +97,7 @@ struct PlayableMenuView: View {
                     }
                 }
                 
-                if [.spotify, .apple, .deezer, .plex].contains(item.content.service),
+                if [.spotify, .apple, .deezer, .plex, .subsonic].contains(item.content.service),
                    [.track, .libraryTrack].contains(item.content.type),
                    let previewURL = item.previewURL,
                    !previewURL.absoluteString.isEmpty {
@@ -153,7 +153,7 @@ struct PlayableMenuView: View {
                     }
                 }
 
-                if [.spotify, .soundcloud, .apple, .plex].contains(item.content.service), [.track, .libraryTrack].contains(item.content.type) {
+                if item.content.service.supportsFavoriteTrack, [.track, .libraryTrack].contains(item.content.type) {
                     FavoriteMenuButton(item: item)
                 }
             case .folder:
