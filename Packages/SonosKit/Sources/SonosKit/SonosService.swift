@@ -2723,7 +2723,7 @@ public final class SonosService {
                 && !content.content.type.isRadio
         }
         guard contents.contains(where: needsExpansion) else { return contents }
-        let musicSearch = musicSearch
+        let musicSearch = await musicSearch
         let expanded = await withTaskGroup(of: (Int, [PlayableContent]).self) { group in
             for (index, content) in contents.enumerated() {
                 group.addTask {
