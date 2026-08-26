@@ -2185,6 +2185,21 @@ public final class MusicSearchService {
         return await subsonic.playlists().map(\.toPlayable)
     }
 
+    /// Every artist in the library. `getArtists` returns the full set in one
+    /// response, so only the first page carries content.
+    public func subsonicArtists(offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        return await subsonic.artists().map(\.toPlayable)
+    }
+
+    public func subsonicAlbums(offset: Int = 0) async -> [PlayableContent] {
+        await subsonic.albumList(type: "alphabeticalByName", size: 50, offset: offset).map(\.toPlayable)
+    }
+
+    public func subsonicSongs(offset: Int = 0) async -> [PlayableContent] {
+        await subsonic.songs(size: 50, offset: offset).map(\.toPlayable)
+    }
+
     public func subsonicStarredTracks(offset: Int = 0) async -> [PlayableContent] {
         guard offset == 0 else { return [] }
         return (await subsonic.starred()?.song ?? []).map(\.toPlayable)

@@ -101,7 +101,7 @@ struct PlayableMenuView: View {
                    [.track, .libraryTrack].contains(item.content.type),
                    let previewURL = item.previewURL,
                    !previewURL.absoluteString.isEmpty {
-                    SongPreviewButton(previewURL: previewURL, streaming: item.content.service == .plex)
+                    SongPreviewButton(previewURL: previewURL, streaming: [.plex, .subsonic].contains(item.content.service))
                 }
                 
                 if (item.content.service == .apple && [.track, .libraryTrack].contains(item.content.type))

@@ -122,6 +122,18 @@ final class QueueManager {
                     UIApplication.shared.open(URL(string: "sonos://")!)
                 }
             }
+        case .cantPlayContent(let upnpCode):
+            let code = upnpCode.map { " (Sonos error \($0))" } ?? ""
+            if item.content.service == .subsonic {
+                // Subsonic has no Sonos-side account to authorize — either
+                // the server returned no tracks or the speaker rejected the
+                // stream. Name the code so the cause is reportable.
+                alertService.showAlert(with: "Failed to queue from your Subsonic server\(code). Check that your speakers can reach the server address.", imageName: "exclamationmark.triangle.fill") {
+                    Router.main.presentedSheet = .subsonicManagement
+                }
+            } else {
+                alertService.showAlert(with: "Failed to queue  \(item.content.service.title)\(code), ensure service is authorized", imageName: "exclamationmark.triangle.fill")
+            }
         default:
             alertService.showAlert(with: "Failed to queue  \(item.content.service.title), ensure service is authorized", imageName: "exclamationmark.triangle.fill")
         }

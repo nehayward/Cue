@@ -147,6 +147,19 @@ public final class SubsonicAPI {
         await get("getRandomSongs", queryItems: [URLQueryItem(name: "size", value: "\(size)")])?.randomSongs?.song ?? []
     }
 
+    /// Every song in the library, paginated. `search3` with an empty query,
+    /// which OpenSubsonic servers (Navidrome, …) define as "match everything";
+    /// older servers may return nothing, and callers degrade gracefully.
+    public func songs(size: Int = 50, offset: Int = 0) async -> [SubsonicSong] {
+        await get("search3", queryItems: [
+            URLQueryItem(name: "query", value: ""),
+            URLQueryItem(name: "songCount", value: "\(size)"),
+            URLQueryItem(name: "songOffset", value: "\(offset)"),
+            URLQueryItem(name: "albumCount", value: "0"),
+            URLQueryItem(name: "artistCount", value: "0")
+        ])?.searchResult3?.song ?? []
+    }
+
     public func starred() async -> SubsonicStarred? {
         await get("getStarred2")?.starred2
     }

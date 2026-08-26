@@ -21,31 +21,28 @@ struct SubsonicBrowseScreen: View {
             List {
                 if subsonicBrowseService.isAuthenticated {
                     NavigationLink(value: RouterDestination.playableList(
-                        title: "Starred Songs",
-                        showSectionIndex: false,
-                        action: { offset in await musicSearchService.subsonicStarredTracks(offset: offset) }
+                        title: "Artists",
+                        action: { offset in await musicSearchService.subsonicArtists(offset: offset) }
                     )) {
-                        Label("Starred Songs", systemImage: "music.note")
+                        Label("Artists", systemImage: "music.mic")
                     }
                     .listRowInsets(.default)
                     .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableList(
-                        title: "Starred Albums",
-                        showSectionIndex: false,
-                        action: { offset in await musicSearchService.subsonicStarredAlbums(offset: offset) }
+                        title: "Albums",
+                        action: { offset in await musicSearchService.subsonicAlbums(offset: offset) }
                     )) {
-                        Label("Starred Albums", systemImage: "smallcircle.circle.fill")
+                        Label("Albums", systemImage: "smallcircle.circle.fill")
                     }
                     .listRowInsets(.default)
                     .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableList(
-                        title: "Starred Artists",
-                        showSectionIndex: false,
-                        action: { offset in await musicSearchService.subsonicStarredArtists(offset: offset) }
+                        title: "Songs",
+                        action: { offset in await musicSearchService.subsonicSongs(offset: offset) }
                     )) {
-                        Label("Starred Artists", systemImage: "music.mic")
+                        Label("Songs", systemImage: "music.note")
                     }
                     .listRowInsets(.default)
                     .listRowSeparator(.hidden)

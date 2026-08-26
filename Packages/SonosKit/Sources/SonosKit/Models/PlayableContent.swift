@@ -387,9 +387,12 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         case (.track, .subsonic):
             // Direct-HTTP item, so the speaker's own UDN token
             // (RINCON_AssociatedZPUDN) stands in for a service account — the
-            // same shape the local library uses.
+            // same shape the local library uses. Empty item/parent ids (the
+            // saved-queue add and library items use the same) and an explicit
+            // &lt;res&gt; carrying the stream URL: "-1" ids belong to radio
+            // metadata on SetAVTransportURI and AddURIToQueue rejects them.
             return """
-    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="-1" parentID="-1" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;dc:creator&gt;\((metadata?.artist ?? "").metaDataTitle)&lt;/dc:creator&gt;&lt;upnp:album&gt;\((metadata?.album ?? "").metaDataTitle)&lt;/upnp:album&gt;&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;dc:creator&gt;\((metadata?.artist ?? "").metaDataTitle)&lt;/dc:creator&gt;&lt;upnp:album&gt;\((metadata?.album ?? "").metaDataTitle)&lt;/upnp:album&gt;&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;res protocolInfo="http-get:*:*:*"&gt;\(SubsonicAPI.streamURL(for: id)?.absoluteString.didlEscaped ?? "")&lt;/res&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
     """
         case (.unique, _):
             return metadata?.URIMetadata ?? ""
