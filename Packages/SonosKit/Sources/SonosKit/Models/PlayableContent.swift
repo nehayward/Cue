@@ -635,9 +635,13 @@ extension PlayableContent {
         content.type.isPlaylist && content.service == .deezer
     }
 
-    /// Streaming playlists whose tracks Clic can remove in place (Spotify, Plex, Deezer).
+    public var isSubsonicPlaylist: Bool {
+        content.type.isPlaylist && content.service == .subsonic
+    }
+
+    /// Streaming playlists whose tracks Clic can remove in place (Spotify, Plex, Deezer, Subsonic).
     public var isEditableServicePlaylist: Bool {
-        isSpotifyPlaylist || isPlexPlaylist || isDeezerPlaylist
+        isSpotifyPlaylist || isPlexPlaylist || isDeezerPlaylist || isSubsonicPlaylist
     }
 
     /// Streaming playlists whose tracks Clic can reorder. Excludes Apple Music (no reorder API) and

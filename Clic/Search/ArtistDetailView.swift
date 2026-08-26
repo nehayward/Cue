@@ -1120,6 +1120,12 @@ struct ArtistDetailView: View {
             artworkURL = artistResult.artwork
         }
         albums = await artistAlbums
+        // Top songs are keyed by artist name; servers without play data
+        // return nothing and the section just stays hidden.
+        let artistName = artistContent?.title ?? playableContent.metadata?.artist ?? ""
+        if !artistName.isEmpty {
+            tracks = await MusicSearchService.shared.subsonicArtistTopSongs(artistName: artistName)
+        }
     }
 
     // MARK: - Helpers

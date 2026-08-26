@@ -96,6 +96,7 @@ struct DeletePlaylistConfirmationView: View {
         case .spotify: SpotifyBrowseService.shared.playlists.remove(content)
         case .deezer: DeezerBrowseService.shared.userPlaylists.remove(content)
         case .plex: PlexBrowseService.shared.userPlaylists.remove(content)
+        case .subsonic: SubsonicBrowseService.shared.userPlaylists.remove(content)
         case .library: LibraryBrowseService.shared.playlists.remove(content)
         default: break
         }

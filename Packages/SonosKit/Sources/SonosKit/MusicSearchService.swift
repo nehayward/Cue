@@ -625,6 +625,7 @@ public final class MusicSearchService {
         case .spotify: return await spotifyEditablePlaylists()
         case .plex: return await plexUserPlaylists()
         case .deezer: return await deezerEditablePlaylists()
+        case .subsonic: return await subsonicEditablePlaylists()
         default: return []
         }
     }
@@ -636,13 +637,14 @@ public final class MusicSearchService {
         case .spotify: return await createSpotifyPlaylist(name: name, addingTrack: track)
         case .deezer: return await createDeezerPlaylist(name: name, track: track)
         case .plex: return await createPlexPlaylist(name: name, track: track)
+        case .subsonic: return await createSubsonicPlaylist(name: name, track: track)
         default: return nil
         }
     }
 
     /// Whether `service` supports creating an empty playlist (no seed track).
     public static func supportsEmptyPlaylistCreation(_ service: MusicService) -> Bool {
-        [.apple, .spotify, .deezer, .plex, .library].contains(service)
+        [.apple, .spotify, .deezer, .plex, .library, .subsonic].contains(service)
     }
 
     /// Deletes `playlist`, dispatching to its service. Apple Music has no delete API.
@@ -651,6 +653,7 @@ public final class MusicSearchService {
         case .spotify: return await deleteSpotifyPlaylist(playlistID: playlist.content.id)
         case .plex: return await deletePlexPlaylist(playlistID: playlist.content.id)
         case .deezer: return await deleteDeezerPlaylist(playlistID: playlist.content.id)
+        case .subsonic: return await deleteSubsonicPlaylist(playlistID: playlist.content.id)
         default: return false
         }
     }
@@ -662,6 +665,7 @@ public final class MusicSearchService {
         case .spotify: return await addToSpotifyPlaylist(track: track, playlistID: playlist.content.id)
         case .plex: return await addToPlexPlaylist(track: track, playlistID: playlist.content.id)
         case .deezer: return await addToDeezerPlaylist(track: track, playlistID: playlist.content.id)
+        case .subsonic: return await addToSubsonicPlaylist(track: track, playlistID: playlist.content.id)
         default: return false
         }
     }
@@ -677,6 +681,7 @@ public final class MusicSearchService {
         case .spotify: return await removeFromSpotifyPlaylist(track: track, playlistID: playlist.content.id, position: position)
         case .plex: return await removeFromPlexPlaylist(track: track, playlistID: playlist.content.id)
         case .deezer: return await removeFromDeezerPlaylist(track: track, playlistID: playlist.content.id)
+        case .subsonic: return await removeFromSubsonicPlaylist(track: track, playlistID: playlist.content.id, position: position)
         default: return false
         }
     }
@@ -701,6 +706,11 @@ public final class MusicSearchService {
             return await deezer.isPlaylistEditable(id: id, ownedBy: me)
         case .plex:
             return true // Plex playlists live on the user's own server.
+        case .subsonic:
+            // Editable when owned by the signed-in user (missing owner counts
+            // as owned — older servers omit it).
+            guard let owner = await subsonic.playlist(for: id)?.owner else { return true }
+            return owner == subsonic.username
         default:
             return false
         }
@@ -2221,6 +2231,47 @@ public final class MusicSearchService {
 
     public func subsonicRandomSongs() async -> [PlayableContent] {
         await subsonic.randomSongs(size: 50).map(\.toPlayable)
+    }
+
+    // MARK: - Subsonic playlists
+
+    public func createSubsonicPlaylist(name: String, track: PlayableContent?) async -> PlayableContent? {
+        let songIDs = track.map { [$0.content.id] } ?? []
+        return await subsonic.createPlaylist(name: name, songIDs: songIDs)?.toPlayable
+    }
+
+    public func addToSubsonicPlaylist(track: PlayableContent, playlistID: String) async -> Bool {
+        await subsonic.addToPlaylist(id: playlistID, songIDs: [track.content.id])
+    }
+
+    /// Removes `track` from the playlist. The API removes by position;
+    /// without one, the first occurrence of the song is looked up and removed.
+    public func removeFromSubsonicPlaylist(track: PlayableContent, playlistID: String, position: Int? = nil) async -> Bool {
+        if let position {
+            return await subsonic.removeFromPlaylist(id: playlistID, indexes: [position])
+        }
+        guard let entries = await subsonic.playlist(for: playlistID)?.entry,
+              let index = entries.firstIndex(where: { $0.id == track.content.id }) else { return false }
+        return await subsonic.removeFromPlaylist(id: playlistID, indexes: [index])
+    }
+
+    public func deleteSubsonicPlaylist(playlistID: String) async -> Bool {
+        await subsonic.deletePlaylist(id: playlistID)
+    }
+
+    /// Playlists the user owns on the server — `getPlaylists` also returns
+    /// other users' public playlists, which can't be edited. A missing owner
+    /// (older servers) counts as owned.
+    public func subsonicEditablePlaylists() async -> [PlayableContent] {
+        let username = subsonic.username
+        return await subsonic.playlists()
+            .filter { $0.owner == nil || $0.owner == username }
+            .map(\.toPlayable)
+    }
+
+    /// The artist's most-played songs. Empty when the server has no play data.
+    public func subsonicArtistTopSongs(artistName: String) async -> [PlayableContent] {
+        await subsonic.topSongs(artistName: artistName).map(\.toPlayable)
     }
 
     // MARK: - Subsonic favorites

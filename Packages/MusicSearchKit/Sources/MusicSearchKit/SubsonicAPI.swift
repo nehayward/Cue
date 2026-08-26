@@ -164,6 +164,52 @@ public final class SubsonicAPI {
         await get("getStarred2")?.starred2
     }
 
+    // MARK: - Playlist management
+
+    /// Creates a playlist, optionally seeded with songs, and returns it.
+    public func createPlaylist(name: String, songIDs: [String] = []) async -> SubsonicPlaylist? {
+        var items = [URLQueryItem(name: "name", value: name)]
+        items += songIDs.map { URLQueryItem(name: "songId", value: $0) }
+        guard let body = await get("createPlaylist", queryItems: items) else { return nil }
+        if let playlist = body.playlist { return playlist }
+        // API < 1.14 returns a bare ok — recover the new playlist by name.
+        return await playlists().last { $0.name == name }
+    }
+
+    @discardableResult
+    public func addToPlaylist(id: String, songIDs: [String]) async -> Bool {
+        guard !songIDs.isEmpty else { return true }
+        var items = [URLQueryItem(name: "playlistId", value: id)]
+        items += songIDs.map { URLQueryItem(name: "songIdToAdd", value: $0) }
+        return await get("updatePlaylist", queryItems: items)?.isOK ?? false
+    }
+
+    /// Removes the songs at `indexes` (0-based positions within the playlist —
+    /// the API removes by position, not by song id).
+    @discardableResult
+    public func removeFromPlaylist(id: String, indexes: [Int]) async -> Bool {
+        guard !indexes.isEmpty else { return true }
+        var items = [URLQueryItem(name: "playlistId", value: id)]
+        items += indexes.map { URLQueryItem(name: "songIndexToRemove", value: "\($0)") }
+        return await get("updatePlaylist", queryItems: items)?.isOK ?? false
+    }
+
+    @discardableResult
+    public func deletePlaylist(id: String) async -> Bool {
+        await get("deletePlaylist", queryItems: [URLQueryItem(name: "id", value: id)])?.isOK ?? false
+    }
+
+    // MARK: - Artist extras
+
+    /// The artist's most-played songs. Keyed by name (not id) per the API;
+    /// servers without play data (e.g. Navidrome with Last.fm off) return [].
+    public func topSongs(artistName: String, count: Int = 20) async -> [SubsonicSong] {
+        await get("getTopSongs", queryItems: [
+            URLQueryItem(name: "artist", value: artistName),
+            URLQueryItem(name: "count", value: "\(count)")
+        ])?.topSongs?.song ?? []
+    }
+
     // MARK: - Favorites
 
     @discardableResult
