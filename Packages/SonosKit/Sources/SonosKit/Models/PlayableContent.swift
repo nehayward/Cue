@@ -392,7 +392,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             // &lt;res&gt; carrying the stream URL: "-1" ids belong to radio
             // metadata on SetAVTransportURI and AddURIToQueue rejects them.
             return """
-    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;dc:creator&gt;\((metadata?.artist ?? "").metaDataTitle)&lt;/dc:creator&gt;&lt;upnp:album&gt;\((metadata?.album ?? "").metaDataTitle)&lt;/upnp:album&gt;&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;res protocolInfo="\(subsonicProtocolInfo)"&gt;\(subsonicStreamURL?.absoluteString.didlEscaped ?? "")&lt;/res&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;dc:creator&gt;\((metadata?.artist ?? "").metaDataTitle)&lt;/dc:creator&gt;&lt;upnp:album&gt;\((metadata?.album ?? "").metaDataTitle)&lt;/upnp:album&gt;&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;res protocolInfo="\(subsonicProtocolInfo)"\(subsonicResDurationAttribute)&gt;\(subsonicStreamURL?.absoluteString.didlEscaped ?? "")&lt;/res&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
     """
         case (.unique, _):
             return metadata?.URIMetadata ?? ""
@@ -431,6 +431,24 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     /// (stored as `audioCodec`) so Sonos can classify the format.
     private var subsonicStreamURL: URL? {
         SubsonicAPI.streamURL(for: id, fileExtension: metadata?.audioCodec)
+    }
+
+    /// `duration="H:MM:SS"` attribute for the Subsonic stream's `&lt;res&gt;`
+    /// (leading space included), or empty when the length is unknown. Sonos
+    /// reports TrackDuration for direct-HTTP items from this attribute — the
+    /// stream itself tells it nothing — and without it the player has no
+    /// progress bar.
+    private var subsonicResDurationAttribute: String {
+        guard let duration = metadata?.duration else { return "" }
+        let totalSeconds = Int(duration.components.seconds)
+        guard totalSeconds > 0 else { return "" }
+        let formatted = String(
+            format: "%d:%02d:%02d",
+            totalSeconds / 3600,
+            (totalSeconds % 3600) / 60,
+            totalSeconds % 60
+        )
+        return " duration=\"\(formatted)\""
     }
 
     /// DLNA protocolInfo for the Subsonic stream's `&lt;res&gt;`: the real MIME
