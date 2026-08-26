@@ -1,6 +1,8 @@
 import CryptoKit
 import Foundation
 import Observation
+import os
+import Security
 
 /// Client for the Subsonic REST API (Subsonic, Navidrome, Airsonic, Gonic and
 /// other compatible self-hosted servers).
@@ -20,6 +22,8 @@ public final class SubsonicAPI {
     private enum StorageKey {
         static let server = "com.clic.subsonic.server"
         static let username = "com.clic.subsonic.username"
+        /// Legacy pre-keychain locations for the secrets — read once for
+        /// migration and cleared; never written to on a working keychain.
         static let password = "com.clic.subsonic.password"
         static let salt = "com.clic.subsonic.salt"
     }
@@ -39,14 +43,18 @@ public final class SubsonicAPI {
         didSet { UserDefaults.standard.set(username, forKey: StorageKey.username) }
     }
 
-    /// Stored so stream/cover URLs can be rebuilt at any time — they carry the
-    /// derived token, never the password itself. Changing it rotates the salt
-    /// so previously issued URLs (and cached artwork keyed by them) go stale
-    /// together.
+    /// Kept in the keychain (with the salt) so stream/cover URLs can be
+    /// rebuilt at any time — the URLs carry the derived token, never the
+    /// password itself. Changing it rotates the salt so previously issued
+    /// URLs (and cached artwork keyed by them) go stale together.
     public var password: String {
         didSet {
-            UserDefaults.standard.set(password, forKey: StorageKey.password)
-            Self.rotateSalt()
+            guard password != oldValue else { return }
+            if password.isEmpty {
+                Self.setSecrets(password: nil, salt: nil)
+            } else {
+                Self.setSecrets(password: password, salt: Self.makeSalt())
+            }
         }
     }
 
@@ -61,10 +69,8 @@ public final class SubsonicAPI {
         let defaults = UserDefaults.standard
         self.serverAddress = defaults.string(forKey: StorageKey.server) ?? ""
         self.username = defaults.string(forKey: StorageKey.username) ?? ""
-        self.password = defaults.string(forKey: StorageKey.password) ?? ""
-        if defaults.string(forKey: StorageKey.salt) == nil, !password.isEmpty {
-            Self.rotateSalt()
-        }
+        // Also migrates a pre-keychain login on first touch.
+        self.password = Self.storedSecrets()?.password ?? ""
     }
 
     // MARK: - Connection
@@ -276,19 +282,17 @@ public final class SubsonicAPI {
     /// Reads everything from `UserDefaults` so it works without touching the
     /// observable instance (safe from `PlayableContent.uri` on any thread).
     static func storedURL(endpoint: String, queryItems: [URLQueryItem] = []) -> URL? {
-        let defaults = UserDefaults.standard
         guard let base = storedServerURL,
-              let username = defaults.string(forKey: StorageKey.username), !username.isEmpty,
-              let password = defaults.string(forKey: StorageKey.password), !password.isEmpty,
-              let salt = defaults.string(forKey: StorageKey.salt), !salt.isEmpty,
+              let username = UserDefaults.standard.string(forKey: StorageKey.username), !username.isEmpty,
+              let secrets = storedSecrets(),
               var components = URLComponents(url: base, resolvingAgainstBaseURL: false)
         else { return nil }
 
         components.path = components.path.appending("/rest/\(endpoint)")
         components.queryItems = queryItems + [
             URLQueryItem(name: "u", value: username),
-            URLQueryItem(name: "t", value: token(password: password, salt: salt)),
-            URLQueryItem(name: "s", value: salt),
+            URLQueryItem(name: "t", value: token(password: secrets.password, salt: secrets.salt)),
+            URLQueryItem(name: "s", value: secrets.salt),
             URLQueryItem(name: "v", value: apiVersion),
             URLQueryItem(name: "c", value: clientName),
             URLQueryItem(name: "f", value: "json")
@@ -318,10 +322,121 @@ public final class SubsonicAPI {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Generates and stores a fresh random salt. Called whenever the password
-    /// changes so the derived token can't outlive the login it was made from.
-    private static func rotateSalt() {
-        let salt = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
-        UserDefaults.standard.set(salt, forKey: StorageKey.salt)
+    /// A fresh random salt, generated whenever the password changes so the
+    /// derived token can't outlive the login it was made from.
+    private static func makeSalt() -> String {
+        UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+    }
+
+    // MARK: - Secret storage
+
+    /// The password and salt live in the keychain (`kSecClassGenericPassword`,
+    /// after-first-unlock) rather than UserDefaults, so the raw password never
+    /// sits in a plaintext plist or device backup. Reads go through an
+    /// in-memory cache — stream and cover-art URLs are built per list row, and
+    /// a keychain round trip for each would be wasteful.
+    private struct SecretsCache {
+        var loaded = false
+        var secrets: (password: String, salt: String)?
+    }
+
+    private static let secretsCache = OSAllocatedUnfairLock(initialState: SecretsCache())
+    private static let keychainService = "com.clic.subsonic"
+
+    /// The stored password + salt, migrating a pre-keychain UserDefaults
+    /// login into the keychain on first touch.
+    static func storedSecrets() -> (password: String, salt: String)? {
+        secretsCache.withLock { cache in
+            if cache.loaded { return cache.secrets }
+            var password = keychainRead(account: "password")
+            var salt = keychainRead(account: "salt")
+            if password == nil || salt == nil {
+                let defaults = UserDefaults.standard
+                if let legacyPassword = defaults.string(forKey: StorageKey.password), !legacyPassword.isEmpty,
+                   let legacySalt = defaults.string(forKey: StorageKey.salt), !legacySalt.isEmpty {
+                    password = legacyPassword
+                    salt = legacySalt
+                    // Clear the plaintext copies only once the keychain
+                    // actually holds them.
+                    if keychainWrite(legacyPassword, account: "password"),
+                       keychainWrite(legacySalt, account: "salt") {
+                        defaults.removeObject(forKey: StorageKey.password)
+                        defaults.removeObject(forKey: StorageKey.salt)
+                    }
+                }
+            }
+            if let password, let salt, !password.isEmpty, !salt.isEmpty {
+                cache.secrets = (password, salt)
+            } else {
+                cache.secrets = nil
+            }
+            cache.loaded = true
+            return cache.secrets
+        }
+    }
+
+    /// Stores (or with nils, clears) the password + salt. Falls back to the
+    /// legacy UserDefaults location only when the keychain refuses the write,
+    /// rather than silently losing the login.
+    static func setSecrets(password: String?, salt: String?) {
+        secretsCache.withLock { cache in
+            let passwordSaved = keychainWrite(password, account: "password")
+            let saltSaved = keychainWrite(salt, account: "salt")
+            let defaults = UserDefaults.standard
+            if passwordSaved && saltSaved {
+                defaults.removeObject(forKey: StorageKey.password)
+                defaults.removeObject(forKey: StorageKey.salt)
+            } else {
+                defaults.set(password, forKey: StorageKey.password)
+                defaults.set(salt, forKey: StorageKey.salt)
+            }
+            if let password, let salt, !password.isEmpty, !salt.isEmpty {
+                cache.secrets = (password, salt)
+            } else {
+                cache.secrets = nil
+            }
+            cache.loaded = true
+        }
+    }
+
+    /// Testing hook: forget the in-memory cache so the next read hits the
+    /// keychain (and the legacy-migration path) again.
+    static func resetSecretsCache() {
+        secretsCache.withLock { $0 = SecretsCache() }
+    }
+
+    private static func keychainRead(account: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+              let data = item as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    /// Replaces the item (delete + add). A nil/empty value just deletes.
+    /// Returns whether the keychain ended up holding the intended state.
+    @discardableResult
+    private static func keychainWrite(_ value: String?, account: String) -> Bool {
+        let base: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrAccount as String: account
+        ]
+        let deleteStatus = SecItemDelete(base as CFDictionary)
+        guard let value, !value.isEmpty else {
+            return deleteStatus == errSecSuccess || deleteStatus == errSecItemNotFound
+        }
+        var attributes = base
+        attributes[kSecValueData as String] = Data(value.utf8)
+        // After-first-unlock: URL building can run from background work
+        // (queue refresh, artwork prefetch) while the device is locked.
+        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
     }
 }

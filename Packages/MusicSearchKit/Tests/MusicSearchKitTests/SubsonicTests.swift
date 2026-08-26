@@ -4,9 +4,11 @@ import XCTest
 final class SubsonicTests: XCTestCase {
 
     private var savedDefaults: [String: String?] = [:]
+    private var savedSecrets: (password: String, salt: String)?
     private let keys = [
         "com.clic.subsonic.server",
         "com.clic.subsonic.username",
+        // Legacy secret locations — only touched by the migration test.
         "com.clic.subsonic.password",
         "com.clic.subsonic.salt"
     ]
@@ -16,9 +18,11 @@ final class SubsonicTests: XCTestCase {
         for key in keys {
             savedDefaults[key] = UserDefaults.standard.string(forKey: key)
         }
+        savedSecrets = SubsonicAPI.storedSecrets()
     }
 
     override func tearDown() {
+        SubsonicAPI.setSecrets(password: savedSecrets?.password, salt: savedSecrets?.salt)
         for key in keys {
             if let value = savedDefaults[key] ?? nil {
                 UserDefaults.standard.set(value, forKey: key)
@@ -35,8 +39,7 @@ final class SubsonicTests: XCTestCase {
                                   salt: String = "c19b2d") {
         UserDefaults.standard.set(server, forKey: "com.clic.subsonic.server")
         UserDefaults.standard.set(username, forKey: "com.clic.subsonic.username")
-        UserDefaults.standard.set(password, forKey: "com.clic.subsonic.password")
-        UserDefaults.standard.set(salt, forKey: "com.clic.subsonic.salt")
+        SubsonicAPI.setSecrets(password: password, salt: salt)
     }
 
     // MARK: - Auth token
@@ -94,7 +97,22 @@ final class SubsonicTests: XCTestCase {
         for key in keys {
             UserDefaults.standard.removeObject(forKey: key)
         }
+        SubsonicAPI.setSecrets(password: nil, salt: nil)
         XCTAssertNil(SubsonicAPI.streamURL(for: "300001"))
+    }
+
+    /// A pre-keychain login stored in UserDefaults is picked up (and adopted
+    /// into the secret store) on first read.
+    func testLegacyDefaultsSecretsMigrate() {
+        SubsonicAPI.setSecrets(password: nil, salt: nil)
+        UserDefaults.standard.set("sesame", forKey: "com.clic.subsonic.password")
+        UserDefaults.standard.set("c19b2d", forKey: "com.clic.subsonic.salt")
+        // Cold-cache read, as on a fresh launch after updating.
+        SubsonicAPI.resetSecretsCache()
+
+        let secrets = SubsonicAPI.storedSecrets()
+        XCTAssertEqual(secrets?.password, "sesame")
+        XCTAssertEqual(secrets?.salt, "c19b2d")
     }
 
     /// A bare host gets an http scheme; trailing slashes are dropped so the
