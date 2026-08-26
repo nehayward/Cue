@@ -2712,6 +2712,36 @@ public final class SonosService {
         try? await updateGroups(from: [group])
     }
     
+    /// Expands containers from direct-HTTP services (no Sonos container URI)
+    /// into their tracks, in place in the list; everything else passes
+    /// through untouched. Containers resolve concurrently, reassembled in
+    /// order.
+    private func expandingContainersAsTracks(_ contents: [PlayableContent]) async -> [PlayableContent] {
+        func needsExpansion(_ content: PlayableContent) -> Bool {
+            content.content.service.queuesContainersAsTracks
+                && !content.content.type.isTrack
+                && !content.content.type.isRadio
+        }
+        guard contents.contains(where: needsExpansion) else { return contents }
+        let musicSearch = musicSearch
+        let expanded = await withTaskGroup(of: (Int, [PlayableContent]).self) { group in
+            for (index, content) in contents.enumerated() {
+                group.addTask {
+                    if needsExpansion(content) {
+                        return (index, await musicSearch.subsonicContainerTracks(for: content))
+                    }
+                    return (index, [content])
+                }
+            }
+            var results = [[PlayableContent]](repeating: [], count: contents.count)
+            for await (index, tracks) in group {
+                results[index] = tracks
+            }
+            return results
+        }
+        return expanded.flatMap { $0 }
+    }
+
     /// Plays the first item immediately on a Sonos group, then queues the remaining
     /// items to play next in order.
     ///
@@ -2725,6 +2755,8 @@ public final class SonosService {
             assertionFailure("playNext called with empty contents")
             return
         }
+        let contents = await expandingContainersAsTracks(contents)
+        guard !contents.isEmpty else { throw SonosServiceError.cantPlayContent(upnpCode: nil) }
 
         // Ensure queue-based playback
         if group.playbackService != .queue {
@@ -2782,6 +2814,8 @@ public final class SonosService {
             assertionFailure("queue called with empty contents")
             return
         }
+        let contents = await expandingContainersAsTracks(contents)
+        guard !contents.isEmpty else { throw SonosServiceError.cantPlayContent(upnpCode: nil) }
         // Clamped so an out-of-range start (a container that shrank
         // server-side) still triggers playback.
         let startIndex = startIndex.map { min(max($0, 0), contents.count - 1) }
