@@ -2290,6 +2290,7 @@ public final class MusicSearchService {
         subsonicSortedSongs.removeAll()
         subsonicSyncedSongCount = 0
         subsonicLibrarySongCount = nil
+        subsonic.clearCachedSongLibrary()
     }
 
     private func sortedSubsonicSongs(by sort: SubsonicSongSort) async -> [PlayableContent] {
@@ -2308,13 +2309,39 @@ public final class MusicSearchService {
     private func subsonicSongLibrary() async -> [SubsonicSong] {
         if let inFlight = subsonicSongSync { return await inFlight.value }
 
-        let task = Task { await syncSubsonicSongLibrary() }
+        let task = Task { await loadSubsonicSongLibrary() }
         subsonicSongSync = task
         let songs = await task.value
         // Empty means the server didn't answer the empty query (pre-OpenSubsonic
         // servers don't) or the sync was cancelled — either way it isn't an
         // answer worth remembering.
         if songs.isEmpty, subsonicSongSync == task { subsonicSongSync = nil }
+        return songs
+    }
+
+    /// The library from disk when it is still current, otherwise a fresh
+    /// sync. One `getScanStatus` request answers both questions it needs: how
+    /// big the library is, which sizes the progress bar, and whether the saved
+    /// copy still matches — so songs added on the server show up on the next
+    /// visit without anyone pulling to refresh.
+    private func loadSubsonicSongLibrary() async -> [SubsonicSong] {
+        isSyncingSubsonicSongs = true
+        subsonicSyncedSongCount = 0
+        defer { isSyncingSubsonicSongs = false }
+
+        let serverCount = await subsonicLibraryTotal()
+        subsonicLibrarySongCount = serverCount
+
+        if let cached = await subsonic.cachedSongLibrary(),
+           // A server that won't report a count (some reserve it for admins)
+           // leaves the cache's own age as the only check, which it has
+           // already passed by being returned here.
+           serverCount == nil || cached.count == serverCount {
+            return cached
+        }
+
+        let songs = await syncSubsonicSongLibrary()
+        if !songs.isEmpty { subsonic.cacheSongLibrary(songs) }
         return songs
     }
 
@@ -2327,13 +2354,7 @@ public final class MusicSearchService {
         var songs: [SubsonicSong] = []
         var nextPage = 0
         var reachedEnd = false
-
-        isSyncingSubsonicSongs = true
-        subsonicSyncedSongCount = 0
-        defer { isSyncingSubsonicSongs = false }
-        // Asked for alongside the first pages rather than before them, so a
-        // server that refuses it (some reserve it for admins) costs nothing.
-        let librarySize = Task { await self.subsonicLibraryTotal() }
+        var fetched = 0
 
         while !reachedEnd, songs.count < Self.subsonicSyncLimit {
             let offsets = (0..<Self.subsonicSyncConcurrency)
@@ -2350,6 +2371,10 @@ public final class MusicSearchService {
                 var results = [[SubsonicSong]](repeating: [], count: offsets.count)
                 for await (index, page) in group {
                     results[index] = page
+                    // Per page rather than per round: a round is 2,500 songs,
+                    // long enough that a bar moving only there looks stuck.
+                    fetched += page.count
+                    subsonicSyncedSongCount = fetched
                 }
                 return results
             }
@@ -2367,9 +2392,6 @@ public final class MusicSearchService {
             // A server that ignores the offset would hand back the same page
             // forever; nothing new in a whole round means stop, not spin.
             if songs.count == countBeforeRound { reachedEnd = true }
-
-            subsonicSyncedSongCount = songs.count
-            if subsonicLibrarySongCount == nil { subsonicLibrarySongCount = await librarySize.value }
         }
 
         return songs

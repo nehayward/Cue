@@ -2,7 +2,7 @@ import Foundation
 
 /// A song ("child" element) from a Subsonic-compatible server
 /// (Subsonic, Navidrome, Airsonic, Gonic, …).
-public struct SubsonicSong: Decodable, Sendable {
+public struct SubsonicSong: Codable, Sendable {
     public let id: String
     public let title: String?
     public let album: String?

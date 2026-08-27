@@ -303,9 +303,9 @@ private extension View {
     func searchableIfAvailable(text: Binding<String>, enabled: Bool) -> some View {
         if enabled {
 #if os(iOS)
-            // Kept on screen rather than hidden until you scroll up — on a
-            // list this long, search is a first-class way in.
-            searchable(text: text, placement: .navigationBarDrawer(displayMode: .always))
+            // Collapses as the list scrolls — on a list this long the rows
+            // matter more than a field that is one scroll away.
+            searchable(text: text, placement: .navigationBarDrawer(displayMode: .automatic))
 #else
             searchable(text: text)
 #endif
