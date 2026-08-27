@@ -649,7 +649,9 @@ final class NowPlayingSessionService {
             }
         }
 
-        // Group volume is tracked, so this runs whenever it moves.
+        // Group volume is tracked, so this runs whenever it moves. The bridge
+        // resolves its group by coordinator id at time of use, so the instance
+        // replacement handled by the re-assign above never orphans it.
         HardwareVolumeService.shared.syncSystemVolume()
         publish()
     }

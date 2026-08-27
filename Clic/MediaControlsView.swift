@@ -10,7 +10,7 @@ struct MediaControlsView: View {
     
     var body: some View {
         VStack(alignment: .center, spacing: 16) {
-            Button {
+            GroupMenuButton(group: group) {
                 router.presentedSheet = .groupScreen(group: group)
             } label: {
                 GroupIconView()

@@ -100,11 +100,18 @@ extension View {
     /// Capsule toolbar treatment for a row of controls. Uses iOS 26 Liquid
     /// Glass when available, falls back to a `.thinMaterial` capsule on
     /// older OSes and visionOS.
+    ///
+    /// The row is wrapped in a `GlassEffectContainer` so any glass the
+    /// controls inside contribute (a `Menu`'s source view, a glass button)
+    /// composites with the capsule as one shared sample, instead of stacking
+    /// into a darker, more opaque pill.
     @ViewBuilder
     func glassToolbar() -> some View {
         #if !os(visionOS)
         if #available(iOS 26.0, *) {
-            self.glassEffect(.clear, in: .capsule)
+            GlassEffectContainer {
+                self.glassEffect(.clear, in: .capsule)
+            }
         } else {
             self.background(.thinMaterial, in: Capsule())
         }

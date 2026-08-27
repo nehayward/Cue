@@ -53,6 +53,9 @@ private struct HardwareVolumeControlModifier: ViewModifier {
     /// re-runs when a longer-lived owner (a background session) takes the bridge
     /// or gives it back. The service refuses or ignores the calls as
     /// appropriate — this view doesn't need to know what else might hold it.
+    /// Instance identity isn't part of the key: the service resolves its group
+    /// by coordinator id at time of use, so a topology change replacing the
+    /// `GroupRoom` instance doesn't orphan the bridge.
     private var claimKey: String? {
         guard enabled else { return nil }
         return "\(group.coordinatorID)|\(HardwareVolumeService.shared.owner == .session)"

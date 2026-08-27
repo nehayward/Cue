@@ -725,9 +725,16 @@ surface that controls the group.
 
 Echo filtering differs by mode for the same reason: relative can compare against
 `restorePoint` because its writes always land there, absolute has to remember
-`lastWrittenSystemVolume`. One consequence to expect: hardware presses move the
-group in ~6-point steps (the system has 16), not the 1-point steps of the player
-screen.
+its own recent writes (`recentSystemVolumeWrites` — a short list rather than one
+value, because writes burst around a regroup and the echo of one write compared
+against the memory of a later one read as a gesture). Hardware presses are
+recognised inside absolute mode by their signature — a whole-system-step delta
+in a single change, which a drag's stream of pixel-sized changes can't match —
+and sent as the same 1-point relative step the player screen's mode sends, with
+the slider then re-seeded from the group's level so the next press measures from
+the truth. Drags keep the absolute scale. (Presses used to be mapped through the
+absolute scale too, which made each one a ~6-point jump on the group — the
+system has 16 steps — and was reported as the volume becoming hard to adjust.)
 
 **Absolute mode's tolerances are half a system step, and that is not an
 epsilon.** The system volume has 16 positions, so `syncSystemVolume` writes an

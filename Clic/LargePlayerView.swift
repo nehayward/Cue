@@ -626,7 +626,7 @@ fileprivate struct BottomToolbarView: View {
 
         if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact {
             HStack(spacing: 0) {
-                Button {
+                GroupMenuButton(group: group) {
                     router.presentedSheet = .groupScreen(group: group)
                 } label: {
                     GroupIconView()
@@ -754,7 +754,7 @@ fileprivate struct BottomToolbarView: View {
                 }
 
 
-                Button {
+                GroupMenuButton(group: group) {
                     router.popover = .groupScreen(group: group)
                 } label: {
                     Label {
