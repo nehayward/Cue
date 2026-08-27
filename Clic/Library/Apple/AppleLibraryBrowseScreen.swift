@@ -6,7 +6,6 @@ import MusicKit
 import OrderedCollections
 import SwiftUI
 import SonosKit
-import TipKit
 
 struct AppleLibraryBrowseScreen: View {
     @Environment(SonosService.self) private var sonosService

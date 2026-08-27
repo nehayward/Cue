@@ -281,8 +281,7 @@ public final class SonosService {
         let newSig = Set(newGroup.map(\.topologyKey))
         let oldSig = Set(groups.map(\.topologyKey))
         if !newGroup.isEmpty, newSig != oldSig {
-            self.groups = newGroup
-            self.rooms = newGroup.flatMap(\.rooms)
+            adoptGroups(newGroup)
             self.zones = OrderedDictionary(uniqueKeys: newGroup.map(\.coordinatorID), values: newGroup)
         }
     }
@@ -299,8 +298,7 @@ public final class SonosService {
         let newSig = Set(newGroup.map(\.topologyKey))
         let oldSig = Set(groups.map(\.topologyKey))
         if !newGroup.isEmpty, newSig != oldSig {
-            self.groups = newGroup
-            self.rooms = newGroup.flatMap(\.rooms)
+            adoptGroups(newGroup)
             self.zones = OrderedDictionary(uniqueKeys: newGroup.map(\.coordinatorID), values: newGroup)
         }
     }
@@ -331,6 +329,51 @@ public final class SonosService {
             }
         }
         storedGroup.coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
+    }
+
+    /// The doorway for replacing a *populated* `groups` (and `rooms`) with a
+    /// freshly-parsed topology — every replacement inside this service goes
+    /// through here. (External call sites that seed `groups` from empty — the
+    /// TV app's first load, previews — have nothing to carry and assign
+    /// directly.)
+    ///
+    /// A fresh parse carries only topology: `groupVolume` starts at its 0
+    /// default, `isMuted` at false, the coordinator's `track` empty, playback
+    /// paused at position 0. Swapping the instances in directly flashed every
+    /// consumer — the player's slider and scrubber, the Lock Screen mirror
+    /// and card — to those defaults until the next poll or socket event, and
+    /// the mirror then pushed the 0 volume at the phone's slider. Each new
+    /// group first inherits the live state from the instance it replaces;
+    /// anything that genuinely changed in the regroup (the volume is the old
+    /// average, the queue may have merged) is corrected by the next refresh,
+    /// and everything carried is far closer than the defaults.
+    ///
+    /// Carried only on a coordinator match, because that's what the state
+    /// describes: the coordinator's stream survives a membership change. A
+    /// room newly promoted to coordinator keeps the parse's empty track
+    /// rather than showing the song it heard as a member of its old group.
+    private func adoptGroups(_ newGroups: [GroupRoom]) {
+        for newGroup in newGroups {
+            guard let current = groups.first(where: { $0.coordinatorID == newGroup.coordinatorID }) else { continue }
+            newGroup.groupVolume = current.groupVolume
+            newGroup.isMuted = current.isMuted
+            newGroup.playbackService = current.playbackService
+            newGroup.availableActions = current.availableActions
+            newGroup.playMode = current.playMode
+            newGroup.audioQuality = current.audioQuality
+            newGroup.isCrossfaded = current.isCrossfaded
+
+            let room = newGroup.coordinatorRoom
+            let currentRoom = current.coordinatorRoom
+            room.track = currentRoom.track
+            room.playbackPosition = currentRoom.playbackPosition
+            room.isPlaying = currentRoom.isPlaying
+            room.isTransitioning = currentRoom.isTransitioning
+            room.radioStation = currentRoom.radioStation
+            room.container = currentRoom.container
+        }
+        groups = newGroups
+        rooms = newGroups.flatMap(\.rooms)
     }
 
     @MainActor
@@ -442,8 +485,7 @@ public final class SonosService {
         let oldSig = Set(groups.map(\.topologyKey))
         if !newGroup.isEmpty, newSig != oldSig, !isGrouping {
             await updateGroupsRooms(from: newGroup)
-            self.groups = newGroup
-            self.rooms = newGroup.flatMap(\.rooms)
+            adoptGroups(newGroup)
             applyGroupsCacheIfMatching()
             refreshGroup = true
             print("Refreshed")
@@ -1093,8 +1135,7 @@ public final class SonosService {
         let newSig = Set(newGroup.map(\.topologyKey))
         let oldSig = Set(groups.map(\.topologyKey))
         if !newGroup.isEmpty, newSig != oldSig {
-            self.groups = newGroup
-            self.rooms = newGroup.flatMap(\.rooms)
+            adoptGroups(newGroup)
         }
 
         await withDiscardingTaskGroup { group in

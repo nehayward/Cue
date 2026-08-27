@@ -42,8 +42,19 @@ final class HardwareVolumeService {
     /// re-runs and takes it back when the claim is released.
     private(set) var owner: Owner?
 
-    @ObservationIgnored private var group: GroupRoom?
+    /// The mirrored target, held as the coordinator's id and resolved against
+    /// `SonosService` at time of use. Topology changes replace `GroupRoom`
+    /// instances, and a bridge that kept one went on mirroring — and measuring
+    /// the next press against — an orphan whose volume never moves again.
+    /// Resolving late means there is nothing to re-point; while the id has no
+    /// group (mid-regroup, or a coordinator that was absorbed) the bridge is
+    /// simply inert until the model catches up.
+    @ObservationIgnored private var groupID: String?
     @ObservationIgnored private var sonosService: SonosService?
+    private var group: GroupRoom? {
+        guard let groupID else { return nil }
+        return sonosService?.groups.first(where: { $0.coordinatorID == groupID })
+    }
     @ObservationIgnored private var volumeView: MPVolumeView?
     /// Resolved once per attach: reading it walks `subviews` and allocates.
     @ObservationIgnored private var slider: UISlider?
@@ -54,12 +65,20 @@ final class HardwareVolumeService {
     /// category, and re-configuring it here would drop their claim. Also keeps
     /// the KVO alive while backgrounded, which is when a visible slider is used.
     @ObservationIgnored private var configuresAudioSession = true
-    /// The last value written to the slider, to tell our own echo from a real
-    /// change. Absolute mode can't use the relative mode's value-based filter,
-    /// which only works because its writes always land on `restorePoint`.
-    @ObservationIgnored private var lastWrittenSystemVolume: Float?
+    /// The last few values written to the slider, oldest first, to tell our own
+    /// echoes from a real change. Absolute mode can't use the relative mode's
+    /// value-based filter, which only works because its writes always land on
+    /// `restorePoint`. Remembering just the last write wasn't enough either:
+    /// writes land in bursts around a regroup — the group's average moves, then
+    /// moves again — and the echo of the first write compared against the
+    /// memory of the second read as the user's hand, which sent the group an
+    /// absolute level off a slider that was mid-correction.
+    @ObservationIgnored private var recentSystemVolumeWrites: [Float] = []
     @ObservationIgnored private var pendingGroupVolume: Int?
     @ObservationIgnored private var volumeSendTask: Task<Void, Never>?
+    /// Holds `isEditingVolume` through a hardware press (and a held button's
+    /// stream of them), then hands `groupVolume` back to the poll.
+    @ObservationIgnored private var pressEditingTask: Task<Void, Never>?
     /// True while the device's audio is routed off the phone — see
     /// `AudioOutputRoute.isExternal`. The bridge stays claimed and goes inert:
     /// on that route the phone's volume is the *other* device's volume, in both
@@ -126,7 +145,7 @@ final class HardwareVolumeService {
     ) -> Bool {
         if let current = self.owner, current == .session, owner != .session { return false }
 
-        self.group = group
+        self.groupID = group.coordinatorID
         self.sonosService = sonosService
         self.volumeView = volumeView
         self.slider = volumeView.subviews.compactMap { $0 as? UISlider }.first
@@ -134,6 +153,10 @@ final class HardwareVolumeService {
         self.configuresAudioSession = configuresAudioSession
         self.owner = owner
         self.isSuspended = AudioOutputRoute.isExternal
+        // A fresh attach is a fresh conversation with the slider: entries from
+        // the previous one have no echo coming and would only swallow a real
+        // press that happens to land near them.
+        self.recentSystemVolumeWrites = []
         // Snapshot once so stop() can restore it; don't clobber across restarts.
         if savedVolume == nil {
             savedVolume = AVAudioSession.sharedInstance().outputVolume
@@ -163,7 +186,13 @@ final class HardwareVolumeService {
         // the write cannot move anything. The old 0.005 wrote on group changes
         // too small for a 16-step slider to represent at all.
         guard abs(slider.value - target) > systemVolumeStep / 2 else { return }
-        lastWrittenSystemVolume = target
+        recentSystemVolumeWrites.append(target)
+        // Deeper than any realistic burst of un-echoed writes. Entries are
+        // consumed as their echoes arrive; the cap only sheds leftovers from
+        // writes whose echo never came.
+        if recentSystemVolumeWrites.count > 4 {
+            recentSystemVolumeWrites.removeFirst(recentSystemVolumeWrites.count - 4)
+        }
         slider.setValue(target, animated: false)
     }
 
@@ -183,14 +212,16 @@ final class HardwareVolumeService {
         volumeSendTask?.cancel()
         volumeSendTask = nil
         pendingGroupVolume = nil
-        lastWrittenSystemVolume = nil
+        pressEditingTask?.cancel()
+        pressEditingTask = nil
+        recentSystemVolumeWrites = []
         // `savedVolume` is cleared on a route change, so this can only ever
         // restore a level onto the route it was taken from.
         if let saved = savedVolume {
             slider?.setValue(saved, animated: false)
         }
         savedVolume = nil
-        group = nil
+        groupID = nil
         sonosService = nil
         volumeView = nil
         slider = nil
@@ -238,6 +269,10 @@ final class HardwareVolumeService {
     /// from the group.
     private func beginSettling() {
         isSettling = true
+        // Echoes of writes made before the route moved are dropped by the
+        // settling guard, so their entries would linger and swallow a real
+        // press later. The post-settle re-seed records a fresh one.
+        recentSystemVolumeWrites = []
         settleTask?.cancel()
         let delay = routeSettleDelay
         settleTask = Task { [weak self] in
@@ -319,7 +354,6 @@ final class HardwareVolumeService {
         let observation = session.observe(\.outputVolume, options: [.new, .old]) { [weak self] _, change in
             Task { @MainActor [weak self] in
                 guard let self,
-                      let group = self.group,
                       let new = change.newValue,
                       let old = change.oldValue,
                       abs(new - old) > 0.001 else { return }
@@ -330,11 +364,72 @@ final class HardwareVolumeService {
                 // level, which arrives here looking exactly like a button press.
                 guard !self.isSuspended, !self.isSettling else { return }
 
+                // One of our own `syncSystemVolume` writes coming back around,
+                // snapped to the nearest system step. Echoes arrive in write
+                // order, so a match also retires everything older than it.
+                // Consumed ahead of resolving the group: an echo landing while
+                // the id briefly resolves to nothing (mid-regroup) still has to
+                // be retired, or the stale entry swallows a later real press.
+                // See `systemVolumeStep`.
+                if self.mode == .absoluteMirror,
+                   let match = self.recentSystemVolumeWrites.firstIndex(where: {
+                       abs(new - $0) < self.systemVolumeStep / 2
+                   }) {
+                    self.recentSystemVolumeWrites.removeSubrange(...match)
+                    return
+                }
+
+                // Transiently nothing to steer — the target is mid-regroup, or
+                // was absorbed into another group. Drop the change; the bridge
+                // comes back the moment the id resolves again.
+                guard let group = self.group else { return }
+
                 if self.mode == .absoluteMirror {
-                    // Our own `syncSystemVolume` write coming back around, snapped
-                    // to the nearest system step. See `systemVolumeStep`.
-                    if let written = self.lastWrittenSystemVolume,
-                       abs(new - written) < self.systemVolumeStep / 2 { return }
+                    // A hardware button press: the system volume moves exactly
+                    // one of its 16 steps in a single change — a drag arrives
+                    // as pixel-sized changes and can't match. Mapped through
+                    // the absolute scale a press was a ~6-point jump on the
+                    // group; send it as the same single step the player
+                    // screen's relative mode does, then put the slider back on
+                    // the group's level so the next press is measured from the
+                    // truth (that write is swallowed as an echo above). Ahead
+                    // of the regroup absorb below on purpose: a relative step
+                    // is safe whatever the topology is doing.
+                    if let step = self.singleButtonStep(from: old, to: new) {
+                        // The convention the poll and the socket handler check
+                        // before overwriting `groupVolume` — without it a read
+                        // already in flight lands with the pre-press level,
+                        // and `syncSystemVolume` yanks the slider back to it.
+                        group.isEditingVolume = true
+                        group.groupVolume = max(0, min(100, group.groupVolume + Double(step)))
+                        if let sonosService = self.sonosService {
+                            let ip = group.ip
+                            Task { await sonosService.setRelativeGroupVolume(ip: ip, volume: step) }
+                        }
+                        // Debounced so a held button keeps the hold alive; the
+                        // 400 ms matches the local-command hold the poll
+                        // already honours.
+                        self.pressEditingTask?.cancel()
+                        self.pressEditingTask = Task { @MainActor [weak self] in
+                            try? await Task.sleep(for: .milliseconds(400))
+                            guard !Task.isCancelled else { return }
+                            self?.group?.isEditingVolume = false
+                        }
+                        self.syncSystemVolume()
+                        return
+                    }
+
+                    // While the app is regrouping, the group's reported volume
+                    // moves for structural reasons — members joining or leaving
+                    // shift the average — and the mirror is busy chasing it.
+                    // Anything else arriving here is not a hand on the slider;
+                    // adopting it would send the group an absolute level read
+                    // off a slider that is mid-correction. Absorb it and keep
+                    // the slider on the group instead.
+                    if self.sonosService?.isGrouping == true {
+                        self.syncSystemVolume()
+                        return
+                    }
 
                     // A single change this large is not a gesture. A hardware
                     // press moves the system volume exactly one step and a
@@ -395,10 +490,33 @@ final class HardwareVolumeService {
         }
 
         for await delta in stream {
-            guard let group = self.group, let sonosService = self.sonosService else { break }
+            // The service is only gone after stop(), which also cancels this
+            // task — ending the loop is just tidy. The group resolving to
+            // nothing is different: it's transient (mid-regroup), so drop the
+            // step and keep listening rather than tearing the bridge down.
+            guard let sonosService = self.sonosService else { break }
+            guard let group = self.group else { continue }
             let ip = group.ip
             Task { await sonosService.setRelativeGroupVolume(ip: ip, volume: delta) }
         }
+    }
+
+    /// The signature of a hardware button press while mirroring: the system
+    /// volume moves by exactly one of its 16 steps in a single change. A
+    /// slider drag arrives as a stream of pixel-sized changes, so a whole-step
+    /// delta in one callback is a button — drags keep the absolute scale.
+    ///
+    /// Deliberately measured as a delta, not against the step boundaries: a
+    /// drag can leave the system volume resting *between* boundaries, and
+    /// anchoring the check to the grid made the first press after every drag
+    /// fall through to the absolute path — the multi-point jump again, and
+    /// persistently, since nothing moved the slider back onto the grid.
+    private func singleButtonStep(from old: Float, to new: Float) -> Int? {
+        // Well inside half a step: nothing but a button covers a whole step in
+        // one callback.
+        let tolerance: Float = 0.005
+        guard abs(abs(new - old) - systemVolumeStep) < tolerance else { return nil }
+        return new > old ? volumeStep : -volumeStep
     }
 
     /// Sends an absolute group volume, coalescing while one is in flight.

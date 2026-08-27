@@ -8,7 +8,6 @@ import OrderedCollections
 import SwiftUI
 import SonosKit
 import Defaults
-import TipKit
 
 struct BrowseScreen: View {
     @Environment(\.dismiss) private var dismiss
@@ -60,6 +59,7 @@ struct BrowseScreen: View {
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .contentMargins(.bottom, 120, for: .scrollContent)
+        .withAlert(enabled: showAlert)
 #if !targetEnvironment(macCatalyst)
         .safeArea(edge: .bottom) {
             if !miniPlayerManager.hidden {
@@ -69,7 +69,6 @@ struct BrowseScreen: View {
             }
         }
 #endif
-        .withAlert(enabled: showAlert)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onChange(of: coreFeatures.features) {

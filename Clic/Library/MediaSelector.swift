@@ -8,7 +8,6 @@ import OrderedCollections
 import SwiftUI
 import SonosKit
 import Defaults
-import TipKit
 
 struct MediaSelector: View {
     @AppStorage(AppStorageKeys.browseMediaService) private var browseMediaService: MediaSearchService = .apple
@@ -48,7 +47,6 @@ struct MediaSelector: View {
                 .toolbarBackground(in: .circle)
         }
         .contentShape(.rect)
-        .popoverTip(AppTip.libraryMediaService)
         .onChange(of: coreFeatures.features) {
             if coreFeatures.isEnabled(browseMediaService) {
                 return
