@@ -23,6 +23,20 @@ struct SubsonicManagementView: View {
         !isConnecting && !serverAddress.isEmpty && !username.isEmpty && !password.isEmpty
     }
 
+    /// Fields differ from what's stored, so there is something to save.
+    private var hasUnsavedEdits: Bool {
+        serverAddress != subsonic.serverAddress
+            || username != subsonic.username
+            || password != subsonic.password
+    }
+
+    /// One action, never both: a connected server with no pending edits
+    /// offers Disconnect, anything else offers Connect — so editing a saved
+    /// login still gives you a way to save it.
+    private var showsDisconnect: Bool {
+        subsonic.isConfigured && !hasUnsavedEdits
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -57,30 +71,34 @@ struct SubsonicManagementView: View {
                 }
 
                 Section {
-                    Button {
-                        Task { await connect() }
-                    } label: {
-                        if isConnecting {
-                            ProgressView()
+                    Button(role: showsDisconnect ? .destructive : nil) {
+                        if showsDisconnect {
+                            disconnect()
                         } else {
-                            Text(subsonic.isConfigured ? "Reconnect" : "Connect")
+                            Task { await connect() }
                         }
+                    } label: {
+                        Group {
+                            if isConnecting {
+                                ProgressView()
+                            } else {
+                                Text(showsDisconnect ? "Disconnect" : "Connect")
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
                     }
-                    .disabled(!canConnect)
+                    .buttonStyle(.bordered)
+                    .tint(showsDisconnect ? .red : .accentColor)
+                    .disabled(!showsDisconnect && !canConnect)
+                    .listRowBackground(Color.clear)
                 } footer: {
                     switch result {
                     case let .failure(message):
                         Text(message).foregroundStyle(.red)
-                    case .success:
+                    case .success where !hasUnsavedEdits:
                         Text("Connected. Subsonic now appears in search and browse.")
-                    case nil:
+                    default:
                         Text("Your login is saved once the server accepts it.")
-                    }
-                }
-
-                if subsonic.isConfigured {
-                    Section {
-                        Button("Disconnect", role: .destructive, action: disconnect)
                     }
                 }
             }
