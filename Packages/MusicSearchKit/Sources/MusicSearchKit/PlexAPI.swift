@@ -830,6 +830,7 @@ public final class PlexAPI {
             let mediaContainer = try decoder.decode(PlexContainer<PlexSongItem>.self, from: data).mediaContainer
             return PlexSongItem(
                 size: mediaContainer.size,
+                totalSize: mediaContainer.totalSize,
                 allowSync: mediaContainer.allowSync,
                 librarySectionID: mediaContainer.librarySectionID,
                 librarySectionTitle: mediaContainer.librarySectionTitle,
