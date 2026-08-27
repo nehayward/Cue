@@ -28,6 +28,25 @@ public enum SubsonicSongSort: String, CaseIterable, Sendable, Identifiable {
         }
     }
 
+    /// What the two directions are called for this order. "Ascending" and
+    /// "Descending" mean nothing next to Play Count; naming the ends of the
+    /// range says what you actually get.
+    public var ascendingLabel: String {
+        switch self {
+        case .title, .artist, .album: "A – Z"
+        case .year, .dateAdded: "Newest First"
+        case .playCount: "Most Played"
+        }
+    }
+
+    public var descendingLabel: String {
+        switch self {
+        case .title, .artist, .album: "Z – A"
+        case .year, .dateAdded: "Oldest First"
+        case .playCount: "Least Played"
+        }
+    }
+
     /// Orders songs for this mode. The text sorts read alphabetically; the
     /// numeric ones (year, play count, date added) read most/newest first,
     /// which is the only reading those columns are asked for.

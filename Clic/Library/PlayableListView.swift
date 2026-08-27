@@ -14,12 +14,27 @@ import VibesDS
 /// locally — so the list only has to know which loader to call.
 public struct PlayableListSort: Identifiable, Equatable {
     public let name: String
-    public let action: (Int) async -> [PlayableContent]
+    /// What the two directions are called, e.g. "A – Z" / "Z – A". Both `nil`
+    /// for an order that can't be flipped — a server-side one the list only
+    /// pages through, where reversing would mean reversing a single page.
+    public let ascendingLabel: String?
+    public let descendingLabel: String?
+    /// Called with a page offset and whether the order is reversed.
+    public let action: (Int, Bool) async -> [PlayableContent]
 
-    public init(name: String, action: @escaping (Int) async -> [PlayableContent]) {
+    public init(
+        name: String,
+        ascendingLabel: String? = nil,
+        descendingLabel: String? = nil,
+        action: @escaping (Int, Bool) async -> [PlayableContent]
+    ) {
         self.name = name
+        self.ascendingLabel = ascendingLabel
+        self.descendingLabel = descendingLabel
         self.action = action
     }
+
+    public var isReversible: Bool { ascendingLabel != nil && descendingLabel != nil }
 
     public var id: String { name }
 
@@ -34,6 +49,11 @@ struct PlayableListView: View {
     @State var items: OrderedSet<PlayableContent> = []
     @State private var showCreatePlaylist = false
     @State private var sortName: String?
+    @State private var isDescending = false
+    /// Suppresses the row animation for the first fill: a local library
+    /// arrives as one batch of thousands of rows, and animating that in is
+    /// both pointless and expensive.
+    @State private var hasLoadedOnce = false
     @State private var searchText = ""
     /// The query the rows on screen were loaded for, so the debounce can tell
     /// a real change from the first pass over an empty field.
@@ -76,7 +96,11 @@ struct PlayableListView: View {
             let query = query
             return { offset in await searchAction(query, offset) }
         }
-        return selectedSort?.action ?? action
+        if let selectedSort {
+            let descending = selectedSort.isReversible && isDescending
+            return { offset in await selectedSort.action(offset, descending) }
+        }
+        return action
     }
 
     private var sortSelection: Binding<String> {
@@ -93,7 +117,22 @@ struct PlayableListView: View {
         )
     }
 
+    private var directionSelection: Binding<Bool> {
+        Binding(
+            get: { isDescending },
+            set: { descending in
+                guard descending != isDescending else { return }
+                isDescending = descending
+                if let sortStorageKey {
+                    UserDefaults.standard.set(descending, forKey: Self.directionDefaultsKey(sortStorageKey))
+                }
+                Task { await reload() }
+            }
+        )
+    }
+
     private static func sortDefaultsKey(_ key: String) -> String { "playableListSort.\(key)" }
+    private static func directionDefaultsKey(_ key: String) -> String { "playableListSort.\(key).descending" }
 
     /// When this list is a service's playlists, the service to create a new playlist on.
     private var createPlaylistService: MusicService? {
@@ -138,7 +177,7 @@ struct PlayableListView: View {
             appliedQuery = query
             await reload()
         }
-        .animation(.default, value: items)
+        .animation(hasLoadedOnce ? .default : nil, value: items)
         .miniPlayerOnScrollHandler()
         .foregroundStyle(.foreground)
         .listStyle(.plain)
@@ -170,6 +209,16 @@ struct PlayableListView: View {
                             }
                         }
                         .pickerStyle(.inline)
+
+                        if let sort = selectedSort,
+                           let ascending = sort.ascendingLabel,
+                           let descending = sort.descendingLabel {
+                            Picker("Order", selection: directionSelection) {
+                                Text(ascending).tag(false)
+                                Text(descending).tag(true)
+                            }
+                            .pickerStyle(.inline)
+                        }
                     } label: {
                         Label("Sort", systemImage: "arrow.up.arrow.down")
                     }
@@ -194,6 +243,7 @@ struct PlayableListView: View {
         .task {
             if let sortStorageKey, sortName == nil {
                 sortName = UserDefaults.standard.string(forKey: Self.sortDefaultsKey(sortStorageKey))
+                isDescending = UserDefaults.standard.bool(forKey: Self.directionDefaultsKey(sortStorageKey))
             }
             await initialLoad()
         }
@@ -288,6 +338,7 @@ struct PlayableListView: View {
         } else {
             items.append(contentsOf: newItems)
         }
+        hasLoadedOnce = true
     }
 }
 

@@ -71,9 +71,14 @@ public final class MusicSearchService {
     /// The in-flight or completed sync of the Subsonic song library. See
     /// `subsonicSongs(offset:sort:)` for why the library is held locally.
     @ObservationIgnored private var subsonicSongSync: Task<[SubsonicSong], Never>?
-    /// The synced library ordered for each sort the user has picked, so
-    /// switching back to one already used is instant.
-    @ObservationIgnored private var subsonicSortedSongs: [SubsonicSongSort: [PlayableContent]] = [:]
+    /// One order the Songs list can be in.
+    private struct SubsonicSongOrder: Hashable {
+        let sort: SubsonicSongSort
+        let descending: Bool
+    }
+    /// The synced library in each order the user has picked, so switching back
+    /// to one already used is instant.
+    @ObservationIgnored private var subsonicSortedSongs: [SubsonicSongOrder: [PlayableContent]] = [:]
     /// Songs pulled in so far by the library sync, and how many the server
     /// says it has. Observed, so the Songs list can show real progress on the
     /// one load long enough to need it.
@@ -85,8 +90,6 @@ public final class MusicSearchService {
     /// How many songs the library holds, once it is available — from the
     /// sync or the copy on disk. `nil` until the first load.
     public private(set) var subsonicSongCount: Int?
-    /// Rows handed to the Songs list per page request.
-    private static let subsonicSongPageSize = 50
     /// Songs per request during the sync — much larger than a list page, since
     /// the whole library has to come across before the first row can be drawn.
     private static let subsonicSyncPageSize = 500
@@ -2278,10 +2281,16 @@ public final class MusicSearchService {
     /// there by syncing the library locally and ordering it themselves; that
     /// is what this does. The sync runs once per session, each order is kept
     /// once it has been asked for, and pages are served from those copies.
-    public func subsonicSongs(offset: Int = 0, sort: SubsonicSongSort = .title) async -> [PlayableContent] {
-        let songs = await sortedSubsonicSongs(by: sort)
-        guard offset < songs.count else { return [] }
-        return Array(songs[offset..<min(offset + Self.subsonicSongPageSize, songs.count)])
+    public func subsonicSongs(
+        offset: Int = 0,
+        sort: SubsonicSongSort = .title,
+        descending: Bool = false
+    ) async -> [PlayableContent] {
+        // The whole library is already here, so there is nothing to page —
+        // handing it over at once means the list scrolls the way a local
+        // library should, and the section index has every row to jump to.
+        guard offset == 0 else { return [] }
+        return await sortedSubsonicSongs(by: sort, descending: descending)
     }
 
     /// Drops the synced copy so the next Songs open re-fetches it. Call after
@@ -2297,13 +2306,15 @@ public final class MusicSearchService {
         subsonic.clearCachedSongLibrary()
     }
 
-    private func sortedSubsonicSongs(by sort: SubsonicSongSort) async -> [PlayableContent] {
-        if let sorted = subsonicSortedSongs[sort] { return sorted }
+    private func sortedSubsonicSongs(by sort: SubsonicSongSort, descending: Bool = false) async -> [PlayableContent] {
+        let order = SubsonicSongOrder(sort: sort, descending: descending)
+        if let sorted = subsonicSortedSongs[order] { return sorted }
 
         let library = await subsonicSongLibrary()
         guard !library.isEmpty else { return [] }
-        let sorted = sort.sort(library).map(\.toPlayable)
-        subsonicSortedSongs[sort] = sorted
+        let ordered = sort.sort(library)
+        let sorted = (descending ? ordered.reversed() : ordered).map(\.toPlayable)
+        subsonicSortedSongs[order] = sorted
         return sorted
     }
 
@@ -2416,10 +2427,9 @@ public final class MusicSearchService {
     /// by relevance to what was typed, not by whichever column the list
     /// happens to be sorted on.
     public func searchSubsonicSongs(query: String, offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
         let songs = await sortedSubsonicSongs(by: .title)
-        let matches = songs.filter { Self.matches($0, query: query) }
-        guard offset < matches.count else { return [] }
-        return Array(matches[offset..<min(offset + Self.subsonicSongPageSize, matches.count)])
+        return songs.filter { Self.matches($0, query: query) }
     }
 
     /// Albums matching a query. Asked of the server, which indexes albums —

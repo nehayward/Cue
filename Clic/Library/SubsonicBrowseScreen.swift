@@ -195,17 +195,22 @@ struct SubsonicBrowseScreen: View {
     /// library rather than on the server, which has no sort for songs.
     private var songSortOptions: [PlayableListSort] {
         SubsonicSongSort.allCases.map { sort in
-            PlayableListSort(name: sort.label) { offset in
-                await musicSearchService.subsonicSongs(offset: offset, sort: sort)
+            PlayableListSort(
+                name: sort.label,
+                ascendingLabel: sort.ascendingLabel,
+                descendingLabel: sort.descendingLabel
+            ) { offset, descending in
+                await musicSearchService.subsonicSongs(offset: offset, sort: sort, descending: descending)
             }
         }
     }
 
     /// The Albums list's sort menu — these orders the server does provide, so
-    /// each one is just a different `getAlbumList2` list type.
+    /// each one is just a different `getAlbumList2` list type. No direction
+    /// toggle: the list pages, and reversing a page is not reversing a list.
     private var albumSortOptions: [PlayableListSort] {
         SubsonicAlbumSort.allCases.map { sort in
-            PlayableListSort(name: sort.label) { offset in
+            PlayableListSort(name: sort.label) { offset, _ in
                 await musicSearchService.subsonicAlbums(offset: offset, sort: sort)
             }
         }
