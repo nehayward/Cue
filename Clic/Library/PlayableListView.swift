@@ -73,6 +73,10 @@ struct PlayableListView: View {
     /// rows already loaded — filtering the loaded page would quietly miss
     /// most of the library. Called with the query and a page offset.
     var searchAction: ((String, Int) async -> [PlayableContent])? = nil
+    /// Supplied by lists whose rows come from something worth re-reading —
+    /// a synced library — so a pull to refresh means more than reloading the
+    /// first page from a copy that hasn't changed.
+    var refreshAction: (() async -> Void)? = nil
     /// A line of status shown under the title while a long load runs — "11 of
     /// 10,101" as a library pages in. Read during `body`, so a service's
     /// observable progress reaches it without this view knowing anything
@@ -168,6 +172,10 @@ struct PlayableListView: View {
             }
         }
         .searchableIfAvailable(text: $searchText, enabled: searchAction != nil)
+        .refreshableIfAvailable(refreshAction == nil ? nil : {
+            await refreshAction?()
+            await reload()
+        })
         .task(id: query) {
             guard searchAction != nil, query != appliedQuery else { return }
             // Let typing settle: every keystroke would otherwise throw away a
@@ -342,6 +350,18 @@ struct PlayableListView: View {
 }
 
 private extension View {
+    /// `.refreshable` only where a refresh does something. Adding it to every
+    /// list would turn a pull into "throw away the pages you scrolled for and
+    /// fetch the first one again".
+    @ViewBuilder
+    func refreshableIfAvailable(_ action: (() async -> Void)?) -> some View {
+        if let action {
+            refreshable { await action() }
+        } else {
+            self
+        }
+    }
+
     /// `.searchable` only for the lists that can actually answer a query —
     /// a search field over a paginated list with no search loader would only
     /// look through the page in front of you.

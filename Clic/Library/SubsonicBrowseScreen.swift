@@ -57,6 +57,7 @@ struct SubsonicBrowseScreen: View {
                         showSectionIndex: false,
                         sortOptions: songSortOptions,
                         sortKey: "subsonic.songs",
+                        refreshAction: { musicSearchService.clearSubsonicSongCache() },
                         searchAction: { query, offset in
                             await musicSearchService.searchSubsonicSongs(query: query, offset: offset)
                         },

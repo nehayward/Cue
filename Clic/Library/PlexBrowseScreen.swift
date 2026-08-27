@@ -76,6 +76,7 @@ struct PlexBrowseScreen: View {
                         title: "Songs",
                         sortOptions: songSortOptions,
                         sortKey: "plex.songs",
+                        refreshAction: { musicSearchService.clearPlexSongCache() },
                         searchAction: { query, offset in
                             await musicSearchService.searchPlexSongs(query: query, offset: offset)
                         },
