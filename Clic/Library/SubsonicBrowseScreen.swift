@@ -183,6 +183,7 @@ struct SubsonicBrowseScreen: View {
                 }
             }
         }
+        .ignoresSafeArea(.all, edges: .all)
     }
 
     /// A link out to a self-hosted server project. Secondary (`.bordered`) on
