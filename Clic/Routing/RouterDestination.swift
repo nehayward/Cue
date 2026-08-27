@@ -24,7 +24,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case houseHold
     case spotifyUserPlaylist
     case genreList
-    case playableList(title: String, playAllItem: PlayableContent? = nil, showSectionIndex: Bool = true, sortOptions: [PlayableListSort] = [], action: ((Int) async -> [PlayableContent])? = nil)
+    case playableList(title: String, playAllItem: PlayableContent? = nil, showSectionIndex: Bool = true, sortOptions: [PlayableListSort] = [], searchAction: ((String, Int) async -> [PlayableContent])? = nil, progress: (() -> PlayableListProgress?)? = nil, action: ((Int) async -> [PlayableContent])? = nil)
     case folderBrowse(item: PlayableContent, title: String)
     case connectByIP
 
@@ -68,7 +68,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return "spotifyUserPlaylist"
         case .genreList:
             return "genre"
-        case .playableList(let title, _, _, _, _):
+        case .playableList(let title, _, _, _, _, _, _):
             return title
         case .folderBrowse(let item, _):
             return item.id
@@ -105,7 +105,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return group1 == group2 && contentType1 == contentType2
         case let (.playableLibraryList(_, items1, _), .playableLibraryList(_, items2, _)):
             return items1.wrappedValue == items2.wrappedValue
-        case let (.playableList(title, _, _, _, _), .playableList(title2, _, _, _, _)):
+        case let (.playableList(title, _, _, _, _, _, _), .playableList(title2, _, _, _, _, _, _)):
             return title == title2
         case let (.folderBrowse(folderID1, title1), .folderBrowse(folderID2, title2)):
             return folderID1 == folderID2 && title1 == title2
@@ -166,7 +166,7 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("spotifyUserPlaylist")
         case .genreList:
             hasher.combine("genreList")
-        case .playableList(let title, playAllItem: _, showSectionIndex: _, sortOptions: _, action: _):
+        case .playableList(let title, playAllItem: _, showSectionIndex: _, sortOptions: _, searchAction: _, progress: _, action: _):
             hasher.combine(title)
         case .folderBrowse(let folderID, let title):
             hasher.combine(folderID)

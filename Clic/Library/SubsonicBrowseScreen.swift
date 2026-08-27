@@ -39,7 +39,10 @@ struct SubsonicBrowseScreen: View {
                         showSectionIndex: false,
                         // Each option carries its own loader, so the list needs
                         // no separate default action.
-                        sortOptions: albumSortOptions
+                        sortOptions: albumSortOptions,
+                        searchAction: { query, offset in
+                            await musicSearchService.searchSubsonicAlbums(query: query, offset: offset)
+                        }
                     )) {
                         Label("Albums", systemImage: "smallcircle.circle.fill")
                     }
@@ -51,7 +54,11 @@ struct SubsonicBrowseScreen: View {
                         // Off for now: the index fights the paginated loads
                         // (scrolling to a letter jumps past unloaded pages).
                         showSectionIndex: false,
-                        sortOptions: songSortOptions
+                        sortOptions: songSortOptions,
+                        searchAction: { query, offset in
+                            await musicSearchService.searchSubsonicSongs(query: query, offset: offset)
+                        },
+                        progress: songSyncProgress
                     )) {
                         Label("Songs", systemImage: "music.note")
                     }
@@ -161,6 +168,24 @@ struct SubsonicBrowseScreen: View {
             Task { await subsonicBrowseService.load() }
         }
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
+    }
+
+    /// How far the one-time library sync has got. Songs is the only list that
+    /// has to pull the whole library in before it can show a row, so it is the
+    /// only one that owes the user more than a spinner.
+    private var songSyncProgress: () -> PlayableListProgress? {
+        {
+            guard musicSearchService.isSyncingSubsonicSongs else { return nil }
+            let synced = musicSearchService.subsonicSyncedSongCount
+            let total = musicSearchService.subsonicLibrarySongCount
+            return PlayableListProgress(
+                message: synced == 0
+                    ? "Loading your library…"
+                    : "\(synced.formatted()) songs",
+                completed: total == nil ? nil : Double(synced),
+                total: total.map(Double.init)
+            )
+        }
     }
 
     /// The Songs list's sort menu. Sorting happens on the synced copy of the

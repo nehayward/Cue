@@ -170,6 +170,38 @@ public final class SubsonicAPI: DirectStreamProvider {
         return indexes.flatMap { $0.artist ?? [] }
     }
 
+    /// How many songs the server has indexed, for showing real progress
+    /// while the library syncs. `getScanStatus` is the only endpoint that
+    /// reports a total, and some servers reserve it for admins — a `nil` here
+    /// just means the sync shows a running count instead of a fraction.
+    public func librarySongCount() async -> Int? {
+        await get("getScanStatus")?.scanStatus?.count
+    }
+
+    /// Songs matching a query, paginated. `search3` matches title, artist and
+    /// album, so this is the same search the search screen uses, scoped to
+    /// songs.
+    public func searchSongs(query: String, size: Int = 50, offset: Int = 0) async -> [SubsonicSong] {
+        await get("search3", queryItems: [
+            URLQueryItem(name: "query", value: query),
+            URLQueryItem(name: "songCount", value: "\(size)"),
+            URLQueryItem(name: "songOffset", value: "\(offset)"),
+            URLQueryItem(name: "albumCount", value: "0"),
+            URLQueryItem(name: "artistCount", value: "0")
+        ])?.searchResult3?.song ?? []
+    }
+
+    /// Albums matching a query, paginated.
+    public func searchAlbums(query: String, size: Int = 50, offset: Int = 0) async -> [SubsonicAlbum] {
+        await get("search3", queryItems: [
+            URLQueryItem(name: "query", value: query),
+            URLQueryItem(name: "albumCount", value: "\(size)"),
+            URLQueryItem(name: "albumOffset", value: "\(offset)"),
+            URLQueryItem(name: "songCount", value: "0"),
+            URLQueryItem(name: "artistCount", value: "0")
+        ])?.searchResult3?.album ?? []
+    }
+
     /// Every song in the library, paginated. `search3` with an empty query,
     /// which OpenSubsonic servers (Navidrome, …) define as "match everything";
     /// older servers may return nothing, and callers degrade gracefully.

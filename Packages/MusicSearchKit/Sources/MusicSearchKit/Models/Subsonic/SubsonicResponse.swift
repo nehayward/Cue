@@ -24,6 +24,7 @@ struct SubsonicResponseBody: Decodable {
     let playlist: SubsonicPlaylist?
     let albumList2: SubsonicAlbumList?
     let topSongs: SubsonicSongList?
+    let scanStatus: SubsonicScanStatus?
 
     var isOK: Bool { status == "ok" }
 }
@@ -58,4 +59,11 @@ struct SubsonicAlbumList: Decodable {
 
 struct SubsonicSongList: Decodable {
     let song: [SubsonicSong]?
+}
+
+/// `getScanStatus`. `count` is how many songs the server has indexed, which
+/// is the only place the API reports a library total.
+struct SubsonicScanStatus: Decodable {
+    let scanning: Bool?
+    let count: Int?
 }

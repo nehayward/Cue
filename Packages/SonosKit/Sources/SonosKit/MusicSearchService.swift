@@ -74,6 +74,14 @@ public final class MusicSearchService {
     /// The synced library ordered for each sort the user has picked, so
     /// switching back to one already used is instant.
     @ObservationIgnored private var subsonicSortedSongs: [SubsonicSongSort: [PlayableContent]] = [:]
+    /// Songs pulled in so far by the library sync, and how many the server
+    /// says it has. Observed, so the Songs list can show real progress on the
+    /// one load long enough to need it.
+    public private(set) var subsonicSyncedSongCount = 0
+    /// `nil` until the server answers with a total — some reserve
+    /// `getScanStatus` for admins — in which case progress stays a count.
+    public private(set) var subsonicLibrarySongCount: Int?
+    public private(set) var isSyncingSubsonicSongs = false
     /// Rows handed to the Songs list per page request.
     private static let subsonicSongPageSize = 50
     /// Songs per request during the sync — much larger than a list page, since
@@ -2280,6 +2288,8 @@ public final class MusicSearchService {
         subsonicSongSync?.cancel()
         subsonicSongSync = nil
         subsonicSortedSongs.removeAll()
+        subsonicSyncedSongCount = 0
+        subsonicLibrarySongCount = nil
     }
 
     private func sortedSubsonicSongs(by sort: SubsonicSongSort) async -> [PlayableContent] {
@@ -2318,6 +2328,13 @@ public final class MusicSearchService {
         var nextPage = 0
         var reachedEnd = false
 
+        isSyncingSubsonicSongs = true
+        subsonicSyncedSongCount = 0
+        defer { isSyncingSubsonicSongs = false }
+        // Asked for alongside the first pages rather than before them, so a
+        // server that refuses it (some reserve it for admins) costs nothing.
+        let librarySize = Task { await self.subsonicLibraryTotal() }
+
         while !reachedEnd, songs.count < Self.subsonicSyncLimit {
             let offsets = (0..<Self.subsonicSyncConcurrency)
                 .map { (nextPage + $0) * Self.subsonicSyncPageSize }
@@ -2350,15 +2367,48 @@ public final class MusicSearchService {
             // A server that ignores the offset would hand back the same page
             // forever; nothing new in a whole round means stop, not spin.
             if songs.count == countBeforeRound { reachedEnd = true }
+
+            subsonicSyncedSongCount = songs.count
+            if subsonicLibrarySongCount == nil { subsonicLibrarySongCount = await librarySize.value }
         }
 
         return songs
+    }
+
+    /// Songs matching a query. Filtered from the synced library rather than
+    /// asked of the server: the library is already here, so results arrive as
+    /// fast as the user types. Always in title order — a search result reads
+    /// by relevance to what was typed, not by whichever column the list
+    /// happens to be sorted on.
+    public func searchSubsonicSongs(query: String, offset: Int = 0) async -> [PlayableContent] {
+        let songs = await sortedSubsonicSongs(by: .title)
+        let matches = songs.filter { Self.matches($0, query: query) }
+        guard offset < matches.count else { return [] }
+        return Array(matches[offset..<min(offset + Self.subsonicSongPageSize, matches.count)])
+    }
+
+    /// Albums matching a query. Asked of the server, which indexes albums —
+    /// there is no local copy of them to filter.
+    public func searchSubsonicAlbums(query: String, offset: Int = 0) async -> [PlayableContent] {
+        await subsonic.searchAlbums(query: query, size: 50, offset: offset).map(\.toPlayable)
     }
 
     /// One page of the sync, in its own method so the concurrent fetches above
     /// can call it from outside the actor.
     private func subsonicSongPage(offset: Int) async -> [SubsonicSong] {
         await subsonic.songs(size: Self.subsonicSyncPageSize, offset: offset)
+    }
+
+    private func subsonicLibraryTotal() async -> Int? {
+        await subsonic.librarySongCount()
+    }
+
+    /// Whether a row answers what was typed. Matches the fields the row shows
+    /// — title and the artist/album line — so nothing appears for a reason
+    /// the user can't see.
+    private nonisolated static func matches(_ content: PlayableContent, query: String) -> Bool {
+        let fields = [content.title, content.subtitle, content.metadata?.album ?? ""]
+        return fields.contains { $0.localizedCaseInsensitiveContains(query) }
     }
 
     public func subsonicRecentAlbums(offset: Int = 0) async -> [PlayableContent] {

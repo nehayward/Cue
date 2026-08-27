@@ -23,12 +23,26 @@ struct PlayableListSort: Identifiable, Equatable {
     }
 }
 
+/// What to show in place of an empty list while its first rows are still
+/// loading. A plain spinner is enough for a single request; a load that pages
+/// a whole library in needs to say so, and say how far it has got.
+struct PlayableListProgress {
+    var message: String
+    /// Both set for a determinate bar; `nil` leaves a spinner with the message.
+    var completed: Double?
+    var total: Double?
+}
+
 struct PlayableListView: View {
     @State private var isLoading: Bool = false
     @State private var hasReachedEnd: Bool = false
     @State var items: OrderedSet<PlayableContent> = []
     @State private var showCreatePlaylist = false
     @State private var sortName: String?
+    @State private var searchText = ""
+    /// The query the rows on screen were loaded for, so the debounce can tell
+    /// a real change from the first pass over an empty field.
+    @State private var appliedQuery = ""
     /// Bumped on every reload so a load still running for the previous sort
     /// can tell that its rows are no longer wanted.
     @State private var loadGeneration = 0
@@ -39,6 +53,13 @@ struct PlayableListView: View {
     var sortOptions: [PlayableListSort] = []
     /// Where to remember the chosen sort, so it survives leaving the screen.
     var sortStorageKey: String? = nil
+    /// Supplied by lists that can search their whole source rather than the
+    /// rows already loaded — filtering the loaded page would quietly miss
+    /// most of the library. Called with the query and a page offset.
+    var searchAction: ((String, Int) async -> [PlayableContent])? = nil
+    /// Read during `body`, so a service's observable sync progress reaches the
+    /// placeholder without this view knowing anything about that service.
+    var progress: (() -> PlayableListProgress?)? = nil
     var action: ((Int) async -> ([PlayableContent]))? = nil
 
     /// Falls back to the first option when nothing is chosen yet, or when a
@@ -48,8 +69,16 @@ struct PlayableListView: View {
         return sortOptions.first { $0.name == sortName } ?? sortOptions.first
     }
 
+    private var query: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private var loader: ((Int) async -> [PlayableContent])? {
-        selectedSort?.action ?? action
+        if let searchAction, !query.isEmpty {
+            let query = query
+            return { offset in await searchAction(query, offset) }
+        }
+        return selectedSort?.action ?? action
     }
 
     private var sortSelection: Binding<String> {
@@ -87,8 +116,20 @@ struct PlayableListView: View {
             // Songs) sync before they can draw a first row, and a blank screen
             // reads as an empty library.
             if isLoading, items.isEmpty {
-                ProgressView()
+                loadingIndicator
+            } else if items.isEmpty, !appliedQuery.isEmpty {
+                ContentUnavailableView.search(text: appliedQuery)
             }
+        }
+        .searchableIfAvailable(text: $searchText, enabled: searchAction != nil)
+        .task(id: query) {
+            guard searchAction != nil, query != appliedQuery else { return }
+            // Let typing settle: every keystroke would otherwise throw away a
+            // load that was about to finish.
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            appliedQuery = query
+            await reload()
         }
         .animation(.default, value: items)
         .miniPlayerOnScrollHandler()
@@ -130,6 +171,24 @@ struct PlayableListView: View {
                 sortName = UserDefaults.standard.string(forKey: Self.sortDefaultsKey(sortStorageKey))
             }
             await initialLoad()
+        }
+    }
+
+    @ViewBuilder
+    private var loadingIndicator: some View {
+        if let progress = progress?() {
+            if let completed = progress.completed, let total = progress.total, total > 0 {
+                ProgressView(value: min(completed, total), total: total) {
+                    Text(progress.message)
+                }
+                .progressViewStyle(.linear)
+                .padding(.horizontal, 40)
+                .frame(maxWidth: 320)
+            } else {
+                ProgressView { Text(progress.message) }
+            }
+        } else {
+            ProgressView()
         }
     }
 
@@ -221,6 +280,26 @@ struct PlayableListView: View {
             hasReachedEnd = true
         } else {
             items.append(contentsOf: newItems)
+        }
+    }
+}
+
+private extension View {
+    /// `.searchable` only for the lists that can actually answer a query —
+    /// a search field over a paginated list with no search loader would only
+    /// look through the page in front of you.
+    @ViewBuilder
+    func searchableIfAvailable(text: Binding<String>, enabled: Bool) -> some View {
+        if enabled {
+#if os(iOS)
+            // Kept on screen rather than hidden until you scroll up — on a
+            // list this long, search is a first-class way in.
+            searchable(text: text, placement: .navigationBarDrawer(displayMode: .always))
+#else
+            searchable(text: text)
+#endif
+        } else {
+            self
         }
     }
 }
