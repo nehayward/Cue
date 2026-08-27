@@ -82,6 +82,9 @@ public final class MusicSearchService {
     /// `getScanStatus` for admins — in which case progress stays a count.
     public private(set) var subsonicLibrarySongCount: Int?
     public private(set) var isSyncingSubsonicSongs = false
+    /// How many songs the library holds, once it is available — from the
+    /// sync or the copy on disk. `nil` until the first load.
+    public private(set) var subsonicSongCount: Int?
     /// Rows handed to the Songs list per page request.
     private static let subsonicSongPageSize = 50
     /// Songs per request during the sync — much larger than a list page, since
@@ -2290,6 +2293,7 @@ public final class MusicSearchService {
         subsonicSortedSongs.removeAll()
         subsonicSyncedSongCount = 0
         subsonicLibrarySongCount = nil
+        subsonicSongCount = nil
         subsonic.clearCachedSongLibrary()
     }
 
@@ -2337,11 +2341,15 @@ public final class MusicSearchService {
            // leaves the cache's own age as the only check, which it has
            // already passed by being returned here.
            serverCount == nil || cached.count == serverCount {
+            subsonicSongCount = cached.count
             return cached
         }
 
         let songs = await syncSubsonicSongLibrary(expectedCount: serverCount)
-        if !songs.isEmpty { subsonic.cacheSongLibrary(songs) }
+        if !songs.isEmpty {
+            subsonic.cacheSongLibrary(songs)
+            subsonicSongCount = songs.count
+        }
         return songs
     }
 

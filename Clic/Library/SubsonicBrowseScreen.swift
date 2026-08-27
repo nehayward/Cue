@@ -170,12 +170,17 @@ struct SubsonicBrowseScreen: View {
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
     }
 
-    /// How far the one-time library sync has got, as a line under the title.
-    /// Songs is the only list that has to pull the whole library in before it
-    /// can show a row, so it is the only one that owes the user a count.
+    /// The line under the Songs title: how far the one-time library sync has
+    /// got while it runs, and how big the library is once it is there. Songs
+    /// is the only list that pulls the whole library in before it can show a
+    /// row, so it is the only one that owes the user a count.
     private var songSyncStatus: () -> String? {
         {
-            guard musicSearchService.isSyncingSubsonicSongs else { return nil }
+            guard musicSearchService.isSyncingSubsonicSongs else {
+                guard let count = musicSearchService.subsonicSongCount, count > 0 else { return nil }
+                return count == 1 ? "1 song" : "\(count.formatted()) songs"
+            }
+
             let synced = musicSearchService.subsonicSyncedSongCount
             guard let total = musicSearchService.subsonicLibrarySongCount, total > 0 else {
                 // No total: the server won't report one, so a running count
