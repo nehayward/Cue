@@ -61,6 +61,15 @@ extension SubsonicAPI {
         }
     }
 
+    /// How much disk the saved library takes, for the Storage settings. `0`
+    /// when there is none.
+    public var cachedSongLibrarySize: Int {
+        guard let url = Self.cacheURL,
+              let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize
+        else { return 0 }
+        return size
+    }
+
     /// Removes the saved library — on disconnect (it is the user's own
     /// library metadata, and the server it came from is gone) and whenever a
     /// refresh should really re-read the server.
