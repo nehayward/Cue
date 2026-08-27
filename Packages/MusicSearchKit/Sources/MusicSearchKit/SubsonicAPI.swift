@@ -82,6 +82,29 @@ public final class SubsonicAPI: DirectStreamProvider {
     public func ping() async -> PingResult {
         guard Self.storedServerURL != nil else { return .failure("Enter a server address.") }
         guard let url = Self.storedURL(endpoint: "ping") else { return .failure("Invalid server address.") }
+        return await ping(url: url)
+    }
+
+    /// Verifies credentials **without** storing them, so a login is only
+    /// persisted once the server has actually accepted it.
+    public func ping(address: String, username: String, password: String) async -> PingResult {
+        guard let normalized = Self.normalizedAddress(address), let base = URL(string: normalized) else {
+            return .failure("Enter a server address.")
+        }
+        guard !username.isEmpty, !password.isEmpty else {
+            return .failure("Enter your username and password.")
+        }
+        guard let url = Self.url(
+            endpoint: "ping",
+            base: base,
+            username: username,
+            password: password,
+            salt: Self.makeSalt()
+        ) else { return .failure("Invalid server address.") }
+        return await ping(url: url)
+    }
+
+    private func ping(url: URL) async -> PingResult {
         do {
             let (data, _) = try await session.data(for: URLRequest(url: url))
             guard let body = try? decoder.decode(SubsonicEnvelope.self, from: data).subsonicResponse else {
@@ -274,15 +297,36 @@ public final class SubsonicAPI: DirectStreamProvider {
     static func storedURL(endpoint: String, queryItems: [URLQueryItem] = []) -> URL? {
         guard let base = storedServerURL,
               let username = UserDefaults.standard.string(forKey: StorageKey.username), !username.isEmpty,
-              let secrets = storedSecrets(),
-              var components = URLComponents(url: base, resolvingAgainstBaseURL: false)
+              let secrets = storedSecrets()
         else { return nil }
 
+        return url(
+            endpoint: endpoint,
+            base: base,
+            username: username,
+            password: secrets.password,
+            salt: secrets.salt,
+            queryItems: queryItems
+        )
+    }
+
+    /// Builds `<base>/rest/<endpoint>` with the auth parameters appended.
+    /// Takes every value explicitly so a candidate login can be checked
+    /// before anything is written to storage.
+    static func url(
+        endpoint: String,
+        base: URL,
+        username: String,
+        password: String,
+        salt: String,
+        queryItems: [URLQueryItem] = []
+    ) -> URL? {
+        guard var components = URLComponents(url: base, resolvingAgainstBaseURL: false) else { return nil }
         components.path = components.path.appending("/rest/\(endpoint)")
         components.queryItems = queryItems + [
             URLQueryItem(name: "u", value: username),
-            URLQueryItem(name: "t", value: token(password: secrets.password, salt: secrets.salt)),
-            URLQueryItem(name: "s", value: secrets.salt),
+            URLQueryItem(name: "t", value: token(password: password, salt: salt)),
+            URLQueryItem(name: "s", value: salt),
             URLQueryItem(name: "v", value: apiVersion),
             URLQueryItem(name: "c", value: clientName),
             URLQueryItem(name: "f", value: "json")
@@ -291,19 +335,49 @@ public final class SubsonicAPI: DirectStreamProvider {
     }
 
     /// The normalized base URL for the stored server address, or `nil` when
-    /// none is stored. Accepts bare hosts ("nas.local:4533") by assuming
-    /// `http`, and drops a trailing slash so path appending stays clean.
+    /// none is stored.
     static var storedServerURL: URL? {
-        guard var address = UserDefaults.standard.string(forKey: StorageKey.server)?
-            .trimmingCharacters(in: .whitespacesAndNewlines), !address.isEmpty else { return nil }
+        guard let stored = UserDefaults.standard.string(forKey: StorageKey.server),
+              let address = normalizedAddress(stored) else { return nil }
+        return URL(string: address)
+    }
+
+    /// Reduces whatever the user typed or pasted to the server's REST root.
+    ///
+    /// Accepts a bare host ("nas.local:4533") by assuming `http`, since most
+    /// of these servers live on the LAN. People generally paste the address
+    /// from their browser, which carries the *web client's* own route
+    /// (`…:4533/app/#/login`) — the fragment, query and that client path are
+    /// dropped, while a genuine reverse-proxy subpath (`/subsonic`) is kept,
+    /// because the REST API lives under it.
+    public static func normalizedAddress(_ raw: String) -> String? {
+        var address = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !address.isEmpty else { return nil }
         if !address.contains("://") {
             address = "http://\(address)"
         }
-        while address.hasSuffix("/") {
-            address.removeLast()
+        guard var components = URLComponents(string: address),
+              let host = components.host, !host.isEmpty else { return nil }
+
+        components.fragment = nil
+        components.query = nil
+
+        var parts = components.path.split(separator: "/").map(String.init)
+        // Everything from the web client's mount point (or an already-built
+        // REST call) onwards belongs to the client, not the server root.
+        if let clientRoot = parts.firstIndex(where: { ["app", "rest"].contains($0.lowercased()) }) {
+            parts = Array(parts[..<clientRoot])
         }
-        guard let url = URL(string: address), url.host != nil else { return nil }
-        return url
+        while let last = parts.last?.lowercased(), ["login", "index.html", "index.php"].contains(last) {
+            parts.removeLast()
+        }
+        components.path = parts.isEmpty ? "" : "/" + parts.joined(separator: "/")
+
+        guard var result = components.url?.absoluteString else { return nil }
+        while result.hasSuffix("/") {
+            result.removeLast()
+        }
+        return result.isEmpty ? nil : result
     }
 
     /// The Subsonic auth token: `md5(password + salt)`, lowercase hex.

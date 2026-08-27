@@ -84,6 +84,35 @@ final class SubsonicTests: XCTestCase {
         XCTAssertFalse(plain.absoluteString.contains("ext="))
     }
 
+    // MARK: - Address parsing
+
+    /// People paste the address out of their browser, which carries the web
+    /// client's own route — the REST API lives at the server root.
+    func testNormalizedAddressStripsWebClientRoute() {
+        XCTAssertEqual(
+            SubsonicAPI.normalizedAddress("http://192.168.5.166:4533/app/#/login"),
+            "http://192.168.5.166:4533"
+        )
+        XCTAssertEqual(
+            SubsonicAPI.normalizedAddress("https://music.example.com/rest/ping?u=me"),
+            "https://music.example.com"
+        )
+    }
+
+    /// A reverse-proxy subpath is part of the server's address, so it stays.
+    func testNormalizedAddressKeepsReverseProxySubpath() {
+        XCTAssertEqual(
+            SubsonicAPI.normalizedAddress("https://music.example.com/subsonic/"),
+            "https://music.example.com/subsonic"
+        )
+    }
+
+    func testNormalizedAddressDefaultsSchemeAndTrimsJunk() {
+        XCTAssertEqual(SubsonicAPI.normalizedAddress("  nas.local:4533/  "), "http://nas.local:4533")
+        XCTAssertNil(SubsonicAPI.normalizedAddress(""))
+        XCTAssertNil(SubsonicAPI.normalizedAddress("   "))
+    }
+
     func testCoverArtURLScalesAndNilsOutForMissingID() {
         storeCredentials()
         XCTAssertNil(SubsonicAPI.coverArtURL(for: nil))
