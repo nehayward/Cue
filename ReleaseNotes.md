@@ -4,13 +4,11 @@
 - Subsonic & Navidrome: Play your self-hosted music library on Sonos. Connect any Subsonic-compatible server (Navidrome, Airsonic, Gonic, and more) with its address and login under Settings ▸ Services, and your speakers stream your music straight from the server — no Sonos account involved, with your password kept in the device keychain
 - Subsonic search and browse: Search your server's songs, albums and artists alongside your other services, browse your whole library — Artists, Albums, Songs, Recently Added, and Playlists — and open artist pages complete with top songs and a playable discography
 - Subsonic playlists and favorites: Create playlists, add and remove songs, and delete playlists right from Clic; star songs with the heart in the player and menus, and preview any song before sending it to a speaker
+- Quick Group Menu: Press and hold the group button on the player to add or remove speakers right from a menu — tap a room to toggle it in or out, or choose Everywhere or Ungroup All. A regular tap still opens the full grouping screen
 
 –– Bug Fixes & Improvements ––
 - Discography on artist pages now starts fresh — it clears the queue and plays every album in order, oldest first, starting as soon as the first song is ready. Play Next and Play Last are still in the ••• menu
 - Restored the Favorite option in Deezer song menus — it had quietly gone missing from the ••• menu
-- Quick Group Menu: Press and hold the group button on the player to add or remove speakers right from a menu — tap a room to toggle it in or out, or choose Everywhere or Ungroup All. A regular tap still opens the full grouping screen
-
-–– Bug Fixes & Improvements ––
 - Fixed the volume buttons moving a speaker several steps per press while Lock Screen Now Playing is on — each press is one step again, and the Lock Screen slider still sets the level directly
 - Fixed removing a speaker from a group turning down the volume of the room that kept playing
 - Grouping or ungrouping no longer makes the player blink — the song, artwork, progress, and volume stay put while your speakers rearrange instead of flashing empty for a moment
