@@ -416,16 +416,16 @@ extension View {
                 case let .playableLibraryList(title: title, items: items, action: action):
                     PlayableList(items: items, action: action)
                         .navigationTitle(title)
-                case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, sortOptions: sortOptions, searchAction: searchAction, loadingStatus: loadingStatus, action: action):
+                case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, sortOptions: sortOptions, sortKey: sortKey, searchAction: searchAction, loadingStatus: loadingStatus, action: action):
                     PlayableListView(
                         title: title,
                         playAllItem: playAllItem,
                         showSectionIndex: showSectionIndex,
                         sortOptions: sortOptions,
-                        // The title is what distinguishes one list from
-                        // another in the router, so it also identifies whose
-                        // sort choice is being remembered.
-                        sortStorageKey: sortOptions.isEmpty ? nil : title,
+                        // Titles repeat across services — Plex and Subsonic
+                        // both have a "Songs" — so a list with its own sort
+                        // options names the key it remembers them under.
+                        sortStorageKey: sortOptions.isEmpty ? nil : (sortKey ?? title),
                         searchAction: searchAction,
                         loadingStatus: loadingStatus,
                         action: action

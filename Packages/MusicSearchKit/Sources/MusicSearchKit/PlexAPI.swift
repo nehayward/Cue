@@ -500,7 +500,8 @@ public final class PlexAPI {
     }
     
     public func songs(
-        sortOrder: AlbumSortOrder = .titleAscending,
+        sort: PlexSongSort = .title,
+        reversed: Bool = false,
         offset: Int = 0,
         limit: Int = 100
     ) async -> [PlexMetadata] {
@@ -525,7 +526,7 @@ public final class PlexAPI {
         
         let queryItems: [URLQueryItem] = [
             URLQueryItem(name: "type", value: "10"),
-            URLQueryItem(name: "sort", value: sortOrder.queryValue),
+            URLQueryItem(name: "sort", value: sort.queryValue(reversed: reversed)),
             URLQueryItem(name: "X-Plex-Container-Size", value: "\(limit)"),
             URLQueryItem(name: "X-Plex-Container-Start", value: "\(offset)")
         ]

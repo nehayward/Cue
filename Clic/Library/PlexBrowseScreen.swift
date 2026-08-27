@@ -21,6 +21,22 @@ struct PlexBrowseScreen: View {
     @State private var isLoading: Bool = false
     @State private var plexAuthenticator = PlexAuthenticator.shared
 
+    /// The Songs list's sort menu. Every option is a Plex `sort` field, so
+    /// the server does the ordering and each page comes back already in it —
+    /// no local copy of the library, and reversing works on the whole list
+    /// rather than the page in front of you.
+    private var songSortOptions: [PlayableListSort] {
+        PlexSongSort.allCases.map { sort in
+            PlayableListSort(
+                name: sort.label,
+                ascendingLabel: sort.ascendingLabel,
+                descendingLabel: sort.descendingLabel
+            ) { offset, reversed in
+                await plexBrowseService.songs(offset: offset, sort: sort, reversed: reversed)
+            }
+        }
+    }
+
     var body: some View {
         @Bindable var plexBrowseService = plexBrowseService
 
@@ -39,9 +55,11 @@ struct PlexBrowseScreen: View {
                         Label("Albums", systemImage: "smallcircle.circle.fill")
                     }
                     
-                    NavigationLink(value: RouterDestination.playableList(title: "Songs", action: { offset in
-                        await plexBrowseService.songs(offset: offset)
-                    })) {
+                    NavigationLink(value: RouterDestination.playableList(
+                        title: "Songs",
+                        sortOptions: songSortOptions,
+                        sortKey: "plex.songs"
+                    )) {
                         Label("Songs", systemImage: "music.note")
                     }
                     

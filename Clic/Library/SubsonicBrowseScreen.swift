@@ -40,6 +40,7 @@ struct SubsonicBrowseScreen: View {
                         // Each option carries its own loader, so the list needs
                         // no separate default action.
                         sortOptions: albumSortOptions,
+                        sortKey: "subsonic.albums",
                         searchAction: { query, offset in
                             await musicSearchService.searchSubsonicAlbums(query: query, offset: offset)
                         }
@@ -55,6 +56,7 @@ struct SubsonicBrowseScreen: View {
                         // (scrolling to a letter jumps past unloaded pages).
                         showSectionIndex: false,
                         sortOptions: songSortOptions,
+                        sortKey: "subsonic.songs",
                         searchAction: { query, offset in
                             await musicSearchService.searchSubsonicSongs(query: query, offset: offset)
                         },
