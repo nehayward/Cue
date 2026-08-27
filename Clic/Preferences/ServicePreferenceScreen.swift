@@ -26,20 +26,32 @@ struct ServicePreferenceScreen: View {
         Set(servers.map(\.type))
     }
 
+    /// Self-hosted services set up entirely inside Clic. They have no Sonos
+    /// account at all, so they get their own section instead of sitting under
+    /// a header that says the opposite.
+    private var selfHostedServices: [MediaSearchService] {
+        MediaSearchService.allCases.filter { $0.isConfiguredInClic != nil }
+    }
+
+    /// Everything that does go through a Sonos account.
+    private var sonosServices: [MediaSearchService] {
+        MediaSearchService.allCases.filter { $0.isConfiguredInClic == nil }
+    }
+
     /// Services the user can actually play from — authorized in Sonos, or
     /// needing no Sonos account (Library). Falls back to everything while
     /// discovery hasn't returned, so an empty keychain read never hides the
     /// toggles.
     private var connectedServices: [MediaSearchService] {
-        guard !servers.isEmpty else { return MediaSearchService.allCases }
-        return MediaSearchService.allCases.filter { $0.isAuthorized(on: installedTypes) }
+        guard !servers.isEmpty else { return sonosServices }
+        return sonosServices.filter { $0.isAuthorized(on: installedTypes) }
     }
 
     /// Supported by Clic but not yet authorized on the user's Sonos. Only
     /// meaningful once discovery has returned something.
     private var notConnectedServices: [MediaSearchService] {
         guard !servers.isEmpty else { return [] }
-        return MediaSearchService.allCases.filter { !$0.isAuthorized(on: installedTypes) }
+        return sonosServices.filter { !$0.isAuthorized(on: installedTypes) }
     }
 
     /// Discovered on the user's Sonos but not supported by Clic yet —
@@ -122,40 +134,36 @@ struct ServicePreferenceScreen: View {
                 }
             }
 
+            if !selfHostedServices.isEmpty {
+                Section {
+                    ForEach(selfHostedServices, id: \.self) { service in
+                        // Connected ones get the same show/hide toggle as
+                        // everything else; the rest offer the setup sheet.
+                        if service.isConfiguredInClic == true {
+                            Toggle(isOn: coreFeatures.enabledServices(service)) {
+                                serviceToggleLabel(for: service)
+                            }
+                            .tint(.accent)
+                            .contentShape(.rect)
+                            .onTapGesture {
+                                guard let sheet = service.managementSheet else { return }
+                                router.presentedSheet = sheet
+                            }
+                        } else {
+                            connectRow(for: service)
+                        }
+                    }
+                } header: {
+                    Text("Self-Hosted")
+                } footer: {
+                    Text("Set up here in Clic — these need no Sonos app sign-in. Your speakers stream straight from your own server.")
+                }
+            }
+
             if !notConnectedServices.isEmpty {
                 Section {
                     ForEach(notConnectedServices, id: \.self) { service in
-                        Button {
-                            // Self-hosted services have no Sonos account —
-                            // connecting means entering the server details
-                            // in Clic.
-                            if service.isConfiguredInClic != nil, let sheet = service.managementSheet {
-                                router.presentedSheet = sheet
-                            } else {
-                                openSonosApp()
-                            }
-                        } label: {
-                            Label {
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text(service.title)
-                                        Text(service.isConfiguredInClic != nil ? "Connect your server" : "Sign in with the Sonos app")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    Image(systemName: service.isConfiguredInClic != nil ? "chevron.right" : "arrow.up.forward.app")
-                                        .font(.callout)
-                                        .foregroundStyle(.secondary)
-                                }
-                            } icon: {
-                                service.iconForMusicService
-                                    .frame(width: 24, height: 24)
-                                    .grayscale(1)
-                                    .opacity(0.6)
-                            }
-                            .tint(.primary)
-                        }
+                        connectRow(for: service)
                     }
                 } header: {
                     Text("Available with Sonos")
@@ -246,6 +254,41 @@ struct ServicePreferenceScreen: View {
     }
 
     /// The label inside a connected service's toggle. Spotify and Apple Music
+    /// A service that isn't set up yet. Self-hosted ones open their setup
+    /// sheet in Clic; the rest send the user to the Sonos app to sign in.
+    private func connectRow(for service: MediaSearchService) -> some View {
+        let isSelfHosted = service.isConfiguredInClic != nil
+
+        return Button {
+            if isSelfHosted, let sheet = service.managementSheet {
+                router.presentedSheet = sheet
+            } else {
+                openSonosApp()
+            }
+        } label: {
+            Label {
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(service.title)
+                        Text(isSelfHosted ? "Connect your server" : "Sign in with the Sonos app")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: isSelfHosted ? "chevron.right" : "arrow.up.forward.app")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            } icon: {
+                service.iconForMusicService
+                    .frame(width: 24, height: 24)
+                    .grayscale(1)
+                    .opacity(0.6)
+            }
+            .tint(.primary)
+        }
+    }
+
     /// grow an account-picker menu when the Sonos system has more than one
     /// account for them; everyone else is a plain icon + title row.
     @ViewBuilder
