@@ -12,13 +12,18 @@ import VibesDS
 /// rows in that order. How the order is produced is the caller's business —
 /// some services sort on the server, Subsonic's songs sort a synced copy
 /// locally — so the list only has to know which loader to call.
-struct PlayableListSort: Identifiable, Equatable {
-    let name: String
-    let action: (Int) async -> [PlayableContent]
+public struct PlayableListSort: Identifiable, Equatable {
+    public let name: String
+    public let action: (Int) async -> [PlayableContent]
 
-    var id: String { name }
+    public init(name: String, action: @escaping (Int) async -> [PlayableContent]) {
+        self.name = name
+        self.action = action
+    }
 
-    static func == (lhs: PlayableListSort, rhs: PlayableListSort) -> Bool {
+    public var id: String { name }
+
+    public static func == (lhs: PlayableListSort, rhs: PlayableListSort) -> Bool {
         lhs.name == rhs.name
     }
 }
@@ -26,11 +31,17 @@ struct PlayableListSort: Identifiable, Equatable {
 /// What to show in place of an empty list while its first rows are still
 /// loading. A plain spinner is enough for a single request; a load that pages
 /// a whole library in needs to say so, and say how far it has got.
-struct PlayableListProgress {
-    var message: String
+public struct PlayableListProgress {
+    public var message: String
     /// Both set for a determinate bar; `nil` leaves a spinner with the message.
-    var completed: Double?
-    var total: Double?
+    public var completed: Double?
+    public var total: Double?
+
+    public init(message: String, completed: Double? = nil, total: Double? = nil) {
+        self.message = message
+        self.completed = completed
+        self.total = total
+    }
 }
 
 struct PlayableListView: View {
