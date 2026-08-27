@@ -2340,7 +2340,7 @@ public final class MusicSearchService {
             return cached
         }
 
-        let songs = await syncSubsonicSongLibrary()
+        let songs = await syncSubsonicSongLibrary(expectedCount: serverCount)
         if !songs.isEmpty { subsonic.cacheSongLibrary(songs) }
         return songs
     }
@@ -2349,7 +2349,7 @@ public final class MusicSearchService {
     /// offsets don't depend on each other, so waiting for each response before
     /// asking for the next would put dozens of serial round trips between
     /// opening Songs and seeing a row.
-    private func syncSubsonicSongLibrary() async -> [SubsonicSong] {
+    private func syncSubsonicSongLibrary(expectedCount: Int?) async -> [SubsonicSong] {
         var seenIDs = Set<String>()
         var songs: [SubsonicSong] = []
         var nextPage = 0
@@ -2357,9 +2357,14 @@ public final class MusicSearchService {
         var fetched = 0
 
         while !reachedEnd, songs.count < Self.subsonicSyncLimit {
+            // When the server reported a size, don't ask for pages that
+            // start past the end of the library — a 1,658-song library needs
+            // four requests, not the five a fixed window would send.
             let offsets = (0..<Self.subsonicSyncConcurrency)
                 .map { (nextPage + $0) * Self.subsonicSyncPageSize }
+                .filter { expectedCount == nil || $0 < expectedCount! }
             nextPage += Self.subsonicSyncConcurrency
+            guard !offsets.isEmpty else { break }
 
             let pages = await withTaskGroup(of: (Int, [SubsonicSong]).self) { group in
                 for (index, offset) in offsets.enumerated() {
