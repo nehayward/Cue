@@ -536,17 +536,59 @@ public final class PlexAPI {
             return []
         }
 
-        guard var songs = songContainer.mediaContainer.metadata else { return [] }
-        guard let id = plexServer.clientIdentifier else { return [] }
+        guard let songs = songContainer.mediaContainer.metadata else { return [] }
+        return decorated(songs, server: plexServer, token: token)
+    }
 
-        for index in songs.indices {
-            songs[index].sonosID = "\(id)%3A3%3A\(songs[index].ratingKey)"
-            songs[index].streamURL = streamURL(for: songs[index], server: plexServer, token: token)
-            guard let thumb = songs[index].thumb else { continue }
-            songs[index].thumbImageURL = getBaseURL(for: plexServer)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+    /// A page of songs together with the section's total, for a sync that
+    /// wants to know how far it has to go.
+    public func songPage(offset: Int, limit: Int) async -> (songs: [PlexMetadata], total: Int?) {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else { return ([], nil) }
+
+        if librarySelectionID == nil {
+            librarySelectionID = await getMusicLibrarySection()
         }
 
+        guard let sectionKey = librarySelectionID,
+              var url = getBaseURL(for: plexServer)?.appending(path: "/library/sections/\(sectionKey)/all")
+        else { return ([], nil) }
+
+        url.append(queryItems: [
+            URLQueryItem(name: "type", value: "10"),
+            URLQueryItem(name: "X-Plex-Container-Size", value: "\(limit)"),
+            URLQueryItem(name: "X-Plex-Container-Start", value: "\(offset)")
+        ])
+
+        guard let container: PlexContainer<PlexSongItem> = await loadAuthorized(url) else { return ([], nil) }
+        let songs = container.mediaContainer.metadata ?? []
+        return (decorated(songs, server: plexServer, token: token), container.mediaContainer.totalSize)
+    }
+
+    /// Fills in the fields Plex doesn't send: the Sonos id and the
+    /// token-carrying stream and artwork URLs. Kept out of the model — and so
+    /// out of anything saved to disk — because the token rotates, and a
+    /// cached URL carrying an old one would simply fail.
+    public func decorated(_ songs: [PlexMetadata], server: PlexServer, token: String) -> [PlexMetadata] {
+        guard let id = server.clientIdentifier else { return songs }
+
+        var songs = songs
+        for index in songs.indices {
+            songs[index].sonosID = "\(id)%3A3%3A\(songs[index].ratingKey)"
+            songs[index].streamURL = streamURL(for: songs[index], server: server, token: token)
+            guard let thumb = songs[index].thumb else { continue }
+            songs[index].thumbImageURL = getBaseURL(for: server)?
+                .appending(path: thumb)
+                .appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+        }
         return songs
+    }
+
+    /// The same, resolving the server itself — for songs restored from the
+    /// cache, which were saved without their token-carrying URLs.
+    public func decorated(_ songs: [PlexMetadata]) async -> [PlexMetadata] {
+        guard let server = await getPlexServer(), let token = server.accessToken else { return songs }
+        return decorated(songs, server: server, token: token)
     }
 
     private func getMusicLibrarySection() async -> String? {

@@ -2,9 +2,10 @@ import Foundation
 
 /// How a list of Plex songs is ordered.
 ///
-/// Unlike Subsonic, Plex sorts on the server: each case is a field for the
-/// `sort` parameter on `/library/sections/<id>/all`. Nothing is held locally,
-/// so ordering — reversed included — stays correct across a paginated list.
+/// Plex can sort either way. The `sort` query field below is what a
+/// paginated request uses; `sort(_:reversed:)` is the same order applied to
+/// the synced copy of the library, which is how the Songs list gets it
+/// without going back to the server.
 public enum PlexSongSort: String, CaseIterable, Sendable, Identifiable {
     case title
     case artist
@@ -73,4 +74,58 @@ public enum PlexSongSort: String, CaseIterable, Sendable, Identifiable {
     public func queryValue(reversed: Bool) -> String {
         "\(field):\(naturallyDescending != reversed ? "desc" : "asc")"
     }
+
+    /// Orders songs in memory, matching what the server would return for the
+    /// same case.
+    public func sort(_ songs: [PlexMetadata], reversed: Bool = false) -> [PlexMetadata] {
+        let ordered: [PlexMetadata]
+        switch self {
+        case .title:
+            ordered = songs.sorted { compare($0.title, $1.title) ?? (compare($0.grandparentTitle, $1.grandparentTitle) ?? false) }
+        case .artist:
+            // Artist, then their albums, then each album's running order —
+            // the same shape as opening the artist.
+            ordered = songs.sorted {
+                compare($0.grandparentTitle, $1.grandparentTitle)
+                    ?? compare($0.parentTitle, $1.parentTitle)
+                    ?? (position($0) < position($1))
+            }
+        case .album:
+            ordered = songs.sorted { compare($0.parentTitle, $1.parentTitle) ?? (position($0) < position($1)) }
+        case .year:
+            ordered = songs.sorted {
+                descending($0.year ?? $0.parentYear, $1.year ?? $1.parentYear)
+                    ?? compare($0.parentTitle, $1.parentTitle)
+                    ?? (position($0) < position($1))
+            }
+        case .dateAdded:
+            ordered = songs.sorted { descending($0.addedAt, $1.addedAt) ?? (compare($0.title, $1.title) ?? false) }
+        case .playCount:
+            ordered = songs.sorted { descending($0.viewCount, $1.viewCount) ?? (compare($0.title, $1.title) ?? false) }
+        case .lastPlayed:
+            ordered = songs.sorted { descending($0.lastViewedAt, $1.lastViewedAt) ?? (compare($0.title, $1.title) ?? false) }
+        }
+        return reversed ? ordered.reversed() : ordered
+    }
+}
+
+/// Ascending text comparison, `nil` when the two are equal so callers can
+/// chain a tiebreak with `??`.
+private func compare(_ lhs: String?, _ rhs: String?) -> Bool? {
+    switch (lhs ?? "").localizedStandardCompare(rhs ?? "") {
+    case .orderedAscending: true
+    case .orderedDescending: false
+    case .orderedSame: nil
+    }
+}
+
+/// Descending number comparison; missing values sort last.
+private func descending(_ lhs: Int?, _ rhs: Int?) -> Bool? {
+    let left = lhs ?? .min, right = rhs ?? .min
+    return left == right ? nil : left > right
+}
+
+/// A song's place within its album: disc, then track.
+private func position(_ song: PlexMetadata) -> (Int, Int) {
+    (song.parentIndex ?? 1, song.index ?? 0)
 }

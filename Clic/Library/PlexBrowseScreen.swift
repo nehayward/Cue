@@ -32,8 +32,25 @@ struct PlexBrowseScreen: View {
                 ascendingLabel: sort.ascendingLabel,
                 descendingLabel: sort.descendingLabel
             ) { offset, reversed in
-                await plexBrowseService.songs(offset: offset, sort: sort, reversed: reversed)
+                await musicSearchService.plexSongs(offset: offset, sort: sort, reversed: reversed)
             }
+        }
+    }
+
+    /// The line under the Songs title: how far the one-time library sync has
+    /// got while it runs, and how big the library is once it is there.
+    private var songSyncStatus: () -> String? {
+        {
+            guard musicSearchService.isSyncingPlexSongs else {
+                guard let count = musicSearchService.plexSongCount, count > 0 else { return nil }
+                return count == 1 ? "1 song" : "\(count.formatted()) songs"
+            }
+
+            let synced = musicSearchService.plexSyncedSongCount
+            guard let total = musicSearchService.plexLibrarySongCount, total > 0 else {
+                return synced == 0 ? "Loading library…" : "\(synced.formatted()) songs"
+            }
+            return "\(min(synced, total).formatted()) of \(total.formatted())"
         }
     }
 
@@ -58,7 +75,11 @@ struct PlexBrowseScreen: View {
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Songs",
                         sortOptions: songSortOptions,
-                        sortKey: "plex.songs"
+                        sortKey: "plex.songs",
+                        searchAction: { query, offset in
+                            await musicSearchService.searchPlexSongs(query: query, offset: offset)
+                        },
+                        loadingStatus: songSyncStatus
                     )) {
                         Label("Songs", systemImage: "music.note")
                     }
@@ -95,6 +116,12 @@ struct PlexBrowseScreen: View {
                 isLoading = true
                 await updatePlexBrowseService()
                 isLoading = false
+            }
+            .refreshable {
+                // Songs is served from a synced copy of the library; a
+                // refresh should pick up anything added on the server since.
+                musicSearchService.clearPlexSongCache()
+                await updatePlexBrowseService()
             }
             .withAppRouter()
             .toolbar {

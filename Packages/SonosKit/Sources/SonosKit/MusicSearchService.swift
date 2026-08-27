@@ -25,7 +25,11 @@ public final class MusicSearchService {
         get {
             plex.serverID
         } set {
+            guard newValue != plex.serverID else { return }
             plex.serverID = newValue
+            // A different server is a different library; the copy in memory
+            // belongs to the old one.
+            clearPlexSongCache()
         }
     }
     
@@ -33,7 +37,9 @@ public final class MusicSearchService {
         get {
             plex.librarySelectionID
         } set {
+            guard newValue != plex.librarySelectionID else { return }
             plex.librarySelectionID = newValue
+            clearPlexSongCache()
         }
     }
 
@@ -48,6 +54,26 @@ public final class MusicSearchService {
     private let appleMusicSearchAPI = AppleMusicSearchAPI()
     private let apple = AppleMusicAPI.shared
     private let plex = PlexAPI.shared
+    /// The Plex song library, synced and ordered locally — same shape as the
+    /// Subsonic one below, and for the same reason: a list you can sort and
+    /// search instantly beats one that re-asks the server for every page.
+    @ObservationIgnored private var plexSongSync: Task<[PlexMetadata], Never>?
+    @ObservationIgnored private var plexSortedSongs: [PlexSongOrder: [PlayableContent]] = [:]
+    public private(set) var plexSyncedSongCount = 0
+    public private(set) var plexLibrarySongCount: Int?
+    public private(set) var isSyncingPlexSongs = false
+    /// How many songs the library holds, once it is available.
+    public private(set) var plexSongCount: Int?
+
+    private struct PlexSongOrder: Hashable {
+        let sort: PlexSongSort
+        let reversed: Bool
+    }
+    /// Songs per request while syncing. Plex serves large containers happily,
+    /// and fewer round trips is the whole point.
+    private static let plexSyncPageSize = 1_000
+    private static let plexSyncConcurrency = 3
+    private static let plexSyncLimit = 50_000
     private let tidal = TidalAPI()
     private let spotifySearchAPI = SpotifyAPI(tokenRefreshHandler: KeychainTokenRefreshHandler.shared)
     /// Session cache of the user's editable playlist ids per service, so the "can edit this
@@ -2149,6 +2175,133 @@ public final class MusicSearchService {
                 location: URL(string: "https://www.deezer.com/playlist/\(playlist.id)")
             )
         )
+    }
+
+    // MARK: - Plex library
+
+    /// Every song in the library, in the requested order, all at once.
+    ///
+    /// Plex can sort server-side, but each page would then be another round
+    /// trip and search would be another request per keystroke. Syncing once
+    /// and ordering locally makes both instant, and the copy is kept on disk
+    /// so it survives relaunching.
+    public func plexSongs(offset: Int = 0, sort: PlexSongSort = .title, reversed: Bool = false) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        return await sortedPlexSongs(by: sort, reversed: reversed)
+    }
+
+    /// Songs matching a query, filtered from the synced library. Title order,
+    /// like the Subsonic one — a result list reads by what was typed.
+    public func searchPlexSongs(query: String, offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        let songs = await sortedPlexSongs(by: .title, reversed: false)
+        return songs.filter { Self.matches($0, query: query) }
+    }
+
+    public func clearPlexSongCache() {
+        plexSongSync?.cancel()
+        plexSongSync = nil
+        plexSortedSongs.removeAll()
+        plexSyncedSongCount = 0
+        plexLibrarySongCount = nil
+        plexSongCount = nil
+        plex.clearCachedSongLibrary()
+    }
+
+    private func sortedPlexSongs(by sort: PlexSongSort, reversed: Bool) async -> [PlayableContent] {
+        let order = PlexSongOrder(sort: sort, reversed: reversed)
+        if let sorted = plexSortedSongs[order] { return sorted }
+
+        let library = await plexSongLibrary()
+        guard !library.isEmpty else { return [] }
+        let sorted = sort.sort(library, reversed: reversed).compactMap(\.toPlayable)
+        plexSortedSongs[order] = sorted
+        return sorted
+    }
+
+    private func plexSongLibrary() async -> [PlexMetadata] {
+        if let inFlight = plexSongSync { return await inFlight.value }
+
+        let task = Task { await loadPlexSongLibrary() }
+        plexSongSync = task
+        let songs = await task.value
+        if songs.isEmpty, plexSongSync == task { plexSongSync = nil }
+        return songs
+    }
+
+    /// The library from disk when it is still current, otherwise a fresh
+    /// sync. The first page doubles as the size check: Plex reports the
+    /// section's `totalSize` alongside it, so a library that has grown or
+    /// shrunk re-syncs on the next visit without anyone pulling to refresh.
+    private func loadPlexSongLibrary() async -> [PlexMetadata] {
+        isSyncingPlexSongs = true
+        plexSyncedSongCount = 0
+        defer { isSyncingPlexSongs = false }
+
+        let first = await plex.songPage(offset: 0, limit: Self.plexSyncPageSize)
+        plexLibrarySongCount = first.total
+        plexSyncedSongCount = first.songs.count
+
+        if let cached = await plex.cachedSongLibrary(),
+           first.total == nil || cached.count == first.total {
+            plexSongCount = cached.count
+            return cached
+        }
+
+        let songs = await syncPlexSongLibrary(firstPage: first.songs, total: first.total)
+        if !songs.isEmpty {
+            plex.cacheSongLibrary(songs)
+            plexSongCount = songs.count
+        }
+        return songs
+    }
+
+    /// Pages in the rest of the library, a few requests at a time — their
+    /// offsets don't depend on each other, so waiting for each before asking
+    /// for the next only adds round trips.
+    private func syncPlexSongLibrary(firstPage: [PlexMetadata], total: Int?) async -> [PlexMetadata] {
+        var songs = firstPage
+        var seenIDs = Set(firstPage.map(\.ratingKey))
+        var nextPage = 1
+        var reachedEnd = firstPage.count < Self.plexSyncPageSize
+
+        while !reachedEnd, songs.count < Self.plexSyncLimit {
+            let offsets = (0..<Self.plexSyncConcurrency)
+                .map { (nextPage + $0) * Self.plexSyncPageSize }
+                .filter { total == nil || $0 < total! }
+            nextPage += Self.plexSyncConcurrency
+            guard !offsets.isEmpty else { break }
+
+            let pages = await withTaskGroup(of: (Int, [PlexMetadata]).self) { group in
+                for (index, offset) in offsets.enumerated() {
+                    group.addTask {
+                        let page = await self.plexSongPage(offset: offset)
+                        return (index, page)
+                    }
+                }
+                var results = [[PlexMetadata]](repeating: [], count: offsets.count)
+                for await (index, page) in group {
+                    results[index] = page
+                    plexSyncedSongCount += page.count
+                }
+                return results
+            }
+
+            guard !Task.isCancelled else { return [] }
+
+            let countBeforeRound = songs.count
+            for page in pages {
+                if page.count < Self.plexSyncPageSize { reachedEnd = true }
+                songs.append(contentsOf: page.filter { seenIDs.insert($0.ratingKey).inserted })
+            }
+            if songs.count == countBeforeRound { reachedEnd = true }
+        }
+
+        return songs
+    }
+
+    private func plexSongPage(offset: Int) async -> [PlexMetadata] {
+        await plex.songPage(offset: offset, limit: Self.plexSyncPageSize).songs
     }
 
     // MARK: - Subsonic

@@ -1401,13 +1401,13 @@ struct PreferenceScreen: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Clears cached artwork images. Images will be re-downloaded as needed.")
                 if libraryCacheSize > 0 {
-                    Text("The library cache is the copy of your self-hosted library that Songs is sorted and searched from. It re-syncs the next time you open Songs.")
+                    Text("The library cache is the copy of your Plex and Subsonic libraries that Songs is sorted and searched from. It re-syncs the next time you open Songs.")
                 }
             }
         }
         .task {
             await updateCacheSize()
-            libraryCacheSize = SubsonicAPI.shared.cachedSongLibrarySize
+            libraryCacheSize = SubsonicAPI.shared.cachedSongLibrarySize + PlexAPI.shared.cachedSongLibrarySize
         }
     }
 
@@ -1416,6 +1416,7 @@ struct PreferenceScreen: View {
         // Drops the in-memory copy and the file together, so the next visit
         // really does re-read the server.
         musicSearchService.clearSubsonicSongCache()
+        musicSearchService.clearPlexSongCache()
         libraryCacheSize = 0
         alertService.showAlert(with: "Cache Cleared", imageName: "trash")
     }
