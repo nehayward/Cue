@@ -102,15 +102,17 @@ struct SubsonicManagementView: View {
                     }
                 }
             }
-            .navigationTitle("Subsonic")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Dismiss", systemImage: "xmark") { dismiss() }
                 }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    statusIndicator
+                
+                ToolbarItem(placement: .principal) {
+                    VStack {
+                        Text("Subsonic")
+                        statusIndicator
+                    }
                 }
             }
             .onAppear {
@@ -136,18 +138,14 @@ struct SubsonicManagementView: View {
         if isConnecting {
             ProgressView()
         } else if case .failure = result {
-            Image(systemName: "exclamationmark.circle.fill")
-                .foregroundStyle(.red)
-                .accessibilityLabel("Connection failed")
+            Text("Connection failed")
+                .font(.caption.smallCaps())
+                .foregroundStyle(.red.secondary)
         } else if subsonic.isConfigured {
-            Image(systemName: "checkmark.circle.fill")
+            Text("Connected")
+                .font(.caption.smallCaps())
                 .foregroundStyle(.green.gradient)
-                .accessibilityLabel("Connected")
-        } else {
-            Image(systemName: "circle.dashed")
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("Not connected")
-        }
+        } 
     }
 
     /// Reduces a pasted browser URL to the server's REST root, in place, so
