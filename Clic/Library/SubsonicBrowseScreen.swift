@@ -98,24 +98,11 @@ struct SubsonicBrowseScreen: View {
                         .listSectionSeparator(.hidden)
                     }
 
-                } else if !isLoading {
-                    Section {
-                        VStack(spacing: 12) {
-                            Text("Connect your Subsonic-compatible server (Navidrome, Airsonic, …) to browse your music here.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-
-                            Button("Connect Server") {
-                                router.presentedSheet = .subsonicManagement
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                    }
+                }
+            }
+            .overlay {
+                if !subsonicBrowseService.isAuthenticated, !isLoading {
+                    notConnectedView
                 }
             }
             .listSectionSpacing(4)
@@ -163,6 +150,53 @@ struct SubsonicBrowseScreen: View {
             Task { await subsonicBrowseService.load() }
         }
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
+    }
+
+    /// Shown when no server is configured yet. Centred (an overlay, not a list
+    /// row) so it reads as an empty state rather than content jammed under the
+    /// navigation bar, and it points people with no server at the projects
+    /// that provide one.
+    private var notConnectedView: some View {
+        ContentUnavailableView {
+            Label("No Server Connected", systemImage: "externaldrive.fill.badge.icloud")
+        } description: {
+            Text("Connect a Subsonic-compatible server to browse your own music library and play it on your Sonos speakers.")
+        } actions: {
+            VStack(spacing: 20) {
+                Button {
+                    router.presentedSheet = .subsonicManagement
+                } label: {
+                    Text("Connect Server")
+                        .frame(maxWidth: 220)
+                }
+                .buttonStyle(.borderedProminent)
+
+                VStack(spacing: 10) {
+                    Text("Don't have a server yet?")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    HStack(spacing: 10) {
+                        serverProjectLink("Navidrome", address: "https://www.navidrome.org")
+                        serverProjectLink("Airsonic", address: "https://airsonic.github.io")
+                    }
+                }
+            }
+        }
+    }
+
+    /// A link out to a self-hosted server project. Secondary (`.bordered`) on
+    /// purpose — Connect Server stays the one prominent action on the screen.
+    private func serverProjectLink(_ name: String, address: String) -> some View {
+        Link(destination: URL(string: address)!) {
+            HStack(spacing: 4) {
+                Text(name)
+                Image(systemName: "arrow.up.forward")
+                    .font(.caption2)
+            }
+        }
+        .buttonStyle(.bordered)
+        .tint(.accent)
     }
 }
 
