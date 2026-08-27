@@ -1,5 +1,13 @@
 # 2026.8
 
+–– New Features ––
+- Quick Group Menu: Press and hold the group button on the player to add or remove speakers right from a menu — tap a room to toggle it in or out, or choose Everywhere or Ungroup All. A regular tap still opens the full grouping screen
+
+–– Bug Fixes & Improvements ––
+- Fixed the volume buttons moving a speaker several steps per press while Lock Screen Now Playing is on — each press is one step again, and the Lock Screen slider still sets the level directly
+- Fixed removing a speaker from a group turning down the volume of the room that kept playing
+- Grouping or ungrouping no longer makes the player blink — the song, artwork, progress, and volume stay put while your speakers rearrange instead of flashing empty for a moment
+
 # 2026.7
 
 –– New Features ––
@@ -8,7 +16,6 @@
 - Smarter Services settings: the Services screen now shows what's actually on your Sonos — services you've authorized get show/hide toggles, ones you haven't set up yet link straight to the Sonos app to sign in, and services Clic doesn't support yet are listed too. Pull down to refresh after adding one
 - Pandora: Browse your Pandora stations, search for new ones, and play any station on any room or group — sign in through the Sonos app and it works in Clic automatically
 - Pandora Thumbs: Thumb a song up or down right from the player to tune what the station plays next — and set any Pandora station as an alarm
-- Quick Group Menu: Press and hold the group button on the player to add or remove speakers right from a menu — tap a room to toggle it in or out, or choose Everywhere or Ungroup All. A regular tap still opens the full grouping screen
 
 –– Bug Fixes & Improvements ––
 - Song changes now show up right away instead of a beat later — Clic listens to your speakers directly for track and play/pause changes
@@ -48,9 +55,6 @@
 - Skipping with the ⌘← and ⌘→ keyboard shortcuts now swaps the artwork instantly, the same as the on-screen buttons
 - Fixed the player's progress bar sweeping backwards across the whole bar when the song changes
 - Clic Mini: Fixed the song title never appearing next to the menu bar icon
-- Fixed the volume buttons moving a speaker several steps per press while Lock Screen Now Playing is on — each press is one step again, and the Lock Screen slider still sets the level directly
-- Fixed removing a speaker from a group turning down the volume of the room that kept playing
-- Grouping or ungrouping no longer makes the player blink — the song, artwork, progress, and volume stay put while your speakers rearrange instead of flashing empty for a moment
 
 # 2026.6
 
