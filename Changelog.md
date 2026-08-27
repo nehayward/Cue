@@ -9,6 +9,8 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 ### Quick group menu on the group button
 Press-and-hold the group button (player toolbar on iPhone, the popover button on iPad/Mac, and the split-view media controls) for a menu that regroups without the sheet: every active room as a checkmark toggle, plus **Everywhere** (disabled once everything's grouped) and **Ungroup All** (disabled for a solo room). A tap still opens the full `GroupScreen`, via `Menu`'s `primaryAction`. The menu is `GroupMenuButton`, wrapped around the same `GroupIconView` labels the plain buttons used, and its semantics are `GroupScreen.addGroup`'s exactly: membership changes diff through `smartGroup`, the last room can't leave its own group, and removing the coordinator follows the promoted one (`Router.main` → `.player(groupID:)`). Everywhere uses `speedGroup`, same as the sheet's button.
 
+`glassToolbar()` now wraps its row in a `GlassEffectContainer` on iOS 26: the `Menu` contributes its own glass to the capsule, and without a shared container the two effects sampled independently and composited into a darker, more opaque pill.
+
 ### Volume fixes around the Lock Screen mirror (iPhone)
 
 Beta report: since 2026.7 the volume moves several points per button press, and removing a speaker from a group lowers the remaining room's volume. Both traced to the Now Playing bridge's absolute mode, which owns the hardware buttons whenever the mirror is up (`Owner.session` outranks the player screen).
