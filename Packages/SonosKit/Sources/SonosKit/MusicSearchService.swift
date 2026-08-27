@@ -68,6 +68,20 @@ public final class MusicSearchService {
     )
     private let deezer = DeezerAPI()
     private let subsonic = SubsonicAPI.shared
+    /// The in-flight or completed sync of the Subsonic song library, sorted by
+    /// title. See `subsonicSongs(offset:)` for why the sort is local.
+    @ObservationIgnored private var subsonicSongLibrary: Task<[PlayableContent], Never>?
+    /// Rows handed to the Songs list per page request.
+    private static let subsonicSongPageSize = 50
+    /// Songs per request during the sync — much larger than a list page, since
+    /// the whole library has to come across before the first row can be drawn.
+    private static let subsonicSyncPageSize = 500
+    /// Requests in flight at once during the sync.
+    private static let subsonicSyncConcurrency = 5
+    /// Ceiling on the synced copy. Past this a library would spend minutes
+    /// loading before Songs could show anything, which is worse than a list
+    /// that stops short.
+    private static let subsonicSyncLimit = 25_000
     /// Persisting the rotated token means the next launch's stored credentials
     /// are already fresh, skipping the 401 → refreshAuthToken → retry round
     /// trips on every cold start.
@@ -2239,8 +2253,102 @@ public final class MusicSearchService {
         await subsonic.albumList(type: "alphabeticalByName", size: 50, offset: offset).map(\.toPlayable)
     }
 
+    /// Every song in the library, alphabetically, a page at a time.
+    ///
+    /// Subsonic has no server-side sort for songs — `search3` takes only
+    /// counts and offsets, and the spec leaves the order of its results
+    /// unspecified, so a plain paginated fetch arrives in whatever order the
+    /// server happens to store. Clients that do show an alphabetical Songs
+    /// list get there by syncing the library locally and sorting it
+    /// themselves; that is what this does. The sync runs once per session and
+    /// pages are then served from the sorted copy.
     public func subsonicSongs(offset: Int = 0) async -> [PlayableContent] {
-        await subsonic.songs(size: 50, offset: offset).map(\.toPlayable)
+        let songs = await sortedSubsonicSongs()
+        guard offset < songs.count else { return [] }
+        return Array(songs[offset..<min(offset + Self.subsonicSongPageSize, songs.count)])
+    }
+
+    /// Drops the synced copy so the next Songs open re-fetches it. Call after
+    /// anything that changes which library is being browsed (connecting,
+    /// disconnecting, pull-to-refresh).
+    public func clearSubsonicSongCache() {
+        subsonicSongLibrary?.cancel()
+        subsonicSongLibrary = nil
+    }
+
+    /// The sorted library, syncing it first if this is the first ask. Held as
+    /// a `Task` rather than an array so the two calls the list makes while the
+    /// first page is still loading share one sync instead of racing two.
+    private func sortedSubsonicSongs() async -> [PlayableContent] {
+        if let inFlight = subsonicSongLibrary { return await inFlight.value }
+
+        let task = Task { await syncSubsonicSongLibrary() }
+        subsonicSongLibrary = task
+        let songs = await task.value
+        // Empty means the server didn't answer the empty query (pre-OpenSubsonic
+        // servers don't) or the sync was cancelled — either way it isn't an
+        // answer worth remembering.
+        if songs.isEmpty, subsonicSongLibrary == task { subsonicSongLibrary = nil }
+        return songs
+    }
+
+    /// Pages the whole library in and sorts it by title. Pages are fetched a
+    /// few at a time: their offsets don't depend on each other, so waiting for
+    /// each response before asking for the next would put dozens of serial
+    /// round trips between opening Songs and seeing a row.
+    private func syncSubsonicSongLibrary() async -> [PlayableContent] {
+        var seenIDs = Set<String>()
+        var songs: [PlayableContent] = []
+        var nextPage = 0
+        var reachedEnd = false
+
+        while !reachedEnd, songs.count < Self.subsonicSyncLimit {
+            let offsets = (0..<Self.subsonicSyncConcurrency)
+                .map { (nextPage + $0) * Self.subsonicSyncPageSize }
+            nextPage += Self.subsonicSyncConcurrency
+
+            let pages = await withTaskGroup(of: (Int, [PlayableContent]).self) { group in
+                for (index, offset) in offsets.enumerated() {
+                    group.addTask {
+                        let page = await self.subsonicSongPage(offset: offset)
+                        return (index, page)
+                    }
+                }
+                var results = [[PlayableContent]](repeating: [], count: offsets.count)
+                for await (index, page) in group {
+                    results[index] = page
+                }
+                return results
+            }
+
+            guard !Task.isCancelled else { return [] }
+
+            let countBeforeRound = songs.count
+            for page in pages {
+                // A short page is the last one — every offset past it is empty.
+                if page.count < Self.subsonicSyncPageSize { reachedEnd = true }
+                // Servers are free to reorder between requests, so the same
+                // song can land in two pages; keep the first sighting.
+                songs.append(contentsOf: page.filter { seenIDs.insert($0.content.id).inserted })
+            }
+            // A server that ignores the offset would hand back the same page
+            // forever; nothing new in a whole round means stop, not spin.
+            if songs.count == countBeforeRound { reachedEnd = true }
+        }
+
+        return songs.sorted { lhs, rhs in
+            switch lhs.title.localizedStandardCompare(rhs.title) {
+            case .orderedAscending: return true
+            case .orderedDescending: return false
+            case .orderedSame: return lhs.subtitle.localizedStandardCompare(rhs.subtitle) == .orderedAscending
+            }
+        }
+    }
+
+    /// One page of the sync, isolated in its own method so the concurrent
+    /// fetches above can call it from outside the actor.
+    private func subsonicSongPage(offset: Int) async -> [PlayableContent] {
+        await subsonic.songs(size: Self.subsonicSyncPageSize, offset: offset).map(\.toPlayable)
     }
 
     public func subsonicRecentAlbums(offset: Int = 0) async -> [PlayableContent] {

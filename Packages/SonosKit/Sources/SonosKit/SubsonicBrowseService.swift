@@ -40,6 +40,9 @@ public final class SubsonicBrowseService {
         userPlaylists = []
         recentAlbums = []
         isAuthenticated = false
+        // The Songs list is served from a synced copy of the library; a
+        // refresh should pick up songs added on the server since.
+        musicSearchService.clearSubsonicSongCache()
         await load()
     }
 }

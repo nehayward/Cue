@@ -31,6 +31,15 @@ struct PlayableListView: View {
             PlayAllButtonView(item: playAllItem)
             contentSection
         }
+        .overlay {
+            // Only while there is nothing to show yet — later pages load
+            // underneath the rows already on screen. Some lists (Subsonic's
+            // Songs) sync before they can draw a first row, and a blank screen
+            // reads as an empty library.
+            if isLoading, items.isEmpty {
+                ProgressView()
+            }
+        }
         .animation(.default, value: items)
         .miniPlayerOnScrollHandler()
         .foregroundStyle(.foreground)

@@ -171,6 +171,8 @@ struct SubsonicManagementView: View {
         subsonic.serverAddress = serverAddress
         subsonic.username = username
         subsonic.password = password
+        // Anything cached from a previous server belongs to that server.
+        MusicSearchService.shared.clearSubsonicSongCache()
         // A working server means the service is authorized — surface it in
         // search and browse right away.
         CoreFeatures.shared.enabledServices(.subsonic).wrappedValue = true
@@ -185,6 +187,7 @@ struct SubsonicManagementView: View {
         subsonic.serverAddress = ""
         subsonic.username = ""
         subsonic.password = ""
+        MusicSearchService.shared.clearSubsonicSongCache()
         // Mirror the connect path, which enables the service — otherwise the
         // Settings toggle stays visually on for a service that can't play.
         CoreFeatures.shared.enabledServices(.subsonic).wrappedValue = false
