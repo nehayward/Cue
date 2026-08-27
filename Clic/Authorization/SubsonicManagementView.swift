@@ -42,27 +42,19 @@ struct SubsonicManagementView: View {
                         .textInputAutocapitalization(.never)
                     SecureField("Password", text: $password)
                         .textContentType(.password)
+                        .onSubmit {
+                            Task { await testConnection() }
+                        }
                 }
 
                 Section {
                     Button {
                         Task { await testConnection() }
                     } label: {
-                        HStack {
-                            Text("Test Connection")
-                            Spacer()
-                            if isTesting {
-                                ProgressView()
-                            } else if let testResult {
-                                switch testResult {
-                                case .success:
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.green.gradient)
-                                case .failure:
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(.red)
-                                }
-                            }
+                        if isTesting {
+                            ProgressView()
+                        } else {
+                            Text("Connect")
                         }
                     }
                     .disabled(isTesting || serverAddress.isEmpty || username.isEmpty || password.isEmpty)
@@ -103,7 +95,7 @@ struct SubsonicManagementView: View {
                 }
 
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") {
+                    Button("Dismiss", systemImage: "xmark") {
                         apply()
                         dismiss()
                     }
