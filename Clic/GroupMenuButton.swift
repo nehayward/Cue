@@ -31,9 +31,14 @@ struct GroupMenuButton<Label: View>: View {
         Menu {
             Section(group.nameWithCount) {
                 ForEach(activeRooms) { room in
-                    Toggle(isOn: membership(of: room)) {
-                        Text(room.name)
-                    }
+                    // The binding is display-only; a tap always means "toggle
+                    // this room", and `toggle` owns what that does.
+                    Toggle(room.name, isOn: Binding(
+                        get: { isMember(room) },
+                        set: { _ in toggle(room) }
+                    ))
+                    // A solo room is its own group — there's nothing to leave.
+                    .disabled(isMember(room) && group.rooms.count == 1)
                 }
             }
             Section {
@@ -47,7 +52,7 @@ struct GroupMenuButton<Label: View>: View {
 
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    setMembers(to: [group.coordinatorRoom])
+                    regroup(to: [group.coordinatorRoom])
                 } label: {
                     SwiftUI.Label("Ungroup All", systemImage: "hifispeaker.fill")
                 }
@@ -60,36 +65,30 @@ struct GroupMenuButton<Label: View>: View {
         }
     }
 
-    private func membership(of room: Room) -> Binding<Bool> {
-        Binding {
-            group.rooms.contains(where: { $0.id == room.id })
-        } set: { include in
-            HapticManager.shared.fireHaptic(.selection)
-            var members = group.rooms
-            if include {
-                guard !members.contains(where: { $0.id == room.id }) else { return }
-                members.append(room)
-            } else {
-                // The last room can't leave its own group — same guard as
-                // `GroupScreen.addGroup`.
-                guard members.count > 1 else { return }
-                members.removeAll { $0.id == room.id }
-            }
-            setMembers(to: members)
-        }
+    private func isMember(_ room: Room) -> Bool {
+        group.rooms.contains { $0.id == room.id }
     }
 
-    /// Same flow as `GroupScreen.addGroup`: `smartGroup` diffs against the
-    /// current members, and if the change removed the coordinator the player
-    /// follows the promoted one.
-    private func setMembers(to rooms: [Room]) {
-        let oldRooms = group.rooms
+    /// One tap, one membership change: drop the room if it's in the group,
+    /// add it if it isn't.
+    private func toggle(_ room: Room) {
+        HapticManager.shared.fireHaptic(.selection)
+        let members = isMember(room)
+            ? group.rooms.filter { $0.id != room.id }
+            : group.rooms + [room]
+        regroup(to: members)
+    }
+
+    /// Same flow as `GroupScreen.addGroup`: `smartGroup` diffs `members`
+    /// against the group's current rooms, and when the change removed the
+    /// coordinator it returns the promoted one for the player to follow.
+    private func regroup(to members: [Room]) {
+        guard !members.isEmpty else { return }
+        let current = group.rooms
         Task {
-            let newCoordinatorID = await sonosService.smartGroup(rooms: rooms, oldRooms: oldRooms, to: group)
-            if let newCoordinatorID {
-                Router.main.selectedID = newCoordinatorID
-                Router.main.navigate(to: .player(groupID: newCoordinatorID))
-            }
+            guard let newCoordinatorID = await sonosService.smartGroup(rooms: members, oldRooms: current, to: group) else { return }
+            Router.main.selectedID = newCoordinatorID
+            Router.main.navigate(to: .player(groupID: newCoordinatorID))
         }
     }
 }
