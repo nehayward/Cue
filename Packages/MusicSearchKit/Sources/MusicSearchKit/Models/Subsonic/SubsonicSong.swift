@@ -15,4 +15,10 @@ public struct SubsonicSong: Decodable, Sendable {
     public let suffix: String?
     /// Present (an ISO date) when the song is starred by the current user.
     public let starred: String?
+    public let year: Int?
+    public let track: Int?
+    public let discNumber: Int?
+    public let playCount: Int?
+    /// When the server first saw the file, as an ISO 8601 timestamp.
+    public let created: String?
 }

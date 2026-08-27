@@ -37,7 +37,9 @@ struct SubsonicBrowseScreen: View {
                         // Off for now: the index fights the paginated loads
                         // (scrolling to a letter jumps past unloaded pages).
                         showSectionIndex: false,
-                        action: { offset in await musicSearchService.subsonicAlbums(offset: offset) }
+                        // Each option carries its own loader, so the list needs
+                        // no separate default action.
+                        sortOptions: albumSortOptions
                     )) {
                         Label("Albums", systemImage: "smallcircle.circle.fill")
                     }
@@ -49,7 +51,7 @@ struct SubsonicBrowseScreen: View {
                         // Off for now: the index fights the paginated loads
                         // (scrolling to a letter jumps past unloaded pages).
                         showSectionIndex: false,
-                        action: { offset in await musicSearchService.subsonicSongs(offset: offset) }
+                        sortOptions: songSortOptions
                     )) {
                         Label("Songs", systemImage: "music.note")
                     }
@@ -159,6 +161,26 @@ struct SubsonicBrowseScreen: View {
             Task { await subsonicBrowseService.load() }
         }
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
+    }
+
+    /// The Songs list's sort menu. Sorting happens on the synced copy of the
+    /// library rather than on the server, which has no sort for songs.
+    private var songSortOptions: [PlayableListSort] {
+        SubsonicSongSort.allCases.map { sort in
+            PlayableListSort(name: sort.label) { offset in
+                await musicSearchService.subsonicSongs(offset: offset, sort: sort)
+            }
+        }
+    }
+
+    /// The Albums list's sort menu — these orders the server does provide, so
+    /// each one is just a different `getAlbumList2` list type.
+    private var albumSortOptions: [PlayableListSort] {
+        SubsonicAlbumSort.allCases.map { sort in
+            PlayableListSort(name: sort.label) { offset in
+                await musicSearchService.subsonicAlbums(offset: offset, sort: sort)
+            }
+        }
     }
 
     /// Shown when no server is configured yet. Centred (an overlay, not a list

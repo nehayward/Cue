@@ -416,9 +416,18 @@ extension View {
                 case let .playableLibraryList(title: title, items: items, action: action):
                     PlayableList(items: items, action: action)
                         .navigationTitle(title)
-                case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, action: action):
-                    PlayableListView(playAllItem: playAllItem, showSectionIndex: showSectionIndex, action: action)
-                        .navigationTitle(title)
+                case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, sortOptions: sortOptions, action: action):
+                    PlayableListView(
+                        playAllItem: playAllItem,
+                        showSectionIndex: showSectionIndex,
+                        sortOptions: sortOptions,
+                        // The title is what distinguishes one list from
+                        // another in the router, so it also identifies whose
+                        // sort choice is being remembered.
+                        sortStorageKey: sortOptions.isEmpty ? nil : title,
+                        action: action
+                    )
+                    .navigationTitle(title)
                 case let .playableGridScreen(title: title, items: items, action: action):
                     PlayableGridScreen(items: items, action: action)
                         .navigationTitle(title)
