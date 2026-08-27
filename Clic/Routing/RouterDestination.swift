@@ -24,7 +24,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case houseHold
     case spotifyUserPlaylist
     case genreList
-    case playableList(title: String, playAllItem: PlayableContent? = nil, showSectionIndex: Bool = true, sortOptions: [PlayableListSort] = [], searchAction: ((String, Int) async -> [PlayableContent])? = nil, progress: (() -> PlayableListProgress?)? = nil, action: ((Int) async -> [PlayableContent])? = nil)
+    case playableList(title: String, playAllItem: PlayableContent? = nil, showSectionIndex: Bool = true, sortOptions: [PlayableListSort] = [], searchAction: ((String, Int) async -> [PlayableContent])? = nil, loadingStatus: (() -> String?)? = nil, action: ((Int) async -> [PlayableContent])? = nil)
     case folderBrowse(item: PlayableContent, title: String)
     case connectByIP
 
@@ -166,7 +166,7 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("spotifyUserPlaylist")
         case .genreList:
             hasher.combine("genreList")
-        case .playableList(let title, playAllItem: _, showSectionIndex: _, sortOptions: _, searchAction: _, progress: _, action: _):
+        case .playableList(let title, playAllItem: _, showSectionIndex: _, sortOptions: _, searchAction: _, loadingStatus: _, action: _):
             hasher.combine(title)
         case .folderBrowse(let folderID, let title):
             hasher.combine(folderID)

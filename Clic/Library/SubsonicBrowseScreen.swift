@@ -58,7 +58,7 @@ struct SubsonicBrowseScreen: View {
                         searchAction: { query, offset in
                             await musicSearchService.searchSubsonicSongs(query: query, offset: offset)
                         },
-                        progress: songSyncProgress
+                        loadingStatus: songSyncStatus
                     )) {
                         Label("Songs", systemImage: "music.note")
                     }
@@ -170,21 +170,19 @@ struct SubsonicBrowseScreen: View {
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
     }
 
-    /// How far the one-time library sync has got. Songs is the only list that
-    /// has to pull the whole library in before it can show a row, so it is the
-    /// only one that owes the user more than a spinner.
-    private var songSyncProgress: () -> PlayableListProgress? {
+    /// How far the one-time library sync has got, as a line under the title.
+    /// Songs is the only list that has to pull the whole library in before it
+    /// can show a row, so it is the only one that owes the user a count.
+    private var songSyncStatus: () -> String? {
         {
             guard musicSearchService.isSyncingSubsonicSongs else { return nil }
             let synced = musicSearchService.subsonicSyncedSongCount
-            let total = musicSearchService.subsonicLibrarySongCount
-            return PlayableListProgress(
-                message: synced == 0
-                    ? "Loading your library…"
-                    : "\(synced.formatted()) songs",
-                completed: total == nil ? nil : Double(synced),
-                total: total.map(Double.init)
-            )
+            guard let total = musicSearchService.subsonicLibrarySongCount, total > 0 else {
+                // No total: the server won't report one, so a running count
+                // is all there is to say.
+                return synced == 0 ? "Loading library…" : "\(synced.formatted()) songs"
+            }
+            return "\(min(synced, total).formatted()) of \(total.formatted())"
         }
     }
 

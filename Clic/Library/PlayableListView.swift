@@ -28,22 +28,6 @@ public struct PlayableListSort: Identifiable, Equatable {
     }
 }
 
-/// What to show in place of an empty list while its first rows are still
-/// loading. A plain spinner is enough for a single request; a load that pages
-/// a whole library in needs to say so, and say how far it has got.
-public struct PlayableListProgress {
-    public var message: String
-    /// Both set for a determinate bar; `nil` leaves a spinner with the message.
-    public var completed: Double?
-    public var total: Double?
-
-    public init(message: String, completed: Double? = nil, total: Double? = nil) {
-        self.message = message
-        self.completed = completed
-        self.total = total
-    }
-}
-
 struct PlayableListView: View {
     @State private var isLoading: Bool = false
     @State private var hasReachedEnd: Bool = false
@@ -58,6 +42,7 @@ struct PlayableListView: View {
     /// can tell that its rows are no longer wanted.
     @State private var loadGeneration = 0
 
+    var title: String = ""
     var playAllItem: PlayableContent? = nil
     var showSectionIndex: Bool = true
     /// Empty for lists with a single fixed order — no menu is shown then.
@@ -68,9 +53,11 @@ struct PlayableListView: View {
     /// rows already loaded — filtering the loaded page would quietly miss
     /// most of the library. Called with the query and a page offset.
     var searchAction: ((String, Int) async -> [PlayableContent])? = nil
-    /// Read during `body`, so a service's observable sync progress reaches the
-    /// placeholder without this view knowing anything about that service.
-    var progress: (() -> PlayableListProgress?)? = nil
+    /// A line of status shown under the title while a long load runs — "11 of
+    /// 10,101" as a library pages in. Read during `body`, so a service's
+    /// observable progress reaches it without this view knowing anything
+    /// about that service; `nil` means nothing is loading.
+    var loadingStatus: (() -> String?)? = nil
     var action: ((Int) async -> ([PlayableContent]))? = nil
 
     /// Falls back to the first option when nothing is chosen yet, or when a
@@ -127,7 +114,9 @@ struct PlayableListView: View {
             // Songs) sync before they can draw a first row, and a blank screen
             // reads as an empty library.
             if isLoading, items.isEmpty {
-                loadingIndicator
+                // How far a long load has got is in the title bar, where it
+                // stays legible once rows start filling in underneath.
+                ProgressView()
             } else if items.isEmpty, !appliedQuery.isEmpty {
                 ContentUnavailableView.search(text: appliedQuery)
             }
@@ -147,6 +136,24 @@ struct PlayableListView: View {
         .foregroundStyle(.foreground)
         .listStyle(.plain)
         .toolbar {
+            if let status = loadingStatus?() {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 0) {
+                        Text(title)
+                            .font(.headline)
+                        Text(status)
+                            .font(.caption2)
+                            // Fixed-width digits that roll rather than
+                            // re-flow, so a climbing count reads as one number
+                            // instead of a twitching line of text.
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                            .animation(.default, value: status)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             if !sortOptions.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
@@ -182,24 +189,6 @@ struct PlayableListView: View {
                 sortName = UserDefaults.standard.string(forKey: Self.sortDefaultsKey(sortStorageKey))
             }
             await initialLoad()
-        }
-    }
-
-    @ViewBuilder
-    private var loadingIndicator: some View {
-        if let progress = progress?() {
-            if let completed = progress.completed, let total = progress.total, total > 0 {
-                ProgressView(value: min(completed, total), total: total) {
-                    Text(progress.message)
-                }
-                .progressViewStyle(.linear)
-                .padding(.horizontal, 40)
-                .frame(maxWidth: 320)
-            } else {
-                ProgressView { Text(progress.message) }
-            }
-        } else {
-            ProgressView()
         }
     }
 

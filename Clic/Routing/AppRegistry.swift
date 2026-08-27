@@ -416,8 +416,9 @@ extension View {
                 case let .playableLibraryList(title: title, items: items, action: action):
                     PlayableList(items: items, action: action)
                         .navigationTitle(title)
-                case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, sortOptions: sortOptions, searchAction: searchAction, progress: progress, action: action):
+                case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, sortOptions: sortOptions, searchAction: searchAction, loadingStatus: loadingStatus, action: action):
                     PlayableListView(
+                        title: title,
                         playAllItem: playAllItem,
                         showSectionIndex: showSectionIndex,
                         sortOptions: sortOptions,
@@ -426,7 +427,7 @@ extension View {
                         // sort choice is being remembered.
                         sortStorageKey: sortOptions.isEmpty ? nil : title,
                         searchAction: searchAction,
-                        progress: progress,
+                        loadingStatus: loadingStatus,
                         action: action
                     )
                     .navigationTitle(title)
