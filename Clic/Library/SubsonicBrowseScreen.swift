@@ -22,6 +22,9 @@ struct SubsonicBrowseScreen: View {
                 if subsonicBrowseService.isAuthenticated {
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Artists",
+                        // Off for now: the index fights the paginated loads
+                        // (scrolling to a letter jumps past unloaded pages).
+                        showSectionIndex: false,
                         action: { offset in await musicSearchService.subsonicArtists(offset: offset) }
                     )) {
                         Label("Artists", systemImage: "music.mic")
@@ -31,6 +34,9 @@ struct SubsonicBrowseScreen: View {
 
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Albums",
+                        // Off for now: the index fights the paginated loads
+                        // (scrolling to a letter jumps past unloaded pages).
+                        showSectionIndex: false,
                         action: { offset in await musicSearchService.subsonicAlbums(offset: offset) }
                     )) {
                         Label("Albums", systemImage: "smallcircle.circle.fill")
@@ -40,6 +46,9 @@ struct SubsonicBrowseScreen: View {
 
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Songs",
+                        // Off for now: the index fights the paginated loads
+                        // (scrolling to a letter jumps past unloaded pages).
+                        showSectionIndex: false,
                         action: { offset in await musicSearchService.subsonicSongs(offset: offset) }
                     )) {
                         Label("Songs", systemImage: "music.note")
