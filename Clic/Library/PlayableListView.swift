@@ -104,7 +104,14 @@ struct PlayableListView: View {
     }
 
     var body: some View {
-        List {
+        // Read here rather than inside the `.toolbar` builder. Observation
+        // registers what `body` itself touches; toolbar content is built
+        // separately, so a count read only in there never re-runs as it
+        // climbs — the status would stay at whatever it was (usually nil,
+        // since the sync starts after the first render) and never appear.
+        let status = loadingStatus?()
+
+        return List {
             PlayAllButtonView(item: playAllItem)
             contentSection
         }
@@ -136,7 +143,7 @@ struct PlayableListView: View {
         .foregroundStyle(.foreground)
         .listStyle(.plain)
         .toolbar {
-            if let status = loadingStatus?() {
+            if let status {
                 ToolbarItem(placement: .principal) {
                     VStack(spacing: 0) {
                         Text(title)
