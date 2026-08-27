@@ -8,7 +8,6 @@ import OrderedCollections
 import SwiftUI
 import SonosKit
 import Defaults
-import TipKit
 
 struct SpotifyPlaylistScreen: View {
     @Environment(SonosService.self) private var sonosService

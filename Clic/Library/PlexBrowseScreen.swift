@@ -8,7 +8,6 @@ import OrderedCollections
 import SwiftUI
 import SonosKit
 import Defaults
-import TipKit
 import AuthenticationServices
 
 struct PlexBrowseScreen: View {

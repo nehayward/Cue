@@ -8,7 +8,6 @@ import OrderedCollections
 import SwiftUI
 import SonosKit
 import Defaults
-import TipKit
 
 struct ApplePlaylistsView: View {
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService

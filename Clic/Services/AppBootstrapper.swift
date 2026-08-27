@@ -2,7 +2,7 @@ import Analytics
 import Defaults
 import Nuke
 import SubscriptionKit
-import TipKit
+import UIKit
 
 final class AppBootstrapper {
     static let shared = AppBootstrapper()
@@ -20,7 +20,6 @@ final class AppBootstrapper {
             Analytics.shared.setSelection(metadata: ["MusicService": String(primary)])
         }
 
-        try? Tips.configure([.displayFrequency(.immediate)])
         configureNuke()
     }
 

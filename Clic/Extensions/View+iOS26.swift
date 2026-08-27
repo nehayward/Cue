@@ -166,19 +166,7 @@ extension View {
         spacing: CGFloat? = nil,
         @ViewBuilder content: () -> V
     ) -> some View where V: View {
-        #if !os(visionOS)
-        if #available(iOS 26.0, *) {
-            self
-                .safeAreaBar(edge: edge, content: content)
-        } else {
-            self
-                .safeAreaInset(edge: edge, content: content)
-        }
-        #else
-        // visionOS fallback
-        self
-            .safeAreaInset(edge: edge, content: content)
-        #endif
+        self.safeAreaInset(edge: edge, content: content)
     }
     
     @ViewBuilder
@@ -221,5 +209,14 @@ extension View {
         #else
         self
         #endif
+    }
+        
+    @ViewBuilder
+    func capsuleGlass() -> some View {
+        if #available(iOS 26.0, *) {
+            glassEffect(.regular.interactive(), in: .capsule)
+        } else {
+            background(.ultraThinMaterial, in: .capsule)
+        }
     }
 }
