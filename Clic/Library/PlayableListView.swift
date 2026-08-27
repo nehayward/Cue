@@ -177,7 +177,6 @@ struct PlayableListView: View {
             appliedQuery = query
             await reload()
         }
-        .animation(hasLoadedOnce ? .default : nil, value: items)
         .miniPlayerOnScrollHandler()
         .foregroundStyle(.foreground)
         .listStyle(.plain)
