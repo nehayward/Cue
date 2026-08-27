@@ -130,22 +130,20 @@ struct SubsonicManagementView: View {
         }
     }
 
-    /// Connection state, in the trailing toolbar so the title stays the title.
-    /// A neutral dashed circle before the first attempt — nothing is wrong
-    /// yet, it just isn't set up; red is reserved for an actual failure.
+    /// Whether a server is currently set up — the *persistent* state, which
+    /// is why a failed attempt doesn't show here: the last attempt's outcome
+    /// is transient and belongs next to the button that caused it, where it
+    /// can also say what actually went wrong. Duplicating it as a generic
+    /// "connection failed" under the title only says it twice, less usefully.
     @ViewBuilder
     private var statusIndicator: some View {
         if isConnecting {
             ProgressView()
-        } else if case .failure = result {
-            Text("Connection failed")
-                .font(.caption.smallCaps())
-                .foregroundStyle(.red.secondary)
         } else if subsonic.isConfigured {
             Text("Connected")
                 .font(.caption.smallCaps())
                 .foregroundStyle(.green.gradient)
-        } 
+        }
     }
 
     /// Reduces a pasted browser URL to the server's REST root, in place, so
