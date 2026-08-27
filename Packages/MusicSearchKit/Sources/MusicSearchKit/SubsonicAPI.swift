@@ -361,14 +361,25 @@ public final class SubsonicAPI: DirectStreamProvider {
 
         components.fragment = nil
         components.query = nil
+        // Credentials pasted into the URL would otherwise be stored in plain
+        // UserDefaults alongside the address; the password belongs in the
+        // keychain, entered in its own field.
+        components.user = nil
+        components.password = nil
 
         var parts = components.path.split(separator: "/").map(String.init)
-        // Everything from the web client's mount point (or an already-built
-        // REST call) onwards belongs to the client, not the server root.
-        if let clientRoot = parts.firstIndex(where: { ["app", "rest"].contains($0.lowercased()) }) {
-            parts = Array(parts[..<clientRoot])
+        // The API root is whatever precedes the *last* `/rest`, so an
+        // already-built REST call collapses back to the server.
+        if let restRoot = parts.lastIndex(where: { $0.lowercased() == "rest" }) {
+            parts = Array(parts[..<restRoot])
         }
         while let last = parts.last?.lowercased(), ["login", "index.html", "index.php"].contains(last) {
+            parts.removeLast()
+        }
+        // Navidrome's web client is mounted at `/app` and keeps its route in
+        // the fragment, so a trailing `app` is the client — but a proxy
+        // genuinely mounted at `/app/...` keeps its path.
+        if parts.last?.lowercased() == "app" {
             parts.removeLast()
         }
         components.path = parts.isEmpty ? "" : "/" + parts.joined(separator: "/")

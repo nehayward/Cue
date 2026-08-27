@@ -30,11 +30,12 @@ struct SubsonicManagementView: View {
             || password != subsonic.password
     }
 
-    /// One action, never both: a connected server with no pending edits
-    /// offers Disconnect, anything else offers Connect — so editing a saved
-    /// login still gives you a way to save it.
+    /// One action, never both. Connect appears only when there is a complete
+    /// edit to save, so a connected user who clears a field still has
+    /// Disconnect — gating purely on "edited" stranded them with a Connect
+    /// button their empty field had already disabled.
     private var showsDisconnect: Bool {
-        subsonic.isConfigured && !hasUnsavedEdits
+        subsonic.isConfigured && !(hasUnsavedEdits && canConnect)
     }
 
     var body: some View {
@@ -122,8 +123,11 @@ struct SubsonicManagementView: View {
             }
             .task {
                 // A sheet isn't ready for focus on the same runloop pass it
-                // appears; without the hop the keyboard never comes up.
-                guard serverAddress.isEmpty else { return }
+                // appears; without the hop the keyboard never comes up. Read
+                // the stored value, not the @State copy `onAppear` fills —
+                // SwiftUI doesn't order the two, so the copy may still be
+                // empty for a configured server.
+                guard subsonic.serverAddress.isEmpty else { return }
                 try? await Task.sleep(for: .milliseconds(350))
                 focused = .address
             }

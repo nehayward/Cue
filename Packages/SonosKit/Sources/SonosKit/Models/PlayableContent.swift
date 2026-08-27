@@ -478,6 +478,9 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         case .soundcloud: "SA_RINCON40967_X_#Svc40967-7051ab01-Token"
         case .tidal: "SA_RINCON44551_X_#Svc44551-0-Token"
         case .plex: "SA_RINCON54279_X_#Svc54279-0-Token"
+        // Direct-HTTP services have no service account; the speaker's own UDN
+        // stands in, as it does in their queue metadata.
+        case _ where content.service.directStreamProvider != nil: "RINCON_AssociatedZPUDN"
         default: spotifyMusicServiceToken
         }
     }

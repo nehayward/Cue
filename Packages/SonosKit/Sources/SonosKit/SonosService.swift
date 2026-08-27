@@ -2763,22 +2763,32 @@ public final class SonosService {
                 && !content.content.type.isTrack
                 && !content.content.type.isRadio
         }
-        guard contents.contains(where: needsExpansion) else { return contents }
+        let containers = contents.indices.filter { needsExpansion(contents[$0]) }
+        guard !containers.isEmpty else { return contents }
+
         let musicSearch = await musicSearch
-        let expanded = await withTaskGroup(of: (Int, [PlayableContent]).self) { group in
-            for (index, content) in contents.enumerated() {
-                group.addTask {
-                    if needsExpansion(content) {
-                        return (index, await musicSearch.containerTracks(for: content))
-                    }
-                    return (index, [content])
-                }
+        // Bounded: a discography can carry dozens of albums, and firing one
+        // request per album at a home server at once is how you get throttled
+        // — which surfaces as albums silently missing from the queue, since a
+        // container that fails to load expands to nothing.
+        let maxInFlight = 4
+        var expanded = contents.map { [$0] }
+        await withTaskGroup(of: (Int, [PlayableContent]).self) { group in
+            var next = 0
+            while next < min(maxInFlight, containers.count) {
+                let index = containers[next]
+                let content = contents[index]
+                group.addTask { (index, await musicSearch.containerTracks(for: content)) }
+                next += 1
             }
-            var results = [[PlayableContent]](repeating: [], count: contents.count)
-            for await (index, tracks) in group {
-                results[index] = tracks
+            while let (index, tracks) = await group.next() {
+                expanded[index] = tracks
+                guard next < containers.count else { continue }
+                let queued = containers[next]
+                let content = contents[queued]
+                group.addTask { (queued, await musicSearch.containerTracks(for: content)) }
+                next += 1
             }
-            return results
         }
         return expanded.flatMap { $0 }
     }
@@ -2897,7 +2907,10 @@ public final class SonosService {
                 if startIndex > 0 {
                     await seek(trackNumber: startIndex + 1, on: group)
                 }
-                await api.play(ipAddress: group.ip)
+                // The wrapper, not `api.play`: it writes the optimistic
+                // playing state the player draws from and holds it against
+                // the next poll.
+                await play(ip: group.ip)
             }
         }
 
