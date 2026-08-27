@@ -25,6 +25,11 @@ public final class SubsonicBrowseService {
         guard isAuthenticated else { return }
 
         await withTaskGroup(of: Void.self) { group in
+            // Opening the library is the moment to notice the server has
+            // more songs than the synced copy — Songs is one tap away.
+            group.addTask { [self] in
+                await self.musicSearchService.refreshSubsonicLibraryIfChanged()
+            }
             group.addTask { [self] in
                 let playlists = await self.musicSearchService.subsonicUserPlaylists()
                 await MainActor.run { self.userPlaylists = OrderedSet(playlists) }

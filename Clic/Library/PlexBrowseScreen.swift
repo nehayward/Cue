@@ -116,6 +116,9 @@ struct PlexBrowseScreen: View {
                 isLoading = true
                 await updatePlexBrowseService()
                 isLoading = false
+                // Opening the library is the moment to notice the server has
+                // more songs than the synced copy — Songs is one tap away.
+                await musicSearchService.refreshPlexLibraryIfChanged()
             }
             .refreshable {
                 // Songs is served from a synced copy of the library; a

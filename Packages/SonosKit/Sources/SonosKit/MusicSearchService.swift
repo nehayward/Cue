@@ -2198,6 +2198,23 @@ public final class MusicSearchService {
         return songs.filter { Self.matches($0, query: query) }
     }
 
+    /// Re-checks the server's song count and drops the synced copy when it
+    /// has changed, so songs added on the server show up on the next visit to
+    /// the library rather than the next launch. One small request; the
+    /// re-sync itself happens when Songs is next opened.
+    ///
+    /// Only a *count* change is visible this way, so adding and removing the
+    /// same number of songs between visits still reads as unchanged. Pull to
+    /// refresh is the answer for that.
+    public func refreshPlexLibraryIfChanged() async {
+        // Nothing synced yet — whatever loads it next does this check anyway.
+        guard plexSongSync != nil, let known = plexSongCount else { return }
+        guard let serverCount = await plex.songPage(offset: 0, limit: 1).total,
+              serverCount != known
+        else { return }
+        clearPlexSongCache()
+    }
+
     public func clearPlexSongCache() {
         plexSongSync?.cancel()
         plexSongSync = nil
@@ -2444,6 +2461,14 @@ public final class MusicSearchService {
         // library should, and the section index has every row to jump to.
         guard offset == 0 else { return [] }
         return await sortedSubsonicSongs(by: sort, descending: descending)
+    }
+
+    /// The Subsonic counterpart of `refreshPlexLibraryIfChanged` — same
+    /// check, same caveat about equal-count changes.
+    public func refreshSubsonicLibraryIfChanged() async {
+        guard subsonicSongSync != nil, let known = subsonicSongCount else { return }
+        guard let serverCount = await subsonicLibraryTotal(), serverCount != known else { return }
+        clearSubsonicSongCache()
     }
 
     /// Drops the synced copy so the next Songs open re-fetches it. Call after
