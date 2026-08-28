@@ -14,6 +14,7 @@ public enum PlexSongSort: String, CaseIterable, Sendable, Identifiable {
     case dateAdded
     case playCount
     case lastPlayed
+    case favorites
 
     public var id: String { rawValue }
 
@@ -26,8 +27,13 @@ public enum PlexSongSort: String, CaseIterable, Sendable, Identifiable {
         case .dateAdded: "Date Added"
         case .playCount: "Play Count"
         case .lastPlayed: "Last Played"
+        case .favorites: "Favorites"
         }
     }
+
+    /// Favorites has no meaningful opposite — "least favorite first" is just
+    /// the rest of the library — so it offers no direction toggle.
+    public var isReversible: Bool { self != .favorites }
 
     /// Plex's sort field.
     private var field: String {
@@ -39,6 +45,9 @@ public enum PlexSongSort: String, CaseIterable, Sendable, Identifiable {
         case .dateAdded: "addedAt"
         case .playCount: "viewCount"
         case .lastPlayed: "lastViewedAt"
+        // Plex has no favorite flag of its own; Clic treats any rating above
+        // zero as one, the same test FavoriteMenuButton makes.
+        case .favorites: "userRating"
         }
     }
 
@@ -47,7 +56,7 @@ public enum PlexSongSort: String, CaseIterable, Sendable, Identifiable {
     private var naturallyDescending: Bool {
         switch self {
         case .title, .artist, .album: false
-        case .year, .dateAdded, .playCount, .lastPlayed: true
+        case .year, .dateAdded, .playCount, .lastPlayed, .favorites: true
         }
     }
 
@@ -58,6 +67,7 @@ public enum PlexSongSort: String, CaseIterable, Sendable, Identifiable {
         case .title, .artist, .album: "A – Z"
         case .year, .dateAdded, .lastPlayed: "Newest First"
         case .playCount: "Most Played"
+        case .favorites: "Favorites First"
         }
     }
 
@@ -66,6 +76,7 @@ public enum PlexSongSort: String, CaseIterable, Sendable, Identifiable {
         case .title, .artist, .album: "Z – A"
         case .year, .dateAdded, .lastPlayed: "Oldest First"
         case .playCount: "Least Played"
+        case .favorites: "Favorites Last"
         }
     }
 
@@ -104,6 +115,15 @@ public enum PlexSongSort: String, CaseIterable, Sendable, Identifiable {
             ordered = songs.sorted { descending($0.viewCount, $1.viewCount) ?? (compare($0.title, $1.title) ?? false) }
         case .lastPlayed:
             ordered = songs.sorted { descending($0.lastViewedAt, $1.lastViewedAt) ?? (compare($0.title, $1.title) ?? false) }
+        case .favorites:
+            // Rated first, highest rating at the top; the rest of the library
+            // keeps title order underneath. A sort, not a filter — the count
+            // under the title stays honest.
+            ordered = songs.sorted { lhs, rhs in
+                let left = lhs.userRating ?? 0, right = rhs.userRating ?? 0
+                if left != right { return left > right }
+                return compare(lhs.title, rhs.title) ?? false
+            }
         }
         return reversed ? ordered.reversed() : ordered
     }

@@ -14,6 +14,7 @@ public enum SubsonicSongSort: String, CaseIterable, Sendable, Identifiable {
     case year
     case playCount
     case dateAdded
+    case favorites
 
     public var id: String { rawValue }
 
@@ -25,8 +26,13 @@ public enum SubsonicSongSort: String, CaseIterable, Sendable, Identifiable {
         case .year: "Year"
         case .playCount: "Play Count"
         case .dateAdded: "Date Added"
+        case .favorites: "Favorites"
         }
     }
+
+    /// Favorites has no meaningful opposite — "least favorite first" is just
+    /// the rest of the library — so it offers no direction toggle.
+    public var isReversible: Bool { self != .favorites }
 
     /// What the two directions are called for this order. "Ascending" and
     /// "Descending" mean nothing next to Play Count; naming the ends of the
@@ -36,6 +42,7 @@ public enum SubsonicSongSort: String, CaseIterable, Sendable, Identifiable {
         case .title, .artist, .album: "A – Z"
         case .year, .dateAdded: "Newest First"
         case .playCount: "Most Played"
+        case .favorites: "Favorites First"
         }
     }
 
@@ -44,6 +51,7 @@ public enum SubsonicSongSort: String, CaseIterable, Sendable, Identifiable {
         case .title, .artist, .album: "Z – A"
         case .year, .dateAdded: "Oldest First"
         case .playCount: "Least Played"
+        case .favorites: "Favorites Last"
         }
     }
 
@@ -78,6 +86,17 @@ public enum SubsonicSongSort: String, CaseIterable, Sendable, Identifiable {
             // reason to parse thousands of them into dates just to sort.
             songs.sorted {
                 descendingText($0.created, $1.created) ?? (compare($0.title, $1.title) ?? false)
+            }
+        case .favorites:
+            // Starred first, most recently starred at the top — `starred` is
+            // the date it happened. The rest of the library keeps title order
+            // underneath rather than being hidden: this is a sort, not a
+            // filter, and the count under the title stays honest.
+            songs.sorted { lhs, rhs in
+                let left = lhs.starred ?? "", right = rhs.starred ?? ""
+                if left.isEmpty != right.isEmpty { return !left.isEmpty }
+                if !left.isEmpty { return left > right }
+                return compare(lhs.title, rhs.title) ?? false
             }
         }
     }
