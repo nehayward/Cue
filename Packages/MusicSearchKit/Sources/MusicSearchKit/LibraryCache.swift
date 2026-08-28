@@ -32,29 +32,29 @@ public struct LibraryCache<Item: Codable & Sendable>: Sendable {
     }
 
     /// The saved library, or `nil` when there is none, it belongs to a
-    /// different server or login, or it has gone stale. Decoding happens off
-    /// the main thread — the file runs to megabytes.
+    /// different server or login, or it has gone stale.
+    ///
+    /// This is `nonisolated async` — nothing here is actor-isolated — so
+    /// reading and decoding a file that runs to megabytes happens on the
+    /// concurrent executor even though every caller is on the main actor.
     public func load(owner: String) async -> [Item]? {
-        let url = url
-        let lifetime = lifetime
-        return await Task.detached(priority: .userInitiated) {
-            guard let url,
-                  let data = try? Data(contentsOf: url),
-                  let payload = try? JSONDecoder().decode(Payload.self, from: data),
-                  payload.owner == owner,
-                  Date().timeIntervalSince(payload.savedAt) < lifetime,
-                  !payload.items.isEmpty
-            else { return nil }
-            return payload.items
-        }.value
+        guard let url,
+              let data = try? Data(contentsOf: url),
+              let payload = try? JSONDecoder().decode(Payload.self, from: data),
+              payload.owner == owner,
+              Date().timeIntervalSince(payload.savedAt) < lifetime,
+              !payload.items.isEmpty
+        else { return nil }
+        return payload.items
     }
 
     /// Saves the library. Fire-and-forget: a failed write only means the next
-    /// launch syncs again.
+    /// launch syncs again. The task is created in this un-isolated scope, so
+    /// encoding doesn't land on the caller's actor.
     public func save(_ items: [Item], owner: String) {
         let payload = Payload(owner: owner, savedAt: Date(), items: items)
         let url = url
-        Task.detached(priority: .utility) {
+        Task(priority: .utility) {
             guard let url, let data = try? JSONEncoder().encode(payload) else { return }
             try? data.write(to: url, options: .atomic)
         }

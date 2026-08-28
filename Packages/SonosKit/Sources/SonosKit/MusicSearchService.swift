@@ -2194,9 +2194,17 @@ public final class MusicSearchService {
     /// like the Subsonic one — a result list reads by what was typed.
     public func searchPlexSongs(query: String, offset: Int = 0) async -> [PlayableContent] {
         guard offset == 0 else { return [] }
+        // Waits on the same sync the list itself started — never a second
+        // fetch — and builds the library if nothing has yet.
         let songs = await sortedPlexSongs(by: .title, reversed: false)
-        // Runs per keystroke over the whole library — same reasoning.
-        return await Task.detached { songs.filter { Self.matches($0, query: query) } }.value
+        guard !songs.isEmpty else {
+            // No local copy (the sync failed, or the server is unreachable):
+            // ask the server rather than answering "no results" for a library
+            // that is full of them.
+            return await plex.search(for: query)?.tracks.map(\.toPlayable) ?? []
+        }
+        // Runs per keystroke over the whole library, so off the main actor.
+        return await Self.filtered(songs, query: query)
     }
 
     /// Re-checks the server's song count and drops the synced copy when it
@@ -2232,7 +2240,11 @@ public final class MusicSearchService {
 
         let library = await plexSongLibrary()
         guard !library.isEmpty else { return [] }
-        let sorted = sort.sort(library, reversed: reversed).compactMap(\.toPlayable)
+        // `nonisolated async` runs off this class's main actor without
+        // detaching: ordering tens of thousands of rows and building a
+        // PlayableContent for each is not main-thread work, but it is still
+        // this task's work, and should keep its priority and cancellation.
+        let sorted = await Self.ordered(library, by: sort, reversed: reversed)
         plexSortedSongs[order] = sorted
         return sorted
     }
@@ -2323,6 +2335,14 @@ public final class MusicSearchService {
 
     private func plexSongPage(offset: Int) async -> [PlexMetadata] {
         await plex.songPage(offset: offset, limit: Self.plexSyncPageSize).songs
+    }
+
+    private nonisolated static func ordered(
+        _ library: [PlexMetadata],
+        by sort: PlexSongSort,
+        reversed: Bool
+    ) async -> [PlayableContent] {
+        sort.sort(library, reversed: reversed).compactMap(\.toPlayable)
     }
 
     // MARK: - Subsonic
@@ -2494,8 +2514,9 @@ public final class MusicSearchService {
 
         let library = await subsonicSongLibrary()
         guard !library.isEmpty else { return [] }
-        let ordered = sort.sort(library)
-        let sorted = (descending ? ordered.reversed() : ordered).map(\.toPlayable)
+        // Off the main actor, same reasoning: each mapped row derives a
+        // stream URL, which means an MD5 per song on top of the sort.
+        let sorted = await Self.ordered(library, by: sort, descending: descending)
         subsonicSortedSongs[order] = sorted
         return sorted
     }
@@ -2610,9 +2631,16 @@ public final class MusicSearchService {
     /// happens to be sorted on.
     public func searchSubsonicSongs(query: String, offset: Int = 0) async -> [PlayableContent] {
         guard offset == 0 else { return [] }
+        // Waits on the same sync the list itself started — never a second
+        // fetch — and builds the library if nothing has yet.
         let songs = await sortedSubsonicSongs(by: .title)
-        // Runs per keystroke over the whole library — same reasoning.
-        return await Task.detached { songs.filter { Self.matches($0, query: query) } }.value
+        guard !songs.isEmpty else {
+            // No local copy: a pre-OpenSubsonic server that won't answer the
+            // empty query still answers a real one, so ask it.
+            return await subsonic.searchSongs(query: query).map(\.toPlayable)
+        }
+        // Runs per keystroke over the whole library, so off the main actor.
+        return await Self.filtered(songs, query: query)
     }
 
     /// Albums matching a query. Asked of the server, which indexes albums —
@@ -2627,6 +2655,15 @@ public final class MusicSearchService {
         await subsonic.songs(size: Self.subsonicSyncPageSize, offset: offset)
     }
 
+    private nonisolated static func ordered(
+        _ library: [SubsonicSong],
+        by sort: SubsonicSongSort,
+        descending: Bool
+    ) async -> [PlayableContent] {
+        let ordered = sort.sort(library)
+        return (descending ? ordered.reversed() : ordered).map(\.toPlayable)
+    }
+
     private func subsonicLibraryTotal() async -> Int? {
         await subsonic.librarySongCount()
     }
@@ -2634,6 +2671,10 @@ public final class MusicSearchService {
     /// Whether a row answers what was typed. Matches the fields the row shows
     /// — title and the artist/album line — so nothing appears for a reason
     /// the user can't see.
+    private nonisolated static func filtered(_ songs: [PlayableContent], query: String) async -> [PlayableContent] {
+        songs.filter { matches($0, query: query) }
+    }
+
     private nonisolated static func matches(_ content: PlayableContent, query: String) -> Bool {
         let fields = [content.title, content.subtitle, content.metadata?.album ?? ""]
         return fields.contains { $0.localizedCaseInsensitiveContains(query) }
