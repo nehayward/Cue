@@ -2232,12 +2232,7 @@ public final class MusicSearchService {
 
         let library = await plexSongLibrary()
         guard !library.isEmpty else { return [] }
-        // Ordering tens of thousands of rows and building a PlayableContent
-        // for each — URLs and all — is not main-thread work, and this class
-        // is @MainActor.
-        let sorted = await Task.detached(priority: .userInitiated) {
-            sort.sort(library, reversed: reversed).compactMap(\.toPlayable)
-        }.value
+        let sorted = sort.sort(library, reversed: reversed).compactMap(\.toPlayable)    
         plexSortedSongs[order] = sorted
         return sorted
     }
