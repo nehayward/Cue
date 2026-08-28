@@ -5,7 +5,7 @@ import SwiftUI
 struct LikeButtonView: View {
     var group: GroupRoom
 
-    @Environment(PlexRatingCache.self) private var plexRatingCache
+    @Environment(FavoriteRatingCache.self) private var favoriteRatingCache
     @State private var favoriteAnimationTrigger = 0
     /// The song whose first read has landed. Until then the button isn't
     /// showing a *change*, it's showing what was always true — see the bounce.
@@ -33,7 +33,7 @@ struct LikeButtonView: View {
     /// which is the only thing a Live Activity like can write. While they agree,
     /// the cache's magnitude wins; when they don't, the store is newer.
     private var plexRating: Double {
-        let cached = plexRatingCache.ratings[trackID] ?? 0
+        let cached = favoriteRatingCache.ratings[trackID] ?? 0
         guard let favorited = favoriteStore.favorites[trackID] else { return cached }
         return favorited == (cached > 0) ? cached : (favorited ? 10 : 0)
     }
@@ -52,7 +52,7 @@ struct LikeButtonView: View {
                 // Before the writes: a tap is always a change worth bouncing,
                 // even if it lands before the first read has come back.
                 seededTrackID = trackID
-                plexRatingCache.set(newRating, for: trackID)
+                favoriteRatingCache.set(newRating, for: trackID)
                 favoriteStore.set(newRating > 0, for: trackID)
                 HapticManager.shared.fireHaptic(newRating > 0 ? .notification(.success) : .selection)
                 Task { await MusicSearchService.shared.setFavorite(newRating > 0, trackID: trackID, service: .plex) }
@@ -70,7 +70,7 @@ struct LikeButtonView: View {
             .buttonBorderShape(.circle)
             .task(id: group.coordinatorRoom.track.id) {
                 let rating = await MusicSearchService.shared.getPlexTrackRating(trackID: trackID) ?? 0
-                plexRatingCache.set(rating, for: trackID)
+                favoriteRatingCache.set(rating, for: trackID)
                 favoriteStore.set(rating > 0, for: trackID)
                 seededTrackID = trackID
             }
@@ -86,6 +86,9 @@ struct LikeButtonView: View {
                 // it lands before the first read has come back.
                 seededTrackID = trackID
                 favoriteStore.set(newFavorite, for: trackID)
+                // Subsonic rows draw their heart from the rating cache, so
+                // keep it in step with a like made from here.
+                if service == .subsonic { favoriteRatingCache.set(newFavorite ? 1 : 0, for: trackID) }
                 HapticManager.shared.fireHaptic(newFavorite ? .notification(.success) : .selection)
                 Task { await performAction(service: service, favorite: newFavorite) }
             } label: {

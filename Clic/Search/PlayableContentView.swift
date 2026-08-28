@@ -15,7 +15,7 @@ struct PlayableContentView: View {
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
-    @Environment(PlexRatingCache.self) private var plexRatingCache
+    @Environment(FavoriteRatingCache.self) private var favoriteRatingCache
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     @State private var audioService = AudioPlaybackService.shared
 
@@ -130,10 +130,13 @@ struct PlayableContentView: View {
 
                         Spacer(minLength: 0)
 
-                        if item.content.service == .plex,
-                           (plexRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0 {
+                        // Both self-hosted services carry favorite state on
+                        // the row itself — Plex as a rating, Subsonic as the
+                        // starred date — so neither needs a fetch to know.
+                        if item.content.service == .plex || item.content.service == .subsonic,
+                           (favoriteRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0 {
                             Image(systemName: "heart.fill")
-                                .foregroundStyle(MusicService.plex.brandColor)
+                                .foregroundStyle(item.content.service.brandColor)
                                 .font(.caption2)
                         }
 
