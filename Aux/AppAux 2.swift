@@ -251,7 +251,7 @@ struct AppAux: App {
     private var playlistContainer = PlaylistContainer.shared
     private var playHistoryService = PlayHistoryService.shared
     private var miniPlayerManager = MiniPlayerManger.shared
-    private var plexRatingCache = PlexRatingCache.shared
+    private var favoriteRatingCache = FavoriteRatingCache.shared
 
     @CloudStorage(CloudKeys.hasSubscription) private var activeSubscription: Bool = false
     @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
@@ -306,7 +306,7 @@ struct AppAux: App {
                 MusicPlaybackView()
             }
             .withEnvironments()
-            .environment(plexRatingCache)
+            .environment(favoriteRatingCache)
             .tabViewStyle(.sidebarAdaptable)
             //            .withAlert()
         }
@@ -1194,7 +1194,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
                     // The track's own streaming-service playlists (Apple Music / Spotify / Plex / Deezer).
                     let service = track.content.service
-                    if [.apple, .spotify, .plex, .deezer].contains(service),
+                    if [.apple, .spotify, .plex, .deezer, .subsonic].contains(service),
                        [.track, .libraryTrack].contains(track.content.type) {
                         let servicePlaylists = await musicSearchService.userPlaylists(for: service)
                         if !servicePlaylists.isEmpty {

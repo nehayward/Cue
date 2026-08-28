@@ -48,6 +48,8 @@ struct BrowseScreen: View {
                 SonosRadioBrowseScreen()
             case .pandora:
                 PandoraBrowseScreen()
+            case .subsonic:
+                SubsonicBrowseScreen()
             default:
                 NavigationStack {
                     EmptyView()

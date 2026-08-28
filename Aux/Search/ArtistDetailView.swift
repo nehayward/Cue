@@ -241,7 +241,10 @@ struct ArtistDetailView: View {
 
             if !currentAlbums.isEmpty {
                 Button {
-                    Task { await playDiscography(position: .next) }
+                    // The headline action starts the discography fresh —
+                    // clear the queue, then every album oldest-first. The
+                    // ellipsis menu still offers play next / last.
+                    Task { await playDiscography(position: .replace) }
                 } label: {
                     Text("Discography \(Image(systemName: "play.fill"))")
                         .minimumScaleFactor(0.7)
@@ -528,8 +531,9 @@ struct ArtistDetailView: View {
                 await sonosService.play(ip: group.coordinatorRoom.ip)
             case .replace:
                 alertService.showAlert(with: "Replacing queue with \(albumCount) albums", imageName: "figure.dance")
-                try await sonosService.queue(contents: albumsToPlay, group: group, position: .replace)
-                await sonosService.play(ip: group.coordinatorRoom.ip)
+                // startIndex 0: playback begins as soon as the first item
+                // lands instead of waiting for the whole discography to fill.
+                try await sonosService.queue(contents: albumsToPlay, group: group, position: .replace, startIndex: 0)
             }
         }
 
@@ -593,6 +597,10 @@ struct ArtistDetailView: View {
             await loadDeezerTrackArtist()
         case (.album, .deezer):
             await loadDeezerAlbumArtist()
+        case (.artist, .subsonic):
+            await loadSubsonicArtistData(id: playableContent.content.id)
+        case (.track, .subsonic), (.album, .subsonic):
+            await loadSubsonicTrackOrAlbumArtist()
         default:
             break
         }
@@ -1087,6 +1095,42 @@ struct ArtistDetailView: View {
         }
         tracks = await topTracks
         albums = await artistAlbums
+    }
+
+    // MARK: - Subsonic Loading
+
+    private func loadSubsonicTrackOrAlbumArtist() async {
+        let artistID: String?
+        if let existing = playableContent.metadata?.artistID {
+            artistID = existing
+        } else if playableContent.content.type.isTrack {
+            artistID = await MusicSearchService.shared.lookupSubsonicTrack(with: playableContent.content.id)?.metadata?.artistID
+        } else {
+            artistID = await MusicSearchService.shared.lookupSubsonicAlbum(with: playableContent.content.id)?.metadata?.artistID
+        }
+        guard let artistID else {
+            artworkURL = playableContent.artwork
+            artistContent = playableContent
+            return
+        }
+        await loadSubsonicArtistData(id: artistID)
+    }
+
+    private func loadSubsonicArtistData(id: String) async {
+        // One getArtist response carries the artist and their albums. Sorted
+        // newest-first like the other services — Discography reverses this
+        // for oldest-first playback.
+        if let result = await MusicSearchService.shared.lookupSubsonicArtistWithAlbums(id: id) {
+            artistContent = result.artist
+            artworkURL = result.artist.artwork
+            albums = sortAlbumsByYear(result.albums)
+        }
+        // Top songs are keyed by artist name; servers without play data
+        // return nothing and the section just stays hidden.
+        let artistName = artistContent?.title ?? playableContent.metadata?.artist ?? ""
+        if !artistName.isEmpty {
+            tracks = await MusicSearchService.shared.subsonicArtistTopSongs(artistName: artistName)
+        }
     }
 
     // MARK: - Helpers

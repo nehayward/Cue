@@ -41,7 +41,7 @@ struct AddToPlaylistSheet: View {
     /// Whether the track's own service can take this item into one of its playlists. Tracks are
     /// always fine; Spotify also accepts albums (expanded into their tracks on add).
     private var hasServiceSegment: Bool {
-        guard [.apple, .spotify, .plex, .deezer].contains(service) else { return false }
+        guard [.apple, .spotify, .plex, .deezer, .subsonic].contains(service) else { return false }
         if [.track, .libraryTrack].contains(content.content.type) { return true }
         return service == .spotify && [.album, .libraryAlbum].contains(content.content.type)
     }
@@ -71,7 +71,7 @@ struct AddToPlaylistSheet: View {
             VStack(spacing: 0) {
                 PlayableContentRowView(item: content, hideContentType: true)
                     .environment(headerGroupService)
-                    .environment(PlexRatingCache.shared)
+                    .environment(FavoriteRatingCache.shared)
                     .allowsHitTesting(false)
                     .padding(.horizontal)
                     .padding(.vertical, 8)

@@ -1,3 +1,4 @@
+import MusicSearchKit
 import SonosKit
 import SwiftUI
 
@@ -121,6 +122,22 @@ final class QueueManager {
                 alertService.showAlert(with: "Please authorize service \(item.content.service.title) in Sonos, Tap to open Sonos", imageName: "exclamationmark.triangle.fill") {
                     UIApplication.shared.open(URL(string: "sonos://")!)
                 }
+            }
+        case .cantPlayContent(let upnpCode):
+            let code = upnpCode.map { " (Sonos error \($0))" } ?? ""
+            let service = item.content.service
+            if service.queuesContainersAsTracks {
+                // Direct-HTTP services have no Sonos-side account to
+                // authorize — either the server returned no tracks or the
+                // speaker rejected the stream. Name the code so the cause is
+                // reportable, and open the server settings on tap.
+                alertService.showAlert(with: "Failed to queue from your \(service.title) server\(code). Check that your speakers can reach the server address.", imageName: "exclamationmark.triangle.fill") {
+                    if let sheet = MediaSearchService(rawValue: service.sonosRawValue)?.managementSheet {
+                        Router.main.presentedSheet = sheet
+                    }
+                }
+            } else {
+                alertService.showAlert(with: "Failed to queue  \(service.title)\(code), ensure service is authorized", imageName: "exclamationmark.triangle.fill")
             }
         default:
             alertService.showAlert(with: "Failed to queue  \(item.content.service.title), ensure service is authorized", imageName: "exclamationmark.triangle.fill")

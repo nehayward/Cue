@@ -109,6 +109,7 @@ struct NewPlaylistView: View {
         case .spotify: SpotifyBrowseService.shared.playlists.insert(playlist, at: 0)
         case .deezer: DeezerBrowseService.shared.userPlaylists.insert(playlist, at: 0)
         case .plex: PlexBrowseService.shared.userPlaylists.insert(playlist, at: 0)
+        case .subsonic: SubsonicBrowseService.shared.userPlaylists.insert(playlist, at: 0)
         case .library: LibraryBrowseService.shared.playlists.insert(playlist, at: 0)
         default: break
         }

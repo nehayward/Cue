@@ -39,6 +39,141 @@ public final class LibraryBrowseService {
     /// page as the user scrolls.
     @ObservationIgnored private let pageSize = 500
 
+    // MARK: - Synced track list
+
+    /// The whole track index, synced once and kept on disk. The speaker
+    /// answers a page at a time, which is fine for scrolling and useless for
+    /// searching — you can only search what you already hold.
+    @ObservationIgnored private var songSync: Task<[PlayableContent], Never>?
+    private static let songCache = LibraryCache<PlayableContent>(name: "SonosLibrary")
+    public private(set) var isSyncingSongs = false
+    public private(set) var syncedSongCount = 0
+    public private(set) var librarySongCount: Int?
+    /// How many tracks the library holds, once the copy is available.
+    public private(set) var songCount: Int?
+
+    /// One household's library. Pointing Clic at another system is another
+    /// library, and its copy shouldn't be read back for this one.
+    private var cacheOwner: String {
+        KeychainTokenRefreshHandler.shared.householdId ?? ""
+    }
+
+    /// Every track, all at once — the copy is already here, so there is
+    /// nothing to page.
+    @MainActor
+    public func allSongs(offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        return await songLibrary()
+    }
+
+    /// Tracks matching a query, filtered from the synced copy. The speaker's
+    /// Browse has no query of its own for this index, which is the whole
+    /// reason the copy exists.
+    @MainActor
+    public func searchSongs(query: String, offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        let songs = await songLibrary()
+        return await Self.filtered(songs, query: query)
+    }
+
+    /// How much disk the synced index takes, for the Storage settings.
+    public static var cachedSongLibrarySize: Int { songCache.sizeInBytes }
+
+    @MainActor
+    public func clearSongCache() {
+        songSync?.cancel()
+        songSync = nil
+        syncedSongCount = 0
+        librarySongCount = nil
+        songCount = nil
+        Self.songCache.clear()
+    }
+
+    /// Drops the copy when the speaker's index no longer has the same number
+    /// of tracks, so a re-index or new files show up on the next visit.
+    @MainActor
+    public func refreshLibraryIfChanged() async {
+        guard songSync != nil, let known = songCount, let ip = sonosService.prioritizedIP() else { return }
+        guard let count = await sonosAPI.libraryItemCount(IP: ip, type: .track), count != known else { return }
+        clearSongCache()
+    }
+
+    @MainActor
+    private func songLibrary() async -> [PlayableContent] {
+        if let inFlight = songSync { return await inFlight.value }
+
+        let task = Task { await loadSongLibrary() }
+        songSync = task
+        let songs = await task.value
+        if songs.isEmpty, songSync == task { songSync = nil }
+        return songs
+    }
+
+    @MainActor
+    private func loadSongLibrary() async -> [PlayableContent] {
+        guard let ip = sonosService.prioritizedIP() else { return [] }
+
+        isSyncingSongs = true
+        syncedSongCount = 0
+        defer { isSyncingSongs = false }
+
+        let total = await sonosAPI.libraryItemCount(IP: ip, type: .track)
+        librarySongCount = total
+
+        if let cached = await Self.songCache.load(owner: cacheOwner), total == nil || cached.count == total {
+            songCount = cached.count
+            songs = OrderedSet(cached)
+            return cached
+        }
+
+        let synced = await syncSongLibrary(ip: ip, total: total)
+        if !synced.isEmpty {
+            Self.songCache.save(synced, owner: cacheOwner)
+            songCount = synced.count
+            // Keep the paged property in step: other screens read it.
+            songs = OrderedSet(synced)
+        }
+        return synced
+    }
+
+    /// Pages the index in. Sequential: these are SOAP requests to a speaker,
+    /// not a server farm, and a few in flight buys little next to the risk of
+    /// making it unresponsive while music is playing.
+    @MainActor
+    private func syncSongLibrary(ip: String, total: Int?) async -> [PlayableContent] {
+        var collected: [PlayableContent] = []
+        var seenIDs = Set<String>()
+        var offset = 0
+
+        while collected.count < Self.songSyncLimit {
+            let page = await sonosAPI.getLibraryItems(IP: ip, type: .track, offset: offset, requestedCount: pageSize)
+            guard !Task.isCancelled else { return [] }
+
+            let before = collected.count
+            collected.append(contentsOf: page.filter { seenIDs.insert($0.id).inserted })
+            syncedSongCount = collected.count
+
+            // A short page is the last one, and a page that added nothing new
+            // means the speaker is repeating itself rather than advancing.
+            if page.count < pageSize || collected.count == before { break }
+            if let total, collected.count >= total { break }
+            offset += pageSize
+        }
+
+        return collected
+    }
+
+    private nonisolated static func filtered(_ songs: [PlayableContent], query: String) async -> [PlayableContent] {
+        songs.filter { song in
+            [song.title, song.subtitle, song.metadata?.album ?? ""]
+                .contains { $0.localizedCaseInsensitiveContains(query) }
+        }
+    }
+
+    /// Ceiling on the synced copy, so an enormous shared library can't spend
+    /// minutes paging before Songs draws a row.
+    private static let songSyncLimit = 50_000
+
     /// Fetches one page of songs starting at `offset`. Returns `true` when a
     /// full page was returned, indicating more items may be available.
     @MainActor

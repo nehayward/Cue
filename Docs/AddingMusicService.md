@@ -463,3 +463,70 @@ App
 [ ] MediaDetailView.swift — updateTracks cases
 [ ] SonosAPI+MusicServices.swift — URL parser for share sheet
 ```
+
+---
+
+## Adding a direct-HTTP (self-hosted) service
+
+Subsonic is the worked example for services with **no Sonos-side account** —
+the user enters a server address + credentials in Clic, and the speakers
+stream each track straight from the server over plain HTTP. Jellyfin/Emby
+would follow this same path. The playback mechanism is already generic; a new
+service only supplies the pieces below.
+
+### How playback works (the parts you get for free)
+
+Wiring a `directStreamProvider` arm (step 2) turns all of this on:
+
+- **Track URIs** are the provider's stream URL, single-escaped for the SOAP
+  body (`PlayableContent.uri`).
+- **DIDL metadata** uses the local-library shape (`RINCON_AssociatedZPUDN`,
+  empty item ids — `-1` radio-style ids are rejected by `AddURIToQueue`),
+  with a `&lt;res&gt;` carrying the stream URL, its MIME type
+  (`AudioMIMEType`), and `duration="H:MM:SS"` — Sonos can't learn a
+  direct-HTTP track's length from the stream, and without the attribute the
+  player has no progress bar.
+- **Containers** (album/artist/playlist) have no Sonos-browsable URI, so
+  `SonosService` expands them into their tracks before queueing — single
+  items and lists (Discography, play-all) alike — via
+  `MusicSearchService.containerTracks(for:)`.
+
+### Stream-URL requirements (`DirectStreamProvider`)
+
+- **Deterministic** — rebuilt URLs must match earlier ones, so queue rows
+  survive relaunches and artwork caching stays keyed to one URL.
+- **Self-authenticating** — the speaker fetches with no session; carry a
+  token in the URL, never the raw password.
+- **Extension hint** — Sonos classifies plain-HTTP queue items by the file
+  extension it finds in the URL and rejects extension-less ones with UPnP
+  error 804. If the endpoint has no extension in its path, append a trailing
+  ignored parameter (Subsonic uses `ext=.flac`-style).
+- Reachability caveat for users: the *speakers* dial the URL, so it must be
+  reachable from the LAN — a VPN-only hostname the phone can resolve won't
+  play.
+
+### Checklist
+
+```
+MusicSearchKit
+[ ] {Service}API.swift — client with credentials in the keychain (see
+    SubsonicAPI's SecretsCache pattern), conforming DirectStreamProvider
+[ ] Models/{Service}/ — data models
+
+SonosKit
+[ ] MusicService.swift — enum case + all properties + custom init(from
+    decoder:) (standard checklist above), plus arms in directStreamProvider
+    and streamsFullTrackPreview
+[ ] MusicServiceParser.swift — identifyService detection for the service's
+    stream-URL shape + track-id extraction (see the /rest/stream handling)
+[ ] MusicSearchService.swift — search/lookups + a containerTracks(for:) arm
+[ ] SonosService.swift — getArtwork / getTrackInformation / contentLookup
+
+App
+[ ] Management sheet (server/username/password + ping test — see
+    SubsonicManagementView) + SheetDestination case + AppRegistry case
+[ ] MediaSearchService+Sonos.swift — isConfiguredInClic and managementSheet
+    arms (these drive the Services rows, not-connected copy, and the
+    failed-to-queue alert's tap action)
+[ ] Browse screen + service surfaces per the standard checklist above
+```

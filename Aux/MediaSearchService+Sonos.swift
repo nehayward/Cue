@@ -22,14 +22,39 @@ extension MediaSearchService {
         case .deezer: .deezer
         case .sonosRadio: .sonosRadio
         case .pandora: .pandora
+        case .subsonic: nil
+        }
+    }
+
+    /// Non-nil for self-hosted services configured entirely inside Clic (no
+    /// Sonos account involved): whether a server is currently set up. Add an
+    /// arm here — alongside `managementSheet` — when porting another
+    /// direct-HTTP service (e.g. Jellyfin).
+    var isConfiguredInClic: Bool? {
+        switch self {
+        case .subsonic: SubsonicAPI.shared.isConfigured
+        default: nil
         }
     }
 
     /// Whether the user can actually play from this service, given the set of
     /// services discovered on their Sonos system. Services with no Sonos
-    /// counterpart (Library) are always available.
+    /// counterpart (Library) are always available; self-hosted services
+    /// bypass Sonos entirely and answer from their in-Clic configuration.
     func isAuthorized(on installed: Set<SonosServiceType>) -> Bool {
+        if let isConfiguredInClic { return isConfiguredInClic }
         guard let sonosServiceType else { return true }
         return installed.contains(sonosServiceType)
+    }
+
+    /// The in-app management sheet for services configured (at least partly)
+    /// in Clic itself rather than the Sonos app. The Services rows open this
+    /// on tap.
+    var managementSheet: SheetDestination? {
+        switch self {
+        case .plex: .plexManagement
+        case .subsonic: .subsonicManagement
+        default: nil
+        }
     }
 }

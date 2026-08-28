@@ -38,7 +38,7 @@ struct AddToLastPlaylistButton: View {
     @ViewBuilder
     private func icon(for service: MusicService) -> some View {
         switch service {
-        case .apple, .spotify, .plex, .deezer:
+        case .apple, .spotify, .plex, .deezer, .subsonic:
             // Use `image` (not `icon`): its macCatalyst branch pre-resizes the UIImage so it
             // doesn't render oversized in menus, matching OpenInServiceView.
             service.image

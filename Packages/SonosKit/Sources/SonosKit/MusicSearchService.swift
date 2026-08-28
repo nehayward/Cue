@@ -25,7 +25,11 @@ public final class MusicSearchService {
         get {
             plex.serverID
         } set {
+            guard newValue != plex.serverID else { return }
             plex.serverID = newValue
+            // A different server is a different library; the copy in memory
+            // belongs to the old one.
+            clearPlexSongCache()
         }
     }
     
@@ -33,7 +37,9 @@ public final class MusicSearchService {
         get {
             plex.librarySelectionID
         } set {
+            guard newValue != plex.librarySelectionID else { return }
             plex.librarySelectionID = newValue
+            clearPlexSongCache()
         }
     }
 
@@ -48,6 +54,26 @@ public final class MusicSearchService {
     private let appleMusicSearchAPI = AppleMusicSearchAPI()
     private let apple = AppleMusicAPI.shared
     private let plex = PlexAPI.shared
+    /// The Plex song library, synced and ordered locally — same shape as the
+    /// Subsonic one below, and for the same reason: a list you can sort and
+    /// search instantly beats one that re-asks the server for every page.
+    @ObservationIgnored private var plexSongSync: Task<[PlexMetadata], Never>?
+    @ObservationIgnored private var plexSortedSongs: [PlexSongOrder: [PlayableContent]] = [:]
+    public private(set) var plexSyncedSongCount = 0
+    public private(set) var plexLibrarySongCount: Int?
+    public private(set) var isSyncingPlexSongs = false
+    /// How many songs the library holds, once it is available.
+    public private(set) var plexSongCount: Int?
+
+    private struct PlexSongOrder: Hashable {
+        let sort: PlexSongSort
+        let reversed: Bool
+    }
+    /// Songs per request while syncing. Plex serves large containers happily,
+    /// and fewer round trips is the whole point.
+    private static let plexSyncPageSize = 1_000
+    private static let plexSyncConcurrency = 3
+    private static let plexSyncLimit = 50_000
     private let tidal = TidalAPI()
     private let spotifySearchAPI = SpotifyAPI(tokenRefreshHandler: KeychainTokenRefreshHandler.shared)
     /// Session cache of the user's editable playlist ids per service, so the "can edit this
@@ -67,6 +93,38 @@ public final class MusicSearchService {
         tokenRefreshHandler: KeychainTokenRefreshHandler.shared
     )
     private let deezer = DeezerAPI()
+    private let subsonic = SubsonicAPI.shared
+    /// The in-flight or completed sync of the Subsonic song library. See
+    /// `subsonicSongs(offset:sort:)` for why the library is held locally.
+    @ObservationIgnored private var subsonicSongSync: Task<[SubsonicSong], Never>?
+    /// One order the Songs list can be in.
+    private struct SubsonicSongOrder: Hashable {
+        let sort: SubsonicSongSort
+        let descending: Bool
+    }
+    /// The synced library in each order the user has picked, so switching back
+    /// to one already used is instant.
+    @ObservationIgnored private var subsonicSortedSongs: [SubsonicSongOrder: [PlayableContent]] = [:]
+    /// Songs pulled in so far by the library sync, and how many the server
+    /// says it has. Observed, so the Songs list can show real progress on the
+    /// one load long enough to need it.
+    public private(set) var subsonicSyncedSongCount = 0
+    /// `nil` until the server answers with a total — some reserve
+    /// `getScanStatus` for admins — in which case progress stays a count.
+    public private(set) var subsonicLibrarySongCount: Int?
+    public private(set) var isSyncingSubsonicSongs = false
+    /// How many songs the library holds, once it is available — from the
+    /// sync or the copy on disk. `nil` until the first load.
+    public private(set) var subsonicSongCount: Int?
+    /// Songs per request during the sync — much larger than a list page, since
+    /// the whole library has to come across before the first row can be drawn.
+    private static let subsonicSyncPageSize = 500
+    /// Requests in flight at once during the sync.
+    private static let subsonicSyncConcurrency = 5
+    /// Ceiling on the synced copy. Past this a library would spend minutes
+    /// loading before Songs could show anything, which is worse than a list
+    /// that stops short.
+    private static let subsonicSyncLimit = 25_000
     /// Persisting the rotated token means the next launch's stored credentials
     /// are already fresh, skipping the 401 → refreshAuthToken → retry round
     /// trips on every cold start.
@@ -211,6 +269,8 @@ public final class MusicSearchService {
                             await self.searchSonosRadio(query: capturedQuery)
                         case .pandora:
                             await self.searchPandora(query: capturedQuery)
+                        case .subsonic:
+                            await self.searchSubsonic(query: capturedQuery)
                         }
                     }
                     // If we were cancelled during the fetch, the API may have returned []
@@ -622,6 +682,7 @@ public final class MusicSearchService {
         case .spotify: return await spotifyEditablePlaylists()
         case .plex: return await plexUserPlaylists()
         case .deezer: return await deezerEditablePlaylists()
+        case .subsonic: return await subsonicEditablePlaylists()
         default: return []
         }
     }
@@ -633,13 +694,14 @@ public final class MusicSearchService {
         case .spotify: return await createSpotifyPlaylist(name: name, addingTrack: track)
         case .deezer: return await createDeezerPlaylist(name: name, track: track)
         case .plex: return await createPlexPlaylist(name: name, track: track)
+        case .subsonic: return await createSubsonicPlaylist(name: name, track: track)
         default: return nil
         }
     }
 
     /// Whether `service` supports creating an empty playlist (no seed track).
     public static func supportsEmptyPlaylistCreation(_ service: MusicService) -> Bool {
-        [.apple, .spotify, .deezer, .plex, .library].contains(service)
+        [.apple, .spotify, .deezer, .plex, .library, .subsonic].contains(service)
     }
 
     /// Deletes `playlist`, dispatching to its service. Apple Music has no delete API.
@@ -648,6 +710,7 @@ public final class MusicSearchService {
         case .spotify: return await deleteSpotifyPlaylist(playlistID: playlist.content.id)
         case .plex: return await deletePlexPlaylist(playlistID: playlist.content.id)
         case .deezer: return await deleteDeezerPlaylist(playlistID: playlist.content.id)
+        case .subsonic: return await deleteSubsonicPlaylist(playlistID: playlist.content.id)
         default: return false
         }
     }
@@ -659,6 +722,7 @@ public final class MusicSearchService {
         case .spotify: return await addToSpotifyPlaylist(track: track, playlistID: playlist.content.id)
         case .plex: return await addToPlexPlaylist(track: track, playlistID: playlist.content.id)
         case .deezer: return await addToDeezerPlaylist(track: track, playlistID: playlist.content.id)
+        case .subsonic: return await addToSubsonicPlaylist(track: track, playlistID: playlist.content.id)
         default: return false
         }
     }
@@ -674,6 +738,7 @@ public final class MusicSearchService {
         case .spotify: return await removeFromSpotifyPlaylist(track: track, playlistID: playlist.content.id, position: position)
         case .plex: return await removeFromPlexPlaylist(track: track, playlistID: playlist.content.id)
         case .deezer: return await removeFromDeezerPlaylist(track: track, playlistID: playlist.content.id)
+        case .subsonic: return await removeFromSubsonicPlaylist(track: track, playlistID: playlist.content.id, position: position)
         default: return false
         }
     }
@@ -698,6 +763,13 @@ public final class MusicSearchService {
             return await deezer.isPlaylistEditable(id: id, ownedBy: me)
         case .plex:
             return true // Plex playlists live on the user's own server.
+        case .subsonic:
+            // Editable when owned by the signed-in user (missing owner counts
+            // as owned — older servers omit it). Answered from the playlist
+            // index, which carries `owner` without each playlist's full
+            // entry payload.
+            guard let owner = await subsonic.playlists().first(where: { $0.id == id })?.owner else { return true }
+            return owner == subsonic.username
         default:
             return false
         }
@@ -2109,5 +2181,567 @@ public final class MusicSearchService {
                 location: URL(string: "https://www.deezer.com/playlist/\(playlist.id)")
             )
         )
+    }
+
+    // MARK: - Plex library
+
+    /// Every song in the library, in the requested order, all at once.
+    ///
+    /// Plex can sort server-side, but each page would then be another round
+    /// trip and search would be another request per keystroke. Syncing once
+    /// and ordering locally makes both instant, and the copy is kept on disk
+    /// so it survives relaunching.
+    public func plexSongs(offset: Int = 0, sort: PlexSongSort = .title, reversed: Bool = false) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        return await sortedPlexSongs(by: sort, reversed: reversed)
+    }
+
+    /// Songs matching a query, filtered from the synced library. Title order,
+    /// like the Subsonic one — a result list reads by what was typed.
+    public func searchPlexSongs(query: String, offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        // Waits on the same sync the list itself started — never a second
+        // fetch — and builds the library if nothing has yet.
+        let songs = await sortedPlexSongs(by: .title, reversed: false)
+        guard !songs.isEmpty else {
+            // No local copy (the sync failed, or the server is unreachable):
+            // ask the server rather than answering "no results" for a library
+            // that is full of them.
+            return await plex.search(for: query)?.tracks.map(\.toPlayable) ?? []
+        }
+        // Runs per keystroke over the whole library, so off the main actor.
+        return await Self.filtered(songs, query: query)
+    }
+
+    /// Re-checks the server's song count and drops the synced copy when it
+    /// has changed, so songs added on the server show up on the next visit to
+    /// the library rather than the next launch. One small request; the
+    /// re-sync itself happens when Songs is next opened.
+    ///
+    /// Only a *count* change is visible this way, so adding and removing the
+    /// same number of songs between visits still reads as unchanged. Pull to
+    /// refresh is the answer for that.
+    public func refreshPlexLibraryIfChanged() async {
+        // Nothing synced yet — whatever loads it next does this check anyway.
+        guard plexSongSync != nil, let known = plexSongCount else { return }
+        guard let serverCount = await plex.songPage(offset: 0, limit: 1).total,
+              serverCount != known
+        else { return }
+        clearPlexSongCache()
+    }
+
+    public func clearPlexSongCache() {
+        plexSongSync?.cancel()
+        plexSongSync = nil
+        plexSortedSongs.removeAll()
+        plexSyncedSongCount = 0
+        plexLibrarySongCount = nil
+        plexSongCount = nil
+        plex.clearCachedSongLibrary()
+    }
+
+    private func sortedPlexSongs(by sort: PlexSongSort, reversed: Bool) async -> [PlayableContent] {
+        let order = PlexSongOrder(sort: sort, reversed: reversed)
+        if let sorted = plexSortedSongs[order] { return sorted }
+
+        let library = await plexSongLibrary()
+        guard !library.isEmpty else { return [] }
+        // `nonisolated async` runs off this class's main actor without
+        // detaching: ordering tens of thousands of rows and building a
+        // PlayableContent for each is not main-thread work, but it is still
+        // this task's work, and should keep its priority and cancellation.
+        let sorted = await Self.ordered(library, by: sort, reversed: reversed)
+        plexSortedSongs[order] = sorted
+        return sorted
+    }
+
+    private func plexSongLibrary() async -> [PlexMetadata] {
+        if let inFlight = plexSongSync { return await inFlight.value }
+
+        let task = Task { await loadPlexSongLibrary() }
+        plexSongSync = task
+        let songs = await task.value
+        if songs.isEmpty, plexSongSync == task { plexSongSync = nil }
+        return songs
+    }
+
+    /// The library from disk when it is still current, otherwise a fresh
+    /// sync. The first page doubles as the size check: Plex reports the
+    /// section's `totalSize` alongside it, so a library that has grown or
+    /// shrunk re-syncs on the next visit without anyone pulling to refresh.
+    private func loadPlexSongLibrary() async -> [PlexMetadata] {
+        isSyncingPlexSongs = true
+        plexSyncedSongCount = 0
+        defer { isSyncingPlexSongs = false }
+
+        // A one-song request just for the section's total: asking for a full
+        // page here would download a thousand songs before finding out the
+        // copy on disk was fine.
+        let total = await plex.songPage(offset: 0, limit: 1).total
+        plexLibrarySongCount = total
+
+        if let cached = await plex.cachedSongLibrary(), total == nil || cached.count == total {
+            plexSongCount = cached.count
+            return cached
+        }
+
+        let first = await plex.songPage(offset: 0, limit: Self.plexSyncPageSize)
+        plexSyncedSongCount = first.songs.count
+        let songs = await syncPlexSongLibrary(firstPage: first.songs, total: total)
+        if !songs.isEmpty {
+            plex.cacheSongLibrary(songs)
+            plexSongCount = songs.count
+        }
+        return songs
+    }
+
+    /// Pages in the rest of the library, a few requests at a time — their
+    /// offsets don't depend on each other, so waiting for each before asking
+    /// for the next only adds round trips.
+    private func syncPlexSongLibrary(firstPage: [PlexMetadata], total: Int?) async -> [PlexMetadata] {
+        var songs = firstPage
+        var seenIDs = Set(firstPage.map(\.ratingKey))
+        var nextPage = 1
+        var reachedEnd = firstPage.count < Self.plexSyncPageSize
+
+        while !reachedEnd, songs.count < Self.plexSyncLimit {
+            let offsets = (0..<Self.plexSyncConcurrency)
+                .map { (nextPage + $0) * Self.plexSyncPageSize }
+                .filter { total == nil || $0 < total! }
+            nextPage += Self.plexSyncConcurrency
+            guard !offsets.isEmpty else { break }
+
+            let pages = await withTaskGroup(of: (Int, [PlexMetadata]).self) { group in
+                for (index, offset) in offsets.enumerated() {
+                    group.addTask {
+                        let page = await self.plexSongPage(offset: offset)
+                        return (index, page)
+                    }
+                }
+                var results = [[PlexMetadata]](repeating: [], count: offsets.count)
+                for await (index, page) in group {
+                    results[index] = page
+                    plexSyncedSongCount += page.count
+                }
+                return results
+            }
+
+            guard !Task.isCancelled else { return [] }
+
+            let countBeforeRound = songs.count
+            for page in pages {
+                if page.count < Self.plexSyncPageSize { reachedEnd = true }
+                songs.append(contentsOf: page.filter { seenIDs.insert($0.ratingKey).inserted })
+            }
+            if songs.count == countBeforeRound { reachedEnd = true }
+        }
+
+        return songs
+    }
+
+    private func plexSongPage(offset: Int) async -> [PlexMetadata] {
+        await plex.songPage(offset: offset, limit: Self.plexSyncPageSize).songs
+    }
+
+    private nonisolated static func ordered(
+        _ library: [PlexMetadata],
+        by sort: PlexSongSort,
+        reversed: Bool
+    ) async -> [PlayableContent] {
+        sort.sort(library, reversed: reversed).compactMap(\.toPlayable)
+    }
+
+    // MARK: - Subsonic
+
+    /// Whether a Subsonic-compatible server is configured in Clic. Unlike the
+    /// streaming services there is no Sonos-side account — the server address
+    /// and credentials entered in Settings are the whole authorization.
+    public var isSubsonicConfigured: Bool {
+        subsonic.isConfigured
+    }
+
+    private func searchSubsonic(query: String) async -> [PlayableContent] {
+        guard subsonic.isConfigured, let result = await subsonic.search(query: query) else { return [] }
+        var content: [PlayableContent] = []
+        content.append(contentsOf: (result.song ?? []).map(\.toPlayable))
+        content.append(contentsOf: (result.album ?? []).map(\.toPlayable))
+        content.append(contentsOf: (result.artist ?? []).map(\.toPlayable))
+        return sortContentByIntelligentSearch(playableContent: content, query: query)
+    }
+
+    public func lookupSubsonicTrack(with id: String) async -> PlayableContent? {
+        await subsonic.song(for: id)?.toPlayable
+    }
+
+    public func lookupSubsonicAlbum(with id: String) async -> PlayableContent? {
+        await subsonic.album(for: id)?.toPlayable
+    }
+
+    public func lookupSubsonicAlbumTracks(id: String) async -> [PlayableContent] {
+        (await subsonic.album(for: id)?.song ?? []).map(\.toPlayable)
+    }
+
+    /// One `getAlbum` fetch answering both the album header and its tracks —
+    /// they arrive in the same response, so fetching them separately would
+    /// hit the identical endpoint twice.
+    public func lookupSubsonicAlbumWithTracks(id: String) async -> (album: PlayableContent, tracks: [PlayableContent])? {
+        guard let album = await subsonic.album(for: id) else { return nil }
+        return (album.toPlayable, (album.song ?? []).map(\.toPlayable))
+    }
+
+    public func lookupSubsonicArtist(id: String) async -> PlayableContent? {
+        await subsonic.artist(for: id)?.toPlayable
+    }
+
+    /// One `getArtist` fetch answering both the artist header and their
+    /// albums — same single-response reasoning as the album variant.
+    public func lookupSubsonicArtistWithAlbums(id: String) async -> (artist: PlayableContent, albums: [PlayableContent])? {
+        guard let artist = await subsonic.artist(for: id) else { return nil }
+        return (artist.toPlayable, (artist.album ?? []).map(\.toPlayable))
+    }
+
+    public func lookupSubsonicPlaylist(with id: String) async -> PlayableContent? {
+        await subsonic.playlist(for: id)?.toPlayable
+    }
+
+    public func lookupSubsonicPlaylistTracks(id: String) async -> [PlayableContent] {
+        (await subsonic.playlist(for: id)?.entry ?? []).map(\.toPlayable)
+    }
+
+    /// The tracks inside a direct-HTTP service's container, in play order —
+    /// the expansion behind `MusicService.queuesContainersAsTracks`, since
+    /// those services have no container URI for Sonos to browse. Add a
+    /// service arm here when porting another `DirectStreamProvider`.
+    public func containerTracks(for content: PlayableContent) async -> [PlayableContent] {
+        switch content.content.service {
+        case .subsonic: return await subsonicContainerTracks(for: content)
+        default: return []
+        }
+    }
+
+    private func subsonicContainerTracks(for content: PlayableContent) async -> [PlayableContent] {
+        switch content.content.type {
+        case .album:
+            return await lookupSubsonicAlbumTracks(id: content.content.id)
+        case .playlist:
+            return await lookupSubsonicPlaylistTracks(id: content.content.id)
+        case .artist:
+            // Every album, oldest first, flattened. Albums are fetched
+            // concurrently and reassembled in order — serial fetches put
+            // N round trips between the tap and first sound. Bounded (30
+            // albums / 200 tracks) so a prolific artist can't push thousands
+            // of requests and AddURIToQueue calls.
+            let albums = (await subsonic.artist(for: content.content.id)?.album ?? [])
+                .sorted { ($0.year ?? 0) < ($1.year ?? 0) }
+                .prefix(30)
+            let tracksByAlbum = await withTaskGroup(of: (Int, [PlayableContent]).self) { group in
+                for (index, album) in albums.enumerated() {
+                    group.addTask {
+                        (index, await self.lookupSubsonicAlbumTracks(id: album.id))
+                    }
+                }
+                var results = [[PlayableContent]](repeating: [], count: albums.count)
+                for await (index, tracks) in group {
+                    results[index] = tracks
+                }
+                return results
+            }
+            return Array(tracksByAlbum.flatMap { $0 }.prefix(200))
+        default:
+            return []
+        }
+    }
+
+    // MARK: - Subsonic user library
+
+    public func subsonicUserPlaylists(offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        return await subsonic.playlists().map(\.toPlayable)
+    }
+
+    /// Every artist in the library. `getArtists` returns the full set in one
+    /// response, so only the first page carries content.
+    public func subsonicArtists(offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        return await subsonic.artists().map(\.toPlayable)
+    }
+
+    /// Albums in the requested order. Unlike songs these are sorted by the
+    /// server — `getAlbumList2` takes the order as its list type.
+    public func subsonicAlbums(offset: Int = 0, sort: SubsonicAlbumSort = .title) async -> [PlayableContent] {
+        await subsonic.albumList(type: sort.apiType, size: 50, offset: offset).map(\.toPlayable)
+    }
+
+    /// Every song in the library, in the requested order, a page at a time.
+    ///
+    /// Subsonic has no server-side sort for songs — `search3` takes only
+    /// counts and offsets, and the spec leaves the order of its results
+    /// unspecified, so a plain paginated fetch arrives in whatever order the
+    /// server happens to store. Clients that offer a sortable Songs list get
+    /// there by syncing the library locally and ordering it themselves; that
+    /// is what this does. The sync runs once per session, each order is kept
+    /// once it has been asked for, and pages are served from those copies.
+    public func subsonicSongs(
+        offset: Int = 0,
+        sort: SubsonicSongSort = .title,
+        descending: Bool = false
+    ) async -> [PlayableContent] {
+        // The whole library is already here, so there is nothing to page —
+        // handing it over at once means the list scrolls the way a local
+        // library should, and the section index has every row to jump to.
+        guard offset == 0 else { return [] }
+        return await sortedSubsonicSongs(by: sort, descending: descending)
+    }
+
+    /// The Subsonic counterpart of `refreshPlexLibraryIfChanged` — same
+    /// check, same caveat about equal-count changes.
+    public func refreshSubsonicLibraryIfChanged() async {
+        guard subsonicSongSync != nil, let known = subsonicSongCount else { return }
+        guard let serverCount = await subsonicLibraryTotal(), serverCount != known else { return }
+        clearSubsonicSongCache()
+    }
+
+    /// Drops the synced copy so the next Songs open re-fetches it. Call after
+    /// anything that changes which library is being browsed (connecting,
+    /// disconnecting, pull-to-refresh).
+    public func clearSubsonicSongCache() {
+        subsonicSongSync?.cancel()
+        subsonicSongSync = nil
+        subsonicSortedSongs.removeAll()
+        subsonicSyncedSongCount = 0
+        subsonicLibrarySongCount = nil
+        subsonicSongCount = nil
+        subsonic.clearCachedSongLibrary()
+    }
+
+    private func sortedSubsonicSongs(by sort: SubsonicSongSort, descending: Bool = false) async -> [PlayableContent] {
+        let order = SubsonicSongOrder(sort: sort, descending: descending)
+        if let sorted = subsonicSortedSongs[order] { return sorted }
+
+        let library = await subsonicSongLibrary()
+        guard !library.isEmpty else { return [] }
+        // Off the main actor, same reasoning: each mapped row derives a
+        // stream URL, which means an MD5 per song on top of the sort.
+        let sorted = await Self.ordered(library, by: sort, descending: descending)
+        subsonicSortedSongs[order] = sorted
+        return sorted
+    }
+
+    /// The synced library, syncing it first if this is the first ask. Held as
+    /// a `Task` rather than an array so the calls the list makes while the
+    /// first page is still loading share one sync instead of racing several.
+    private func subsonicSongLibrary() async -> [SubsonicSong] {
+        if let inFlight = subsonicSongSync { return await inFlight.value }
+
+        let task = Task { await loadSubsonicSongLibrary() }
+        subsonicSongSync = task
+        let songs = await task.value
+        // Empty means the server didn't answer the empty query (pre-OpenSubsonic
+        // servers don't) or the sync was cancelled — either way it isn't an
+        // answer worth remembering.
+        if songs.isEmpty, subsonicSongSync == task { subsonicSongSync = nil }
+        return songs
+    }
+
+    /// The library from disk when it is still current, otherwise a fresh
+    /// sync. One `getScanStatus` request answers both questions it needs: how
+    /// big the library is, which sizes the progress bar, and whether the saved
+    /// copy still matches — so songs added on the server show up on the next
+    /// visit without anyone pulling to refresh.
+    private func loadSubsonicSongLibrary() async -> [SubsonicSong] {
+        isSyncingSubsonicSongs = true
+        subsonicSyncedSongCount = 0
+        defer { isSyncingSubsonicSongs = false }
+
+        let serverCount = await subsonicLibraryTotal()
+        subsonicLibrarySongCount = serverCount
+
+        if let cached = await subsonic.cachedSongLibrary(),
+           // A server that won't report a count (some reserve it for admins)
+           // leaves the cache's own age as the only check, which it has
+           // already passed by being returned here.
+           serverCount == nil || cached.count == serverCount {
+            subsonicSongCount = cached.count
+            return cached
+        }
+
+        let songs = await syncSubsonicSongLibrary(expectedCount: serverCount)
+        if !songs.isEmpty {
+            subsonic.cacheSongLibrary(songs)
+            subsonicSongCount = songs.count
+        }
+        return songs
+    }
+
+    /// Pages the whole library in. Pages are fetched a few at a time: their
+    /// offsets don't depend on each other, so waiting for each response before
+    /// asking for the next would put dozens of serial round trips between
+    /// opening Songs and seeing a row.
+    private func syncSubsonicSongLibrary(expectedCount: Int?) async -> [SubsonicSong] {
+        var seenIDs = Set<String>()
+        var songs: [SubsonicSong] = []
+        var nextPage = 0
+        var reachedEnd = false
+        var fetched = 0
+
+        while !reachedEnd, songs.count < Self.subsonicSyncLimit {
+            // When the server reported a size, don't ask for pages that
+            // start past the end of the library — a 1,658-song library needs
+            // four requests, not the five a fixed window would send.
+            let offsets = (0..<Self.subsonicSyncConcurrency)
+                .map { (nextPage + $0) * Self.subsonicSyncPageSize }
+                .filter { expectedCount == nil || $0 < expectedCount! }
+            nextPage += Self.subsonicSyncConcurrency
+            guard !offsets.isEmpty else { break }
+
+            let pages = await withTaskGroup(of: (Int, [SubsonicSong]).self) { group in
+                for (index, offset) in offsets.enumerated() {
+                    group.addTask {
+                        let page = await self.subsonicSongPage(offset: offset)
+                        return (index, page)
+                    }
+                }
+                var results = [[SubsonicSong]](repeating: [], count: offsets.count)
+                for await (index, page) in group {
+                    results[index] = page
+                    // Per page rather than per round: a round is 2,500 songs,
+                    // long enough that a bar moving only there looks stuck.
+                    fetched += page.count
+                    subsonicSyncedSongCount = fetched
+                }
+                return results
+            }
+
+            guard !Task.isCancelled else { return [] }
+
+            let countBeforeRound = songs.count
+            for page in pages {
+                // A short page is the last one — every offset past it is empty.
+                if page.count < Self.subsonicSyncPageSize { reachedEnd = true }
+                // Servers are free to reorder between requests, so the same
+                // song can land in two pages; keep the first sighting.
+                songs.append(contentsOf: page.filter { seenIDs.insert($0.id).inserted })
+            }
+            // A server that ignores the offset would hand back the same page
+            // forever; nothing new in a whole round means stop, not spin.
+            if songs.count == countBeforeRound { reachedEnd = true }
+        }
+
+        return songs
+    }
+
+    /// Songs matching a query. Filtered from the synced library rather than
+    /// asked of the server: the library is already here, so results arrive as
+    /// fast as the user types. Always in title order — a search result reads
+    /// by relevance to what was typed, not by whichever column the list
+    /// happens to be sorted on.
+    public func searchSubsonicSongs(query: String, offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0 else { return [] }
+        // Waits on the same sync the list itself started — never a second
+        // fetch — and builds the library if nothing has yet.
+        let songs = await sortedSubsonicSongs(by: .title)
+        guard !songs.isEmpty else {
+            // No local copy: a pre-OpenSubsonic server that won't answer the
+            // empty query still answers a real one, so ask it.
+            return await subsonic.searchSongs(query: query).map(\.toPlayable)
+        }
+        // Runs per keystroke over the whole library, so off the main actor.
+        return await Self.filtered(songs, query: query)
+    }
+
+    /// Albums matching a query. Asked of the server, which indexes albums —
+    /// there is no local copy of them to filter.
+    public func searchSubsonicAlbums(query: String, offset: Int = 0) async -> [PlayableContent] {
+        await subsonic.searchAlbums(query: query, size: 50, offset: offset).map(\.toPlayable)
+    }
+
+    /// One page of the sync, in its own method so the concurrent fetches above
+    /// can call it from outside the actor.
+    private func subsonicSongPage(offset: Int) async -> [SubsonicSong] {
+        await subsonic.songs(size: Self.subsonicSyncPageSize, offset: offset)
+    }
+
+    private nonisolated static func ordered(
+        _ library: [SubsonicSong],
+        by sort: SubsonicSongSort,
+        descending: Bool
+    ) async -> [PlayableContent] {
+        let ordered = sort.sort(library)
+        return (descending ? ordered.reversed() : ordered).map(\.toPlayable)
+    }
+
+    private func subsonicLibraryTotal() async -> Int? {
+        await subsonic.librarySongCount()
+    }
+
+    /// Whether a row answers what was typed. Matches the fields the row shows
+    /// — title and the artist/album line — so nothing appears for a reason
+    /// the user can't see.
+    private nonisolated static func filtered(_ songs: [PlayableContent], query: String) async -> [PlayableContent] {
+        songs.filter { matches($0, query: query) }
+    }
+
+    private nonisolated static func matches(_ content: PlayableContent, query: String) -> Bool {
+        let fields = [content.title, content.subtitle, content.metadata?.album ?? ""]
+        return fields.contains { $0.localizedCaseInsensitiveContains(query) }
+    }
+
+    public func subsonicRecentAlbums(offset: Int = 0) async -> [PlayableContent] {
+        await subsonic.albumList(type: "newest", size: 50, offset: offset).map(\.toPlayable)
+    }
+
+    // MARK: - Subsonic playlists
+
+    public func createSubsonicPlaylist(name: String, track: PlayableContent?) async -> PlayableContent? {
+        let songIDs = track.map { [$0.content.id] } ?? []
+        return await subsonic.createPlaylist(name: name, songIDs: songIDs)?.toPlayable
+    }
+
+    public func addToSubsonicPlaylist(track: PlayableContent, playlistID: String) async -> Bool {
+        await subsonic.addToPlaylist(id: playlistID, songIDs: [track.content.id])
+    }
+
+    /// Removes `track` from the playlist. The API removes by position;
+    /// without one, the first occurrence of the song is looked up and removed.
+    public func removeFromSubsonicPlaylist(track: PlayableContent, playlistID: String, position: Int? = nil) async -> Bool {
+        if let position {
+            return await subsonic.removeFromPlaylist(id: playlistID, indexes: [position])
+        }
+        guard let entries = await subsonic.playlist(for: playlistID)?.entry,
+              let index = entries.firstIndex(where: { $0.id == track.content.id }) else { return false }
+        return await subsonic.removeFromPlaylist(id: playlistID, indexes: [index])
+    }
+
+    public func deleteSubsonicPlaylist(playlistID: String) async -> Bool {
+        await subsonic.deletePlaylist(id: playlistID)
+    }
+
+    /// Playlists the user owns on the server — `getPlaylists` also returns
+    /// other users' public playlists, which can't be edited. A missing owner
+    /// (older servers) counts as owned.
+    public func subsonicEditablePlaylists() async -> [PlayableContent] {
+        let username = subsonic.username
+        return await subsonic.playlists()
+            .filter { $0.owner == nil || $0.owner == username }
+            .map(\.toPlayable)
+    }
+
+    /// The artist's most-played songs. Empty when the server has no play data.
+    public func subsonicArtistTopSongs(artistName: String) async -> [PlayableContent] {
+        await subsonic.topSongs(artistName: artistName).map(\.toPlayable)
+    }
+
+    // MARK: - Subsonic favorites
+
+    public func likeSubsonicTrack(id: String) async -> Bool {
+        await subsonic.star(id: id)
+    }
+
+    public func unlikeSubsonicTrack(id: String) async -> Bool {
+        await subsonic.unstar(id: id)
+    }
+
+    public func isSubsonicTrackLiked(id: String) async -> Bool {
+        await subsonic.isStarred(id: id)
     }
 }
