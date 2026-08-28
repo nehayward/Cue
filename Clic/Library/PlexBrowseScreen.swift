@@ -29,8 +29,10 @@ struct PlexBrowseScreen: View {
         PlexSongSort.allCases.map { sort in
             PlayableListSort(
                 name: sort.label,
-                ascendingLabel: sort.ascendingLabel,
-                descendingLabel: sort.descendingLabel
+                // Nil for an order with no meaningful opposite, which is
+                // how the menu knows to leave the direction picker out.
+                ascendingLabel: sort.isReversible ? sort.ascendingLabel : nil,
+                descendingLabel: sort.isReversible ? sort.descendingLabel : nil
             ) { offset, reversed in
                 await musicSearchService.plexSongs(offset: offset, sort: sort, reversed: reversed)
             }
