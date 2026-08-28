@@ -2,6 +2,7 @@ import Foundation
 import CoreTransferable
 import UniformTypeIdentifiers
 import Defaults
+import MusicSearchKit
 
 public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Sendable {
     public var id: String { content.id }
@@ -99,6 +100,16 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     }
     
     public var uri: String {
+        // Direct-HTTP services have no Sonos service id: a track's URI is its
+        // self-authenticating stream URL (single-escaped for the SOAP body
+        // like the other URIs here, so the speaker receives the exact URL),
+        // and containers have no URI at all — SonosService expands them into
+        // their tracks before queueing.
+        if content.service.directStreamProvider != nil,
+           [.track, .album, .artist, .playlist].contains(content.type) {
+            guard content.type == .track, let stream = directStreamURL?.absoluteString else { return "" }
+            return stream.escaped
+        }
         switch (content.type, content.service) {
         case (.track, .spotify):
             return "x-sonos-spotify:spotify%3atrack%3a\(id)?sid=12&amp;amp;sn=1"
@@ -184,6 +195,19 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     }
     
     public var URIMetadata: String {
+        // Direct-HTTP item, so the speaker's own UDN token
+        // (RINCON_AssociatedZPUDN) stands in for a service account — the same
+        // shape the local library uses. Empty item/parent ids (the saved-queue
+        // add and library items use the same); "-1" ids belong to radio
+        // metadata on SetAVTransportURI and AddURIToQueue rejects them. The
+        // &lt;res&gt; carries the stream URL, its MIME type, and the duration
+        // Sonos can't learn from the stream itself (no progress bar without
+        // it).
+        if content.type == .track, content.service.directStreamProvider != nil {
+            return """
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;dc:creator&gt;\((metadata?.artist ?? "").metaDataTitle)&lt;/dc:creator&gt;&lt;upnp:album&gt;\((metadata?.album ?? "").metaDataTitle)&lt;/upnp:album&gt;&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.didlEscaped ?? "")&lt;/upnp:albumArtURI&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;res protocolInfo="\(directStreamProtocolInfo)"\(directStreamResDurationAttribute)&gt;\(directStreamURL?.absoluteString.didlEscaped ?? "")&lt;/res&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    """
+        }
         switch (content.type, content.service) {
         case (.track, .spotify):
             return """
@@ -406,6 +430,37 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     
     private var deezerServiceToken: String { "SA_RINCON519_X_#Svc519-0-Token" }
 
+    /// The direct stream URL for this track, carrying the file suffix
+    /// (stored as `audioCodec`) so Sonos can classify the format.
+    private var directStreamURL: URL? {
+        content.service.directStreamProvider?.streamURL(for: id, fileExtension: metadata?.audioCodec)
+    }
+
+    /// `duration="H:MM:SS"` attribute for a direct stream's `&lt;res&gt;`
+    /// (leading space included), or empty when the length is unknown. Sonos
+    /// reports TrackDuration for direct-HTTP items from this attribute — the
+    /// stream itself tells it nothing — and without it the player has no
+    /// progress bar.
+    private var directStreamResDurationAttribute: String {
+        guard let duration = metadata?.duration else { return "" }
+        let totalSeconds = Int(duration.components.seconds)
+        guard totalSeconds > 0 else { return "" }
+        let formatted = String(
+            format: "%d:%02d:%02d",
+            totalSeconds / 3600,
+            (totalSeconds % 3600) / 60,
+            totalSeconds % 60
+        )
+        return " duration=\"\(formatted)\""
+    }
+
+    /// DLNA protocolInfo for a direct stream's `&lt;res&gt;`: the real MIME
+    /// type when the suffix (carried as `audioCodec`) identifies one,
+    /// wildcard otherwise.
+    private var directStreamProtocolInfo: String {
+        "http-get:*:\(AudioMIMEType.forSuffix(metadata?.audioCodec) ?? "*"):*"
+    }
+
     /// The `cdudn` service-account token for this content's service, used where
     /// the metadata is built generically rather than per `(type, service)` —
     /// currently the saved-queue add in `alarmURIMetadata`. That path used to
@@ -423,6 +478,9 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         case .soundcloud: "SA_RINCON40967_X_#Svc40967-7051ab01-Token"
         case .tidal: "SA_RINCON44551_X_#Svc44551-0-Token"
         case .plex: "SA_RINCON54279_X_#Svc54279-0-Token"
+        // Direct-HTTP services have no service account; the speaker's own UDN
+        // stands in, as it does in their queue metadata.
+        case _ where content.service.directStreamProvider != nil: "RINCON_AssociatedZPUDN"
         default: spotifyMusicServiceToken
         }
     }
@@ -573,9 +631,13 @@ extension PlayableContent {
         content.type.isPlaylist && content.service == .deezer
     }
 
-    /// Streaming playlists whose tracks Clic can remove in place (Spotify, Plex, Deezer).
+    public var isSubsonicPlaylist: Bool {
+        content.type.isPlaylist && content.service == .subsonic
+    }
+
+    /// Streaming playlists whose tracks Clic can remove in place (Spotify, Plex, Deezer, Subsonic).
     public var isEditableServicePlaylist: Bool {
-        isSpotifyPlaylist || isPlexPlaylist || isDeezerPlaylist
+        isSpotifyPlaylist || isPlexPlaylist || isDeezerPlaylist || isSubsonicPlaylist
     }
 
     /// Streaming playlists whose tracks Clic can reorder. Excludes Apple Music (no reorder API) and

@@ -19,6 +19,24 @@ struct LibraryBrowseScreen: View {
 
     @State private var router = Router.browse
 
+    /// The line under the Songs title: how far the one-time index sync has
+    /// got while it runs, and how many tracks the library holds once it is
+    /// there.
+    private var songSyncStatus: () -> String? {
+        {
+            guard browseService.isSyncingSongs else {
+                guard let count = browseService.songCount, count > 0 else { return nil }
+                return count == 1 ? "1 song" : "\(count.formatted()) songs"
+            }
+
+            let synced = browseService.syncedSongCount
+            guard let total = browseService.librarySongCount, total > 0 else {
+                return synced == 0 ? "Loading library…" : "\(synced.formatted()) songs"
+            }
+            return "\(min(synced, total).formatted()) of \(total.formatted())"
+        }
+    }
+
     var body: some View {
         @Bindable var sonosService = sonosService
         @Bindable var browseService = browseService
@@ -34,7 +52,18 @@ struct LibraryBrowseScreen: View {
                     Label("Albums", systemImage: "smallcircle.circle.fill")
                 }
 
-                NavigationLink(value: RouterDestination.playableContentList(group: selectedGroupService.group, contentType: .track)) {
+                NavigationLink(value: RouterDestination.playableList(
+                    title: "Songs",
+                    // Off for now, as on the other libraries: the index and
+                    // the row count fight each other on a list this long.
+                    showSectionIndex: false,
+                    refreshAction: { browseService.clearSongCache() },
+                    searchAction: { query, offset in
+                        await browseService.searchSongs(query: query, offset: offset)
+                    },
+                    loadingStatus: songSyncStatus,
+                    action: { offset in await browseService.allSongs(offset: offset) }
+                )) {
                     Label("Songs", systemImage: "music.note")
                 }
                 
@@ -83,10 +112,16 @@ struct LibraryBrowseScreen: View {
             .fontDesign(.rounded)
             .refreshable {
                 AlertService.shared.showAlert(with: "Refreshing Library")
+                // Re-indexing the speaker's library invalidates the copy Songs
+                // is served from.
+                browseService.clearSongCache()
                 await SonosService.shared.refreshLibrary()
             }
             .task {
                 await browseService.updatePlaylists()
+                // Opening the library is the moment to notice the speaker has
+                // re-indexed — Songs is one tap away.
+                await browseService.refreshLibraryIfChanged()
             }
             .withAppRouter()
             .toolbar {

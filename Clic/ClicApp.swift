@@ -34,7 +34,7 @@ struct ClicApp: App {
     private var playlistContainer = PlaylistContainer.shared
     private var playHistoryService = PlayHistoryService.shared
     private var miniPlayerManager = MiniPlayerManger.shared
-    private var plexRatingCache = PlexRatingCache.shared
+    private var favoriteRatingCache = FavoriteRatingCache.shared
 
     @CloudStorage(CloudKeys.hasSubscription) private var activeSubscription: Bool = false
     @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
@@ -93,7 +93,7 @@ struct ClicApp: App {
             .environment(playlistContainer)
             .environment(playHistoryService)
             .environment(miniPlayerManager)
-            .environment(plexRatingCache)
+            .environment(favoriteRatingCache)
             .onOpenURL(perform: handle)
             .onAppear {
                 guard !AppBootstrapper.shared.didLaunch else { return }
@@ -978,7 +978,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
                     // The track's own streaming-service playlists (Apple Music / Spotify / Plex / Deezer).
                     let service = track.content.service
-                    if [.apple, .spotify, .plex, .deezer].contains(service),
+                    if [.apple, .spotify, .plex, .deezer, .subsonic].contains(service),
                        [.track, .libraryTrack].contains(track.content.type) {
                         let servicePlaylists = await musicSearchService.userPlaylists(for: service)
                         if !servicePlaylists.isEmpty {

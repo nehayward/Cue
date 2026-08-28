@@ -62,6 +62,8 @@ public extension MusicSearchService {
             value = await isDeezerTrackLiked(id: trackID)
         case .plex:
             value = (await getPlexTrackRating(trackID: trackID) ?? 0) > 0
+        case .subsonic:
+            value = await isSubsonicTrackLiked(id: trackID)
         default:
             return false
         }
@@ -88,6 +90,8 @@ public extension MusicSearchService {
             return favorite ? await likeDeezerTrack(id: trackID) : await unlikeDeezerTrack(id: trackID)
         case .plex:
             return await ratePlexTrack(trackID: trackID, rating: favorite ? 10 : 0)
+        case .subsonic:
+            return favorite ? await likeSubsonicTrack(id: trackID) : await unlikeSubsonicTrack(id: trackID)
         default:
             return false
         }

@@ -1021,3 +1021,106 @@ extension TuneInStation {
         )
     }
 }
+
+// MARK: Subsonic
+extension SubsonicSong {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: title ?? "",
+            subtitle: [artist ?? "", suffix?.uppercased() ?? ""].filter { !$0.isEmpty }.joined(separator: " • "),
+            thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            content: .init(
+                service: .subsonic,
+                id: id,
+                type: .track,
+                location: nil
+            ),
+            // Like Plex, there is no short clip — the full-track stream is the
+            // preview, played through the streaming AVPlayer path. Same URL
+            // shape as playback (suffix included) so the two share caching.
+            previewURL: SubsonicAPI.streamURL(for: id, fileExtension: suffix),
+            metadata: .init(
+                duration: duration.map { Duration.seconds($0) },
+                popularity: nil,
+                artist: artist,
+                artistID: artistId,
+                album: album,
+                albumID: albumId,
+                audioCodec: suffix,
+                // 0 rather than nil: "not starred" is an answer, and nil
+                // sends FavoriteMenuButton to the network for every row.
+                userRating: starred != nil ? 1 : 0
+            )
+        )
+    }
+}
+
+extension SubsonicAlbum {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: displayName,
+            subtitle: [
+                artist ?? "",
+                year.map(String.init) ?? "",
+                songCount.flatMap(\.songCountLabel) ?? ""
+            ].filter { !$0.isEmpty }.joined(separator: " • "),
+            thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            content: .init(
+                service: .subsonic,
+                id: id,
+                type: .album,
+                location: nil
+            ),
+            metadata: .init(
+                popularity: nil,
+                artist: artist,
+                artistID: artistId,
+                album: displayName,
+                albumID: id,
+                // Release year as a date so the artist screen's year sorting
+                // (and Discography's oldest-first playback) can order albums.
+                albumYear: year.flatMap { Calendar.current.date(from: DateComponents(year: $0)) }
+            )
+        )
+    }
+}
+
+extension SubsonicArtist {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: name ?? "",
+            subtitle: "",
+            thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            content: .init(
+                service: .subsonic,
+                id: id,
+                type: .artist,
+                location: nil
+            ),
+            metadata: .init(popularity: nil)
+        )
+    }
+}
+
+extension SubsonicPlaylist {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: name ?? "",
+            subtitle: [
+                owner ?? "",
+                songCount.flatMap(\.songCountLabel) ?? ""
+            ].filter { !$0.isEmpty }.joined(separator: " • "),
+            thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            content: .init(
+                service: .subsonic,
+                id: id,
+                type: .playlist,
+                location: nil
+            )
+        )
+    }
+}

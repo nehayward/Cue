@@ -1,6 +1,6 @@
 
 
-public struct PlexMedia: Codable {
+public struct PlexMedia: Codable, Sendable {
     public let id: Int
     public let duration: Int?
     public let bitrate: Int?

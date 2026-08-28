@@ -13,6 +13,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     case deezer
     case sonosRadio
     case pandora
+    case subsonic
     case unknown
 
     public init?(service: String) {
@@ -37,6 +38,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             self = .sonosRadio
         case "pandora":
             self = .pandora
+        case "subsonic":
+            self = .subsonic
         default:
             return nil
         }
@@ -64,6 +67,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "sonosradio"
         case .pandora:
             "pandora"
+        case .subsonic:
+            "subsonic"
         default:
             nil
         }
@@ -91,6 +96,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "Sonos Radio"
         case .pandora:
             "Pandora"
+        case .subsonic:
+            "Subsonic"
         default:
             ""
         }
@@ -118,6 +125,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "sonosradio"
         case .pandora:
             "pandora"
+        case .subsonic:
+            "subsonic"
         default:
             ""
         }
@@ -159,6 +168,10 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .renderingMode(.template)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+        case .subsonic:
+            SwiftUI.Image(systemName: "externaldrive.fill.badge.icloud")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
         case .airplay:
             SwiftUI.Image(systemName: "airplayaudio")
                 .resizable()
@@ -179,6 +192,11 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: librarySymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+        case .subsonic:
+            SwiftUI.Image(systemName: "externaldrive.fill.badge.icloud")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor.gradient)
         case .airplay, .unknown:
             EmptyView()
         case .sonosRadio, .pandora:
@@ -234,6 +252,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             return UIImage(systemName: librarySymbolName)
         case .airplay:
             return UIImage(systemName: "airplayaudio")
+        case .subsonic:
+            return UIImage(systemName: "externaldrive.fill.badge.icloud")
         case .tuneIn, .soundcloud, .deezer, .pandora:
             return UIImage(named: self.title, in: .musicSearchKitBundle, with: nil)?
                 .resized(to: glyph).withRenderingMode(.alwaysTemplate)
@@ -260,16 +280,46 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     /// Service supports navigating to artist and album detail screens.
     public var supportsViewArtistAlbum: Bool {
         switch self {
-        case .spotify, .apple, .library, .tidal, .plex, .deezer, .soundcloud: true
+        case .spotify, .apple, .library, .tidal, .plex, .deezer, .soundcloud, .subsonic: true
         default: false
         }
     }
 
     /// Service supports favoriting / liking individual tracks.
     /// Plex favorites via its 0–10 track rating (10 = favorite) — see `LikeButtonView`.
+    /// Service previews play the full-track stream (it has no short preview
+    /// clips), so the preview player streams progressively instead of
+    /// downloading first.
+    public var streamsFullTrackPreview: Bool {
+        switch self {
+        case .plex, .subsonic: true
+        default: false
+        }
+    }
+
+    /// The API that builds this service's direct stream URLs, for services
+    /// whose tracks Sonos plays as plain HTTP streams. Adding an arm here is
+    /// what turns on the direct-HTTP playback mechanism for a service — see
+    /// `DirectStreamProvider`.
+    public var directStreamProvider: DirectStreamProvider.Type? {
+        switch self {
+        case .subsonic: SubsonicAPI.self
+        default: nil
+        }
+    }
+
+    /// Service has no Sonos-browsable container URIs — albums, artists and
+    /// playlists are expanded into their tracks before queueing (each track
+    /// plays as a direct HTTP stream). Pairs with the empty container-URI
+    /// cases in `PlayableContent.uri`.
+    public var queuesContainersAsTracks: Bool {
+        directStreamProvider != nil
+    }
+
+    /// Subsonic favorites via star/unstar on the server.
     public var supportsFavoriteTrack: Bool {
         switch self {
-        case .spotify, .apple, .soundcloud, .deezer, .plex: true
+        case .spotify, .apple, .soundcloud, .deezer, .plex, .subsonic: true
         default: false
         }
     }
@@ -317,6 +367,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .primary
         case .pandora:
             Color(red: 54.0 / 255.0, green: 104.0 / 255.0, blue: 255.0 / 255.0)
+        case .subsonic:
+            Color(red: 255.0 / 255.0, green: 184.0 / 255.0, blue: 0 / 255.0)
         case .unknown:
                 .primary
         }
@@ -343,6 +395,7 @@ extension MusicService {
         case "deezer":     self = .deezer
         case "sonosRadio": self = .sonosRadio
         case "pandora":    self = .pandora
+        case "subsonic":   self = .subsonic
         default:           self = .unknown
         }
     }

@@ -75,6 +75,7 @@ struct PreferenceScreen: View {
     @State private var uploadSuccess = false
     @State private var cacheSize: Int = 0
     @State private var isClearing = false
+    @State private var libraryCacheSize: Int = 0
 
     
 #if DEBUG
@@ -1362,22 +1363,73 @@ struct PreferenceScreen: View {
             }
             .tint(.primary)
             .disabled(isClearing || cacheSize == 0)
+
+            // Only for people who have a self-hosted library to cache.
+            if libraryCacheSize > 0 {
+                Button {
+                    clearLibraryCache()
+                } label: {
+                    Label {
+                        VStack(alignment: .leading) {
+                            Text("Clear Library Cache")
+                            Text(formattedSize(libraryCacheSize))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "externaldrive.fill.badge.xmark")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.4, blue: 0.4), Color(red: 0.85, green: 0.25, blue: 0.3)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+                }
+                .tint(.primary)
+            }
         } header: {
             Text("Storage")
                 .foregroundStyle(.primary)
                 .headerProminence(.increased)
         } footer: {
-            Text("Clears cached artwork images. Images will be re-downloaded as needed.")
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Clears cached artwork images. Images will be re-downloaded as needed.")
+                if libraryCacheSize > 0 {
+                    Text("The library cache is the copy of your music libraries that Songs is sorted and searched from. It re-syncs the next time you open Songs.")
+                }
+            }
         }
         .task {
             await updateCacheSize()
+            libraryCacheSize = SubsonicAPI.shared.cachedSongLibrarySize
+                + PlexAPI.shared.cachedSongLibrarySize
+                + LibraryBrowseService.cachedSongLibrarySize
         }
     }
 
-    private var formattedCacheSize: String {
+    private func clearLibraryCache() {
+        HapticManager.shared.fireHaptic(.buttonPress)
+        // Drops the in-memory copy and the file together, so the next visit
+        // really does re-read the server.
+        musicSearchService.clearSubsonicSongCache()
+        musicSearchService.clearPlexSongCache()
+        LibraryBrowseService.shared.clearSongCache()
+        libraryCacheSize = 0
+        alertService.showAlert(with: "Cache Cleared", imageName: "trash")
+    }
+
+    private var formattedCacheSize: String { formattedSize(cacheSize) }
+
+    private func formattedSize(_ bytes: Int) -> String {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
-        return formatter.string(fromByteCount: Int64(cacheSize))
+        return formatter.string(fromByteCount: Int64(bytes))
     }
 
     private func updateCacheSize() async {

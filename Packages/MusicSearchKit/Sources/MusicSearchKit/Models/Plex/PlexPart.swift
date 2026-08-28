@@ -1,5 +1,5 @@
 
-public struct PlexPart: Codable {
+public struct PlexPart: Codable, Sendable {
     public let id: Int
     public let key: String
     public let duration: Int?

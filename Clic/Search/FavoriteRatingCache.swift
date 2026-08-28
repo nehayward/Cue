@@ -1,9 +1,14 @@
 import Observation
 import UIKit
 
+/// Favorite state set during this session, so a row shows the heart the
+/// moment it is tapped rather than waiting for the next fetch. Keyed by
+/// content id and shared across services — Plex stores a 0–10 rating, the
+/// others just "is it favorited", and every reader only asks whether it is
+/// above zero.
 @Observable
-final class PlexRatingCache {
-    static let shared = PlexRatingCache()
+final class FavoriteRatingCache {
+    static let shared = FavoriteRatingCache()
 
     private(set) var ratings: [String: Double] = [:]
 

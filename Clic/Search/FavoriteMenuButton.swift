@@ -5,7 +5,7 @@ import SwiftUI
 struct FavoriteMenuButton: View {
     let item: PlayableContent
 
-    @Environment(PlexRatingCache.self) private var plexRatingCache
+    @Environment(FavoriteRatingCache.self) private var favoriteRatingCache
     @State private var isFavorite = false
 
     private var service: MusicService { item.content.service }
@@ -55,8 +55,18 @@ struct FavoriteMenuButton: View {
                     }
                 case .plex:
                     let rating = newFavorite ? 10.0 : 0.0
-                    plexRatingCache.set(rating, for: contentID)
+                    favoriteRatingCache.set(rating, for: contentID)
                     await MusicSearchService.shared.ratePlexTrack(trackID: contentID, rating: Int(rating))
+                case .subsonic:
+                    // Same session-local echo as Plex, so the row's heart
+                    // flips on tap instead of on the next library sync.
+                    favoriteRatingCache.set(newFavorite ? 1 : 0, for: contentID)
+                    // star/unstar works for songs, albums and artists alike.
+                    if newFavorite {
+                        await MusicSearchService.shared.likeSubsonicTrack(id: contentID)
+                    } else {
+                        await MusicSearchService.shared.unlikeSubsonicTrack(id: contentID)
+                    }
                 default:
                     break
                 }
@@ -91,15 +101,23 @@ struct FavoriteMenuButton: View {
                     isFavorite = (try? await AppleMusicAPI.shared.isFavorite(songId: contentID)) ?? false
                 }
             case .plex:
-                if let cached = plexRatingCache.ratings[contentID] {
+                if let cached = favoriteRatingCache.ratings[contentID] {
                     isFavorite = cached > 0
                 } else if let existing = item.metadata?.userRating {
-                    plexRatingCache.set(existing, for: contentID)
+                    favoriteRatingCache.set(existing, for: contentID)
                     isFavorite = existing > 0
                 } else {
                     let fetched = await MusicSearchService.shared.getPlexTrackRating(trackID: contentID) ?? 0
-                    plexRatingCache.set(fetched, for: contentID)
+                    favoriteRatingCache.set(fetched, for: contentID)
                     isFavorite = fetched > 0
+                }
+            case .subsonic:
+                // The mapping carries starred state as userRating; only rows
+                // without it (Sonos queue items) need the network read.
+                if let starred = item.metadata?.userRating {
+                    isFavorite = starred > 0
+                } else if contentType.isTrack {
+                    isFavorite = await MusicSearchService.shared.isSubsonicTrackLiked(id: contentID)
                 }
             default:
                 break

@@ -566,6 +566,25 @@ struct MediaDetailView: View {
             content = album
             newTracks = await musicSearchService.lookupDeezerAlbumTracks(id: albumID)
             isLoadingMore = false
+        case (.album, .subsonic):
+            newTracks = await musicSearchService.lookupSubsonicAlbumTracks(id: playableContent.content.id)
+            isLoadingMore = false
+        case (.playlist, .subsonic):
+            newTracks = await musicSearchService.lookupSubsonicPlaylistTracks(id: playableContent.content.id)
+            isLoadingMore = false
+        case (.track, .subsonic):
+            let albumID: String?
+            if let existing = playableContent.metadata?.albumID {
+                albumID = existing
+            } else {
+                albumID = await musicSearchService.lookupSubsonicTrack(with: playableContent.content.id)?.metadata?.albumID
+            }
+            guard let albumID else { return }
+            // One getAlbum response carries the album and its tracks.
+            guard let result = await musicSearchService.lookupSubsonicAlbumWithTracks(id: albumID) else { return }
+            content = result.album
+            newTracks = result.tracks
+            isLoadingMore = false
         default:
             return
         }

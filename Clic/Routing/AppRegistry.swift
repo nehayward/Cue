@@ -173,6 +173,8 @@ extension View {
                             .environment(selectedGroupService)
                     case .plexManagement:
                         PlexManagementView()
+                    case .subsonicManagement:
+                        SubsonicManagementView()
                     case let .volumeControlsScreen(groupID: groupID):
                         VolumeControlsScreen(groupID: groupID)
                     case .newsletter:
@@ -414,9 +416,22 @@ extension View {
                 case let .playableLibraryList(title: title, items: items, action: action):
                     PlayableList(items: items, action: action)
                         .navigationTitle(title)
-                case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, action: action):
-                    PlayableListView(playAllItem: playAllItem, showSectionIndex: showSectionIndex, action: action)
-                        .navigationTitle(title)
+                case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, sortOptions: sortOptions, sortKey: sortKey, refreshAction: refreshAction, searchAction: searchAction, loadingStatus: loadingStatus, action: action):
+                    PlayableListView(
+                        title: title,
+                        playAllItem: playAllItem,
+                        showSectionIndex: showSectionIndex,
+                        sortOptions: sortOptions,
+                        // Titles repeat across services — Plex and Subsonic
+                        // both have a "Songs" — so a list with its own sort
+                        // options names the key it remembers them under.
+                        sortStorageKey: sortOptions.isEmpty ? nil : (sortKey ?? title),
+                        refreshAction: refreshAction,
+                        searchAction: searchAction,
+                        loadingStatus: loadingStatus,
+                        action: action
+                    )
+                    .navigationTitle(title)
                 case let .playableGridScreen(title: title, items: items, action: action):
                     PlayableGridScreen(items: items, action: action)
                         .navigationTitle(title)
@@ -463,6 +478,7 @@ extension View {
             .environment(SonosRadioBrowseService.shared)
             .environment(PandoraBrowseService.shared)
             .environment(PlexBrowseService.shared)
+            .environment(SubsonicBrowseService.shared)
             .environment(LibraryBrowseService.shared)
             .environment(MiniPlayerManger.shared)
             .environment(CoreFeatures.shared)
