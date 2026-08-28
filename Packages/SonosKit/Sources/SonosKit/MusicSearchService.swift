@@ -2232,7 +2232,7 @@ public final class MusicSearchService {
 
         let library = await plexSongLibrary()
         guard !library.isEmpty else { return [] }
-        let sorted = sort.sort(library, reversed: reversed).compactMap(\.toPlayable)    
+        let sorted = sort.sort(library, reversed: reversed).compactMap(\.toPlayable)
         plexSortedSongs[order] = sorted
         return sorted
     }
@@ -2494,12 +2494,8 @@ public final class MusicSearchService {
 
         let library = await subsonicSongLibrary()
         guard !library.isEmpty else { return [] }
-        // Off the main actor: each mapped row derives a stream URL, which
-        // means an MD5 per song on top of the sort itself.
-        let sorted = await Task.detached(priority: .userInitiated) {
-            let ordered = sort.sort(library)
-            return (descending ? ordered.reversed() : ordered).map(\.toPlayable)
-        }.value
+        let ordered = sort.sort(library)
+        let sorted = (descending ? ordered.reversed() : ordered).map(\.toPlayable)
         subsonicSortedSongs[order] = sorted
         return sorted
     }
