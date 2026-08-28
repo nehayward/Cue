@@ -69,14 +69,14 @@ struct PlayableListView: View {
     var sortOptions: [PlayableListSort] = []
     /// Where to remember the chosen sort, so it survives leaving the screen.
     var sortStorageKey: String? = nil
-    /// Supplied by lists that can search their whole source rather than the
-    /// rows already loaded — filtering the loaded page would quietly miss
-    /// most of the library. Called with the query and a page offset.
-    var searchAction: ((String, Int) async -> [PlayableContent])? = nil
     /// Supplied by lists whose rows come from something worth re-reading —
     /// a synced library — so a pull to refresh means more than reloading the
     /// first page from a copy that hasn't changed.
     var refreshAction: (() async -> Void)? = nil
+    /// Supplied by lists that can search their whole source rather than the
+    /// rows already loaded — filtering the loaded page would quietly miss
+    /// most of the library. Called with the query and a page offset.
+    var searchAction: ((String, Int) async -> [PlayableContent])? = nil
     /// A line of status shown under the title while a long load runs — "11 of
     /// 10,101" as a library pages in. Read during `body`, so a service's
     /// observable progress reaches it without this view knowing anything
