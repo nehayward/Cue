@@ -265,9 +265,13 @@ struct PlayableListView: View {
         // A load still running belongs to the previous order; its rows are
         // dropped by the generation check, but `initialLoad` won't start
         // while it holds `isLoading`, so wait it out rather than no-op.
-        while isLoading {
+        // Bounded, and it stops if the view goes away mid-wait.
+        var attempts = 0
+        while isLoading, attempts < 200, !Task.isCancelled {
             try? await Task.sleep(for: .milliseconds(50))
+            attempts += 1
         }
+        guard !Task.isCancelled else { return }
         await initialLoad()
     }
 

@@ -1,6 +1,6 @@
 import Foundation
 
-public struct PlexMetadata: Codable {
+public struct PlexMetadata: Codable, Sendable {
     public let ratingKey: String
     public let key: String
     public let playlistItemID: Int?

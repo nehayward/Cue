@@ -2195,7 +2195,8 @@ public final class MusicSearchService {
     public func searchPlexSongs(query: String, offset: Int = 0) async -> [PlayableContent] {
         guard offset == 0 else { return [] }
         let songs = await sortedPlexSongs(by: .title, reversed: false)
-        return songs.filter { Self.matches($0, query: query) }
+        // Runs per keystroke over the whole library — same reasoning.
+        return await Task.detached { songs.filter { Self.matches($0, query: query) } }.value
     }
 
     /// Re-checks the server's song count and drops the synced copy when it
@@ -2231,7 +2232,12 @@ public final class MusicSearchService {
 
         let library = await plexSongLibrary()
         guard !library.isEmpty else { return [] }
-        let sorted = sort.sort(library, reversed: reversed).compactMap(\.toPlayable)
+        // Ordering tens of thousands of rows and building a PlayableContent
+        // for each — URLs and all — is not main-thread work, and this class
+        // is @MainActor.
+        let sorted = await Task.detached(priority: .userInitiated) {
+            sort.sort(library, reversed: reversed).compactMap(\.toPlayable)
+        }.value
         plexSortedSongs[order] = sorted
         return sorted
     }
@@ -2255,17 +2261,20 @@ public final class MusicSearchService {
         plexSyncedSongCount = 0
         defer { isSyncingPlexSongs = false }
 
-        let first = await plex.songPage(offset: 0, limit: Self.plexSyncPageSize)
-        plexLibrarySongCount = first.total
-        plexSyncedSongCount = first.songs.count
+        // A one-song request just for the section's total: asking for a full
+        // page here would download a thousand songs before finding out the
+        // copy on disk was fine.
+        let total = await plex.songPage(offset: 0, limit: 1).total
+        plexLibrarySongCount = total
 
-        if let cached = await plex.cachedSongLibrary(),
-           first.total == nil || cached.count == first.total {
+        if let cached = await plex.cachedSongLibrary(), total == nil || cached.count == total {
             plexSongCount = cached.count
             return cached
         }
 
-        let songs = await syncPlexSongLibrary(firstPage: first.songs, total: first.total)
+        let first = await plex.songPage(offset: 0, limit: Self.plexSyncPageSize)
+        plexSyncedSongCount = first.songs.count
+        let songs = await syncPlexSongLibrary(firstPage: first.songs, total: total)
         if !songs.isEmpty {
             plex.cacheSongLibrary(songs)
             plexSongCount = songs.count
@@ -2490,8 +2499,12 @@ public final class MusicSearchService {
 
         let library = await subsonicSongLibrary()
         guard !library.isEmpty else { return [] }
-        let ordered = sort.sort(library)
-        let sorted = (descending ? ordered.reversed() : ordered).map(\.toPlayable)
+        // Off the main actor: each mapped row derives a stream URL, which
+        // means an MD5 per song on top of the sort itself.
+        let sorted = await Task.detached(priority: .userInitiated) {
+            let ordered = sort.sort(library)
+            return (descending ? ordered.reversed() : ordered).map(\.toPlayable)
+        }.value
         subsonicSortedSongs[order] = sorted
         return sorted
     }
@@ -2607,7 +2620,8 @@ public final class MusicSearchService {
     public func searchSubsonicSongs(query: String, offset: Int = 0) async -> [PlayableContent] {
         guard offset == 0 else { return [] }
         let songs = await sortedSubsonicSongs(by: .title)
-        return songs.filter { Self.matches($0, query: query) }
+        // Runs per keystroke over the whole library — same reasoning.
+        return await Task.detached { songs.filter { Self.matches($0, query: query) } }.value
     }
 
     /// Albums matching a query. Asked of the server, which indexes albums —

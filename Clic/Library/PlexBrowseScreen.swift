@@ -74,6 +74,10 @@ struct PlexBrowseScreen: View {
                     
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Songs",
+                        // Off for now, as on Subsonic: the index re-buckets
+                        // the list A–Z by title, which silently undoes every
+                        // sort but Title.
+                        showSectionIndex: false,
                         sortOptions: songSortOptions,
                         sortKey: "plex.songs",
                         refreshAction: { musicSearchService.clearPlexSongCache() },

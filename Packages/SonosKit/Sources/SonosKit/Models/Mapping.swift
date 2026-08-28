@@ -1048,7 +1048,9 @@ extension SubsonicSong {
                 album: album,
                 albumID: albumId,
                 audioCodec: suffix,
-                userRating: starred != nil ? 1 : nil
+                // 0 rather than nil: "not starred" is an answer, and nil
+                // sends FavoriteMenuButton to the network for every row.
+                userRating: starred != nil ? 1 : 0
             )
         )
     }
