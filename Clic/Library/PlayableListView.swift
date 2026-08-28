@@ -257,10 +257,13 @@ struct PlayableListView: View {
     }
 
     /// Re-fetch from scratch (after creating a playlist, since `items` is a
-    /// snapshot, or after changing the sort).
+    /// snapshot, or after changing the sort or the query).
+    ///
+    /// The rows on screen stay until the new ones arrive: emptying the list
+    /// first turns every keystroke into a blank screen and a spinner, when
+    /// what the user is doing is narrowing a list they can see.
     private func reload() async {
         loadGeneration += 1
-        items.removeAll()
         hasReachedEnd = false
         // A load still running belongs to the previous order; its rows are
         // dropped by the generation check, but `initialLoad` won't start
@@ -344,7 +347,13 @@ struct PlayableListView: View {
               generation == loadGeneration
         else { return }
 
-        if newItems.isEmpty {
+        if offset == 0 {
+            // A first page replaces what's there rather than merging into it,
+            // so a narrower result really is narrower — and an empty one is an
+            // answer ("no results"), not a page that failed to arrive.
+            items = OrderedSet(newItems)
+            hasReachedEnd = newItems.isEmpty
+        } else if newItems.isEmpty {
             hasReachedEnd = true
         } else {
             items.append(contentsOf: newItems)
