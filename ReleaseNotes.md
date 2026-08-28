@@ -1,3 +1,13 @@
+# 2026.8
+
+–– New Features ––
+- Quick Group Menu: Press and hold the group button on the player to add or remove speakers right from a menu — tap a room to toggle it in or out, or choose Everywhere or Ungroup All. A regular tap still opens the full grouping screen
+
+–– Bug Fixes & Improvements ––
+- Fixed the volume buttons moving a speaker several steps per press while Lock Screen Now Playing is on — each press is one step again, and the Lock Screen slider still sets the level directly
+- Fixed removing a speaker from a group turning down the volume of the room that kept playing
+- Grouping or ungrouping no longer makes the player blink — the song, artwork, progress, and volume stay put while your speakers rearrange instead of flashing empty for a moment
+
 # 2026.7
 
 –– New Features ––

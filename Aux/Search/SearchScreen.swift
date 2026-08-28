@@ -7,7 +7,6 @@ import MusicKit
 import OrderedCollections
 import SwiftUI
 import SonosKit
-import TipKit
 import FocusOnAppear
 
 struct SearchScreen: View {
@@ -732,7 +731,6 @@ private struct MediaServiceMenu: View {
         } label: {
             ServiceIconRow(services: displayedServices)
         }
-        .popoverTip(AppTip.mediaService)
     }
 
     private func selectionBinding(for service: MediaSearchService) -> Binding<Bool> {

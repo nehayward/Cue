@@ -728,8 +728,8 @@ Echo filtering differs by mode for the same reason: relative can compare against
 its own recent writes (`recentSystemVolumeWrites` — a short list rather than one
 value, because writes burst around a regroup and the echo of one write compared
 against the memory of a later one read as a gesture). Hardware presses are
-recognised inside absolute mode by their signature — exactly one system step,
-boundary to boundary, which a drag's arbitrary in-between values can't match —
+recognised inside absolute mode by their signature — a whole-system-step delta
+in a single change, which a drag's stream of pixel-sized changes can't match —
 and sent as the same 1-point relative step the player screen's mode sends, with
 the slider then re-seeded from the group's level so the next press measures from
 the truth. Drags keep the absolute scale. (Presses used to be mapped through the

@@ -465,7 +465,7 @@ fileprivate struct PlaybackView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VibeSlider(value: $group.coordinatorRoom.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, valueAnimation: positionAnimation) { isEditing in
+            VibeSlider(value: $group.coordinatorRoom.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, valueAnimation: positionAnimation) { isEditing in
                 sonosService.isEditing = true
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
@@ -626,7 +626,7 @@ fileprivate struct BottomToolbarView: View {
 
         if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact {
             HStack(spacing: 0) {
-                Button {
+                GroupMenuButton(group: group) {
                     router.presentedSheet = .groupScreen(group: group)
                 } label: {
                     GroupIconView()
@@ -754,7 +754,7 @@ fileprivate struct BottomToolbarView: View {
                 }
 
 
-                Button {
+                GroupMenuButton(group: group) {
                     router.popover = .groupScreen(group: group)
                 } label: {
                     Label {

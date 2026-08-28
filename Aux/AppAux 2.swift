@@ -11,7 +11,6 @@ import MusicKit
 import MusicSearchKit
 import StoreKit
 import SwiftUI
-import TipKit
 import CoreSpotlight
 #if canImport(WidgetKit)
 import WidgetKit
