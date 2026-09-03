@@ -180,7 +180,7 @@ public final class MusicServiceParser {
         // (e.g. sonos:2997, ST:12345).
         case .sonosRadio, .pandora: return extractTuneInTrackID(from: uri)
         case .subsonic: return extractSubsonicTrackID(from: uri)
-        case .library, .unknown: return uri
+        case .library, .unknown, .files: return uri
         case .airplay: return ""
         }
     }

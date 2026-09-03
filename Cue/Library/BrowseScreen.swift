@@ -50,6 +50,8 @@ struct BrowseScreen: View {
                 PandoraBrowseScreen()
             case .subsonic:
                 SubsonicBrowseScreen()
+            case .files:
+                FilesBrowseScreen()
             default:
                 NavigationStack {
                     EmptyView()

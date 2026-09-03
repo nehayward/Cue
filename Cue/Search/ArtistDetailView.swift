@@ -598,6 +598,17 @@ struct ArtistDetailView: View {
             await loadSubsonicArtistData(id: playableContent.content.id)
         case (.track, .subsonic), (.album, .subsonic):
             await loadSubsonicTrackOrAlbumArtist()
+        case (.artist, .files):
+            await loadFilesArtist(id: playableContent.content.id)
+        case (.track, .files), (.album, .files):
+            await FilesLibraryService.shared.scanIfNeeded()
+            let files = FilesLibraryService.shared
+            let artistID = playableContent.metadata?.artistID
+                ?? files.track(id: playableContent.content.id)?.metadata?.artistID
+                ?? files.album(id: playableContent.content.id)?.metadata?.artistID
+            if let artistID {
+                await loadFilesArtist(id: artistID)
+            }
         default:
             break
         }
@@ -1128,6 +1139,18 @@ struct ArtistDetailView: View {
         if !artistName.isEmpty {
             tracks = await MusicSearchService.shared.subsonicArtistTopSongs(artistName: artistName)
         }
+    }
+
+    /// Everything comes from the folder's index: the artist, their albums,
+    /// and every song as the "top" list, since files carry no play counts.
+    private func loadFilesArtist(id: String) async {
+        let files = FilesLibraryService.shared
+        await files.scanIfNeeded()
+        guard let artist = files.artist(id: id) else { return }
+        artistContent = artist
+        artworkURL = artist.artwork
+        albums = files.artistAlbums(artistID: id)
+        tracks = Array(files.artistTracks(artistID: id).prefix(25))
     }
 
     // MARK: - Helpers

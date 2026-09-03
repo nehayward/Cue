@@ -111,6 +111,10 @@ final class LocalPlaybackService {
         // is the only source.
         case .subsonic where item.content.type == .track && item.previewURL != nil:
             .stream
+        // A file in the user's folder: `previewURL` is the file itself, and
+        // only set once an iCloud file has actually downloaded.
+        case .files where item.content.type == .track && item.previewURL != nil:
+            .stream
         default:
             nil
         }
@@ -123,6 +127,8 @@ final class LocalPlaybackService {
         case (.album, .apple), (.libraryAlbum, .apple), (.album, .plex):
             true
         case (.playlist, .apple), (.libraryPlaylist, .apple), (.playlist, .plex):
+            true
+        case (.album, .files), (.artist, .files):
             true
         default:
             false
@@ -160,6 +166,12 @@ final class LocalPlaybackService {
             // Paged too: `X-Plex-Container-Size` caps each response at 200.
             return await MusicSearchService.shared
                 .lookupPlexPlaylists(id: container.content.id, offset: offset).1
+        case (.album, .files):
+            guard offset == 0 else { return [] }
+            return FilesLibraryService.shared.albumTracks(albumID: container.content.id)
+        case (.artist, .files):
+            guard offset == 0 else { return [] }
+            return FilesLibraryService.shared.artistTracks(artistID: container.content.id)
         default:
             return []
         }

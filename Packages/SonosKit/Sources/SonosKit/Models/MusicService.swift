@@ -14,6 +14,9 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     case sonosRadio
     case pandora
     case subsonic
+    /// Audio files in a folder the user picked, indexed and played by the
+    /// app itself. Never seen from a Sonos speaker.
+    case files
     case unknown
 
     public init?(service: String) {
@@ -40,6 +43,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             self = .pandora
         case "subsonic":
             self = .subsonic
+        case "files":
+            self = .files
         default:
             return nil
         }
@@ -69,6 +74,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "pandora"
         case .subsonic:
             "subsonic"
+        case .files:
+            "files"
         default:
             nil
         }
@@ -98,6 +105,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "Pandora"
         case .subsonic:
             "Subsonic"
+        case .files:
+            "Files"
         default:
             ""
         }
@@ -127,6 +136,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "pandora"
         case .subsonic:
             "subsonic"
+        case .files:
+            "files"
         default:
             ""
         }
@@ -172,6 +183,10 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: "externaldrive.fill.badge.icloud")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+        case .files:
+            SwiftUI.Image(systemName: "folder.fill")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
         case .airplay:
             SwiftUI.Image(systemName: "airplayaudio")
                 .resizable()
@@ -194,6 +209,11 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .aspectRatio(contentMode: .fit)
         case .subsonic:
             SwiftUI.Image(systemName: "externaldrive.fill.badge.icloud")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor.gradient)
+        case .files:
+            SwiftUI.Image(systemName: "folder.fill")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .foregroundStyle(brandColor.gradient)
@@ -254,6 +274,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             return UIImage(systemName: "airplayaudio")
         case .subsonic:
             return UIImage(systemName: "externaldrive.fill.badge.icloud")
+        case .files:
+            return UIImage(systemName: "folder.fill")
         case .tuneIn, .soundcloud, .deezer, .pandora:
             return UIImage(named: self.title, in: .musicSearchKitBundle, with: nil)?
                 .resized(to: glyph).withRenderingMode(.alwaysTemplate)
@@ -280,7 +302,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     /// Service supports navigating to artist and album detail screens.
     public var supportsViewArtistAlbum: Bool {
         switch self {
-        case .spotify, .apple, .library, .tidal, .plex, .deezer, .soundcloud, .subsonic: true
+        case .spotify, .apple, .library, .tidal, .plex, .deezer, .soundcloud, .subsonic, .files: true
         default: false
         }
     }
@@ -292,9 +314,17 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     /// downloading first.
     public var streamsFullTrackPreview: Bool {
         switch self {
-        case .plex, .subsonic: true
+        case .plex, .subsonic, .files: true
         default: false
         }
+    }
+
+    /// The service's tracks play on this device only — Files are read
+    /// straight off the folder the user picked, which no speaker can reach.
+    /// The play router sends them to the device whatever destination is
+    /// remembered, and the group picker has nothing to offer them.
+    public var playsOnDeviceOnly: Bool {
+        self == .files
     }
 
     /// The API that builds this service's direct stream URLs, for services
@@ -369,6 +399,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             Color(red: 54.0 / 255.0, green: 104.0 / 255.0, blue: 255.0 / 255.0)
         case .subsonic:
             Color(red: 255.0 / 255.0, green: 184.0 / 255.0, blue: 0 / 255.0)
+        case .files:
+            Color(red: 50.0 / 255.0, green: 150.0 / 255.0, blue: 255.0 / 255.0)
         case .unknown:
                 .primary
         }
@@ -396,6 +428,7 @@ extension MusicService {
         case "sonosRadio": self = .sonosRadio
         case "pandora":    self = .pandora
         case "subsonic":   self = .subsonic
+        case "files":      self = .files
         default:           self = .unknown
         }
     }

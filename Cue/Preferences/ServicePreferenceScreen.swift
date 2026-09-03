@@ -156,7 +156,7 @@ struct ServicePreferenceScreen: View {
                 } header: {
                     Text("Self-Hosted")
                 } footer: {
-                    Text("Set up here in Cue — these need no Sonos app sign-in. Your speakers stream straight from your own server.")
+                    Text("Set up here in Cue — these need no Sonos app sign-in. Your speakers stream straight from your own server; a folder of files plays on this device.")
                 }
             }
 
@@ -270,7 +270,9 @@ struct ServicePreferenceScreen: View {
                 HStack {
                     VStack(alignment: .leading) {
                         Text(service.title)
-                        Text(isSelfHosted ? "Connect your server" : "Sign in with the Sonos app")
+                        Text(service == .files
+                             ? "Choose a folder of music"
+                             : (isSelfHosted ? "Connect your server" : "Sign in with the Sonos app"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -387,6 +389,16 @@ struct ServicePreferenceScreen: View {
             Label {
                 Text(service.title)
                 Text(musicSearchService.isSubsonicConfigured ? "Manage" : "Connect")
+                    .foregroundStyle(.accent)
+            } icon: {
+                service.iconForMusicService
+                    .frame(width: 24, height: 24)
+            }
+        } else if service == .files {
+            // A folder rather than a server; the row names it.
+            Label {
+                Text(service.title)
+                Text(FilesLibraryService.shared.folderName ?? "Choose Folder")
                     .foregroundStyle(.accent)
             } icon: {
                 service.iconForMusicService

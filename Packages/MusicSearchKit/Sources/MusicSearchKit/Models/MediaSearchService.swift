@@ -18,6 +18,10 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
     case sonosRadio
     case pandora
     case subsonic
+    /// Audio files in a folder the user picked — on this device or in
+    /// iCloud Drive. Indexed and played by the app itself; there is no
+    /// account and no server.
+    case files
 
     public var title: String {
         switch self {
@@ -43,6 +47,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             "Pandora"
         case .subsonic:
             "Subsonic"
+        case .files:
+            "Files"
         }
     }
 
@@ -69,6 +75,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         case .pandora:
             true
         case .subsonic:
+            true
+        case .files:
             true
         }
     }
@@ -104,6 +112,11 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             // SF Symbol, not a bundle asset — Subsonic-compatible servers
             // (Navidrome, Airsonic, …) don't share one brand mark.
             SwiftUI.Image(systemName: "externaldrive.fill.badge.icloud")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor.gradient)
+        case .files:
+            SwiftUI.Image(systemName: "folder.fill")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .foregroundStyle(brandColor.gradient)
@@ -180,6 +193,11 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
+        case .files:
+            Image(systemName: "folder.fill")
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(brandColor.gradient)
         case .sonosRadio, .pandora:
 #if targetEnvironment(macCatalyst)
             // Catalyst renders unrasterized asset images at full size inside menus,
@@ -247,6 +265,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             Image(systemName: librarySymbolName)
         case .subsonic:
             Image(systemName: "externaldrive.fill.badge.icloud")
+        case .files:
+            Image(systemName: "folder.fill")
         case .sonosRadio, .pandora:
             // Full-colour badges: left in their original rendering, as
             // `image` does, so they don't collapse into a solid blob.
@@ -284,6 +304,9 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             Color(red: 54.0 / 255.0, green: 104.0 / 255.0, blue: 255.0 / 255.0)
         case .subsonic:
             Color(red: 255.0 / 255.0, green: 184.0 / 255.0, blue: 0 / 255.0)
+        case .files:
+            // The Files app's folder blue.
+            Color(red: 50.0 / 255.0, green: 150.0 / 255.0, blue: 255.0 / 255.0)
         }
     }
 }

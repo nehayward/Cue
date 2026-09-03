@@ -14,6 +14,12 @@ public enum AppStorageKeys {
     /// The sidebar edits the system lets the user make to those tabs — hiding
     /// and reordering — as a `TabViewCustomization`.
     public static let tabViewCustomization = "\(Prefix.id).tabViewCustomization"
+    /// The Files provider's folder, as a security-scoped bookmark (`Data`)
+    /// of the folder the user picked — on this device or in iCloud Drive.
+    public static let filesFolderBookmark = "\(Prefix.id).filesFolderBookmark"
+    /// That folder's name, kept beside the bookmark so the Services row can
+    /// name it without resolving the bookmark first.
+    public static let filesFolderName = "\(Prefix.id).filesFolderName"
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"
     public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"

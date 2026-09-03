@@ -27,6 +27,7 @@ struct ProviderLibrary {
         case .plex: musicSearchService.isPlexAuthorized && musicSearchService.plexServerID != nil
         case .deezer: deezerBrowseService.isAuthenticated
         case .subsonic: subsonicBrowseService.isAuthenticated
+        case .files: FilesLibraryService.shared.isConfigured
         default: true
         }
     }
@@ -49,6 +50,8 @@ struct ProviderLibrary {
             await soundCloudBrowseService.updateLikedPlaylists()
         case .library:
             await libraryBrowseService.refreshLibraryIfChanged()
+        case .files:
+            await FilesLibraryService.shared.scanIfNeeded()
         default:
             break
         }
@@ -65,6 +68,7 @@ struct ProviderLibrary {
         case .subsonic: subsonicDestination(for: collection)
         case .library: libraryDestination(for: collection)
         case .plex: plexDestination(for: collection)
+        case .files: Self.filesDestination(for: collection)
         case .tidal, .tuneIn, .sonosRadio, .pandora: nil
         }
     }
@@ -278,6 +282,50 @@ struct ProviderLibrary {
             })
         case .savedPlaylists:
             return .playableContentList(group: group, contentType: .playlist)
+        default:
+            return nil
+        }
+    }
+
+    // MARK: - Files
+
+    /// The folder's index is in memory, so every list answers in one page
+    /// and search filters the index itself. Static, and public to the app:
+    /// the Files browse screen's rows push the same destinations.
+    static func filesDestination(for collection: ProviderCollection) -> RouterDestination? {
+        let files = FilesLibraryService.shared
+
+        switch collection {
+        case .artists:
+            return .playableList(title: "Artists", refreshAction: { await files.scan() }, action: { offset in
+                await files.scanIfNeeded()
+                return offset == 0 ? files.artists : []
+            })
+        case .albums:
+            return .playableList(title: "Albums", showSectionIndex: false, refreshAction: { await files.scan() }, action: { offset in
+                await files.scanIfNeeded()
+                return offset == 0 ? files.albums : []
+            })
+        case .songs:
+            return .playableList(
+                title: "Songs",
+                showSectionIndex: false,
+                refreshAction: { await files.scan() },
+                searchAction: { query, offset in
+                    offset == 0 ? files.search(query: query).filter { $0.content.type == .track } : []
+                },
+                loadingStatus: {
+                    if files.isScanning {
+                        return files.foundCount > 0 ? "\(files.scannedCount) of \(files.foundCount)" : "Scanning…"
+                    }
+                    let count = files.songs.count
+                    return count == 0 ? nil : (count == 1 ? "1 song" : "\(count.formatted()) songs")
+                },
+                action: { offset in
+                    await files.scanIfNeeded()
+                    return files.songs(offset: offset)
+                }
+            )
         default:
             return nil
         }

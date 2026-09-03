@@ -1798,7 +1798,7 @@ public final class SonosService {
             return track.artwork
         case .tuneIn:
             return nil
-        case .airplay, .unknown, .library, .sonosRadio, .pandora:
+        case .airplay, .unknown, .library, .sonosRadio, .pandora, .files:
             return nil
         }
     }
@@ -1932,7 +1932,7 @@ public final class SonosService {
             }
 
             return (Track.Metadata(ISRC: nil, openInURL: nil, contentType: .track), artworkURL.album.images?.biggestImageURL)
-        case .airplay, .library, .sonosRadio, .pandora:
+        case .airplay, .library, .sonosRadio, .pandora, .files:
             return (nil, nil)
         }
     }
@@ -2172,6 +2172,12 @@ public final class SonosService {
             return await musicSearch.lookupSubsonicArtist(id: id)
         case (.playlist, .subsonic):
             return await musicSearch.lookupSubsonicPlaylist(with: id)
+        case (.track, .files):
+            return await FilesLibraryService.shared.track(id: id)
+        case (.album, .files):
+            return await FilesLibraryService.shared.album(id: id)
+        case (.artist, .files):
+            return await FilesLibraryService.shared.artist(id: id)
         case (.playlist, .library):
             let playlist = await libraryPlaylistLookup(ID: id)
             return playlist

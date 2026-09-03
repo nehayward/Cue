@@ -58,6 +58,18 @@ enum PlayDestinationRouter {
             }
             log.notice("device play started")
         case let .group(id):
+            // Files play from the folder on this device; no speaker can reach
+            // them. Straight to the device rather than a picker with nothing
+            // in it — the remembered group is left alone for the next play.
+            if contents.allSatisfy({ $0.content.service.playsOnDeviceOnly }) {
+                guard await playHere(contents, position: position, shuffle: shuffle) else {
+                    log.error("device-only content failed to play on the device")
+                    AlertService.shared.showAlert(with: "Couldn't play this file on this device.", imageName: "exclamationmark.triangle")
+                    return
+                }
+                log.notice("device-only content played on the device")
+                return
+            }
             guard let group = SonosService.shared.groups.first(where: { $0.coordinatorID == id }) else {
                 log.error("remembered group \(id, privacy: .public) is gone")
                 askForSpeaker(contents, position: position, queue: queue)

@@ -271,6 +271,8 @@ public final class MusicSearchService {
                             await self.searchPandora(query: capturedQuery)
                         case .subsonic:
                             await self.searchSubsonic(query: capturedQuery)
+                        case .files:
+                            await self.searchFiles(query: capturedQuery)
                         }
                     }
                     // If we were cancelled during the fetch, the API may have returned []
@@ -2358,6 +2360,22 @@ public final class MusicSearchService {
     /// and credentials entered in Settings are the whole authorization.
     public var isSubsonicConfigured: Bool {
         subsonic.isConfigured
+    }
+
+    // MARK: - Files
+
+    /// Whether the user has picked a folder for the Files provider.
+    public var isFilesConfigured: Bool {
+        FilesLibraryService.shared.isConfigured
+    }
+
+    /// Searches the folder's index — songs, albums and artists by name. No
+    /// network: the index is in memory once the folder has been scanned.
+    private func searchFiles(query: String) async -> [PlayableContent] {
+        let library = FilesLibraryService.shared
+        guard library.isConfigured else { return [] }
+        await library.scanIfNeeded()
+        return sortContentByIntelligentSearch(playableContent: library.search(query: query), query: query)
     }
 
     private func searchSubsonic(query: String) async -> [PlayableContent] {
