@@ -54,7 +54,7 @@ struct FilesBrowseScreen: View {
                     } header: {
                         Text(library.folderName ?? "Folder")
                     } footer: {
-                        Text("Pull down to rescan after adding music. Files play on this device.")
+                        Text("Pull down to rescan after adding music. Playlists you make here are saved as .m3u files in the folder. Files play on this device.")
                     }
                 } else {
                     ContentUnavailableView {
@@ -88,6 +88,16 @@ struct FilesBrowseScreen: View {
             }
             .withAppRouter()
             .toolbar {
+                if library.isConfigured {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            router.presentedSheet = .newPlaylist(service: .files)
+                        } label: {
+                            Label("New Playlist", systemImage: "plus")
+                                .labelStyle(.iconOnly)
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         router.presentedSheet = .filesManagement

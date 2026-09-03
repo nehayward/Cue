@@ -72,7 +72,11 @@ struct NewPlaylistView: View {
     private func createOrUpdate() {
         guard !playlistName.isEmpty else { return }
         Task {
-            if let playlist {
+            if let playlist, playlist.content.service == .files {
+                if await MusicSearchService.shared.renameServicePlaylist(playlist, to: playlistName) == nil {
+                    alertService.showAlert(with: "Couldn’t rename playlist", imageName: "exclamationmark.triangle")
+                }
+            } else if let playlist {
                 try? await sonosService.renamePlaylist(existingPlaylist: playlist, newName: playlistName)
             } else if let group {
                 try? await sonosService.saveQueue(ip: group.ip, title: playlistName)

@@ -41,9 +41,15 @@ struct AddToPlaylistSheet: View {
     /// Whether the track's own service can take this item into one of its playlists. Tracks are
     /// always fine; Spotify also accepts albums (expanded into their tracks on add).
     private var hasServiceSegment: Bool {
-        guard [.apple, .spotify, .plex, .deezer, .subsonic].contains(service) else { return false }
+        guard [.apple, .spotify, .plex, .deezer, .subsonic, .files].contains(service) else { return false }
         if [.track, .libraryTrack].contains(content.content.type) { return true }
         return service == .spotify && [.album, .libraryAlbum].contains(content.content.type)
+    }
+
+    /// Whether a Sonos playlist can take this item at all. A file on this
+    /// device has no URI a speaker could play, so there is nothing to offer.
+    private var hasSonosSegment: Bool {
+        !service.playsOnDeviceOnly
     }
 
     /// The playlists to display, split into the "Recently Added" quick-pick (top 3, hidden while
@@ -75,7 +81,7 @@ struct AddToPlaylistSheet: View {
                     .allowsHitTesting(false)
                     .padding(.horizontal)
                     .padding(.vertical, 8)
-                if hasServiceSegment {
+                if hasServiceSegment, hasSonosSegment {
                     Picker("Destination", selection: $segment) {
                         Text(service.title).tag(Segment.service)
                         Text("Sonos").tag(Segment.sonos)
@@ -122,7 +128,7 @@ struct AddToPlaylistSheet: View {
         .presentationDetents([.medium, .large], selection: $detent)
         .task {
             recentKeys = LastPlaylist.recentKeys
-            if hasServiceSegment, let saved = Segment(rawValue: storedSegment) {
+            if hasServiceSegment, hasSonosSegment, let saved = Segment(rawValue: storedSegment) {
                 segment = saved
             } else {
                 segment = hasServiceSegment ? .service : .sonos

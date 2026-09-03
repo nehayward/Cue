@@ -63,7 +63,7 @@ struct PlayableMenuView: View {
                     }
                 }
 
-                if item.content.service == .library, item.content.id.last?.isNumber ?? false {
+                if (item.content.service == .library && item.content.id.last?.isNumber ?? false) || item.isFilesPlaylist {
                     Button {
                         router.sheet(to: .renamePlaylist(content: item))
                     } label: {
@@ -71,7 +71,7 @@ struct PlayableMenuView: View {
                     }
                 }
 
-                if [.spotify, .plex, .deezer, .subsonic].contains(item.content.service) {
+                if [.spotify, .plex, .deezer, .subsonic].contains(item.content.service) || item.isFilesPlaylist {
                     Button(role: .destructive) {
                         router.sheet(to: .confirmDeletePlaylist(content: item))
                     } label: {

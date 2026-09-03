@@ -68,7 +68,7 @@ final class PlaylistEditCoordinator {
     /// Whether removals from `playlist` can be undone. Sonos has no positional re-add (its add
     /// appends), so Sonos edits are not undoable — only the streaming services are.
     private func supportsUndo(_ playlist: PlayableContent) -> Bool {
-        [.spotify, .plex, .deezer, .subsonic].contains(playlist.content.service)
+        [.spotify, .plex, .deezer, .subsonic, .files].contains(playlist.content.service)
     }
 
     // MARK: - Public entry points

@@ -3,6 +3,7 @@ import CryptoKit
 import Defaults
 import Foundation
 import Observation
+import SwiftUI
 
 /// One audio file in the picked folder, as read from its tags — or, where
 /// the tags are silent, from where it sits and what it is called. Kept on
@@ -174,7 +175,7 @@ public final class FilesLibraryService {
     /// A container standing for every song in the folder, for the Songs
     /// list's Play All: a playlist with a well-known id that the local queue
     /// expands into the whole library.
-    public static let allSongsID = "all-songs"
+    nonisolated public static let allSongsID = "all-songs"
 
     public var allSongsContainer: PlayableContent {
         PlayableContent(
@@ -678,9 +679,19 @@ public final class FilesLibraryService {
                   let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else { return nil }
             let directory = url.deletingLastPathComponent()
             var paths: [String] = []
+            var title = url.deletingPathExtension().lastPathComponent
             for rawLine in text.split(whereSeparator: \.isNewline) {
                 let line = rawLine.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "\\", with: "/")
-                guard !line.isEmpty, !line.hasPrefix("#") else { continue }
+                guard !line.isEmpty else { continue }
+                if line.hasPrefix("#") {
+                    // A rename keeps the file name and writes the new name
+                    // here, so the playlist's id (its path) holds still.
+                    if line.hasPrefix("#PLAYLIST:") {
+                        let named = line.dropFirst("#PLAYLIST:".count).trimmingCharacters(in: .whitespaces)
+                        if !named.isEmpty { title = named }
+                    }
+                    continue
+                }
                 let resolved: URL
                 if line.hasPrefix("file://"), let fileURL = URL(string: line) {
                     resolved = fileURL
@@ -703,10 +714,11 @@ public final class FilesLibraryService {
                     paths.append(relative)
                 }
             }
-            guard !paths.isEmpty else { return nil }
+            // An empty playlist is still a playlist — one Cue just created,
+            // waiting for its first song.
             return FilePlaylist(
                 relativePath: relativePath(of: url, in: root),
-                title: url.deletingPathExtension().lastPathComponent,
+                title: title,
                 trackRelativePaths: paths
             )
         }
@@ -831,11 +843,10 @@ public final class FilesLibraryService {
         for playlist in filePlaylists {
             let id = Self.hash("playlist|\(playlist.relativePath)")
             let ids = playlist.trackRelativePaths.compactMap { songIDByPath[$0] }
-            guard !ids.isEmpty else { continue }
             let first = ids.first.flatMap { songsByID[$0] }
             playlistsByID[id] = PlayableContent(
                 title: playlist.title,
-                subtitle: ids.count == 1 ? "1 song" : "\(ids.count) songs",
+                subtitle: ids.isEmpty ? "Empty" : (ids.count == 1 ? "1 song" : "\(ids.count) songs"),
                 thumbnail: first?.thumbnail,
                 artwork: first?.artwork,
                 content: .init(service: .files, id: id, type: .playlist, location: folderURL?.appendingPathComponent(playlist.relativePath))
@@ -994,6 +1005,170 @@ public final class FilesLibraryService {
                 || (content.metadata?.album?.localizedStandardContains(query) ?? false)
         }
         return artists.filter(matches) + albums.filter(matches) + playlists.filter(matches) + songs.filter(matches)
+    }
+
+    // MARK: - Playlist editing
+
+    /// Playlists Cue creates live in a `Playlists` folder inside the picked
+    /// folder, as plain `.m3u` files any other player can read. Playlists
+    /// found elsewhere in the folder are edited where they are.
+    private var playlistsDirectory: URL? {
+        folderURL?.appendingPathComponent("Playlists", isDirectory: true)
+    }
+
+    private func playlistIndex(id: String) -> Int? {
+        filePlaylists.firstIndex { Self.hash("playlist|\($0.relativePath)") == id }
+    }
+
+    /// Creates a playlist, seeded with `track` when one is given. The name
+    /// becomes the file name (a duplicate gets a number, as Finder does).
+    public func createPlaylist(name: String, seededWith track: PlayableContent? = nil) async -> PlayableContent? {
+        guard let folderURL, let playlistsDirectory else { return nil }
+        let safeName = name
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !safeName.isEmpty else { return nil }
+
+        var url = playlistsDirectory.appendingPathComponent(safeName).appendingPathExtension("m3u")
+        var counter = 2
+        while FileManager.default.fileExists(atPath: url.path) {
+            url = playlistsDirectory.appendingPathComponent("\(safeName) \(counter)").appendingPathExtension("m3u")
+            counter += 1
+        }
+
+        let paths = [track].compactMap { $0 }.compactMap { tracksByID[$0.content.id]?.relativePath }
+        let playlist = FilePlaylist(
+            relativePath: Self.relativePath(of: url, in: folderURL),
+            title: safeName,
+            trackRelativePaths: paths
+        )
+        guard await write(playlist) else { return nil }
+        filePlaylists.append(playlist)
+        commitPlaylists()
+        return self.playlist(id: Self.hash("playlist|\(playlist.relativePath)"))
+    }
+
+    /// Renames in place: the new name is written into the file as a
+    /// `#PLAYLIST:` line and the file name stays, so the playlist's id — its
+    /// path — and everything holding it stay valid.
+    public func renamePlaylist(id: String, to name: String) async -> PlayableContent? {
+        guard let index = playlistIndex(id: id) else { return nil }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        var playlist = filePlaylists[index]
+        playlist.title = trimmed
+        guard await write(playlist) else { return nil }
+        filePlaylists[index] = playlist
+        commitPlaylists()
+        return self.playlist(id: id)
+    }
+
+    public func deletePlaylist(id: String) async -> Bool {
+        guard let folderURL, let index = playlistIndex(id: id) else { return false }
+        let url = folderURL.appendingPathComponent(filePlaylists[index].relativePath)
+        guard await Task.detached(priority: .userInitiated, operation: { Self.coordinatedDelete(url) }).value else { return false }
+        filePlaylists.remove(at: index)
+        commitPlaylists()
+        return true
+    }
+
+    public func addToPlaylist(trackID: String, playlistID: String) async -> Bool {
+        guard let index = playlistIndex(id: playlistID), let track = tracksByID[trackID] else { return false }
+        var playlist = filePlaylists[index]
+        playlist.trackRelativePaths.append(track.relativePath)
+        guard await write(playlist) else { return false }
+        filePlaylists[index] = playlist
+        commitPlaylists()
+        return true
+    }
+
+    /// Removes one occurrence: the one at `position` when it is that track,
+    /// otherwise the first.
+    public func removeFromPlaylist(trackID: String, playlistID: String, position: Int? = nil) async -> Bool {
+        guard let index = playlistIndex(id: playlistID), let track = tracksByID[trackID] else { return false }
+        var playlist = filePlaylists[index]
+        let at: Int?
+        if let position, playlist.trackRelativePaths.indices.contains(position),
+           playlist.trackRelativePaths[position] == track.relativePath {
+            at = position
+        } else {
+            at = playlist.trackRelativePaths.firstIndex(of: track.relativePath)
+        }
+        guard let at else { return false }
+        playlist.trackRelativePaths.remove(at: at)
+        guard await write(playlist) else { return false }
+        filePlaylists[index] = playlist
+        commitPlaylists()
+        return true
+    }
+
+    /// `from` and `to` are SwiftUI's move offsets.
+    public func reorderPlaylist(id: String, from: Int, to: Int) async -> Bool {
+        guard let index = playlistIndex(id: id) else { return false }
+        var playlist = filePlaylists[index]
+        guard playlist.trackRelativePaths.indices.contains(from), (0...playlist.trackRelativePaths.count).contains(to) else { return false }
+        playlist.trackRelativePaths.move(fromOffsets: IndexSet(integer: from), toOffset: to)
+        guard await write(playlist) else { return false }
+        filePlaylists[index] = playlist
+        commitPlaylists()
+        return true
+    }
+
+    private func commitPlaylists() {
+        rebuildIndex()
+        Self.saveIndex(tracks: tracks, playlists: filePlaylists)
+    }
+
+    /// Writes a playlist as Extended M3U — a `#PLAYLIST:` name, an `#EXTINF`
+    /// line per song, and paths relative to the file — coordinated so an
+    /// iCloud Drive folder sees one clean replacement.
+    private func write(_ playlist: FilePlaylist) async -> Bool {
+        guard let folderURL else { return false }
+        let url = folderURL.appendingPathComponent(playlist.relativePath)
+        let directory = (playlist.relativePath as NSString).deletingLastPathComponent
+        var lines = ["#EXTM3U", "#PLAYLIST:\(playlist.title)"]
+        for path in playlist.trackRelativePaths {
+            if let id = songIDByPath[path], let track = tracksByID[id] {
+                let seconds = Int((track.duration ?? -1).rounded())
+                lines.append("#EXTINF:\(seconds),\(track.artist ?? track.groupingArtist) - \(track.title)")
+            }
+            lines.append(Self.relativePath(from: directory, to: path))
+        }
+        let data = Data((lines.joined(separator: "\n") + "\n").utf8)
+        return await Task.detached(priority: .userInitiated) { Self.coordinatedWrite(data, to: url) }.value
+    }
+
+    nonisolated private static func coordinatedWrite(_ data: Data, to url: URL) -> Bool {
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        var coordinationError: NSError?
+        var succeeded = false
+        NSFileCoordinator().coordinate(writingItemAt: url, options: .forReplacing, error: &coordinationError) { target in
+            succeeded = (try? data.write(to: target, options: .atomic)) != nil
+        }
+        return succeeded && coordinationError == nil
+    }
+
+    nonisolated private static func coordinatedDelete(_ url: URL) -> Bool {
+        var coordinationError: NSError?
+        var succeeded = false
+        NSFileCoordinator().coordinate(writingItemAt: url, options: .forDeleting, error: &coordinationError) { target in
+            succeeded = (try? FileManager.default.removeItem(at: target)) != nil
+        }
+        return succeeded && coordinationError == nil
+    }
+
+    /// The path from one folder to a file, both given relative to the root:
+    /// "../Artist/Album/01 Song.mp3" from a playlist in "Playlists".
+    nonisolated private static func relativePath(from directory: String, to path: String) -> String {
+        let from = directory.split(separator: "/").map(String.init)
+        let to = path.split(separator: "/").map(String.init)
+        var common = 0
+        while common < from.count, common < to.count, from[common] == to[common] {
+            common += 1
+        }
+        let ups = Array(repeating: "..", count: from.count - common)
+        return (ups + to[common...]).joined(separator: "/")
     }
 
     // MARK: - Storage

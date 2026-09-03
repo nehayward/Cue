@@ -635,15 +635,22 @@ extension PlayableContent {
         content.type.isPlaylist && content.service == .subsonic
     }
 
-    /// Streaming playlists whose tracks Cue can remove in place (Spotify, Plex, Deezer, Subsonic).
+    /// An `.m3u` in the Files folder. The All Songs container is a playlist
+    /// too, but not a file, so nothing can be edited into it.
+    public var isFilesPlaylist: Bool {
+        content.type.isPlaylist && content.service == .files && content.id != FilesLibraryService.allSongsID
+    }
+
+    /// Streaming playlists whose tracks Cue can remove in place (Spotify, Plex, Deezer, Subsonic,
+    /// Files).
     public var isEditableServicePlaylist: Bool {
-        isSpotifyPlaylist || isPlexPlaylist || isDeezerPlaylist || isSubsonicPlaylist
+        isSpotifyPlaylist || isPlexPlaylist || isDeezerPlaylist || isSubsonicPlaylist || isFilesPlaylist
     }
 
     /// Streaming playlists whose tracks Cue can reorder. Excludes Apple Music (no reorder API) and
     /// Deezer (its reorder takes a full track-id list, unsafe for a paginated playlist).
     public var isReorderableServicePlaylist: Bool {
-        isSpotifyPlaylist || isPlexPlaylist
+        isSpotifyPlaylist || isPlexPlaylist || isFilesPlaylist
     }
 
     /// Playlists whose tracks Cue can remove (Sonos + the editable streaming services). Pair with a

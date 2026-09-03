@@ -685,6 +685,7 @@ public final class MusicSearchService {
         case .plex: return await plexUserPlaylists()
         case .deezer: return await deezerEditablePlaylists()
         case .subsonic: return await subsonicEditablePlaylists()
+        case .files: return FilesLibraryService.shared.playlists
         default: return []
         }
     }
@@ -697,13 +698,23 @@ public final class MusicSearchService {
         case .deezer: return await createDeezerPlaylist(name: name, track: track)
         case .plex: return await createPlexPlaylist(name: name, track: track)
         case .subsonic: return await createSubsonicPlaylist(name: name, track: track)
+        case .files: return await FilesLibraryService.shared.createPlaylist(name: name, seededWith: track)
+        default: return nil
+        }
+    }
+
+    /// Renames `playlist` where its service can. Files playlists keep their
+    /// file and id; only the name inside changes.
+    public func renameServicePlaylist(_ playlist: PlayableContent, to name: String) async -> PlayableContent? {
+        switch playlist.content.service {
+        case .files: return await FilesLibraryService.shared.renamePlaylist(id: playlist.content.id, to: name)
         default: return nil
         }
     }
 
     /// Whether `service` supports creating an empty playlist (no seed track).
     public static func supportsEmptyPlaylistCreation(_ service: MusicService) -> Bool {
-        [.apple, .spotify, .deezer, .plex, .library, .subsonic].contains(service)
+        [.apple, .spotify, .deezer, .plex, .library, .subsonic, .files].contains(service)
     }
 
     /// Deletes `playlist`, dispatching to its service. Apple Music has no delete API.
@@ -713,6 +724,7 @@ public final class MusicSearchService {
         case .plex: return await deletePlexPlaylist(playlistID: playlist.content.id)
         case .deezer: return await deleteDeezerPlaylist(playlistID: playlist.content.id)
         case .subsonic: return await deleteSubsonicPlaylist(playlistID: playlist.content.id)
+        case .files: return await FilesLibraryService.shared.deletePlaylist(id: playlist.content.id)
         default: return false
         }
     }
@@ -725,6 +737,7 @@ public final class MusicSearchService {
         case .plex: return await addToPlexPlaylist(track: track, playlistID: playlist.content.id)
         case .deezer: return await addToDeezerPlaylist(track: track, playlistID: playlist.content.id)
         case .subsonic: return await addToSubsonicPlaylist(track: track, playlistID: playlist.content.id)
+        case .files: return await FilesLibraryService.shared.addToPlaylist(trackID: track.content.id, playlistID: playlist.content.id)
         default: return false
         }
     }
@@ -741,6 +754,7 @@ public final class MusicSearchService {
         case .plex: return await removeFromPlexPlaylist(track: track, playlistID: playlist.content.id)
         case .deezer: return await removeFromDeezerPlaylist(track: track, playlistID: playlist.content.id)
         case .subsonic: return await removeFromSubsonicPlaylist(track: track, playlistID: playlist.content.id, position: position)
+        case .files: return await FilesLibraryService.shared.removeFromPlaylist(trackID: track.content.id, playlistID: playlist.content.id, position: position)
         default: return false
         }
     }
@@ -765,6 +779,10 @@ public final class MusicSearchService {
             return await deezer.isPlaylistEditable(id: id, ownedBy: me)
         case .plex:
             return true // Plex playlists live on the user's own server.
+        case .files:
+            // Every .m3u in the folder is the user's own; All Songs is the
+            // one container that isn't a file.
+            return id != FilesLibraryService.allSongsID
         case .subsonic:
             // Editable when owned by the signed-in user (missing owner counts
             // as owned — older servers omit it). Answered from the playlist
@@ -821,6 +839,8 @@ public final class MusicSearchService {
             // than silently moving the track to the front of the playlist.
             if finalIndex > 0, afterItemID == nil { return false }
             return await plex.movePlaylistItem(playlistRatingKey: playlistKey, playlistItemID: movedItemID, afterItemID: afterItemID)
+        case .files:
+            return await FilesLibraryService.shared.reorderPlaylist(id: playlist.content.id, from: from, to: to)
         default:
             return false
         }

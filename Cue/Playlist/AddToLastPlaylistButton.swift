@@ -15,7 +15,8 @@ struct AddToLastPlaylistButton: View {
     /// the song-add endpoints can't handle).
     private var lastPlaylist: LastPlaylist? {
         guard let last = LastPlaylist.current else { return nil }
-        if last.service == .library { return last }
+        // A Sonos playlist can't hold a file from this device.
+        if last.service == .library { return itemToAdd.content.service.playsOnDeviceOnly ? nil : last }
         guard last.service == itemToAdd.content.service,
               [.track, .libraryTrack].contains(itemToAdd.content.type) else { return nil }
         return last
@@ -38,7 +39,7 @@ struct AddToLastPlaylistButton: View {
     @ViewBuilder
     private func icon(for service: MusicService) -> some View {
         switch service {
-        case .apple, .spotify, .plex, .deezer, .subsonic:
+        case .apple, .spotify, .plex, .deezer, .subsonic, .files:
             // Use `image` (not `icon`): its macCatalyst branch pre-resizes the UIImage so it
             // doesn't render oversized in menus, matching OpenInServiceView.
             service.image

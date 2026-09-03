@@ -1333,7 +1333,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
                     // The track's own streaming-service playlists (Apple Music / Spotify / Plex / Deezer).
                     let service = track.content.service
-                    if [.apple, .spotify, .plex, .deezer, .subsonic].contains(service),
+                    if [.apple, .spotify, .plex, .deezer, .subsonic, .files].contains(service),
                        [.track, .libraryTrack].contains(track.content.type) {
                         let servicePlaylists = await musicSearchService.userPlaylists(for: service)
                         if !servicePlaylists.isEmpty {
