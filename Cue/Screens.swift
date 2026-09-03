@@ -4,6 +4,7 @@
 //
 //  Created by Nick Hayward on 8/25/26.
 //
+import MusicSearchKit
 import SwiftUI
 
 @MainActor
@@ -33,5 +34,25 @@ enum Screens {
             .tint(Color("Accent"))
             .environment(selectedGroupService)
         
+    }
+
+    /// A provider's own tab — its library's front page.
+    @ViewBuilder
+    static func providerRoot(_ service: MediaSearchService) -> some View {
+        let selectedGroupService = SelectedGroupService(group: nil)
+
+        ProviderRootTabScreen(service: service)
+            .tint(Color("Accent"))
+            .environment(selectedGroupService)
+    }
+
+    /// One collection of a provider — a tab in its sidebar section.
+    @ViewBuilder
+    static func providerCollection(_ service: MediaSearchService, _ collection: ProviderCollection) -> some View {
+        let selectedGroupService = SelectedGroupService(group: nil)
+
+        ProviderCollectionTabScreen(service: service, collection: collection)
+            .tint(Color("Accent"))
+            .environment(selectedGroupService)
     }
 }

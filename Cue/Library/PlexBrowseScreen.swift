@@ -17,43 +17,30 @@ struct PlexBrowseScreen: View {
     @Environment(PlexBrowseService.self) private var plexBrowseService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
 
-    @State private var router = Router.browse
+    @State private var router: Router
     @State private var isLoading: Bool = false
     @State private var plexAuthenticator = PlexAuthenticator.shared
 
-    /// The Songs list's sort menu. Every option is a Plex `sort` field, so
-    /// the server does the ordering and each page comes back already in it —
-    /// no local copy of the library, and reversing works on the whole list
-    /// rather than the page in front of you.
-    private var songSortOptions: [PlayableListSort] {
-        PlexSongSort.allCases.map { sort in
-            PlayableListSort(
-                name: sort.label,
-                // Nil for an order with no meaningful opposite, which is
-                // how the menu knows to leave the direction picker out.
-                ascendingLabel: sort.isReversible ? sort.ascendingLabel : nil,
-                descendingLabel: sort.isReversible ? sort.descendingLabel : nil
-            ) { offset, reversed in
-                await musicSearchService.plexSongs(offset: offset, sort: sort, reversed: reversed)
-            }
-        }
+    /// Off when this screen is a provider tab of its own: the selector
+    /// switches the Browse tab's provider, which this tab isn't.
+    let showsMediaSelector: Bool
+
+    /// - Parameter router: `Router.browse` for the Browse tab. A provider
+    ///   tab passes its own, so its stack and the Browse tab's don't push
+    ///   and pop each other when both are showing Plex.
+    init(showsMediaSelector: Bool = true, router: Router = .browse) {
+        self.showsMediaSelector = showsMediaSelector
+        _router = State(initialValue: router)
     }
 
-    /// The line under the Songs title: how far the one-time library sync has
-    /// got while it runs, and how big the library is once it is there.
-    private var songSyncStatus: () -> String? {
-        {
-            guard musicSearchService.isSyncingPlexSongs else {
-                guard let count = musicSearchService.plexSongCount, count > 0 else { return nil }
-                return count == 1 ? "1 song" : "\(count.formatted()) songs"
-            }
+    /// The Songs list's sort menu, shared with the Songs tab.
+    private var songSortOptions: [PlayableListSort] {
+        PlexLibraryLists.songSortOptions(musicSearchService: musicSearchService)
+    }
 
-            let synced = musicSearchService.plexSyncedSongCount
-            guard let total = musicSearchService.plexLibrarySongCount, total > 0 else {
-                return synced == 0 ? "Loading library…" : "\(synced.formatted()) songs"
-            }
-            return "\(min(synced, total).formatted()) of \(total.formatted())"
-        }
+    /// The line under the Songs title, shared with the Songs tab.
+    private var songSyncStatus: () -> String? {
+        PlexLibraryLists.songSyncStatus(musicSearchService: musicSearchService)
     }
 
     var body: some View {
@@ -81,7 +68,7 @@ struct PlexBrowseScreen: View {
                         // sort but Title.
                         showSectionIndex: false,
                         sortOptions: songSortOptions,
-                        sortKey: "plex.songs",
+                        sortKey: PlexLibraryLists.songSortKey,
                         refreshAction: { musicSearchService.clearPlexSongCache() },
                         searchAction: { query, offset in
                             await musicSearchService.searchPlexSongs(query: query, offset: offset)
@@ -139,9 +126,22 @@ struct PlexBrowseScreen: View {
             }
             .withAppRouter()
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    MediaSelector()
-                        .environment(router)
+                if showsMediaSelector {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        MediaSelector()
+                            .environment(router)
+                    }
+                } else {
+                    // The selector's menu is also where Plex is managed from
+                    // the Browse tab; a provider tab needs its own way in.
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            router.presentedSheet = .plexManagement
+                        } label: {
+                            Label("Manage Plex", systemImage: "server.rack")
+                                .labelStyle(.iconOnly)
+                        }
+                    }
                 }
             }
             .overlay {

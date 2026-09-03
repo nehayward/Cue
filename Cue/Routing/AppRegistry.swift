@@ -196,6 +196,9 @@ extension View {
                         ReorderSoundCloudLibrarySectionsView()
                     case .shareToWatch:
                         ShareToWatchView()
+                    case .customizeTabs:
+                        CustomizeTabsView()
+                            .withEnvironments()
                     case .paywall, .onboard:
                         // Routed via `withFullScreenCoverDestinations` —
                         // listed here to keep the switch exhaustive but never

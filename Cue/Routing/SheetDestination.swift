@@ -36,6 +36,9 @@ enum SheetDestination: Identifiable, Equatable {
     case reorderSpotifyLibrarySections
     case reorderSoundCloudLibrarySections
     case shareToWatch
+    /// Which providers get a tab of their own (a sidebar section on iPad
+    /// and Mac), and in what order.
+    case customizeTabs
 
     var id: String {
         switch self {

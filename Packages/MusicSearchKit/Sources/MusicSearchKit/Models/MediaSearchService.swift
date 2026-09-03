@@ -235,6 +235,31 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         }
     }
     
+    /// The brand mark as a bare `Image`, for places that only take one — a
+    /// `Tab`'s label, whose bar extracts the image and ignores any view
+    /// wrapped around it. `image` and `iconForMusicService` are sized and
+    /// tinted views; this is the same asset before any of that.
+    public var tabImage: Image {
+        switch self {
+        case .apple:
+            Image(systemName: "apple.logo")
+        case .library:
+            Image(systemName: librarySymbolName)
+        case .subsonic:
+            Image(systemName: "externaldrive.fill.badge.icloud")
+        case .sonosRadio, .pandora:
+            // Full-colour badges: left in their original rendering, as
+            // `image` does, so they don't collapse into a solid blob.
+            Image(self.title, bundle: .module)
+        case .tuneIn, .soundcloud, .deezer:
+            Image(self.title, bundle: .module)
+                .renderingMode(.template)
+        default:
+            Image(self.rawValue.capitalized, bundle: .module)
+                .renderingMode(.template)
+        }
+    }
+
     public var brandColor: Color {
         switch self {
         case .apple:

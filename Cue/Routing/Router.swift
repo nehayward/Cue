@@ -2,13 +2,30 @@ import Foundation
 import SwiftUI
 import Observation
 import SonosKit
+import MusicSearchKit
 
 
 /// Which tab the window is showing.
 enum AppTab: Hashable {
     case search
     case browse
-    case test
+    /// A provider the user added to the tab view, as one tab: its library's
+    /// front page (Artists, Albums, … as rows). This is the tab bar's entry
+    /// on iPhone, where a section's worth of tabs would overflow the bar.
+    case provider(MediaSearchService)
+    /// One collection of an added provider — the tabs its sidebar section is
+    /// split into on iPad and Mac.
+    case providerCollection(MediaSearchService, ProviderCollection)
+
+    /// The provider a tab belongs to, so a provider leaving the tab view can
+    /// take its selection with it.
+    var provider: MediaSearchService? {
+        switch self {
+        case .search, .browse: nil
+        case let .provider(service): service
+        case let .providerCollection(service, _): service
+        }
+    }
 }
 
 @Observable public final class Router {
@@ -56,7 +73,7 @@ enum AppTab: Hashable {
     func handleReselection(of tab: AppTab) {
         switch tab {
         case .search: SearchActivator.shared.requestFocus()
-        case .browse, .test: break
+        case .browse, .provider, .providerCollection: break
         }
     }
 
