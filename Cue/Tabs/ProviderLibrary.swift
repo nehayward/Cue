@@ -289,9 +289,10 @@ struct ProviderLibrary {
 
     // MARK: - Files
 
-    /// The folder's index is in memory, so every list answers in one page
-    /// and search filters the index itself. Static, and public to the app:
-    /// the Files browse screen's rows push the same destinations.
+    /// The folder's index is in memory, so every list answers in one page,
+    /// every sort is a sort of the whole library, and search filters the
+    /// index itself. Static, and public to the app: the Files browse
+    /// screen's rows push the same destinations.
     static func filesDestination(for collection: ProviderCollection) -> RouterDestination? {
         let files = FilesLibraryService.shared
 
@@ -302,14 +303,41 @@ struct ProviderLibrary {
                 return offset == 0 ? files.artists : []
             })
         case .albums:
-            return .playableList(title: "Albums", showSectionIndex: false, refreshAction: { await files.scan() }, action: { offset in
-                await files.scanIfNeeded()
-                return offset == 0 ? files.albums : []
-            })
+            return .playableList(
+                title: "Albums",
+                showSectionIndex: false,
+                sortOptions: FilesLibraryService.AlbumSort.allCases.map { sort in
+                    PlayableListSort(
+                        name: sort.label,
+                        ascendingLabel: sort.ascendingLabel,
+                        descendingLabel: sort.descendingLabel,
+                        defaultsToDescending: sort.prefersDescending
+                    ) { offset, descending in
+                        await files.scanIfNeeded()
+                        return offset == 0 ? files.albums(sortedBy: sort, descending: descending) : []
+                    }
+                },
+                sortKey: "files.albums",
+                refreshAction: { await files.scan() }
+            )
         case .songs:
             return .playableList(
                 title: "Songs",
+                // Play All on the whole folder, shuffle included.
+                playAllItem: files.allSongsContainer,
                 showSectionIndex: false,
+                sortOptions: FilesLibraryService.SongSort.allCases.map { sort in
+                    PlayableListSort(
+                        name: sort.label,
+                        ascendingLabel: sort.ascendingLabel,
+                        descendingLabel: sort.descendingLabel,
+                        defaultsToDescending: sort.prefersDescending
+                    ) { offset, descending in
+                        await files.scanIfNeeded()
+                        return files.songs(sortedBy: sort, descending: descending, offset: offset)
+                    }
+                },
+                sortKey: "files.songs",
                 refreshAction: { await files.scan() },
                 searchAction: { query, offset in
                     offset == 0 ? files.search(query: query).filter { $0.content.type == .track } : []
@@ -320,12 +348,18 @@ struct ProviderLibrary {
                     }
                     let count = files.songs.count
                     return count == 0 ? nil : (count == 1 ? "1 song" : "\(count.formatted()) songs")
-                },
-                action: { offset in
-                    await files.scanIfNeeded()
-                    return files.songs(offset: offset)
                 }
             )
+        case .playlists:
+            return .playableList(title: "Playlists", showSectionIndex: false, refreshAction: { await files.scan() }, action: { offset in
+                await files.scanIfNeeded()
+                return offset == 0 ? files.playlists : []
+            })
+        case .recentlyAdded:
+            return .playableList(title: "Recently Added", showSectionIndex: false, refreshAction: { await files.scan() }, action: { offset in
+                await files.scanIfNeeded()
+                return offset == 0 ? files.recentlyAddedAlbums() : []
+            })
         default:
             return nil
         }

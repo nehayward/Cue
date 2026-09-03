@@ -128,7 +128,7 @@ final class LocalPlaybackService {
             true
         case (.playlist, .apple), (.libraryPlaylist, .apple), (.playlist, .plex):
             true
-        case (.album, .files), (.artist, .files):
+        case (.album, .files), (.artist, .files), (.playlist, .files):
             true
         default:
             false
@@ -172,6 +172,11 @@ final class LocalPlaybackService {
         case (.artist, .files):
             guard offset == 0 else { return [] }
             return FilesLibraryService.shared.artistTracks(artistID: container.content.id)
+        case (.playlist, .files):
+            // An .m3u in the folder, or the All Songs container behind the
+            // Songs list's Play All.
+            guard offset == 0 else { return [] }
+            return FilesLibraryService.shared.playlistTracks(playlistID: container.content.id)
         default:
             return []
         }

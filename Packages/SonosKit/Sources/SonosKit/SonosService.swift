@@ -2178,6 +2178,8 @@ public final class SonosService {
             return await FilesLibraryService.shared.album(id: id)
         case (.artist, .files):
             return await FilesLibraryService.shared.artist(id: id)
+        case (.playlist, .files):
+            return await FilesLibraryService.shared.playlist(id: id)
         case (.playlist, .library):
             let playlist = await libraryPlaylistLookup(ID: id)
             return playlist

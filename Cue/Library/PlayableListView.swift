@@ -21,16 +21,22 @@ public struct PlayableListSort: Identifiable, Equatable {
     public let descendingLabel: String?
     /// Called with a page offset and whether the order is reversed.
     public let action: (Int, Bool) async -> [PlayableContent]
+    /// Whether the order reads best reversed when first chosen — newest
+    /// first for a date, longest first for a length. A remembered direction
+    /// still wins.
+    public let defaultsToDescending: Bool
 
     public init(
         name: String,
         ascendingLabel: String? = nil,
         descendingLabel: String? = nil,
+        defaultsToDescending: Bool = false,
         action: @escaping (Int, Bool) async -> [PlayableContent]
     ) {
         self.name = name
         self.ascendingLabel = ascendingLabel
         self.descendingLabel = descendingLabel
+        self.defaultsToDescending = defaultsToDescending
         self.action = action
     }
 
@@ -113,8 +119,12 @@ struct PlayableListView: View {
             set: { name in
                 guard name != selectedSort?.name else { return }
                 sortName = name
+                // Each order starts in its own natural direction; the
+                // direction picker is there to flip it.
+                isDescending = sortOptions.first { $0.name == name }?.defaultsToDescending ?? false
                 if let sortStorageKey {
                     UserDefaults.standard.set(name, forKey: Self.sortDefaultsKey(sortStorageKey))
+                    UserDefaults.standard.set(isDescending, forKey: Self.directionDefaultsKey(sortStorageKey))
                 }
                 Task { await reload() }
             }
@@ -248,9 +258,17 @@ struct PlayableListView: View {
                 .withEnvironments()
         }
         .task {
-            if let sortStorageKey, sortName == nil {
-                sortName = UserDefaults.standard.string(forKey: Self.sortDefaultsKey(sortStorageKey))
-                isDescending = UserDefaults.standard.bool(forKey: Self.directionDefaultsKey(sortStorageKey))
+            if sortName == nil, !sortOptions.isEmpty {
+                if let sortStorageKey {
+                    sortName = UserDefaults.standard.string(forKey: Self.sortDefaultsKey(sortStorageKey))
+                }
+                // A remembered direction wins; otherwise the order's own.
+                if let sortStorageKey,
+                   UserDefaults.standard.object(forKey: Self.directionDefaultsKey(sortStorageKey)) != nil {
+                    isDescending = UserDefaults.standard.bool(forKey: Self.directionDefaultsKey(sortStorageKey))
+                } else {
+                    isDescending = selectedSort?.defaultsToDescending ?? false
+                }
             }
             await initialLoad()
         }

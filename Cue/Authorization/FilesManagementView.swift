@@ -36,7 +36,7 @@ struct FilesManagementView: View {
                         Label(library.isConfigured ? "Choose a Different Folder…" : "Choose Folder…", systemImage: "folder.badge.plus")
                     }
                 } footer: {
-                    Text("Pick any folder of music — on this device, in iCloud Drive, or on another location the Files app can open. Cue reads the tags of MP3, AAC, ALAC, FLAC, WAV and AIFF files and plays them on this device.")
+                    Text("Pick any folder of music — on this device, in iCloud Drive, or on another location the Files app can open. Cue reads the tags of MP3, AAC, ALAC, FLAC, WAV and AIFF files, falls back to an Artist/Album/Song folder layout for untagged ones, picks up .m3u playlists, and plays everything on this device.")
                 }
 
                 if library.isConfigured {
@@ -44,6 +44,9 @@ struct FilesManagementView: View {
                         LabeledContent("Songs", value: library.songs.count.formatted())
                         LabeledContent("Albums", value: library.albums.count.formatted())
                         LabeledContent("Artists", value: library.artists.count.formatted())
+                        if !library.playlists.isEmpty {
+                            LabeledContent("Playlists", value: library.playlists.count.formatted())
+                        }
 
                         if library.isScanning {
                             HStack(spacing: 12) {
@@ -79,7 +82,7 @@ struct FilesManagementView: View {
                     } header: {
                         Text("Library")
                     } footer: {
-                        Text("Rescan after adding music to the folder. The index is kept on this device, so the library is ready at launch.")
+                        Text("The library refreshes itself when opened; rescan to pick up changes right away. Only files that changed are read again, and the index is kept on this device so the library is ready at launch.")
                     }
 
                     Section {

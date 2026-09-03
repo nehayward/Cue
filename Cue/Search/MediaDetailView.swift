@@ -589,6 +589,10 @@ struct MediaDetailView: View {
             await FilesLibraryService.shared.scanIfNeeded()
             newTracks = FilesLibraryService.shared.albumTracks(albumID: playableContent.content.id)
             isLoadingMore = false
+        case (.playlist, .files):
+            await FilesLibraryService.shared.scanIfNeeded()
+            newTracks = FilesLibraryService.shared.playlistTracks(playlistID: playableContent.content.id)
+            isLoadingMore = false
         case (.track, .files):
             await FilesLibraryService.shared.scanIfNeeded()
             let files = FilesLibraryService.shared

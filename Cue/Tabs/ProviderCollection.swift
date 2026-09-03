@@ -82,7 +82,7 @@ extension MediaSearchService {
         case .plex:
             [.artists, .albums, .songs, .playlists]
         case .files:
-            [.artists, .albums, .songs]
+            [.artists, .albums, .songs, .playlists, .recentlyAdded]
         case .tidal, .tuneIn, .sonosRadio, .pandora:
             []
         }
