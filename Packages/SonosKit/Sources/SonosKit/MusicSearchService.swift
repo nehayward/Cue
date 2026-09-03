@@ -2353,7 +2353,7 @@ public final class MusicSearchService {
 
     // MARK: - Subsonic
 
-    /// Whether a Subsonic-compatible server is configured in Clic. Unlike the
+    /// Whether a Subsonic-compatible server is configured in Cue. Unlike the
     /// streaming services there is no Sonos-side account — the server address
     /// and credentials entered in Settings are the whole authorization.
     public var isSubsonicConfigured: Bool {

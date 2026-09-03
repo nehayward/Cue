@@ -4,7 +4,7 @@ import SonosKit
 import SwiftUI
 
 struct SceneWidget: Widget {
-    let kind: String = "com.clic.ScenesWidget"
+    let kind: String = "com.cue.ScenesWidget"
 
     var families: [WidgetFamily] {
         [.systemSmall, .systemMedium, .systemLarge]

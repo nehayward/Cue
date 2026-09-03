@@ -8,7 +8,7 @@ struct WatchWidgetsEntryView: View {
     var body: some View {
         ZStack {
             AccessoryWidgetBackground()
-            Image("clic_icon")
+            Image("cue_icon")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 25, height: 25)

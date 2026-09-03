@@ -9,14 +9,14 @@
       "WebFetch(domain:kean-docs.github.io)",
       "WebSearch",
       "Bash(git reset:*)",
-      "Bash(grep -rn 'ForEach\\(\\\\$' --include=\"*.swift\" Clic/)",
+      "Bash(grep -rn 'ForEach\\(\\\\$' --include=\"*.swift\" Cue/)",
       "Bash(xcrun xctrace *)",
       "Read(//tmp/**)",
       "Bash(/Users/nick/.claude/skills/swiftui-trace-analyzer/scripts/analyze-swiftui-trace.py *)",
       "Bash(swift build *)",
-      "Bash(grep -n \"^        \\\\.\\\\|^        }$\\\\|var body\" Clic/LargePlayerView.swift)",
-      "Bash(cd \"/Users/nick/Library/Mobile Documents/com~apple~CloudDocs/Active/Clic\" && ls -la *.trace 2>/dev/null; find . -maxdepth 3 -name \"*.trace\" -not -path \"*/.build/*\" 2>/dev/null | head; ls ~/Library/Developer/Xcode/DerivedData 2>/dev/null | head)",
-      "Bash(xcodebuild -project Clic.xcodeproj -scheme Clic -destination 'generic/platform=iOS Simulator' -configuration Debug build)"
+      "Bash(grep -n \"^        \\\\.\\\\|^        }$\\\\|var body\" Cue/LargePlayerView.swift)",
+      "Bash(cd \"/Users/nick/Library/Mobile Documents/com~apple~CloudDocs/Active/Cue\" && ls -la *.trace 2>/dev/null; find . -maxdepth 3 -name \"*.trace\" -not -path \"*/.build/*\" 2>/dev/null | head; ls ~/Library/Developer/Xcode/DerivedData 2>/dev/null | head)",
+      "Bash(xcodebuild -project Cue.xcodeproj -scheme Cue -destination 'generic/platform=iOS Simulator' -configuration Debug build)"
     ],
     "deny": []
   }

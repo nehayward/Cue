@@ -35,7 +35,7 @@ public enum AppStorageKeys {
     /// speaker controller, and the surface it drives (`Preferences ▸ Lock
     /// Screen ▸ Now Playing`) is itself the default with Super.
     ///
-    /// It means one thing in both places that read it: *while Clic is your Lock
+    /// It means one thing in both places that read it: *while Cue is your Lock
     /// Screen player, this device's volume controls the speaker.* Both the Lock
     /// Screen path and the player screen's `hardwareVolumeControl` therefore
     /// require `lockScreenNowPlaying` and an active subscription as well —
@@ -57,7 +57,7 @@ public enum AppStorageKeys {
     public static let useHardwareVolumeButtons = "\(Prefix.id).useHardwareVolumeButtons"
     /// Mirrors the playing group onto the Lock Screen / Control Center Now
     /// Playing card by holding a silent audio session. **On** when unset: it's
-    /// the default Lock Screen surface for Clic Super. Read it through
+    /// the default Lock Screen surface for Cue Super. Read it through
     /// `UserDefaults.lockScreenNowPlayingEnabled`, never `bool(forKey:)`, which
     /// reads unset as off and would leave the default unreachable.
     ///

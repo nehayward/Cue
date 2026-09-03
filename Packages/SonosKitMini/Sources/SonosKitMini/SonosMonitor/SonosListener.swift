@@ -18,7 +18,7 @@ struct SonosListenerConfig {
     
     init(
         port: UInt16,
-        queueLabel: String =  "com.clic.sonos_server",
+        queueLabel: String =  "com.cue.sonos_server",
         backlogSize: Int32 = 256,  // Increased backlog size
         bufferSize: Int = 32768,   // Increased buffer size
         batchSize: Int = 10,
@@ -47,7 +47,7 @@ final class SonosListener {
     private var sourceTimer: DispatchSourceTimer?
     
     private var activeConnections: Set<String> = []  // Track active Sonos device connections
-    private let connectionQueue = DispatchQueue(label: "com.clic.connection_queue")
+    private let connectionQueue = DispatchQueue(label: "com.cue.connection_queue")
     
     // Update connection timeout to be longer
     private let connectionTimeout: TimeInterval = 300 // 5 minutes
@@ -69,10 +69,10 @@ final class SonosListener {
     private var serverMonitorTimer: DispatchSourceTimer?
     private let serverCheckInterval: TimeInterval = 30 // Check every 30 seconds
     
-    private let requestQueue = DispatchQueue(label: "com.clic.request_queue", attributes: .concurrent)
+    private let requestQueue = DispatchQueue(label: "com.cue.request_queue", attributes: .concurrent)
     private let rateLimiter = RateLimiter(requestsPerSecond: 100)
     private var pendingRequests: [(Data, String, String)] = []
-    private let batchProcessingQueue = DispatchQueue(label: "com.clic.batch_processing")
+    private let batchProcessingQueue = DispatchQueue(label: "com.cue.batch_processing")
     private var lastBatchProcessTime: TimeInterval = 0
     private let minimumBatchInterval: TimeInterval = 0.1 // 100ms
     
@@ -824,7 +824,7 @@ final class SonosListener {
 final class BufferPool {
     private var availableBuffers: [(id: Int, buffer: [UInt8])] = []
     private let semaphore: DispatchSemaphore
-    private let queue = DispatchQueue(label: "com.clic.buffer_pool")
+    private let queue = DispatchQueue(label: "com.cue.buffer_pool")
     
     init(size: Int, bufferSize: Int) {
         semaphore = DispatchSemaphore(value: size)
@@ -852,7 +852,7 @@ final class BufferPool {
 }
 
 final class RateLimiter {
-    private let queue = DispatchQueue(label: "com.clic.rate_limiter")
+    private let queue = DispatchQueue(label: "com.cue.rate_limiter")
     private let requestsPerSecond: Int
     private var lastExecutionTime: TimeInterval = 0
     

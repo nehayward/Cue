@@ -981,7 +981,7 @@ final class SonosAPI {
         // S1 players (ZP100, ZP80, older Play:5s…) never report
         // CurrentMuseHouseholdId — Muse is the S2 API. Without this fallback an
         // S1 speaker resolves to nil, and `getAllHouseholdsIPs` drops any IP
-        // whose household is empty, so an S1 system is invisible to Clic Mini
+        // whose household is empty, so an S1 system is invisible to Cue Mini
         // and the Watch entirely (the same failure the main app had).
         // /status/zp is served by every firmware generation. S1 players have no
         // Muse WebSocket to subscribe to, so the missing suffix costs nothing.

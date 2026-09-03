@@ -1,0 +1,3205 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 71;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		010855CE2D15FE0D00DD9B84 /* SonosKitMini in Frameworks */ = {isa = PBXBuildFile; productRef = 010855CD2D15FE0D00DD9B84 /* SonosKitMini */; };
+		010DBB252C89605C000E278E /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 010DBB242C89605C000E278E /* Defaults */; };
+		0111797E2C934C96007FFA13 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797D2C934C96007FFA13 /* Collections */; };
+		011179802C934C9B007FFA13 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797F2C934C9B007FFA13 /* Defaults */; };
+		013161802FC54BF500249DC4 /* NewsletterKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0131617F2FC54BF500249DC4 /* NewsletterKit */; };
+		013686202C850AE900B1340F /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0136861F2C850AE900B1340F /* SonosKit */; };
+		014F5FEA2EC7A9B80021A334 /* Cue Mini.app in Add Cue Mini */ = {isa = PBXBuildFile; fileRef = 01C1296F2D0CB4E9009F9E90 /* Cue Mini.app */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		0155DC0B2D4D47EA00A452D4 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 0155DC0A2D4D47EA00A452D4 /* Kingfisher */; };
+		017008662D49DCB700416FD3 /* SonosKitMini in Frameworks */ = {isa = PBXBuildFile; productRef = 017008652D49DCB700416FD3 /* SonosKitMini */; };
+		017297652DD3C708003E7FFB /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 017297642DD3C708003E7FFB /* Kingfisher */; };
+		0186C9672DD82EC2009F8A66 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 0186C9662DD82EC2009F8A66 /* Kingfisher */; };
+		0186C9692DD83E34009F8A66 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = 0186C9682DD83E34009F8A66 /* Nuke */; };
+		0186D94A2E674B47001387F1 /* FocusOnAppear in Frameworks */ = {isa = PBXBuildFile; productRef = 0186D9492E674B47001387F1 /* FocusOnAppear */; };
+		0186D94C2E674B4F001387F1 /* FocusOnAppear in Frameworks */ = {isa = PBXBuildFile; productRef = 0186D94B2E674B4F001387F1 /* FocusOnAppear */; };
+		01A1F8882F61075600C0D52B /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = 01A1F8872F61075600C0D52B /* Glur */; };
+		01A662742F27240E00C7524D /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = 01A662732F27240E00C7524D /* Glur */; };
+		01A662762F27241E00C7524D /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = 01A662752F27241E00C7524D /* Glur */; };
+		01AB21442DD0F9B1004BFEE4 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 01AB21432DD0F9B1004BFEE4 /* Kingfisher */; };
+		01CB34052DC4F851006406B6 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
+		01CB34072DC4F851006406B6 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33F62DC4F851006406B6 /* SubscriptionKit */; };
+		01CB34082DC4F851006406B6 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33F72DC4F851006406B6 /* OrderedCollections */; };
+		01CB34092DC4F851006406B6 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33FE2DC4F851006406B6 /* Defaults */; };
+		01CB340B2DC4F851006406B6 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33FF2DC4F851006406B6 /* Analytics */; };
+		01CB340C2DC4F851006406B6 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33F92DC4F851006406B6 /* RevenueCatUI */; settings = {ATTRIBUTES = (Required, ); }; };
+		01CB340E2DC4F851006406B6 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33F22DC4F851006406B6 /* SonosKit */; };
+		01CB340F2DC4F851006406B6 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33F32DC4F851006406B6 /* CloudStorage */; };
+		01CB34112DC4F851006406B6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E9684B692BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy */; };
+		01CB34292DC4FE57006406B6 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB34282DC4FE57006406B6 /* VibesDS */; };
+		01E3D31D2E6FD74F005E769A /* FocusOnAppear in Frameworks */ = {isa = PBXBuildFile; productRef = 01E3D31C2E6FD74F005E769A /* FocusOnAppear */; };
+		01F0AD6F2D238DDB00885D20 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 01F0AD6E2D238DDB00885D20 /* KeyboardShortcuts */; };
+		01F0B0BB2D28742200885D20 /* MacGlue.bundle in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 01F0B0AB2D286EC000885D20 /* MacGlue.bundle */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		01FA14672FC546A800B95FA3 /* NewsletterKit in Frameworks */ = {isa = PBXBuildFile; productRef = 01FA14662FC546A800B95FA3 /* NewsletterKit */; };
+		AA00CA0B0000000000000001 /* CueAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA00CA020000000000000001 /* CueAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AA00CA0C0000000000000001 /* CueAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA00CA020000000000000001 /* CueAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AA00CA170000000000000001 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = AA00CA110000000000000001 /* SonosKit */; };
+		AA00CA180000000000000001 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = AA00CA120000000000000001 /* VibesDS */; };
+		AA00CA190000000000000001 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = AA00CA130000000000000001 /* CloudStorage */; };
+		AA00CA1A0000000000000001 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = AA00CA140000000000000001 /* NukeUI */; };
+		AA00CA1B0000000000000001 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = AA00CA150000000000000001 /* Defaults */; };
+		AA00CA1C0000000000000001 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = AA00CA160000000000000001 /* OrderedCollections */; };
+		AA00CA1D0000000000000001 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E92E472D2B36086B00DE6647 /* UniformTypeIdentifiers.framework */; };
+		E90F315E2BC4829500884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315D2BC4829500884EA5 /* Analytics */; };
+		E90F31602BC48ADD00884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315F2BC48ADD00884EA5 /* Analytics */; };
+		E91976DD2C0A1B1E000FA449 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E91976DC2C0A1B1E000FA449 /* CloudStorage */; };
+		E91976DF2C0A1B26000FA449 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E91976DE2C0A1B26000FA449 /* NukeUI */; };
+		E91976E12C0A1B45000FA449 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = E91976E02C0A1B45000FA449 /* Defaults */; };
+		E91976E32C0A1B63000FA449 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E91976E22C0A1B63000FA449 /* OrderedCollections */; };
+		E9249A652C0A6CCB00D8B920 /* QueueAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E92E47432B360C5C00DE6647 /* QueueAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E92B3EE42B60249B00724FA1 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E982B60249B00724FA1 /* Nuke */; };
+		E92B3EE62B60249B00724FA1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
+		E92B3EE72B60249B00724FA1 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E932B60249B00724FA1 /* SubscriptionKit */; };
+		E92B3EE82B60249B00724FA1 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E942B60249B00724FA1 /* OrderedCollections */; };
+		E92B3EE92B60249B00724FA1 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E9B2B60249B00724FA1 /* Defaults */; };
+		E92B3EEA2B60249B00724FA1 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E9A2B60249B00724FA1 /* NukeUI */; };
+		E92B3EEB2B60249B00724FA1 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E962B60249B00724FA1 /* RevenueCatUI */; settings = {ATTRIBUTES = (Required, ); }; };
+		E92B3EEC2B60249B00724FA1 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E922B60249B00724FA1 /* VibesDS */; };
+		E92B3EED2B60249B00724FA1 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E8D2B60249B00724FA1 /* SonosKit */; };
+		E92B3EEE2B60249B00724FA1 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E902B60249B00724FA1 /* CloudStorage */; };
+		E92E47442B360C5C00DE6647 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E92E472D2B36086B00DE6647 /* UniformTypeIdentifiers.framework */; };
+		E92E47562B3647E200DE6647 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E92E47552B3647E200DE6647 /* SonosKit */; };
+		E93AFA772B587F1800B20AC4 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = E93AFA762B587F1800B20AC4 /* Defaults */; };
+		E959B9182AB50684000D596E /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E959B9172AB50684000D596E /* CloudStorage */; };
+		E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E959B91B2AB506BF000D596E /* CloudStorage */; };
+		E959B91F2AB65F3D000D596E /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E959B91E2AB65F3D000D596E /* VibesDS */; };
+		E959B9212AB6B12D000D596E /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E959B9202AB6B12D000D596E /* VibesDS */; };
+		E960ED4A2AC4969F003E3732 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E960ED492AC4969F003E3732 /* SubscriptionKit */; };
+		E96385FC2AD8E346005411BF /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = E96385FB2AD8E346005411BF /* RevenueCatUI */; settings = {ATTRIBUTES = (Required, ); }; };
+		E9684B6A2BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E9684B692BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy */; };
+		E9684B6B2BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E9684B692BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy */; };
+		E9684B6C2BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E9684B692BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy */; };
+		E975632C2B699B2400787E14 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E97562DA2B699B2400787E14 /* Nuke */; };
+		E975632E2B699B2400787E14 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
+		E975632F2B699B2400787E14 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E97562D52B699B2400787E14 /* SubscriptionKit */; };
+		E97563302B699B2400787E14 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E97562D62B699B2400787E14 /* OrderedCollections */; };
+		E97563312B699B2400787E14 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = E97562DD2B699B2400787E14 /* Defaults */; };
+		E97563322B699B2400787E14 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E97562DC2B699B2400787E14 /* NukeUI */; };
+		E97563332B699B2400787E14 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = E97562D82B699B2400787E14 /* RevenueCatUI */; settings = {ATTRIBUTES = (Required, ); }; };
+		E97563342B699B2400787E14 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E97562D42B699B2400787E14 /* VibesDS */; };
+		E97563352B699B2400787E14 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E97562CF2B699B2400787E14 /* SonosKit */; };
+		E97563362B699B2400787E14 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E97562D22B699B2400787E14 /* CloudStorage */; };
+		E975633C2B699B2400787E14 /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E97C0D412A325CC5005AB0E0 /* Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E97C0D432A325CC5005AB0E0 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */; };
+		E97C0D452A325CC5005AB0E0 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */; };
+		E97C0D542A325CC6005AB0E0 /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E97C0D412A325CC5005AB0E0 /* Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E97C0D5D2A326D25005AB0E0 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E97C0D5C2A326D25005AB0E0 /* SonosKit */; };
+		E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
+		E9A5412C2BD83F5800EAAF5C /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E9A5412B2BD83F5800EAAF5C /* VibesDS */; };
+		E9A6AAB82B3CCC9A00C24B98 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E9A6AAB72B3CCC9A00C24B98 /* VibesDS */; };
+		E9B12B542A5F31790008868C /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */; };
+		E9B12B552A5F31790008868C /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */; };
+		E9B12B602A5F317B0008868C /* Widgets Watch.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E9B12B532A5F31790008868C /* Widgets Watch.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E9BDE57F29E33B0700D230A8 /* SonosKit */; };
+		E9C03B092A586F6100FB9118 /* Cue Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = E9C03AFC2A586F5E00FB9118 /* Cue Watch.app */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E9D49E4E2BC9D21B0084185E /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E9D49E4D2BC9D21B0084185E /* Analytics */; };
+		E9D637772CEBF06D00434339 /* QueueAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E92E47432B360C5C00DE6647 /* QueueAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E9F600C22B4E5E470039AAA6 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C12B4E5E470039AAA6 /* Nuke */; };
+		E9F600C42B4E5E470039AAA6 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C32B4E5E470039AAA6 /* NukeUI */; };
+		E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E9FFC29A2ACDCC490001B26F /* OrderedCollections */; };
+		ED069F1D2F58A2AA00869F64 /* DropKit in Frameworks */ = {isa = PBXBuildFile; productRef = ED069F1C2F58A2AA00869F64 /* DropKit */; };
+		ED069F1F2F58A2B000869F64 /* DropKit in Frameworks */ = {isa = PBXBuildFile; productRef = ED069F1E2F58A2B000869F64 /* DropKit */; };
+		ED069F212F58A2B600869F64 /* DropKit in Frameworks */ = {isa = PBXBuildFile; productRef = ED069F202F58A2B600869F64 /* DropKit */; };
+		ED069F232F58A2CE00869F64 /* DropKit in Frameworks */ = {isa = PBXBuildFile; productRef = ED069F222F58A2CE00869F64 /* DropKit */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		010858FD2D17BDF500DD9B84 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 01C1296E2D0CB4E9009F9E90;
+			remoteInfo = "Cue Mini";
+		};
+		01F0B0BC2D28742200885D20 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 01F0B0AA2D286EC000885D20;
+			remoteInfo = MacGlue;
+		};
+		AA00CA0D0000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA00CA010000000000000001;
+			remoteInfo = CueAction;
+		};
+		AA00CA0E0000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA00CA010000000000000001;
+			remoteInfo = CueAction;
+		};
+		E9249A662C0A6CCB00D8B920 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E92E47422B360C5C00DE6647;
+			remoteInfo = PlayAction;
+		};
+		E97562CA2B699B2400787E14 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E97C0D402A325CC5005AB0E0;
+			remoteInfo = SonosWidgetExtension;
+		};
+		E97C0D522A325CC6005AB0E0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E97C0D402A325CC5005AB0E0;
+			remoteInfo = SonosWidgetExtension;
+		};
+		E9B12B5E2A5F317B0008868C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E9B12B522A5F31790008868C;
+			remoteInfo = WatchWidgetsExtension;
+		};
+		E9C03B072A586F6100FB9118 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E9C03AFB2A586F5E00FB9118;
+			remoteInfo = "SonosWatch Watch App";
+		};
+		E9D637782CEBF06D00434339 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E92E47422B360C5C00DE6647;
+			remoteInfo = QueueAction;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		014F5FE92EC7A9AF0021A334 /* Add Cue Mini */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				014F5FEA2EC7A9B80021A334 /* Cue Mini.app in Add Cue Mini */,
+			);
+			name = "Add Cue Mini";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0159A2E52D1283F600AF0F19 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E975633A2B699B2400787E14 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				01F0B0BB2D28742200885D20 /* MacGlue.bundle in Embed Foundation Extensions */,
+				AA00CA0C0000000000000001 /* CueAction.appex in Embed Foundation Extensions */,
+				E9D637772CEBF06D00434339 /* QueueAction.appex in Embed Foundation Extensions */,
+				E975633C2B699B2400787E14 /* Widgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E97C0D582A325CC6005AB0E0 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				AA00CA0B0000000000000001 /* CueAction.appex in Embed Foundation Extensions */,
+				E9249A652C0A6CCB00D8B920 /* QueueAction.appex in Embed Foundation Extensions */,
+				E97C0D542A325CC6005AB0E0 /* Widgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9B00E782C6FE857005BF635 /* Embed ExtensionKit Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+			);
+			name = "Embed ExtensionKit Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9B12B642A5F317B0008868C /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				E9B12B602A5F317B0008868C /* Widgets Watch.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9C03B0D2A586F6100FB9118 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				E9C03B092A586F6100FB9118 /* Cue Watch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		01C1296F2D0CB4E9009F9E90 /* Cue Mini.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cue Mini.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		01CB341C2DC4F851006406B6 /* Cue TV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cue TV.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		01E41E572D15EEB500E89679 /* Defaults.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Defaults.xcframework; path = Packages/Defaults/Defaults.xcframework; sourceTree = "<group>"; };
+		01F0B0AB2D286EC000885D20 /* MacGlue.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MacGlue.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA00CA020000000000000001 /* CueAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CueAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E92B3EFB2B60249B00724FA1 /* Cue.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cue.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E92E472D2B36086B00DE6647 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
+		E92E47432B360C5C00DE6647 /* QueueAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QueueAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9684B692BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		E97563432B699B2400787E14 /* Cue.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cue.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E97C0D412A325CC5005AB0E0 /* Widgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		E9B12B532A5F31790008868C /* Widgets Watch.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Widgets Watch.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9BDE56C29E3396700D230A8 /* Cue.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cue.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9C03AFC2A586F5E00FB9118 /* Cue Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cue Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		012CCD362FD3338900A07E7D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				PlayHistoryService.swift,
+			);
+			target = AA00CA010000000000000001 /* CueAction */;
+		};
+		01B10FDB2E43F1B300CDA80A /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Assets.xcassets,
+			);
+			target = 01CB33E92DC4F851006406B6 /* Cue (TV) */;
+		};
+		01B9C56F2E73C13C00CDE053 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Icon.icon,
+			);
+			target = E9C03AFB2A586F5E00FB9118 /* Cue (Watch) */;
+		};
+		01CB34222DC4FAE3006406B6 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				TVApp.swift,
+				TVArtworkBadgeView.swift,
+				TVArtworkView.swift,
+				TVGroupScreen.swift,
+				TVLyricsScreen.swift,
+				TVOverviewView.swift,
+				TVPlayerView.swift,
+				TVSettingsScreen.swift,
+				TVSlider.swift,
+			);
+			target = 01CB33E92DC4F851006406B6 /* Cue (TV) */;
+		};
+		01E41E302D15DFB200E89679 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 01C1296E2D0CB4E9009F9E90 /* Cue Mini */;
+		};
+		01F0B0C42D2876EE00885D20 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				MacGlue/DockMenuRenderable.swift,
+				MacGlue/DockMenuRenderer.swift,
+				MacGlue/MacBridge.swift,
+				MacGlue/MacBridgeable.swift,
+				MacGlue/TopRunningAppsObserver.swift,
+			);
+			target = 01F0B0AA2D286EC000885D20 /* MacGlue */;
+		};
+		01F2A5D62FAE525700C98AF9 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				ActionViewController.swift,
+				QueueListView.swift,
+			);
+			target = E9BDE56B29E3396700D230A8 /* Cue */;
+		};
+		01FF08422D11F3B90078CD62 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				SplitView.swift,
+			);
+			target = E92B3E862B60249B00724FA1 /* Cue (Vision) */;
+		};
+		AA00CA1E0000000000000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AA00CA010000000000000001 /* CueAction */;
+		};
+		AA00CA1F0000000000000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AA00CA010000000000000001 /* CueAction */;
+		};
+		E91B811A2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E9BDE56B29E3396700D230A8 /* Cue */;
+		};
+		E91B811B2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"LiveActivity+Environment.swift",
+				LiveActivityManager.swift,
+			);
+			target = E97C0D402A325CC5005AB0E0 /* Widgets */;
+		};
+		E91B811C2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E97562C82B699B2400787E14 /* Cue (Mac) */;
+		};
+		E91B811D2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				SubscriptionDetailScreen.swift,
+			);
+			target = E92B3E862B60249B00724FA1 /* Cue (Vision) */;
+		};
+		E91B811E2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				PlayHistoryService.swift,
+			);
+			target = E92E47422B360C5C00DE6647 /* QueueAction */;
+		};
+		E91B816B2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E9B12B522A5F31790008868C /* Widgets (Watch) */;
+		};
+		E91B816D2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E9C03AFB2A586F5E00FB9118 /* Cue (Watch) */;
+		};
+		E91B81792CEBC222004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E92E47422B360C5C00DE6647 /* QueueAction */;
+		};
+		E91B83292CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Intents/AppEnums/ControlOption.swift,
+				Intents/AppEnums/Launcher.swift,
+				Intents/AppEnums/PlaybackOption.swift,
+				Intents/AppEnums/QueueOption.swift,
+				Intents/AppEnums/SpeechLevelOption.swift,
+				Intents/AppEnums/ToggleOption.swift,
+				Intents/CreateLiveActivityIntent.swift,
+				Intents/EndAllLiveActivitiesIntent.swift,
+				Intents/Models/IntentError.swift,
+				Intents/NextIntent.swift,
+				Intents/PlaybackIntent.swift,
+				Intents/PlayOnCueIntent.swift,
+				Intents/PreviousIntent.swift,
+				Intents/RefreshIntent.swift,
+				Intents/RunSceneIntent.swift,
+				Intents/SeperateRoomsIntent.swift,
+				Intents/SetNightModeIntent.swift,
+				Intents/SetRelativeGroupIncreaseVolumeIntent.swift,
+				Intents/SetRelativeGroupVolumeIntent.swift,
+				Intents/SetSleepTimerIntent.swift,
+				Intents/SetSpeechEnhancementIntent.swift,
+				Intents/SetSpeechLevelIntent.swift,
+				Intents/SetVolumeIntent.swift,
+				Intents/StopSleepTimerIntent.swift,
+				Intents/TODO/PlayIntent.swift,
+				LiveActivity/LiveActivityNowPlaying.swift,
+				LiveActivity/LiveActivityNowPlayingSmallView.swift,
+				LiveActivity/LiveActivityNowPlayingView.swift,
+				LiveActivity/LiveActivityNowPlayingView26.swift,
+				LiveActivity/LiveActivityNowPlayingViewPre27.swift,
+				LiveActivity/LiveActivityNowPlayingWidget.swift,
+				Queries/Scene/SceneEntity.swift,
+				Queries/Scene/SceneQuery.swift,
+				Queries/SonosDeviceEntity.swift,
+				Queries/SonosDeviceQuery.swift,
+			);
+			target = E9BDE56B29E3396700D230A8 /* Cue */;
+		};
+		E91B832A2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E97C0D402A325CC5005AB0E0 /* Widgets */;
+		};
+		E91B832B2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Intents/Models/IntentError.swift,
+			);
+			target = E9C03AFB2A586F5E00FB9118 /* Cue (Watch) */;
+		};
+		E91B832C2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Intents/AppEnums/ControlOption.swift,
+				Intents/AppEnums/Launcher.swift,
+				Intents/AppEnums/PlaybackOption.swift,
+				Intents/AppEnums/QueueOption.swift,
+				Intents/AppEnums/SpeechLevelOption.swift,
+				Intents/AppEnums/ToggleOption.swift,
+				Intents/Models/IntentError.swift,
+				Intents/TODO/PlayIntent.swift,
+				LiveActivity/LiveActivityNowPlaying.swift,
+				LiveActivity/LiveActivityNowPlayingSmallView.swift,
+				LiveActivity/LiveActivityNowPlayingView.swift,
+				LiveActivity/LiveActivityNowPlayingView26.swift,
+				LiveActivity/LiveActivityNowPlayingViewPre27.swift,
+				LiveActivity/LiveActivityNowPlayingWidget.swift,
+				Queries/Scene/SceneEntity.swift,
+				Queries/Scene/SceneQuery.swift,
+				Queries/SonosDeviceEntity.swift,
+				Queries/SonosDeviceQuery.swift,
+			);
+			target = E97562C82B699B2400787E14 /* Cue (Mac) */;
+		};
+		E91B832D2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Intents/AppEnums/ControlOption.swift,
+				Intents/AppEnums/Launcher.swift,
+				Intents/AppEnums/PlaybackOption.swift,
+				Intents/AppEnums/QueueOption.swift,
+				Intents/AppEnums/SpeechLevelOption.swift,
+				Intents/AppEnums/ToggleOption.swift,
+				Intents/CreateLiveActivityIntent.swift,
+				Intents/EndAllLiveActivitiesIntent.swift,
+				Intents/Models/IntentError.swift,
+				Intents/NextIntent.swift,
+				Intents/PlaybackIntent.swift,
+				Intents/PlayOnCueIntent.swift,
+				Intents/PreviousIntent.swift,
+				Intents/RefreshIntent.swift,
+				Intents/RunSceneIntent.swift,
+				Intents/SeperateRoomsIntent.swift,
+				Intents/SetRelativeGroupIncreaseVolumeIntent.swift,
+				Intents/SetRelativeGroupVolumeIntent.swift,
+				Intents/SetSleepTimerIntent.swift,
+				Intents/SetSpeechEnhancementIntent.swift,
+				Intents/SetSpeechLevelIntent.swift,
+				Intents/SetVolumeIntent.swift,
+				Intents/StopSleepTimerIntent.swift,
+				Intents/TODO/PlayIntent.swift,
+				LiveActivity/LiveActivityNowPlaying.swift,
+				LiveActivity/LiveActivityNowPlayingView26.swift,
+				LiveActivity/LiveActivityNowPlayingViewPre27.swift,
+				LiveActivity/LiveActivityNowPlayingWidget.swift,
+				Queries/Scene/SceneEntity.swift,
+				Queries/Scene/SceneQuery.swift,
+				Queries/SonosDeviceEntity.swift,
+				Queries/SonosDeviceQuery.swift,
+			);
+			target = E92B3E862B60249B00724FA1 /* Cue (Vision) */;
+		};
+		E9D6375B2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				DockMenuCoordinator.swift,
+				MenuAppLaunchAtLoginManager.swift,
+				SplitView.swift,
+			);
+			target = E9BDE56B29E3396700D230A8 /* Cue */;
+		};
+		E9D6375C2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				DockMenuCoordinator.swift,
+				MacGlue/DockMenuRenderable.swift,
+				MacGlue/MacBridgeable.swift,
+				MenuAppLaunchAtLoginManager.swift,
+				SplitView.swift,
+			);
+			target = E97562C82B699B2400787E14 /* Cue (Mac) */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		010855CA2D15FB9F00DD9B84 /* Packages */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Packages; sourceTree = "<group>"; };
+		01C129702D0CB4E9009F9E90 /* CueMini */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01E41E302D15DFB200E89679 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = CueMini; sourceTree = "<group>"; };
+		01CB341F2DC4FA46006406B6 /* TV */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01CB34222DC4FAE3006406B6 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = TV; sourceTree = "<group>"; };
+		AA00CA0A0000000000000001 /* CueAction */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (AA00CA1E0000000000000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = CueAction; sourceTree = "<group>"; };
+		E91B7FBA2CEBC162004C279D /* Cue */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B811A2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811B2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01B9C56F2E73C13C00CDE053 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811C2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811D2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01B10FDB2E43F1B300CDA80A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811E2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 012CCD362FD3338900A07E7D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Cue; sourceTree = "<group>"; };
+		E91B813B2CEBC171004C279D /* Watch */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816D2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Watch; sourceTree = "<group>"; };
+		E91B815B2CEBC171004C279D /* Mac */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E9D6375B2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E9D6375C2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01FF08422D11F3B90078CD62 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01F0B0C42D2876EE00885D20 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Mac; sourceTree = "<group>"; };
+		E91B81632CEBC171004C279D /* WatchWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816B2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = WatchWidgets; sourceTree = "<group>"; };
+		E91B81742CEBC222004C279D /* PlayAction */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01F2A5D62FAE525700C98AF9 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B81792CEBC222004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, AA00CA1F0000000000000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = PlayAction; sourceTree = "<group>"; };
+		E91B829A2CEBC291004C279D /* Widgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B83292CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832A2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832B2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832C2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832D2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Widgets; sourceTree = "<group>"; };
+		E91B83322CEBC298004C279D /* Configuration */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Configuration; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0159A2D02D12268300AF0F19 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0186C9672DD82EC2009F8A66 /* Kingfisher in Frameworks */,
+				010855CE2D15FE0D00DD9B84 /* SonosKitMini in Frameworks */,
+				01F0AD6F2D238DDB00885D20 /* KeyboardShortcuts in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		01CB34032DC4F851006406B6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				01CB34052DC4F851006406B6 /* StoreKit.framework in Frameworks */,
+				01CB34292DC4FE57006406B6 /* VibesDS in Frameworks */,
+				01CB34072DC4F851006406B6 /* SubscriptionKit in Frameworks */,
+				01CB34082DC4F851006406B6 /* OrderedCollections in Frameworks */,
+				01CB34092DC4F851006406B6 /* Defaults in Frameworks */,
+				01AB21442DD0F9B1004BFEE4 /* Kingfisher in Frameworks */,
+				01CB340B2DC4F851006406B6 /* Analytics in Frameworks */,
+				01CB340C2DC4F851006406B6 /* RevenueCatUI in Frameworks */,
+				01CB340E2DC4F851006406B6 /* SonosKit in Frameworks */,
+				01CB340F2DC4F851006406B6 /* CloudStorage in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		01F0B0A82D286EC000885D20 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA00CA080000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA00CA1B0000000000000001 /* Defaults in Frameworks */,
+				AA00CA1A0000000000000001 /* NukeUI in Frameworks */,
+				AA00CA190000000000000001 /* CloudStorage in Frameworks */,
+				AA00CA180000000000000001 /* VibesDS in Frameworks */,
+				AA00CA170000000000000001 /* SonosKit in Frameworks */,
+				AA00CA1C0000000000000001 /* OrderedCollections in Frameworks */,
+				AA00CA1D0000000000000001 /* UniformTypeIdentifiers.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E92B3EE32B60249B00724FA1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E92B3EE42B60249B00724FA1 /* Nuke in Frameworks */,
+				E92B3EE62B60249B00724FA1 /* StoreKit.framework in Frameworks */,
+				E92B3EE72B60249B00724FA1 /* SubscriptionKit in Frameworks */,
+				E92B3EE82B60249B00724FA1 /* OrderedCollections in Frameworks */,
+				E92B3EE92B60249B00724FA1 /* Defaults in Frameworks */,
+				E92B3EEA2B60249B00724FA1 /* NukeUI in Frameworks */,
+				E9D49E4E2BC9D21B0084185E /* Analytics in Frameworks */,
+				017297652DD3C708003E7FFB /* Kingfisher in Frameworks */,
+				ED069F212F58A2B600869F64 /* DropKit in Frameworks */,
+				E92B3EEB2B60249B00724FA1 /* RevenueCatUI in Frameworks */,
+				E92B3EEC2B60249B00724FA1 /* VibesDS in Frameworks */,
+				01A1F8882F61075600C0D52B /* Glur in Frameworks */,
+				E92B3EED2B60249B00724FA1 /* SonosKit in Frameworks */,
+				E92B3EEE2B60249B00724FA1 /* CloudStorage in Frameworks */,
+				0186D94C2E674B4F001387F1 /* FocusOnAppear in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E92E47402B360C5C00DE6647 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E91976E12C0A1B45000FA449 /* Defaults in Frameworks */,
+				E91976DF2C0A1B26000FA449 /* NukeUI in Frameworks */,
+				E91976DD2C0A1B1E000FA449 /* CloudStorage in Frameworks */,
+				E9A6AAB82B3CCC9A00C24B98 /* VibesDS in Frameworks */,
+				E92E47562B3647E200DE6647 /* SonosKit in Frameworks */,
+				E91976E32C0A1B63000FA449 /* OrderedCollections in Frameworks */,
+				E92E47442B360C5C00DE6647 /* UniformTypeIdentifiers.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E975632B2B699B2400787E14 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E975632C2B699B2400787E14 /* Nuke in Frameworks */,
+				E975632E2B699B2400787E14 /* StoreKit.framework in Frameworks */,
+				E975632F2B699B2400787E14 /* SubscriptionKit in Frameworks */,
+				E97563302B699B2400787E14 /* OrderedCollections in Frameworks */,
+				E97563312B699B2400787E14 /* Defaults in Frameworks */,
+				E97563322B699B2400787E14 /* NukeUI in Frameworks */,
+				E90F31602BC48ADD00884EA5 /* Analytics in Frameworks */,
+				E97563332B699B2400787E14 /* RevenueCatUI in Frameworks */,
+				ED069F1F2F58A2B000869F64 /* DropKit in Frameworks */,
+				E97563342B699B2400787E14 /* VibesDS in Frameworks */,
+				E97563352B699B2400787E14 /* SonosKit in Frameworks */,
+				0186D94A2E674B47001387F1 /* FocusOnAppear in Frameworks */,
+				E97563362B699B2400787E14 /* CloudStorage in Frameworks */,
+				013161802FC54BF500249DC4 /* NewsletterKit in Frameworks */,
+				01A662762F27241E00C7524D /* Glur in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E97C0D3E2A325CC5005AB0E0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				011179802C934C9B007FFA13 /* Defaults in Frameworks */,
+				E97C0D452A325CC5005AB0E0 /* SwiftUI.framework in Frameworks */,
+				E97C0D5D2A326D25005AB0E0 /* SonosKit in Frameworks */,
+				0111797E2C934C96007FFA13 /* Collections in Frameworks */,
+				E97C0D432A325CC5005AB0E0 /* WidgetKit.framework in Frameworks */,
+				E9A5412C2BD83F5800EAAF5C /* VibesDS in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9B12B502A5F31790008868C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E9B12B552A5F31790008868C /* SwiftUI.framework in Frameworks */,
+				013686202C850AE900B1340F /* SonosKit in Frameworks */,
+				E9B12B542A5F31790008868C /* WidgetKit.framework in Frameworks */,
+				0186C9692DD83E34009F8A66 /* Nuke in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9BDE56929E3396700D230A8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E9F600C22B4E5E470039AAA6 /* Nuke in Frameworks */,
+				E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */,
+				E960ED4A2AC4969F003E3732 /* SubscriptionKit in Frameworks */,
+				E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */,
+				E93AFA772B587F1800B20AC4 /* Defaults in Frameworks */,
+				E9F600C42B4E5E470039AAA6 /* NukeUI in Frameworks */,
+				E90F315E2BC4829500884EA5 /* Analytics in Frameworks */,
+				E96385FC2AD8E346005411BF /* RevenueCatUI in Frameworks */,
+				ED069F1D2F58A2AA00869F64 /* DropKit in Frameworks */,
+				E959B9212AB6B12D000D596E /* VibesDS in Frameworks */,
+				E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */,
+				01E3D31D2E6FD74F005E769A /* FocusOnAppear in Frameworks */,
+				E959B9182AB50684000D596E /* CloudStorage in Frameworks */,
+				01FA14672FC546A800B95FA3 /* NewsletterKit in Frameworks */,
+				01A662742F27240E00C7524D /* Glur in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9C03AF92A586F5E00FB9118 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ED069F232F58A2CE00869F64 /* DropKit in Frameworks */,
+				E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */,
+				0155DC0B2D4D47EA00A452D4 /* Kingfisher in Frameworks */,
+				E959B91F2AB65F3D000D596E /* VibesDS in Frameworks */,
+				010DBB252C89605C000E278E /* Defaults in Frameworks */,
+				017008662D49DCB700416FD3 /* SonosKitMini in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		E9BDE56329E3396700D230A8 = {
+			isa = PBXGroup;
+			children = (
+				E9684B692BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy */,
+				E91B83322CEBC298004C279D /* Configuration */,
+				010855CA2D15FB9F00DD9B84 /* Packages */,
+				E91B7FBA2CEBC162004C279D /* Cue */,
+				E91B815B2CEBC171004C279D /* Mac */,
+				E91B813B2CEBC171004C279D /* Watch */,
+				01CB341F2DC4FA46006406B6 /* TV */,
+				E91B829A2CEBC291004C279D /* Widgets */,
+				E91B81632CEBC171004C279D /* WatchWidgets */,
+				E91B81742CEBC222004C279D /* PlayAction */,
+				AA00CA0A0000000000000001 /* CueAction */,
+				01C129702D0CB4E9009F9E90 /* CueMini */,
+				E9BDE56D29E3396700D230A8 /* Products */,
+				E9BDE57E29E33B0700D230A8 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		E9BDE56D29E3396700D230A8 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E9BDE56C29E3396700D230A8 /* Cue.app */,
+				E97C0D412A325CC5005AB0E0 /* Widgets.appex */,
+				E9C03AFC2A586F5E00FB9118 /* Cue Watch.app */,
+				E9B12B532A5F31790008868C /* Widgets Watch.appex */,
+				E92E47432B360C5C00DE6647 /* QueueAction.appex */,
+				AA00CA020000000000000001 /* CueAction.appex */,
+				E92B3EFB2B60249B00724FA1 /* Cue.app */,
+				E97563432B699B2400787E14 /* Cue.app */,
+				01C1296F2D0CB4E9009F9E90 /* Cue Mini.app */,
+				01F0B0AB2D286EC000885D20 /* MacGlue.bundle */,
+				01CB341C2DC4F851006406B6 /* Cue TV.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E9BDE57E29E33B0700D230A8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				01E41E572D15EEB500E89679 /* Defaults.xcframework */,
+				E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */,
+				E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */,
+				E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */,
+				E92E472D2B36086B00DE6647 /* UniformTypeIdentifiers.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		01C1296E2D0CB4E9009F9E90 /* Cue Mini */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 01C1297E2D0CB4E9009F9E90 /* Build configuration list for PBXNativeTarget "Cue Mini" */;
+			buildPhases = (
+				01C1296B2D0CB4E9009F9E90 /* Sources */,
+				0159A2D02D12268300AF0F19 /* Frameworks */,
+				01C1296D2D0CB4E9009F9E90 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				01C129702D0CB4E9009F9E90 /* CueMini */,
+			);
+			name = "Cue Mini";
+			packageProductDependencies = (
+				010855CD2D15FE0D00DD9B84 /* SonosKitMini */,
+				01F0AD6E2D238DDB00885D20 /* KeyboardShortcuts */,
+				0186C9662DD82EC2009F8A66 /* Kingfisher */,
+			);
+			productName = CueMenuApp;
+			productReference = 01C1296F2D0CB4E9009F9E90 /* Cue Mini.app */;
+			productType = "com.apple.product-type.application";
+		};
+		01CB33E92DC4F851006406B6 /* Cue (TV) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 01CB34182DC4F851006406B6 /* Build configuration list for PBXNativeTarget "Cue (TV)" */;
+			buildPhases = (
+				01CB34022DC4F851006406B6 /* Sources */,
+				01CB34032DC4F851006406B6 /* Frameworks */,
+				01CB34102DC4F851006406B6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Cue (TV)";
+			packageProductDependencies = (
+				01CB33F22DC4F851006406B6 /* SonosKit */,
+				01CB33F32DC4F851006406B6 /* CloudStorage */,
+				01CB33F62DC4F851006406B6 /* SubscriptionKit */,
+				01CB33F72DC4F851006406B6 /* OrderedCollections */,
+				01CB33F92DC4F851006406B6 /* RevenueCatUI */,
+				01CB33FE2DC4F851006406B6 /* Defaults */,
+				01CB33FF2DC4F851006406B6 /* Analytics */,
+				01CB34282DC4FE57006406B6 /* VibesDS */,
+				01AB21432DD0F9B1004BFEE4 /* Kingfisher */,
+			);
+			productName = Sonos;
+			productReference = 01CB341C2DC4F851006406B6 /* Cue TV.app */;
+			productType = "com.apple.product-type.application";
+		};
+		01F0B0AA2D286EC000885D20 /* MacGlue */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 01F0B0AF2D286EC000885D20 /* Build configuration list for PBXNativeTarget "MacGlue" */;
+			buildPhases = (
+				01F0B0A72D286EC000885D20 /* Sources */,
+				01F0B0A82D286EC000885D20 /* Frameworks */,
+				01F0B0A92D286EC000885D20 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MacGlue;
+			packageProductDependencies = (
+			);
+			productName = MacGlue;
+			productReference = 01F0B0AB2D286EC000885D20 /* MacGlue.bundle */;
+			productType = "com.apple.product-type.bundle";
+		};
+		AA00CA010000000000000001 /* CueAction */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA00CA030000000000000001 /* Build configuration list for PBXNativeTarget "CueAction" */;
+			buildPhases = (
+				AA00CA070000000000000001 /* Sources */,
+				AA00CA080000000000000001 /* Frameworks */,
+				AA00CA090000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AA00CA0A0000000000000001 /* CueAction */,
+				E91B81742CEBC222004C279D /* PlayAction */,
+			);
+			name = CueAction;
+			packageProductDependencies = (
+				AA00CA110000000000000001 /* SonosKit */,
+				AA00CA120000000000000001 /* VibesDS */,
+				AA00CA130000000000000001 /* CloudStorage */,
+				AA00CA140000000000000001 /* NukeUI */,
+				AA00CA150000000000000001 /* Defaults */,
+				AA00CA160000000000000001 /* OrderedCollections */,
+			);
+			productName = CueAction;
+			productReference = AA00CA020000000000000001 /* CueAction.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		E92B3E862B60249B00724FA1 /* Cue (Vision) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E92B3EF72B60249B00724FA1 /* Build configuration list for PBXNativeTarget "Cue (Vision)" */;
+			buildPhases = (
+				E92B3E9C2B60249B00724FA1 /* Sources */,
+				E92B3EE32B60249B00724FA1 /* Frameworks */,
+				E92B3EEF2B60249B00724FA1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				E91B7FBA2CEBC162004C279D /* Cue */,
+			);
+			name = "Cue (Vision)";
+			packageProductDependencies = (
+				E92B3E8D2B60249B00724FA1 /* SonosKit */,
+				E92B3E902B60249B00724FA1 /* CloudStorage */,
+				E92B3E922B60249B00724FA1 /* VibesDS */,
+				E92B3E932B60249B00724FA1 /* SubscriptionKit */,
+				E92B3E942B60249B00724FA1 /* OrderedCollections */,
+				E92B3E962B60249B00724FA1 /* RevenueCatUI */,
+				E92B3E982B60249B00724FA1 /* Nuke */,
+				E92B3E9A2B60249B00724FA1 /* NukeUI */,
+				E92B3E9B2B60249B00724FA1 /* Defaults */,
+				E9D49E4D2BC9D21B0084185E /* Analytics */,
+				017297642DD3C708003E7FFB /* Kingfisher */,
+				0186D94B2E674B4F001387F1 /* FocusOnAppear */,
+				ED069F202F58A2B600869F64 /* DropKit */,
+				01A1F8872F61075600C0D52B /* Glur */,
+			);
+			productName = Sonos;
+			productReference = E92B3EFB2B60249B00724FA1 /* Cue.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E92E47422B360C5C00DE6647 /* QueueAction */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E92E47512B360C5C00DE6647 /* Build configuration list for PBXNativeTarget "QueueAction" */;
+			buildPhases = (
+				E92E473F2B360C5C00DE6647 /* Sources */,
+				E92E47402B360C5C00DE6647 /* Frameworks */,
+				E92E47412B360C5C00DE6647 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				E91B81742CEBC222004C279D /* PlayAction */,
+			);
+			name = QueueAction;
+			packageProductDependencies = (
+				E92E47552B3647E200DE6647 /* SonosKit */,
+				E9A6AAB72B3CCC9A00C24B98 /* VibesDS */,
+				E91976DC2C0A1B1E000FA449 /* CloudStorage */,
+				E91976DE2C0A1B26000FA449 /* NukeUI */,
+				E91976E02C0A1B45000FA449 /* Defaults */,
+				E91976E22C0A1B63000FA449 /* OrderedCollections */,
+			);
+			productName = MusicQueue;
+			productReference = E92E47432B360C5C00DE6647 /* QueueAction.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		E97562C82B699B2400787E14 /* Cue (Mac) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E975633F2B699B2400787E14 /* Build configuration list for PBXNativeTarget "Cue (Mac)" */;
+			buildPhases = (
+				E97562DE2B699B2400787E14 /* Sources */,
+				E975632B2B699B2400787E14 /* Frameworks */,
+				E97563372B699B2400787E14 /* Resources */,
+				E975633A2B699B2400787E14 /* Embed Foundation Extensions */,
+				014F5FE92EC7A9AF0021A334 /* Add Cue Mini */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				010858FE2D17BDF500DD9B84 /* PBXTargetDependency */,
+				E97562C92B699B2400787E14 /* PBXTargetDependency */,
+				E9D637792CEBF06D00434339 /* PBXTargetDependency */,
+				01F0B0BD2D28742200885D20 /* PBXTargetDependency */,
+				AA00CA100000000000000001 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E91B7FBA2CEBC162004C279D /* Cue */,
+			);
+			name = "Cue (Mac)";
+			packageProductDependencies = (
+				E97562CF2B699B2400787E14 /* SonosKit */,
+				E97562D22B699B2400787E14 /* CloudStorage */,
+				E97562D42B699B2400787E14 /* VibesDS */,
+				E97562D52B699B2400787E14 /* SubscriptionKit */,
+				E97562D62B699B2400787E14 /* OrderedCollections */,
+				E97562D82B699B2400787E14 /* RevenueCatUI */,
+				E97562DA2B699B2400787E14 /* Nuke */,
+				E97562DC2B699B2400787E14 /* NukeUI */,
+				E97562DD2B699B2400787E14 /* Defaults */,
+				E90F315F2BC48ADD00884EA5 /* Analytics */,
+				0186D9492E674B47001387F1 /* FocusOnAppear */,
+				01A662752F27241E00C7524D /* Glur */,
+				ED069F1E2F58A2B000869F64 /* DropKit */,
+				0131617F2FC54BF500249DC4 /* NewsletterKit */,
+			);
+			productName = Sonos;
+			productReference = E97563432B699B2400787E14 /* Cue.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E97C0D402A325CC5005AB0E0 /* Widgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E97C0D552A325CC6005AB0E0 /* Build configuration list for PBXNativeTarget "Widgets" */;
+			buildPhases = (
+				E97C0D3D2A325CC5005AB0E0 /* Sources */,
+				E97C0D3E2A325CC5005AB0E0 /* Frameworks */,
+				E97C0D3F2A325CC5005AB0E0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				E91B829A2CEBC291004C279D /* Widgets */,
+			);
+			name = Widgets;
+			packageProductDependencies = (
+				E97C0D5C2A326D25005AB0E0 /* SonosKit */,
+				E9A5412B2BD83F5800EAAF5C /* VibesDS */,
+				0111797D2C934C96007FFA13 /* Collections */,
+				0111797F2C934C9B007FFA13 /* Defaults */,
+			);
+			productName = SonosWidgetExtension;
+			productReference = E97C0D412A325CC5005AB0E0 /* Widgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		E9B12B522A5F31790008868C /* Widgets (Watch) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E9B12B612A5F317B0008868C /* Build configuration list for PBXNativeTarget "Widgets (Watch)" */;
+			buildPhases = (
+				E9B12B4F2A5F31790008868C /* Sources */,
+				E9B12B502A5F31790008868C /* Frameworks */,
+				E9B12B512A5F31790008868C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				E91B81632CEBC171004C279D /* WatchWidgets */,
+			);
+			name = "Widgets (Watch)";
+			packageProductDependencies = (
+				0136861F2C850AE900B1340F /* SonosKit */,
+				0186C9682DD83E34009F8A66 /* Nuke */,
+			);
+			productName = WatchWidgetsExtension;
+			productReference = E9B12B532A5F31790008868C /* Widgets Watch.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		E9BDE56B29E3396700D230A8 /* Cue */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E9BDE57A29E3396800D230A8 /* Build configuration list for PBXNativeTarget "Cue" */;
+			buildPhases = (
+				E9BDE56829E3396700D230A8 /* Sources */,
+				E9BDE56929E3396700D230A8 /* Frameworks */,
+				E9BDE56A29E3396700D230A8 /* Resources */,
+				E97C0D582A325CC6005AB0E0 /* Embed Foundation Extensions */,
+				E9C03B0D2A586F6100FB9118 /* Embed Watch Content */,
+				E9B00E782C6FE857005BF635 /* Embed ExtensionKit Extensions */,
+				0159A2E52D1283F600AF0F19 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E97C0D532A325CC6005AB0E0 /* PBXTargetDependency */,
+				E9C03B082A586F6100FB9118 /* PBXTargetDependency */,
+				E9249A672C0A6CCB00D8B920 /* PBXTargetDependency */,
+				AA00CA0F0000000000000001 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E91B7FBA2CEBC162004C279D /* Cue */,
+			);
+			name = Cue;
+			packageProductDependencies = (
+				E9BDE57F29E33B0700D230A8 /* SonosKit */,
+				E959B9172AB50684000D596E /* CloudStorage */,
+				E959B9202AB6B12D000D596E /* VibesDS */,
+				E960ED492AC4969F003E3732 /* SubscriptionKit */,
+				E9FFC29A2ACDCC490001B26F /* OrderedCollections */,
+				E96385FB2AD8E346005411BF /* RevenueCatUI */,
+				E9F600C12B4E5E470039AAA6 /* Nuke */,
+				E9F600C32B4E5E470039AAA6 /* NukeUI */,
+				E93AFA762B587F1800B20AC4 /* Defaults */,
+				E90F315D2BC4829500884EA5 /* Analytics */,
+				01E3D31C2E6FD74F005E769A /* FocusOnAppear */,
+				01A662732F27240E00C7524D /* Glur */,
+				ED069F1C2F58A2AA00869F64 /* DropKit */,
+				01FA14662FC546A800B95FA3 /* NewsletterKit */,
+			);
+			productName = Sonos;
+			productReference = E9BDE56C29E3396700D230A8 /* Cue.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E9C03AFB2A586F5E00FB9118 /* Cue (Watch) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E9C03B0A2A586F6100FB9118 /* Build configuration list for PBXNativeTarget "Cue (Watch)" */;
+			buildPhases = (
+				E9C03AF82A586F5E00FB9118 /* Sources */,
+				E9C03AF92A586F5E00FB9118 /* Frameworks */,
+				E9C03AFA2A586F5E00FB9118 /* Resources */,
+				E9B12B642A5F317B0008868C /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E9B12B5F2A5F317B0008868C /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E91B813B2CEBC171004C279D /* Watch */,
+			);
+			name = "Cue (Watch)";
+			packageProductDependencies = (
+				E959B91B2AB506BF000D596E /* CloudStorage */,
+				E959B91E2AB65F3D000D596E /* VibesDS */,
+				010DBB242C89605C000E278E /* Defaults */,
+				017008652D49DCB700416FD3 /* SonosKitMini */,
+				0155DC0A2D4D47EA00A452D4 /* Kingfisher */,
+				ED069F222F58A2CE00869F64 /* DropKit */,
+			);
+			productName = "SonosWatch Watch App";
+			productReference = E9C03AFC2A586F5E00FB9118 /* Cue Watch.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E9BDE56429E3396700D230A8 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1620;
+				LastUpgradeCheck = 1620;
+				TargetAttributes = {
+					01C1296E2D0CB4E9009F9E90 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					01F0B0AA2D286EC000885D20 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					AA00CA010000000000000001 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					E92E47422B360C5C00DE6647 = {
+						CreatedOnToolsVersion = 15.1;
+					};
+					E97C0D402A325CC5005AB0E0 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					E9B12B522A5F31790008868C = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					E9BDE56B29E3396700D230A8 = {
+						CreatedOnToolsVersion = 14.3;
+					};
+					E9C03AFB2A586F5E00FB9118 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = E9BDE56729E3396700D230A8 /* Build configuration list for PBXProject "Cue" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = E9BDE56329E3396700D230A8;
+			packageReferences = (
+				E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */,
+				E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */,
+				E96385F82AD8E1DF005411BF /* XCRemoteSwiftPackageReference "purchases-ios" */,
+				E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */,
+				018567D72D12152D00AF14EB /* XCLocalSwiftPackageReference "Packages/SonosKit" */,
+				018567DC2D12155600AF14EB /* XCLocalSwiftPackageReference "Packages/VibesDS" */,
+				01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				01F0AD6D2D238DDB00885D20 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+				0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */,
+				01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */,
+				01FA14652FC546A800B95FA3 /* XCLocalSwiftPackageReference "Packages/NewsletterKit" */,
+			);
+			productRefGroup = E9BDE56D29E3396700D230A8 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E9BDE56B29E3396700D230A8 /* Cue */,
+				E97C0D402A325CC5005AB0E0 /* Widgets */,
+				E9C03AFB2A586F5E00FB9118 /* Cue (Watch) */,
+				E9B12B522A5F31790008868C /* Widgets (Watch) */,
+				E97562C82B699B2400787E14 /* Cue (Mac) */,
+				E92B3E862B60249B00724FA1 /* Cue (Vision) */,
+				01CB33E92DC4F851006406B6 /* Cue (TV) */,
+				E92E47422B360C5C00DE6647 /* QueueAction */,
+				AA00CA010000000000000001 /* CueAction */,
+				01C1296E2D0CB4E9009F9E90 /* Cue Mini */,
+				01F0B0AA2D286EC000885D20 /* MacGlue */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		01C1296D2D0CB4E9009F9E90 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		01CB34102DC4F851006406B6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				01CB34112DC4F851006406B6 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		01F0B0A92D286EC000885D20 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA00CA090000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E92B3EEF2B60249B00724FA1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E9684B6B2BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E92E47412B360C5C00DE6647 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E97563372B699B2400787E14 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E9684B6C2BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E97C0D3F2A325CC5005AB0E0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9B12B512A5F31790008868C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9BDE56A29E3396700D230A8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E9684B6A2BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9C03AFA2A586F5E00FB9118 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		01C1296B2D0CB4E9009F9E90 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		01CB34022DC4F851006406B6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		01F0B0A72D286EC000885D20 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA00CA070000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E92B3E9C2B60249B00724FA1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E92E473F2B360C5C00DE6647 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E97562DE2B699B2400787E14 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E97C0D3D2A325CC5005AB0E0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9B12B4F2A5F31790008868C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9BDE56829E3396700D230A8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9C03AF82A586F5E00FB9118 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		010858FE2D17BDF500DD9B84 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = maccatalyst;
+			target = 01C1296E2D0CB4E9009F9E90 /* Cue Mini */;
+			targetProxy = 010858FD2D17BDF500DD9B84 /* PBXContainerItemProxy */;
+		};
+		01F0B0BD2D28742200885D20 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = maccatalyst;
+			target = 01F0B0AA2D286EC000885D20 /* MacGlue */;
+			targetProxy = 01F0B0BC2D28742200885D20 /* PBXContainerItemProxy */;
+		};
+		AA00CA0F0000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA00CA010000000000000001 /* CueAction */;
+			targetProxy = AA00CA0D0000000000000001 /* PBXContainerItemProxy */;
+		};
+		AA00CA100000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA00CA010000000000000001 /* CueAction */;
+			targetProxy = AA00CA0E0000000000000001 /* PBXContainerItemProxy */;
+		};
+		E9249A672C0A6CCB00D8B920 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E92E47422B360C5C00DE6647 /* QueueAction */;
+			targetProxy = E9249A662C0A6CCB00D8B920 /* PBXContainerItemProxy */;
+		};
+		E97562C92B699B2400787E14 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E97C0D402A325CC5005AB0E0 /* Widgets */;
+			targetProxy = E97562CA2B699B2400787E14 /* PBXContainerItemProxy */;
+		};
+		E97C0D532A325CC6005AB0E0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E97C0D402A325CC5005AB0E0 /* Widgets */;
+			targetProxy = E97C0D522A325CC6005AB0E0 /* PBXContainerItemProxy */;
+		};
+		E9B12B5F2A5F317B0008868C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E9B12B522A5F31790008868C /* Widgets (Watch) */;
+			targetProxy = E9B12B5E2A5F317B0008868C /* PBXContainerItemProxy */;
+		};
+		E9C03B082A586F6100FB9118 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = E9C03AFB2A586F5E00FB9118 /* Cue (Watch) */;
+			targetProxy = E9C03B072A586F6100FB9118 /* PBXContainerItemProxy */;
+		};
+		E9D637792CEBF06D00434339 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E92E47422B360C5C00DE6647 /* QueueAction */;
+			targetProxy = E9D637782CEBF06D00434339 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		01C1297B2D0CB4E9009F9E90 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = IconMini;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
+				CODE_SIGN_ENTITLEMENTS = CueMini/CueMini.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CueMini/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Cue Mini";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_LSBackgroundOnly = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.1;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				OTHER_CFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dance.cue.mini;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(SCREENSHOT) $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		01C1297D2D0CB4E9009F9E90 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = IconMini;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
+				CODE_SIGN_ENTITLEMENTS = CueMini/CueMini.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CueMini/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Cue Mini";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_LSBackgroundOnly = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.1;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				OTHER_CFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = dance.cue.mini;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		01CB34192DC4F851006406B6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = TVAppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = Cue/Cue.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_ASSET_PATHS = "\"Cue/Preview Content\"";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ICON = "$(ICON)";
+				INFOPLIST_FILE = TV/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Cue;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = "";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID)";
+				PRODUCT_MODULE_NAME = Cue;
+				PRODUCT_NAME = "Cue TV";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = appletvos;
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(SCREENSHOT)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 18.0;
+			};
+			name = Debug;
+		};
+		01CB341B2DC4F851006406B6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = TVAppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = Cue/Cue.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_ASSET_PATHS = "\"Cue/Preview Content\"";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ICON = "$(ICON)";
+				INFOPLIST_FILE = TV/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Cue;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = "";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID)";
+				PRODUCT_MODULE_NAME = Cue;
+				PRODUCT_NAME = "Cue TV";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = appletvos;
+				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 18.0;
+			};
+			name = Release;
+		};
+		01F0B0AC2D286EC000885D20 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSPrincipalClass = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nick.MacGlue;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				WRAPPER_EXTENSION = bundle;
+			};
+			name = Debug;
+		};
+		01F0B0AE2D286EC000885D20 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSPrincipalClass = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nick.MacGlue;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				WRAPPER_EXTENSION = bundle;
+			};
+			name = Release;
+		};
+		AA00CA040000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = CueAction/CueAction.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CueAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Listen with Cue";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).CueAction";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA00CA060000000000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = CueAction/CueAction.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CueAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Listen with Cue";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).CueAction";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		E92B3EF82B60249B00724FA1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = Cue/Cue.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_ASSET_PATHS = "\"Cue/Preview Content\"";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ICON = AppIcon;
+				INFOPLIST_FILE = Cue/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.4;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID)";
+				PRODUCT_MODULE_NAME = Cue;
+				PRODUCT_NAME = Cue;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = xros;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				XROS_DEPLOYMENT_TARGET = 2.0;
+			};
+			name = Debug;
+		};
+		E92B3EFA2B60249B00724FA1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = Cue/Cue.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_ASSET_PATHS = "\"Cue/Preview Content\"";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ICON = AppIcon;
+				INFOPLIST_FILE = Cue/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.4;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID)";
+				PRODUCT_MODULE_NAME = Cue;
+				PRODUCT_NAME = Cue;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = xros;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				XROS_DEPLOYMENT_TARGET = 2.0;
+			};
+			name = Release;
+		};
+		E92E47522B360C5C00DE6647 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PlayAction/PlayAction.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PlayAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Play on Cue";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).QueueAction";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E92E47542B360C5C00DE6647 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PlayAction/PlayAction.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PlayAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Play on Cue";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).QueueAction";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		E97563402B699B2400787E14 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = Cue/Cue.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ICON = "$(ICON)";
+				INFOPLIST_FILE = "Mac/Cue-Mac.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Cue;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID)";
+				PRODUCT_MODULE_NAME = Cue;
+				PRODUCT_NAME = Cue;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(SCREENSHOT)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Debug;
+		};
+		E97563422B699B2400787E14 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = Cue/Cue.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ICON = "$(ICON)";
+				INFOPLIST_FILE = "Mac/Cue-Mac.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Cue;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID)";
+				PRODUCT_MODULE_NAME = Cue;
+				PRODUCT_NAME = Cue;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Release;
+		};
+		E97C0D562A325CC6005AB0E0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Widgets;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = NO;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited) $(SCREENSHOT) $(SUPER)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,4";
+			};
+			name = Debug;
+		};
+		E97C0D572A325CC6005AB0E0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Widgets;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = NO;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,4";
+			};
+			name = Release;
+		};
+		E9B12B622A5F317B0008868C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WatchWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Cue Watch Widgets";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).watch.Widgets";
+				PRODUCT_NAME = "Widgets Watch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		E9B12B632A5F317B0008868C /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = "";
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WatchWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Cue Watch Widgets";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).watch.Widgets";
+				PRODUCT_NAME = "Widgets Watch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		E9BDE57829E3396800D230A8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = NO;
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = "$(MAC_ENABLED)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				XROS_DEPLOYMENT_TARGET = 1.0;
+			};
+			name = Debug;
+		};
+		E9BDE57929E3396800D230A8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = NO;
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = "$(MAC_ENABLED)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				XROS_DEPLOYMENT_TARGET = 1.0;
+			};
+			name = Release;
+		};
+		E9BDE57B29E3396800D230A8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = Cue/Cue.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ICON = "$(ICON)";
+				INFOPLIST_FILE = Cue/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Cue;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID)";
+				PRODUCT_MODULE_NAME = Cue;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(SCREENSHOT) $(SUPER)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E9BDE57C29E3396800D230A8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = Cue/Cue.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ICON = "$(ICON)";
+				INFOPLIST_FILE = Cue/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Cue;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID)";
+				PRODUCT_MODULE_NAME = Cue;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		E9C03B0B2A586F6100FB9118 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Watch/Cue (Watch).entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Watch/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Cue;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = dance.cue;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				INFOPLIST_KEY_WKSupportsLiveActivityLaunchAttributeTypes = CueNowPlayingWidgetAttributes;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).watch";
+				PRODUCT_NAME = "Cue Watch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited) $(SCREENSHOT)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		E9C03B0C2A586F6100FB9118 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Watch/Cue (Watch).entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Watch/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Cue;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = dance.cue;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				INFOPLIST_KEY_WKSupportsLiveActivityLaunchAttributeTypes = CueNowPlayingWidgetAttributes;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).watch";
+				PRODUCT_NAME = "Cue Watch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		01C1297E2D0CB4E9009F9E90 /* Build configuration list for PBXNativeTarget "Cue Mini" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				01C1297B2D0CB4E9009F9E90 /* Debug */,
+				01C1297D2D0CB4E9009F9E90 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		01CB34182DC4F851006406B6 /* Build configuration list for PBXNativeTarget "Cue (TV)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				01CB34192DC4F851006406B6 /* Debug */,
+				01CB341B2DC4F851006406B6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		01F0B0AF2D286EC000885D20 /* Build configuration list for PBXNativeTarget "MacGlue" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				01F0B0AC2D286EC000885D20 /* Debug */,
+				01F0B0AE2D286EC000885D20 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA00CA030000000000000001 /* Build configuration list for PBXNativeTarget "CueAction" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA00CA040000000000000001 /* Debug */,
+				AA00CA060000000000000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E92B3EF72B60249B00724FA1 /* Build configuration list for PBXNativeTarget "Cue (Vision)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E92B3EF82B60249B00724FA1 /* Debug */,
+				E92B3EFA2B60249B00724FA1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E92E47512B360C5C00DE6647 /* Build configuration list for PBXNativeTarget "QueueAction" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E92E47522B360C5C00DE6647 /* Debug */,
+				E92E47542B360C5C00DE6647 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E975633F2B699B2400787E14 /* Build configuration list for PBXNativeTarget "Cue (Mac)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E97563402B699B2400787E14 /* Debug */,
+				E97563422B699B2400787E14 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E97C0D552A325CC6005AB0E0 /* Build configuration list for PBXNativeTarget "Widgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E97C0D562A325CC6005AB0E0 /* Debug */,
+				E97C0D572A325CC6005AB0E0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E9B12B612A5F317B0008868C /* Build configuration list for PBXNativeTarget "Widgets (Watch)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E9B12B622A5F317B0008868C /* Debug */,
+				E9B12B632A5F317B0008868C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E9BDE56729E3396700D230A8 /* Build configuration list for PBXProject "Cue" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E9BDE57829E3396800D230A8 /* Debug */,
+				E9BDE57929E3396800D230A8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E9BDE57A29E3396800D230A8 /* Build configuration list for PBXNativeTarget "Cue" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E9BDE57B29E3396800D230A8 /* Debug */,
+				E9BDE57C29E3396800D230A8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E9C03B0A2A586F6100FB9118 /* Build configuration list for PBXNativeTarget "Cue (Watch)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E9C03B0B2A586F6100FB9118 /* Debug */,
+				E9C03B0C2A586F6100FB9118 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		018567D72D12152D00AF14EB /* XCLocalSwiftPackageReference "Packages/SonosKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SonosKit;
+		};
+		018567DC2D12155600AF14EB /* XCLocalSwiftPackageReference "Packages/VibesDS" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/VibesDS;
+		};
+		01FA14652FC546A800B95FA3 /* XCLocalSwiftPackageReference "Packages/NewsletterKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/NewsletterKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.1.3;
+			};
+		};
+		0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/naan/FocusOnAppear";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
+		01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/joogps/Glur";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
+		01CB33F42DC4F851006406B6 /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/nonstrict-hq/CloudStorage";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.4.0;
+			};
+		};
+		01CB33F82DC4F851006406B6 /* XCRemoteSwiftPackageReference "swift-collections" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-collections/";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.5;
+			};
+		};
+		01CB33FA2DC4F851006406B6 /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.28.0;
+			};
+		};
+		01F0AD6D2D238DDB00885D20 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.1;
+			};
+		};
+		E92B3E912B60249B00724FA1 /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/nonstrict-hq/CloudStorage";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.4.0;
+			};
+		};
+		E92B3E952B60249B00724FA1 /* XCRemoteSwiftPackageReference "swift-collections" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-collections/";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.5;
+			};
+		};
+		E92B3E972B60249B00724FA1 /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.28.0;
+			};
+		};
+		E92B3E992B60249B00724FA1 /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.3.0;
+			};
+		};
+		E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/nonstrict-hq/CloudStorage";
+			requirement = {
+				kind = exactVersion;
+				version = 0.4.0;
+			};
+		};
+		E96385F82AD8E1DF005411BF /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.3.2;
+			};
+		};
+		E97562D32B699B2400787E14 /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/nonstrict-hq/CloudStorage";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.4.0;
+			};
+		};
+		E97562D72B699B2400787E14 /* XCRemoteSwiftPackageReference "swift-collections" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-collections/";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.5;
+			};
+		};
+		E97562D92B699B2400787E14 /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.28.0;
+			};
+		};
+		E97562DB2B699B2400787E14 /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.3.0;
+			};
+		};
+		E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.0.0;
+			};
+		};
+		E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-collections/";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.5;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		010855CD2D15FE0D00DD9B84 /* SonosKitMini */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKitMini;
+		};
+		010DBB242C89605C000E278E /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Defaults;
+		};
+		0111797D2C934C96007FFA13 /* Collections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = Collections;
+		};
+		0111797F2C934C9B007FFA13 /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Defaults;
+		};
+		0131617F2FC54BF500249DC4 /* NewsletterKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NewsletterKit;
+		};
+		0136861F2C850AE900B1340F /* SonosKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKit;
+		};
+		0155DC0A2D4D47EA00A452D4 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+		017008652D49DCB700416FD3 /* SonosKitMini */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKitMini;
+		};
+		017297642DD3C708003E7FFB /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+		0186C9662DD82EC2009F8A66 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+		0186C9682DD83E34009F8A66 /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
+		};
+		0186D9492E674B47001387F1 /* FocusOnAppear */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */;
+			productName = FocusOnAppear;
+		};
+		0186D94B2E674B4F001387F1 /* FocusOnAppear */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */;
+			productName = FocusOnAppear;
+		};
+		01A1F8872F61075600C0D52B /* Glur */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */;
+			productName = Glur;
+		};
+		01A662732F27240E00C7524D /* Glur */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */;
+			productName = Glur;
+		};
+		01A662752F27241E00C7524D /* Glur */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */;
+			productName = Glur;
+		};
+		01AB21432DD0F9B1004BFEE4 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+		01CB33F22DC4F851006406B6 /* SonosKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKit;
+		};
+		01CB33F32DC4F851006406B6 /* CloudStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01CB33F42DC4F851006406B6 /* XCRemoteSwiftPackageReference "CloudStorage" */;
+			productName = CloudStorage;
+		};
+		01CB33F62DC4F851006406B6 /* SubscriptionKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SubscriptionKit;
+		};
+		01CB33F72DC4F851006406B6 /* OrderedCollections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01CB33F82DC4F851006406B6 /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = OrderedCollections;
+		};
+		01CB33F92DC4F851006406B6 /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01CB33FA2DC4F851006406B6 /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCatUI;
+		};
+		01CB33FE2DC4F851006406B6 /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Defaults;
+		};
+		01CB33FF2DC4F851006406B6 /* Analytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Analytics;
+		};
+		01CB34282DC4FE57006406B6 /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
+		};
+		01E3D31C2E6FD74F005E769A /* FocusOnAppear */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */;
+			productName = FocusOnAppear;
+		};
+		01F0AD6E2D238DDB00885D20 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01F0AD6D2D238DDB00885D20 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
+		};
+		01FA14662FC546A800B95FA3 /* NewsletterKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NewsletterKit;
+		};
+		AA00CA110000000000000001 /* SonosKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKit;
+		};
+		AA00CA120000000000000001 /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
+		};
+		AA00CA130000000000000001 /* CloudStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */;
+			productName = CloudStorage;
+		};
+		AA00CA140000000000000001 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+		AA00CA150000000000000001 /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Defaults;
+		};
+		AA00CA160000000000000001 /* OrderedCollections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = OrderedCollections;
+		};
+		E90F315D2BC4829500884EA5 /* Analytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Analytics;
+		};
+		E90F315F2BC48ADD00884EA5 /* Analytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Analytics;
+		};
+		E91976DC2C0A1B1E000FA449 /* CloudStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */;
+			productName = CloudStorage;
+		};
+		E91976DE2C0A1B26000FA449 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+		E91976E02C0A1B45000FA449 /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Defaults;
+		};
+		E91976E22C0A1B63000FA449 /* OrderedCollections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = OrderedCollections;
+		};
+		E92B3E8D2B60249B00724FA1 /* SonosKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKit;
+		};
+		E92B3E902B60249B00724FA1 /* CloudStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E92B3E912B60249B00724FA1 /* XCRemoteSwiftPackageReference "CloudStorage" */;
+			productName = CloudStorage;
+		};
+		E92B3E922B60249B00724FA1 /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
+		};
+		E92B3E932B60249B00724FA1 /* SubscriptionKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SubscriptionKit;
+		};
+		E92B3E942B60249B00724FA1 /* OrderedCollections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E92B3E952B60249B00724FA1 /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = OrderedCollections;
+		};
+		E92B3E962B60249B00724FA1 /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E92B3E972B60249B00724FA1 /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCatUI;
+		};
+		E92B3E982B60249B00724FA1 /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E92B3E992B60249B00724FA1 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
+		};
+		E92B3E9A2B60249B00724FA1 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E92B3E992B60249B00724FA1 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+		E92B3E9B2B60249B00724FA1 /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Defaults;
+		};
+		E92E47552B3647E200DE6647 /* SonosKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKit;
+		};
+		E93AFA762B587F1800B20AC4 /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Defaults;
+		};
+		E959B9172AB50684000D596E /* CloudStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */;
+			productName = CloudStorage;
+		};
+		E959B91B2AB506BF000D596E /* CloudStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */;
+			productName = CloudStorage;
+		};
+		E959B91E2AB65F3D000D596E /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
+		};
+		E959B9202AB6B12D000D596E /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
+		};
+		E960ED492AC4969F003E3732 /* SubscriptionKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SubscriptionKit;
+		};
+		E96385FB2AD8E346005411BF /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E96385F82AD8E1DF005411BF /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCatUI;
+		};
+		E97562CF2B699B2400787E14 /* SonosKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKit;
+		};
+		E97562D22B699B2400787E14 /* CloudStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E97562D32B699B2400787E14 /* XCRemoteSwiftPackageReference "CloudStorage" */;
+			productName = CloudStorage;
+		};
+		E97562D42B699B2400787E14 /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
+		};
+		E97562D52B699B2400787E14 /* SubscriptionKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SubscriptionKit;
+		};
+		E97562D62B699B2400787E14 /* OrderedCollections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E97562D72B699B2400787E14 /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = OrderedCollections;
+		};
+		E97562D82B699B2400787E14 /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E97562D92B699B2400787E14 /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCatUI;
+		};
+		E97562DA2B699B2400787E14 /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E97562DB2B699B2400787E14 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
+		};
+		E97562DC2B699B2400787E14 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E97562DB2B699B2400787E14 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+		E97562DD2B699B2400787E14 /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Defaults;
+		};
+		E97C0D5C2A326D25005AB0E0 /* SonosKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKit;
+		};
+		E9A5412B2BD83F5800EAAF5C /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
+		};
+		E9A6AAB72B3CCC9A00C24B98 /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
+		};
+		E9BDE57F29E33B0700D230A8 /* SonosKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKit;
+		};
+		E9D49E4D2BC9D21B0084185E /* Analytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Analytics;
+		};
+		E9F600C12B4E5E470039AAA6 /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
+		};
+		E9F600C32B4E5E470039AAA6 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+		E9FFC29A2ACDCC490001B26F /* OrderedCollections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = OrderedCollections;
+		};
+		ED069F1C2F58A2AA00869F64 /* DropKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DropKit;
+		};
+		ED069F1E2F58A2B000869F64 /* DropKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DropKit;
+		};
+		ED069F202F58A2B600869F64 /* DropKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DropKit;
+		};
+		ED069F222F58A2CE00869F64 /* DropKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DropKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = E9BDE56429E3396700D230A8 /* Project object */;
+}

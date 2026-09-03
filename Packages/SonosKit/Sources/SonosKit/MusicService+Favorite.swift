@@ -14,7 +14,7 @@ import MusicSearchKit
 public final class LiveActivityFavoriteStore: @unchecked Sendable {
     public static let shared = LiveActivityFavoriteStore()
 
-    @ObservationIgnored private let defaults = UserDefaults(suiteName: "group.com.clic")
+    @ObservationIgnored private let defaults = UserDefaults(suiteName: "group.dance.cue")
     @ObservationIgnored private let key = "liveActivityFavorites"
     @ObservationIgnored private let lock = NSLock()
 
@@ -25,7 +25,7 @@ public final class LiveActivityFavoriteStore: @unchecked Sendable {
     public private(set) var favorites: [String: Bool]
 
     private init() {
-        favorites = (UserDefaults(suiteName: "group.com.clic")?
+        favorites = (UserDefaults(suiteName: "group.dance.cue")?
             .dictionary(forKey: "liveActivityFavorites") as? [String: Bool]) ?? [:]
     }
 

@@ -3,7 +3,7 @@ import SwiftUI
 import SonosKitMini
 
 struct PreferenceScreen: View {
-    @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
+    @CloudStorage("com.cue.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
     @CloudStorage("sonos_ip") var sonosIP = ""
 
     var body: some View {
@@ -33,7 +33,7 @@ struct PreferenceScreen: View {
                         }
                     }
                 } footer: {
-                    Text("Get a code from the Clic app on any iPhone to connect this Watch.")
+                    Text("Get a code from the Cue app on any iPhone to connect this Watch.")
                 }
 
                 Section {

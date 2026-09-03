@@ -33,7 +33,7 @@ public final class PandoraBrowseService {
     private var hasLoaded = false
     /// When the sections on screen were last fetched. Revisiting the screen
     /// after `staleAfter` refetches instead of trusting `hasLoaded` for the
-    /// whole session — stations appear on the account without Clic doing
+    /// whole session — stations appear on the account without Cue doing
     /// anything (playing a search seed creates one, and so does the Pandora
     /// app or another controller), and a session-long cache hid them until a
     /// manual pull-to-refresh.

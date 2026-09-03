@@ -14,7 +14,7 @@ struct WatchApp: App {
     #else
     @CloudStorage(CloudKeys.hasSubscription) var activeSubscription: Bool = false
     #endif
-    @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
+    @CloudStorage("com.cue.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
 
     private var sonosService = SonosMiniService.shared
     private var popover = Popover.shared

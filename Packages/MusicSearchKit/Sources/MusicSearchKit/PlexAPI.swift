@@ -33,13 +33,13 @@ public final class PlexAPI {
 
     public var serverID: String? {
         didSet {
-            UserDefaults.standard.set(serverID, forKey: "com.clic.plexServer")
+            UserDefaults.standard.set(serverID, forKey: "com.cue.plexServer")
         }
     }
     
     public var librarySelectionID: String? {
         didSet {
-            UserDefaults.standard.set(librarySelectionID, forKey: "com.clic.plexServer.library")
+            UserDefaults.standard.set(librarySelectionID, forKey: "com.cue.plexServer.library")
         }
     }
 
@@ -47,14 +47,14 @@ public final class PlexAPI {
     public var connectionPreference: ConnectionPreference {
         get {
             access(keyPath: \.connectionPreference)
-            if let preference = UserDefaults.standard.string(forKey: "com.clic.plexServer.connectionPreference"), let connection = ConnectionPreference(rawValue: preference) {
+            if let preference = UserDefaults.standard.string(forKey: "com.cue.plexServer.connectionPreference"), let connection = ConnectionPreference(rawValue: preference) {
                 return connection
             }
             return ConnectionPreference.auto
         }
         set {
             withMutation(keyPath: \.connectionPreference) {
-                UserDefaults.standard.set(newValue.rawValue, forKey: "com.clic.plexServer.connectionPreference")
+                UserDefaults.standard.set(newValue.rawValue, forKey: "com.cue.plexServer.connectionPreference")
             }
             // Drop the cached server + resolved connections so the next request
             // re-resolves against the newly chosen preference.
@@ -140,8 +140,8 @@ public final class PlexAPI {
         logger.addDestination(file)
         #endif
         
-        self.librarySelectionID = UserDefaults.standard.string(forKey: "com.clic.plexServer.library")
-        self.serverID = UserDefaults.standard.string(forKey: "com.clic.plexServer")
+        self.librarySelectionID = UserDefaults.standard.string(forKey: "com.cue.plexServer.library")
+        self.serverID = UserDefaults.standard.string(forKey: "com.cue.plexServer")
     }
 
     public func rateTrack(ratingKey: String, rating: Int) async -> Bool {
@@ -157,7 +157,7 @@ public final class PlexAPI {
         ])
         var request = URLRequest(url: rateURL)
         request.httpMethod = "PUT"
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
         guard let (_, response) = try? await session.data(for: request),
               let http = response as? HTTPURLResponse else { return false }
@@ -197,7 +197,7 @@ public final class PlexAPI {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, response) = try? await session.data(for: request),
@@ -219,7 +219,7 @@ public final class PlexAPI {
         ])
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
         guard let (_, response) = try? await session.data(for: request),
               let http = response as? HTTPURLResponse else { return false }
@@ -238,7 +238,7 @@ public final class PlexAPI {
         }
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
         guard let (_, response) = try? await session.data(for: request),
               let http = response as? HTTPURLResponse else { return false }
@@ -254,7 +254,7 @@ public final class PlexAPI {
         }
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
         guard let (_, response) = try? await session.data(for: request),
               let http = response as? HTTPURLResponse else { return false }
@@ -270,7 +270,7 @@ public final class PlexAPI {
         }
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
         guard let (_, response) = try? await session.data(for: request),
               let http = response as? HTTPURLResponse else { return false }
@@ -298,7 +298,7 @@ public final class PlexAPI {
         
         var request = URLRequest(url: search)
         request.httpMethod = "GET"
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, _) = await loadData(for: request) else {
@@ -330,7 +330,7 @@ public final class PlexAPI {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, _) = await loadData(for: request),
@@ -604,7 +604,7 @@ public final class PlexAPI {
         var request = URLRequest(url: sectionsURL)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, _) = try? await session.data(for: request) else {
@@ -659,7 +659,7 @@ public final class PlexAPI {
                     var request = URLRequest(url: url.appending(path: "identity"))
                     request.timeoutInterval = 4
                     request.addValue("application/json", forHTTPHeaderField: "Accept")
-                    request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+                    request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
                     request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
                     guard let (_, response) = try? await session.data(for: request),
                           let http = response as? HTTPURLResponse,
@@ -697,7 +697,7 @@ public final class PlexAPI {
         request.httpMethod = "GET"
         request.timeoutInterval = 10
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, _) = try? await session.data(for: request) else {
@@ -744,7 +744,7 @@ public final class PlexAPI {
         request.httpMethod = "GET"
         request.timeoutInterval = 10
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, _) = try? await session.data(for: request) else {
@@ -780,7 +780,7 @@ public final class PlexAPI {
         var request = URLRequest(url: sectionsURL)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, _) = try? await session.data(for: request) else {
@@ -819,7 +819,7 @@ public final class PlexAPI {
         var request = URLRequest(url: songURL)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, _) = try? await session.data(for: request) else {
@@ -855,7 +855,7 @@ public final class PlexAPI {
         var request = URLRequest(url: albumURL)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, _) = try? await session.data(for: request) else {
@@ -913,7 +913,7 @@ public final class PlexAPI {
         var request = URLRequest(url: albumURL)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, _) = try? await session.data(for: request) else {
@@ -973,7 +973,7 @@ public final class PlexAPI {
         var request = URLRequest(url: playlistURL)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
         request.addValue("\(offset)", forHTTPHeaderField: "X-Plex-Container-Start")
         request.addValue("200", forHTTPHeaderField: "X-Plex-Container-Size")
@@ -1065,7 +1065,7 @@ public final class PlexAPI {
         var request = URLRequest(url: artistURL)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, urlResponse) = try? await session.data(for: request) else {
@@ -1151,7 +1151,7 @@ public final class PlexAPI {
         var request = URLRequest(url: tracksURL)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, _) = try? await session.data(for: request) else { return [] }
@@ -1211,7 +1211,7 @@ public final class PlexAPI {
         request.httpMethod = "GET"
         request.timeoutInterval = 10
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, urlResponse) = try? await session.data(for: request) else { return [] }
@@ -1363,7 +1363,7 @@ public final class PlexAPI {
         request.httpMethod = "GET"
         request.timeoutInterval = 10
         request.addValue("application/json", forHTTPHeaderField: "Accept")
-        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
         return request
     }

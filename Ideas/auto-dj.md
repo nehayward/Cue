@@ -38,7 +38,7 @@ New row in `PreferenceScreen`: "Auto-DJ" toggle backed by `@AppStorage(AppStorag
 
 | Action | File |
 |--------|------|
-| Create | `Clic/AutoDJ/AutoDJService.swift` |
+| Create | `Cue/AutoDJ/AutoDJService.swift` |
 | Modify | `Packages/Defaults/.../AppStorageKeys.swift` — add `autoDJEnabled` key |
-| Modify | `Clic/Preferences/PreferenceScreen.swift` — add toggle row |
-| Modify | `Clic/ClicApp.swift` — `_ = AutoDJService.shared` on appear |
+| Modify | `Cue/Preferences/PreferenceScreen.swift` — add toggle row |
+| Modify | `Cue/CueApp.swift` — `_ = AutoDJService.shared` on appear |

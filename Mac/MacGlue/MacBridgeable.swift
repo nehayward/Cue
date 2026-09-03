@@ -1,14 +1,14 @@
 import Foundation
 
-/// Bundle entry point. ClicMini launch + running-process observation. The
+/// Bundle entry point. CueMini launch + running-process observation. The
 /// dock-menu surface lives separately behind `DockMenuRenderable` — get to it
 /// via `dockMenu`.
 @objc(MacBridgeable)
 protocol MacBridgeable: NSObjectProtocol {
     init()
 
-    func openClicMiniApp()
-    func openClicMiniApp() async throws
+    func openCueMiniApp()
+    func openCueMiniApp() async throws
 
     func runningUpdate(handler: @escaping (Bool) -> Void)
     func setupRunningAppsObserver()

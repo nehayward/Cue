@@ -93,7 +93,7 @@ struct RemoteWidgetEntryView: View {
                     .buttonStyle(.plain)
                     .fontDesign(.rounded)
                     .containerBackground(.widgetBackground, for: .widget)
-                    .widgetURL(entry.activeSubscription ? URL(string: "clic://device?id=\(room.id)") : nil)
+                    .widgetURL(entry.activeSubscription ? URL(string: "cue://device?id=\(room.id)") : nil)
                 }
             } else {
                 VStack {

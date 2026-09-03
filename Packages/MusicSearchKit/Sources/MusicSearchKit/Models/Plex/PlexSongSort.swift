@@ -45,7 +45,7 @@ public enum PlexSongSort: String, CaseIterable, Sendable, Identifiable {
         case .dateAdded: "addedAt"
         case .playCount: "viewCount"
         case .lastPlayed: "lastViewedAt"
-        // Plex has no favorite flag of its own; Clic treats any rating above
+        // Plex has no favorite flag of its own; Cue treats any rating above
         // zero as one, the same test FavoriteMenuButton makes.
         case .favorites: "userRating"
         }

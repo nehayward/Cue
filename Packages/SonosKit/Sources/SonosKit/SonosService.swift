@@ -140,7 +140,7 @@ public final class SonosService {
         if sonosSystemDiscoverService.preferredHouseHold == id {
             sonosSystemDiscoverService.preferredHouseHold = nil
         }
-        // Re-point (or clear) the legacy sonos_ip mirror so Clic Mini / the Watch
+        // Re-point (or clear) the legacy sonos_ip mirror so Cue Mini / the Watch
         // don't keep controlling the system that was just removed.
         sonosSystemDiscoverService.refreshLegacyMirror()
         if wasActive {
@@ -210,7 +210,7 @@ public final class SonosService {
     /// we thought of doesn't".
     ///
     /// Defaults to on and is host-driven, so the platforms that don't manage it
-    /// — tvOS, watchOS, Clic Mini — behave exactly as before. `ClicApp` sets it
+    /// — tvOS, watchOS, Cue Mini — behave exactly as before. `CueApp` sets it
     /// from `scenePhase`.
     ///
     /// If you are ever debugging "monitoring won't start", check this first:

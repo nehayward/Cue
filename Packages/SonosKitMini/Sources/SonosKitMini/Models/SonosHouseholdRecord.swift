@@ -4,11 +4,11 @@ import Foundation
 /// `sonos_known_households`.
 ///
 /// Duplicated rather than shared because SonosKitMini deliberately does not depend
-/// on SonosKit — Clic Mini and the Watch link only this package. Only the fields
+/// on SonosKit — Cue Mini and the Watch link only this package. Only the fields
 /// needed to reach a speaker are decoded, and every one but `id` tolerates being
 /// absent so a newer writer cannot break an older reader.
 ///
-/// Clic Mini never writes this key. The main app owns it, including deletions, and
+/// Cue Mini never writes this key. The main app owns it, including deletions, and
 /// a write from here would resurrect a household removed on another device.
 struct SonosHouseholdRecord: Decodable, Equatable {
     static let storageKey = "sonos_known_households"
@@ -50,7 +50,7 @@ struct SonosHouseholdRecord: Decodable, Equatable {
         return (try? JSONDecoder().decode([SonosHouseholdRecord].self, from: data)) ?? []
     }
 
-    /// The household Clic Mini should follow: the one the user pinned, else the
+    /// The household Cue Mini should follow: the one the user pinned, else the
     /// most recently connected. Mirrors `activeHousehold` in the main app, including
     /// the fallback when a pin refers to a household that has since been removed.
     static func active(preferring preferredID: String?) -> SonosHouseholdRecord? {

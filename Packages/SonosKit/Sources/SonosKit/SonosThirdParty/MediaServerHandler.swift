@@ -123,7 +123,7 @@ final class MediaServerHandler {
                 // Cache the media servers
                 KeychainManager.shared.saveMediaServers(householdId: zoneGroupState.houseHoldID, servers: servers)
                 if let plex = servers.first(where: { $0.type == .plex }) {
-                    UserDefaults.standard.setValue(plex.token, forKey: "com.clic.plexToken")
+                    UserDefaults.standard.setValue(plex.token, forKey: "com.cue.plexToken")
                 }
                 print("📦 Cached \(servers.count) media servers for household: \(zoneGroupState.houseHoldID)")
                 return HTTPResponse(statusCode: .ok)

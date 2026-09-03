@@ -16,7 +16,7 @@ extension SonosServiceError: LocalizedError {
         switch self {
         case .noWifi: "Connect to Wi-Fi to play on Sonos."
         case .sonosSystemNotFound: "Couldn't reach your Sonos system. Make sure your speakers are on the same network."
-        case .permissionDenied: "Clic needs Local Network access to talk to Sonos. Enable it in Settings."
+        case .permissionDenied: "Cue needs Local Network access to talk to Sonos. Enable it in Settings."
         case .timeout: "Timed out talking to your Sonos system. Try again."
         case .serviceUnavailable: "Your Sonos speaker isn't responding right now. Try again in a moment."
         case .cancelled: "Playback was cancelled."

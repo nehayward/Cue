@@ -47,8 +47,8 @@ Single model with a type discriminator keeps queries simple and cross-type looku
 
 | Action | File |
 |--------|------|
-| Create | `Clic/Data/ClicModelContainer.swift` — configure both stores + CloudKit |
-| Create | `Clic/Data/CachedContent.swift` |
-| Modify | `Clic/ClicApp.swift` — initialize `ModelContainer`, inject into environment |
+| Create | `Cue/Data/CueModelContainer.swift` — configure both stores + CloudKit |
+| Create | `Cue/Data/CachedContent.swift` |
+| Modify | `Cue/CueApp.swift` — initialize `ModelContainer`, inject into environment |
 | Modify | `Packages/SonosKit/.../PlexBrowseService.swift` — write to cache after fetch |
 | Modify | `Packages/SonosKit/.../LibraryBrowseService.swift` — write to cache after fetch |

@@ -6,11 +6,11 @@ import SwiftUI
 import VibesDS
 
 struct LiveActivityNowPlayingViewPre27: View {
-    let context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
+    let context: ActivityViewContext<CueNowPlayingWidgetAttributes>
     
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
-    @AppStorage("LiveActivityStep", store: UserDefaults(suiteName: "group.com.clic")) private var liveActivityStep: Int = 5
+    @AppStorage("isCompact", store: UserDefaults(suiteName: "group.dance.cue")) private var isCompact: Bool = false
+    @AppStorage("LiveActivityStep", store: UserDefaults(suiteName: "group.dance.cue")) private var liveActivityStep: Int = 5
 
     var body: some View {
         VStack(spacing: 6) {
@@ -20,13 +20,13 @@ struct LiveActivityNowPlayingViewPre27: View {
                     .fontDesign(.rounded)
                     .opacity(0.8)
                 Spacer()
-                Link(destination: URL(string: "clic://group?id=\(context.attributes.room.id)")!) {
+                Link(destination: URL(string: "cue://group?id=\(context.attributes.room.id)")!) {
                     Image("hifispeaker.circle.fill")
                         .resizable()
                         .frame(width: 24, height: 24)
                         .bold()
                 }
-                Link(destination: URL(string: "clic://search?id=\(context.attributes.room.id)")!) {
+                Link(destination: URL(string: "cue://search?id=\(context.attributes.room.id)")!) {
                     Image(systemName: "magnifyingglass.circle.fill")
                         .resizable()
                         .frame(width: 24, height: 24)
@@ -180,7 +180,7 @@ struct LiveActivityNowPlayingViewPre27: View {
         .padding()
         .activityBackgroundTint(.clear)
         .background(.background.opacity(0.4))
-        .widgetURL(URL(string: "clic://device?id=\(context.attributes.room.id)"))
+        .widgetURL(URL(string: "cue://device?id=\(context.attributes.room.id)"))
     }
 }
 #endif

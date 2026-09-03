@@ -7,11 +7,11 @@ struct RunSceneIntent: AppIntent {
     static var title: LocalizedStringResource = "Run Scene"
     static var isDiscoverable: Bool = true
     static var description = IntentDescription(
-        "Create a Scene in Clic to group speakers, set volume, and play music",
+        "Create a Scene in Cue to group speakers, set volume, and play music",
         categoryName: "Scenes"
     )
     
-    @CloudStorage("com.clic.scenes") private var scenes: [SonosScene] = []
+    @CloudStorage("com.cue.scenes") private var scenes: [SonosScene] = []
     @Parameter(title: "Scene", default: nil) var scene: SceneEntity?
 
     static var parameterSummary: some ParameterSummary {
@@ -21,8 +21,8 @@ struct RunSceneIntent: AppIntent {
     init() { }
 
     func perform() async throws -> some ShowsSnippetView {
-        guard CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false else {
-            throw IntentError.message("Subscribe to Super in Clic")
+        guard CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false else {
+            throw IntentError.message("Subscribe to Super in Cue")
         }
 
         let resolvedScene: SceneEntity

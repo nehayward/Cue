@@ -71,14 +71,14 @@ struct SetSleepTimerIntent: LiveActivityIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        guard CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false else {
+        guard CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false else {
             #if canImport(UIKit) && !os(watchOS)
-            if let url = URL(string: "clic://subscribe"),
+            if let url = URL(string: "cue://subscribe"),
                let application = UIApplication.value(forKeyPath: #keyPath(UIApplication.shared)) as? UIApplication {
                 await application.open(url)
             }
             #endif
-            throw IntentError.message("Subscribe to Super in Clic")
+            throw IntentError.message("Subscribe to Super in Cue")
         }
         
         let resolvedRoom: SonosDeviceEntity

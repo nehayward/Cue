@@ -11,7 +11,7 @@ enum QueueOption: String, AppEnum, CaseIterable, Equatable {
     case replaceQueue
 
     /// `.automatic` returns nil so the intent can pick a position based on
-    /// content type, matching the Play on Clic share sheet.
+    /// content type, matching the Play on Cue share sheet.
     var queuePosition: QueuePosition? {
         switch self {
         case .automatic: nil

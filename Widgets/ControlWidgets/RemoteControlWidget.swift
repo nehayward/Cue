@@ -4,7 +4,7 @@ import WidgetKit
 
 @available(iOSApplicationExtension 18.0, *)
 struct RemoteControlWidget: ControlWidget {
-    static let kind: String = "com.clic.RemoteControl"
+    static let kind: String = "com.cue.RemoteControl"
 
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(

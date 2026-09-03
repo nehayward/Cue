@@ -3,9 +3,9 @@
 –– New Features ––
 - Subsonic & Navidrome: Play your self-hosted music library on Sonos. Connect any Subsonic-compatible server (Navidrome, Airsonic, Gonic, and more) with its address and login under Settings ▸ Services, and your speakers stream your music straight from the server — no Sonos account involved, with your password kept in the device keychain
 - Subsonic search and browse: Search your server's songs, albums and artists alongside your other services, browse your whole library — Artists, Albums, Songs, Recently Added, and Playlists — and open artist pages complete with top songs and a playable discography
-- Subsonic playlists and favorites: Create playlists, add and remove songs, and delete playlists right from Clic; star songs with the heart in the player and menus, and preview any song before sending it to a speaker
+- Subsonic playlists and favorites: Create playlists, add and remove songs, and delete playlists right from Cue; star songs with the heart in the player and menus, and preview any song before sending it to a speaker
 - Quick Group Menu: Press and hold the group button on the player to add or remove speakers right from a menu — tap a room to toggle it in or out, or choose Everywhere or Ungroup All. A regular tap still opens the full grouping screen
-- Faster music libraries: Songs opens with your whole library ready instead of loading more as you scroll — for your Sonos music library, Plex and Subsonic alike. Clic syncs it once, keeps a copy on your device so it's there again next time you open the app, and picks up music you've added when you come back to the library
+- Faster music libraries: Songs opens with your whole library ready instead of loading more as you scroll — for your Sonos music library, Plex and Subsonic alike. Cue syncs it once, keeps a copy on your device so it's there again next time you open the app, and picks up music you've added when you come back to the library
 - Search your library: Type in Songs to filter your entire library as you go, not just the part you've scrolled to — Subsonic albums are searchable too
 - Sort your songs: Order Plex and Subsonic songs by title, artist, album, year, play count, date added, or your favorites — and flip any of them, A–Z or Z–A, newest or oldest, most or least played. Each list remembers what you picked
 
@@ -15,7 +15,7 @@
 - Fixed the volume buttons moving a speaker several steps per press while Lock Screen Now Playing is on — each press is one step again, and the Lock Screen slider still sets the level directly
 - Fixed removing a speaker from a group turning down the volume of the room that kept playing
 - Grouping or ungrouping no longer makes the player blink — the song, artwork, progress, and volume stay put while your speakers rearrange instead of flashing empty for a moment
-- Self-hosted servers now have their own section in Services settings — Subsonic connects here in Clic, so the screen no longer tells you to add it in the Sonos app and pull to refresh, which would never have worked
+- Self-hosted servers now have their own section in Services settings — Subsonic connects here in Cue, so the screen no longer tells you to add it in the Sonos app and pull to refresh, which would never have worked
 - Songs now shows how many tracks your library holds under the title, and counts up while a big library is still loading
 - Starred Subsonic songs now show the heart in lists, the way Plex favorites do
 - Settings ▸ Storage now shows how much space your synced libraries take, and can clear them — they rebuild the next time you open Songs
@@ -23,28 +23,28 @@
 # 2026.7
 
 –– New Features ––
-- Lock Screen Controls (Super): Preferences ▸ Lock Screen now lets you pick what shows while a speaker is playing — Live Activity, Now Playing, or Off. Now Playing puts what's on Sonos into your device's own player on the Lock Screen and in Control Center: artwork, song, and the speaker it's playing on, with play/pause, skip, and scrubbing. Turn on Use iPhone Volume Buttons and the volume buttons control that speaker too — including changes made on the speaker or in the Sonos app. With several rooms playing, the card follows whichever one is playing while your device is locked, and stays on the speaker you're viewing while you're in the app. It all keeps working with the app closed. It's the default with Clic Super, and it replaces Live Activities while it's on — switch back and they return. Note that Clic takes over your device's audio once a speaker starts playing
+- Lock Screen Controls (Super): Preferences ▸ Lock Screen now lets you pick what shows while a speaker is playing — Live Activity, Now Playing, or Off. Now Playing puts what's on Sonos into your device's own player on the Lock Screen and in Control Center: artwork, song, and the speaker it's playing on, with play/pause, skip, and scrubbing. Turn on Use iPhone Volume Buttons and the volume buttons control that speaker too — including changes made on the speaker or in the Sonos app. With several rooms playing, the card follows whichever one is playing while your device is locked, and stays on the speaker you're viewing while you're in the app. It all keeps working with the app closed. It's the default with Cue Super, and it replaces Live Activities while it's on — switch back and they return. Note that Cue takes over your device's audio once a speaker starts playing
 - Sonos Radio: Search Sonos Radio stations and browse them by genre, then play any station on any room or group — the SONOS badge appears on the artwork, and the station's artwork is shown during ad breaks
-- Smarter Services settings: the Services screen now shows what's actually on your Sonos — services you've authorized get show/hide toggles, ones you haven't set up yet link straight to the Sonos app to sign in, and services Clic doesn't support yet are listed too. Pull down to refresh after adding one
-- Pandora: Browse your Pandora stations, search for new ones, and play any station on any room or group — sign in through the Sonos app and it works in Clic automatically
+- Smarter Services settings: the Services screen now shows what's actually on your Sonos — services you've authorized get show/hide toggles, ones you haven't set up yet link straight to the Sonos app to sign in, and services Cue doesn't support yet are listed too. Pull down to refresh after adding one
+- Pandora: Browse your Pandora stations, search for new ones, and play any station on any room or group — sign in through the Sonos app and it works in Cue automatically
 - Pandora Thumbs: Thumb a song up or down right from the player to tune what the station plays next — and set any Pandora station as an alarm
 
 –– Bug Fixes & Improvements ––
-- Song changes now show up right away instead of a beat later — Clic listens to your speakers directly for track and play/pause changes
+- Song changes now show up right away instead of a beat later — Cue listens to your speakers directly for track and play/pause changes
 - Fixed album artwork stuttering the player during song changes — the crossfade is now one smooth dissolve
 - Fixed the player staying stuck on a radio station after playing a song from the queue — playback switches reliably, the progress bar appears again, and the station caption clears right away
-- Services you remove in the Sonos app no longer linger in Clic — they're hidden from search and browse automatically
+- Services you remove in the Sonos app no longer linger in Cue — they're hidden from search and browse automatically
 - Plex sign-in now lives right on its row in Services — tap the row to manage your account
-- Fixed square corners showing around the Clic Mini notification and menu bar window in light mode
-- Clic Mini: The notification and menu bar window now use Liquid Glass on macOS 26
-- Fixed older S1 Sonos players (like the ZP100 or ZP80) never being found — a home running S1 now shows up in Households alongside your S2 system, so a split S1/S2 setup can switch between the two with a tap. This applies on Apple Watch and in Clic Mini too, where S1 systems were missing from the household list entirely
-- Clic Mini and Apple Watch now follow the speaker you pick on the Connectivity screen, instead of whichever speaker happened to answer first
-- Redesigned the Connectivity screen around a single choice — which speaker Clic connects through. It's set to Automatic out of the box, or tap any speaker to use that one instead; a LAN badge marks the speakers wired to your router, and a tick shows what's in use
+- Fixed square corners showing around the Cue Mini notification and menu bar window in light mode
+- Cue Mini: The notification and menu bar window now use Liquid Glass on macOS 26
+- Fixed older S1 Sonos players (like the ZP100 or ZP80) never being found — a home running S1 now shows up in Households alongside your S2 system, so a split S1/S2 setup can switch between the two with a tap. This applies on Apple Watch and in Cue Mini too, where S1 systems were missing from the household list entirely
+- Cue Mini and Apple Watch now follow the speaker you pick on the Connectivity screen, instead of whichever speaker happened to answer first
+- Redesigned the Connectivity screen around a single choice — which speaker Cue connects through. It's set to Automatic out of the box, or tap any speaker to use that one instead; a LAN badge marks the speakers wired to your router, and a tick shows what's in use
 - Entering an address by hand has moved into a "Can't find your speakers?" section that opens on its own when nothing is found — and once a speaker answers at that address, a Connect button appears so you can actually switch to it. Previously the screen could only verify the address
 - Fixed the Connectivity screen sometimes showing "No Sonos system found at this IP address" right after the address was verified with a green check
 - The IP address field no longer marks an address wrong while you're still typing it, and shows a spinner while it checks. A wrong address now tints the field red instead of adding an error icon that looked like a second clear button
-- Fixed the speaker you pick on the Connectivity screen not sticking — the tick would flash onto it and jump back to another speaker. Your choice now persists, and Clic genuinely uses that speaker for album artwork, your library and favorites
-- Clic's automatic speaker pick now prefers a speaker wired to your router, as it always said it did — previously the wired preference was applied and then discarded, so it could settle on a speaker over Wi-Fi
+- Fixed the speaker you pick on the Connectivity screen not sticking — the tick would flash onto it and jump back to another speaker. Your choice now persists, and Cue genuinely uses that speaker for album artwork, your library and favorites
+- Cue's automatic speaker pick now prefers a speaker wired to your router, as it always said it did — previously the wired preference was applied and then discarded, so it could settle on a speaker over Wi-Fi
 - Refreshed the bottom controls on the player and the speaker list with a glass toolbar look — earlier iOS versions get a matching frosted style
 - The player's ••• menu now sits at the end of the toolbar on iPad and Mac, after Search, Browse, and Queue
 - Fixed the queue button's ring briefly showing as full when opening or closing the queue
@@ -54,38 +54,38 @@
 - The play button now pulses while your speaker is getting a song ready — in the mini player, the player, the speaker list, and on Apple TV
 - Fixed the Live Activity vanishing when you set the volume from it while in another app — and a speaker that's briefly unreachable no longer dismisses your other rooms' Live Activities along with it
 - Your volume buttons and the Lock Screen slider now control the speaker by default while Lock Screen ▸ Now Playing is on — Use iPhone Volume Buttons has moved to Preferences ▸ Lock Screen to sit with the setting it belongs to, and it now covers the sliders as well as the buttons. Previously the switch had no effect on the Lock Screen at all. If you'd turned it off, it stays off
-- Clic now hands the Lock Screen player, its controls, and your volume straight back whenever your device's audio moves to Bluetooth, CarPlay, or headphones — so an automation that turns the volume up and presses play when you get in the car reaches your car, not the speakers at home. Everything returns when you disconnect
+- Cue now hands the Lock Screen player, its controls, and your volume straight back whenever your device's audio moves to Bluetooth, CarPlay, or headphones — so an automation that turns the volume up and presses play when you get in the car reaches your car, not the speakers at home. Everything returns when you disconnect
 - Your speakers can no longer be jumped to a new volume in one step by something you didn't touch — a shortcut, an accessory, or a device connecting. Volume changes you make by hand work exactly as before
 - Fixed the player lagging behind when you skip tracks during playback — the new song's details now appear as quickly as they do when skipping from paused
 - Fixed album artwork flickering on every song change — the cover is now swapped once instead of being loaded twice
 - Fixed album artwork blanking out between songs instead of dissolving straight into the next cover
 - Fixed the Set Speech Enhancement shortcut failing with "not supported" on soundbars that support it perfectly well — Playbar, Playbase, Beam, Ray and Arc. The action was reading a pile of unrelated settings first and treating any hiccup as an unsupported speaker; it now sends a single command, as fast as Set Night Mode. When a speaker genuinely can't be reached, the shortcut says so instead of blaming the feature, and it returns the state it actually left the speaker in when toggling
-- Fixed Clic Mini and Apple Watch offering Arc Ultra speech levels on soundbars that only have the on/off Speech Enhancement, where changing the level did nothing
-- Much lighter on battery while your phone is locked with Lock Screen Controls showing — Clic was still doing a screen's worth of work behind the Lock Screen, and now goes quiet until something actually happens on your speakers
+- Fixed Cue Mini and Apple Watch offering Arc Ultra speech levels on soundbars that only have the on/off Speech Enhancement, where changing the level did nothing
+- Much lighter on battery while your phone is locked with Lock Screen Controls showing — Cue was still doing a screen's worth of work behind the Lock Screen, and now goes quiet until something actually happens on your speakers
 - Fixed the Lock Screen volume slider nudging your speaker a point or two off where you set it, just from showing the card
 - Fixed the player keeping the previous speaker's album artwork after switching rooms on Mac and iPad — the new room's cover appears straight away, and a room with no artwork yet no longer shows the last one
 - Skipping with the ⌘← and ⌘→ keyboard shortcuts now swaps the artwork instantly, the same as the on-screen buttons
 - Fixed the player's progress bar sweeping backwards across the whole bar when the song changes
-- Clic Mini: Fixed the song title never appearing next to the menu bar icon
+- Cue Mini: Fixed the song title never appearing next to the menu bar icon
 
 # 2026.6
 
 –– New Features ––
-- Multiple Homes: Clic now remembers every Sonos system you connect to. Manage them under Preferences ▸ Households — each home shows its speakers and whether it's an S1 or S2 system so they're easy to tell apart. Switch systems with a tap, and long-press or swipe to rename or remove a home. Open the screen anywhere and Clic scans for new systems on that network (like a friend's house) and adds them automatically
+- Multiple Homes: Cue now remembers every Sonos system you connect to. Manage them under Preferences ▸ Households — each home shows its speakers and whether it's an S1 or S2 system so they're easy to tell apart. Switch systems with a tap, and long-press or swipe to rename or remove a home. Open the screen anywhere and Cue scans for new systems on that network (like a friend's house) and adds them automatically
 - Playlist Management: Add any song to your Apple Music, Spotify, Plex, or Deezer playlists — not just Sonos. The new Add to Playlist sheet lets you pick several playlists at once, create a new one, search, and jump to a recently-used playlist; tap the confirmation to open the playlist you added to
 - Edit Playlists: Open a Spotify, Plex, Deezer, or Sonos playlist you own and tap Edit to remove tracks (swipe, menu, or multi-select), drag to reorder, or delete the playlist — with Undo (⌘Z on Mac)
 - Create Playlists: Make a new playlist for Apple Music, Spotify, Deezer, Plex, or Sonos from its browse screen — including an empty one you fill in later
 - Add to Last Playlist: A one-tap shortcut — in the track menu and the Mac File menu — to drop the current song into the playlist you used last
 - Song Previews: Long-press an Apple Music or Spotify track and tap Preview Song to hear a quick clip — or swipe right on a track in a list. A progress bar fills as the clip plays, and you can tap the track to stop it
-- Library Song Actions: Long-press a song in your Apple Music library to open its Apple Album or Apple Artist, or start a Song Radio — Clic resolves the matching catalog track behind the scenes
+- Library Song Actions: Long-press a song in your Apple Music library to open its Apple Album or Apple Artist, or start a Song Radio — Cue resolves the matching catalog track behind the scenes
 - Universal Search: Search several services at once — pick up to three in the search service menu (like your Library alongside Apple Music) and get one combined, ranked list of results. Note: the selected search service resets once with this update — just re-pick it in the search menu
 - Plex Setup in Onboarding: If you use Plex, setup now walks you through signing in and choosing your music library right away — with artist artwork previews so libraries are easy to tell apart
 - Automatic Plex Connection: A new Auto connection type uses your fast local network at home and switches to remote access when you're away — pick it, Remote, or Local from the redesigned connection switch in Plex settings
-- Arc Ultra Speech Enhancement: Control speech enhancement level (Off, Low, Medium, High, Max) on Sonos Arc Ultra from the player, Shortcuts, Clic Mini, and Apple Watch — the level is shown on the button and updates immediately after changing
+- Arc Ultra Speech Enhancement: Control speech enhancement level (Off, Low, Medium, High, Max) on Sonos Arc Ultra from the player, Shortcuts, Cue Mini, and Apple Watch — the level is shown on the button and updates immediately after changing
 - TV Dialog Sync: Fine-tune audio delay (lip sync) on Sonos soundbars from the Home Theater section of speaker settings
 
 –– Bug Fixes & Improvements ––
-- Faster reconnect on a new network: when you move between Wi-Fi networks — or return to the app at a different location — Clic now finds your speakers right away instead of waiting through a timeout. Once a home is known, switching to it is instant
+- Faster reconnect on a new network: when you move between Wi-Fi networks — or return to the app at a different location — Cue now finds your speakers right away instead of waiting through a timeout. Once a home is known, switching to it is instant
 - Fixed the app briefly stalling on the last-used speaker after switching networks, before falling back to discovery
 - Fixed removing one track from a Spotify playlist also deleting other copies of the same song — only the track you remove is removed now
 - Fixed adding a large album (more than 50 tracks) to a Spotify playlist only adding the first batch — every track is added now
@@ -110,7 +110,7 @@
 - The search start screen now shows each selected service's sections (like Spotify's browse or Apple Music playlists) even when that service isn't the primary one
 - Spotify albums now rank by popularity, so searching an album like Frozen surfaces it near the top instead of below every song — and albums containing explicit tracks now show the explicit badge
 - Apple Music search now uses Apple's own Top Results to rank its hits higher, matching the ordering you see in the Music app
-- Improved Plex speed and reliability — Clic picks the fastest way to reach your server, automatically switches connection when you change networks, and no longer hangs on an unreachable server
+- Improved Plex speed and reliability — Cue picks the fastest way to reach your server, automatically switches connection when you change networks, and no longer hangs on an unreachable server
 - The Refresh Sonos Library button in Preferences now shows your music library's shared folder location underneath, so you can see where Sonos is reading your music from
 - Improved Spotify responsiveness — albums and playlists load noticeably faster and start showing results sooner
 - Fixed Spotify albums with more than 50 tracks not showing every track, and an album sometimes showing the previous album's tracks when navigating back and forth
@@ -126,7 +126,7 @@
 
 –– New Features ––
 - Deezer: Full Deezer integration — search tracks, albums, artists, and playlists, browse Deezer charts, view album and artist pages, start a Mix from any track or artist, and open content directly in the Deezer app
-- Listen with Clic: A second share sheet action that appears in the Actions row — share any song, album, or playlist link and queue it to any room without leaving your current app
+- Listen with Cue: A second share sheet action that appears in the Actions row — share any song, album, or playlist link and queue it to any room without leaving your current app
 - Queue Position: Choose how a shared link is queued — Play Now, Play Next, Add to Last, or Replace Queue — right from the share sheet; playlists default to Replace
 - TV Mode Controls: Night mode, speech enhancement, and mute buttons now appear in the mini player when a Sonos soundbar is in TV mode — artwork swaps to a TV icon and the audio input format is shown in place of the track name
 - Favorite Albums: Save a Spotify album or love an Apple Music album directly from search results or the album detail page
@@ -150,15 +150,15 @@
 # 2026.4
 
 –– New Features ––
-- Share Sheet: Completely rebuilt the "Play on Clic" share extension. Share song, album, playlist, or artist links from Apple Music or Spotify on iPhone, iPad, and Mac and queue to any room or group instantly
-- Artist Sharing: Sharing an artist link offers Play Radio (starts that artist's radio on selected rooms) and Show (jumps to the artist page in Clic)
+- Share Sheet: Completely rebuilt the "Play on Cue" share extension. Share song, album, playlist, or artist links from Apple Music or Spotify on iPhone, iPad, and Mac and queue to any room or group instantly
+- Artist Sharing: Sharing an artist link offers Play Radio (starts that artist's radio on selected rooms) and Show (jumps to the artist page in Cue)
 - Apple Music Stations: Share any Apple Music station link (including personalized stations) to queue and play it on Sonos
-- Tap the artwork header in the share sheet to open that album/playlist/artist in Clic
-- Mac Dock Menu: Right-click the Clic icon in the Dock for full playback control without opening the app — Now Playing, play/pause, skip, volume, mute, and Repeat / Shuffle / Crossfade
+- Tap the artwork header in the share sheet to open that album/playlist/artist in Cue
+- Mac Dock Menu: Right-click the Cue icon in the Dock for full playback control without opening the app — Now Playing, play/pause, skip, volume, mute, and Repeat / Shuffle / Crossfade
 - Dock Menu: Switch the active speaker or group, favorite the current song, and set a sleep timer (15/30/45 minutes or 1 hour) — all from the Dock
-- Tap the now-playing track in the Dock menu to jump straight to that speaker in Clic
+- Tap the now-playing track in the Dock menu to jump straight to that speaker in Cue
 - Sleep Timer: New "End of Song" option ends playback when the current track finishes — available in the app's Sleep Timer menu and the Mac Dock menu
-- Shortcuts: "Play Link on Clic" with a clearer "Add to Queue" parameter and a new "Automatic" default that matches the share sheet behavior (playlists replace the queue, everything else plays now)
+- Shortcuts: "Play Link on Cue" with a clearer "Add to Queue" parameter and a new "Automatic" default that matches the share sheet behavior (playlists replace the queue, everything else plays now)
 - Playback Control Widget (iOS 18+): New Control Center widget for per-speaker play/pause with live transport state
 - Welcome: Brand-new first-launch onboarding — guided Local Network setup, live speaker discovery with per-speaker haptics, a music services review showing what's ready to play, and an optional newsletter signup
 - Households: Redesigned system switcher shows each household's speakers and an S1/S2 badge, with a clearer "Switch system" hint
@@ -167,13 +167,13 @@
 –– Bug Fixes & Improvements ––
 - Restored Live Activity to its former glory with 5 volume steps
 - Dock Menu: Volume Up / Down now adjusts by 2% by default; hold Option for a 5% jump
-- Clic Mini: Menu bar window now smoothly grows and shrinks when expanding a group's per-speaker volume controls
+- Cue Mini: Menu bar window now smoothly grows and shrinks when expanding a group's per-speaker volume controls
 - Improved Player screen performance: reduced unnecessary view updates on foreground, inspector toggle, hover, and resize for smoother behavior on Mac
 - Fixed Custom Sleep Timer not showing
 - Fixed Apple Music links without a slug (e.g. `music.apple.com/us/album/<id>`) failing to open
-- Fixed Apple Music station links not parsing in the share sheet, Shortcuts, or "Open in Clic" — station name is now derived from the URL when richer metadata isn't available
-- Open in Clic now falls back gracefully when the share extension can't resolve a link, letting the main app handle lookup
-- New "View in Clic" routes auto-detect artist vs album/playlist content and open the right detail screen; stations open the room picker since they have no detail page
+- Fixed Apple Music station links not parsing in the share sheet, Shortcuts, or "Open in Cue" — station name is now derived from the URL when richer metadata isn't available
+- Open in Cue now falls back gracefully when the share extension can't resolve a link, letting the main app handle lookup
+- New "View in Cue" routes auto-detect artist vs album/playlist content and open the right detail screen; stations open the room picker since they have no detail page
 - Spotify Library: Playlists now navigate to playlist detail instead of playing immediately
 - Spotify Library: Albums and Liked Songs lists no longer show unnecessary alphabetical section index
 - Spotify Library: "See All" for Playlists now navigates to the full playlist browser
@@ -183,17 +183,17 @@
 - Fixed a rare crash that could occur when adjusting room volume, using filters, or deleting alarms
 - Fixed a long-standing crash that could occur during background speaker updates, especially when groups changed while the app was loading status
 - Fixed Song Radio and Artist Radio not starting
-- Fixed Clic Mini reordering on playback buffering.
+- Fixed Cue Mini reordering on playback buffering.
 - Fixed sleeping speakers (like Move and Move 2) not appearing in the room list, which also prevented them from being woken automatically
 - Speaker row now always shows the battery icon with the right level glyph, plus a warmer tint when low or charging — not just when plugged in
 - Sleeping/off speakers now display the sleep icon, status, and a relative "last seen" time on the row
 - Local Network permission is now requested only after you start onboarding, not on first launch
 - Speaker Settings list now uses the speaker icon and shows the model name as a subtitle
 - Queue header now shows the count inline as "Queue (50)"; Up Next reports how many tracks are left instead of the full queue size
-- Clic Mini: Redesigned the keyboard-shortcut notification — a cleaner now-playing card with larger artwork, song, and artist, plus a brief skip indicator when you change tracks
-- Clic Mini: Volume and track-skip notifications now appear instantly when you press the shortcut instead of lagging behind
-- Clic Mini: Tap the notification to dismiss it
-- Fixed the Clic Mini notification sometimes disappearing abruptly instead of fading out
+- Cue Mini: Redesigned the keyboard-shortcut notification — a cleaner now-playing card with larger artwork, song, and artist, plus a brief skip indicator when you change tracks
+- Cue Mini: Volume and track-skip notifications now appear instantly when you press the shortcut instead of lagging behind
+- Cue Mini: Tap the notification to dismiss it
+- Fixed the Cue Mini notification sometimes disappearing abruptly instead of fading out
 
 # 2026.3
 
@@ -202,12 +202,12 @@
 - Share to Watch: Easily connect any Apple Watch to your Sonos system by generating a pairing code on your iPhone. Works with guest watches or when troubleshooting connection issues
 - Sleep Timer in Scenes: Add a sleep timer when creating a scene so playback automatically stops after a set duration
 - Mini player now hides automatically when editing a playlist, sliding back in when done
-- Fixed Clic Mini not scrolling when many speakers exceed screen height
+- Fixed Cue Mini not scrolling when many speakers exceed screen height
 - Improved Mac performance: reduced CPU usage during window resizing, especially with the queue open
-- Clic Mini: Individual speaker volume controls and grouping/ungrouping directly from the menu bar
+- Cue Mini: Individual speaker volume controls and grouping/ungrouping directly from the menu bar
 
 –– Bug Fixes & Improvements ––
-- Fixed Clic Mini losing real-time updates when speakers are grouped or ungrouped
+- Fixed Cue Mini losing real-time updates when speakers are grouped or ungrouped
 - Fixed tracks not playing in the correct order when selecting a specific track from an album or playlist in shuffle mode
 - Play Next when swiping now only queues tracks
 
@@ -325,23 +325,23 @@
 –– New Features ––
 - Shortcuts now support custom tint colors for better visual organization
 - Enhanced Plex integration with library selection in search results
-- Queue total now displays in Clic Mini for better playback visibility
+- Queue total now displays in Cue Mini for better playback visibility
 - Added library filtering capabilities for Plex content
 
 –– Bug Fixes & Improvements ––
 - Enhanced audio metadata lookup for more accurate track information
-- Resolved stability issue causing crashes in Clic Mini
-- Fixed song change notifications not updating correctly in Clic Mini
-- Optimized caching performance in Clic Mini for faster response times
+- Resolved stability issue causing crashes in Cue Mini
+- Fixed song change notifications not updating correctly in Cue Mini
+- Optimized caching performance in Cue Mini for faster response times
 
 ## Store
 
 # 2025.15
 
 –– New Features ––
-- Introduced speaker grouping in Clic Mini: Easily group and ungroup speakers directly from the menu bar, with instant feedback and improved reliability. Grouping actions now update in real time and are accessible via the context menu for each device.
-- Clic Mini Updated for os 26 with HotKeys
-- Clic Mini has been completely rebuilt for a faster, more reliable, and more responsive experience. Enjoy smoother performance, improved stability, and a more intuitive interface throughout the app.
+- Introduced speaker grouping in Cue Mini: Easily group and ungroup speakers directly from the menu bar, with instant feedback and improved reliability. Grouping actions now update in real time and are accessible via the context menu for each device.
+- Cue Mini Updated for os 26 with HotKeys
+- Cue Mini has been completely rebuilt for a faster, more reliable, and more responsive experience. Enjoy smoother performance, improved stability, and a more intuitive interface throughout the app.
 - Playback icon now accented when playing
 - Pin Speaker Feature: Pin any speaker to prioritize it for menu bar display and keyboard shortcuts
 - Menu Bar Song Title Toggle: Option to hide/show song titles in the menu bar
@@ -349,7 +349,7 @@
 - Improved Pin Button: Larger tap target for easier interaction
 - Add open artist in Music Service
 - Add show alarms in View iPad menu bar
-- Add sound quality info to Clic Mini
+- Add sound quality info to Cue Mini
 
 –– Bug Fixes & Improvements ––
 - Improved error messages for playback failures: Users now receive clearer, more actionable feedback when content cannot be played due to service issues.
@@ -359,7 +359,7 @@
 - Corrected album details display on OS 26
 - Restored missing music service icons
 - Update MarqueeText for better performance
-- Improved Clic Mini Performance
+- Improved Cue Mini Performance
 - Fix EQ number formatting on speaker settings
 - Enhanced Settings View: Added pinned speaker management and clearer keyboard shortcut descriptions
 - Visual Feedback: Pinned speakers now show subtle accent border for better identification
@@ -370,8 +370,8 @@
 
 2025.15
 –– New Features ––
-Clic Mini: Redesigned and Rebuilt
-Clic Mini has been completely reimagined for macOS 26, delivering a faster, more reliable experience with improved stability and an intuitive interface.
+Cue Mini: Redesigned and Rebuilt
+Cue Mini has been completely reimagined for macOS 26, delivering a faster, more reliable experience with improved stability and an intuitive interface.
 Speaker Grouping Made Easy
 Group and ungroup your speakers directly from the menu bar with instant feedback. All grouping actions update in real time and are accessible via the context menu for each device.
 Pinned Speakers
@@ -395,7 +395,7 @@ Reliability and Performance
 Enhanced error messaging provides clearer, actionable feedback when content fails to play
 Improved MarqueeText rendering for smoother performance
 Fixed EQ number formatting in speaker settings
-Optimized overall Clic Mini performance
+Optimized overall Cue Mini performance
 
 Visual Refinements
 
@@ -466,7 +466,7 @@ Enhanced alarm management
 - Support multiple Apple accounts.
 
 –– Bug Fixes & Improvements ––
-- Fixed an issue where some speakers would be hidden on Watch and Clic Mini with radio playback
+- Fixed an issue where some speakers would be hidden on Watch and Cue Mini with radio playback
 - Resolved an issue where artwork was not displayed for library artists
 - Fixed an issue where tracks were not updating correctly when using Spotify Connect
 - Fix bug from stopping playback from other apps.
@@ -528,7 +528,7 @@ Enhanced alarm management
 - Fixed issues with Live Activities Shortcut toggle functionality
 - Fixed crash occurring on iPadOS when opening Queue, Search, or Browse panels
 - Fixed a hitch occurring on main player screen
-- Fixed rendering glitch in Clic Mini where apostrophes were not displaying correctly
+- Fixed rendering glitch in Cue Mini where apostrophes were not displaying correctly
 - Large playlists now load more reliably and efficiently
 
 # 2025.10
@@ -587,7 +587,7 @@ Enhanced alarm management
 –– Bug Fixes & Improvements ––
 - Improved overall performance on Mac.
 - Enhanced responsiveness of the Watch app.
-- Performance optimizations for Clic Mini.
+- Performance optimizations for Cue Mini.
 - Live Activities now update more quickly and reliably.
 - Fixed an issue where Live Activity images were not refreshing correctly.
 - Reduced memory usage across the app for better efficiency.
@@ -638,7 +638,7 @@ Enhanced alarm management
 ––New Features––
 - Set preferred color scheme, light, dark or system
 - Apple Music - Show latest album for artist and all albums
-- Add Login Item to Clic Mini
+- Add Login Item to Cue Mini
 
 ––Bug Fixes––
 - Fix alarms
@@ -648,22 +648,22 @@ Enhanced alarm management
 # 2025.2
 
 ––New Features––
-- Add Scene activation for Clic Mini
+- Add Scene activation for Cue Mini
 - Add mute controls in TV Mode.
 
 ––Bug Fixes––
 - Tidal search results no longer include playlists.
-- Fixed Clic Mini not updating in some scenarios
+- Fixed Cue Mini not updating in some scenarios
 - Refined speaker grouping
 - Fixed Up Next not showing on Watch
-- Fixed an issue with some Apple Music URLs not being parsed in the Queue action, it also opens Clic after being executed.
+- Fixed an issue with some Apple Music URLs not being parsed in the Queue action, it also opens Cue after being executed.
 - Fix album art not showing on main list view
 - Fixed scenes not triggering on Watch in some cases
 
 # 2025.1
 
 ––New Features––
-- Introducing Clic Mini – a lightweight way to control your music effortlessly from the menu bar.
+- Introducing Cue Mini – a lightweight way to control your music effortlessly from the menu bar.
 - Added hover states to the queue list and device list for a more responsive feel.
 - Album art now crossfades for smoother transitions.
 - Live Activities will now dismiss automatically when paused on app launch.
@@ -698,7 +698,7 @@ BLACK FRIDAY Special $4.99 for the first year.
 
 ––New Features––
 - Scenes now prioritize grouping to the player that is playing, so that playback is not interrupted.
-- Redesigned and improved Play in Clic for Action Sheet.
+- Redesigned and improved Play in Cue for Action Sheet.
 - Improve Live Activities animations.
 - Fix Queue Count not updating in some cases.
 - Fixed for Spotify Playlist not loading in some cases.
@@ -715,7 +715,7 @@ Take advantage of this limited-time offer and explore our newest features and im
 
 New Features
 - Seamless Scene Grouping: Scenes now automatically group to the player currently playing, ensuring playback continues uninterrupted.
-- Enhanced Action Sheet: Redesigned Play in Clic for a more intuitive and polished experience.
+- Enhanced Action Sheet: Redesigned Play in Cue for a more intuitive and polished experience.
 - Radio Options for Your Tracks: Added a Radio option for Spotify and Apple Music tracks, giving you more ways to enjoy your music.
 
 Improvements & Fixes
@@ -1182,7 +1182,7 @@ Bug Fixes
 - Create WidgetManager
 - Setup PlaygroupScreen for Search and Queueing
 - Add queueing option for media content
-- Add play url scheme "clic://play/spotify/album/5pTaRVLwZOFObIbRBubmeb"
+- Add play url scheme "cue://play/spotify/album/5pTaRVLwZOFObIbRBubmeb"
 - Fix routing options
 - Switch to NavigationStack
 - Create separate view for iPad

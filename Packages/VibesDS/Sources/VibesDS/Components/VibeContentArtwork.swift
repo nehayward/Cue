@@ -117,7 +117,7 @@ public struct VibeContentArtworkView: View {
     }
     
     private func cachedArtworkURL(for id: String) throws -> URL? {
-        let dataCache = try DataCache(name: "com.clic.imageCache")
+        let dataCache = try DataCache(name: "com.cue.imageCache")
         if dataCache.containsData(for: id),
            ![.playlist, .libraryPlaylist].contains(content.content.type) {
             return URL(string: id) // Assuming cached URL logic

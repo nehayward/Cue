@@ -2,7 +2,7 @@ import Foundation
 
 /// A service for creating and retrieving short-lived code-based data transfers.
 public enum DropService {
-    private static let baseURL = "https://api.clic.dance/drop"
+    private static let baseURL = "https://api.cue.dance/drop"
 
     /// Creates a drop with the given value and returns a code.
     /// - Parameters:

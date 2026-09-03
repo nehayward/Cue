@@ -4,7 +4,7 @@ import WidgetKit
 
 @available(iOSApplicationExtension 18.0, *)
 struct SceneControlWidget: ControlWidget {
-    static let kind: String = "com.clic.SceneControl"
+    static let kind: String = "com.cue.SceneControl"
 
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(
@@ -17,7 +17,7 @@ struct SceneControlWidget: ControlWidget {
             }
         }
         .displayName("Run Scene")
-        .description("Run Scene in Clic")
+        .description("Run Scene in Cue")
         .promptsForUserConfiguration()
     }
 }

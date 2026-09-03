@@ -10,7 +10,7 @@ import Kingfisher
 struct TVPlayerView: View {
     @Environment(\.scenePhase) private var scenePhase
 
-    @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
+    @CloudStorage("com.cue.scenes") var scenes: [SonosScene] = []
     
     @Bindable var group: GroupRoom
     @Binding var showGroup: Bool

@@ -1,9 +1,9 @@
 import Foundation
 
-/// A service for subscribing email addresses to the Clic newsletter.
+/// A service for subscribing email addresses to the Cue newsletter.
 /// Mirrors `DropService`'s static-namespace pattern.
 public enum NewsletterService {
-    private static let baseURL = "https://api.clic.dance/newsletter/subscribe"
+    private static let baseURL = "https://api.cue.dance/newsletter/subscribe"
 
     /// Distinguishes a brand-new signup from an idempotent re-submit of an
     /// email already on the list. Both are "success" for the caller — just
@@ -16,7 +16,7 @@ public enum NewsletterService {
         case alreadySubscribed
     }
 
-    /// Subscribes the given email to the Clic newsletter.
+    /// Subscribes the given email to the Cue newsletter.
     /// - Parameters:
     ///   - email: User-entered email. Server normalizes (trim + lowercase);
     ///     trimming client-side first is recommended but not required.

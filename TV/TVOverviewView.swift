@@ -5,7 +5,7 @@ import CoreImage.CIFilterBuiltins
 struct TVOverviewView: View {
     private let context = CIContext()
     private let filter = CIFilter.qrCodeGenerator()
-    let urlString = "https://clic.dance/help"
+    let urlString = "https://cue.dance/help"
     
     @FocusState private var isDiscoverFocused: Bool
 
@@ -22,7 +22,7 @@ struct TVOverviewView: View {
 
     var body: some View {
         VStack(spacing: 32) {
-            Text("Welcome to the Clic for Sonos")
+            Text("Welcome to the Cue for Sonos")
                 .font(.largeTitle)
                 .bold()
                 .multilineTextAlignment(.center)

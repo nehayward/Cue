@@ -7,7 +7,7 @@ import SonosKit
 
 #if targetEnvironment(macCatalyst)
 
-/// Owns the MacGlue bundle, ClicMini launch-at-login registration, and
+/// Owns the MacGlue bundle, CueMini launch-at-login registration, and
 /// running-process observation. Dock-menu logic lives separately in
 /// `DockMenuCoordinator` — this class no longer knows about the dock.
 @Observable
@@ -97,6 +97,6 @@ final class MenuAppLaunchAtLoginManager {
 
 @available(macOS 13.0, *)
 private extension SMAppService {
-    static let menuApp = SMAppService.loginItem(identifier: "com.nick.clic.mini")
+    static let menuApp = SMAppService.loginItem(identifier: "dance.cue.mini")
 }
 #endif

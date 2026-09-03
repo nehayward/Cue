@@ -41,17 +41,17 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     public var shareURL: URL {
         // TODO: Check
 #warning("DOULBE CHECK THIS")
-        guard content.service != .unknown else { return URL(string: "clic://")! }
-        guard let musicService = content.service.name?.lowercased() else { return  URL(string: "clic://")!  }
-        return URL(string: "clic://play/\(musicService)/\(content.type)/\(id)")!
+        guard content.service != .unknown else { return URL(string: "cue://")! }
+        guard let musicService = content.service.name?.lowercased() else { return  URL(string: "cue://")!  }
+        return URL(string: "cue://play/\(musicService)/\(content.type)/\(id)")!
     }
 
     public var viewURL: URL {
         guard content.service != .unknown,
               let musicService = content.service.name?.lowercased() else {
-            return URL(string: "clic://")!
+            return URL(string: "cue://")!
         }
-        return URL(string: "clic://view/\(musicService)/\(content.type)/\(id)")!
+        return URL(string: "cue://view/\(musicService)/\(content.type)/\(id)")!
     }
     
     public var imageKey: String {
@@ -611,7 +611,7 @@ extension PlayableContent: Transferable {
 }
 
 extension UTType {
-    public static var playableContent: UTType { UTType(exportedAs: "com.clic.playableContent") }
+    public static var playableContent: UTType { UTType(exportedAs: "com.cue.playableContent") }
 }
 
 extension PlayableContent {
@@ -635,24 +635,24 @@ extension PlayableContent {
         content.type.isPlaylist && content.service == .subsonic
     }
 
-    /// Streaming playlists whose tracks Clic can remove in place (Spotify, Plex, Deezer, Subsonic).
+    /// Streaming playlists whose tracks Cue can remove in place (Spotify, Plex, Deezer, Subsonic).
     public var isEditableServicePlaylist: Bool {
         isSpotifyPlaylist || isPlexPlaylist || isDeezerPlaylist || isSubsonicPlaylist
     }
 
-    /// Streaming playlists whose tracks Clic can reorder. Excludes Apple Music (no reorder API) and
+    /// Streaming playlists whose tracks Cue can reorder. Excludes Apple Music (no reorder API) and
     /// Deezer (its reorder takes a full track-id list, unsafe for a paginated playlist).
     public var isReorderableServicePlaylist: Bool {
         isSpotifyPlaylist || isPlexPlaylist
     }
 
-    /// Playlists whose tracks Clic can remove (Sonos + the editable streaming services). Pair with a
+    /// Playlists whose tracks Cue can remove (Sonos + the editable streaming services). Pair with a
     /// confirmed-ownership check before exposing editing for the streaming case.
     public var isRemovablePlaylist: Bool {
         isSonosPlaylist || isEditableServicePlaylist
     }
 
-    /// Playlists whose tracks Clic can reorder (Sonos + the reorderable streaming services).
+    /// Playlists whose tracks Cue can reorder (Sonos + the reorderable streaming services).
     public var isReorderablePlaylist: Bool {
         isSonosPlaylist || isReorderableServicePlaylist
     }

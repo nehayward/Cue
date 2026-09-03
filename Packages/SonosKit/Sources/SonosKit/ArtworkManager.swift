@@ -17,10 +17,10 @@ public final class ArtworkManager {
     /// permanent per-session blacklist would keep art broken long after the
     /// host recovers.
     private let failedURLRetryCooldown: TimeInterval = 3600
-    private let retryCacheQueue = DispatchQueue(label: "com.clic.artwork.retrycache", attributes: .concurrent)
+    private let retryCacheQueue = DispatchQueue(label: "com.cue.artwork.retrycache", attributes: .concurrent)
 
     public init() {
-        self.containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.clic")!
+        self.containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.dance.cue")!
     }
 
     public func downScale(coordinatorRoom: String, url: URL?, trackID: String) async {
@@ -127,7 +127,7 @@ public final class ArtworkManager {
     private func setTrackID(_ id: String, for fileURL: URL) throws {
         let data = id.data(using: .utf8)!
         let path = fileURL.path
-        let result = setxattr(path, "com.clic.trackid", (data as NSData).bytes, data.count, 0, 0)
+        let result = setxattr(path, "com.cue.trackid", (data as NSData).bytes, data.count, 0, 0)
         if result != 0 {
             throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: nil)
         }
@@ -135,11 +135,11 @@ public final class ArtworkManager {
     
     private func getTrackID(for fileURL: URL) -> String? {
         let path = fileURL.path
-        let size = getxattr(path, "com.clic.trackid", nil, 0, 0, 0)
+        let size = getxattr(path, "com.cue.trackid", nil, 0, 0, 0)
         guard size >= 0 else { return nil }
 
         var buffer = [UInt8](repeating: 0, count: size)
-        let result = getxattr(path, "com.clic.trackid", &buffer, buffer.count, 0, 0)
+        let result = getxattr(path, "com.cue.trackid", &buffer, buffer.count, 0, 0)
         guard result >= 0 else { return nil }
 
         return String(bytes: buffer, encoding: .utf8)
@@ -191,5 +191,5 @@ public final class ArtworkManager {
 }
 
 private func getFileURL(for name: String) -> URL {
-    FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.clic")!.appendingPathComponent("\(name).jpg")
+    FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.dance.cue")!.appendingPathComponent("\(name).jpg")
 }

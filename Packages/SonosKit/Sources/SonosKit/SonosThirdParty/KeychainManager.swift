@@ -8,7 +8,7 @@ final class KeychainManager {
     private static let decoder = JSONDecoder()
 
     private let service = "com.sonos.mediaservers"
-    private let accessGroup = "group.com.clic"
+    private let accessGroup = "group.dance.cue"
 
     private init() {}
 
@@ -107,7 +107,7 @@ final class KeychainManager {
 // MARK: - Debug/Preview Support
 #if DEBUG
 extension KeychainManager {
-    private static let debugCacheURL = URL(fileURLWithPath: "/tmp/com.clic.debug.mediaservers.json")
+    private static let debugCacheURL = URL(fileURLWithPath: "/tmp/com.cue.debug.mediaservers.json")
 
     private var isPreview: Bool {
         ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"

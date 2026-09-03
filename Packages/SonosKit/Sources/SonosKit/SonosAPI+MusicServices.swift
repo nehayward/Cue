@@ -4,7 +4,7 @@ extension SonosAPI {
     func parse(url: URL) -> MediaContent? {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
 
-        if let scheme = components.scheme, scheme.lowercased() == "clic" {
+        if let scheme = components.scheme, scheme.lowercased() == "cue" {
             let paths = components.path.split(separator: "/").map(String.init)
             guard paths.count > 2, let service = MusicService(service: paths[0]), let type = ContentType(paths[1]) else { return nil }
             let id = paths[2]

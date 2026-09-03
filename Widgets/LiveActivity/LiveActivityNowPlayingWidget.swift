@@ -6,7 +6,7 @@ import SwiftUI
 import SonosKit
 import VibesDS
 
-struct ClicNowPlayingWidgetAttributes: ActivityAttributes {
+struct CueNowPlayingWidgetAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable, Identifiable {
         var id: String { playableContent.id }
         
@@ -28,8 +28,8 @@ struct ClicNowPlayingWidgetAttributes: ActivityAttributes {
 }
 
 extension GroupRoom {
-    var toContentState: ClicNowPlayingWidgetAttributes.ContentState {
-        ClicNowPlayingWidgetAttributes.ContentState(
+    var toContentState: CueNowPlayingWidgetAttributes.ContentState {
+        CueNowPlayingWidgetAttributes.ContentState(
             playableContent: coordinatorRoom.track.toPlayable,
             isPlaying: coordinatorRoom.isPlaying,
             volume: groupVolume,
@@ -42,17 +42,17 @@ extension GroupRoom {
 }
 
 struct LiveActivityNowPlayingWidget: Widget {
-    @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) var isCompact: Bool = false
-    @AppStorage("LiveActivityStep", store: UserDefaults(suiteName: "group.com.clic")) private var liveActivityStep: Int = 5
+    @AppStorage("isCompact", store: UserDefaults(suiteName: "group.dance.cue")) var isCompact: Bool = false
+    @AppStorage("LiveActivityStep", store: UserDefaults(suiteName: "group.dance.cue")) private var liveActivityStep: Int = 5
 
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: ClicNowPlayingWidgetAttributes.self) { context in
+        ActivityConfiguration(for: CueNowPlayingWidgetAttributes.self) { context in
             LiveActivityNowPlaying(context: context)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) {
                     VStack {
-                        Link(destination: URL(string: "clic://device?id=\(context.attributes.room.id)")!) {
+                        Link(destination: URL(string: "cue://device?id=\(context.attributes.room.id)")!) {
                             if let settings = context.state.TVSettings {
                                 VStack(spacing: 4) {
                                     Text(settings.audioInputFormat.description)
@@ -199,7 +199,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                     .padding(.top, 8)
                 }
             } compactLeading: {
-                Image("clic.icon")
+                Image("cue.icon")
                     .symbolRenderingMode(.hierarchical)
                     .resizable()
                     .fontDesign(.rounded)
@@ -243,7 +243,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                     }
                 }
             } minimal: {
-                Image("clic.icon")
+                Image("cue.icon")
                     .symbolRenderingMode(.hierarchical)
                     .resizable()
                     .fontDesign(.rounded)
@@ -265,15 +265,15 @@ extension WidgetConfiguration {
 }
 
 
-extension ClicNowPlayingWidgetAttributes {
-    fileprivate static var preview: ClicNowPlayingWidgetAttributes {
-        ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Kitchen"))
+extension CueNowPlayingWidgetAttributes {
+    fileprivate static var preview: CueNowPlayingWidgetAttributes {
+        CueNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Kitchen"))
     }
 }
 
-extension ClicNowPlayingWidgetAttributes.ContentState {
-    fileprivate static var testing: ClicNowPlayingWidgetAttributes.ContentState {
-        ClicNowPlayingWidgetAttributes.ContentState(
+extension CueNowPlayingWidgetAttributes.ContentState {
+    fileprivate static var testing: CueNowPlayingWidgetAttributes.ContentState {
+        CueNowPlayingWidgetAttributes.ContentState(
             playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa",  thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)), isPlaying: true,
             volume: 39,
             isMuted: false,
@@ -285,9 +285,9 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
     
 }
 
-#Preview("Content View", as: .dynamicIsland(.expanded), using: ClicNowPlayingWidgetAttributes.preview) {
+#Preview("Content View", as: .dynamicIsland(.expanded), using: CueNowPlayingWidgetAttributes.preview) {
     LiveActivityNowPlayingWidget()
 } contentStates: {
-    ClicNowPlayingWidgetAttributes.ContentState.testing
+    CueNowPlayingWidgetAttributes.ContentState.testing
 }
 #endif

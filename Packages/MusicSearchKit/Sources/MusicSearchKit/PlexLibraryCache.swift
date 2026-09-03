@@ -2,7 +2,7 @@ import Foundation
 
 /// The Plex song library on disk. Same store and rules as Subsonic's — see
 /// `LibraryCache`. The identity is the server plus the music section, since
-/// pointing Clic at a different library is a different library.
+/// pointing Cue at a different library is a different library.
 ///
 /// Saved songs carry no stream or artwork URLs: those embed the Plex token,
 /// which rotates, so they are rebuilt with `decorated(_:)` on the way back in

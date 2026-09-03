@@ -65,11 +65,11 @@ Use `ImageRenderer` (iOS 16+) to render a Wrapped-style card view to PNG on devi
 
 | Action | File |
 |--------|------|
-| Create | `Clic/Data/PlayHistoryEntry.swift` |
-| Create | `Clic/ListeningStats/ListeningStatsService.swift` |
-| Create | `Clic/ListeningStats/ListeningStatsScreen.swift` |
-| Create | `Clic/ListeningStats/StatsShareCard.swift` — `ImageRenderer` card view |
-| Modify | `Clic/Services/QueueManager.swift` — add log call in `playSong()` |
-| Modify | `Clic/Routing/RouterDestination.swift` — add `.listeningStats` case |
-| Modify | `Clic/Routing/AppRegistry.swift` — register screen |
-| Modify | `Clic/Search/PlayHistoryFullView.swift` — add toolbar entry point |
+| Create | `Cue/Data/PlayHistoryEntry.swift` |
+| Create | `Cue/ListeningStats/ListeningStatsService.swift` |
+| Create | `Cue/ListeningStats/ListeningStatsScreen.swift` |
+| Create | `Cue/ListeningStats/StatsShareCard.swift` — `ImageRenderer` card view |
+| Modify | `Cue/Services/QueueManager.swift` — add log call in `playSong()` |
+| Modify | `Cue/Routing/RouterDestination.swift` — add `.listeningStats` case |
+| Modify | `Cue/Routing/AppRegistry.swift` — register screen |
+| Modify | `Cue/Search/PlayHistoryFullView.swift` — add toolbar entry point |

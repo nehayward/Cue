@@ -9,7 +9,7 @@ public final class SpotifyAuthorization {
     public static var shared = SpotifyAuthorization()
 
     let clientID = "6569f80e8a74407392c62894a4c10d8c"
-    let redirectURI = "clic://spotifyAuthorize"
+    let redirectURI = "cue://spotifyAuthorize"
     var codeVerifier: String = ""
     var code: String = ""
     var isAuthorized: Bool = false
@@ -65,7 +65,7 @@ public final class SpotifyAuthorization {
         let bodyParameters = [
             "grant_type": "authorization_code",
             "code": code,
-            "redirect_uri": "clic://spotifyAuthorize",
+            "redirect_uri": "cue://spotifyAuthorize",
             "state": state
         ]
         let bodyString = bodyParameters.map { "\($0)=\($1)" }.joined(separator: "&")

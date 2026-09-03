@@ -23,8 +23,8 @@ final class SonosSystemDiscoveryService {
     
     /// The preferred household ID stored in user defaults
     var preferredHousehold: String? {
-        get { UserDefaults.standard.string(forKey: "clic.household") }
-        set { UserDefaults.standard.set(newValue, forKey: "clic.household") }
+        get { UserDefaults.standard.string(forKey: "cue.household") }
+        set { UserDefaults.standard.set(newValue, forKey: "cue.household") }
     }
     
     deinit {

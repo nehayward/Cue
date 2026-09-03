@@ -42,7 +42,7 @@ struct PlayIntent: LiveActivityIntent {
     init() { }
 
     func perform() async throws -> some IntentResult {
-        guard CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false else {
+        guard CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false else {
             throw IntentError.message("Subscribe to Super in App")
         }
         

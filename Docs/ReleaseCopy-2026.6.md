@@ -12,7 +12,7 @@ distills those into promotional copy.
    typo- and punctuation-tolerant.
 2. **Playlist Management everywhere** — Add, create, edit, reorder, delete across
    Apple Music, Spotify, Plex, Deezer — with Undo.
-3. **Multiple Homes** — Clic remembers every Sonos system and reconnects
+3. **Multiple Homes** — Cue remembers every Sonos system and reconnects
    instantly; walk into a friend's house and it just connects.
 4. **Song Previews** — Long-press or swipe a track to hear a clip, progress bar
    fills as it plays, tap to stop.
@@ -23,7 +23,7 @@ distills those into promotional copy.
 
 > **One search for everything.** Search Apple Music, your library, Spotify, and
 > Plex at once — one ranked list, now forgiving of typos. **Your playlists,
-> everywhere.** And **Multiple Homes** so Clic reconnects the moment you're on a
+> everywhere.** And **Multiple Homes** so Cue reconnects the moment you're on a
 > new network.
 
 **Full:**
@@ -37,8 +37,8 @@ distills those into promotional copy.
 > once, create, reorder, remove, all with Undo (⌘Z on Mac).
 >
 > **Multiple Homes**
-> Clic remembers every Sonos system you connect to. Switch homes with a tap, and
-> Clic finds new systems (like a friend's house) automatically.
+> Cue remembers every Sonos system you connect to. Switch homes with a tap, and
+> Cue finds new systems (like a friend's house) automatically.
 >
 > **Song Previews**
 > Long-press an Apple Music or Spotify track — or swipe right on it — to hear a
@@ -64,7 +64,7 @@ Each beat is one continuous screen recording, ~10 seconds.
 **③ Multiple Homes**
 > **Screen:** Preferences ▸ Households → two homes with S1/S2 badges → tap the
 > other home → speakers populate instantly.
-> **VO:** *"Clic remembers every system — walk into a friend's house and it just
+> **VO:** *"Cue remembers every system — walk into a friend's house and it just
 > connects."*
 
 **④ Song Previews**
@@ -72,4 +72,4 @@ Each beat is one continuous screen recording, ~10 seconds.
 > row → tap the row → it stops.
 > **VO:** *"Not sure it's the right track? Preview it before it hits the queue."*
 
-**Close:** *"Clic 2026.6 — every speaker, every service, every home, from one place."*
+**Close:** *"Cue 2026.6 — every speaker, every service, every home, from one place."*

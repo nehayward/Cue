@@ -8,7 +8,7 @@ import VibesDS
 @available(iOS 18.0, *)
 struct LiveActivityNowPlayingFamilyView: View {
     @Environment(\.activityFamily) var activityFamily
-    let context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
+    let context: ActivityViewContext<CueNowPlayingWidgetAttributes>
 
     var body: some View {
         switch activityFamily {
@@ -29,7 +29,7 @@ struct LiveActivityNowPlayingFamilyView: View {
 }
 
 struct LiveActivityNowPlayingSmallView: View {
-    @State var context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
+    @State var context: ActivityViewContext<CueNowPlayingWidgetAttributes>
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     
     var body: some View {

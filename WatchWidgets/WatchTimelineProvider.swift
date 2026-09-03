@@ -19,7 +19,7 @@ struct NowPlayingProvider: AppIntentTimelineProvider {
 
     func recommendations() -> [AppIntentRecommendation<WatchConfigurationIntent>] {
         // Create an array with all the preconfigured widgets to show.
-        [AppIntentRecommendation(intent: WatchConfigurationIntent(), description: "Clic")]
+        [AppIntentRecommendation(intent: WatchConfigurationIntent(), description: "Cue")]
     }
 }
 

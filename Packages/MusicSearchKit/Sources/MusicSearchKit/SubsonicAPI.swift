@@ -8,7 +8,7 @@ import Security
 /// other compatible self-hosted servers).
 ///
 /// Unlike the streaming services, Subsonic has no Sonos-side account: the user
-/// enters a server address and credentials in Clic, and playback streams
+/// enters a server address and credentials in Cue, and playback streams
 /// straight from the server to the speakers over HTTP (`/rest/stream`).
 /// Requests authenticate with the salted-token scheme from API 1.13+:
 /// `t = md5(password + salt)` — the password itself is never sent.
@@ -17,15 +17,15 @@ public final class SubsonicAPI: DirectStreamProvider {
     public static let shared = SubsonicAPI()
 
     public static let apiVersion = "1.16.1"
-    public static let clientName = "Clic"
+    public static let clientName = "Cue"
 
     private enum StorageKey {
-        static let server = "com.clic.subsonic.server"
-        static let username = "com.clic.subsonic.username"
+        static let server = "com.cue.subsonic.server"
+        static let username = "com.cue.subsonic.username"
         /// Legacy pre-keychain locations for the secrets — read once for
         /// migration and cleared; never written to on a working keychain.
-        static let password = "com.clic.subsonic.password"
-        static let salt = "com.clic.subsonic.salt"
+        static let password = "com.cue.subsonic.password"
+        static let salt = "com.cue.subsonic.salt"
     }
 
     private let session: URLSession
@@ -448,7 +448,7 @@ public final class SubsonicAPI: DirectStreamProvider {
     }
 
     private static let secretsCache = OSAllocatedUnfairLock(initialState: SecretsCache())
-    private static let keychainService = "com.clic.subsonic"
+    private static let keychainService = "com.cue.subsonic"
 
     /// The stored password + salt, migrating a pre-keychain UserDefaults
     /// login into the keychain on first touch.

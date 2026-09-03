@@ -17,11 +17,11 @@ public final class PlexAuthenticator: NSObject {
     public var authToken: String? {
         get {
             access(keyPath: \.authToken)
-            return UserDefaults.standard.string(forKey: "com.clic.plexToken")
+            return UserDefaults.standard.string(forKey: "com.cue.plexToken")
         }
         set {
             withMutation(keyPath: \.authToken) {
-                UserDefaults.standard.set(newValue, forKey: "com.clic.plexToken")
+                UserDefaults.standard.set(newValue, forKey: "com.cue.plexToken")
             }
         }
     }
@@ -82,10 +82,10 @@ public final class PlexAuthenticator: NSObject {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("iPhone", forHTTPHeaderField: "X-Plex-Device")
         request.setValue("iOS", forHTTPHeaderField: "X-Plex-Platform")
-        request.setValue("Clic", forHTTPHeaderField: "X-Plex-Product")
+        request.setValue("Cue", forHTTPHeaderField: "X-Plex-Product")
         request.setValue(clientID, forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.setValue("iPhone", forHTTPHeaderField: "X-Plex-Device-Name")
-        request.setValue("https://assets.clic.dance/Icon.png", forHTTPHeaderField: "X-Plex-Device-Icon")
+        request.setValue("https://assets.cue.dance/Icon.png", forHTTPHeaderField: "X-Plex-Device-Icon")
         return request
     }
 
@@ -96,7 +96,7 @@ public final class PlexAuthenticator: NSObject {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("iPhone", forHTTPHeaderField: "X-Plex-Device")
         request.setValue("iOS", forHTTPHeaderField: "X-Plex-Platform")
-        request.setValue("Clic", forHTTPHeaderField: "X-Plex-Product")
+        request.setValue("Cue", forHTTPHeaderField: "X-Plex-Product")
         request.setValue(clientID, forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
         request.setValue("iPhone", forHTTPHeaderField: "X-Plex-Device-Name")

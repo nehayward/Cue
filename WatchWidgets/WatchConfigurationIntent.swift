@@ -3,5 +3,5 @@ import AppIntents
 
 struct WatchConfigurationIntent: WidgetConfigurationIntent {
     static var title: LocalizedStringResource = "Configuration"
-    static var description = IntentDescription("Quickly launch Clic")
+    static var description = IntentDescription("Quickly launch Cue")
 }

@@ -1,7 +1,7 @@
 #include "Version.xcconfig"
 
 MAC_ENABLED = NO
-BUNDLE_ID = dance.aux
-NAME = Clic
-PRODUCT_NAME = Aux
+BUNDLE_ID = dance.cue
+NAME = Cue
+PRODUCT_NAME = Cue
 ICON = AppIcon

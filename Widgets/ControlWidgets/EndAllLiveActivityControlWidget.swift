@@ -1,6 +1,6 @@
 //
 //  RemoteControlWidget 2.swift
-//  Clic
+//  Cue
 //
 //  Created by Nick Hayward on 10/30/25.
 //
@@ -12,7 +12,7 @@ import WidgetKit
 
 @available(iOSApplicationExtension 18.0, *)
 struct EndAllLiveActivityControlWidget: ControlWidget {
-    static let kind: String = "com.clic.EndAllLiveActivities"
+    static let kind: String = "com.cue.EndAllLiveActivities"
 
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(

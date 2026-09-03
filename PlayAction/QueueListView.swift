@@ -100,13 +100,13 @@ struct QueueListView: View {
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
-                Button { dismiss(opening: openInClicURL) } label: {
-                    Label("Open in Clic", systemImage: "play.circle")
+                Button { dismiss(opening: openInCueURL) } label: {
+                    Label("Open in Cue", systemImage: "play.circle")
                 }
                 .disabled(viewModel.url == nil)
 
-                Button { dismiss(opening: viewInClicURL) } label: {
-                    Label("View in Clic", systemImage: "info.circle")
+                Button { dismiss(opening: viewInCueURL) } label: {
+                    Label("View in Cue", systemImage: "info.circle")
                 }
                 .disabled(viewModel.url == nil)
             } label: {
@@ -115,25 +115,25 @@ struct QueueListView: View {
         }
     }
 
-    /// Prefers the resolved content's `clic://play/...` URL when we have it; otherwise
-    /// hands the raw shared URL to the main app via `clic://resolve?url=...` so Clic
+    /// Prefers the resolved content's `cue://play/...` URL when we have it; otherwise
+    /// hands the raw shared URL to the main app via `cue://resolve?url=...` so Cue
     /// (which has full MusicKit access) can do the lookup itself.
     /// Stations route via `resolveURL` even when content is resolved, so the
     /// main app sees the original `/station/<slug>/<id>` URL and can derive
-    /// a title (the `clic://` form drops the slug).
-    private var openInClicURL: URL? {
+    /// a title (the `cue://` form drops the slug).
+    private var openInCueURL: URL? {
         if let content, !content.content.type.isRadio { return content.shareURL }
         return resolveURL
     }
 
-    private var viewInClicURL: URL? {
+    private var viewInCueURL: URL? {
         if let content, !content.content.type.isRadio { return content.viewURL }
         return resolveURL
     }
 
     private var resolveURL: URL? {
         guard let url = viewModel.url else { return nil }
-        var components = URLComponents(string: "clic://resolve")!
+        var components = URLComponents(string: "cue://resolve")!
         components.queryItems = [URLQueryItem(name: "url", value: url.absoluteString)]
         return components.url
     }
@@ -209,7 +209,7 @@ struct QueueListView: View {
     private func contentHeader(_ content: PlayableContent) -> some View {
         VStack {
             Button {
-                dismiss(opening: viewInClicURL)
+                dismiss(opening: viewInCueURL)
             } label: {
                 HStack(alignment: .center, spacing: 14) {
                     VibeContentArtworkView(content: content)
@@ -225,7 +225,7 @@ struct QueueListView: View {
                     Image(systemName: "info.circle")
                         .font(.title3)
                         .foregroundStyle(.secondary)
-                        .accessibilityLabel("View in Clic")
+                        .accessibilityLabel("View in Cue")
                 }
                 .padding(8)
                 .background {
@@ -488,15 +488,15 @@ struct QueueListView: View {
                 Text(viewModel.url == nil ? "No music link found" : "Couldn't load info").font(.title3.bold())
                 Text(viewModel.url == nil
                      ? "Share a song, album, or playlist from Apple Music, Spotify, or Tidal."
-                     : "Open in Clic to look it up there.")
+                     : "Open in Cue to look it up there.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
                 Button {
-                    dismiss(opening: openInClicURL)
+                    dismiss(opening: openInCueURL)
                 } label: {
-                    Text("Open in Clic")
+                    Text("Open in Cue")
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(viewModel.url == nil)
@@ -542,7 +542,7 @@ struct QueueListView: View {
     }
 
     private func dismiss(opening url: URL?) {
-        let target = url ?? URL(string: "clic://")!
+        let target = url ?? URL(string: "cue://")!
         openURL?(target)
         dismiss()
     }
@@ -590,7 +590,7 @@ struct QueueListView: View {
     /// open the room picker; it falls back to that picker on its own when the
     /// local queue turns out not to take the content.
     private var deviceHandoffURL: URL? {
-        guard let base = openInClicURL,
+        guard let base = openInCueURL,
               var components = URLComponents(url: base, resolvingAgainstBaseURL: false) else { return nil }
         components.queryItems = (components.queryItems ?? []) + [
             URLQueryItem(name: "device", value: "1"),
@@ -637,7 +637,7 @@ struct QueueListView: View {
             try await Task.sleep(for: .microseconds(200))
             await sonosService.snapShotGroup(ip: group.ip)
 
-            dismiss(opening: URL(string: "clic://device?id=\(group.coordinatorID)"))
+            dismiss(opening: URL(string: "cue://device?id=\(group.coordinatorID)"))
         }
     }
 

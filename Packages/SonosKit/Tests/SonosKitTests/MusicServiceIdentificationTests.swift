@@ -51,7 +51,7 @@ final class MusicServiceIdentificationTests: XCTestCase {
     /// A queued Subsonic track is a plain HTTP hit on the server's
     /// `/rest/stream` endpoint; the song id is the `id` query parameter.
     func testSubsonicStreamURI() {
-        let uri = "http://192.168.1.20:4533/rest/stream?id=abc123&u=admin&t=26719a1196d2a940705a59634eb18eab&s=c19b2d&v=1.16.1&c=Clic&f=json"
+        let uri = "http://192.168.1.20:4533/rest/stream?id=abc123&u=admin&t=26719a1196d2a940705a59634eb18eab&s=c19b2d&v=1.16.1&c=Cue&f=json"
         let (service, id) = parser.parse(xml: "", trackURI: uri)
         XCTAssertEqual(service, .subsonic)
         XCTAssertEqual(id, "abc123")
@@ -65,7 +65,7 @@ final class MusicServiceIdentificationTests: XCTestCase {
     /// A Subsonic server on a port containing "3" must not trip the Plex
     /// `:3:` heuristic, and an https reverse-proxy address still resolves.
     func testSubsonicBeatsPlexHeuristic() {
-        let (service, id) = parser.parse(xml: "", trackURI: "https://music.example.com/subsonic/rest/stream?id=tr-9&u=me&t=t&s=s&v=1.16.1&c=Clic")
+        let (service, id) = parser.parse(xml: "", trackURI: "https://music.example.com/subsonic/rest/stream?id=tr-9&u=me&t=t&s=s&v=1.16.1&c=Cue")
         XCTAssertEqual(service, .subsonic)
         XCTAssertEqual(id, "tr-9")
     }

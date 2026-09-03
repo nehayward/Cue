@@ -25,14 +25,14 @@ extension NWBrowser.State {
 class SonosStorageIP: ObservableObject {
     /// Legacy `sonos_ip` key. The main app's source of truth is now
     /// `knownHouseholds`, but we still MIRROR the active household's IP here
-    /// (write-only) so external consumers that read this key directly — Clic Mini
+    /// (write-only) so external consumers that read this key directly — Cue Mini
     /// and the Watch app — keep following the active system. Also read once on
     /// first launch to migrate a pre-household install (see getFirstIP).
     @CloudStorage("sonos_ip") var legacyIP = ""
 
     /// CloudStorage persists only primitives and `RawRepresentable` values — it has
     /// no `Codable` overload in any released version — so the collections below are
-    /// held as JSON strings and surfaced through computed properties. Clic Mini
+    /// held as JSON strings and surfaced through computed properties. Cue Mini
     /// reads `sonos_known_households` straight out of the key-value store, so this
     /// encoding is load-bearing for that app too.
     @CloudStorage("sonos_known_households") private var knownHouseholdsJSON = ""
@@ -79,10 +79,10 @@ final class SonosSystemDiscoverService {
     var isCellular: Bool = false
     var preferredHouseHold: String? {
         get {
-            UserDefaults.standard.string(forKey: "clic.household")
+            UserDefaults.standard.string(forKey: "cue.household")
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: "clic.household")
+            UserDefaults.standard.set(newValue, forKey: "cue.household")
         }
     }
 
@@ -124,7 +124,7 @@ final class SonosSystemDiscoverService {
     /// Sets the explicit speaker choice, or clears it back to the automatic pick
     /// when passed an empty string. Only user actions call this, so the reconnect
     /// race can never overwrite it the way it overwrites `lastKnownIP`. Re-mirrors
-    /// so Clic Mini and the Watch follow the choice too.
+    /// so Cue Mini and the Watch follow the choice too.
     @MainActor
     func setPreferredSpeaker(_ ip: String) {
         guard sonosStorageIP.preferredSpeakerIP != ip else { return }
@@ -244,7 +244,7 @@ final class SonosSystemDiscoverService {
         browseBusy = false
     }
 
-    // Publishes `mirroredIP` to the legacy `sonos_ip` key, which Clic Mini and the
+    // Publishes `mirroredIP` to the legacy `sonos_ip` key, which Cue Mini and the
     // Watch read directly. The main app itself only reads it for first-launch
     // migration. No-op when unchanged.
     @MainActor

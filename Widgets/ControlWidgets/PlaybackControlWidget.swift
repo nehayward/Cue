@@ -106,7 +106,7 @@ struct PlaybackControlValueProvider: AppIntentControlValueProvider {
 
 @available(iOS 18.0, *)
 struct PlaybackControlWidget: ControlWidget {
-    static let kind: String = "com.clic.PlaybackControl"
+    static let kind: String = "com.cue.PlaybackControl"
 
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(

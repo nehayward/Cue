@@ -1,4 +1,4 @@
-# Adding a New Music Service to Clic
+# Adding a New Music Service to Cue
 
 This guide walks through every file that needs to change when integrating a new streaming service. Deezer is used as the worked example throughout.
 
@@ -293,7 +293,7 @@ let radioTitle = content.service == .myService ? "Mix \(title)" : title
 
 ## 3. App layer
 
-### 3a. Add browse screen — `Clic/Library/{Service}BrowseScreen.swift`
+### 3a. Add browse screen — `Cue/Library/{Service}BrowseScreen.swift`
 
 Model on `DeezerBrowseScreen.swift` (Plex-style list). Key patterns:
 
@@ -309,7 +309,7 @@ Model on `DeezerBrowseScreen.swift` (Plex-style list). Key patterns:
 - Show a fallback message (not an error) when `!browseService.isAuthenticated`
 - Include `.miniPlayerOnScrollHandler()` and `.contentMargins(.top, EdgeInsets(), for: .scrollContent)`
 
-### 3b. Wire browse screen — `Clic/Library/BrowseScreen.swift`
+### 3b. Wire browse screen — `Cue/Library/BrowseScreen.swift`
 
 ```swift
 case .myService:
@@ -318,13 +318,13 @@ case .myService:
 
 > Already has a `default:` fallback — only add a case if you need a custom browse UI.
 
-### 3c. Register environment — `Clic/Routing/AppRegistry.swift`
+### 3c. Register environment — `Cue/Routing/AppRegistry.swift`
 
 ```swift
 .environment(MyServiceBrowseService.shared)
 ```
 
-### 3d. Add to browse picker — `Clic/Library/MediaSelector.swift`
+### 3d. Add to browse picker — `Cue/Library/MediaSelector.swift`
 
 The `contains` allowlist is **hardcoded** — add your service:
 
@@ -332,7 +332,7 @@ The `contains` allowlist is **hardcoded** — add your service:
 [.apple, .library, .plex, .spotify, .soundcloud, .deezer, .myService].contains(service)
 ```
 
-### 3e. Service preference screen — `Clic/Preferences/ServicePreferenceScreen.swift`
+### 3e. Service preference screen — `Cue/Preferences/ServicePreferenceScreen.swift`
 
 Only needed if the service has a token that must be stored in `GroupStorageKeys` (e.g. Spotify, Apple Music — where you need to select a primary server when multiple accounts exist). For most services whose token comes straight from Sonos discovery, no change is needed here.
 
@@ -380,7 +380,7 @@ case let .some(host) where host.contains("myservice.com"):
 
 Implement `parseMyService` to extract service/type/id from the URL path.
 
-### 3i. Add artist detail loading — `Clic/Search/ArtistDetailView.swift`
+### 3i. Add artist detail loading — `Cue/Search/ArtistDetailView.swift`
 
 1. Add cases to `loadArtistData()` switch
 2. Implement `loadMyServiceArtist()`, `loadMyServiceTrackArtist()`, `loadMyServiceAlbumArtist()`
@@ -394,7 +394,7 @@ Implement `parseMyService` to extract service/type/id from the URL path.
    }
    ```
 
-### 3j. Add media detail loading — `Clic/Search/MediaDetailView.swift`
+### 3j. Add media detail loading — `Cue/Search/MediaDetailView.swift`
 
 Add to `updateTracks()` switch:
 ```swift
@@ -425,7 +425,7 @@ These work without modification for any service that uses `service != .unknown`:
 - `FavoriteMenuButton` — shown only for services you explicitly list
 - `SearchScreen` — falls through to `ServiceSearchView` via `default:`
 - `BrowseScreen` — falls through to `EmptyView` via `default:` if no browse screen
-- `SonosAPI+MusicServices.parse(url:)` — `clic://` deep links auto-work via `MusicService(service:)`
+- `SonosAPI+MusicServices.parse(url:)` — `cue://` deep links auto-work via `MusicService(service:)`
 
 ---
 
@@ -469,7 +469,7 @@ App
 ## Adding a direct-HTTP (self-hosted) service
 
 Subsonic is the worked example for services with **no Sonos-side account** —
-the user enters a server address + credentials in Clic, and the speakers
+the user enters a server address + credentials in Cue, and the speakers
 stream each track straight from the server over plain HTTP. Jellyfin/Emby
 would follow this same path. The playback mechanism is already generic; a new
 service only supplies the pieces below.
@@ -525,7 +525,7 @@ SonosKit
 App
 [ ] Management sheet (server/username/password + ping test — see
     SubsonicManagementView) + SheetDestination case + AppRegistry case
-[ ] MediaSearchService+Sonos.swift — isConfiguredInClic and managementSheet
+[ ] MediaSearchService+Sonos.swift — isConfiguredInCue and managementSheet
     arms (these drive the Services rows, not-connected copy, and the
     failed-to-queue alert's tap action)
 [ ] Browse screen + service surfaces per the standard checklist above

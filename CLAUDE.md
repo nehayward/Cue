@@ -4,16 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Clic is a multi-platform SwiftUI music controller app for Sonos speakers that integrates with Apple Music, Spotify, Plex, Tidal, TuneIn, and other music services. It provides native apps for iOS, iPadOS, macOS, tvOS, watchOS, and includes widgets, live activities, and a menu bar app (Clic Mini).
+Cue is a multi-platform SwiftUI music controller app for Sonos speakers that integrates with Apple Music, Spotify, Plex, Tidal, TuneIn, and other music services. It provides native apps for iOS, iPadOS, macOS, tvOS, watchOS, and includes widgets, live activities, and a menu bar app (Cue Mini).
 
 ## Build & Development Commands
 
 This is an Xcode project with multiple targets and schemes:
 
 ### Build Commands
-- **Open in Xcode**: `open Clic.xcodeproj`
+- **Open in Xcode**: `open Cue.xcodeproj`
 - **Build main app**: Use Xcode's build system (⌘+B) or select specific schemes
-- **Available schemes**: Clic, Clic (Mac), Clic (TV), Clic (Watch), Clic Mini, Clic [Free], Vision [Free], QueueAction, Widgets
+- **Available schemes**: Cue, Cue (Mac), Cue (TV), Cue (Watch), Cue Mini, Cue [Free], Vision [Free], QueueAction, Widgets
 
 ### Testing
 - **Run tests**: Use Xcode's test navigator or ⌘+U
@@ -55,7 +55,7 @@ The app is built around several Swift packages in `/Packages`:
    - Reusable SwiftUI components and styles
 
 ### Main App Structure
-- **ClicApp.swift** - Main app entry point with shared services
+- **CueApp.swift** - Main app entry point with shared services
 - **Router.swift** - Navigation and routing system
 - **Services/** - Core app services (ImageCache, Queue, PlayHistory)
 - **Search/** - Search functionality across music services
@@ -63,7 +63,7 @@ The app is built around several Swift packages in `/Packages`:
 - **Routing/** - App navigation and destination management
 
 ### Platform-Specific Apps
-- **ClicMini/** - macOS menu bar app for quick controls
+- **CueMini/** - macOS menu bar app for quick controls
 - **Watch/** - watchOS app with simplified controls
 - **TV/** - tvOS app optimized for Apple TV
 - **Widgets/** - iOS/macOS widgets and live activities

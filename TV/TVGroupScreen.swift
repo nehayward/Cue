@@ -6,7 +6,7 @@ import VibesDS
 
 struct TVGroupScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
+    @CloudStorage("com.cue.scenes") var scenes: [SonosScene] = []
 //    var scenes: [SonosScene] = [SonosScene(id: UUID(), name: "Main", rooms: [SceneRoom(id: "", ip: "", name: "", volume: 0)]), SonosScene(id: UUID(), name: "Test", rooms: [SceneRoom(id: "", ip: "", name: "", volume: 0)])]
 
     @State var group: GroupRoom?

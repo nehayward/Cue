@@ -311,7 +311,7 @@ final class DockMenuRenderer: NSObject, DockMenuRenderable, @unchecked Sendable 
         guard let command = DockCommand(rawValue: sender.tag) else { return }
         // "Open Speaker" deliberately brings the app forward; transport and
         // toggle commands deliberately don't — controlling playback from the
-        // dock shouldn't yank Clic (and its menu bar) into the foreground.
+        // dock shouldn't yank Cue (and its menu bar) into the foreground.
         if command == .openSpeaker {
             NSApp.activate(ignoringOtherApps: true)
         }

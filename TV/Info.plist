@@ -8,10 +8,10 @@
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>CFBundleURLName</key>
-			<string>com.nick.clic</string>
+			<string>com.nick.cue</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>clic</string>
+				<string>cue</string>
 			</array>
 		</dict>
 	</array>
@@ -46,7 +46,7 @@
 			<key>UTTypeIconFiles</key>
 			<array/>
 			<key>UTTypeIdentifier</key>
-			<string>com.clic.playableContent</string>
+			<string>com.cue.playableContent</string>
 			<key>UTTypeTagSpecification</key>
 			<dict/>
 		</dict>

@@ -52,7 +52,7 @@ public final class LibraryBrowseService {
     /// How many tracks the library holds, once the copy is available.
     public private(set) var songCount: Int?
 
-    /// One household's library. Pointing Clic at another system is another
+    /// One household's library. Pointing Cue at another system is another
     /// library, and its copy shouldn't be read back for this one.
     private var cacheOwner: String {
         KeychainTokenRefreshHandler.shared.householdId ?? ""

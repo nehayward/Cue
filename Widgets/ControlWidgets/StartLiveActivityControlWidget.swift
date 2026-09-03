@@ -4,7 +4,7 @@ import WidgetKit
 
 @available(iOSApplicationExtension 18.0, *)
 struct StartLiveActivityControlWidget: ControlWidget {
-    static let kind: String = "com.clic.StartLiveActivity"
+    static let kind: String = "com.cue.StartLiveActivity"
 
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(

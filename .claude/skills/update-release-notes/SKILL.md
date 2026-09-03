@@ -111,7 +111,7 @@ developers.
 - Sentence case, one line each, no trailing period.
 
 **Good — New Features:**
-- `Mac Dock Menu: Right-click the Clic icon in the Dock for full playback control without opening the app`
+- `Mac Dock Menu: Right-click the Cue icon in the Dock for full playback control without opening the app`
 - `Sleep Timer: New "End of Song" option stops playback when the current track finishes`
 
 **Good — Bug Fixes & Improvements:**

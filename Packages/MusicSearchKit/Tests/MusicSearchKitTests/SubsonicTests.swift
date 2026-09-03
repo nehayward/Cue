@@ -6,11 +6,11 @@ final class SubsonicTests: XCTestCase {
     private var savedDefaults: [String: String?] = [:]
     private var savedSecrets: (password: String, salt: String)?
     private let keys = [
-        "com.clic.subsonic.server",
-        "com.clic.subsonic.username",
+        "com.cue.subsonic.server",
+        "com.cue.subsonic.username",
         // Legacy secret locations — only touched by the migration test.
-        "com.clic.subsonic.password",
-        "com.clic.subsonic.salt"
+        "com.cue.subsonic.password",
+        "com.cue.subsonic.salt"
     ]
 
     override func setUp() {
@@ -37,8 +37,8 @@ final class SubsonicTests: XCTestCase {
                                   username: String = "admin",
                                   password: String = "sesame",
                                   salt: String = "c19b2d") {
-        UserDefaults.standard.set(server, forKey: "com.clic.subsonic.server")
-        UserDefaults.standard.set(username, forKey: "com.clic.subsonic.username")
+        UserDefaults.standard.set(server, forKey: "com.cue.subsonic.server")
+        UserDefaults.standard.set(username, forKey: "com.cue.subsonic.username")
         SubsonicAPI.setSecrets(password: password, salt: salt)
     }
 
@@ -69,7 +69,7 @@ final class SubsonicTests: XCTestCase {
         XCTAssertEqual(items["s"], "c19b2d")
         XCTAssertEqual(items["t"], "26719a1196d2a940705a59634eb18eab")
         XCTAssertEqual(items["v"], SubsonicAPI.apiVersion)
-        XCTAssertEqual(items["c"], "Clic")
+        XCTAssertEqual(items["c"], "Cue")
     }
 
     /// Sonos classifies plain-HTTP queue items by the extension it finds in
@@ -134,8 +134,8 @@ final class SubsonicTests: XCTestCase {
     /// into the secret store) on first read.
     func testLegacyDefaultsSecretsMigrate() {
         SubsonicAPI.setSecrets(password: nil, salt: nil)
-        UserDefaults.standard.set("sesame", forKey: "com.clic.subsonic.password")
-        UserDefaults.standard.set("c19b2d", forKey: "com.clic.subsonic.salt")
+        UserDefaults.standard.set("sesame", forKey: "com.cue.subsonic.password")
+        UserDefaults.standard.set("c19b2d", forKey: "com.cue.subsonic.salt")
         // Cold-cache read, as on a fresh launch after updating.
         SubsonicAPI.resetSecretsCache()
 

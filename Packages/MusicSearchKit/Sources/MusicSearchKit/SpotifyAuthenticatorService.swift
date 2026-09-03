@@ -6,7 +6,7 @@ public final class SpotifyAuthenticatorService: NSObject {
     private var session: ASWebAuthenticationSession?
 
     public static var shared = PlexAuthenticator()
-    private let key = "com.clic.spotifyToken"
+    private let key = "com.cue.spotifyToken"
 
     // TODO: Use Keychain
     public var authToken: String? {

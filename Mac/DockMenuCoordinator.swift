@@ -4,18 +4,18 @@ import MusicSearchKit
 import SonosKit
 import UIKit
 
-/// Glue between Clic's services and the MacGlue dock menu. Owns:
+/// Glue between Cue's services and the MacGlue dock menu. Owns:
 ///   • dock menu state pushes  (refresh on selection / playback changes)
 ///   • dock command handling   (play/pause, mute, repeat, favorite, etc.)
 ///   • switch-speaker routing  (updates `Router.selectedID`)
 ///
-/// One instance, installed once from ClicApp's `.onAppear`. Subsequent
+/// One instance, installed once from CueApp's `.onAppear`. Subsequent
 /// `refresh()` calls are cheap.
 @MainActor
 final class DockMenuCoordinator {
     static let shared = DockMenuCoordinator()
 
-    /// Composite identifier for `.task(id:)` in ClicApp. Reading any of these
+    /// Composite identifier for `.task(id:)` in CueApp. Reading any of these
     /// fields triggers SwiftUI observation, so a change to selection,
     /// playback state, track, or the available speaker list all re-fire the
     /// refresh task — and the previous in-flight refresh is auto-cancelled.
@@ -34,7 +34,7 @@ final class DockMenuCoordinator {
 
     private init() {}
 
-    /// Wire the coordinator to the bundle's dock menu surface and Clic's
+    /// Wire the coordinator to the bundle's dock menu surface and Cue's
     /// services. Call once after MacGlue is loaded.
     func install(bridge: MacBridgeable, router: Router, sonosService: SonosService) {
         // `.onAppear` can fire more than once (window close/reopen, scene
@@ -79,7 +79,7 @@ final class DockMenuCoordinator {
     /// is cancelled for performance, so the cached model freezes. The dock
     /// menu is built synchronously from that cache — `applicationDockMenu`
     /// can't await — so we keep the cache warm with a slow poll of the
-    /// selected group. Started / stopped by ClicApp on scene-phase changes.
+    /// selected group. Started / stopped by CueApp on scene-phase changes.
     func startBackgroundRefresh() {
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in

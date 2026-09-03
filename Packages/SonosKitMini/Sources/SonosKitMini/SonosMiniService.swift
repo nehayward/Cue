@@ -51,7 +51,7 @@ public final class SonosMiniService {
     @ObservationIgnored public var onTrackChanged: ((SonosDevice, SonosTrack) -> Void)?
     @ObservationIgnored private lazy var api = SonosAPI()
     /// Address published by the main app (or entered by hand on the Watch).
-    /// Clic Mini has never written this key, only read it.
+    /// Cue Mini has never written this key, only read it.
     @ObservationIgnored private var storedIP: String {
         NSUbiquitousKeyValueStore.default.string(forKey: "sonos_ip")
             ?? UserDefaults.standard.string(forKey: "sonos_ip")
@@ -1339,8 +1339,8 @@ public final class SonosMiniService {
 
     /// The address to talk to, discovering one if nothing usable is stored.
     ///
-    /// Clic Mini only ever consumed `sonos_ip`, which the main app and the Watch
-    /// publish through iCloud. On a Mac where Clic itself has never run, or before
+    /// Cue Mini only ever consumed `sonos_ip`, which the main app and the Watch
+    /// publish through iCloud. On a Mac where Cue itself has never run, or before
     /// iCloud has synced, that left every request aimed at "" with no route to
     /// recovery even though a full discovery service was already available here.
     private func resolveIP() async -> String {
@@ -1459,7 +1459,7 @@ public final class SonosMiniService {
     }
 
     public func getHouseID(for ip: String) async -> String? {
-        // Identity form: this is stored as `clic.household` and compared, not
+        // Identity form: this is stored as `cue.household` and compared, not
         // sent to the WebSocket.
         return await api.householdIdentity(for: ip)
     }

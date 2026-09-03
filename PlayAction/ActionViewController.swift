@@ -5,7 +5,7 @@ import MobileCoreServices
 import UniformTypeIdentifiers
 import OSLog
 
-private let log = Logger(subsystem: "com.nick.Clic.QueueAction", category: "share")
+private let log = Logger(subsystem: "dance.cue.QueueAction", category: "share")
 
 final class ActionViewController: UIViewController {
     private var viewModel = QueueListView.ViewModel()

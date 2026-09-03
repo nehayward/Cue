@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Prepare release media for upload to resource.clic.dance/releases/<version>/.
+# Prepare release media for upload to resource.cue.dance/releases/<version>/.
 #
 # Point at a folder containing raw screen recordings and screenshots — one per
-# feature, named with the feature slug used in clic-for-sonos/src/releases.js
+# feature, named with the feature slug used in cue-for-sonos/src/releases.js
 # (e.g. share-sheet.mp4, dock-menu.mp4, end-of-song.jpg). The script normalizes
 # everything to 720x1280 H.264 (no audio, faststart) + JPG and drops the result
 # in a `prepared/` subfolder ready to upload.
@@ -210,4 +210,4 @@ echo "==> Done. ${video_count} video(s), ${image_count} image(s)."
 echo "    Upload contents of:"
 echo "        $OUT_DIR/"
 echo "    to:"
-echo "        https://resource.clic.dance/releases/$VERSION/"
+echo "        https://resource.cue.dance/releases/$VERSION/"

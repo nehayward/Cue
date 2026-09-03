@@ -82,7 +82,7 @@ extension QueuePosition {
 }
 
 public extension QueuePosition {
-    /// Stable token for `clic://` links. The share extension picks the position
+    /// Stable token for `cue://` links. The share extension picks the position
     /// and the main app applies it, so the mapping lives here where both sides
     /// share it — `id`/`shortTitle` are display strings and would silently
     /// break the link if they were ever reworded.

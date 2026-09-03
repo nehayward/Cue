@@ -6,7 +6,7 @@ import SwiftUI
 import VibesDS
 
 struct LiveActivityNowPlaying: View {
-    var context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
+    var context: ActivityViewContext<CueNowPlayingWidgetAttributes>
     var body: some View {
         if #available(iOS 18.0, *) {
             LiveActivityNowPlayingFamilyView(context: context)
@@ -17,15 +17,15 @@ struct LiveActivityNowPlaying: View {
 }
 
 
-extension ClicNowPlayingWidgetAttributes {
-    fileprivate static var preview: ClicNowPlayingWidgetAttributes {
-        ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Gym"))
+extension CueNowPlayingWidgetAttributes {
+    fileprivate static var preview: CueNowPlayingWidgetAttributes {
+        CueNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Gym"))
     }
 }
 
-extension ClicNowPlayingWidgetAttributes.ContentState {
-    fileprivate static var testing: ClicNowPlayingWidgetAttributes.ContentState {
-        ClicNowPlayingWidgetAttributes.ContentState(
+extension CueNowPlayingWidgetAttributes.ContentState {
+    fileprivate static var testing: CueNowPlayingWidgetAttributes.ContentState {
+        CueNowPlayingWidgetAttributes.ContentState(
             playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)), isPlaying: true,
             volume: 39,
             isMuted: false,
@@ -34,8 +34,8 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
         )
     }
 
-    fileprivate static var testing2: ClicNowPlayingWidgetAttributes.ContentState {
-        ClicNowPlayingWidgetAttributes.ContentState(
+    fileprivate static var testing2: CueNowPlayingWidgetAttributes.ContentState {
+        CueNowPlayingWidgetAttributes.ContentState(
             playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa",  thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)), isPlaying: true,
             volume: 50,
             isMuted: false,
@@ -44,8 +44,8 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
         )
     }
 
-    fileprivate static var theater: ClicNowPlayingWidgetAttributes.ContentState {
-        ClicNowPlayingWidgetAttributes.ContentState(
+    fileprivate static var theater: CueNowPlayingWidgetAttributes.ContentState {
+        CueNowPlayingWidgetAttributes.ContentState(
             playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa",  thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)), isPlaying: true,
             volume: 50,
             isMuted: false,
@@ -56,22 +56,22 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
     }
 }
 
-#Preview("Lock Screen", as: .content, using: ClicNowPlayingWidgetAttributes.preview) {
+#Preview("Lock Screen", as: .content, using: CueNowPlayingWidgetAttributes.preview) {
     LiveActivityNowPlayingWidget()
 } contentStates: {
-    ClicNowPlayingWidgetAttributes.ContentState.testing
-    ClicNowPlayingWidgetAttributes.ContentState.theater
+    CueNowPlayingWidgetAttributes.ContentState.testing
+    CueNowPlayingWidgetAttributes.ContentState.theater
 }
 
-#Preview("Lock Screen 2", as: .content, using: ClicNowPlayingWidgetAttributes.preview) {
+#Preview("Lock Screen 2", as: .content, using: CueNowPlayingWidgetAttributes.preview) {
     LiveActivityNowPlayingWidget()
 } contentStates: {
-    ClicNowPlayingWidgetAttributes.ContentState.testing2
+    CueNowPlayingWidgetAttributes.ContentState.testing2
 }
 
-#Preview("Lock Screen Compact", as: .content, using: ClicNowPlayingWidgetAttributes.preview) {
+#Preview("Lock Screen Compact", as: .content, using: CueNowPlayingWidgetAttributes.preview) {
     LiveActivityNowPlayingWidget()
 } contentStates: {
-    ClicNowPlayingWidgetAttributes.ContentState.testing2
+    CueNowPlayingWidgetAttributes.ContentState.testing2
 }
 #endif

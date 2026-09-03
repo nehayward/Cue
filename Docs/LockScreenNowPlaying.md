@@ -1,6 +1,6 @@
 # Lock Screen Now Playing (iPhone)
 
-How Clic — a controller app that plays no audio of its own — gets onto the
+How Cue — a controller app that plays no audio of its own — gets onto the
 system Now Playing card, and how that card stays current without polling.
 
 ```
@@ -29,7 +29,7 @@ surface instead.
 
 `NowPlayingSessionService` works around it the way every third-party Sonos
 controller does: activate `.playback` and loop a silent buffer, so the system
-treats Clic as the playing app while the audible output comes from the speakers.
+treats Cue as the playing app while the audible output comes from the speakers.
 
 Non-negotiables learned the hard way:
 
@@ -38,7 +38,7 @@ Non-negotiables learned the hard way:
   *does* stop whatever the device itself is playing.
 - **Which is why it isn't taken until the speaker is playing.** This used to be
   claimed for any mirrorable target, including a paused speaker the user merely
-  had selected — so opening Clic killed a podcast to show a card for something
+  had selected — so opening Cue killed a podcast to show a card for something
   that wasn't playing. `run()` now calls `beginSessionIfNeeded()` only when the
   target is playing (or the session is already held, so a pause doesn't hand the
   audio back and forth; releasing is the idle window's job). The volume bridge
@@ -77,7 +77,7 @@ the claim, and every recovery path above is about getting the claim back.
 
 ## Gating
 
-Clic Super. The check lives in `isEnabled` — preference **and** active
+Cue Super. The check lives in `isEnabled` — preference **and** active
 subscription — not only on the toggle, because this is a feature that keeps
 running with the app closed: a subscription that lapses mid-session has to tear
 it down, and a toggle can't do that. `trackCardState` reads `isEnabled`, so the
@@ -99,7 +99,7 @@ label's plain string: an SF Symbol interpolated into the segment's `Text` is
 dropped on the way, and there is no way to grey one segment — `.disabled` is
 all-or-nothing. That looked like a reason to leave the picker enabled and gate
 the write instead. It wasn't: **every** option here needs Super, because
-`ClicApp` guards `createActivity` on the subscription too, so a non-subscriber
+`CueApp` guards `createActivity` on the subscription too, so a non-subscriber
 gets no Live Activity either. There was never anything to leave enabled.
 
 The write path keeps its own guard anyway — selecting Now Playing without a
@@ -120,7 +120,7 @@ Two consequences to hold together:
 - **It doesn't leak to non-subscribers.** `isEnabled` is preference **and**
   subscription, so nothing takes over their audio and `reconcileLiveActivities()`
   (which reads the same thing) doesn't fire. Not that they'd notice the second
-  part — `ClicApp` guards `createActivity` on the subscription, so they have no
+  part — `CueApp` guards `createActivity` on the subscription, so they have no
   Live Activities to suspend.
 - **The picker shows the stored preference, greyed.** No subscription check in
   `lockScreenSurface`: with the whole row disabled there's no half-usable state
@@ -206,7 +206,7 @@ Two ordering rules in `lockScreenSurfaceBinding`:
 
 ## Ownership: not the view layer
 
-`activate()` is called once from `ClicApp.onAppear`. From there the service
+`activate()` is called once from `CueApp.onAppear`. From there the service
 watches the model itself: one `for await` loop over a `changes` stream, and
 everything that means "re-evaluate" yields into it — an observed model write, the
 preference (`didChangeNotification`, so the picker needs no wiring of its own), a
@@ -310,7 +310,7 @@ Anything that writes shared navigation state from here has the same shape, since
 is a mirror. It only reads.**
 
 If routing on launch is wanted, the app already has an opt-in for it —
-`AppStorageKeys.speedLaunchNowPlaying` routes `clic://playing` on scene
+`AppStorageKeys.speedLaunchNowPlaying` routes `cue://playing` on scene
 activation. That fires once per activation rather than on every selection change,
 so it can't fight in-app navigation.
 
@@ -332,7 +332,7 @@ edge-triggered.
 
 They're cancelled by `stopMonitoringOffScreen`, on **`.inactive` as well as
 `.background`** — and that distinction is the whole point. Locking the phone with
-Clic frontmost, holding this feature's audio session, does not reliably reach
+Cue frontmost, holding this feature's audio session, does not reliably reach
 `.background`: the scene often parks at `.inactive` and stays there. Keyed on
 `.background` alone, as it originally was, both loops kept polling with the
 screen off for as long as the phone stayed locked, and the table above was simply
@@ -524,7 +524,7 @@ Everything below this line exists because of one beta report, and it's the most
 important thing on this page. Paraphrased:
 
 > I came home and music was blasting from my house. My neighbour said it had
-> been on all day. Clic showed my Sonos Five pair and an Era 100 playing at
+> been on all day. Cue showed my Sonos Five pair and an Era 100 playing at
 > 100% volume. I have an automation when my phone connects to my car — it
 > increases Bluetooth volume to 100% and plays music. Toggling the iPhone volume
 > controls setting on and off didn't have any effect.
@@ -538,7 +538,7 @@ That is exactly what happened, and both halves of it were this feature:
   "car stereo at 100%" became "Sonos Fives at 100%", in one step, from an empty
   house.
 - **The play.** Holding the session means holding `MPRemoteCommandCenter`, so
-  Clic was the app the automation's play command went to. A Shortcut aimed at a
+  Cue was the app the automation's play command went to. A Shortcut aimed at a
   car stereo started the speakers in the living room.
 
 Three rules follow, and they're deliberately redundant — each one alone would
@@ -595,7 +595,7 @@ this leaves someone stuck in. It reads the *preference* rather than
 `NowPlayingSessionService.isActive`, so the buttons still work on the player
 screen when nothing is playing yet.
 
-The cost is real and was chosen: in-app hardware volume buttons are now Clic
+The cost is real and was chosen: in-app hardware volume buttons are now Cue
 Super, and only while Now Playing is the selected surface. If they should be free
 again, that's a second key with its own row — not a second meaning for this one.
 
@@ -606,7 +606,7 @@ wireless headphones. On such a route two things are true that aren't true on the
 phone's own speaker: the phone's volume is *audible and someone else's*, and the
 device on the other end can issue transport commands (a head unit's play button,
 an inline remote, an AirPods stem, an automation that fires on connect). None of
-that is Clic's to receive when the user has plainly gone somewhere else with the
+that is Cue's to receive when the user has plainly gone somewhere else with the
 phone, so `canMirror` is false and `evaluate()` calls `stop()`.
 
 Details that matter:
@@ -753,7 +753,7 @@ swallowed.
 
 ## Shape
 
-Everything app-side lives in **`Clic/Services/NowPlaying/`** — the whole feature
+Everything app-side lives in **`Cue/Services/NowPlaying/`** — the whole feature
 is that folder plus four lines elsewhere. The project uses Xcode 16 synchronized
 folders, so the directory *is* the group; no `project.pbxproj` entry to keep in
 step.
@@ -925,8 +925,8 @@ card's own `resolve` input.
 
 After the dependency inversions, no pre-existing type names it. To remove:
 
-1. Delete `Clic/Services/NowPlaying/` and `Docs/LockScreenNowPlaying.md`.
-2. Delete the `activate()` call in `ClicApp.onAppear`, the `lockScreenNowPlaying`
+1. Delete `Cue/Services/NowPlaying/` and `Docs/LockScreenNowPlaying.md`.
+2. Delete the `activate()` call in `CueApp.onAppear`, the `lockScreenNowPlaying`
    key, and `UIBackgroundModes` from `Info.plist`.
 3. In `PreferenceScreen`, drop the `nowPlaying` case from `LockScreenSurface`
    along with `lockScreenNowPlaying` — the picker becomes `Live Activity | Off`
@@ -944,7 +944,7 @@ foreground behaviour: the whole `SonosService+LiveListening` registry, the
 socket event handlers in `SonosService+SonosEventHandler`, `SuperBadge`,
 `PlaybackPositionAnchor` (a general utility any media surface can use — the
 Live Activity has the same interpolation problem), and
-`Clic/Services/AudioOutputRoute.swift` — `HardwareVolumeService` uses it to keep
+`Cue/Services/AudioOutputRoute.swift` — `HardwareVolumeService` uses it to keep
 the player screen's bridge off a car stereo too, which has nothing to do with
 the card.
 
