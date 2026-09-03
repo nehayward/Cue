@@ -19,22 +19,9 @@ struct LibraryBrowseScreen: View {
 
     @State private var router = Router.browse
 
-    /// The line under the Songs title: how far the one-time index sync has
-    /// got while it runs, and how many tracks the library holds once it is
-    /// there.
+    /// The line under the Songs title, shared with the Songs tab.
     private var songSyncStatus: () -> String? {
-        {
-            guard browseService.isSyncingSongs else {
-                guard let count = browseService.songCount, count > 0 else { return nil }
-                return count == 1 ? "1 song" : "\(count.formatted()) songs"
-            }
-
-            let synced = browseService.syncedSongCount
-            guard let total = browseService.librarySongCount, total > 0 else {
-                return synced == 0 ? "Loading library…" : "\(synced.formatted()) songs"
-            }
-            return "\(min(synced, total).formatted()) of \(total.formatted())"
-        }
+        LocalLibraryLists.songSyncStatus(browseService: browseService)
     }
 
     var body: some View {

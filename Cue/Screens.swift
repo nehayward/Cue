@@ -36,22 +36,23 @@ enum Screens {
         
     }
 
-    /// A provider's own tab — its library's front page.
+    /// A provider's own tab — its library's front page, listing the
+    /// collections switched on for it.
     @ViewBuilder
-    static func providerRoot(_ service: MediaSearchService) -> some View {
+    static func providerRoot(_ provider: TabProvider) -> some View {
         let selectedGroupService = SelectedGroupService(group: nil)
 
-        ProviderRootTabScreen(service: service)
+        ProviderTabScreen(service: provider.service, collections: provider.collections)
             .tint(Color("Accent"))
             .environment(selectedGroupService)
     }
 
     /// One collection of a provider — a tab in its sidebar section.
     @ViewBuilder
-    static func providerCollection(_ service: MediaSearchService, _ collection: ProviderCollection) -> some View {
+    static func providerCollection(_ provider: TabProvider, _ collection: ProviderCollection) -> some View {
         let selectedGroupService = SelectedGroupService(group: nil)
 
-        ProviderCollectionTabScreen(service: service, collection: collection)
+        ProviderTabScreen(service: provider.service, collections: provider.collections, collection: collection)
             .tint(Color("Accent"))
             .environment(selectedGroupService)
     }

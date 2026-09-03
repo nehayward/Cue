@@ -173,21 +173,57 @@ struct CueApp: App {
     /// Added providers that are switched on in Services. One turned off
     /// there loses its tabs but keeps its place, so it comes back where it
     /// was.
-    private var visibleTabProviders: [MediaSearchService] {
+    private var visibleTabProviders: [TabProvider] {
         tabProviders.visibleProviders(enabledIn: coreFeatures)
     }
 
+    /// The sidebar header's plus: the providers switched on in Services
+    /// that aren't tabs yet, and the full arrangement behind them.
+    private var addProviderMenu: some View {
+        let available = tabProviders.availableProviders(enabledIn: coreFeatures)
+
+        return Menu {
+            ForEach(available, id: \.self) { service in
+                Button {
+                    tabProviders.add(service)
+                } label: {
+                    // Text then mark, as the Browse tab's provider menu
+                    // lays its rows out.
+                    HStack {
+                        Text("Add \(service.title)")
+                        service.image
+                    }
+                }
+            }
+            if !available.isEmpty {
+                Divider()
+            }
+            Button {
+                tabSheet = .customizeTabs
+            } label: {
+                Label("Customize Tabs…", systemImage: "slider.horizontal.3")
+            }
+        } label: {
+            Label("Add Provider", systemImage: "plus")
+                .labelStyle(.iconOnly)
+        }
+        .menuIndicator(.hidden)
+        .accessibilityLabel("Add Provider")
+    }
+
     /// A provider's tabs: one of its own for the tab bar, and a sidebar
-    /// section holding a tab per collection. The two never show together —
-    /// the root tab is hidden from the sidebar, the collection tabs from the
-    /// tab bar — so iPhone gets a single "Plex" tab where iPad and Mac get a
-    /// Plex section with Artists, Albums, Songs and Playlists. Every tab
-    /// carries a `customizationID` so the sidebar's edit mode can hide and
-    /// reorder them; Search and Browse carry none and stay put.
+    /// section holding a tab per switched-on collection. The two never show
+    /// together — the root tab is hidden from the sidebar, the collection
+    /// tabs from the tab bar — so iPhone gets a single "Plex" tab listing
+    /// the same collections that iPad and Mac show as a Plex section. Every
+    /// tab carries a `customizationID` so the sidebar's edit mode can hide
+    /// and reorder them; Search and Browse carry none and stay put.
     @TabContentBuilder<AppTab>
-    private func providerTabs(for service: MediaSearchService) -> some TabContent<AppTab> {
+    private func providerTabs(for provider: TabProvider) -> some TabContent<AppTab> {
+        let service = provider.service
+
         Tab(value: AppTab.provider(service)) {
-            Screens.providerRoot(service)
+            Screens.providerRoot(provider)
         } label: {
             // A bare `Image`: the tab bar pulls the image out of the label
             // and draws nothing for a sized or tinted view around it.
@@ -201,9 +237,9 @@ struct CueApp: App {
         .defaultVisibility(.hidden, for: .sidebar)
 
         TabSection {
-            ForEach(service.tabCollections, id: \.self) { collection in
+            ForEach(provider.collections, id: \.self) { collection in
                 Tab(collection.title, systemImage: collection.systemImage, value: AppTab.providerCollection(service, collection)) {
-                    Screens.providerCollection(service, collection)
+                    Screens.providerCollection(provider, collection)
                 }
                 .customizationID(service.tabCustomizationID(for: collection))
                 .defaultVisibility(.hidden, for: .tabBar)
@@ -212,6 +248,11 @@ struct CueApp: App {
             Text(service.title)
         }
         .sectionActions {
+            Button {
+                tabSheet = .customizeTabs
+            } label: {
+                Label("Customize Tabs…", systemImage: "slider.horizontal.3")
+            }
             if let sheet = service.managementSheet {
                 Button {
                     tabSheet = sheet
@@ -248,15 +289,16 @@ struct CueApp: App {
                 // One tab per added provider, plus its sidebar section. A
                 // provider the user turned off in Services drops out here
                 // without losing its place in the list.
-                ForEach(visibleTabProviders, id: \.self) { service in
-                    providerTabs(for: service)
+                ForEach(visibleTabProviders) { provider in
+                    providerTabs(for: provider)
                 }
             }
             .tabViewCustomization($tabCustomization)
             .onChange(of: visibleTabProviders) { _, providers in
                 // A provider that left the tab view takes its selection with
                 // it; a `TabView` whose selection names no tab shows nothing.
-                if let provider = router.selectedTab.provider, !providers.contains(provider) {
+                if let service = router.selectedTab.provider,
+                   !providers.contains(where: { $0.service == service }) {
                     router.selectedTab = .browse
                 }
             }
@@ -281,6 +323,10 @@ struct CueApp: App {
                     Text("Cue")
                         .font(.title3.bold())
                     Spacer(minLength: 0)
+                    // The plus that adds a provider to the sidebar lives up
+                    // here by the app name, where it can't be missed.
+                    addProviderMenu
+                        .tint(Color("Accent"))
                 }
                 .padding(.vertical, 4)
             }
@@ -299,50 +345,16 @@ struct CueApp: App {
                 // The toggle was in the top safe-area inset, where the sidebar
                 // and tab bar draw over it and swallow the click. This slot is
                 // system-managed, so nothing overlaps it.
-                HStack(spacing: 8) {
-                    Button {
-                        withAnimation {
-                            showInspector.toggle()
-                        }
-                    } label: {
-                        Label(
-                            showInspector ? "Hide Queue" : "Show Queue",
-                            systemImage: "sidebar.trailing"
-                        )
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                Button {
+                    withAnimation {
+                        showInspector.toggle()
                     }
-
-                    // Where a provider joins the sidebar. The list is the
-                    // providers switched on in Services that aren't tabs yet;
-                    // the sheet is the full arrangement.
-                    Menu {
-                        let available = tabProviders.availableProviders(enabledIn: coreFeatures)
-                        ForEach(available, id: \.self) { service in
-                            Button {
-                                tabProviders.add(service)
-                            } label: {
-                                // Text then mark, as the Browse tab's
-                                // provider menu lays its rows out.
-                                HStack {
-                                    Text("Add \(service.title)")
-                                    service.image
-                                }
-                            }
-                        }
-                        if !available.isEmpty {
-                            Divider()
-                        }
-                        Button {
-                            tabSheet = .customizeTabs
-                        } label: {
-                            Label("Customize Tabs…", systemImage: "slider.horizontal.3")
-                        }
-                    } label: {
-                        Label("Add Provider", systemImage: "plus")
-                            .labelStyle(.iconOnly)
-                    }
-                    .menuIndicator(.hidden)
-                    .accessibilityLabel("Add Provider")
+                } label: {
+                    Label(
+                        showInspector ? "Hide Queue" : "Show Queue",
+                        systemImage: "sidebar.trailing"
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)

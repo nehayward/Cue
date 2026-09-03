@@ -40,7 +40,7 @@ struct SubsonicBrowseScreen: View {
                         // Each option carries its own loader, so the list needs
                         // no separate default action.
                         sortOptions: albumSortOptions,
-                        sortKey: "subsonic.albums",
+                        sortKey: SubsonicLibraryLists.albumSortKey,
                         searchAction: { query, offset in
                             await musicSearchService.searchSubsonicAlbums(query: query, offset: offset)
                         }
@@ -56,7 +56,7 @@ struct SubsonicBrowseScreen: View {
                         // (scrolling to a letter jumps past unloaded pages).
                         showSectionIndex: false,
                         sortOptions: songSortOptions,
-                        sortKey: "subsonic.songs",
+                        sortKey: SubsonicLibraryLists.songSortKey,
                         refreshAction: { musicSearchService.clearSubsonicSongCache() },
                         searchAction: { query, offset in
                             await musicSearchService.searchSubsonicSongs(query: query, offset: offset)
@@ -173,52 +173,19 @@ struct SubsonicBrowseScreen: View {
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
     }
 
-    /// The line under the Songs title: how far the one-time library sync has
-    /// got while it runs, and how big the library is once it is there. Songs
-    /// is the only list that pulls the whole library in before it can show a
-    /// row, so it is the only one that owes the user a count.
+    /// The line under the Songs title, shared with the Songs tab.
     private var songSyncStatus: () -> String? {
-        {
-            guard musicSearchService.isSyncingSubsonicSongs else {
-                guard let count = musicSearchService.subsonicSongCount, count > 0 else { return nil }
-                return count == 1 ? "1 song" : "\(count.formatted()) songs"
-            }
-
-            let synced = musicSearchService.subsonicSyncedSongCount
-            guard let total = musicSearchService.subsonicLibrarySongCount, total > 0 else {
-                // No total: the server won't report one, so a running count
-                // is all there is to say.
-                return synced == 0 ? "Loading library…" : "\(synced.formatted()) songs"
-            }
-            return "\(min(synced, total).formatted()) of \(total.formatted())"
-        }
+        SubsonicLibraryLists.songSyncStatus(musicSearchService: musicSearchService)
     }
 
-    /// The Songs list's sort menu. Sorting happens on the synced copy of the
-    /// library rather than on the server, which has no sort for songs.
+    /// The Songs list's sort menu, shared with the Songs tab.
     private var songSortOptions: [PlayableListSort] {
-        SubsonicSongSort.allCases.map { sort in
-            PlayableListSort(
-                name: sort.label,
-                // Nil for an order with no meaningful opposite, which is
-                // how the menu knows to leave the direction picker out.
-                ascendingLabel: sort.isReversible ? sort.ascendingLabel : nil,
-                descendingLabel: sort.isReversible ? sort.descendingLabel : nil
-            ) { offset, descending in
-                await musicSearchService.subsonicSongs(offset: offset, sort: sort, descending: descending)
-            }
-        }
+        SubsonicLibraryLists.songSortOptions(musicSearchService: musicSearchService)
     }
 
-    /// The Albums list's sort menu — these orders the server does provide, so
-    /// each one is just a different `getAlbumList2` list type. No direction
-    /// toggle: the list pages, and reversing a page is not reversing a list.
+    /// The Albums list's sort menu, shared with the Albums tab.
     private var albumSortOptions: [PlayableListSort] {
-        SubsonicAlbumSort.allCases.map { sort in
-            PlayableListSort(name: sort.label) { offset, _ in
-                await musicSearchService.subsonicAlbums(offset: offset, sort: sort)
-            }
-        }
+        SubsonicLibraryLists.albumSortOptions(musicSearchService: musicSearchService)
     }
 
     /// Shown when no server is configured yet. Centred (an overlay, not a list

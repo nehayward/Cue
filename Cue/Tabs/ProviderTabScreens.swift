@@ -1,167 +1,142 @@
-import Defaults
 import MusicSearchKit
-import OrderedCollections
 import SonosKit
 import SwiftUI
 
-/// A provider's own tab: the library's front page, with its collections as
-/// rows. This is what the tab bar opens on iPhone, where the sidebar's
-/// section would spill its tabs into "More".
-struct ProviderRootTabScreen: View {
+/// A provider's tab. With no `collection` it is the provider's own tab —
+/// the library's front page, listing the collections the user switched on,
+/// which is what the tab bar opens on iPhone. With one, it is that
+/// collection as a tab of its own: the tabs a provider's sidebar section
+/// holds on iPad and Mac. Both render the same destinations, so the row on
+/// the front page and the sidebar tab open one screen.
+struct ProviderTabScreen: View {
     let service: MediaSearchService
+    /// The collections the front page lists, in order.
+    let collections: [ProviderCollection]
+    /// Nil for the front page.
+    var collection: ProviderCollection? = nil
+
+    @Environment(MusicSearchService.self) private var musicSearchService
+    @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService
+    @Environment(SpotifyBrowseService.self) private var spotifyBrowseService
+    @Environment(SoundCloudBrowseService.self) private var soundCloudBrowseService
+    @Environment(DeezerBrowseService.self) private var deezerBrowseService
+    @Environment(SubsonicBrowseService.self) private var subsonicBrowseService
+    @Environment(PlexBrowseService.self) private var plexBrowseService
+    @Environment(LibraryBrowseService.self) private var libraryBrowseService
+    @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
 
     /// One router per tab, never `Router.browse`: the Browse tab may be
     /// showing this same provider, and two `NavigationStack`s bound to one
     /// path push and pop each other.
     @State private var router = Router()
 
-    var body: some View {
-        switch service {
-        case .plex:
-            PlexBrowseScreen(showsMediaSelector: false, router: router)
-        default:
-            // Unreachable while `canBeTab` limits the tab view to providers
-            // with collections; here rather than a crash if that changes.
-            ContentUnavailableView(
-                "\(service.title) Has No Tab Yet",
-                systemImage: "square.grid.2x2",
-                description: Text("Browse \(service.title) from the Browse tab.")
-            )
-        }
+    private var library: ProviderLibrary {
+        ProviderLibrary(
+            service: service,
+            musicSearchService: musicSearchService,
+            appleMusicBrowseService: appleMusicBrowseService,
+            spotifyBrowseService: spotifyBrowseService,
+            soundCloudBrowseService: soundCloudBrowseService,
+            deezerBrowseService: deezerBrowseService,
+            subsonicBrowseService: subsonicBrowseService,
+            plexBrowseService: plexBrowseService,
+            libraryBrowseService: libraryBrowseService,
+            group: selectedGroupService?.group
+        )
     }
-}
-
-/// One collection of an added provider — Artists, Albums, Songs or
-/// Playlists — as a tab of its own. These are the tabs a provider's sidebar
-/// section holds on iPad and Mac.
-struct ProviderCollectionTabScreen: View {
-    let service: MediaSearchService
-    let collection: ProviderCollection
-
-    @Environment(MusicSearchService.self) private var musicSearchService
-    @Environment(PlexBrowseService.self) private var plexBrowseService
-
-    @State private var router = Router()
-    @State private var isLoading = false
 
     var body: some View {
+        let library = library
+
         NavigationStack(path: $router.path) {
-            content
-                .navigationTitle(collection.title)
-                .navigationBarTitleDisplayMode(.inline)
-                .fontDesign(.rounded)
-                .withAppRouter()
-        }
-        .environment(router)
-        .withSheetDestinations(sheetDestinations: $router.presentedSheet)
-        .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        switch service {
-        case .plex:
-            plexContent
-        default:
-            ContentUnavailableView(
-                "\(service.title) Has No \(collection.title) Tab Yet",
-                systemImage: collection.systemImage
-            )
-        }
-    }
-
-    // MARK: - Plex
-
-    @ViewBuilder
-    private var plexContent: some View {
-        if musicSearchService.isPlexAuthorized, musicSearchService.plexServerID != nil {
-            plexCollection
-                .toolbar {
+            Group {
+                if !library.isReady {
+                    notReady
+                } else if let collection, let destination = library.destination(for: collection) {
+                    RouterDestinationView(destination: destination)
+                } else {
+                    frontPage(library)
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .fontDesign(.rounded)
+            .withAppRouter()
+            .toolbar {
+                if let sheet = service.managementSheet {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
-                            router.presentedSheet = .plexManagement
+                            router.presentedSheet = sheet
                         } label: {
-                            Label("Manage Plex", systemImage: "server.rack")
+                            Label("Manage \(service.title)", systemImage: "server.rack")
                                 .labelStyle(.iconOnly)
                         }
                     }
                 }
-        } else {
-            // Same rows the library's front page shows until a server and
-            // library are picked: sign in, choose a connection, choose a
-            // library. Every collection tab shows them, so whichever one the
-            // sidebar lands on can finish the setup.
+            }
+            .task(id: library.isReady) {
+                guard library.isReady else { return }
+                await library.load()
+            }
+        }
+        .environment(router)
+        .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
+            // A management sheet may have signed in or switched servers.
+            Task { await library.load() }
+        }
+        .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
+    }
+
+    private func frontPage(_ library: ProviderLibrary) -> some View {
+        List {
+            ForEach(collections, id: \.self) { collection in
+                if let destination = library.destination(for: collection) {
+                    NavigationLink(value: destination) {
+                        Label(collection.title, systemImage: collection.systemImage)
+                    }
+                }
+            }
+            if collections.isEmpty {
+                Text("No collections switched on. Choose some in Customize Tabs.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .contentMargins(.top, EdgeInsets(), for: .scrollContent)
+        .contentMargins(.horizontal, 16)
+        .miniPlayerOnScrollHandler()
+        .navigationTitle(service.title)
+    }
+
+    @ViewBuilder
+    private var notReady: some View {
+        if service == .plex, musicSearchService.isPlexAuthorized {
+            // Signed in but no server or library picked yet: the same rows
+            // the library's front page shows to finish the setup.
             List {
                 PlexLibrarySelectionView()
             }
             .contentMargins(.horizontal, 16)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+            .navigationTitle(service.title)
+        } else {
+            ContentUnavailableView {
+                Label("\(service.title) Isn't Set Up", systemImage: "person.crop.circle.badge.exclamationmark")
+            } description: {
+                Text("Sign in to \(service.title) to browse its library here.")
+            } actions: {
+                if let sheet = service.managementSheet {
                     Button {
-                        router.presentedSheet = .plexManagement
+                        router.presentedSheet = sheet
                     } label: {
-                        Label("Sign In to Plex", systemImage: "person.crop.circle")
-                            .labelStyle(.iconOnly)
+                        Text("Set Up \(service.title)")
                     }
+                    .buttonStyle(.borderedProminent)
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private var plexCollection: some View {
-        @Bindable var plexBrowseService = plexBrowseService
-
-        switch collection {
-        case .artists:
-            PlayableListView(title: "Artists", action: { offset in
-                await plexBrowseService.artists(offset: offset)
-            })
-        case .albums:
-            PlayableListView(title: "Albums", action: { offset in
-                await plexBrowseService.updateUserAlbums(offset: offset)
-            })
-        case .songs:
-            PlayableListView(
-                title: "Songs",
-                // Off, as on the library's front page: the index re-buckets
-                // the list A–Z by title, which silently undoes every sort
-                // but Title.
-                showSectionIndex: false,
-                sortOptions: PlexLibraryLists.songSortOptions(musicSearchService: musicSearchService),
-                sortStorageKey: PlexLibraryLists.songSortKey,
-                refreshAction: { musicSearchService.clearPlexSongCache() },
-                searchAction: { query, offset in
-                    await musicSearchService.searchPlexSongs(query: query, offset: offset)
-                },
-                loadingStatus: PlexLibraryLists.songSyncStatus(musicSearchService: musicSearchService)
-            )
-            .task(id: musicSearchService.plexServerID) {
-                // Opening Songs is the moment to notice the server has more
-                // songs than the synced copy.
-                await musicSearchService.refreshPlexLibraryIfChanged()
-            }
-        case .playlists:
-            PlayableGridScreen(items: $plexBrowseService.userPlaylists, action: { offset in
-                await plexBrowseService.updateUserPlaylists(offset: offset)
-            })
-            .overlay {
-                if isLoading, plexBrowseService.userPlaylists.isEmpty {
-                    ProgressView()
-                }
-            }
-            .task(id: musicSearchService.plexServerID) {
-                // The grid only pages when a card scrolls into view, so an
-                // empty one has to be filled from here.
-                isLoading = true
-                await plexBrowseService.updateUserPlaylists()
-                isLoading = false
-            }
+            .navigationTitle(service.title)
         }
     }
 }
 
 #Preview {
-    ProviderCollectionTabScreen(service: .plex, collection: .albums)
+    ProviderTabScreen(service: .plex, collections: MediaSearchService.plex.tabCollections, collection: .albums)
         .withEnvironments()
 }

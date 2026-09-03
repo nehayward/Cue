@@ -17,21 +17,9 @@ struct PlexBrowseScreen: View {
     @Environment(PlexBrowseService.self) private var plexBrowseService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
 
-    @State private var router: Router
+    @State private var router = Router.browse
     @State private var isLoading: Bool = false
     @State private var plexAuthenticator = PlexAuthenticator.shared
-
-    /// Off when this screen is a provider tab of its own: the selector
-    /// switches the Browse tab's provider, which this tab isn't.
-    let showsMediaSelector: Bool
-
-    /// - Parameter router: `Router.browse` for the Browse tab. A provider
-    ///   tab passes its own, so its stack and the Browse tab's don't push
-    ///   and pop each other when both are showing Plex.
-    init(showsMediaSelector: Bool = true, router: Router = .browse) {
-        self.showsMediaSelector = showsMediaSelector
-        _router = State(initialValue: router)
-    }
 
     /// The Songs list's sort menu, shared with the Songs tab.
     private var songSortOptions: [PlayableListSort] {
@@ -126,22 +114,9 @@ struct PlexBrowseScreen: View {
             }
             .withAppRouter()
             .toolbar {
-                if showsMediaSelector {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        MediaSelector()
-                            .environment(router)
-                    }
-                } else {
-                    // The selector's menu is also where Plex is managed from
-                    // the Browse tab; a provider tab needs its own way in.
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            router.presentedSheet = .plexManagement
-                        } label: {
-                            Label("Manage Plex", systemImage: "server.rack")
-                                .labelStyle(.iconOnly)
-                        }
-                    }
+                ToolbarItem(placement: .topBarTrailing) {
+                    MediaSelector()
+                        .environment(router)
                 }
             }
             .overlay {
