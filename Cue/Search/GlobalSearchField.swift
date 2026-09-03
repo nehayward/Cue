@@ -1,15 +1,6 @@
 import SonosKit
 import SwiftUI
 
-/// Which tab the window is showing. It has to be a binding rather than
-/// `TabView`'s own private state because the always-on search field lives
-/// outside the tabs and needs to pull the window to Search when a query starts.
-enum AppTab: Hashable {
-    case search
-    case browse
-    case test
-}
-
 /// The search field that sits above the `TabView` instead of inside any one
 /// tab's navigation bar.
 ///

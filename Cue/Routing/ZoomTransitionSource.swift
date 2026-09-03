@@ -1,0 +1,28 @@
+import SwiftUI
+
+/// Names the view a zoom transition grows out of.
+///
+/// An enum rather than a string literal at each end. `matchedTransitionSource`
+/// and `.zoom(sourceID:)` have to agree exactly, and a mismatch compiles
+/// perfectly happily — it just silently downgrades the zoom to a cross-fade,
+/// or, if the source is missing altogether, throws "cannot morph from a view
+/// that is not in the hierarchy" and kills the app. Neither failure points at
+/// the typo that caused it, so the two ends are worth making derivable from one
+/// declaration.
+enum ZoomTransitionSource: Hashable {
+    /// The mini player in the tab bar accessory. Opens `PlayerView`.
+    case miniPlayer
+}
+
+extension View {
+    /// Marks this view as what `source` zooms out of.
+    func zoomSource(_ source: ZoomTransitionSource, in namespace: Namespace.ID) -> some View {
+        matchedTransitionSource(id: source, in: namespace)
+    }
+
+    /// Presents this view by zooming out of `source`, which must be on screen
+    /// at the moment the presentation begins.
+    func zoomTransition(from source: ZoomTransitionSource, in namespace: Namespace.ID) -> some View {
+        navigationTransition(.zoom(sourceID: source, in: namespace))
+    }
+}

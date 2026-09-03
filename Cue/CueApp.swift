@@ -25,15 +25,9 @@ struct MusicPlaybackView: View {
     /// or the scene comes back to the foreground — `@State` here reset to
     /// `false` on that rebuild and took the presented player down with it.
     @Binding var showPlayer: Bool
-    @Namespace private var animation
-    /// Whether the zoom's source view is currently on screen. The zoom morphs
-    /// from it, and UIKit throws — killing the app — if it isn't in the
-    /// hierarchy when the cover presents. Two things close that window: this is
-    /// `@State`, so it starts `false` on the rebuild the system does when the
-    /// accessory is re-hosted (placement change on scroll, scene returning to
-    /// the foreground) while `showPlayer` is still `true`; and the
-    /// appear/disappear pair below tracks a re-host that keeps the state.
-    @State private var sourceIsAttached = false
+    /// Owned by `CueApp` too, because the zoom's other half — the
+    /// `fullScreenCover` — is declared up there now.
+    let zoomNamespace: Namespace.ID
 
     private var playback: LocalPlaybackService { .shared }
 
@@ -70,9 +64,7 @@ struct MusicPlaybackView: View {
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .matchedTransitionSource(id: "A", in: animation)
-            .onAppear { sourceIsAttached = true }
-            .onDisappear { sourceIsAttached = false }
+            .zoomSource(.miniPlayer, in: zoomNamespace)
 
             if playback.isActive {
                 Button {
@@ -103,15 +95,6 @@ struct MusicPlaybackView: View {
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: 500, maxHeight: 120)
-        .fullScreenCover(isPresented: $showPlayer) {
-            PlayerView()
-                .presentationBackgroundInteraction(.enabled)
-                // Gated, not unconditional: presenting the zoom while its
-                // source is out of the hierarchy makes UIKit throw "Cannot
-                // morph from a view that is not in the hierarchy" and kill the
-                // app. There's no API to ask, so `sourceIsAttached` stands in.
-                .zoomTransition(from: "A", in: animation, enabled: sourceIsAttached)
-        }
     }
 }
 
@@ -123,7 +106,6 @@ struct CueApp: App {
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.liveActivityManager) var liveActivityManager
 
-    @State private var selectedTab: AppTab = .search
     @State private var router: Router = Router.main
     @State private var subscriptionService = SubscriptionService.shared
     @State private var alertService = AlertService.shared
@@ -170,49 +152,34 @@ struct CueApp: App {
     /// keeping its own idea. Persisting across launches comes along with it,
     /// which is the behaviour a panel toggle wants anyway.
     @AppStorage(AppStorageKeys.queueInspectorVisible) private var showInspector: Bool = false
-    /// Lives here rather than in `MusicPlaybackView` so a rebuild of the tab
-    /// bar accessory can't dismiss the player out from under the user.
-    @State private var showPlayer: Bool = false
+    /// Shared by the zoom's two halves: the source in the tab bar accessory and
+    /// the `fullScreenCover` on the `TabView` below.
+    @Namespace private var zoomNamespace
 
     var body: some Scene {
         WindowGroup {
-            TabView(selection: $selectedTab) {
+            @Bindable var router = router
+            TabView(selection: $router.selectedTab.reselecting(perform: router.handleReselection)) {
+                // No `role: .search`. The role exists so the system can hoist a
+                // `.searchable` out of the tab, and it renders the tab as a
+                // separate search affordance rather than a peer — which is why
+                // it never took the selected appearance. `SearchScreen` draws
+                // its own field in the navigation bar again, so the role has
+                // nothing left to hoist.
                 Tab("Search", systemImage: "magnifyingglass", value: AppTab.search) {
                     Screens.search
-//                        .queuePanel(isPresented: $showInspector) { QueueNextUpView() }
-                }
-                Tab("Browse", systemImage: "bell", value: AppTab.browse) {
-                    Screens.browse
                 }
                 
-                Tab("Browse", systemImage: "bell", value: AppTab.browse) {
-                    Screens.browse
-                }
-                
-                TabSection {
-                    
-                    Tab("Browse", systemImage: "bell", value: AppTab.browse) {
-                        Screens.browse
-                    }
-                    Tab("Browse", systemImage: "bell", value: AppTab.browse) {
-                        Screens.browse
-                    }
-                    
-                } header: {
-                    Text("Plex")
-                }
-                
-                Tab("Browse", systemImage: "bell", value: AppTab.test, role: .search) {
+                Tab("Browse", systemImage: "bell", value: AppTab.test) {
                     Text("Search")
                         .searchable(text: .constant("Searching"))
                 }
 
             }
             .queuePanel(isPresented: $showInspector) { QueueNextUpView() }
-
             .tabBarMinimizeBehavior(.onScrollDown)
             .tabViewBottomAccessory {
-                MusicPlaybackView(showPlayer: $showPlayer)
+                MusicPlaybackView(showPlayer: $router.isPlayerPresented, zoomNamespace: zoomNamespace)
             }
 //            // Above the tabs, not in one of them: a toolbar belongs to the
 //            // navigation stack of whichever tab is on screen, so the only way
@@ -269,9 +236,25 @@ struct CueApp: App {
             // The tint reaches the whole TabView, which is why the tab content
             // and the bottom bar put the real accent back — `Color("Accent")`
             // by name, since `.accentColor` now resolves to this tint.
-            .tint(Color.primary.opacity(0.12))
+//            .tint(Color.primary.opacity(0.12))
             .withEnvironments()
             .environment(favoriteRatingCache)
+            // Presented from the `TabView`, not from inside the tab bar
+            // accessory. The system re-hosts that accessory when its placement
+            // changes or the scene returns to the foreground, and a
+            // `fullScreenCover` declared there is re-created with it — which
+            // tore the player down and put it back on every background/
+            // foreground round trip. The `TabView` is stable, so the
+            // presentation survives.
+            //
+            // It also removes the reason the zoom needed guarding: the morph
+            // only happens when the cover presents, and the cover no longer
+            // re-presents behind the user's back.
+            .fullScreenCover(isPresented: $router.isPlayerPresented) {
+                PlayerView()
+                    .presentationBackgroundInteraction(.enabled)
+                    .zoomTransition(from: .miniPlayer, in: zoomNamespace)
+            }
             .tabViewStyle(.sidebarAdaptable)
             .onOpenURL(perform: handle)
             .onAppear {
@@ -1476,16 +1459,3 @@ extension ToolbarDelegate: NSToolbarDelegate {
 #endif
 
 
-private extension View {
-    /// `.navigationTransition(.zoom(sourceID:in:))`, applied only when the
-    /// source is known to be on screen — the transition has no safe fallback of
-    /// its own, so the decision has to be made before it is attached.
-    @ViewBuilder
-    func zoomTransition(from id: String, in namespace: Namespace.ID, enabled: Bool) -> some View {
-        if enabled {
-            navigationTransition(.zoom(sourceID: id, in: namespace))
-        } else {
-            self
-        }
-    }
-}

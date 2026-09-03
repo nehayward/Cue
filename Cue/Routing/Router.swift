@@ -4,6 +4,13 @@ import Observation
 import SonosKit
 
 
+/// Which tab the window is showing.
+enum AppTab: Hashable {
+    case search
+    case browse
+    case test
+}
+
 @Observable public final class Router {
     static var main = Router()
     static var search = Router()
@@ -11,6 +18,15 @@ import SonosKit
     static var browse = Router()
 
     var selectedID: String?
+    /// The selected tab. On `Router.main` only — the per-screen routers
+    /// (`search`, `browse`) navigate within a tab and have no say over which
+    /// one is showing.
+    var selectedTab: AppTab = .search
+    /// Drives the local player's `fullScreenCover`. Presentation state, so it
+    /// belongs beside `presentedSheet` rather than in the tab bar accessory
+    /// that happens to open it — the accessory is re-hosted by the system, and
+    /// state living there went down with it.
+    var isPlayerPresented = false
     var path: [RouterDestination] = []
     var presentedSheet: SheetDestination?
     /// Destinations presented as `fullScreenCover` rather than `.sheet`.
@@ -25,6 +41,24 @@ import SonosKit
     @MainActor var volumePopover: SheetDestination?
 
     var dismiss: Bool = false
+
+    /// What a tap on the already-selected tab does. Reselection is the iOS
+    /// convention for "take me to the top of this tab": Search focuses its
+    /// field, the way Music does. The other tabs have nothing to do yet —
+    /// scrolling their list to the top would go here.
+    ///
+    /// Reaching `SearchActivator` rather than holding the signal here is
+    /// deliberate: there are four `Router` instances, and `SearchScreen` reads
+    /// `Router.search` from the environment while the tab bar drives
+    /// `Router.main`. A counter on one of them would be bumped on the instance
+    /// the screen isn't watching.
+    @MainActor
+    func handleReselection(of tab: AppTab) {
+        switch tab {
+        case .search: SearchActivator.shared.requestFocus()
+        case .browse, .test: break
+        }
+    }
 
     @MainActor
     func navigate(to: RouterDestination) {
