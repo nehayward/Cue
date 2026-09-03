@@ -117,7 +117,7 @@ struct PlayableContentView: View {
 
                 if !hideArtwork {
                     ContentArtworkView(content: item)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 50.scaled(by: UIDevice.current.userInterfaceIdiom.isCatalyst ? 1.4 : 1), height: 50.scaled(by: UIDevice.current.userInterfaceIdiom.isCatalyst ? 1.4 : 1))
                         .allowsHitTesting(!hideArtwork)
                 }
 
@@ -275,9 +275,7 @@ struct PlayableContentView: View {
             }
 
             guard let group = selectedGroupService?.group else {
-                if let selectedGroupService {
-                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queueSong, defaultPosition: defaultPosition, content: item))
-                }
+                await PlayDestinationRouter.play(item, position: defaultPosition, queue: queueSong)
                 return
             }
 

@@ -178,8 +178,15 @@ struct AppleLibraryBrowseScreen: View {
                 .listRowSeparator(.hidden)
                 
                 if !appleMusicBrowseService.recommendedAlbums.isEmpty {
-                    HStack(spacing: 12) {
-                        ForEach(appleMusicBrowseService.recommendedAlbums.prefix(2)) { item in
+                    // A grid with a card-width cap, not a fixed two-up `HStack`:
+                    // two cards split the whole row, so on a wide window each
+                    // one grew to most of the window's width. The grid keeps
+                    // the cards a readable size and fits more of them instead.
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 160, maximum: 260), spacing: 12)],
+                        spacing: 12
+                    ) {
+                        ForEach(appleMusicBrowseService.recommendedAlbums.prefix(8)) { item in
                             PlayableCardView(item: item)
                         }
                     }

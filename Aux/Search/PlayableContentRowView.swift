@@ -208,9 +208,7 @@ struct PlayableContentRowView: View {
             }
 
             guard let group = selectedGroupService?.group else {
-                if let selectedGroupService {
-                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queueSong, defaultPosition: defaultPosition, content: item))
-                }
+                await PlayDestinationRouter.play(item, position: defaultPosition, queue: queueSong)
                 return
             }
 

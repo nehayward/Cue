@@ -25,6 +25,13 @@ public enum GroupStorageKeys {
     /// ends up with neither Lock Screen surface and nothing to suggest why.
     public static let liveActivitiesSuspendedByLockScreen = "\(Prefix.id).liveActivitiesSuspendedByLockScreen"
 
+    /// Where the share extension last played to: the sentinel `device`, or a
+    /// group's coordinator id. In the shared suite because the extension is a
+    /// separate process with its own `UserDefaults.standard` — and it is torn
+    /// down after every share, so this is the only thing that carries the
+    /// choice from one share to the next.
+    public static let playActionDestination = "\(Prefix.id).playActionDestination"
+
     /// Non-optional accessor. Falls back to `.standard` so a missing app-group
     /// entitlement degrades to app-local behaviour instead of dropping writes.
     public static var defaults: UserDefaults { storage ?? .standard }

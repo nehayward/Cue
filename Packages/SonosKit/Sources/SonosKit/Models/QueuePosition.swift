@@ -80,3 +80,26 @@ extension QueuePosition {
         return .now
     }
 }
+
+public extension QueuePosition {
+    /// Stable token for `clic://` links. The share extension picks the position
+    /// and the main app applies it, so the mapping lives here where both sides
+    /// share it — `id`/`shortTitle` are display strings and would silently
+    /// break the link if they were ever reworded.
+    var linkValue: String {
+        switch self {
+        case .now: "now"
+        case .next: "next"
+        case .front: "front"
+        case .end: "end"
+        case .replace: "replace"
+        }
+    }
+
+    init?(linkValue: String) {
+        guard let match = QueuePosition.allCases.first(where: { $0.linkValue == linkValue }) else {
+            return nil
+        }
+        self = match
+    }
+}

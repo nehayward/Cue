@@ -16,154 +16,24 @@ import CoreSpotlight
 import WidgetKit
 #endif
 
-/// Full-screen view of what's playing locally on this device, opened from the
-/// tab bar accessory. All state comes from `LocalPlaybackService` — the same
-/// `PlayableContent` the search returned, no extra lookups.
-struct PlayerView: View {
-    @Environment(\.dismiss) private var dismiss
-    var animation: Namespace.ID
-
-    private var playback: LocalPlaybackService { .shared }
-
-    var body: some View {
-        VStack(spacing: 24) {
-            HStack {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.title3.bold())
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button {
-                    playback.stop()
-                    dismiss()
-                } label: {
-                    Image(systemName: "stop.fill")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal)
-
-            Spacer()
-
-            if let item = playback.nowPlaying {
-                ContentArtworkView(content: item, showMusicSource: false, preferredSize: 600)
-                    .frame(maxWidth: 320, maxHeight: 320)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .matchedGeometryEffect(id: "a", in: animation)
-
-                VStack(spacing: 4) {
-                    Text(item.title)
-                        .font(.title3.bold())
-                        .lineLimit(1)
-                    Text(item.subtitle)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                .padding(.horizontal)
-
-                VStack(spacing: 4) {
-                    ProgressView(
-                        value: min(playback.progress, max(playback.duration, 1)),
-                        total: max(playback.duration, 1)
-                    )
-                    HStack {
-                        Text(Duration.seconds(playback.progress), format: .time(pattern: .minuteSecond))
-                        Spacer()
-                        Text(Duration.seconds(playback.duration), format: .time(pattern: .minuteSecond))
-                    }
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 32)
-
-                HStack(spacing: 48) {
-                    Button {
-                        playback.previous()
-                    } label: {
-                        Image(systemName: "backward.fill")
-                    }
-
-                    Button {
-                        playback.togglePlayback()
-                    } label: {
-                        Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 44))
-                            .contentTransition(.symbolEffect(.replace))
-                    }
-
-                    Button {
-                        playback.next()
-                    } label: {
-                        Image(systemName: "forward.fill")
-                    }
-                }
-                .font(.title)
-                .foregroundStyle(.primary)
-            } else {
-                ContentUnavailableView("Nothing Playing", systemImage: "iphone.radiowaves.left.and.right")
-            }
-
-            Spacer()
-
-            if !playback.upNext.isEmpty {
-                upNextList
-            }
-        }
-        .padding(.vertical)
-        .fontDesign(.rounded)
-    }
-
-    /// The rest of the local queue; tapping a row jumps playback to it.
-    private var upNextList: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Up Next")
-                .font(.headline)
-                .padding(.horizontal)
-
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(playback.upNext.enumerated()), id: \.element.trackID) { offset, item in
-                        Button {
-                            playback.play(at: playback.currentIndex + 1 + offset)
-                        } label: {
-                            HStack(spacing: 12) {
-                                ContentArtworkView(content: item, showMusicSource: false)
-                                    .frame(width: 36, height: 36)
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                                VStack(alignment: .leading) {
-                                    Text(item.title)
-                                        .font(.callout)
-                                        .lineLimit(1)
-                                    Text(item.subtitle)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                                Spacer(minLength: 0)
-                            }
-                            .contentShape(.rect)
-                            .padding(.horizontal)
-                            .padding(.vertical, 6)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-            .frame(maxHeight: 220)
-        }
-    }
-}
-
 /// Tab bar accessory mini player for local (on-this-device) playback. Tapping
 /// the track opens the full `PlayerView`; the trailing controls act in place.
 struct MusicPlaybackView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
-    @State private var showPlayer: Bool = false
+    /// Owned by `AppAux`, not by this view. The tab bar accessory is hosted
+    /// outside the tab content and gets re-created when its placement changes
+    /// or the scene comes back to the foreground — `@State` here reset to
+    /// `false` on that rebuild and took the presented player down with it.
+    @Binding var showPlayer: Bool
     @Namespace private var animation
+    /// Whether the zoom's source view is currently on screen. The zoom morphs
+    /// from it, and UIKit throws — killing the app — if it isn't in the
+    /// hierarchy when the cover presents. Two things close that window: this is
+    /// `@State`, so it starts `false` on the rebuild the system does when the
+    /// accessory is re-hosted (placement change on scroll, scene returning to
+    /// the foreground) while `showPlayer` is still `true`; and the
+    /// appear/disappear pair below tracks a re-host that keeps the state.
+    @State private var sourceIsAttached = false
 
     private var playback: LocalPlaybackService { .shared }
 
@@ -177,7 +47,6 @@ struct MusicPlaybackView: View {
                         ContentArtworkView(content: item, showMusicSource: false)
                             .frame(width: 40, height: 40)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .matchedGeometryEffect(id: "a", in: animation)
                         VStack(alignment: .leading) {
                             Text(item.title)
                                 .font(.callout.bold())
@@ -202,6 +71,8 @@ struct MusicPlaybackView: View {
             }
             .buttonStyle(.plain)
             .matchedTransitionSource(id: "A", in: animation)
+            .onAppear { sourceIsAttached = true }
+            .onDisappear { sourceIsAttached = false }
 
             if playback.isActive {
                 Button {
@@ -223,12 +94,23 @@ struct MusicPlaybackView: View {
                     .font(.title3)
                 }
             }
+
+            // Always present, playing or not: the route is set ahead of Play,
+            // which is the whole point of it no longer asking.
+            PlaybackRouteButton()
+                .buttonStyle(.plain)
+                .font(.title3)
         }
         .padding(.horizontal, 12)
+        .frame(maxWidth: 500, maxHeight: 120)
         .fullScreenCover(isPresented: $showPlayer) {
-            PlayerView(animation: animation)
+            PlayerView()
                 .presentationBackgroundInteraction(.enabled)
-                .navigationTransition(.zoom(sourceID: "A", in: animation))
+                // Gated, not unconditional: presenting the zoom while its
+                // source is out of the hierarchy makes UIKit throw "Cannot
+                // morph from a view that is not in the hierarchy" and kill the
+                // app. There's no API to ask, so `sourceIsAttached` stands in.
+                .zoomTransition(from: "A", in: animation, enabled: sourceIsAttached)
         }
     }
 }
@@ -241,6 +123,7 @@ struct AppAux: App {
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.liveActivityManager) var liveActivityManager
 
+    @State private var selectedTab: AppTab = .search
     @State private var router: Router = Router.main
     @State private var subscriptionService = SubscriptionService.shared
     @State private var alertService = AlertService.shared
@@ -261,7 +144,6 @@ struct AppAux: App {
     @AppStorage(AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
-    @AppStorage(AppStorageKeys.queueInspectorVisible) private var queueInspectorVisible: Bool = false
     @AppStorage(AppStorageKeys.savedGroupID) private var savedGroupID: String?
 
     @State private var previousCount: Int = 0
@@ -283,31 +165,118 @@ struct AppAux: App {
     }
 #endif
     
+    /// `@AppStorage`, not `@State`: `PlayerView` reads the same key, so the
+    /// queue panel is shown or hidden in both places at once instead of each
+    /// keeping its own idea. Persisting across launches comes along with it,
+    /// which is the behaviour a panel toggle wants anyway.
+    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showInspector: Bool = false
+    /// Lives here rather than in `MusicPlaybackView` so a rebuild of the tab
+    /// bar accessory can't dismiss the player out from under the user.
+    @State private var showPlayer: Bool = false
+
     var body: some Scene {
         WindowGroup {
-            TabView {
-                Tab {
-                    List {
-                        ForEach(0..<10000) { i in
-                            Text(i, format: .number)
-                        }
-                    }
-                    .background(.purple)
-                }
-                Tab("Alerts", systemImage: "bell") {
+            TabView(selection: $selectedTab) {
+                Tab("Search", systemImage: "magnifyingglass", value: AppTab.search) {
                     Screens.search
+//                        .queuePanel(isPresented: $showInspector) { QueueNextUpView() }
                 }
-                Tab("Browse", systemImage: "bell") {
+                Tab("Browse", systemImage: "bell", value: AppTab.browse) {
                     Screens.browse
                 }
+                
+                Tab("Browse", systemImage: "bell", value: AppTab.browse) {
+                    Screens.browse
+                }
+                
+                TabSection {
+                    
+                    Tab("Browse", systemImage: "bell", value: AppTab.browse) {
+                        Screens.browse
+                    }
+                    Tab("Browse", systemImage: "bell", value: AppTab.browse) {
+                        Screens.browse
+                    }
+                    
+                } header: {
+                    Text("Plex")
+                }
+                
+                Tab("Browse", systemImage: "bell", value: AppTab.test, role: .search) {
+                    Text("Search")
+                        .searchable(text: .constant("Searching"))
+                }
+
             }
+            .queuePanel(isPresented: $showInspector) { QueueNextUpView() }
+
             .tabBarMinimizeBehavior(.onScrollDown)
             .tabViewBottomAccessory {
-                MusicPlaybackView()
+                MusicPlaybackView(showPlayer: $showPlayer)
             }
+//            // Above the tabs, not in one of them: a toolbar belongs to the
+//            // navigation stack of whichever tab is on screen, so the only way
+//            // to keep one field in every tab is to host it out here.
+//            .safeAreaInset(edge: .top) {
+//                GlobalSearchField(selectedTab: $selectedTab)
+//            }
+            .tabViewSidebarHeader {
+                HStack(spacing: 10) {
+                    Image("ClicIconGlass")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 32, height: 32)
+                    Text("Clic")
+                        .font(.title3.bold())
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, 4)
+            }
+            .tabViewSidebarFooter {
+                let count = sonosService.sorted.count
+                Label(
+                    count == 1 ? "1 Speaker Group" : "\(count) Speaker Groups",
+                    systemImage: count == 0 ? "hifispeaker.slash" : "hifispeaker.2"
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 4)
+                .background(.red)
+            }
+            .tabViewSidebarBottomBar {
+                // The toggle was in the top safe-area inset, where the sidebar
+                // and tab bar draw over it and swallow the click. This slot is
+                // system-managed, so nothing overlaps it.
+                Button {
+                    withAnimation {
+                        showInspector.toggle()
+                    }
+                } label: {
+                    Label(
+                        showInspector ? "Hide Queue" : "Show Queue",
+                        systemImage: "sidebar.trailing"
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .tint(Color("Accent"))
+            }
+            // The sidebar's selection highlight is drawn in the tint, so this
+            // is what takes it off accent-teal. A TabView sidebar has no way to
+            // colour the row's label separately from its fill, so this gets the
+            // subtle neutral capsule but not Music.app's accent-coloured label.
+            // The tint reaches the whole TabView, which is why the tab content
+            // and the bottom bar put the real accent back — `Color("Accent")`
+            // by name, since `.accentColor` now resolves to this tint.
+            .tint(Color.primary.opacity(0.12))
             .withEnvironments()
             .environment(favoriteRatingCache)
             .tabViewStyle(.sidebarAdaptable)
+            .onOpenURL(perform: handle)
+            .onAppear {
+                SonosService.shared.monitor()
+            }
             //            .withAlert()
         }
 //            .onOpenURL(perform: handle)
@@ -828,6 +797,25 @@ struct AppAux: App {
                 return
             }
             
+            // The share extension's Device destination. It can't play locally
+            // itself — `ApplicationMusicPlayer` doesn't run in an app extension,
+            // and its process ends with the sheet — so it forwards the content
+            // here with `device=1` on the usual play/resolve link.
+            if components.queryItems?.contains(where: { $0.name == "device" && $0.value == "1" }) == true,
+               ["play", "resolve"].contains(components.host?.lowercased() ?? "") {
+                let position = components.queryItems?
+                    .first { $0.name == "position" }?.value
+                    .flatMap(QueuePosition.init(linkValue:)) ?? .now
+                let source: URL? = if components.host?.lowercased() == "resolve" {
+                    components.queryItems?.first { $0.name == "url" }?.value.flatMap(URL.init(string:))
+                } else {
+                    Self.strippingHandoffQuery(url)
+                }
+                guard let source else { return }
+                await playOnDevice(from: source, position: position)
+                return
+            }
+
             if components.host?.lowercased() == "alarms" {
                 router.presentedSheet = .settings(destination: .alarms)
                 return
@@ -987,6 +975,43 @@ struct AppAux: App {
             if components.host?.lowercased() == "services" {
                 router.presentedSheet = .settings(destination: .servicePreferenceScreen)
             }
+        }
+    }
+
+    /// Strips the routing-only parameters back off, so what's left is the plain
+    /// `clic://play/...` link `getContent(from:)` already knows how to resolve.
+    private static func strippingHandoffQuery(_ url: URL) -> URL {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        let remaining = (components.queryItems ?? []).filter { !["device", "position"].contains($0.name) }
+        components.queryItems = remaining.isEmpty ? nil : remaining
+        return components.url ?? url
+    }
+
+    /// Plays shared content on this device rather than a Sonos group. The
+    /// extension only screens out what can *never* play here, so this is where
+    /// the real test happens — anything the local queue won't take (Spotify and
+    /// friends, a Plex track with no stream URL) falls back to the room picker
+    /// instead of failing silently.
+    private func playOnDevice(from url: URL, position: QueuePosition) async {
+        guard let content = await sonosService.getContent(from: url) else {
+            router.sheet(to: .playMedia(url: url))
+            return
+        }
+
+        do {
+            try await LocalPlaybackService.shared.enqueue(content, at: position)
+            alertService.showAlertContent(
+                with: content,
+                subtitle: "Playing on this device",
+                symbolName: "iphone.radiowaves.left.and.right"
+            )
+        } catch LocalPlaybackService.LocalPlaybackError.nothingPlayable {
+            // Nothing here can play locally, so fall back to picking a speaker.
+            // The sheet applies the same test and will hide its own Device row,
+            // which is what we want — offering it again would only fail again.
+            router.sheet(to: .playMedia(url: url))
+        } catch {
+            alertService.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
         }
     }
 }
@@ -1319,9 +1344,11 @@ class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
             titlebar.toolbar = nil
         }
         
-        // Set size restrictions
-        windowScene.sizeRestrictions?.minimumSize = CGSize(width: 800, height: 500)
-        windowScene.sizeRestrictions?.maximumSize = CGSize(width: 2000, height: 1500)
+        // Floor only. The old 2000x1500 ceiling stopped the window growing
+        // past it on a large display, and there's no reason to cap it — the
+        // layout is fluid. The floor is what keeps the sidebar, content and
+        // queue panel from squashing each other.
+        windowScene.sizeRestrictions?.minimumSize = CGSize(width: 920, height: 600)
         
         // Restore saved window frame
         if let savedFrame = WindowFrameStore.savedFrame {
@@ -1447,3 +1474,18 @@ extension ToolbarDelegate: NSToolbarDelegate {
 
 }
 #endif
+
+
+private extension View {
+    /// `.navigationTransition(.zoom(sourceID:in:))`, applied only when the
+    /// source is known to be on screen — the transition has no safe fallback of
+    /// its own, so the decision has to be made before it is attached.
+    @ViewBuilder
+    func zoomTransition(from id: String, in namespace: Namespace.ID, enabled: Bool) -> some View {
+        if enabled {
+            navigationTransition(.zoom(sourceID: id, in: namespace))
+        } else {
+            self
+        }
+    }
+}

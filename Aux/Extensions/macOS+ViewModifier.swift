@@ -47,3 +47,14 @@ extension View {
         }
     }
 }
+
+
+extension UIUserInterfaceIdiom {
+    var isCatalyst: Bool {
+#if targetEnvironment(macCatalyst)
+        return true
+#else
+        return false
+#endif
+    }
+}

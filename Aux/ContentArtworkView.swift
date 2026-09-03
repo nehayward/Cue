@@ -22,6 +22,12 @@ struct ContentArtworkView: View {
         (content.content.service == .library || content.content.service == .apple)
     }
     
+    /// Whether this instance resolved to the full-size `artwork` rather than
+    /// the thumbnail. Part of the cache key below.
+    private var usesFullSizeArtwork: Bool {
+        preferredSize != 50 && content.artwork != nil
+    }
+
     private var artworkURL: URL? {
         if preferredSize != 50, let artwork = content.artwork {
             return artwork
@@ -36,9 +42,14 @@ struct ContentArtworkView: View {
     // so passing it there compiles and silently leaves the request keyed on its
     // URL. `imageKey` is what makes the same artwork one cache entry no matter
     // which of the candidate URLs resolved it.
+    //
+    // The key has to carry the size tier as well as the item, though. A 40pt
+    // queue row and the 800pt player ask for the same `imageKey`, so keying on
+    // the item alone let the row's already-cached thumbnail satisfy the
+    // player's request — the big artwork came back visibly soft.
     private var artworkRequest: ImageRequest {
         var request = ImageRequest(url: artworkURL)
-        request.imageID = content.imageKey
+        request.imageID = usesFullSizeArtwork ? "\(content.imageKey)#full" : content.imageKey
         return request
     }
 

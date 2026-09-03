@@ -17,6 +17,9 @@ struct SelectGroupView: View {
     @State private var groupVolume: Double = 0
     @State private var selections = Set<String>()
     @State private var selectedPosition: QueuePosition = .now
+    /// Device is the starting destination; picking rooms turns it off. Restored
+    /// from — and saved back to — the destination the share extension shares.
+    @State private var playOnThisDevice = true
 
     var onSelection: ((GroupRoom) async throws -> Void)? = nil
     var onQueueSelection: ((GroupRoom, QueuePosition) async throws -> Void)? = nil
@@ -27,6 +30,18 @@ struct SelectGroupView: View {
     /// don't get a non-functional picker.
     private var showsQueuePositions: Bool {
         onQueueSelection != nil && (content.map { !$0.content.type.isRadio } ?? false)
+    }
+
+    /// Device is only on the table for a real queue flow (the grouping and
+    /// radio callers pass `onSelection` alone) and content the local queue can
+    /// actually take — Apple and Plex, never Spotify or a station.
+    private var canPlayOnDevice: Bool {
+        guard onQueueSelection != nil, let content else { return false }
+        return LocalPlaybackService.shared.canPlayAnywhereLocally(content)
+    }
+
+    private var deviceSelected: Bool {
+        canPlayOnDevice && playOnThisDevice
     }
 
     private var activeRooms: [Room] {
@@ -66,92 +81,12 @@ struct SelectGroupView: View {
 
                 ScrollView {
                     LazyVStack(spacing: 8) {
-                        ScrollView(.horizontal) {
-                            HStack {
-                                ForEach(sonosService.groups.filter { $0.rooms.count > 1 } ) { group in
-                                    Button {
-                                        play(group: group)
-                                    } label: {
-                                        HStack(spacing: 12) {
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(group.nameWithCount)
-                                                    .fontWeight(.semibold)
-                                                    .lineLimit(1)
-
-                                                if !group.coordinatorRoom.track.name.isEmpty {
-                                                    Text(group.coordinatorRoom.track.name)
-                                                        .font(.caption)
-                                                        .lineLimit(1)
-                                                        .foregroundStyle(group.coordinatorRoom.isPlaying ? .accent : .secondary)
-                                                }
-                                            }
-
-                                            Spacer()
-
-                                            Text("\(Int(group.groupVolume))")
-                                                .font(.callout)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        .padding()
-                                        .background {
-                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                                   .fill(Color.primary.opacity(0.06))
-                                                   .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                                        }
-                                        .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, axis in
-                                            length / 1.75
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                        .padding(.top)
-                        .scrollIndicators(.hidden)
-                        .scrollClipDisabled()
+                        existingGroupsScroll
                         Divider()
-                        Button {
-                            HapticManager.shared.fireHaptic(.selection)
-                            if allSelected {
-                                selections.removeAll()
-                            } else {
-                                for room in activeRooms {
-                                    if groupVolume.isZero {
-                                        groupVolume = room.volume
-                                    }
-                                    selections.insert(room.id)
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: 10) {
-                                Text(allSelected ? "Deselect All" : "Everywhere")
-                                    .fontWeight(.bold)
-                                    .contentTransition(.identity)
-                                Spacer(minLength: 4)
-                                if !selections.isEmpty {
-                                    Text("\(selections.count) of \(activeRooms.count)")
-                                        .font(.subheadline.weight(.semibold))
-                                        .monospacedDigit()
-                                        .foregroundStyle(.secondary)
-                                        .transaction { $0.animation = nil }
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .padding(.horizontal, 16)
-                            .foregroundStyle(.accent)
-                            .background {
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(Color.accentColor.opacity(allSelected ? 0.22 : 0.14))
-                                    .overlay {
-                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                            .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1)
-                                    }
-                            }
+                        if canPlayOnDevice {
+                            deviceRow
                         }
-                        .buttonStyle(.plain)
-                        .fontDesign(.rounded)
-                        .padding(.horizontal)
+                        everywhereButton
                         
                         // Playing rooms first, then others
                         ForEach(playingRooms) { room in
@@ -193,6 +128,10 @@ struct SelectGroupView: View {
                         .frame(height: 20)
                         .padding(.bottom)
                         Button {
+                            if deviceSelected {
+                                playHere()
+                                return
+                            }
                             Task {
                                 HapticManager.shared.fireHaptic(.buttonPress)
                                 let selectedRooms = activeRooms.filter { room in
@@ -207,6 +146,7 @@ struct SelectGroupView: View {
                                 } completion: {
                                     Task {
                                         selectedGroupService.group = newGroup
+                                        PlayDestination.group(newGroup.coordinatorID).remember()
                                         for room in selectedRooms {
                                             await sonosService.setDeviceVolume(ip: room.ip, volume: Int(groupVolume))
                                             await sonosService.setRoomMute(IP: room.ip, mute: false)
@@ -226,6 +166,10 @@ struct SelectGroupView: View {
                                 Image(systemName: "play.fill")
                                 Text(showsQueuePositions ? selectedPosition.title : "Play")
                                     .contentTransition(.identity)
+                                if deviceSelected {
+                                    Text("on This Device")
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                             .bold()
                             .frame(maxWidth: .infinity)
@@ -242,9 +186,9 @@ struct SelectGroupView: View {
                         }
                         .buttonStyle(.plain)
                         .transition(.slide)
-                        .disabled(selections.isEmpty)
-                        .opacity(selections.isEmpty ? 0.4 : 1)
-                        .animation(.interactiveSpring, value: selections.isEmpty)
+                        .disabled(!canCommit)
+                        .opacity(canCommit ? 1 : 0.4)
+                        .animation(.interactiveSpring, value: canCommit)
                     }
                     .padding()
                     .background {
@@ -263,6 +207,7 @@ struct SelectGroupView: View {
             if sonosService.sortedRooms.isEmpty {
                 try? await sonosService.load(useCache: true)
             }
+            restoreDestination()
         }
         .addDismiss {
             dismiss()
@@ -294,6 +239,7 @@ struct SelectGroupView: View {
             Section {
                 Button {
                     HapticManager.shared.fireHaptic(.selection)
+                    playOnThisDevice = false
                     if selections.contains(room.id) {
                         selections.remove(room.id)
                     } else {
@@ -380,6 +326,7 @@ struct SelectGroupView: View {
             }
         } primaryAction: {
             HapticManager.shared.fireHaptic(.selection)
+            playOnThisDevice = false
             if selections.contains(room.id) {
                 selections.remove(room.id)
             } else {
@@ -398,8 +345,196 @@ struct SelectGroupView: View {
         return (filtered + nonFiltered).sorted { $0.coordinatorRoom.isPlaying && !$1.coordinatorRoom.isPlaying }
     }
     
+    /// The existing multi-room groups, as one-tap shortcuts. Extracted from
+    /// `body` — inline, the whole scene stopped type-checking in reasonable
+    /// time once the Device row was added to it.
+    private var existingGroupsScroll: some View {
+        ScrollView(.horizontal) {
+            HStack {
+                ForEach(sonosService.groups.filter { $0.rooms.count > 1 }) { group in
+                    Button {
+                        play(group: group)
+                    } label: {
+                        groupCard(group)
+                    }
+                }
+            }
+            .padding(.horizontal)
+        }
+        .padding(.top)
+        .scrollIndicators(.hidden)
+        .scrollClipDisabled()
+    }
+
+    private func groupCard(_ group: GroupRoom) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(group.nameWithCount)
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+
+                if !group.coordinatorRoom.track.name.isEmpty {
+                    Text(group.coordinatorRoom.track.name)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .foregroundStyle(group.coordinatorRoom.isPlaying ? .accent : .secondary)
+                }
+            }
+
+            Spacer()
+
+            Text("\(Int(group.groupVolume))")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        }
+        .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, _ in
+            length / 1.75
+        }
+    }
+
+    private var everywhereButton: some View {
+        Button {
+            HapticManager.shared.fireHaptic(.selection)
+            playOnThisDevice = false
+            if allSelected {
+                selections.removeAll()
+            } else {
+                for room in activeRooms {
+                    if groupVolume.isZero {
+                        groupVolume = room.volume
+                    }
+                    selections.insert(room.id)
+                }
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Text(allSelected ? "Deselect All" : "Everywhere")
+                    .fontWeight(.bold)
+                    .contentTransition(.identity)
+                Spacer(minLength: 4)
+                if !selections.isEmpty {
+                    Text("\(selections.count) of \(activeRooms.count)")
+                        .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .transaction { $0.animation = nil }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 16)
+            .foregroundStyle(.accent)
+            .background {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.accentColor.opacity(allSelected ? 0.22 : 0.14))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1)
+                    }
+            }
+        }
+        .buttonStyle(.plain)
+        .fontDesign(.rounded)
+        .padding(.horizontal)
+    }
+
+    private var canCommit: Bool {
+        deviceSelected || !selections.isEmpty
+    }
+
+    private var deviceRow: some View {
+        Button {
+            HapticManager.shared.fireHaptic(.selection)
+            playOnThisDevice = true
+            selections.removeAll()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "iphone.radiowaves.left.and.right")
+                    .font(.title3)
+                    .foregroundStyle(deviceSelected ? Color.accentColor : .secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("This Device")
+                        .font(.body.weight(.semibold))
+                    Text("Play here instead of a speaker")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 4)
+                ZStack {
+                    Circle()
+                        .strokeBorder(Color.primary.opacity(0.35), lineWidth: 2)
+                        .opacity(deviceSelected ? 0 : 1)
+                    Circle()
+                        .fill(Color.accentColor)
+                        .opacity(deviceSelected ? 1 : 0)
+                    Image(systemName: "checkmark")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.black)
+                        .opacity(deviceSelected ? 1 : 0)
+                }
+                .frame(width: 26, height: 26)
+                .animation(.interactiveSpring, value: deviceSelected)
+            }
+            .fontDesign(.rounded)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(deviceSelected ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.06))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(deviceSelected ? Color.accentColor.opacity(0.55) : Color.primary.opacity(0.08), lineWidth: 1)
+                    }
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal)
+    }
+
+    /// Device starts selected and stays that way until a group is played, which
+    /// is what gets remembered — the same stored choice the share extension
+    /// reads, so the two screens agree on where "last time" was.
+    private func restoreDestination() {
+        guard case let .group(id) = PlayDestination.remembered else { return }
+        guard let group = sonosService.groups.first(where: { $0.coordinatorID == id }) else { return }
+        playOnThisDevice = false
+        selections = Set(group.rooms.map(\Room.id))
+        if groupVolume.isZero {
+            groupVolume = group.groupVolume
+        }
+    }
+
+    private func playHere() {
+        guard let content else { return }
+        Task {
+            HapticManager.shared.fireHaptic(.buttonPress)
+            do {
+                try await LocalPlaybackService.shared.enqueue(content, at: selectedPosition)
+                PlayDestination.device.remember()
+                // Same reason as the route button: a group left in here would
+                // outrank the device on the next play.
+                selectedGroupService.group = nil
+                AlertService.shared.showAlertContent(
+                    with: content,
+                    subtitle: "Playing on this device",
+                    symbolName: "iphone.radiowaves.left.and.right"
+                )
+                dismiss()
+            } catch {
+                AlertService.shared.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
+            }
+        }
+    }
+
     func play(group: GroupRoom) {
         HapticManager.shared.fireHaptic(.buttonPress)
+        PlayDestination.group(group.coordinatorID).remember()
         withAnimation {
             dismiss()
         } completion: {

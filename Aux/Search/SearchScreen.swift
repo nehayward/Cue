@@ -7,13 +7,8 @@ import MusicKit
 import OrderedCollections
 import SwiftUI
 import SonosKit
-import FocusOnAppear
 
 struct SearchScreen: View {
-    enum SearchFocusFields: Hashable {
-        case search
-    }
-
     @Environment(\.dismiss) private var dismiss
 
     @Environment(SonosService.self) private var sonosService: SonosService
@@ -30,6 +25,12 @@ struct SearchScreen: View {
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
     @AppStorage(AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     var favorites: Bool = false
+    /// Whether this instance draws its own search field. The tab root doesn't:
+    /// `GlobalSearchField` above the `TabView` owns the query there, and a
+    /// second field would fight it for focus every time the tab appeared.
+    /// Everywhere else this screen is presented — the alarm picker, the
+    /// inspector, pushed destinations — it still needs one.
+    var showsSearchField: Bool = true
     var closeInspector: (() -> Void)? = nil
 
     var isAlarmSearch: Bool = false
@@ -37,14 +38,12 @@ struct SearchScreen: View {
     @State private var alertService = AlertService.shared
     @State private var searchCompletionTapped: Bool = false
     @State private var suggestion: String? = nil
+    /// Drives the system search field's `isPresented`, for the presentations
+    /// that draw their own. Starts active so a pushed or presented search
+    /// lands with the keyboard up.
     @State private var searchFieldIsPresented: Bool = true
     @State private var filters: [FilterSelection] = FilterSelection.defaultFilters
     @State private var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>] = []
-
-    @FocusState private var focusedField: SearchFocusFields?
-    #if targetEnvironment(macCatalyst)
-    @State private var searchBarFocused: Bool = false
-    #endif
 
     @State private var recentQueries = RecentQueriesStorage.shared
     @State private var lastNonEmptyQuery: String = ""
@@ -213,27 +212,6 @@ struct SearchScreen: View {
                     }
                 }
                 .toolbar {
-                    ToolbarItemGroup(placement: .principal) {
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundStyle(.secondary)
-                            TextField("Search", text: $musicSearchService.query)
-                                .focused($focusedField, equals: .search)
-                                .onSubmit {
-                                    guard let idx = keyboardSelectedIndex else { return }
-                                    activateSelectedItem(at: idx)
-                                }
-                        }
-                        .frame(idealWidth: 800)
-                        .toolbarBackground(with: true, in: .capsule)
-                        #if targetEnvironment(macCatalyst)
-                        .overlay {
-                            Capsule()
-                                .strokeBorder(Color.accentColor, lineWidth: 2)
-                                .opacity(searchBarFocused ? 1 : 0)
-                        }
-                        #endif
-                    }
                     #if !os(visionOS)
                     if #available(iOS 26.0, *) {
                         ToolbarItemGroup(placement: .keyboard) {
@@ -261,6 +239,15 @@ struct SearchScreen: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .searchableIfOwned(
+                showsSearchField,
+                text: $musicSearchService.query,
+                isPresented: $searchFieldIsPresented
+            )
+            .onSubmit(of: .search) {
+                guard let idx = keyboardSelectedIndex else { return }
+                activateSelectedItem(at: idx)
+            }
             .task(id: searchTaskKey) {
                 // Pushing a detail cancels this task and popping back restarts
                 // it — same id, but `.task` re-fires on reappear. Re-running
@@ -338,19 +325,6 @@ struct SearchScreen: View {
             keyboardSelectedIndex = nil
             return .handled
         }
-        .background {
-            TextField("Search", text: $musicSearchService.query)
-                .focusOnAppear($focusedField, equals: .search)
-                .onSubmit {
-                    guard let idx = keyboardSelectedIndex else { return }
-                    activateSelectedItem(at: idx)
-                }
-                .task {
-                    try? await Task.sleep(for: .seconds(0.6))
-                    focusedField = .search
-                }
-                .opacity(0.01)
-        }
         .presentationDragIndicator(.hidden)
         .listStyle(.plain)
         .foregroundStyle(.primary)
@@ -421,7 +395,7 @@ struct SearchScreen: View {
                 recentQueries.addOrMoveToFront(lastNonEmptyQuery)
             }
         }
-        .animation(.interactiveSpring, value: focusedField)
+        .animation(.interactiveSpring, value: searchFieldIsPresented)
         .animation(.interactiveSpring, value: musicSearchService.suggestions)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .overlay(
@@ -434,14 +408,6 @@ struct SearchScreen: View {
             .frame(width: 0, height: 0)
             .hidden()
         )
-        #if targetEnvironment(macCatalyst)
-        .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { _ in
-            searchBarFocused = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidEndEditingNotification)) { _ in
-            searchBarFocused = false
-        }
-        #endif
     }
 
     @MainActor
@@ -500,15 +466,15 @@ struct SearchScreen: View {
         }
         Task { @MainActor in
             let position = QueuePosition.defaultPosition(for: item.content.type, replaceQueueByDefault: replaceQueueByDefault)
+            let queueSong: ((GroupRoom, QueuePosition) async throws -> Void) = { group, selectedPosition in
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: selectedPosition, title: selectedPosition.title))
+                Router.main.show(destination: .player(groupID: group.coordinatorID))
+            }
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: { group, selectedPosition in
-                    QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: selectedPosition, title: selectedPosition.title))
-                    Router.main.show(destination: .player(groupID: group.coordinatorID))
-                }, defaultPosition: position, content: item))
+                await PlayDestinationRouter.play(item, position: position, queue: queueSong)
                 return
             }
-            QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position, title: position.title))
-            Router.main.show(destination: .player(groupID: group.coordinatorID))
+            try? await queueSong(group, position)
         }
     }
 }
@@ -891,6 +857,20 @@ private struct SearchSuggestionsBar: View {
             .buttonStyle(.bordered)
             .tint(.primary)
             .background(.thinMaterial, in: .capsule)
+        }
+    }
+}
+
+private extension View {
+    /// `.searchable` only where this screen owns the field. Applied
+    /// unconditionally it would put a second field in the Search tab, next to
+    /// the `GlobalSearchField` the `TabView` hosts.
+    @ViewBuilder
+    func searchableIfOwned(_ owned: Bool, text: Binding<String>, isPresented: Binding<Bool>) -> some View {
+        if owned {
+            searchable(text: text, isPresented: isPresented, prompt: "Search")
+        } else {
+            self
         }
     }
 }

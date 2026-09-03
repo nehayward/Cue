@@ -114,7 +114,11 @@ struct PlexBrowseScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .miniPlayerOnScrollHandler()
-            .contentMargins(.horizontal, 16, for: .scrollContent)
+            // Default placement, not `.scrollContent`: the scoped form insets
+            // the rows but leaves the List's section background running to the
+            // scroll view's edge, so the card butted straight up against the
+            // sidebar with no gap.
+            .contentMargins(.horizontal, 16)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Plex Library")

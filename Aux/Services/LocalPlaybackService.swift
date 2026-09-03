@@ -19,8 +19,8 @@ import SonosKit
 ///   so it doesn't fight the preview player or the hardware-volume bridge —
 ///   but it needs an active Apple Music subscription; `play` throws without
 ///   one and callers surface that through `AlertService`.
-/// - Plex tracks stream their full file (`previewURL` is the whole track
-///   served from the user's server).
+/// - Plex and Subsonic tracks stream their full file (`previewURL` is the
+///   whole track served from the user's own server).
 ///
 /// The displayed metadata never needs a fetch — `nowPlaying` is the same
 /// `PlayableContent` the search returned. The only network hop is resolving
@@ -92,8 +92,8 @@ final class LocalPlaybackService {
     /// for a run the user has already skipped away from.
     @ObservationIgnored private var playToken = 0
 
-    /// Whether the queue can take this item: Apple tracks (catalog or library)
-    /// and Plex tracks that carry their stream URL.
+    /// Whether the queue can take this item: Apple tracks (catalog or library),
+    /// and Plex or Subsonic tracks that carry their stream URL.
     func canPlayLocally(_ item: PlayableContent) -> Bool {
         backendKind(for: item) != nil
     }
@@ -105,42 +105,81 @@ final class LocalPlaybackService {
         case .plex where item.content.type == .track
             && (item.previewURL != nil || PlexDownloadService.shared.isDownloaded(item)):
             .stream
+        // Subsonic's `previewURL` is the whole track off the user's own server
+        // (`/rest/stream`), exactly like Plex's — so the same `AVQueuePlayer`
+        // path plays it. There's no download service for Subsonic, so the URL
+        // is the only source.
+        case .subsonic where item.content.type == .track && item.previewURL != nil:
+            .stream
         default:
             nil
         }
     }
 
-    /// Whether this is an album whose tracks the local queue can take (they
-    /// get fetched first — see `albumTracks(for:)`).
-    func canPlayAlbumLocally(_ item: PlayableContent) -> Bool {
+    /// Whether this is a container — album or playlist — whose tracks the local
+    /// queue can take. They get fetched first, see `containerTracks(for:)`.
+    func canPlayContainerLocally(_ item: PlayableContent) -> Bool {
         switch (item.content.type, item.content.service) {
         case (.album, .apple), (.libraryAlbum, .apple), (.album, .plex):
+            true
+        case (.playlist, .apple), (.libraryPlaylist, .apple), (.playlist, .plex):
             true
         default:
             false
         }
     }
 
-    /// The album's tracks, fetched the same way the album detail screen does.
-    func albumTracks(for album: PlayableContent) async -> [PlayableContent] {
-        switch (album.content.type, album.content.service) {
+    /// One page of a container's tracks, fetched the same way its detail
+    /// screen does. Sources that answer in a single shot return everything at
+    /// offset 0 and nothing after, so callers can page uniformly.
+    func containerTracks(for container: PlayableContent, offset: Int = 0) async -> [PlayableContent] {
+        switch (container.content.type, container.content.service) {
         case (.album, .apple):
-            guard let full: Album = try? await MusicSearchService.shared.lookup(id: album.content.id),
+            guard offset == 0 else { return [] }
+            guard let full: Album = try? await MusicSearchService.shared.lookup(id: container.content.id),
                   let tracks = full.tracks else { return [] }
             return await MusicSearchService.shared.tracksToPlayableWithPreviews(tracks)
         case (.libraryAlbum, .apple):
-            return await AppleMusicBrowseService.shared.albumLookup(id: album.content.id)
+            guard offset == 0 else { return [] }
+            return await AppleMusicBrowseService.shared.albumLookup(id: container.content.id)
         case (.album, .plex):
-            return await MusicSearchService.shared.lookupPlexAlbumSongs(id: album.content.id)
+            guard offset == 0 else { return [] }
+            return await MusicSearchService.shared.lookupPlexAlbumSongs(id: container.content.id)
+        case (.playlist, .apple):
+            // `getTracksFromPlaylist`, not `lookup(id:)` — the plain lookup can
+            // come back with `tracks` still nil, which is why the detail screen
+            // uses this one. Mirroring it keeps the two in step.
+            guard offset == 0 else { return [] }
+            guard let tracks = try? await MusicSearchService.shared.getTracksFromPlaylist(id: container.content.id) else { return [] }
+            return await MusicSearchService.shared.tracksToPlayableWithPreviews(tracks)
+        case (.libraryPlaylist, .apple):
+            // Paged — a playlist can run well past what one request returns.
+            return await AppleMusicBrowseService.shared
+                .tracksForUserPlaylists(id: container.content.id, offset: offset).0
+        case (.playlist, .plex):
+            // Paged too: `X-Plex-Container-Size` caps each response at 200.
+            return await MusicSearchService.shared
+                .lookupPlexPlaylists(id: container.content.id, offset: offset).1
         default:
             return []
         }
     }
 
-    // MARK: - Queue management
-
-    func play(_ item: PlayableContent) async throws {
-        try await play([item])
+    /// Appends everything after the page already queued. Runs detached from the
+    /// caller so playback starts on the first page — draining a 1600-track
+    /// playlist up front meant nine sequential requests before the first note,
+    /// which read as the Play button doing nothing.
+    private func appendRemainder(of container: PlayableContent, from start: Int, shuffle: Bool = false) async {
+        guard start > 0 else { return }
+        var offset = start
+        // Bounded: a source that quietly ignored `offset` would otherwise
+        // append its first page forever.
+        for _ in 0 ..< 200 {
+            let page = await containerTracks(for: container, offset: offset)
+            guard !page.isEmpty else { return }
+            offset += page.count
+            try? await addToQueue(shuffle ? page.shuffled() : page)
+        }
     }
 
     /// Replaces the queue with `items` and starts at `index` (an index into
@@ -185,6 +224,78 @@ final class LocalPlaybackService {
 
     func addToQueue(_ item: PlayableContent) async throws {
         try await addToQueue([item])
+    }
+
+    /// One entry point for "play this here, at this queue position" — used by
+    /// the share extension's Device hand-off and by the play sheet, so the
+    /// position mapping can't drift between them. Albums are expanded to their
+    /// tracks first. Throws `.nothingPlayable` when the local queue can't take
+    /// the content at all, which is the signal callers fall back to a Sonos
+    /// group on.
+    func enqueue(_ content: PlayableContent, at position: QueuePosition, shuffle: Bool = false) async throws {
+        try await enqueue([content], at: position, shuffle: shuffle)
+    }
+
+    /// The same, for a whole run at once — the artist screen's popular tracks
+    /// and discography arrive as a list. Order is preserved and containers are
+    /// expanded in place, so a discography lands album by album the way it
+    /// would on a speaker. Anything with no local backend is skipped rather
+    /// than failing the lot; only an empty result throws.
+    ///
+    /// `shuffle` shuffles within each page as it arrives rather than across the
+    /// whole container: a true global shuffle needs every page in hand first,
+    /// which is exactly the wait that starting on page one avoids. At Plex's
+    /// 200 tracks per page that reads as shuffled.
+    func enqueue(_ contents: [PlayableContent], at position: QueuePosition, shuffle: Bool = false) async throws {
+        var items: [PlayableContent] = []
+        /// Containers whose first page is in `items`; the rest follows once
+        /// playback is underway.
+        var containers: [(content: PlayableContent, loaded: Int)] = []
+        for content in contents {
+            if canPlayLocally(content) {
+                items.append(content)
+            } else if canPlayContainerLocally(content) {
+                let page = await containerTracks(for: content, offset: 0)
+                items += shuffle ? page.shuffled() : page
+                containers.append((content, page.count))
+            }
+        }
+        guard !items.isEmpty else { throw LocalPlaybackError.nothingPlayable }
+
+        switch position {
+        case .now, .replace: try await play(items)
+        case .next, .front: try await playNext(items)
+        case .end: try await addToQueue(items)
+        }
+
+        // Playing already, so the tail can arrive behind it.
+        guard !containers.isEmpty else { return }
+        Task {
+            for container in containers {
+                await appendRemainder(of: container.content, from: container.loaded, shuffle: shuffle)
+            }
+        }
+    }
+
+    /// Whether `enqueue` has any chance with this content — the cheap check the
+    /// UI uses to decide whether to offer Device at all.
+    func canPlayAnywhereLocally(_ content: PlayableContent) -> Bool {
+        canPlayLocally(content) || canPlayContainerLocally(content)
+    }
+
+    /// Scrubs within the current track. Whichever player owns the armed run
+    /// takes it — the two backends share no seek API, and neither is armed
+    /// when nothing is playing.
+    func seek(to seconds: TimeInterval) {
+        progress = seconds
+        switch backend {
+        case .appleMusic:
+            musicPlayer.playbackTime = seconds
+        case .stream:
+            streamPlayer?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
+        case nil:
+            break
+        }
     }
 
     /// Jumps to `index` in the queue (e.g. a tap in the Up Next list).
@@ -377,8 +488,30 @@ final class LocalPlaybackService {
         // fatal to the run.
         var resolved: [(queueIndex: Int, song: Song)] = []
         var missing: [(queueIndex: Int, catalogID: String)] = []
+        var cacheChanged = false
         for queueIndex in index...end {
-            guard let catalogID = await catalogID(for: queue[queueIndex]) else { continue }
+            let item = queue[queueIndex]
+            // Library tracks resolve from the library itself. Going through the
+            // catalog first was why playing one sometimes did nothing: a
+            // library-only track — a matched upload, or a purchase Apple Music
+            // doesn't carry — has no catalog equivalent, so `catalogID` came
+            // back nil and the row was silently dropped from the run.
+            if item.content.type == .libraryTrack {
+                let key = Self.libraryCacheKey(for: item.content.id)
+                if let cached = songCache[key] {
+                    resolved.append((queueIndex, cached))
+                    continue
+                }
+                if let song = await librarySong(id: item.content.id) {
+                    songCache[key] = song
+                    cacheChanged = true
+                    resolved.append((queueIndex, song))
+                    continue
+                }
+                // Not in the library any more — fall through and try the
+                // catalog mapping rather than dropping the row outright.
+            }
+            guard let catalogID = await catalogID(for: item) else { continue }
             if let cached = songCache[catalogID] {
                 resolved.append((queueIndex, cached))
             } else {
@@ -391,8 +524,11 @@ final class LocalPlaybackService {
             for (queueIndex, catalogID) in missing {
                 guard let song = byID[catalogID] else { continue }
                 songCache[catalogID] = song
+                cacheChanged = true
                 resolved.append((queueIndex, song))
             }
+        }
+        if cacheChanged {
             SongDiskCache.save(songCache)
         }
         resolved.sort { $0.queueIndex < $1.queueIndex }
@@ -421,6 +557,19 @@ final class LocalPlaybackService {
         duration = first.song.duration ?? 0
     }
 
+    /// Cache key for a library `Song`. Namespaced so a library id can't collide
+    /// with the catalog ids the rest of the cache holds.
+    private static func libraryCacheKey(for id: String) -> String { "library:\(id)" }
+
+    /// The library `Song` for a library-track row, queued directly rather than
+    /// via its catalog twin — `ApplicationMusicPlayer` plays library items, and
+    /// this is the only path that works for a track the catalog doesn't have.
+    private func librarySong(id: String) async -> Song? {
+        var request = MusicLibraryRequest<Song>()
+        request.filter(matching: \.id, equalTo: MusicItemID(id))
+        return try? await request.response().items.first
+    }
+
     /// The Apple Music catalog id for `item`. Library tracks carry a library id
     /// (`i.…`) the catalog can't fetch, so those are mapped to their catalog
     /// song first — the same way radio seeding does.
@@ -430,13 +579,14 @@ final class LocalPlaybackService {
         return lookup.data.first?.id
     }
 
-    // MARK: - Stream (Plex) backend
+    // MARK: - Stream (Plex, Subsonic) backend
 
     private func armStream(index: Int, end: Int) {
         let rows: [(queueIndex: Int, item: AVPlayerItem)] = (index...end).compactMap { queueIndex in
             let item = queue[queueIndex]
             // A downloaded copy beats the server URL — it plays with no
-            // network, including away from the Plex server entirely.
+            // network, including away from the Plex server entirely. Nothing is
+            // ever downloaded for Subsonic, so those fall through to the URL.
             guard let url = PlexDownloadService.shared.localURL(for: item) ?? item.previewURL else { return nil }
             return (queueIndex, AVPlayerItem(url: url))
         }

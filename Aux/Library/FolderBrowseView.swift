@@ -37,7 +37,7 @@ struct FolderBrowseView: View {
                         }
 
                         guard let group = selectedGroupService.group else {
-                            router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queue, defaultPosition: .now, content: item))
+                            await PlayDestinationRouter.play(item, position: .now, queue: queue)
                             return
                         }
 

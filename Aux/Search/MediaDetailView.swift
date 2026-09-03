@@ -390,7 +390,7 @@ struct MediaDetailView: View {
             }
 
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queue, defaultPosition: defaultPosition, content: currentContent))
+                await PlayDestinationRouter.play(currentContent, position: defaultPosition, shuffle: playMode.contains(.shuffle), queue: queue)
                 return
             }
 

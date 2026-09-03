@@ -1,4 +1,5 @@
 import SwiftUI
+import Defaults
 import SonosKit
 import MusicSearchKit
 import VibesDS
@@ -10,8 +11,8 @@ struct QueueListView: View {
     private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
 
     @State private var content: PlayableContent?
-    @State private var rooms: [Room] = []
-    @State private var selections = Set<String>()
+    @State private var destination: PlayDestination = .device
+    @State private var didRestoreDestination = false
     @State private var groupVolume: Double = 0
     @State private var isQueueing = false
     @State private var setVolume = false
@@ -29,34 +30,45 @@ struct QueueListView: View {
 
     // MARK: - Derived state
 
-    private var allSelected: Bool {
-        !rooms.isEmpty && selections.count == rooms.count
-    }
-
     private var isArtist: Bool {
         content?.content.type == .artist
     }
 
-    private var multiRoomGroups: [GroupRoom] {
-        sonosService.groups.filter { $0.rooms.count > 1 }
+    /// Every group, in the user's chosen sort order. A lone speaker is a group
+    /// of one in Sonos, so this is also the full list of rooms.
+    private var groups: [GroupRoom] {
+        sonosService.sorted
     }
 
-    private var sortedRooms: [Room] {
-        rooms.sorted { isRoomPlaying($0.id) && !isRoomPlaying($1.id) }
+    private var selectedGroup: GroupRoom? {
+        guard let id = destination.groupID else { return nil }
+        return groups.first { $0.coordinatorID == id }
     }
 
-    private func isRoomPlaying(_ id: String) -> Bool {
-        sonosService.sortedRooms.first { $0.id == id }?.isPlaying ?? false
+    /// Whether the phone could take this content at all. `LocalPlaybackService`
+    /// in the main app is the real authority — it re-checks and falls back to
+    /// the room picker when a track turns out to be unplayable after the fact
+    /// (a Plex track with no stream URL, Apple without a subscription). This is
+    /// deliberately the looser test, so Device is only ruled out for content
+    /// that can *never* play here: radio, artists, and the services with no
+    /// local backend.
+    private var canPlayOnDevice: Bool {
+        guard let content else { return false }
+        return switch (content.content.service, content.content.type) {
+        case (.apple, .track), (.apple, .libraryTrack), (.apple, .album), (.apple, .libraryAlbum):
+            true
+        case (.plex, .track), (.plex, .album):
+            true
+        default:
+            false
+        }
     }
 
-    private func currentTrackName(for id: String) -> String {
-        sonosService.sortedRooms.first { $0.id == id }?.track.name ?? ""
-    }
-
-    private func liveGroup(for roomID: String) -> GroupRoom? {
-        guard let group = sonosService.groups.first(where: { $0.rooms.contains { $0.id == roomID } }),
-              group.rooms.count > 1 else { return nil }
-        return group
+    private var canPlay: Bool {
+        switch destination {
+        case .device: canPlayOnDevice
+        case .group: selectedGroup != nil
+        }
     }
 
     // MARK: - Body
@@ -132,17 +144,13 @@ struct QueueListView: View {
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         if self.content != nil {
-                            multiRoomGroupsScroll
-                            Divider()
-                                .padding(.horizontal)
-                            ForEach(sortedRooms) { roomRow($0) }
+                            destinationList
                         }
                     }
                     .disabled(isQueueing)
                     .fontDesign(.rounded)
-                    .onAppear { Task { await refreshRooms() } }
                     .animation(.default, value: sonosService.sorted)
-                    .animation(.default, value: selections)
+                    .animation(.default, value: destination)
                     .animation(.default, value: groupVolume)
                 }
                 .safeAreaBar(edge: .top) {
@@ -155,17 +163,13 @@ struct QueueListView: View {
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         if self.content != nil {
-                            multiRoomGroupsScroll
-                            Divider()
-                                .padding(.horizontal)
-                            ForEach(sortedRooms) { roomRow($0) }
+                            destinationList
                         }
                     }
                     .disabled(isQueueing)
                     .fontDesign(.rounded)
-                    .onAppear { Task { await refreshRooms() } }
                     .animation(.default, value: sonosService.sorted)
-                    .animation(.default, value: selections)
+                    .animation(.default, value: destination)
                     .animation(.default, value: groupVolume)
                 }
             }
@@ -179,6 +183,7 @@ struct QueueListView: View {
             try? await sonosService.updateGroups()
             try? await sonosService.load(useCache: true)
             impactFeedbackGenerator.prepare()
+            restoreDestination()
         }
         .task(id: viewModel.url) {
             guard let url = viewModel.url else { return }
@@ -195,6 +200,7 @@ struct QueueListView: View {
             if let type = content?.content.type {
                 queuePosition = type.isPlaylist ? .replace : .now
             }
+            fallBackFromDeviceIfNeeded()
         }
     }
 
@@ -246,97 +252,71 @@ struct QueueListView: View {
         .padding(.bottom, 8)
     }
 
+    /// The one thing this sheet asks for: where to play. The phone first, then
+    /// every Sonos group. Picking a row only selects it — `performPlay` commits,
+    /// so the position picker and volume above still apply to the choice.
     @ViewBuilder
-    private var multiRoomGroupsScroll: some View {
-        if !multiRoomGroups.isEmpty {
-            ScrollView(.horizontal) {
-                HStack(spacing: 10) {
-                    ForEach(multiRoomGroups) { groupCard($0) }
-                }
-                .padding(.horizontal)
-            }
-            .scrollIndicators(.hidden)
-            .scrollClipDisabled()
-        }
+    private var destinationList: some View {
+        deviceRow
+        ForEach(groups) { groupRow($0) }
     }
 
-    private func groupCard(_ group: GroupRoom) -> some View {
-        Button {
-            playInGroup(group)
-        } label: {
-            VStack(alignment: .leading) {
-                HStack(spacing: 12) {
-                    Text(group.nameWithCount).fontWeight(.semibold).lineLimit(1)
-                    Spacer()
-                    Text("\(Int(group.groupVolume))").font(.callout).foregroundStyle(.secondary)
-                }
-                Text(group.coordinatorRoom.track.name)
-                    .font(.caption)
-                    .lineLimit(1, reservesSpace: true)
-                    .foregroundStyle(.secondary)
-            }
-            .padding()
-            .background {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                    }
-            }
-            .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, _ in length / 1.75 }
-        }
-        .buttonStyle(.plain)
+    private var deviceRow: some View {
+        destinationButton(
+            destination: .device,
+            title: "This Device",
+            subtitle: canPlayOnDevice ? "Play on this \(deviceNoun)" : "Not available for this link",
+            trailingText: nil,
+            enabled: canPlayOnDevice,
+            isPlaying: false
+        )
     }
 
-    private var everywhereButton: some View {
-        Button {
+    private func groupRow(_ group: GroupRoom) -> some View {
+        let trackName = group.coordinatorRoom.track.name
+        return destinationButton(
+            destination: .group(group.coordinatorID),
+            title: group.nameWithCount,
+            subtitle: trackName.isEmpty ? "—" : trackName,
+            trailingText: "\(Int(group.groupVolume))",
+            enabled: true,
+            isPlaying: group.coordinatorRoom.isPlaying
+        )
+    }
+
+    private func destinationButton(
+        destination target: PlayDestination,
+        title: String,
+        subtitle: String,
+        trailingText: String?,
+        enabled: Bool,
+        isPlaying: Bool
+    ) -> some View {
+        let isSelected = destination == target
+
+        return Button {
             impactFeedbackGenerator.impactOccurred()
-            toggleEverywhere()
-        } label: {
-            Text(allSelected ? "Deselect All" : "Everywhere")
-                .contentTransition(.identity)
-                .frame(maxWidth: .infinity)
-                .bold()
-        }
-        .buttonStyle(.bordered)
-        .padding(.horizontal)
-    }
-
-    @ViewBuilder
-    private func roomRow(_ room: Room) -> some View {
-        let isSelected = selections.contains(room.id)
-        let isPlaying = isRoomPlaying(room.id)
-        let group = liveGroup(for: room.id)
-        let trackName = currentTrackName(for: room.id)
-        let subtitle: String = {
-            if !trackName.isEmpty { return trackName }
-            guard let g = group else { return "—" }
-            let extra = g.rooms.count - 1
-            return "Grouped with \(g.coordinatorRoom.name)\(extra > 1 ? " +\(extra - 1)" : "")"
-        }()
-
-        Button {
-            impactFeedbackGenerator.impactOccurred()
-            toggleSelection(room)
+            select(target)
         } label: {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(room.name).font(.body.weight(.semibold))
+                    Text(title).font(.body.weight(.semibold))
                     Text(subtitle)
                         .font(.caption)
                         .lineLimit(1, reservesSpace: true)
                         .foregroundStyle(isPlaying ? Color.accentColor : Color.secondary)
                 }
                 Spacer(minLength: 4)
-                Text("\(Int(room.volume))")
-                    .font(.footnote.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .frame(minWidth: 22)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(.quaternary))
+                if let trailingText {
+                    Text(trailingText)
+                        .font(.footnote.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .frame(minWidth: 22)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(.quaternary))
+                }
                 ZStack {
                     Circle()
                         .strokeBorder(Color.primary.opacity(0.35), lineWidth: 2)
@@ -363,6 +343,12 @@ struct QueueListView: View {
             }
             .padding(.horizontal)
         }
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.4)
+    }
+
+    private var deviceNoun: String {
+        UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
     }
 
     // MARK: - Bottom bar
@@ -371,24 +357,28 @@ struct QueueListView: View {
     private var bottomBar: some View {
         VStack(spacing: 16) {
             VStack {
-                Button {
-                    withAnimation(.interactiveSpring) {
-                        setVolume.toggle()
+                // Only a Sonos group has a volume this sheet can set — the
+                // phone's is the system volume, which isn't ours to move.
+                if selectedGroup != nil {
+                    Button {
+                        withAnimation(.interactiveSpring) {
+                            setVolume.toggle()
+                        }
+                    } label: {
+                        Label("Volume", systemImage: "speaker.wave.2.fill")
+                            .font(.caption.smallCaps())
                     }
-                } label: {
-                    Label("Volume", systemImage: "speaker.wave.2.fill")
-                        .font(.caption.smallCaps())
+                    .geometryGroup()
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .tint(.primary.opacity(0.8))
+                    .colorScheme(.light)
                 }
-                .geometryGroup()
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-                .tint(.primary.opacity(0.8))
-                .colorScheme(.light)
-                
+
                 playButtons
                     .tint(.accentColor)
             }
-            if setVolume {
+            if setVolume, selectedGroup != nil {
                 volumeRow
                     .transition(.opacity.combined(with: .move(edge: .bottom)).animation(.interactiveSpring))
             }
@@ -432,7 +422,7 @@ struct QueueListView: View {
                         .frame(maxWidth: .infinity).bold().fontDesign(.rounded)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(selections.isEmpty || isQueueing)
+                .disabled(!canPlay || isQueueing)
 
                 Button { dismiss(opening: content?.viewURL) } label: {
                     Label("Show", systemImage: "info.circle")
@@ -465,8 +455,8 @@ struct QueueListView: View {
                 }
             }
             .buttonStyle(.plain)
-            .disabled(selections.isEmpty || isQueueing)
-            .opacity((selections.isEmpty || isQueueing) ? 0.4 : 1)
+            .disabled(!canPlay || isQueueing)
+            .opacity((!canPlay || isQueueing) ? 0.4 : 1)
         }
     }
 
@@ -512,7 +502,7 @@ struct QueueListView: View {
                 .disabled(viewModel.url == nil)
             }
         }
-        if content != nil, sonosService.groups.isEmpty {
+        if content != nil, sonosService.groups.isEmpty, !canPlayOnDevice {
             Text("No system available").font(.title).padding()
         }
         if viewModel.isLoading {
@@ -557,101 +547,97 @@ struct QueueListView: View {
         dismiss()
     }
 
-    private func toggleSelection(_ room: Room) {
-        if selections.contains(room.id) {
-            selections.remove(room.id)
-        } else {
-            selections.insert(room.id)
-            if groupVolume.isZero { groupVolume = room.volume }
+    private func select(_ target: PlayDestination) {
+        destination = target
+        if let group = groups.first(where: { $0.coordinatorID == target.groupID }), groupVolume.isZero {
+            groupVolume = group.groupVolume
         }
     }
 
-    private func toggleEverywhere() {
-        if allSelected {
-            selections.removeAll()
-            return
+    /// Restores the destination from the last share. A remembered group that
+    /// has since been regrouped away (its coordinator is now a member of some
+    /// other group) or powered off would leave Play pointing at nothing, so
+    /// that falls back to the phone rather than silently doing nothing.
+    private func restoreDestination() {
+        guard !didRestoreDestination else { return }
+        didRestoreDestination = true
+        guard let remembered = PlayDestination.remembered else { return }
+        switch remembered {
+        case .device:
+            destination = .device
+        case let .group(id):
+            guard groups.contains(where: { $0.coordinatorID == id }) else { return }
+            select(.group(id))
         }
-        for room in rooms {
-            if groupVolume.isZero { groupVolume = room.volume }
-            selections.insert(room.id)
-        }
+        // Groups and content resolve in two independent tasks, so whichever
+        // lands second has to re-run the check.
+        fallBackFromDeviceIfNeeded()
     }
 
-    private func refreshRooms() async {
-        if sonosService.sortedRooms.isEmpty {
-            try? await sonosService.updateGroups()
-        }
-        let active = sonosService.sortedRooms.filter { $0.state == .active }
-        let snapshots = active.map { source in
-            let room = Room(id: source.id, ip: source.ip, name: source.name, channelMap: source.channelMap)
-            room.volume = source.volume
-            return room
-        }
-        rooms = snapshots
-        // Fetch live volume per room — the extension has no watcher to refresh these.
-        await withTaskGroup(of: (String, Double).self) { group in
-            for room in snapshots {
-                group.addTask {
-                    let volume = (try? await sonosService.getVolume(ip: room.ip)) ?? room.volume
-                    return (room.id, volume)
-                }
-            }
-            for await (id, volume) in group {
-                if let room = snapshots.first(where: { $0.id == id }) {
-                    room.volume = volume
-                }
-            }
-        }
+    /// A Spotify or Tidal link has no local backend, so a remembered Device
+    /// choice would leave Play greyed out with nothing to press. Move to a
+    /// group instead — without remembering it, since the user didn't pick it.
+    private func fallBackFromDeviceIfNeeded() {
+        guard destination == .device, content != nil, !canPlayOnDevice else { return }
+        guard let group = groups.first(where: { $0.coordinatorRoom.isPlaying }) ?? groups.first else { return }
+        destination = .group(group.coordinatorID)
     }
 
-    private func playInGroup(_ group: GroupRoom) {
-        guard let content else { return }
-        isQueueing = true
-        Task {
-            defer { isQueueing = false }
-            impactFeedbackGenerator.impactOccurred()
-            playHistoryService.history.remove(content)
-            playHistoryService.history.insert(content, at: 0)
-
-            try await sonosService.queue(playable: content, group: group, position: queuePosition)
-            await sonosService.play(ip: group.ip)
-
-            dismiss(opening: URL(string: "clic://device?id=\(group.coordinatorID)"))
-        }
+    /// The phone can't play from in here — `ApplicationMusicPlayer` doesn't run
+    /// in an app extension, and this process ends the moment the sheet closes —
+    /// so Device hands the content to the main app, which owns
+    /// `LocalPlaybackService`. `device=1` is what tells it to play rather than
+    /// open the room picker; it falls back to that picker on its own when the
+    /// local queue turns out not to take the content.
+    private var deviceHandoffURL: URL? {
+        guard let base = openInClicURL,
+              var components = URLComponents(url: base, resolvingAgainstBaseURL: false) else { return nil }
+        components.queryItems = (components.queryItems ?? []) + [
+            URLQueryItem(name: "device", value: "1"),
+            URLQueryItem(name: "position", value: queuePosition.linkValue)
+        ]
+        return components.url
     }
 
     private func performPlay(asArtistRadio: Bool = false) {
         guard let baseContent = content else { return }
         let contentToPlay = asArtistRadio ? baseContent.asArtistRadio() : baseContent
-        isQueueing = true
+        destination.remember()
 
+        switch destination {
+        case .device:
+            impactFeedbackGenerator.impactOccurred()
+            dismiss(opening: deviceHandoffURL)
+        case .group:
+            guard let group = selectedGroup else { return }
+            playInGroup(group, content: contentToPlay)
+        }
+    }
+
+    private func playInGroup(_ group: GroupRoom, content contentToPlay: PlayableContent) {
+        isQueueing = true
         Task {
             defer { isQueueing = false }
             impactFeedbackGenerator.impactOccurred()
-            let selectedRooms = rooms.filter { selections.contains($0.id) }
-            guard let newGroup = await sonosService.speedGroup(rooms: selectedRooms) else { return }
-
             playHistoryService.history.remove(contentToPlay)
             playHistoryService.history.insert(contentToPlay, at: 0)
 
-            try await sonosService.queue(playable: contentToPlay, group: newGroup, position: queuePosition)
-            await sonosService.play(ip: newGroup.ip)
+            try await sonosService.queue(playable: contentToPlay, group: group, position: queuePosition)
+            await sonosService.play(ip: group.ip)
 
             if setVolume {
-                await withTaskGroup(of: Void.self) { group in
-                    for room in selectedRooms {
-                        group.addTask {
-                            await sonosService.setDeviceVolume(ip: room.ip, volume: Int(groupVolume))
-                            await sonosService.setRoomMute(IP: room.ip, mute: false)
-                        }
+                await sonosService.setGroupVolume(ip: group.ip, volume: Int(groupVolume))
+                await withTaskGroup(of: Void.self) { tasks in
+                    for room in group.rooms {
+                        tasks.addTask { await sonosService.setRoomMute(IP: room.ip, mute: false) }
                     }
                 }
             }
 
             try await Task.sleep(for: .microseconds(200))
-            await sonosService.snapShotGroup(ip: newGroup.ip)
+            await sonosService.snapShotGroup(ip: group.ip)
 
-            dismiss(opening: URL(string: "clic://device?id=\(newGroup.coordinatorID)"))
+            dismiss(opening: URL(string: "clic://device?id=\(group.coordinatorID)"))
         }
     }
 

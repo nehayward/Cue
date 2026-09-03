@@ -450,7 +450,10 @@ struct ArtistDetailView: View {
     private func startRadio() async {
         guard let artistContent else { return }
 
-        guard let group = selectedGroupService.group else {
+        // Radio is Sonos-only — there is no local backend for it — so the
+        // remembered speaker stands in for the picker, and the picker is only
+        // for when the route is this device (or that speaker is gone).
+        guard let group = selectedGroupService.group ?? PlayDestinationRouter.rememberedGroup else {
             router?.presentedSheet = .selectGroup(
                 selectedGroupService: selectedGroupService,
                 content: artistContent
@@ -475,7 +478,7 @@ struct ArtistDetailView: View {
     
     private func playAllTracks(position: QueuePosition = .next) async {
         let trackCount = tracks.count
-        let queueAllSongs: (GroupRoom) async throws -> Void = { group in
+        let queueAllSongs: (GroupRoom, QueuePosition) async throws -> Void = { group, position in
             HapticManager.shared.fireHaptic(.buttonPress)
             switch position {
             case .front:
@@ -499,20 +502,17 @@ struct ArtistDetailView: View {
         }
 
         guard let group = selectedGroupService.group else {
-            router?.sheet(to: .selectGroup(
-                selectedGroupService: selectedGroupService,
-                onSelection: queueAllSongs
-            ))
+            await PlayDestinationRouter.play(tracks, position: position, queue: queueAllSongs)
             return
         }
 
-        try? await queueAllSongs(group)
+        try? await queueAllSongs(group, position)
     }
     
     private func playDiscography(position: QueuePosition = .next) async {
         let albumsToPlay = Array(currentAlbums.reversed())
         let albumCount = albumsToPlay.count
-        let queueAll: (GroupRoom) async throws -> Void = { group in
+        let queueAll: (GroupRoom, QueuePosition) async throws -> Void = { group, position in
             HapticManager.shared.fireHaptic(.buttonPress)
 
             switch position {
@@ -538,14 +538,11 @@ struct ArtistDetailView: View {
         }
 
         guard let group = selectedGroupService.group else {
-            router?.sheet(to: .selectGroup(
-                selectedGroupService: selectedGroupService,
-                onSelection: queueAll
-            ))
+            await PlayDestinationRouter.play(albumsToPlay, position: position, queue: queueAll)
             return
         }
-        
-        try? await queueAll(group)
+
+        try? await queueAll(group, position)
     }
     
     // MARK: - Data Loading

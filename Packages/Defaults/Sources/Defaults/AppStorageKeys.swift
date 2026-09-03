@@ -13,6 +13,9 @@ public enum AppStorageKeys {
     public static let queueMode = "\(Prefix.id).queueMode"
     public static let showArtworkOnly = "\(Prefix.id).showArtworkOnly"
     public static let queueInspectorVisible = "\(Prefix.id).queueInspectorVisible"
+    /// Width in points of the trailing queue panel, so a drag-to-resize
+    /// survives relaunch.
+    public static let queuePanelWidth = "\(Prefix.id).queuePanelWidth"
     public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"

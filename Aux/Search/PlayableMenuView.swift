@@ -1,3 +1,4 @@
+import Defaults
 import SwiftUI
 import SonosKit
 import MusicSearchKit
@@ -13,6 +14,7 @@ struct PlayableMenuView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService: AppleMusicBrowseService?
+    @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     var item: PlayableContent
     /// When set (track shown inside an editable playlist), adds a "Remove from Playlist" action.
     var onRemoveFromPlaylist: (() -> Void)? = nil
@@ -104,7 +106,7 @@ struct PlayableMenuView: View {
                     SongPreviewButton(previewURL: previewURL, streaming: item.content.service.streamsFullTrackPreview)
                 }
                 
-                if LocalPlaybackService.shared.canPlayLocally(item) || LocalPlaybackService.shared.canPlayAlbumLocally(item) {
+                if LocalPlaybackService.shared.canPlayAnywhereLocally(item) {
                     Menu {
                         Button {
                             playOnDevice { try await LocalPlaybackService.shared.play(localItems()) }
@@ -276,7 +278,7 @@ struct PlayableMenuView: View {
                 QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: selectedPosition, title: selectedPosition.title, showBanner: true))
             }
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queueSong, defaultPosition: position, content: item))
+                await PlayDestinationRouter.play(item, position: position, shuffle: shuffle, queue: queueSong)
                 return
             }
             try await queueSong(group, position)
@@ -295,7 +297,7 @@ struct PlayableMenuView: View {
                 QueueManager.shared.add(items: items)
             }
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: enqueueFolder, defaultPosition: .replace, content: item))
+                await PlayDestinationRouter.play(item, position: .replace, queue: enqueueFolder)
                 return
             }
             try await enqueueFolder(group, .replace)
@@ -341,14 +343,14 @@ struct PlayableMenuView: View {
     /// an album's fetched tracks.
     private func localItems() async throws -> [PlayableContent] {
         if LocalPlaybackService.shared.canPlayLocally(item) { return [item] }
-        let tracks = await LocalPlaybackService.shared.albumTracks(for: item)
+        let tracks = await LocalPlaybackService.shared.containerTracks(for: item)
         guard !tracks.isEmpty else { throw LocalPlaybackService.LocalPlaybackError.nothingPlayable }
         return tracks
     }
 
     private func downloadPlexAlbum() {
         Task { @MainActor in
-            let tracks = await LocalPlaybackService.shared.albumTracks(for: item)
+            let tracks = await LocalPlaybackService.shared.containerTracks(for: item)
             guard !tracks.isEmpty else {
                 alertService.showAlert(with: "Couldn't load album tracks", imageName: "exclamationmark.triangle")
                 return
