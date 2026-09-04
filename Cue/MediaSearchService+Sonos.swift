@@ -31,6 +31,10 @@ extension MediaSearchService {
     /// Sonos account involved): whether a server is currently set up. Add an
     /// arm here — alongside `managementSheet` — when porting another
     /// direct-HTTP service (e.g. Jellyfin).
+    ///
+    /// Main-actor: the answers come from main-actor services, and every
+    /// reader (the Services screen, the enabled-services sync) is there too.
+    @MainActor
     var isConfiguredInCue: Bool? {
         switch self {
         case .subsonic: SubsonicAPI.shared.isConfigured
@@ -43,6 +47,7 @@ extension MediaSearchService {
     /// services discovered on their Sonos system. Services with no Sonos
     /// counterpart (Library) are always available; self-hosted services
     /// bypass Sonos entirely and answer from their in-Cue configuration.
+    @MainActor
     func isAuthorized(on installed: Set<SonosServiceType>) -> Bool {
         if let isConfiguredInCue { return isConfiguredInCue }
         guard let sonosServiceType else { return true }
