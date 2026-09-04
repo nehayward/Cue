@@ -9,3 +9,4 @@ Feature ideas and design notes for future development.
 - [Auto-DJ](auto-dj.md) — Automatically seed the queue when it runs low
 - [Guest Queue](guest-queue.md) — Share your Sonos group via QR code so guests can add songs
 - [User Playlists](user-playlists.md) — Cue-native playlists with sharing via export/import link
+- [Radio: Local Stations & More Sources](radio-local-stations.md) — Live-stream playback, location-accurate local radio, Radio Browser as a source
