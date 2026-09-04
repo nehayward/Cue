@@ -16,8 +16,9 @@ import CoreSpotlight
 import WidgetKit
 #endif
 
-/// Tab bar accessory mini player for local (on-this-device) playback. Tapping
-/// the track opens the full `PlayerView`; the trailing controls act in place.
+/// Tab bar accessory mini player for wherever the route points: this device,
+/// or the Sonos group chosen in the route button. Tapping the track opens the
+/// matching full player; the trailing controls act in place.
 struct MusicPlaybackView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     /// Owned by `CueApp`, not by this view. The tab bar accessory is hosted
@@ -30,61 +31,17 @@ struct MusicPlaybackView: View {
     let zoomNamespace: Namespace.ID
 
     private var playback: LocalPlaybackService { .shared }
+    /// Singletons rather than the environment: the accessory is hosted
+    /// outside what `withEnvironments()` installs on the tab content.
+    private var route: PlaybackRoute { .shared }
+    private var sonosService: SonosService { .shared }
 
     var body: some View {
         HStack(spacing: 12) {
-            Button {
-                showPlayer.toggle()
-            } label: {
-                HStack(spacing: 12) {
-                    if let item = playback.nowPlaying {
-                        ContentArtworkView(content: item, showMusicSource: false)
-                            .frame(width: 40, height: 40)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                        VStack(alignment: .leading) {
-                            Text(item.title)
-                                .font(.callout.bold())
-                                .lineLimit(1)
-                            if placement != .inline {
-                                Text(item.subtitle)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                    } else {
-                        Image(systemName: "iphone.radiowaves.left.and.right")
-                            .foregroundStyle(.secondary)
-                        Text("Not Playing")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .zoomSource(.miniPlayer, in: zoomNamespace)
-
-            if playback.isActive {
-                Button {
-                    playback.togglePlayback()
-                } label: {
-                    Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                        .contentTransition(.symbolEffect(.replace))
-                }
-                .buttonStyle(.plain)
-                .font(.title3)
-
-                if placement != .inline {
-                    Button {
-                        playback.next()
-                    } label: {
-                        Image(systemName: "forward.fill")
-                    }
-                    .buttonStyle(.plain)
-                    .font(.title3)
-                }
+            if let group = route.group {
+                groupContent(group)
+            } else {
+                deviceContent
             }
 
             // Always present, playing or not: the route is set ahead of Play,
@@ -95,6 +52,179 @@ struct MusicPlaybackView: View {
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: 500, maxHeight: 120)
+    }
+
+    // MARK: - This device
+
+    @ViewBuilder
+    private var deviceContent: some View {
+        Button {
+            showPlayer.toggle()
+        } label: {
+            HStack(spacing: 12) {
+                if let item = playback.nowPlaying {
+                    ContentArtworkView(content: item, showMusicSource: false)
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    VStack(alignment: .leading) {
+                        Text(item.title)
+                            .font(.callout.bold())
+                            .lineLimit(1)
+                        if placement != .inline {
+                            Text(item.subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                } else {
+                    Image(systemName: "iphone.radiowaves.left.and.right")
+                        .foregroundStyle(.secondary)
+                    Text("Not Playing")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .zoomSource(.miniPlayer, in: zoomNamespace)
+
+        if playback.isActive {
+            Button {
+                playback.togglePlayback()
+            } label: {
+                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(.plain)
+            .font(.title3)
+
+            if placement != .inline {
+                Button {
+                    playback.next()
+                } label: {
+                    Image(systemName: "forward.fill")
+                }
+                .buttonStyle(.plain)
+                .font(.title3)
+            }
+        }
+    }
+
+    // MARK: - A speaker
+
+    /// The same row for a Sonos group: its current track, and transport that
+    /// acts on the speaker. `GroupRoom` is `@Observable`, so the pushed track
+    /// and playing state redraw this in place.
+    @ViewBuilder
+    private func groupContent(_ group: GroupRoom) -> some View {
+        let room = group.coordinatorRoom
+        let track = room.track
+
+        Button {
+            showPlayer.toggle()
+        } label: {
+            HStack(spacing: 12) {
+                if route.isSwitching {
+                    ProgressView()
+                        .frame(width: 40, height: 40)
+                } else if !track.isEmpty {
+                    ContentArtworkView(content: track.toPlayable, showMusicSource: false)
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
+                        .foregroundStyle(.secondary)
+                }
+                VStack(alignment: .leading) {
+                    Text(track.isEmpty ? "Not Playing" : track.song)
+                        .font(track.isEmpty ? .callout : .callout.bold())
+                        .foregroundStyle(track.isEmpty ? .secondary : .primary)
+                        .lineLimit(1)
+                    if placement != .inline {
+                        Text(group.nameWithCount)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .zoomSource(.miniPlayer, in: zoomNamespace)
+
+        if !track.isEmpty {
+            Button {
+                Task {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    await sonosService.togglePlayPause(for: group)
+                }
+            } label: {
+                Image(systemName: room.isPlaying ? "pause.fill" : "play.fill")
+                    .contentTransition(.symbolEffect(.replace))
+                    .symbolEffect(.pulse, isActive: room.isTransitioning)
+            }
+            .buttonStyle(.plain)
+            .font(.title3)
+
+            if placement != .inline {
+                Button {
+                    Task {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        room.playbackPosition = 0
+                        await sonosService.next(ip: group.ip)
+                        try? await sonosService.updateGroups(from: [group])
+                    }
+                } label: {
+                    Image(systemName: "forward.fill")
+                }
+                .buttonStyle(.plain)
+                .font(.title3)
+                .disabled(!group.availableActions.contains(.next))
+            }
+        }
+    }
+}
+
+/// What the accessory's `fullScreenCover` shows: the local player, or the
+/// Sonos player for the group the route points at. Decided in a body of its
+/// own so the route is observed — a change while the cover is up swaps the
+/// player rather than leaving the old one behind.
+private struct PresentedPlayerView: View {
+    @Environment(\.dismiss) private var dismiss
+    /// The Sonos player's own navigation: the artist and album buttons push
+    /// their screens here, inside the cover, rather than into a tab.
+    @State private var playerRouter = Router()
+
+    private var route: PlaybackRoute { .shared }
+
+    var body: some View {
+        if let group = route.group {
+            @Bindable var playerRouter = playerRouter
+            NavigationStack(path: $playerRouter.path) {
+                LargePlayerView(coordinatorID: group.coordinatorID)
+                    .withAppRouter()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button {
+                                dismiss()
+                            } label: {
+                                Image(systemName: "chevron.down")
+                            }
+                            .accessibilityLabel("Close")
+                        }
+                    }
+            }
+            .withSheetDestinations(sheetDestinations: $playerRouter.presentedSheet)
+            .environment(playerRouter)
+            .withEnvironments()
+        } else {
+            PlayerView()
+        }
     }
 }
 
@@ -379,7 +509,7 @@ struct CueApp: App {
             // only happens when the cover presents, and the cover no longer
             // re-presents behind the user's back.
             .fullScreenCover(isPresented: $router.isPlayerPresented) {
-                PlayerView()
+                PresentedPlayerView()
                     .presentationBackgroundInteraction(.enabled)
                     .zoomTransition(from: .miniPlayer, in: zoomNamespace)
             }

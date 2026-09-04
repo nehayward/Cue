@@ -75,6 +75,13 @@ enum PlayDestinationRouter {
                 askForSpeaker(contents, position: position, queue: queue)
                 return
             }
+            // Playing on the speaker replaces what this device was playing;
+            // adding to its queue doesn't. Left running, the phone kept
+            // going under a route that pointed at the speaker, with no
+            // control on screen for it.
+            if [.now, .replace].contains(position), LocalPlaybackService.shared.isActive {
+                LocalPlaybackService.shared.stop()
+            }
             do {
                 try await queue(group, position)
                 log.notice("queued to \(group.nameWithCount, privacy: .public)")

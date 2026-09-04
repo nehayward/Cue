@@ -1,12 +1,26 @@
+import OrderedCollections
 import SonosKit
 import SwiftUI
 
-/// What's queued on this device, for the trailing `queuePanel`.
+/// What's queued where the route points, for the trailing `queuePanel`:
+/// this device's queue, or the chosen Sonos group's.
 ///
-/// Reads `LocalPlaybackService` rather than a Sonos group's queue: this panel
-/// sits beside the tab content the same way the bottom accessory does, and
-/// both are about local playback.
+/// Sits beside the tab content the same way the bottom accessory does, and
+/// follows the same route, so the two never disagree about what "next" means.
 struct QueueNextUpView: View {
+    private var route: PlaybackRoute { .shared }
+
+    var body: some View {
+        if let group = route.group {
+            GroupNextUpView(group: group)
+        } else {
+            LocalNextUpView()
+        }
+    }
+}
+
+/// The device's queue, from `LocalPlaybackService`.
+private struct LocalNextUpView: View {
     private var playback: LocalPlaybackService { .shared }
 
     var body: some View {
@@ -50,6 +64,107 @@ struct QueueNextUpView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+}
+
+/// A Sonos group's queue, with the group's volume at the foot — the same
+/// slot the device's panel gives its own volume, so switching the route swaps
+/// what the slider moves rather than where it is.
+private struct GroupNextUpView: View {
+    let group: GroupRoom
+
+    private var sonosService: SonosService { .shared }
+
+    @State private var isLoading = false
+
+    /// The current row is only meaningful while the speaker plays from its
+    /// queue; on radio or TV the list is what would play if it went back.
+    private var isQueueActive: Bool { group.playbackService == .queue }
+
+    var body: some View {
+        let queue = group.coordinatorRoom.queue
+
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Next Up")
+                    .font(.title3.bold())
+                Text(group.nameWithCount)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 10)
+
+            if queue.isEmpty {
+                Spacer()
+                if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Text("Nothing queued")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+                Spacer()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        // By offset, as the device list is: a track queued
+                        // twice shares one `id`.
+                        ForEach(Array(queue.enumerated()), id: \.offset) { _, item in
+                            QueueNextUpRow(
+                                item: item,
+                                isCurrent: isQueueActive && group.isNowPlaying(item)
+                            )
+                            .onTapGesture { play(item) }
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 12)
+                }
+                .opacity(isQueueActive ? 1 : 0.6)
+            }
+
+            Divider()
+            VolumeControlView(group: group)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .task(id: group.coordinatorID) {
+            await load()
+        }
+        // The queue itself changes without the track moving — a Play Next,
+        // a hand-off filling in behind the first track — and the speaker
+        // reports that as a new count.
+        .onChange(of: group.coordinatorRoom.queueTotal) {
+            Task { await load() }
+        }
+        .onChange(of: group.coordinatorRoom.track.unique) {
+            Task { await load() }
+        }
+    }
+
+    private func load() async {
+        isLoading = group.coordinatorRoom.queue.isEmpty
+        defer { isLoading = false }
+        if let service = await sonosService.playbackService(ip: group.ip) {
+            group.playbackService = service
+        }
+        group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.ip))
+    }
+
+    /// Jumps the speaker to this row. `seek(trackNumber:)` points the
+    /// transport back at the queue first if it had wandered off to radio.
+    private func play(_ item: PlayableContent) {
+        guard let position = item.metadata?.position else { return }
+        HapticManager.shared.fireHaptic(.selection)
+        Task {
+            await sonosService.seek(trackNumber: position, on: group)
+        }
     }
 }
 
