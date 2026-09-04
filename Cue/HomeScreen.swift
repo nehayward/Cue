@@ -200,7 +200,7 @@ struct HomeScreen: View {
         }
         if !isEnabled { return "Off in Settings › Services" }
         if service == .files, let name = files.folderName { return name }
-        return service.tabCollectionsDescription
+        return service.tabCollections.map(\.title).formatted(.list(type: .and, width: .narrow))
     }
 
     private func providerLabel(_ service: MediaSearchService, subtitle: String) -> some View {
