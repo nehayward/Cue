@@ -67,6 +67,12 @@ struct QueuePanel<Panel: View>: ViewModifier {
     /// which accelerates away from the cursor.
     @State private var widthAtDragStart: CGFloat?
     @State private var isHoveringDivider = false
+    /// How far past the panel's minimum width the divider has been dragged
+    /// toward the trailing edge. The panel slides out by this much, and past
+    /// `dismissDistance` letting go dismisses it.
+    @State private var dismissOvershoot: CGFloat = 0
+
+    static var dismissDistance: CGFloat { 72 }
     /// The whole window's width — this modifier sits on the `TabView`, so the
     /// `HStack` spans it.
     @State private var availableWidth: CGFloat?
@@ -110,10 +116,15 @@ struct QueuePanel<Panel: View>: ViewModifier {
                     divider
                     panel()
                         .frame(width: width)
-                        .background(.regularMaterial, in: .rect(cornerRadius: 12))
+                        .modifier(PanelBackground())
                         .padding(.trailing, 10)
                         .padding(.vertical, 10)
                 }
+                // Following the finger past the minimum width: the pair moves
+                // off the edge, dimming as it goes, so a drag to dismiss reads
+                // as one before it lands.
+                .offset(x: dismissOvershoot)
+                .opacity(1 - min(1, dismissOvershoot / Self.dismissDistance) * 0.5)
                 .geometryGroup()
                 // Clipped so the pair slides out from under its own edge
                 // rather than overhanging the window during the move.
@@ -199,15 +210,45 @@ struct QueuePanel<Panel: View>: ViewModifier {
                         // Trailing panel: dragging left (negative) widens it.
                         // Rounded to whole points — sub-pixel changes re-lay out
                         // the entire tab content for no visible difference.
-                        dragWidth = clamped((start - value.translation.width).rounded())
+                        let proposed = (start - value.translation.width).rounded()
+                        dragWidth = clamped(proposed)
+                        // Past the minimum the width stops but the finger
+                        // doesn't: the rest of the drag is toward dismissal.
+                        dismissOvershoot = max(0, Self.minWidth - proposed)
                     }
                     .onEnded { _ in
-                        if let dragWidth { storedWidth = Double(dragWidth) }
+                        if dismissOvershoot >= Self.dismissDistance {
+                            // Off the edge: the drag was a dismissal. The
+                            // stored width is left alone, so the panel comes
+                            // back at the size it had.
+                            withAnimation(.snappy) {
+                                isPresented = false
+                            }
+                        } else if let dragWidth {
+                            storedWidth = Double(dragWidth)
+                        }
+                        withAnimation(.snappy) {
+                            dismissOvershoot = 0
+                        }
                         widthAtDragStart = nil
                         dragWidth = nil
                     }
             )
             .animation(.easeOut(duration: 0.15), value: isHoveringDivider)
+    }
+}
+
+/// The side panel's card: Liquid Glass where the system has it, the
+/// material it always had elsewhere.
+private struct PanelBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, macCatalyst 26.0, visionOS 26.0, *) {
+            content
+                .glassEffect(.regular, in: .rect(cornerRadius: 12))
+        } else {
+            content
+                .background(.regularMaterial, in: .rect(cornerRadius: 12))
+        }
     }
 }
 
