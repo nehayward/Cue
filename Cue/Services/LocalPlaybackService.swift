@@ -429,7 +429,10 @@ final class LocalPlaybackService {
         }
     }
 
-    /// Pauses whichever player is armed. Nothing to do when none is.
+    /// Pauses whichever player is armed. Unlike `togglePlayback` this doesn't
+    /// read the player's state first — right after `play` the Apple player
+    /// can still report itself as not playing, and a toggle there would
+    /// start it a second time instead of stopping it.
     func pause() {
         switch backend {
         case .appleMusic:

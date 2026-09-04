@@ -147,6 +147,13 @@ struct SelectGroupView: View {
                                     Task {
                                         selectedGroupService.group = newGroup
                                         PlayDestination.group(newGroup.coordinatorID).remember()
+                                        // The route now points at the speaker;
+                                        // the phone shouldn't keep playing
+                                        // underneath it. Adding to the queue
+                                        // leaves it alone.
+                                        if [.now, .replace].contains(selectedPosition) || onQueueSelection == nil {
+                                            LocalPlaybackService.shared.stop()
+                                        }
                                         for room in selectedRooms {
                                             await sonosService.setDeviceVolume(ip: room.ip, volume: Int(groupVolume))
                                             await sonosService.setRoomMute(IP: room.ip, mute: false)
@@ -540,7 +547,14 @@ struct SelectGroupView: View {
         } completion: {
             Task {
                 selectedGroupService.group = group
-                try await onSelection?(group)
+                // Same as the Play button: the speaker takes over from the
+                // phone rather than playing alongside it.
+                LocalPlaybackService.shared.stop()
+                if let onQueueSelection {
+                    try await onQueueSelection(group, selectedPosition)
+                } else {
+                    try await onSelection?(group)
+                }
             }
         }
     }

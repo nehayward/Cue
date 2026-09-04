@@ -9,18 +9,20 @@ import SwiftUI
 /// same thing an AirPlay button does — so it can sit somewhere permanent like
 /// the mini player instead of being tied to one piece of media. `Play` then
 /// reads the saved choice through `PlayDestinationRouter` and never prompts.
+///
+/// Choosing while something is playing moves it: `PlaybackRoute` carries the
+/// queue across, picks up at the same spot, and stops the source.
 struct PlaybackRouteButton: View {
     /// Read off the singleton rather than the environment: this sits in the tab
     /// bar accessory, which is hosted outside the tab content and so isn't
     /// guaranteed to inherit what `withEnvironments()` installs. `@Observable`
     /// still tracks the `sorted` access below, so the list stays live.
     private var sonosService: SonosService { .shared }
-
-    /// Mirrors the stored destination — `PlayDestination` lives in
-    /// `UserDefaults`, so the checkmarks need state here to redraw against.
-    @State private var destination: PlayDestination = .device
+    private var route: PlaybackRoute { .shared }
 
     var body: some View {
+        let destination = route.destination
+
         Menu {
             Button {
                 select(.device)
@@ -59,20 +61,12 @@ struct PlaybackRouteButton: View {
         .menuIndicator(.hidden)
         // Re-read on every appearance: the share extension writes this too, so
         // the app can come back to a destination it didn't pick itself.
-        .onAppear { destination = PlayDestination.remembered ?? .device }
+        .onAppear { route.refresh() }
     }
 
     private func select(_ target: PlayDestination) {
-        destination = target
-        target.remember()
-        // The play call sites still short-circuit to `selectedGroupService`
-        // when it holds a group, so leaving it set would quietly outrank a
-        // switch to This Device. Keeping the two in step makes this button the
-        // one place the route is decided.
-        SelectedGroupService.shared.group = switch target {
-        case .device: nil
-        case let .group(id): sonosService.groups.first { $0.coordinatorID == id }
-        }
+        HapticManager.shared.fireHaptic(.selection)
+        PlaybackRoute.shared.switchTo(target)
     }
 }
 
