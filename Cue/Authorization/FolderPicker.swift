@@ -29,9 +29,23 @@ final class FolderPicker: NSObject, UIDocumentPickerDelegate {
     }
 
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        finish(with: urls.first)
+    }
+
+    /// A file rather than a folder — some providers hand one back — means
+    /// the folder it sits in.
+    private func finish(with url: URL?) {
         let completion = completion
         self.completion = nil
-        completion?(urls.first)
+        guard var url else {
+            completion?(nil)
+            return
+        }
+        let isDirectory = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? url.hasDirectoryPath
+        if !isDirectory {
+            url = url.deletingLastPathComponent()
+        }
+        completion?(url)
     }
 
     func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {

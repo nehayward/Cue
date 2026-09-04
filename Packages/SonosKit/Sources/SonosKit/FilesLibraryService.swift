@@ -3,6 +3,7 @@ import CryptoKit
 import Defaults
 import Foundation
 import Observation
+import OSLog
 import SwiftUI
 
 /// One audio file in the picked folder, as read from its tags — or, where
@@ -226,25 +227,35 @@ public final class FilesLibraryService {
 
     // MARK: - Folder
 
+    private static let log = Logger(subsystem: "dance.cue", category: "files")
+
     /// Keeps the picked folder. `url` is the security-scoped URL a document
     /// picker hands over; the bookmark is what survives a relaunch.
+    ///
+    /// The folder always takes for this session: if a security-scoped
+    /// bookmark can't be made (the Mac sandbox without the bookmark
+    /// capability, an unusual file provider), a plain one is tried, and
+    /// failing that the URL itself is kept with its access left open, and
+    /// the error says so.
     public func setFolder(_ url: URL) {
         let accessed = url.startAccessingSecurityScopedResource()
-        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+        Self.log.notice("setFolder \(url.path, privacy: .public) accessed=\(accessed)")
 
+        var bookmark: Data?
+        var failure: String?
         do {
-            let bookmark = try url.bookmarkData(
+            bookmark = try url.bookmarkData(
                 options: Self.bookmarkCreationOptions,
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
-            defaults.set(bookmark, forKey: AppStorageKeys.filesFolderBookmark)
-            defaults.set(url.lastPathComponent, forKey: AppStorageKeys.filesFolderName)
-            folderName = url.lastPathComponent
-            lastError = nil
         } catch {
-            lastError = "Couldn't keep access to that folder: \(error.localizedDescription)"
-            return
+            Self.log.error("security-scoped bookmark failed: \(error.localizedDescription, privacy: .public)")
+            if let plain = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+                bookmark = plain
+            } else {
+                failure = "Cue can use this folder until it quits, but couldn't keep access to it: \(error.localizedDescription)"
+            }
         }
 
         scanTask?.cancel()
@@ -253,7 +264,31 @@ public final class FilesLibraryService {
         filePlaylists = []
         lastScan = nil
         rebuildIndex()
-        resolveFolder()
+
+        let name = url.lastPathComponent.isEmpty ? "Music" : url.lastPathComponent
+        if let bookmark {
+            defaults.set(bookmark, forKey: AppStorageKeys.filesFolderBookmark)
+        } else {
+            defaults.removeObject(forKey: AppStorageKeys.filesFolderBookmark)
+        }
+        defaults.set(name, forKey: AppStorageKeys.filesFolderName)
+        folderName = name
+        lastError = failure
+
+        if bookmark != nil {
+            if accessed { url.stopAccessingSecurityScopedResource() }
+            resolveFolder()
+            if folderURL == nil {
+                // The bookmark was made but won't resolve; the URL in hand
+                // still works for now.
+                folderURL = url
+                isAccessingFolder = url.startAccessingSecurityScopedResource()
+            }
+        } else {
+            folderURL = url
+            isAccessingFolder = accessed
+        }
+        Self.log.notice("folder set: \(name, privacy: .public) resolved=\(self.folderURL != nil)")
         rescan()
     }
 
@@ -317,6 +352,7 @@ public final class FilesLibraryService {
                 defaults.set(fresh, forKey: AppStorageKeys.filesFolderBookmark)
             }
         } catch {
+            Self.log.error("bookmark resolve failed: \(error.localizedDescription, privacy: .public)")
             lastError = "The folder can't be opened any more. Choose it again."
         }
     }
@@ -353,12 +389,16 @@ public final class FilesLibraryService {
     }
 
     public func scan() async {
-        guard let folderURL else { return }
+        guard let folderURL else {
+            Self.log.error("scan requested with no folder")
+            return
+        }
         guard !isScanning else { return }
         isScanning = true
         scannedCount = 0
         foundCount = 0
         defer { isScanning = false }
+        Self.log.notice("scan started: \(folderURL.path, privacy: .public)")
 
         let root = folderURL
         let artworkDirectory = Self.artworkDirectory
@@ -437,6 +477,7 @@ public final class FilesLibraryService {
         lastScan = .now
         rebuildIndex()
         Self.saveIndex(tracks: tracks, playlists: filePlaylists)
+        Self.log.notice("scan finished: \(all.count) tracks, \(playlists.count) playlists, \(walk.placeholders.count) still in iCloud")
     }
 
     private struct FolderWalk: Sendable {

@@ -120,6 +120,11 @@ struct FilesManagementView: View {
             guard let url else { return }
             pickError = nil
             library.setFolder(url)
+            if let error = library.lastError {
+                AlertService.shared.showAlert(with: error, imageName: "exclamationmark.triangle")
+            } else {
+                AlertService.shared.showAlert(with: "Reading \(url.lastPathComponent)…", imageName: "folder.fill")
+            }
             // Discovery turns Files off while no folder is chosen (it can't
             // play from nothing); a chosen folder turns it back on so it
             // shows in search and browse straight away.
