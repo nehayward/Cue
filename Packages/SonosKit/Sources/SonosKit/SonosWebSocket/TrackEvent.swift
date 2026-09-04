@@ -154,7 +154,17 @@ public struct SonosTrackQuality: Codable, Hashable {
         case bitDepth, lossless, immersive, sampleRate
         case objectType = "_objectType"
     }
-    
+
+    /// For a quality the app worked out itself — what this device's own
+    /// player is decoding — rather than one a speaker reported.
+    public init(bitDepth: Int? = nil, lossless: Bool? = nil, immersive: Bool? = nil, sampleRate: Int? = nil, objectType: String? = nil) {
+        self.bitDepth = bitDepth
+        self.lossless = lossless
+        self.immersive = immersive
+        self.sampleRate = sampleRate
+        self.objectType = objectType
+    }
+
     public var sampleRateFormatted: String {
         guard let sampleRate = sampleRate else { return "" }
         let rateInKHz = Double(sampleRate) / 1000.0

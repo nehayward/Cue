@@ -6,6 +6,11 @@ struct TimerMenuView<Label: View>: View {
 
     var recentTimers: Storage<Duration> = Storage("sleep")
     var inMainMenu: Bool = false
+    /// Whose sheet "Custom" presents on, when neither this menu's own nor
+    /// the main window's will do: a menu nested in another menu can't host
+    /// a sheet, and the local player sits in a full-screen cover the main
+    /// window's sheets would come up behind.
+    var sheetRouter: Router? = nil
     var onSelect: (Duration) async -> Void
     var onClear: (() async -> Void)? = nil
     /// When set, shows an "End of Song" item that sleeps at the end of the
@@ -41,7 +46,9 @@ struct TimerMenuView<Label: View>: View {
             Button("1 Hour") { Task { await onSelect(.seconds(60 * 60)) } }
 
             Button("Custom") {
-                if inMainMenu {
+                if let sheetRouter {
+                    sheetRouter.presentedSheet = .customSleepTimer(recentTimers: recentTimers, onSelect: onSelect)
+                } else if inMainMenu {
                     Router.main.presentedSheet = .customSleepTimer(recentTimers: recentTimers, onSelect: onSelect)
                 } else {
                     router.presentedSheet = .customSleepTimer(recentTimers: recentTimers, onSelect: onSelect)

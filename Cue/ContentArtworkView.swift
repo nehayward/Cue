@@ -9,6 +9,13 @@ struct ContentArtworkView: View {
     var content: PlayableContent
     var showMusicSource: Bool = true
     var preferredSize: Double = 50.0
+    /// The corner rounding for anything that isn't an artist; the player
+    /// asks for the same radius the Sonos artwork gets.
+    var cornerRadius: CGFloat = 4
+    /// Lets the artwork itself be picked up and dropped on a speaker or a
+    /// queue, the way the Sonos player's cover can. Applied to the image
+    /// rather than the frame around it, so the drag preview is the cover.
+    var isDraggable: Bool = false
     var foundAverageColor: ((Color) -> Void)? = nil
     
     @State private var fetchedArtworkURL: URL?
@@ -65,6 +72,31 @@ struct ContentArtworkView: View {
     }
     
     var body: some View {
+        Group {
+            if isDraggable {
+                artwork.draggable(content)
+            } else {
+                artwork
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            OverlayIcons(content: content, service: content.content.service, isRadio: content.content.type.isRadio, size: preferredSize)
+                .opacity(showMusicSource ? 1 : 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .onAppear {
+            guard let foundAverageColor,
+                  let cached = UIImage.cachedAverageColor(forKey: content.imageKey) else { return }
+            foundAverageColor(Color(uiColor: cached))
+        }
+        .task(id: content.id) {
+            guard needsArtworkFetch, fetchedArtworkURL == nil else { return }
+            fetchedArtworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: content.title)
+        }
+    }
+
+    /// The image itself, clipped: what gets dragged.
+    private var artwork: some View {
         LazyImage(request: artworkRequest) { state in
             if let image = state.image {
                 image
@@ -98,21 +130,7 @@ struct ContentArtworkView: View {
                 .foregroundStyle(.ultraThinMaterial)
         }
 #endif
-        .clipShape(.rect(cornerRadius: isCircular ? preferredSize / 2 : 4))
-        .overlay(alignment: .bottomTrailing) {
-            OverlayIcons(content: content, service: content.content.service, isRadio: content.content.type.isRadio, size: preferredSize)
-                .opacity(showMusicSource ? 1 : 0)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .onAppear {
-            guard let foundAverageColor,
-                  let cached = UIImage.cachedAverageColor(forKey: content.imageKey) else { return }
-            foundAverageColor(Color(uiColor: cached))
-        }
-        .task(id: content.id) {
-            guard needsArtworkFetch, fetchedArtworkURL == nil else { return }
-            fetchedArtworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: content.title)
-        }
+        .clipShape(.rect(cornerRadius: isCircular ? preferredSize / 2 : cornerRadius))
     }
 }
 

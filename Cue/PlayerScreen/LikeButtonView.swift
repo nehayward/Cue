@@ -3,7 +3,18 @@ import SonosKit
 import SwiftUI
 
 struct LikeButtonView: View {
-    var group: GroupRoom
+    /// The group whose current track this rates — the Sonos player.
+    var group: GroupRoom?
+    /// What this device is playing — the local player. One or the other.
+    var content: PlayableContent?
+
+    init(group: GroupRoom) {
+        self.group = group
+    }
+
+    init(content: PlayableContent) {
+        self.content = content
+    }
 
     @Environment(FavoriteRatingCache.self) private var favoriteRatingCache
     @State private var favoriteAnimationTrigger = 0
@@ -15,7 +26,16 @@ struct LikeButtonView: View {
     // this process) update this button live.
     private let favoriteStore = LiveActivityFavoriteStore.shared
 
-    private var trackID: String { group.coordinatorRoom.track.trackID }
+    /// The same key on both surfaces: a Sonos track's id is the catalog id
+    /// its `PlayableContent` carries, so a like made here shows on the
+    /// speaker's player too.
+    private var trackID: String { group?.coordinatorRoom.track.trackID ?? content?.id ?? "" }
+
+    private var service: MusicService { group?.coordinatorRoom.track.musicService ?? content?.content.service ?? .unknown }
+
+    /// What the first-read tasks key on — the track's identity on either
+    /// surface, so a new track re-reads and a re-render doesn't.
+    private var trackKey: String { group?.coordinatorRoom.track.id ?? content?.id ?? "" }
 
     /// Read straight from the store rather than mirrored into `@State`.
     ///
@@ -39,8 +59,6 @@ struct LikeButtonView: View {
     }
 
     var body: some View {
-        let service = group.coordinatorRoom.track.musicService
-
         switch service {
         case .plex:
             Button {
@@ -68,7 +86,7 @@ struct LikeButtonView: View {
                 .accessibilityLabel("Favorite Song")
             }
             .buttonBorderShape(.circle)
-            .task(id: group.coordinatorRoom.track.id) {
+            .task(id: trackKey) {
                 let rating = await MusicSearchService.shared.getPlexTrackRating(trackID: trackID) ?? 0
                 favoriteRatingCache.set(rating, for: trackID)
                 favoriteStore.set(rating > 0, for: trackID)
@@ -105,7 +123,7 @@ struct LikeButtonView: View {
                 .accessibilityLabel("Favorite Song")
             }
             .buttonBorderShape(.circle)
-            .task(id: group.coordinatorRoom.track.id) {
+            .task(id: trackKey) {
                 // The return value is unused on purpose: `isFavorite(trackID:
                 // service:)` records what it read in the store, which is what
                 // this button draws from.
@@ -116,7 +134,10 @@ struct LikeButtonView: View {
             .tint(service.brandColor.gradient)
 
         case .pandora:
-            ThumbsRatingView(group: group)
+            // Pandora only plays on a speaker, so there is always a group.
+            if let group {
+                ThumbsRatingView(group: group)
+            }
 
         default:
             EmptyView()
