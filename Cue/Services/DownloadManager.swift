@@ -148,8 +148,35 @@ final class DownloadManager {
 
     // MARK: - Downloading
 
-    /// Queues a track. Already-downloaded and in-flight tracks are left alone.
+    /// Queues a track as a batch of one — the system card still shows it
+    /// and lets it be cancelled. Already-downloaded and in-flight tracks
+    /// are left alone.
     func download(_ item: PlayableContent) {
+        guard canDownload(item), !isDownloaded(item) else { return }
+        queue(item)
+        ContinuedDownloadTask.shared.track(downloadKeys: [Self.key(for: item)], title: "Downloading \(item.title)")
+    }
+
+    /// Queues everything inside an album, playlist or artist, fetched the
+    /// way the local queue fetches it, as one batch the system shows and
+    /// keeps running. Returns how many tracks were queued.
+    @discardableResult
+    func download(contentsOf container: PlayableContent) async -> Int {
+        let tracks = await LocalPlaybackService.shared.containerTracks(for: container)
+        let downloadable = tracks.filter { canDownload($0) && !isDownloaded($0) }
+        guard !downloadable.isEmpty else { return 0 }
+        var keys: [String] = []
+        for track in downloadable {
+            queue(track)
+            keys.append(Self.key(for: track))
+        }
+        ContinuedDownloadTask.shared.track(downloadKeys: keys, title: "Downloading \(container.title)")
+        return downloadable.count
+    }
+
+    /// `download(_:)` without the batch bookkeeping, for callers that batch
+    /// themselves.
+    private func queue(_ item: PlayableContent) {
         guard canDownload(item), let url = item.previewURL else { return }
         let key = Self.key(for: item)
         if let existing = items[key] {
@@ -157,7 +184,6 @@ final class DownloadManager {
             resume(key: key)
             return
         }
-        let ext = Self.fileExtension(for: item, url: url)
         let entry = Item(
             key: key,
             service: item.content.service,
@@ -166,23 +192,13 @@ final class DownloadManager {
             subtitle: item.metadata?.artist ?? item.subtitle,
             artwork: item.thumbnail ?? item.artwork,
             url: url,
-            fileExtension: ext,
+            fileExtension: Self.fileExtension(for: item, url: url),
             createdAt: .now,
             state: .queued
         )
         items[key] = entry
         start(entry)
         scheduleSave()
-    }
-
-    /// Queues everything inside an album, playlist or artist, fetched the
-    /// way the local queue fetches it. Returns how many tracks were queued.
-    @discardableResult
-    func download(contentsOf container: PlayableContent) async -> Int {
-        let tracks = await LocalPlaybackService.shared.containerTracks(for: container)
-        let downloadable = tracks.filter { canDownload($0) && !isDownloaded($0) }
-        downloadable.forEach { download($0) }
-        return downloadable.count
     }
 
     func pause(key: String) {
@@ -210,6 +226,7 @@ final class DownloadManager {
         items[key] = entry
         start(entry)
         scheduleSave()
+        ContinuedDownloadTask.shared.track(downloadKeys: [key], title: "Downloading \(entry.title)")
     }
 
     /// Stops and forgets a download that hasn't finished.

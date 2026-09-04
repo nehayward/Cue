@@ -1227,6 +1227,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
         UserDefaults.standard.set(true, forKey: "NSDisabledCharacterPaletteMenuItem")
         #endif
+        // The continued-processing task's launch handler has to be in place
+        // before a download batch submits it.
+        ContinuedDownloadTask.shared.register()
         return true
     }
 

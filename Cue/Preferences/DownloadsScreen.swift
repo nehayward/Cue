@@ -23,7 +23,7 @@ struct DownloadsScreen: View {
                 } header: {
                     Text("Downloading")
                 } footer: {
-                    Text("Downloads carry on when Cue is in the background, and pick up where they left off after a relaunch.")
+                    Text("Downloads carry on when Cue is in the background, with their progress on the Lock Screen, and pick up where they left off after a relaunch.")
                 }
             }
 
@@ -240,7 +240,8 @@ struct DownloadsScreen: View {
 
             if let cloudSummary, cloudSummary.remote > 0 {
                 Button {
-                    files.downloadAllFromCloud()
+                    let ids = files.downloadAllFromCloud()
+                    ContinuedDownloadTask.shared.track(cloudTrackIDs: ids, title: "Downloading \(files.folderName ?? "your music")")
                 } label: {
                     Label("Download Everything", systemImage: "icloud.and.arrow.down")
                 }

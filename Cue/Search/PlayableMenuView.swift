@@ -355,6 +355,7 @@ struct PlayableMenuView: View {
                 case .notDownloaded:
                     Button {
                         files.downloadFromCloud(trackIDs: [item.content.id])
+                        ContinuedDownloadTask.shared.track(cloudTrackIDs: [item.content.id], title: "Downloading \(item.title)")
                         alertService.showAlertContent(with: item, subtitle: "Downloading from iCloud", symbolName: "icloud.and.arrow.down")
                     } label: {
                         Label("Download from iCloud", systemImage: "icloud.and.arrow.down")
@@ -391,6 +392,7 @@ struct PlayableMenuView: View {
             guard !ids.isEmpty else { return }
             if download {
                 FilesLibraryService.shared.downloadFromCloud(trackIDs: ids)
+                ContinuedDownloadTask.shared.track(cloudTrackIDs: ids, title: "Downloading \(item.title)")
                 alertService.showAlertContent(with: item, subtitle: "Downloading \(ids.count) songs from iCloud", symbolName: "icloud.and.arrow.down")
             } else {
                 FilesLibraryService.shared.removeFromDevice(trackIDs: ids)

@@ -1236,13 +1236,16 @@ public final class FilesLibraryService {
         startCloudMonitor()
     }
 
-    /// Every song not on this device.
-    public func downloadAllFromCloud() {
+    /// Every song not on this device. Returns the ids it asked for, so the
+    /// caller can follow them.
+    @discardableResult
+    public func downloadAllFromCloud() -> [String] {
         let ids = tracks.compactMap { track -> String? in
             let id = Self.hash("song|\(track.relativePath)")
             return cloudStatus(trackID: id) == .notDownloaded ? id : nil
         }
         downloadFromCloud(trackIDs: ids)
+        return ids
     }
 
     /// Hands the space back; the files stay in iCloud and list as before.
