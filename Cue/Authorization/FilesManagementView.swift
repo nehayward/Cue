@@ -116,6 +116,7 @@ struct FilesManagementView: View {
     }
 
     private func chooseFolder() {
+        guard FeatureGate.shared.unlock(.files) else { return }
         FolderPicker.shared.present { url in
             guard let url else { return }
             pickError = nil

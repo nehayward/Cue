@@ -404,6 +404,7 @@ extension View {
             // `FavoriteMenuButton`, which are hosted from every root that
             // installs these environments — not only the tab view.
             .environment(FavoriteRatingCache.shared)
+            .environment(FeatureGate.shared)
     }
     
     @ViewBuilder

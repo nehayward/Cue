@@ -52,7 +52,7 @@
 			<key>INAlternativeAppName</key>
 			<string>Sonos</string>
 			<key>INAlternativeAppNamePronunciationHint</key>
-			<string>Click</string>
+			<string>Cue</string>
 		</dict>
 	</array>
 	<key>LSApplicationQueriesSchemes</key>

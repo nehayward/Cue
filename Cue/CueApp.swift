@@ -931,7 +931,7 @@ struct CueApp: App {
                 }
             }
             
-            if !subscriptionService.subscription.isActive {
+            if !FeatureGate.shared.isAvailable(.liveActivities) {
                 return
             }
             

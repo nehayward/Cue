@@ -7,6 +7,7 @@ struct MiniPlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SelectedGroupService.self) private var selectedGroupService
     @Environment(SubscriptionService.self) var subscriptionService
+    @Environment(FeatureGate.self) var featureGate
     @Environment(\.colorScheme) var colorScheme: ColorScheme
 
     private var selectedGroup: GroupRoom? {
@@ -48,8 +49,9 @@ struct MiniPlayerView: View {
     private func groupInfoButton(for group: GroupRoom) -> some View {
         Button {
             HapticManager.shared.fireHaptic(.buttonPress)
-            guard subscriptionService.subscription.isActive else {
-                Router.main.fullScreenCover(to: .paywall)
+            // The same rule as the speaker list: the first room is free.
+            guard featureGate.isRoomUnlocked(group, in: sonosService.sorted) else {
+                featureGate.presentPaywall()
                 return
             }
             Router.main.inspectorSheet = nil

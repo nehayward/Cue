@@ -8,6 +8,7 @@ struct GroupScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(AlertService.self) var alertService
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
+    @Environment(FeatureGate.self) var featureGate
     @Environment(\.dismiss) var dismiss
 
     @CloudStorage("com.cue.scenes") var scenes: [SonosScene] = []
@@ -194,7 +195,7 @@ struct GroupScreen: View {
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     SortMenuView(sortOption: $sortOption)
-                    if subscriptionService.subscription.isActive {
+                    if featureGate.isAvailable(.scenes) {
                         NavigationLink(value: selections) {
                           if scenes.isEmpty {
                             Label("Create Scene", systemImage: "plus")
