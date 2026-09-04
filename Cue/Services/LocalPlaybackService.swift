@@ -865,7 +865,8 @@ final class LocalPlaybackService {
     private func noteOnAir(song: String?, artist: String?, token: Int) async {
         guard playToken == token else { return }
         let song = song?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let artist = artist?.trimmingCharacters(in: .whitespacesAndNewlines).flatMap { $0.isEmpty ? nil : $0 }
+        let trimmedArtist = artist?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let artist = trimmedArtist.flatMap { $0.isEmpty ? nil : $0 }
         guard !song.isEmpty else { return }
         // TuneIn sometimes hands the station's own name back as the song.
         guard song != nowPlaying?.title else { return }
