@@ -14,5 +14,13 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
+	<!-- The Files provider: the open panel that picks the folder (a
+	     sandboxed Mac app can't show one without this), and the
+	     security-scoped bookmark that keeps the folder across launches.
+	     Read-write, because playlists are saved into the folder as .m3u. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<key>com.apple.security.files.bookmarks.app-scope</key>
+	<true/>
 </dict>
 </plist>
