@@ -3,56 +3,45 @@ import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// The Radio tab: every station source in one place. Sonos favorites that
-/// are stations; the stations near the user, what's trending, and the rest
-/// of TuneIn's directory; Apple Music's live and personal stations; and
-/// Sonos Radio's curated rows — each source only while its provider is
-/// switched on in Services. Typing in the field searches the same sources
-/// for stations by name.
+/// The Radio tab: stations that play on this device as well as on a
+/// speaker. That rule picks the sources — TuneIn (the stations near the
+/// user, what's trending, and the rest of its directory) and Apple Music's
+/// live and personal stations — each only while its provider is switched
+/// on in Services. Sonos Radio and Sonos favorites are speaker-only, so
+/// they stay on Browse and Search. Typing in the field searches the same
+/// sources for stations by name.
 struct RadioScreen: View {
-    @Environment(SonosService.self) private var sonosService
     @Environment(MusicSearchService.self) private var musicSearchService
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService
-    @Environment(SonosRadioBrowseService.self) private var sonosRadioBrowseService
     @Environment(TuneInBrowseService.self) private var tuneInBrowseService
     @Environment(CoreFeatures.self) private var coreFeatures
 
-    @AppStorage(AppStorageKeys.browseMediaService) private var browseMediaService: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
-    /// This tab's own stack, never `Router.browse`: Browse may be showing
-    /// Sonos Radio, and two stacks bound to one path push each other.
+    /// This tab's own stack, never a shared router: two stacks bound to one
+    /// path push each other.
     @State private var router = Router()
     @State private var query = ""
     @State private var search = RadioSearch()
 
-    /// Sonos Radio rows shown here before the link to the whole thing —
-    /// its browse screen lists every row, and this tab has other sources
-    /// to fit.
-    private let sonosRadioSectionLimit = 4
-
     private var showsTuneIn: Bool { coreFeatures.isEnabled(.tuneIn) }
-    private var showsSonosRadio: Bool { coreFeatures.isEnabled(.sonosRadio) }
     /// Apple's stations load on open, so they wait for an authorization the
     /// user has already given rather than prompting for one from this tab.
     /// Search still asks, the way the Search tab does.
     private var showsApple: Bool { coreFeatures.isEnabled(.apple) && appleMusicAuthorized == .authorized }
-
-    /// Sonos favorites that are stations, from any service.
-    private var favoriteStations: [PlayableContent] {
-        sonosService.favorites.filter { $0.content.type.isRadio || $0.metadata?.radioStation == true }
-    }
 
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var hasSource: Bool {
-        showsTuneIn || showsApple || showsSonosRadio || !favoriteStations.isEmpty
+        showsTuneIn || showsApple
     }
 
-    private var isLoading: Bool {
-        tuneInBrowseService.isLoading || sonosRadioBrowseService.isLoading
+    private var isEmpty: Bool {
+        tuneInBrowseService.localStations.isEmpty
+            && tuneInBrowseService.trending.isEmpty
+            && appleMusicBrowseService.radioStations.isEmpty
     }
 
     var body: some View {
@@ -79,7 +68,6 @@ struct RadioScreen: View {
                     trimmedQuery,
                     tuneIn: showsTuneIn,
                     apple: coreFeatures.isEnabled(.apple),
-                    sonosRadio: showsSonosRadio,
                     using: musicSearchService
                 )
             }
@@ -101,25 +89,13 @@ struct RadioScreen: View {
 
     @ViewBuilder
     private var browseSections: some View {
-        let favorites = favoriteStations
-        if !favorites.isEmpty {
-            RadioStationsSection(
-                title: "Your Stations",
-                caption: "Sonos Favorites",
-                items: favorites,
-                seeAll: .playableList(title: "Your Stations", showSectionIndex: false, action: { offset in offset == 0 ? favorites : [] })
-            )
-        }
         if showsTuneIn {
             tuneInSections
         }
         if showsApple {
             appleSections
         }
-        if showsSonosRadio {
-            sonosRadioSections
-        }
-        if isLoading, favorites.isEmpty, tuneInBrowseService.localStations.isEmpty, tuneInBrowseService.trending.isEmpty, sonosRadioBrowseService.populatedSections.isEmpty {
+        if tuneInBrowseService.isLoading, isEmpty {
             loadingRow
         }
     }
@@ -176,42 +152,6 @@ struct RadioScreen: View {
         }
     }
 
-    @ViewBuilder
-    private var sonosRadioSections: some View {
-        let sections = sonosRadioBrowseService.populatedSections
-
-        ForEach(sections.prefix(sonosRadioSectionLimit)) { section in
-            RadioStationsSection(
-                title: section.title,
-                caption: "Sonos Radio",
-                items: section.items,
-                seeAll: .playableList(title: section.title, showSectionIndex: false, action: { offset in
-                    // Whole lists at once: an empty second page tells the
-                    // list it has everything.
-                    offset == 0 ? await sonosRadioBrowseService.allStations(for: section) : []
-                })
-            )
-        }
-        if let error = sonosRadioBrowseService.error, sections.isEmpty {
-            notice(error)
-        }
-        if sections.count > sonosRadioSectionLimit {
-            Section {
-                Button {
-                    // The rest lives on the Browse tab's Sonos Radio screen.
-                    browseMediaService = .sonosRadio
-                    Router.main.selectedTab = .browse
-                } label: {
-                    Label("All of Sonos Radio", systemImage: "dot.radiowaves.left.and.right")
-                }
-                .tint(.primary)
-            }
-            .listRowInsets(.default)
-            .listRowSeparator(.hidden)
-            .listSectionSeparator(.hidden)
-        }
-    }
-
     // MARK: - Search
 
     @ViewBuilder
@@ -229,7 +169,6 @@ struct RadioScreen: View {
         } else {
             resultSection("TuneIn", search.tuneIn)
             resultSection("Apple Music", search.apple)
-            resultSection("Sonos Radio", search.sonosRadio)
         }
     }
 
@@ -263,7 +202,7 @@ struct RadioScreen: View {
             ContentUnavailableView {
                 Label("No Radio Sources", systemImage: "radio")
             } description: {
-                Text("Switch on TuneIn, Apple Music or Sonos Radio in Settings › Services to browse stations here.")
+                Text("Switch on TuneIn or Apple Music in Settings › Services to browse stations here.")
             } actions: {
                 Button {
                     router.presentedSheet = .settings(destination: .servicePreferenceScreen)
@@ -292,13 +231,10 @@ struct RadioScreen: View {
 
     // MARK: - Loading
 
-    /// Every enabled source at once. A refresh drops each source's cache
-    /// so it fetches again; the first load lets each paint what it has.
+    /// Both sources at once. A refresh drops TuneIn's cache so it fetches
+    /// again; the first load lets it paint what it has.
     private func load(refreshing: Bool) async {
         await withTaskGroup(of: Void.self) { group in
-            group.addTask {
-                await sonosService.getFavoriteList()
-            }
             if showsTuneIn {
                 group.addTask {
                     if refreshing {
@@ -312,15 +248,6 @@ struct RadioScreen: View {
                 group.addTask {
                     await appleMusicBrowseService.updateLiveRadioStations()
                     await appleMusicBrowseService.updateRadioStations(offset: 0)
-                }
-            }
-            if showsSonosRadio {
-                group.addTask {
-                    if refreshing {
-                        await sonosRadioBrowseService.refresh()
-                    } else {
-                        await sonosRadioBrowseService.load()
-                    }
                 }
             }
         }

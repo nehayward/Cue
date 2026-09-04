@@ -37,6 +37,29 @@ public final class TuneInAPI: Sendable {
         return parser.parseBrowse(xmlData: data)
     }
 
+    /// The station's streams, for playing it on this device. `Tune.ashx`
+    /// without `render=json` answers with a bare playlist file that
+    /// `AVPlayer` can't open, so this asks for the JSON form and hands back
+    /// the URLs inside it.
+    public func streams(for stationID: String) async -> [TuneInStream] {
+        var url = URL(string: "https://opml.radiotime.com/Tune.ashx")!
+        url.append(queryItems: [
+            URLQueryItem(name: "id", value: stationID),
+            URLQueryItem(name: "render", value: "json"),
+            URLQueryItem(name: "formats", value: "mp3,aac,ogg,hls"),
+        ])
+        guard let (data, _) = try? await session.data(for: URLRequest(url: url)),
+              let response = try? JSONDecoder().decode(TuneInStreamResponse.self, from: data) else {
+            return []
+        }
+        return response.body
+    }
+
+    /// The one stream to play, or nil when the station has none.
+    public func streamURL(for stationID: String) async -> URL? {
+        await streams(for: stationID).preferred?.url
+    }
+
     public func lookupStation(for stationID: String) async -> TuneInStation? {
         var searchURL = URL(string: "https://opml.radiotime.com/describe.ashx")!
         let queryItems: [URLQueryItem] = [

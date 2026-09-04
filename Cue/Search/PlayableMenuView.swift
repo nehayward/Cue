@@ -114,20 +114,24 @@ struct PlayableMenuView: View {
                             Label("Play", systemImage: "play.fill")
                         }
 
-                        Button {
-                            playOnDevice(subtitle: "Playing next on this device") {
-                                try await LocalPlaybackService.shared.playNext(localItems())
+                        // A station is live: it replaces what's playing and
+                        // has no place in a queue behind it.
+                        if !item.content.type.isRadio {
+                            Button {
+                                playOnDevice(subtitle: "Playing next on this device") {
+                                    try await LocalPlaybackService.shared.playNext(localItems())
+                                }
+                            } label: {
+                                Label("Play Next", systemImage: "text.insert")
                             }
-                        } label: {
-                            Label("Play Next", systemImage: "text.insert")
-                        }
 
-                        Button {
-                            playOnDevice(subtitle: "Added to device queue") {
-                                try await LocalPlaybackService.shared.addToQueue(localItems())
+                            Button {
+                                playOnDevice(subtitle: "Added to device queue") {
+                                    try await LocalPlaybackService.shared.addToQueue(localItems())
+                                }
+                            } label: {
+                                Label("Add to Queue", systemImage: "text.append")
                             }
-                        } label: {
-                            Label("Add to Queue", systemImage: "text.append")
                         }
 
                         if LocalPlaybackService.shared.nowPlaying == item {

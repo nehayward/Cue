@@ -177,11 +177,13 @@ struct CueApp: App {
         tabProviders.visibleProviders(enabledIn: coreFeatures)
     }
 
-    /// Whether the Radio tab has a source to draw on: TuneIn, Apple Music
-    /// or Sonos Radio switched on in Services. Sonos favorites alone don't
-    /// earn it a place — a tab of one short row isn't worth the bar space.
+    /// Whether the Radio tab has a source to draw on: TuneIn or Apple Music
+    /// switched on in Services. Those are the two whose stations play on
+    /// this device as well as on a speaker, which is the tab's rule — Sonos
+    /// Radio and Sonos favorites are speaker-only and stay on Browse and
+    /// Search.
     private var showsRadioTab: Bool {
-        [MediaSearchService.tuneIn, .apple, .sonosRadio].contains { coreFeatures.isEnabled($0) }
+        [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
     }
 
     /// The sidebar header's plus: the providers switched on in Services

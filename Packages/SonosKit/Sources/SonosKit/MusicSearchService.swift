@@ -1447,6 +1447,11 @@ public final class MusicSearchService {
         return container.data.compactMap(\.toPlayable)
     }
 
+    /// The stream URL to play a TuneIn station on this device.
+    public func tuneInStreamURL(id: String) async -> URL? {
+        await tuneIn.streamURL(for: id)
+    }
+
     public func lookupTuneInStation(id: String) async -> TuneInStation? {
         await tuneIn.lookupStation(for: id)
     }

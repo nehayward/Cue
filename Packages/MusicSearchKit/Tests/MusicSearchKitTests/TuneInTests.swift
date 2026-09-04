@@ -53,6 +53,21 @@ final class TuneInTests: XCTestCase {
         XCTAssertEqual(TuneInBrowsePage.id("g22").url.absoluteString, "https://opml.radiotime.com/Browse.ashx?id=g22")
     }
 
+    func testStreamResponsePrefersPlainAudioThenReliability() throws {
+        let json = """
+        { "head": { "status": "200" }, "body": [
+          { "element": "audio", "url": "https://a.example/live.m3u8", "reliability": 100, "bitrate": 128, "media_type": "hls", "is_direct": true },
+          { "element": "audio", "url": "http://b.example:8000/stream", "reliability": 90, "bitrate": 230, "media_type": "mp3", "is_direct": true },
+          { "element": "audio", "url": "http://c.example/stream.aac", "reliability": 98, "bitrate": 96, "media_type": "aac", "is_direct": true }
+        ] }
+        """
+        let streams = try JSONDecoder().decode(TuneInStreamResponse.self, from: Data(json.utf8)).body
+        XCTAssertEqual(streams.count, 3)
+        XCTAssertTrue(streams[0].isHLS)
+        XCTAssertEqual(streams.preferred?.url.absoluteString, "http://c.example/stream.aac")
+        XCTAssertNil([TuneInStream]().preferred)
+    }
+
     func testSearchResultsStillParseFlat() {
         let xml = """
         <opml version="1"><body>

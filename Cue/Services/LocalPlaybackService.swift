@@ -21,6 +21,10 @@ import SonosKit
 ///   one and callers surface that through `AlertService`.
 /// - Plex and Subsonic tracks stream their full file (`previewURL` is the
 ///   whole track served from the user's own server).
+/// - Radio plays too, one station at a time: a TuneIn station is a live
+///   stream resolved from its id and handed to `AVQueuePlayer`; an Apple
+///   Music station is a MusicKit `Station` the Apple player runs itself.
+///   A station is always a run of one — nothing follows a live stream.
 ///
 /// The displayed metadata never needs a fetch — `nowPlaying` is the same
 /// `PlayableContent` the search returned. The only network hop is resolving
@@ -33,12 +37,15 @@ final class LocalPlaybackService {
 
     enum LocalPlaybackError: LocalizedError {
         case songNotFound
+        case stationNotFound
         case nothingPlayable
 
         var errorDescription: String? {
             switch self {
             case .songNotFound:
                 "Couldn't find this song on Apple Music"
+            case .stationNotFound:
+                "Couldn't find a stream for this station"
             case .nothingPlayable:
                 "Nothing here can play on this device"
             }
@@ -47,6 +54,9 @@ final class LocalPlaybackService {
 
     private enum Backend {
         case appleMusic
+        /// An Apple Music station in `ApplicationMusicPlayer` — the same
+        /// player as `appleMusic`, with no entries to follow through.
+        case appleStation
         case stream
     }
 
@@ -100,15 +110,27 @@ final class LocalPlaybackService {
     @ObservationIgnored private var cacheRefreshTask: Task<Void, Never>?
 
     /// Whether the queue can take this item: Apple tracks (catalog or library),
-    /// and Plex or Subsonic tracks that carry their stream URL.
+    /// Plex or Subsonic tracks that carry their stream URL, and TuneIn or
+    /// Apple Music stations.
     func canPlayLocally(_ item: PlayableContent) -> Bool {
         backendKind(for: item) != nil
+    }
+
+    /// A live station: a run of one, with no duration and nothing after it.
+    private func isStation(_ item: PlayableContent) -> Bool {
+        item.content.type.isRadio
     }
 
     private func backendKind(for item: PlayableContent) -> Backend? {
         switch item.content.service {
         case .apple where [.track, .libraryTrack].contains(item.content.type):
             .appleMusic
+        case .apple where [.radio, .liveRadio].contains(item.content.type):
+            .appleStation
+        // A TuneIn station: the stream URL is resolved from the station id
+        // when the run is armed (see `streamURL(for:)`).
+        case .tuneIn where item.content.type == .radio:
+            .stream
         case .plex where item.content.type == .track
             && (item.previewURL != nil || DownloadManager.shared.isDownloaded(item)):
             .stream
@@ -325,7 +347,8 @@ final class LocalPlaybackService {
             musicPlayer.playbackTime = seconds
         case .stream:
             streamPlayer?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
-        case nil:
+        case .appleStation, nil:
+            // A station has nowhere to seek to.
             break
         }
     }
@@ -340,7 +363,7 @@ final class LocalPlaybackService {
 
     func togglePlayback() {
         switch backend {
-        case .appleMusic:
+        case .appleMusic, .appleStation:
             if musicPlayer.state.playbackStatus == .playing {
                 musicPlayer.pause()
             } else {
@@ -373,6 +396,9 @@ final class LocalPlaybackService {
                 Task { try? await musicPlayer.skipToNextEntry() }
             case .stream:
                 streamPlayer?.advanceToNextItem()
+            case .appleStation:
+                // A station is its own run, so `target` is never inside it.
+                Task { try? await arm(at: target) }
             }
         } else {
             Task { try? await arm(at: target) }
@@ -404,10 +430,14 @@ final class LocalPlaybackService {
     // MARK: - Arming runs
 
     /// The last index of the contiguous same-backend run starting at `index`.
+    /// A station never joins a run: a live stream has no end for the player
+    /// to advance past, so it plays alone and the next item waits for a skip.
     private func runEnd(from index: Int) -> Int {
-        guard let kind = backendKind(for: queue[index]) else { return index }
+        guard let kind = backendKind(for: queue[index]), !isStation(queue[index]) else { return index }
         var end = index
-        while end + 1 < queue.count, backendKind(for: queue[end + 1]) == kind {
+        while end + 1 < queue.count,
+              backendKind(for: queue[end + 1]) == kind,
+              !isStation(queue[end + 1]) {
             end += 1
         }
         return end
@@ -429,9 +459,11 @@ final class LocalPlaybackService {
 
         switch backendKind(for: queue[index]) {
         case .stream:
-            armStream(index: index, end: end)
+            await armStream(index: index, end: end, token: token)
         case .appleMusic:
             try await armApple(index: index, end: end, token: token)
+        case .appleStation:
+            try await armAppleStation(index: index, token: token)
         case nil:
             // Shouldn't happen — the queue only takes playable items.
             advancePastRun(endingAt: index)
@@ -453,6 +485,8 @@ final class LocalPlaybackService {
             musicPlayer.restartCurrentEntry()
         case .stream:
             streamPlayer?.seek(to: .zero)
+        case .appleStation:
+            break
         case nil:
             Task { try? await arm(at: currentIndex) }
         }
@@ -467,7 +501,7 @@ final class LocalPlaybackService {
         appleRun = []
         appleWasPlaying = false
 
-        if previous == .appleMusic {
+        if previous == .appleMusic || previous == .appleStation {
             musicPlayer.stop()
         }
         if streamPlayer != nil {
@@ -487,6 +521,8 @@ final class LocalPlaybackService {
     /// run ends there and queue order changes take effect (see `playNext`).
     private func truncateArmedRunAfterCurrent() {
         switch backend {
+        case .appleStation:
+            break
         case .appleMusic:
             var entries = musicPlayer.queue.entries
             if let current = musicPlayer.queue.currentEntry,
@@ -589,6 +625,35 @@ final class LocalPlaybackService {
         duration = first.song.duration ?? 0
     }
 
+    /// Hands an Apple Music station to the Apple player. Stations are
+    /// `PlayableMusicItem`s in their own right, so no song resolution — the
+    /// player runs the station's stream of tracks itself.
+    private func armAppleStation(index: Int, token: Int) async throws {
+        isLoading = true
+        defer { if playToken == token { isLoading = false } }
+
+        let item = queue[index]
+        let request = MusicCatalogResourceRequest<Station>(matching: \.id, equalTo: MusicItemID(item.content.id))
+        guard let station = try? await request.response().items.first else {
+            if index + 1 < queue.count {
+                advancePastRun(endingAt: index)
+                return
+            }
+            throw LocalPlaybackError.stationNotFound
+        }
+        guard playToken == token else { return }
+
+        musicPlayer.queue = ApplicationMusicPlayer.Queue(for: [station])
+        try await musicPlayer.play()
+        guard playToken == token else { return }
+
+        appleRun = []
+        backend = .appleStation
+        runEnd = index
+        currentIndex = index
+        duration = 0
+    }
+
     /// Cache key for a library `Song`. Namespaced so a library id can't collide
     /// with the catalog ids the rest of the cache holds.
     private static func libraryCacheKey(for id: String) -> String { "library:\(id)" }
@@ -642,19 +707,36 @@ final class LocalPlaybackService {
         }
     }
 
-    // MARK: - Stream (Plex, Subsonic) backend
+    // MARK: - Stream (Plex, Subsonic, TuneIn) backend
 
-    private func armStream(index: Int, end: Int) {
-        let rows: [(queueIndex: Int, item: AVPlayerItem)] = (index...end).compactMap { queueIndex in
-            let item = queue[queueIndex]
-            // A local copy beats the server URL — a download, or the cache's
-            // copy — it plays with no network, including away from the
-            // server entirely.
-            guard let url = DownloadManager.shared.localURL(for: item)
-                    ?? PlaybackCache.shared.localURL(for: item)
-                    ?? item.previewURL else { return nil }
-            return (queueIndex, AVPlayerItem(url: url))
+    /// What the stream player opens for `item`. A local copy beats the
+    /// server URL — a download, or the cache's copy — since it plays with no
+    /// network, including away from the server entirely. A TuneIn station
+    /// has no URL of its own until its id is resolved.
+    private func streamURL(for item: PlayableContent) async -> URL? {
+        if item.content.service == .tuneIn, item.content.type == .radio {
+            return await MusicSearchService.shared.tuneInStreamURL(id: item.content.id)
         }
+        return DownloadManager.shared.localURL(for: item)
+            ?? PlaybackCache.shared.localURL(for: item)
+            ?? item.previewURL
+    }
+
+    private func armStream(index: Int, end: Int, token: Int) async {
+        // Only a station has to go to the network for its URL; tracks
+        // answer at once, so the flag is only up when it means something.
+        let needsResolving = isStation(queue[index])
+        if needsResolving { isLoading = true }
+        defer { if needsResolving, playToken == token { isLoading = false } }
+
+        var rows: [(queueIndex: Int, item: AVPlayerItem)] = []
+        for queueIndex in index...end {
+            guard let url = await streamURL(for: queue[queueIndex]) else { continue }
+            rows.append((queueIndex, AVPlayerItem(url: url)))
+        }
+        // The user skipped elsewhere while a station resolved — that call
+        // owns playback now.
+        guard playToken == token else { return }
         guard !rows.isEmpty else {
             advancePastRun(endingAt: end)
             return
@@ -695,7 +777,7 @@ final class LocalPlaybackService {
 
     private func refreshState() {
         switch backend {
-        case .appleMusic:
+        case .appleMusic, .appleStation:
             let status = musicPlayer.state.playbackStatus
             isPlaying = status == .playing
             progress = musicPlayer.playbackTime

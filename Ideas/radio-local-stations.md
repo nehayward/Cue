@@ -1,16 +1,20 @@
 # Radio: Local Stations & More Sources
 
-Follow-ups to the Radio tab (`Cue/Radio/`). The tab today draws on Sonos
-favorites, TuneIn (local by IP, trending, directory), Apple Music stations
-and Sonos Radio's curated rows. Everything below is about making "near me"
-accurate and adding sources beyond TuneIn.
+Follow-ups to the Radio tab (`Cue/Radio/`). The tab's rule: **a station
+belongs there only if it plays on this device as well as on a speaker.**
+Today that is TuneIn (local by IP, trending, directory) and Apple Music
+stations — both play locally (`LocalPlaybackService`: TuneIn as a resolved
+live stream in `AVQueuePlayer`, Apple as a MusicKit `Station`) and on Sonos.
+Sonos Radio and Sonos favorites are speaker-only, so they stay on Browse and
+Search. Everything below is about making "near me" accurate and adding
+sources that meet the rule.
 
-The constraint that shapes all of it: **Sonos has to play the stream.**
-Every service that has a Sonos service id (TuneIn, Apple Music, Sonos Radio,
-Pandora, iHeart) plays through that id. Anything else — open directories with
-raw stream URLs — needs the live-stream URI form Sonos accepts, which the app
-doesn't have yet (Subsonic's `DirectStreamProvider` is for files, not live
-streams).
+What the rule asks of a new source: a stream URL the device can open (MP3 or
+AAC; HLS only on newer speakers), and a way for Sonos to play the same
+stream — every service with a Sonos service id (TuneIn, Apple Music) plays
+through that id; an open directory with raw stream URLs needs the live-stream
+URI form Sonos accepts, which the app doesn't have yet (Subsonic's
+`DirectStreamProvider` is for files, not live streams).
 
 ## To do, in order
 
@@ -58,8 +62,6 @@ streams).
   already recorded).
 - A Home screen row pointing at the Radio tab — on iPhone it can land in
   More.
-- Push a Sonos Radio destination inside the tab instead of switching the
-  Browse tab ("All of Sonos Radio" button in `RadioScreen`).
 - Release notes entry for the tab.
 
 ## Considered and parked
@@ -71,7 +73,8 @@ streams).
 | RadioDNS / FM lookup | Maps a frequency to a stream — great for "the 97.5 I hear in the car". Strong in the UK/EU, thin in the US. Revisit after Radio Browser. |
 | Shoutcast / Icecast directories | Internet-only stations, weak on local broadcast; Shoutcast needs a paid key. Radio Browser covers the same ground. |
 | TuneIn podcasts | The directory lists shows and episodes (`item="topic"`); Sonos plays TuneIn as station streams, so episodes need a different play path. Parser already drops them. |
-| Sonos Radio "Local" swimlane | Check on a real household whether the home feed has one — if so it's free and already wired through `SonosRadioBrowseService`. |
+| Sonos Radio | Speaker-only: its stations have no stream the device can open, so they fail the tab's rule. Stays on Browse. |
+| Sonos favorites | Also speaker-only (`service: .unknown`, played from URI metadata). Stays on Search. |
 
 ## Files
 
