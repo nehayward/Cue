@@ -237,6 +237,16 @@ public final class FilesLibraryService {
         rebuildIndex()
     }
 
+    /// An index over given tracks, touching neither defaults nor disk —
+    /// for tests of the index, the sorts and the lookups.
+    init(tracks: [FileTrack], playlists: [FilePlaylist] = [], folderURL: URL? = nil) {
+        self.folderURL = folderURL
+        self.folderName = folderURL?.lastPathComponent
+        self.tracks = tracks.sorted { $0.relativePath.localizedStandardCompare($1.relativePath) == .orderedAscending }
+        self.filePlaylists = playlists
+        rebuildIndex()
+    }
+
     // MARK: - Folder
 
     private static let log = Logger(subsystem: "dance.cue", category: "files")
@@ -472,17 +482,7 @@ public final class FilesLibraryService {
 
         // Only files that changed since the last scan have their tags read
         // again; the rest keep what they had.
-        var kept: [FileTrack] = []
-        var toRead: [FolderWalk.Entry] = []
-        for entry in walk.files {
-            let path = Self.relativePath(of: entry.url, in: root)
-            if let old = previous[path], old.isDownloaded,
-               old.modificationDate == entry.modificationDate, old.fileSize == entry.fileSize {
-                kept.append(old)
-            } else {
-                toRead.append(entry)
-            }
-        }
+        let (kept, toRead) = Self.partitionForRescan(walk.files, previous: previous, root: root)
         scannedCount = kept.count
 
         // What's known so far goes up straight away, so the library fills
@@ -561,7 +561,7 @@ public final class FilesLibraryService {
         }
     }
 
-    private struct FolderWalk: Sendable {
+    struct FolderWalk: Sendable {
         struct Entry: Sendable {
             var url: URL
             var modificationDate: Date?
@@ -572,12 +572,34 @@ public final class FilesLibraryService {
         var playlists: [URL] = []
     }
 
+    /// Splits a walk into the files whose tags can be kept from the last
+    /// scan and the ones to read again: a file is re-read when it is new,
+    /// was only a placeholder before, or changed size or modification date.
+    nonisolated static func partitionForRescan(
+        _ files: [FolderWalk.Entry],
+        previous: [String: FileTrack],
+        root: URL
+    ) -> (kept: [FileTrack], toRead: [FolderWalk.Entry]) {
+        var kept: [FileTrack] = []
+        var toRead: [FolderWalk.Entry] = []
+        for entry in files {
+            let path = relativePath(of: entry.url, in: root)
+            if let old = previous[path], old.isDownloaded,
+               old.modificationDate == entry.modificationDate, old.fileSize == entry.fileSize {
+                kept.append(old)
+            } else {
+                toRead.append(entry)
+            }
+        }
+        return (kept, toRead)
+    }
+
     /// Every audio file and playlist under `root`. Files still in iCloud are
     /// reported separately, by the URL the real file has: the old
     /// `.name.ext.icloud` placeholders, and the dataless files newer iCloud
     /// Drive lists under their real names — which look like ordinary files
     /// but make iCloud fetch them the moment they're opened.
-    nonisolated private static func walkFolder(_ root: URL) -> FolderWalk {
+    nonisolated static func walkFolder(_ root: URL) -> FolderWalk {
         var walk = FolderWalk()
         let keys: [URLResourceKey] = [
             .isRegularFileKey, .isDirectoryKey, .contentModificationDateKey, .fileSizeKey,
@@ -711,7 +733,7 @@ public final class FilesLibraryService {
     /// tags — `Artist/Album/Song.mp3`, or `Artist/Album/Disc 2/Song.mp3` —
     /// and a leading number on the file name is the track number, with the
     /// rest as the title when the tags had none.
-    nonisolated private static func applyFolderLayout(to track: inout FileTrack, url: URL, root: URL, titleFromFileName: Bool) {
+    nonisolated static func applyFolderLayout(to track: inout FileTrack, url: URL, root: URL, titleFromFileName: Bool) {
         var folders: [String] = []
         var parent = url.deletingLastPathComponent()
         let rootPath = root.standardizedFileURL.path
@@ -747,7 +769,7 @@ public final class FilesLibraryService {
         }
     }
 
-    nonisolated private static func discNumber(fromFolder name: String) -> Int? {
+    nonisolated static func discNumber(fromFolder name: String) -> Int? {
         guard let match = name.firstMatch(of: #/^(?:disc|disk|cd)\s*(\d{1,2})$/#.ignoresCase()) else { return nil }
         return Int(match.1)
     }
@@ -776,7 +798,7 @@ public final class FilesLibraryService {
 
     /// ID3 carries "3/12" as a string; iTunes packs the number into bytes 2–3
     /// of an 8-byte blob.
-    nonisolated private static func packedNumber(from value: any NSCopying & NSObjectProtocol) -> Int? {
+    nonisolated static func packedNumber(from value: any NSCopying & NSObjectProtocol) -> Int? {
         if let string = value as? String {
             return Int(string.split(separator: "/").first?.trimmingCharacters(in: .whitespaces) ?? "")
         }
@@ -792,14 +814,14 @@ public final class FilesLibraryService {
     }
 
     /// The first four-digit year in a date string, whatever else it holds.
-    nonisolated private static func year(from string: String) -> Int? {
+    nonisolated static func year(from string: String) -> Int? {
         // No lookbehind in Swift Regex: "start or a non-digit" does the job.
         guard let match = string.firstMatch(of: #/(?:^|\D)(\d{4})(?!\d)/#) else { return nil }
         let value = Int(match.1) ?? 0
         return (1900...2100).contains(value) ? value : nil
     }
 
-    nonisolated private static func nonEmpty(_ string: String?) -> String? {
+    nonisolated static func nonEmpty(_ string: String?) -> String? {
         guard let trimmed = string?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
         return trimmed
     }
@@ -807,7 +829,7 @@ public final class FilesLibraryService {
     /// Reads each `.m3u` as the tracks it names, resolved against the
     /// playlist's own folder (or the root for absolute paths) and kept only
     /// where the scan found the file.
-    nonisolated private static func readPlaylists(_ urls: [URL], root: URL, knownPaths: Set<String>) -> [FilePlaylist] {
+    nonisolated static func readPlaylists(_ urls: [URL], root: URL, knownPaths: Set<String>) -> [FilePlaylist] {
         let rootPath = root.standardizedFileURL.path
         return urls.compactMap { url -> FilePlaylist? in
             guard let data = try? Data(contentsOf: url),
@@ -859,14 +881,14 @@ public final class FilesLibraryService {
         }
     }
 
-    nonisolated private static func relativePath(of url: URL, in root: URL) -> String {
+    nonisolated static func relativePath(of url: URL, in root: URL) -> String {
         let rootPath = root.standardizedFileURL.path
         let path = url.standardizedFileURL.path
         guard path.hasPrefix(rootPath) else { return url.lastPathComponent }
         return String(path.dropFirst(rootPath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     }
 
-    nonisolated private static func hash(_ string: String) -> String {
+    nonisolated static func hash(_ string: String) -> String {
         let digest = SHA256.hash(data: Data(string.utf8))
         return digest.prefix(8).map { String(format: "%02x", $0) }.joined()
     }
@@ -1264,17 +1286,29 @@ public final class FilesLibraryService {
     private func write(_ playlist: FilePlaylist) async -> Bool {
         guard let folderURL else { return false }
         let url = folderURL.appendingPathComponent(playlist.relativePath)
+        var tracksByPath: [String: FileTrack] = [:]
+        for path in playlist.trackRelativePaths {
+            if let id = songIDByPath[path], let track = tracksByID[id] { tracksByPath[path] = track }
+        }
+        let data = Data(Self.m3uText(for: playlist, tracksByPath: tracksByPath).utf8)
+        return await Task.detached(priority: .userInitiated) { Self.coordinatedWrite(data, to: url) }.value
+    }
+
+    /// The Extended M3U for a playlist: a `#PLAYLIST:` name, an `#EXTINF`
+    /// line for each song the index knows, and every path relative to the
+    /// playlist's own folder. A path the index doesn't know is written
+    /// bare, so nothing the user listed is dropped.
+    nonisolated static func m3uText(for playlist: FilePlaylist, tracksByPath: [String: FileTrack]) -> String {
         let directory = (playlist.relativePath as NSString).deletingLastPathComponent
         var lines = ["#EXTM3U", "#PLAYLIST:\(playlist.title)"]
         for path in playlist.trackRelativePaths {
-            if let id = songIDByPath[path], let track = tracksByID[id] {
+            if let track = tracksByPath[path] {
                 let seconds = Int((track.duration ?? -1).rounded())
                 lines.append("#EXTINF:\(seconds),\(track.artist ?? track.groupingArtist) - \(track.title)")
             }
-            lines.append(Self.relativePath(from: directory, to: path))
+            lines.append(relativePath(from: directory, to: path))
         }
-        let data = Data((lines.joined(separator: "\n") + "\n").utf8)
-        return await Task.detached(priority: .userInitiated) { Self.coordinatedWrite(data, to: url) }.value
+        return lines.joined(separator: "\n") + "\n"
     }
 
     nonisolated private static func coordinatedWrite(_ data: Data, to url: URL) -> Bool {
@@ -1298,7 +1332,7 @@ public final class FilesLibraryService {
 
     /// The path from one folder to a file, both given relative to the root:
     /// "../Artist/Album/01 Song.mp3" from a playlist in "Playlists".
-    nonisolated private static func relativePath(from directory: String, to path: String) -> String {
+    nonisolated static func relativePath(from directory: String, to path: String) -> String {
         let from = directory.split(separator: "/").map(String.init)
         let to = path.split(separator: "/").map(String.init)
         var common = 0

@@ -49,8 +49,7 @@ final class DownloadManager {
         var id: String { key }
 
         var progress: Double {
-            guard bytesExpected > 0 else { return 0 }
-            return min(1, Double(bytesReceived) / Double(bytesExpected))
+            DownloadNaming.progress(received: bytesReceived, expected: bytesExpected)
         }
 
         var isActive: Bool {
@@ -206,7 +205,7 @@ final class DownloadManager {
         entry.state = .paused
         items[key] = entry
         session.getAllTasks { tasks in
-            for task in tasks where task.taskDescription?.hasPrefix(key + "|") == true {
+            for task in tasks where DownloadNaming.parseTaskDescription(task.taskDescription)?.key == key {
                 if let download = task as? URLSessionDownloadTask {
                     download.cancel { [weak self] data in
                         Task { @MainActor in self?.store(resumeData: data, for: key) }
@@ -235,7 +234,7 @@ final class DownloadManager {
         items[key] = nil
         lastProgressPublish[key] = nil
         session.getAllTasks { tasks in
-            for task in tasks where task.taskDescription?.hasPrefix(key + "|") == true {
+            for task in tasks where DownloadNaming.parseTaskDescription(task.taskDescription)?.key == key {
                 task.cancel()
             }
         }
@@ -294,7 +293,7 @@ final class DownloadManager {
         // Key and extension travel with the task, so the relay can put the
         // file in place the moment it lands — before the system deletes the
         // temporary copy — even after a relaunch with no manifest in memory.
-        task.taskDescription = "\(entry.key)|\(entry.fileExtension)"
+        task.taskDescription = DownloadNaming.taskDescription(key: entry.key, fileExtension: entry.fileExtension)
         task.priority = URLSessionTask.highPriority
         task.resume()
 
@@ -363,7 +362,7 @@ final class DownloadManager {
     /// before the task was made).
     private func reattachSessionTasks() {
         session.getAllTasks { [weak self] tasks in
-            let carried = Set(tasks.compactMap { $0.taskDescription?.split(separator: "|").first.map(String.init) })
+            let carried = Set(tasks.compactMap { DownloadNaming.parseTaskDescription($0.taskDescription)?.key })
             Task { @MainActor in
                 guard let self else { return }
                 for entry in self.items.values where entry.state != .completed && entry.state != .paused {
@@ -435,22 +434,13 @@ final class DownloadManager {
 
     // MARK: - Storage
 
-    /// Filesystem-safe key for a track: its service and id with path
-    /// separators and the extension dot neutralized. Plex keeps the bare id
-    /// the first build used, so its downloads carry over.
+    /// Filesystem-safe key for a track — see `DownloadNaming`.
     static func key(for item: PlayableContent) -> String {
-        let id = item.content.id
-            .replacingOccurrences(of: "/", with: "-")
-            .replacingOccurrences(of: ":", with: "-")
-            .replacingOccurrences(of: ".", with: "-")
-        return item.content.service == .plex ? id : "\(item.content.service.sonosRawValue)-\(id)"
+        DownloadNaming.key(for: item)
     }
 
     private static func fileExtension(for item: PlayableContent, url: URL) -> String {
-        let fromMetadata = item.metadata?.audioCodec?.trimmingCharacters(in: .whitespaces).lowercased() ?? ""
-        if !fromMetadata.isEmpty, fromMetadata.count <= 5 { return fromMetadata }
-        let fromURL = url.pathExtension.lowercased()
-        return fromURL.isEmpty ? "mp3" : fromURL
+        DownloadNaming.fileExtension(for: item, url: url)
     }
 
     nonisolated static var directory: URL {
@@ -518,10 +508,7 @@ private final class DownloadSessionRelay: NSObject, URLSessionDownloadDelegate, 
     weak var manager: DownloadManager?
 
     private func key(of task: URLSessionTask) -> (key: String, fileExtension: String)? {
-        guard let description = task.taskDescription else { return nil }
-        let parts = description.split(separator: "|", maxSplits: 1).map(String.init)
-        guard parts.count == 2 else { return nil }
-        return (parts[0], parts[1])
+        DownloadNaming.parseTaskDescription(task.taskDescription)
     }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
