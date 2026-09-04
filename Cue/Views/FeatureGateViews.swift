@@ -112,7 +112,7 @@ struct FeatureGateDebugView: View {
                     .disabled(gate.overrides.isEmpty)
             }
         }
-        .navigationTitle("GatedFeature Gates")
+        .navigationTitle("Feature Gates")
     }
 
     private func binding(for feature: GatedFeature) -> Binding<Choice> {
