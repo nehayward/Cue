@@ -7,14 +7,14 @@ extension View {
     /// outside the `.disabled`.
     ///
     /// A remotely disabled feature is greyed with no tap: nothing to sell.
-    func gated(_ feature: Feature) -> some View {
+    func gated(_ feature: GatedFeature) -> some View {
         modifier(FeatureGateModifier(feature: feature))
     }
 
     /// Hides the view unless the feature is available — for a control that
     /// makes no sense greyed, like the Create Scene toolbar button.
     @ViewBuilder
-    func onlyIfAvailable(_ feature: Feature) -> some View {
+    func onlyIfAvailable(_ feature: GatedFeature) -> some View {
         modifier(FeatureAvailableModifier(feature: feature))
     }
 }
@@ -23,7 +23,7 @@ private struct FeatureGateModifier: ViewModifier {
     @Environment(FeatureGate.self) private var gate
     @Environment(Router.self) private var router: Router?
 
-    let feature: Feature
+    let feature: GatedFeature
 
     func body(content: Content) -> some View {
         let availability = gate.availability(of: feature)
@@ -45,7 +45,7 @@ private struct FeatureGateModifier: ViewModifier {
 private struct FeatureAvailableModifier: ViewModifier {
     @Environment(FeatureGate.self) private var gate
 
-    let feature: Feature
+    let feature: GatedFeature
 
     func body(content: Content) -> some View {
         if gate.isAvailable(feature) {
@@ -59,7 +59,7 @@ private struct FeatureAvailableModifier: ViewModifier {
 struct FeatureBadge: View {
     @Environment(FeatureGate.self) private var gate
 
-    let feature: Feature
+    let feature: GatedFeature
 
     var body: some View {
         if gate.needsSuper(feature) {
@@ -89,7 +89,7 @@ struct FeatureGateDebugView: View {
     var body: some View {
         List {
             Section {
-                ForEach(Feature.allCases) { feature in
+                ForEach(GatedFeature.allCases) { feature in
                     Picker(selection: binding(for: feature)) {
                         ForEach(Choice.allCases) { choice in
                             Text(choice.label).tag(choice)
@@ -112,10 +112,10 @@ struct FeatureGateDebugView: View {
                     .disabled(gate.overrides.isEmpty)
             }
         }
-        .navigationTitle("Feature Gates")
+        .navigationTitle("GatedFeature Gates")
     }
 
-    private func binding(for feature: Feature) -> Binding<Choice> {
+    private func binding(for feature: GatedFeature) -> Binding<Choice> {
         Binding {
             switch gate.overrides[feature] {
             case .some(true): .on
@@ -131,7 +131,7 @@ struct FeatureGateDebugView: View {
         }
     }
 
-    private func describe(_ feature: Feature) -> String {
+    private func describe(_ feature: GatedFeature) -> String {
         let state = switch gate.availability(of: feature) {
         case .available: "available"
         case .needsSuper: "needs Super"

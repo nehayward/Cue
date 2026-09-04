@@ -11,7 +11,7 @@ import SubscriptionKit
 ///
 /// Add a case for anything that might ever be held back, even while it is
 /// free: the call sites then exist, and gating it later is one line.
-enum Feature: String, CaseIterable, Identifiable, Sendable {
+enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
     /// Every room beyond the first. The free tier controls one group.
     case allRooms
     case scenes
@@ -88,7 +88,7 @@ final class FeatureGate {
 
     /// Debug-only: force a feature on or off regardless of what would
     /// unlock it, to see both sides of a gate without a purchase.
-    private(set) var overrides: [Feature: Bool] = [:]
+    private(set) var overrides: [GatedFeature: Bool] = [:]
     private static let overridesKey = "dance.cue.featureOverrides"
 
     init(subscription: SubscriptionService = .shared, flags: RemoteFeatureFlags = .shared) {
@@ -101,7 +101,7 @@ final class FeatureGate {
 
     // MARK: - Reading
 
-    func availability(of feature: Feature) -> Availability {
+    func availability(of feature: GatedFeature) -> Availability {
         #if DEBUG
         if let forced = overrides[feature] {
             return forced ? .available : .needsSuper
@@ -110,13 +110,13 @@ final class FeatureGate {
         return availability(of: feature.requirement)
     }
 
-    func isAvailable(_ feature: Feature) -> Bool {
+    func isAvailable(_ feature: GatedFeature) -> Bool {
         availability(of: feature) == .available
     }
 
     /// Whether the feature is something to sell — the badge and the
     /// greyed row show for this and nothing else.
-    func needsSuper(_ feature: Feature) -> Bool {
+    func needsSuper(_ feature: GatedFeature) -> Bool {
         availability(of: feature) == .needsSuper
     }
 
@@ -152,7 +152,7 @@ final class FeatureGate {
     /// back; a remotely disabled feature just returns false.
     @MainActor
     @discardableResult
-    func unlock(_ feature: Feature, via router: Router? = nil) -> Bool {
+    func unlock(_ feature: GatedFeature, via router: Router? = nil) -> Bool {
         switch availability(of: feature) {
         case .available:
             return true
@@ -174,7 +174,7 @@ final class FeatureGate {
     // MARK: - Debug overrides
 
     /// `nil` clears the override.
-    func setOverride(_ value: Bool?, for feature: Feature) {
+    func setOverride(_ value: Bool?, for feature: GatedFeature) {
         overrides[feature] = value
         Self.saveOverrides(overrides)
     }
@@ -184,16 +184,16 @@ final class FeatureGate {
         Self.saveOverrides(overrides)
     }
 
-    private static func loadOverrides() -> [Feature: Bool] {
+    private static func loadOverrides() -> [GatedFeature: Bool] {
         guard let stored = UserDefaults.standard.dictionary(forKey: overridesKey) as? [String: Bool] else { return [:] }
-        var overrides: [Feature: Bool] = [:]
+        var overrides: [GatedFeature: Bool] = [:]
         for (key, value) in stored {
-            if let feature = Feature(rawValue: key) { overrides[feature] = value }
+            if let feature = GatedFeature(rawValue: key) { overrides[feature] = value }
         }
         return overrides
     }
 
-    private static func saveOverrides(_ overrides: [Feature: Bool]) {
+    private static func saveOverrides(_ overrides: [GatedFeature: Bool]) {
         let stored = Dictionary(uniqueKeysWithValues: overrides.map { ($0.key.rawValue, $0.value) })
         UserDefaults.standard.set(stored, forKey: overridesKey)
     }
