@@ -134,7 +134,6 @@ struct PlayerView: View {
         .dropDestinationPlayOnDevice()
         .fontDesign(.rounded)
         .environment(router)
-        .environment(FavoriteRatingCache.shared)
         .withEnvironments()
     }
 
