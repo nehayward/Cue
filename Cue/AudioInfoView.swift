@@ -1,12 +1,23 @@
 import SwiftUI
 import SonosKit
 
+/// The lossless / Dolby Atmos badge in the scrubber row, expanding to bit
+/// depth and sample rate on a tap. Takes the quality itself so the local
+/// player can show what this device is decoding the same way the Sonos
+/// player shows what a speaker reported.
 struct AudioInfoView: View {
-    var group: GroupRoom
+    var quality: SonosTrackQuality?
     @State private var showDetails: Bool = false
 
+    init(quality: SonosTrackQuality?) {
+        self.quality = quality
+    }
+
+    init(group: GroupRoom) {
+        self.quality = group.audioQuality
+    }
+
     var body: some View {
-        let quality = group.audioQuality
         let supportsDetails = (quality?.lossless ?? false) || (quality?.immersive ?? false)
 
         // Create a string like "24-bit • 48kHz" or just "48kHz"

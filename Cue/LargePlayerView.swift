@@ -495,7 +495,7 @@ fileprivate struct PlaybackView: View {
                 Text(position.formatted(.time(pattern: pattern)))
                     .contentTransition(.identity)
                 Spacer()
-                AudioInfoView(group: group)
+                AudioInfoView(quality: group.audioQuality)
                     .frame(height: 12)
                     .contentTransition(.identity)
                     .animation(.spring, value: group.audioQuality)

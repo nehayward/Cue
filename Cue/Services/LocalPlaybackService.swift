@@ -50,6 +50,38 @@ final class LocalPlaybackService {
         case stream
     }
 
+    /// What happens when the queue runs out, or a track ends — the same three
+    /// modes a Sonos queue has.
+    enum RepeatMode: String, CaseIterable {
+        case off
+        case all
+        case one
+
+        /// The next mode a single repeat button cycles to.
+        var next: RepeatMode {
+            switch self {
+            case .off: .all
+            case .all: .one
+            case .one: .off
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .off: "Repeat Off"
+            case .all: "Repeat All"
+            case .one: "Repeat One"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .off, .all: "repeat"
+            case .one: "repeat.1"
+            }
+        }
+    }
+
     // MARK: - Observable queue + now-playing state
 
     /// The local queue, in play order. Mixed services are fine — playback is
@@ -68,6 +100,23 @@ final class LocalPlaybackService {
     var nowPlaying: PlayableContent? { queue[safe: currentIndex] }
     var upNext: [PlayableContent] { Array(queue.dropFirst(currentIndex + 1)) }
     var isActive: Bool { !queue.isEmpty }
+    /// Whether a skip forward has somewhere to go: another track, or the top
+    /// of the queue again when it repeats.
+    var hasNext: Bool { currentIndex + 1 < queue.count || (repeatMode == .all && !queue.isEmpty) }
+
+    /// How the queue loops. Repeat One shortens the armed run to the current
+    /// track, so the native player hands back at the end of each one instead
+    /// of sailing on to the next.
+    private(set) var repeatMode: RepeatMode = .off
+    /// When the sleep timer will pause playback, if one is running. Nil for
+    /// none and for the end-of-track kind, which has no fixed time.
+    private(set) var sleepTimerEndDate: Date?
+    /// Pause when the current track ends rather than at a time.
+    private(set) var sleepsAtEndOfTrack = false
+    /// What the armed player is decoding — lossless, Atmos, bit depth and
+    /// sample rate as far as the backend will say. Apple's player reports
+    /// the variant it is actually playing; a stream's is read off its asset.
+    private(set) var audioQuality: SonosTrackQuality?
 
     // MARK: - Armed-run state
 
@@ -109,6 +158,13 @@ final class LocalPlaybackService {
     /// Debounces the playback cache's look at the queue: page appends and
     /// polled index changes come in bursts.
     @ObservationIgnored private var cacheRefreshTask: Task<Void, Never>?
+    /// Counts down a timed sleep timer.
+    @ObservationIgnored private var sleepTask: Task<Void, Never>?
+    /// Reads a stream item's format off its asset; one in flight at a time.
+    @ObservationIgnored private var audioQualityTask: Task<Void, Never>?
+    /// The stream item `audioQuality` describes, so the poll only reads a
+    /// format when the item changes.
+    @ObservationIgnored private var audioQualityItem: ObjectIdentifier?
 
     /// Whether the queue can take this item: Apple tracks (catalog or library),
     /// and Plex or Subsonic tracks that carry their stream URL.
@@ -371,10 +427,81 @@ final class LocalPlaybackService {
         }
     }
 
+    /// Pauses whichever player is armed. Nothing to do when none is.
+    func pause() {
+        switch backend {
+        case .appleMusic:
+            musicPlayer.pause()
+        case .stream:
+            streamPlayer?.pause()
+        case nil:
+            break
+        }
+    }
+
+    func setRepeatMode(_ mode: RepeatMode) {
+        guard mode != repeatMode else { return }
+        repeatMode = mode
+        // The armed run would carry straight past the current track; end it
+        // there so the run-end hook can play it again. Leaving Repeat One
+        // needs nothing: the next arm reads the mode and takes the whole run.
+        if mode == .one, runEnd > currentIndex {
+            truncateArmedRunAfterCurrent()
+        }
+    }
+
+    /// Reorders what follows the current track at random. The current track
+    /// keeps playing; the run is cut off after it so the new order takes
+    /// effect at the next track boundary.
+    func shuffleUpNext() {
+        let start = currentIndex + 1
+        guard start + 1 < queue.count else { return }
+        if runEnd > currentIndex {
+            truncateArmedRunAfterCurrent()
+        }
+        queue[start...].shuffle()
+    }
+
+    /// Pauses `duration` from now. Replaces any timer already running,
+    /// including an end-of-track one.
+    func sleepTimer(_ duration: Duration) {
+        cancelSleepTimer()
+        let seconds = TimeInterval(duration.components.seconds)
+        sleepTimerEndDate = Date.now.addingTimeInterval(seconds)
+        sleepTask = Task { [weak self] in
+            try? await Task.sleep(for: duration)
+            guard !Task.isCancelled, let self else { return }
+            self.pause()
+            self.sleepTimerEndDate = nil
+        }
+    }
+
+    /// Pauses when the current track ends. The armed run is cut off after
+    /// it, so the native player hands back instead of starting the next one;
+    /// `advancePastRun` then parks on what would have played.
+    func sleepAtEndOfTrack() {
+        cancelSleepTimer()
+        sleepsAtEndOfTrack = true
+        if runEnd > currentIndex {
+            truncateArmedRunAfterCurrent()
+        }
+    }
+
+    func cancelSleepTimer() {
+        sleepTask?.cancel()
+        sleepTask = nil
+        sleepTimerEndDate = nil
+        sleepsAtEndOfTrack = false
+    }
+
     func next() {
         let target = currentIndex + 1
         guard target < queue.count else {
-            stop()
+            if repeatMode == .all, !queue.isEmpty {
+                Task { try? await arm(at: 0) }
+            } else {
+                stop()
+            }
             return
         }
         // Inside the armed run the native skip is instant (and keeps the run's
@@ -404,6 +531,7 @@ final class LocalPlaybackService {
     func stop() {
         poller?.invalidate()
         poller = nil
+        cancelSleepTimer()
         teardownRun()
         queue = []
         currentIndex = 0
@@ -437,7 +565,9 @@ final class LocalPlaybackService {
         currentIndex = index
         progress = 0
         duration = 0
-        let end = runEnd(from: index)
+        // A run of one when the track has to hand back at its end: to play
+        // again, or to pause there.
+        let end = (repeatMode == .one || sleepsAtEndOfTrack) ? index : runEnd(from: index)
 
         switch backendKind(for: queue[index]) {
         case .stream:
@@ -450,10 +580,35 @@ final class LocalPlaybackService {
         }
     }
 
-    /// Moves on to whatever follows the armed run, or stops at the queue's end.
+    /// Moves on to whatever follows the armed run — or plays it again under
+    /// Repeat One, wraps to the top under Repeat All, parks for an
+    /// end-of-track sleep timer, and otherwise stops at the queue's end.
     private func advancePastRun(endingAt end: Int) {
+        if sleepsAtEndOfTrack {
+            sleepsAtEndOfTrack = false
+            // Nothing armed, and the queue kept: Play picks up from what
+            // would have played next, the way a paused speaker does.
+            let next = repeatMode == .one ? end : end + 1
+            if next < queue.count {
+                currentIndex = next
+            } else if repeatMode == .all {
+                currentIndex = 0
+            }
+            isPlaying = false
+            progress = 0
+            duration = 0
+            return
+        }
+        if repeatMode == .one {
+            Task { try? await arm(at: end) }
+            return
+        }
         guard end + 1 < queue.count else {
-            stop()
+            if repeatMode == .all, !queue.isEmpty {
+                Task { try? await arm(at: 0) }
+            } else {
+                stop()
+            }
             return
         }
         Task { try? await arm(at: end + 1) }
@@ -478,6 +633,12 @@ final class LocalPlaybackService {
         runEnd = -1
         appleRun = []
         appleWasPlaying = false
+        audioQualityTask?.cancel()
+        audioQualityTask = nil
+        audioQualityItem = nil
+        if audioQuality != nil {
+            audioQuality = nil
+        }
 
         if previous == .appleMusic {
             musicPlayer.stop()
@@ -730,6 +891,13 @@ final class LocalPlaybackService {
             progress = musicPlayer.playbackTime
             if status == .playing { appleWasPlaying = true }
 
+            // What the player is actually decoding, not what the catalog
+            // offers — the person's Music settings decide between them.
+            let quality = Self.quality(for: musicPlayer.state.audioVariant)
+            if quality != audioQuality {
+                audioQuality = quality
+            }
+
             // Follow the player's own advance through the run.
             let entries = musicPlayer.queue.entries
             if let current = musicPlayer.queue.currentEntry,
@@ -769,6 +937,10 @@ final class LocalPlaybackService {
             if let queueIndex = streamRun[ObjectIdentifier(current)] {
                 currentIndex = queueIndex
             }
+            if audioQualityItem != ObjectIdentifier(current) {
+                audioQualityItem = ObjectIdentifier(current)
+                readAudioQuality(of: current)
+            }
             nowPlayingCard.update(
                 item: queue[safe: currentIndex],
                 isPlaying: isPlaying,
@@ -779,6 +951,72 @@ final class LocalPlaybackService {
         case nil:
             isPlaying = false
         }
+    }
+
+    // MARK: - Audio quality
+
+    /// The Sonos-shaped quality for what Apple's player says it is playing.
+    /// Nothing for plain lossy stereo — there is nothing to badge.
+    private static func quality(for variant: AudioVariant?) -> SonosTrackQuality? {
+        guard let variant else { return nil }
+        switch variant {
+        case .dolbyAtmos, .dolbyAudio, .spatialAudio:
+            return SonosTrackQuality(lossless: false, immersive: true)
+        case .highResolutionLossless:
+            return SonosTrackQuality(bitDepth: 24, lossless: true, immersive: false)
+        case .lossless:
+            return SonosTrackQuality(lossless: true, immersive: false)
+        default:
+            return nil
+        }
+    }
+
+    /// Reads the format of a stream item off its asset: the codec decides
+    /// lossless, the stream description carries the sample rate, and for
+    /// FLAC and ALAC the format flags say what bit depth the source was.
+    private func readAudioQuality(of item: AVPlayerItem) {
+        audioQualityTask?.cancel()
+        if audioQuality != nil {
+            audioQuality = nil
+        }
+        let asset = item.asset
+        audioQualityTask = Task { [weak self] in
+            let quality = await Self.quality(for: asset)
+            guard !Task.isCancelled, let self, self.audioQualityItem == ObjectIdentifier(item) else { return }
+            if quality != self.audioQuality {
+                self.audioQuality = quality
+            }
+        }
+    }
+
+    private static func quality(for asset: AVAsset) async -> SonosTrackQuality? {
+        guard let track = try? await asset.loadTracks(withMediaType: .audio).first,
+              let descriptions = try? await track.load(.formatDescriptions),
+              let description = descriptions.first,
+              let stream = CMAudioFormatDescriptionGetStreamBasicDescription(description)?.pointee else {
+            return nil
+        }
+
+        let lossless = [kAudioFormatFLAC, kAudioFormatAppleLossless, kAudioFormatLinearPCM].contains(stream.mFormatID)
+        let sampleRate = stream.mSampleRate > 0 ? Int(stream.mSampleRate) : nil
+
+        var bitDepth: Int?
+        if stream.mBitsPerChannel > 0 {
+            bitDepth = Int(stream.mBitsPerChannel)
+        } else if lossless {
+            // Compressed lossless leaves `mBitsPerChannel` at zero; the source
+            // depth rides in the flags instead, the same set for both codecs.
+            switch stream.mFormatFlags {
+            case kAppleLosslessFormatFlag_16BitSourceData: bitDepth = 16
+            case kAppleLosslessFormatFlag_20BitSourceData: bitDepth = 20
+            case kAppleLosslessFormatFlag_24BitSourceData: bitDepth = 24
+            case kAppleLosslessFormatFlag_32BitSourceData: bitDepth = 32
+            default: break
+            }
+        }
+
+        guard lossless || sampleRate != nil else { return nil }
+        return SonosTrackQuality(bitDepth: bitDepth, lossless: lossless, immersive: false, sampleRate: sampleRate)
     }
 }
 
