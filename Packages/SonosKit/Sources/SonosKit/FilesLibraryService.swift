@@ -660,7 +660,8 @@ public final class FilesLibraryService {
 
     /// The first four-digit year in a date string, whatever else it holds.
     nonisolated private static func year(from string: String) -> Int? {
-        guard let match = string.firstMatch(of: #/(?<!\d)(\d{4})(?!\d)/#) else { return nil }
+        // No lookbehind in Swift Regex: "start or a non-digit" does the job.
+        guard let match = string.firstMatch(of: #/(?:^|\D)(\d{4})(?!\d)/#) else { return nil }
         let value = Int(match.1) ?? 0
         return (1900...2100).contains(value) ? value : nil
     }
