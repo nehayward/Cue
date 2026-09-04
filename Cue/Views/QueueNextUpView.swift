@@ -17,9 +17,11 @@ struct QueueNextUpView: View {
                 .padding(.top, 14)
                 .padding(.bottom, 10)
 
-            if playback.queue.isEmpty {
+            // A station is live: nothing follows it, so the panel reads as
+            // empty rather than listing the station as a one-row queue.
+            if playback.queue.isEmpty || playback.isPlayingStation {
                 Spacer()
-                Text("Nothing queued")
+                Text(playback.isPlayingStation ? "Live radio — nothing queued" : "Nothing queued")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)

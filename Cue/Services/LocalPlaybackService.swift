@@ -77,6 +77,12 @@ final class LocalPlaybackService {
 
     var nowPlaying: PlayableContent? { queue[safe: currentIndex] }
 
+    /// Whether a live station is what's playing: no skipping, no queue
+    /// behind it, nothing to scrub.
+    var isPlayingStation: Bool {
+        nowPlaying.map(isStation) ?? false
+    }
+
     /// What's on air on the current station: the song, who's playing it, and
     /// its artwork when a lookup found some. Nil for a track, and for a
     /// station that hasn't said yet.

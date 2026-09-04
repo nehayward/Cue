@@ -198,20 +198,25 @@ private struct LocalPlaybackScrubber: View {
 private struct LocalMediaControlsView: View {
     private var playback: LocalPlaybackService { .shared }
 
+    /// A station has nothing to skip to, so it gets play/pause alone.
+    private var isStation: Bool { playback.isPlayingStation }
+
     var body: some View {
         HStack {
-            Button {
-                HapticManager.shared.fireHaptic(.selection)
-                playback.previous()
-            } label: {
-                Image(systemName: "backward.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 32, height: 32)
-            }
-            .buttonStyle(.liveActivity)
+            if !isStation {
+                Button {
+                    HapticManager.shared.fireHaptic(.selection)
+                    playback.previous()
+                } label: {
+                    Image(systemName: "backward.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.liveActivity)
 
-            Spacer()
+                Spacer()
+            }
 
             Button {
                 HapticManager.shared.fireHaptic(.selection)
@@ -226,20 +231,22 @@ private struct LocalMediaControlsView: View {
             }
             .buttonStyle(.liveActivity)
 
-            Spacer()
+            if !isStation {
+                Spacer()
 
-            Button {
-                HapticManager.shared.fireHaptic(.selection)
-                playback.next()
-            } label: {
-                Image(systemName: "forward.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 32, height: 32)
+                Button {
+                    HapticManager.shared.fireHaptic(.selection)
+                    playback.next()
+                } label: {
+                    Image(systemName: "forward.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.liveActivity)
             }
-            .buttonStyle(.liveActivity)
         }
-        .frame(maxWidth: 300)
+        .frame(maxWidth: isStation ? nil : 300)
         .padding(.horizontal, 60)
     }
 }
