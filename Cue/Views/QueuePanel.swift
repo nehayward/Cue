@@ -31,14 +31,22 @@ struct QueuePanel<Panel: View>: ViewModifier {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var isCompact: Bool { horizontalSizeClass == .compact }
+    private var wantsSheet: Bool { isCompact && compactBehavior == .sheet }
 
-    /// The sheet's binding: the panel's own in a compact width that wants
-    /// one, otherwise never presented. Sharing `isPresented` means a swipe
-    /// to dismiss the sheet is the same as hiding the panel.
-    private var sheetIsPresented: Binding<Bool> {
-        guard isCompact, compactBehavior == .sheet else { return .constant(false) }
-        return $isPresented
-    }
+    /// The sheet's own visibility, kept apart from `isPresented`. A window
+    /// changing size class (an iPad going in or out of multitasking) takes
+    /// a presented sheet down, and SwiftUI reports that through the binding
+    /// as if the person had swiped it away — bound straight to
+    /// `isPresented`, the queue then stayed hidden once the width came back.
+    /// With its own state the sheet can come and go with the width while the
+    /// person's choice holds, and only a dismissal made while the window is
+    /// standing still counts as theirs.
+    @State private var sheetShown = false
+    /// When the window last changed size. A sheet dismissal within a
+    /// moment of it is the resize's doing, not the person's.
+    @State private var lastResize: Date = .distantPast
+
+    private static var resizeGrace: TimeInterval { 1 }
 
     static var minWidth: CGFloat { 260 }
     static var maxWidth: CGFloat { 520 }
@@ -115,9 +123,39 @@ struct QueuePanel<Panel: View>: ViewModifier {
         }
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.width
-        } action: { availableWidth = $0 }
+        } action: { newWidth in
+            if availableWidth != nil, availableWidth != newWidth {
+                lastResize = .now
+            }
+            availableWidth = newWidth
+        }
         .animation(.snappy, value: isPresented)
-        .sheet(isPresented: sheetIsPresented) {
+        // The person's choice, or the width, changed: the sheet follows.
+        .onChange(of: wantsSheet, initial: true) { _, wants in
+            lastResize = .now
+            sheetShown = wants && isPresented
+        }
+        .onChange(of: isPresented) { _, presented in
+            sheetShown = wantsSheet && presented
+        }
+        // The sheet went down. Theirs, or the window's?
+        .onChange(of: sheetShown) { _, shown in
+            guard !shown, isPresented else { return }
+            if Date.now.timeIntervalSince(lastResize) < Self.resizeGrace {
+                // The resize took it. Put it back once the layout settles,
+                // if this width still wants one; a regular width shows the
+                // side panel from the same flag instead.
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(400))
+                    if isPresented, wantsSheet, !sheetShown {
+                        sheetShown = true
+                    }
+                }
+            } else {
+                isPresented = false
+            }
+        }
+        .sheet(isPresented: $sheetShown) {
             panel()
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
