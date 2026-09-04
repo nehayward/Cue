@@ -1,26 +1,82 @@
 import Foundation
 import SWXMLHash
 
-public final class TuneInParser {
+public final class TuneInParser: Sendable {
     func parseStations(xmlData: Data) -> [TuneInStation] {
         let xml = XMLHash.parse(xmlData)
-        let stations: [TuneInStation] = xml["opml"]["body"].children.compactMap { hub in
-            let imageURL = (hub.value(ofAttribute: "image") ?? "").replacingOccurrences(of: "logoq.png", with: "logod.png")
+        return xml["opml"]["body"].children.map { station(from: $0) }
+    }
 
-            let playingTrack: String? = hub.value(ofAttribute: "playing")
-            let track: String? = hub.value(ofAttribute: "current_track")
-            let stationName: String = hub.value(ofAttribute: "text") ?? ""
+    /// A browse page: stations, links to further pages, and titled groups
+    /// of either. Groups nest (a local page is "FM" and "AM" blocks of
+    /// stations), so this recurses through untyped outlines.
+    func parseBrowse(xmlData: Data) -> [TuneInBrowseItem] {
+        let xml = XMLHash.parse(xmlData)
+        return browseItems(in: xml["opml"]["body"])
+    }
 
-            return TuneInStation(
-                title: hub.value(ofAttribute: "text") ?? "" ,
-                id: hub.value(ofAttribute: "guide_id") ?? "",
-                currentTrack: hub.value(ofAttribute: "current_track") ?? "",
-                imageURL: URL(string: imageURL),
-                url: URL(string: hub.value(ofAttribute: "URL") ?? ""),
-                stationInfo: .init(name: stationName, song: [playingTrack, track].compactMap { $0 }.first, album: nil, artist: nil, location: nil)
-            )
+    private func browseItems(in node: XMLIndexer) -> [TuneInBrowseItem] {
+        node.children.compactMap { outline -> TuneInBrowseItem? in
+            let type: String? = outline.value(ofAttribute: "type")
+            let title: String = outline.value(ofAttribute: "text") ?? ""
+
+            switch type {
+            case "audio":
+                // Shows and podcast episodes are audio outlines too; only a
+                // station plays as a stream on Sonos.
+                let item: String? = outline.value(ofAttribute: "item")
+                guard item == nil || item == "station" else { return nil }
+                let station = station(from: outline)
+                guard !station.id.isEmpty else { return nil }
+                return .station(station)
+            case "link":
+                guard let urlString: String = outline.value(ofAttribute: "URL"),
+                      let url = Self.secured(URL(string: urlString)),
+                      !title.isEmpty else { return nil }
+                return .link(TuneInBrowseLink(title: title, guideID: outline.value(ofAttribute: "guide_id"), url: url))
+            default:
+                let items = browseItems(in: outline)
+                guard !items.isEmpty, !title.isEmpty else { return nil }
+                return .group(TuneInBrowseGroup(title: title, items: items))
+            }
         }
-        return stations
+    }
+
+    /// Browse links come back over plain HTTP, which App Transport Security
+    /// refuses; the host serves the same pages over HTTPS.
+    static func secured(_ url: URL?) -> URL? {
+        guard let url, var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+        if components.scheme == "http" {
+            components.scheme = "https"
+        }
+        return components.url
+    }
+
+    /// One station outline, from a search result or a browse page. The
+    /// caption is what's on air when TuneIn says so, else the station's own
+    /// tagline (`subtext`), which is all a browse page carries.
+    private func station(from outline: XMLIndexer) -> TuneInStation {
+        let imageURL = (outline.value(ofAttribute: "image") ?? "").replacingOccurrences(of: "logoq.png", with: "logod.png")
+
+        let playingTrack: String? = outline.value(ofAttribute: "playing")
+        let track: String? = outline.value(ofAttribute: "current_track")
+        let subtext: String? = outline.value(ofAttribute: "subtext")
+        let stationName: String = outline.value(ofAttribute: "text") ?? ""
+
+        return TuneInStation(
+            title: stationName,
+            id: outline.value(ofAttribute: "guide_id") ?? "",
+            currentTrack: track ?? "",
+            imageURL: URL(string: imageURL),
+            url: URL(string: outline.value(ofAttribute: "URL") ?? ""),
+            stationInfo: .init(
+                name: stationName,
+                song: [playingTrack, track, subtext].compactMap { $0 }.first { !$0.isEmpty },
+                album: nil,
+                artist: nil,
+                location: nil
+            )
+        )
     }
 
     func parseStationDetails(xmlData: Data) -> TuneInStation {

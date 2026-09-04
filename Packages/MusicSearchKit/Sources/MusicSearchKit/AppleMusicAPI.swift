@@ -412,6 +412,24 @@ public final class AppleMusicAPI {
         }
     }
 
+    /// Apple's own live stations — Apple Music 1, Hits, Country, and the
+    /// rest of the broadcast lineup — as opposed to the user's personal ones.
+    public func lookupAppleLiveRadioStations(limit: Int = 25) async throws -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let region = (Locale.current.region?.identifier ?? "US").lowercased()
+        let stationsURL = URL(string: "https://api.music.apple.com/v1/catalog/\(region)/stations?filter[featured]=apple-music-live-radio&limit=\(limit)")!
+        let request = MusicDataRequest(urlRequest: .init(url: stationsURL))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+        do {
+            return try decoder.decode(AppleLibraryContainer.self, from: data)
+        } catch {
+            print("Error decoding live radio stations: \(error)")
+            return nil
+        }
+    }
+
     public func searchRadioStations(term: String, limit: Int = 10) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
         guard let encodedTerm = term.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }

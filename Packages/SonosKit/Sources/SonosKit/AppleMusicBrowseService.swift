@@ -118,6 +118,23 @@ public final class AppleMusicBrowseService {
         }
     }
 
+    /// Apple's own live stations — Apple Music 1 and the rest of the
+    /// broadcast lineup, as opposed to the user's personal ones.
+    public var liveStations: OrderedSet<PlayableContent> = []
+
+    public func updateLiveRadioStations() async {
+        guard let container = try? await apple.lookupAppleLiveRadioStations() else { return }
+        for station in container.data.compactMap(\.toPlayable) {
+            liveStations.updateOrAppend(station)
+        }
+    }
+
+    /// Everything the Radio tab lists for Apple Music: the live stations
+    /// first, then the user's personal and recently played ones.
+    public var radioStations: [PlayableContent] {
+        Array(liveStations) + userStations.filter { !liveStations.contains($0) }
+    }
+
     public func tracksForUserPlaylists(id: String, offset: Int) async -> ([PlayableContent], total: Int) {
         guard let container = try? await apple.lookupUsersLibraryPlaylist(id: id, offset: offset) else {
             return ([], 0)

@@ -177,6 +177,13 @@ struct CueApp: App {
         tabProviders.visibleProviders(enabledIn: coreFeatures)
     }
 
+    /// Whether the Radio tab has a source to draw on: TuneIn, Apple Music
+    /// or Sonos Radio switched on in Services. Sonos favorites alone don't
+    /// earn it a place — a tab of one short row isn't worth the bar space.
+    private var showsRadioTab: Bool {
+        [MediaSearchService.tuneIn, .apple, .sonosRadio].contains { coreFeatures.isEnabled($0) }
+    }
+
     /// The sidebar header's plus: the providers switched on in Services
     /// that aren't tabs yet, and the full arrangement behind them.
     private var addProviderMenu: some View {
@@ -286,6 +293,15 @@ struct CueApp: App {
                     Screens.browse
                 }
 
+                // Radio: every station source in one place. Fixed like
+                // Search and Browse — no `customizationID` — but only while
+                // a radio provider is switched on in Services.
+                if showsRadioTab {
+                    Tab("Radio", systemImage: "radio", value: AppTab.radio) {
+                        Screens.radio
+                    }
+                }
+
                 // One tab per added provider, plus its sidebar section. A
                 // provider the user turned off in Services drops out here
                 // without losing its place in the list.
@@ -299,6 +315,13 @@ struct CueApp: App {
                 // it; a `TabView` whose selection names no tab shows nothing.
                 if let service = router.selectedTab.provider,
                    !providers.contains(where: { $0.service == service }) {
+                    router.selectedTab = .home
+                }
+            }
+            .onChange(of: showsRadioTab) { _, shows in
+                // Switching the last radio provider off takes the tab with
+                // it, and the selection has to move too.
+                if !shows, router.selectedTab == .radio {
                     router.selectedTab = .home
                 }
             }

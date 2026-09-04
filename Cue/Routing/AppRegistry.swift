@@ -393,6 +393,7 @@ extension View {
             .environment(SoundCloudBrowseService.shared)
             .environment(DeezerBrowseService.shared)
             .environment(SonosRadioBrowseService.shared)
+            .environment(TuneInBrowseService.shared)
             .environment(PandoraBrowseService.shared)
             .environment(PlexBrowseService.shared)
             .environment(SubsonicBrowseService.shared)

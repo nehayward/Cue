@@ -45,6 +45,16 @@ enum Screens {
         
     }
 
+    /// The Radio tab: stations from every source, and a search over them.
+    @ViewBuilder
+    static var radio: some View {
+        let selectedGroupService = SelectedGroupService(group: nil)
+
+        RadioScreen()
+            .tint(Color("Accent"))
+            .environment(selectedGroupService)
+    }
+
     /// A provider's own tab — its library's front page, listing the
     /// collections switched on for it.
     @ViewBuilder
