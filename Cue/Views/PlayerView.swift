@@ -12,7 +12,6 @@ import VibesDS
 /// `GroupRoom`. All state is the `PlayableContent` the search returned, so
 /// nothing here needs a lookup.
 struct PlayerView: View {
-    @Environment(\.dismiss) private var dismiss
     /// The same key the main window's panel uses, so showing the queue here
     /// shows it there too rather than the two disagreeing.
     @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
@@ -34,8 +33,6 @@ struct PlayerView: View {
 
     var body: some View {
         VStack(alignment: .center) {
-            header
-
             if let item = playback.nowPlaying {
                 ContentArtworkView(content: item, showMusicSource: false, preferredSize: 600)
                     .padding(.bottom, 12)
@@ -72,6 +69,9 @@ struct PlayerView: View {
                     LocalMediaControlsView()
                 }
                 .geometryGroup()
+
+                toolbar
+                    .padding(.top, 8)
             } else {
                 Spacer()
                 ContentUnavailableView("Nothing Playing", systemImage: "iphone.radiowaves.left.and.right")
@@ -95,39 +95,36 @@ struct PlayerView: View {
         .fontDesign(.rounded)
     }
 
-    /// Stands in for `LargePlayerView`'s navigation bar — a full-screen cover
-    /// has none of its own.
-    private var header: some View {
+    /// The glass row under the transport, in the slot `LargePlayerView`
+    /// gives its own toolbar. There's no close button — the cover zooms
+    /// back into the mini player on a downward drag — and no stop button:
+    /// pausing is the transport's job, and the tab bar accessory keeps
+    /// the track around to resume.
+    private var toolbar: some View {
         HStack {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.down")
-                    .font(.title3.bold())
-                    .foregroundStyle(.secondary)
-            }
             Spacer()
             Button {
-                showQueue.toggle()
+                HapticManager.shared.fireHaptic(.selection)
+                withAnimation {
+                    showQueue.toggle()
+                }
             } label: {
                 Image(systemName: "list.bullet")
+                    .symbolRenderingMode(.hierarchical)
                     .font(.title3)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(showQueue ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
             }
+            .buttonStyle(.plain)
             .accessibilityLabel("Up Next")
+            .accessibilityAddTraits(showQueue ? .isSelected : [])
             .disabled(playback.queue.isEmpty)
-            Button {
-                playback.stop()
-                dismiss()
-            } label: {
-                Image(systemName: "stop.fill")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-            }
+            Spacer()
         }
-        .padding(.horizontal)
+        .padding(.vertical, 14)
+        .padding(.horizontal, 28)
+        .frame(maxWidth: 300)
+        .glassToolbar()
     }
-
 }
 
 /// The scrubber, mirroring `LargePlayerView.PlaybackView`: `VibeSlider` over
