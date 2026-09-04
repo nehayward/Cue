@@ -59,7 +59,6 @@ struct PlaybackRouteButton: View {
                 .accessibilityLabel("Play On")
         }
         .menuIndicator(.hidden)
-        .disabled(route.isSwitching)
         // Re-read on every appearance: the share extension writes this too, so
         // the app can come back to a destination it didn't pick itself.
         .onAppear { route.refresh() }
@@ -67,9 +66,7 @@ struct PlaybackRouteButton: View {
 
     private func select(_ target: PlayDestination) {
         HapticManager.shared.fireHaptic(.selection)
-        Task {
-            await PlaybackRoute.shared.switchTo(target)
-        }
+        PlaybackRoute.shared.switchTo(target)
     }
 }
 

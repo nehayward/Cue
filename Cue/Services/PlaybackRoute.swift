@@ -30,9 +30,18 @@ final class PlaybackRoute {
     /// The stored destination, mirrored so views can observe it.
     private(set) var destination: PlayDestination
 
-    /// True while a hand-off is in flight. The accessory shows it, and a
-    /// second tap on the route button is ignored until it clears.
+    /// True from a switch until the target has started playing. The tail of a
+    /// long queue keeps filling in after this clears; the accessory shows it,
+    /// and nothing is disabled by it — a second choice cancels the first.
     private(set) var isSwitching = false
+
+    /// The hand-off in flight. A new choice cancels it: the URLSession calls
+    /// under `SonosService` throw on cancellation, so a queue still filling in
+    /// stops where it is rather than racing the next switch.
+    @ObservationIgnored private var handoffTask: Task<Void, Never>?
+    /// Bumped per switch, so a superseded hand-off's clean-up can't clear
+    /// `isSwitching` for the one that replaced it.
+    @ObservationIgnored private var switchToken = 0
 
     @ObservationIgnored private var observers: [Task<Void, Never>] = []
 
@@ -73,27 +82,45 @@ final class PlaybackRoute {
 
     /// Points playback at `target` and carries whatever is playing across.
     ///
+    /// The destination is remembered at once — the button's checkmark and
+    /// the accessory follow immediately — and the hand-off runs behind it.
     /// Nothing playing at the source means there is nothing to carry: the
-    /// destination is remembered and the next Play goes there, which is all
-    /// the route button used to do.
-    func switchTo(_ target: PlayDestination) async {
-        guard !isSwitching, target != destination else { return }
-        isSwitching = true
-        defer { isSwitching = false }
+    /// next Play goes to the new destination, which is all the route button
+    /// used to do.
+    func switchTo(_ target: PlayDestination) {
+        guard target != destination else { return }
 
         let source = group
+        let targetGroup: GroupRoom?
         switch target {
         case .device:
-            remember(.device)
-            await handOffToDevice(from: source)
+            targetGroup = nil
         case let .group(id):
-            guard let group = SonosService.shared.groups.first(where: { $0.coordinatorID == id }) else {
+            guard let found = SonosService.shared.groups.first(where: { $0.coordinatorID == id }) else {
                 Self.log.error("route → \(id, privacy: .public): group is gone")
                 AlertService.shared.showAlert(with: "That speaker isn't available right now", imageName: "hifispeaker.slash")
                 return
             }
-            remember(.group(id))
-            await handOffToGroup(group, from: source)
+            targetGroup = found
+        }
+        remember(target)
+
+        handoffTask?.cancel()
+        switchToken += 1
+        let token = switchToken
+        isSwitching = true
+        handoffTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                if self.switchToken == token {
+                    self.isSwitching = false
+                }
+            }
+            if let targetGroup {
+                await self.handOffToGroup(targetGroup, from: source)
+            } else {
+                await self.handOffToDevice(from: source)
+            }
         }
     }
 
@@ -191,6 +218,7 @@ final class PlaybackRoute {
         // The cached transport can be stale in the same way as above, and a
         // stale `.queue` would skip pointing the speaker at its queue.
         target.playbackService = await sonos.playbackService(ip: target.ip) ?? .unknown
+        guard !Task.isCancelled else { return }
 
         do {
             // The first track alone, so it starts now; the rest fill in
@@ -198,6 +226,7 @@ final class PlaybackRoute {
             // note waited on every AddURIToQueue round trip.
             try await sonos.queue(contents: [first], group: target, position: .replace, startIndex: 0)
         } catch {
+            guard !Task.isCancelled else { return }
             Self.log.error("route → \(target.nameWithCount, privacy: .public): replace failed: \(error.localizedDescription, privacy: .public)")
             if fromDevice {
                 await restoreLocal(snapshot)
@@ -205,6 +234,7 @@ final class PlaybackRoute {
             AlertService.shared.showAlert(with: "Couldn't move playback to \(target.nameWithCount)", imageName: "exclamationmark.triangle")
             return
         }
+        guard !Task.isCancelled else { return }
 
         if snapshot.position > 2 {
             // Give the transport a moment to leave TRANSITIONING; a seek
@@ -226,11 +256,17 @@ final class PlaybackRoute {
             symbolName: "hifispeaker.fill"
         )
 
+        // Playing now: the switch is done as far as the UI is concerned. The
+        // tail fills in behind it, and a further switch cancels that.
+        guard !Task.isCancelled else { return }
+        isSwitching = false
+
         let rest = Array(items.dropFirst())
         guard !rest.isEmpty else { return }
         do {
             try await sonos.queue(contents: rest, group: target, position: .end)
         } catch {
+            guard !Task.isCancelled else { return }
             // Playing already; the tail is what's missing.
             Self.log.error("route → \(target.nameWithCount, privacy: .public): tail failed: \(error.localizedDescription, privacy: .public)")
             AlertService.shared.showAlert(with: "Some of the queue couldn't be added on \(target.nameWithCount)", imageName: "exclamationmark.triangle")
@@ -260,6 +296,7 @@ final class PlaybackRoute {
             Self.log.notice("route → device: nothing on \(source.nameWithCount, privacy: .public) to carry over")
             return
         }
+        guard !Task.isCancelled else { return }
 
         let playback = LocalPlaybackService.shared
         let items = snapshot.items.filter { playback.canPlayLocally($0) }
