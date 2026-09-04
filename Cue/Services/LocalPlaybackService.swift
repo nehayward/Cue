@@ -94,16 +94,22 @@ final class LocalPlaybackService {
     var nowPlayingDisplay: PlayableContent? {
         guard let item = nowPlaying else { return nil }
         guard isStation(item), let live = liveMetadata else { return item }
+        // The image cache is keyed by `imageKey`, which falls back to the
+        // id when there's no album. The id has to change with the artwork:
+        // the station's logo is shown under the station's id until a song's
+        // cover is found, and the cover then needs a key of its own —
+        // otherwise the cache answers the new URL with the logo it already
+        // holds under the old key.
+        let identity = live.artworkURL == nil
+            ? item.content.id
+            : "\(item.content.id)#\(live.song)#\(live.artist ?? "")"
         return PlayableContent(
             title: live.song,
             subtitle: live.artist ?? item.title,
             thumbnail: live.artworkURL ?? item.thumbnail,
             artwork: live.artworkURL ?? item.artwork,
-            content: item.content,
-            // Song as the album, artist as the artist: `imageKey` is built
-            // from those two, so each song's artwork gets its own cache
-            // entry instead of the station's first song sticking.
-            metadata: .init(artist: live.artist, album: live.song, radioStation: true)
+            content: MediaContent(service: item.content.service, id: identity, type: item.content.type, location: item.content.location),
+            metadata: .init(artist: live.artist, radioStation: true)
         )
     }
     var upNext: [PlayableContent] { Array(queue.dropFirst(currentIndex + 1)) }
