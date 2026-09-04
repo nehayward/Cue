@@ -287,7 +287,7 @@ struct CueApp: App {
                     Screens.home
                 }
 
-                Tab("Search", systemImage: "magnifyingglass", value: AppTab.search) {
+                Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
                     Screens.search
                 }
                 
