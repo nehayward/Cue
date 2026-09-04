@@ -54,8 +54,12 @@ final class LocalPlaybackService {
 
     /// The local queue, in play order. Mixed services are fine — playback is
     /// armed per same-service run.
-    private(set) var queue: [PlayableContent] = []
-    private(set) var currentIndex: Int = 0
+    private(set) var queue: [PlayableContent] = [] {
+        didSet { cacheNeedsRefresh() }
+    }
+    private(set) var currentIndex: Int = 0 {
+        didSet { if oldValue != currentIndex { cacheNeedsRefresh() } }
+    }
     private(set) var isPlaying = false
     private(set) var isLoading = false
     private(set) var progress: TimeInterval = 0
@@ -91,6 +95,9 @@ final class LocalPlaybackService {
     /// Bumped on every re-arm so a stale async resolve can't start playback
     /// for a run the user has already skipped away from.
     @ObservationIgnored private var playToken = 0
+    /// Debounces the playback cache's look at the queue: page appends and
+    /// polled index changes come in bursts.
+    @ObservationIgnored private var cacheRefreshTask: Task<Void, Never>?
 
     /// Whether the queue can take this item: Apple tracks (catalog or library),
     /// and Plex or Subsonic tracks that carry their stream URL.
@@ -604,14 +611,48 @@ final class LocalPlaybackService {
         return lookup.data.first?.id
     }
 
+    // MARK: - Playback cache
+
+    private func cacheNeedsRefresh() {
+        cacheRefreshTask?.cancel()
+        cacheRefreshTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled, let self else { return }
+            PlaybackCache.shared.queueDidChange(self.queue, currentIndex: self.currentIndex)
+        }
+    }
+
+    /// The cache finished a song that may be sitting in the armed run
+    /// already, as a stream. Swapping its player item for the local file
+    /// means the run plays it from disk when it gets there — the difference
+    /// between a tunnel passing unnoticed and a stall.
+    func cachedCopyLanded(for item: PlayableContent, at url: URL) {
+        guard backend == .stream, let streamPlayer else { return }
+        for playerItem in streamPlayer.items() {
+            guard let queueIndex = streamRun[ObjectIdentifier(playerItem)],
+                  queueIndex > currentIndex,
+                  queue[safe: queueIndex]?.content.id == item.content.id else { continue }
+            let replacement = AVPlayerItem(url: url)
+            guard streamPlayer.canInsert(replacement, after: playerItem) else { return }
+            streamPlayer.insert(replacement, after: playerItem)
+            streamPlayer.remove(playerItem)
+            streamRun[ObjectIdentifier(playerItem)] = nil
+            streamRun[ObjectIdentifier(replacement)] = queueIndex
+            return
+        }
+    }
+
     // MARK: - Stream (Plex, Subsonic) backend
 
     private func armStream(index: Int, end: Int) {
         let rows: [(queueIndex: Int, item: AVPlayerItem)] = (index...end).compactMap { queueIndex in
             let item = queue[queueIndex]
-            // A downloaded copy beats the server URL — it plays with no
-            // network, including away from the server entirely.
-            guard let url = DownloadManager.shared.localURL(for: item) ?? item.previewURL else { return nil }
+            // A local copy beats the server URL — a download, or the cache's
+            // copy — it plays with no network, including away from the
+            // server entirely.
+            guard let url = DownloadManager.shared.localURL(for: item)
+                    ?? PlaybackCache.shared.localURL(for: item)
+                    ?? item.previewURL else { return nil }
             return (queueIndex, AVPlayerItem(url: url))
         }
         guard !rows.isEmpty else {

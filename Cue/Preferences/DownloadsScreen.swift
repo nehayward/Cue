@@ -8,13 +8,58 @@ import SwiftUI
 /// Reached from Settings › Storage.
 struct DownloadsScreen: View {
     @State private var manager = DownloadManager.shared
+    @State private var cache = PlaybackCache.shared
     @State private var files = FilesLibraryService.shared
     @State private var cloudSummary: (local: Int, remote: Int)?
 
     var body: some View {
         @Bindable var manager = manager
+        @Bindable var cache = cache
 
         List {
+            Section {
+                Picker("Keep Recent Songs", selection: $cache.songLimit) {
+                    Text("Off").tag(0)
+                    Text("25 songs").tag(25)
+                    Text("50 songs").tag(50)
+                    Text("100 songs").tag(100)
+                    Text("250 songs").tag(250)
+                    Text("500 songs").tag(500)
+                }
+                if cache.isEnabled {
+                    Picker("Fetch Ahead", selection: $cache.prefetchCount) {
+                        Text("Next song").tag(1)
+                        Text("Next 3 songs").tag(3)
+                        Text("Next 5 songs").tag(5)
+                        Text("Next 10 songs").tag(10)
+                    }
+                    Toggle(isOn: $cache.allowsCellular) {
+                        Label("Fill Over Cellular", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    LabeledContent("Cached", value: cache.entries.isEmpty
+                        ? "Nothing yet"
+                        : "\(cache.entries.count == 1 ? "1 song" : "\(cache.entries.count) songs") • \(ByteCountFormatter.string(fromByteCount: cache.totalBytes, countStyle: .file))")
+                    if !cache.inFlight.isEmpty {
+                        HStack(spacing: 12) {
+                            ProgressView()
+                            Text(cache.inFlight.count == 1 ? "Fetching 1 song ahead…" : "Fetching \(cache.inFlight.count) songs ahead…")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if !cache.entries.isEmpty {
+                        Button(role: .destructive) {
+                            cache.clear()
+                        } label: {
+                            Label("Clear Cache", systemImage: "trash")
+                        }
+                    }
+                }
+            } header: {
+                Text("Playback Cache")
+            } footer: {
+                Text("Songs coming up in the on-device queue are fetched before they play, and recent ones kept, so playback holds through a tunnel or a dead spot. The least recently played goes first when the cap is reached. Covers Plex and Subsonic; upcoming iCloud Drive songs are asked to download ahead too. Downloads you choose yourself are kept separately.")
+            }
+
             if !manager.active.isEmpty {
                 Section {
                     ForEach(manager.active) { item in

@@ -23,6 +23,12 @@ public enum AppStorageKeys {
     /// Whether the download manager may fetch over cellular data. Off when
     /// unset: a whole album on a phone plan is a surprise nobody asked for.
     public static let downloadsOverCellular = "\(Prefix.id).downloadsOverCellular"
+    /// The playback cache: how many recently played songs to keep (0 is
+    /// off), how many upcoming ones to fetch ahead, and whether to fill it
+    /// over cellular.
+    public static let playbackCacheSongLimit = "\(Prefix.id).playbackCacheSongLimit"
+    public static let playbackCachePrefetchCount = "\(Prefix.id).playbackCachePrefetchCount"
+    public static let playbackCacheOverCellular = "\(Prefix.id).playbackCacheOverCellular"
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"
     public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"
