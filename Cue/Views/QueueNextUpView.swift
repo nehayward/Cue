@@ -39,6 +39,15 @@ struct QueueNextUpView: View {
                     .padding(.bottom, 12)
                 }
             }
+
+            // This device's volume, where the panel is the only local
+            // control on screen (the main window, beside the tab content).
+            if playback.isActive {
+                Divider()
+                LocalVolumeSlider()
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }

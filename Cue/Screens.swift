@@ -4,6 +4,7 @@
 //
 //  Created by Nick Hayward on 8/25/26.
 //
+import Defaults
 import MusicSearchKit
 import SwiftUI
 
@@ -17,6 +18,7 @@ enum Screens {
         HomeScreen()
             .tint(Color("Accent"))
             .environment(selectedGroupService)
+            .withQueuePanel()
     }
     
     @ViewBuilder
@@ -33,6 +35,7 @@ enum Screens {
                 Router.search.path.removeAll()
                 Router.search.presentedSheet = nil
             }
+            .withQueuePanel()
     }
     
     @ViewBuilder
@@ -42,6 +45,7 @@ enum Screens {
         BrowseScreen()
             .tint(Color("Accent"))
             .environment(selectedGroupService)
+            .withQueuePanel()
         
     }
 
@@ -54,6 +58,7 @@ enum Screens {
         ProviderTabScreen(service: provider.service, collections: provider.collections)
             .tint(Color("Accent"))
             .environment(selectedGroupService)
+            .withQueuePanel()
     }
 
     /// One collection of a provider — a tab in its sidebar section.
@@ -64,5 +69,28 @@ enum Screens {
         ProviderTabScreen(service: provider.service, collections: provider.collections, collection: collection)
             .tint(Color("Accent"))
             .environment(selectedGroupService)
+            .withQueuePanel()
+    }
+}
+
+/// The trailing Next Up panel, applied to each tab's content rather than
+/// around the `TabView`: the sidebar then keeps the window's full width to
+/// decide whether it sits beside the content or overlays it, and only the
+/// content column gives way to the panel.
+///
+/// Hidden at compact widths rather than a sheet: on iPhone the queue is the
+/// player's, and a sheet here would fight the one it presents (they share
+/// the stored flag).
+private struct TabQueuePanel: ViewModifier {
+    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
+
+    func body(content: Content) -> some View {
+        content.queuePanel(isPresented: $showQueue, compact: .hidden) { QueueNextUpView() }
+    }
+}
+
+extension View {
+    func withQueuePanel() -> some View {
+        modifier(TabQueuePanel())
     }
 }

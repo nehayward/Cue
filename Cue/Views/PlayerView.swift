@@ -96,13 +96,13 @@ struct PlayerView: View {
     }
 
     /// The glass row under the transport, in the slot `LargePlayerView`
-    /// gives its own toolbar. There's no close button — the cover zooms
+    /// gives its own toolbar: this device's volume, and the queue toggle. There's no close button — the cover zooms
     /// back into the mini player on a downward drag — and no stop button:
     /// pausing is the transport's job, and the tab bar accessory keeps
     /// the track around to resume.
     private var toolbar: some View {
-        HStack {
-            Spacer()
+        HStack(spacing: 20) {
+            LocalVolumeSlider()
             Button {
                 HapticManager.shared.fireHaptic(.selection)
                 withAnimation {
@@ -118,11 +118,10 @@ struct PlayerView: View {
             .accessibilityLabel("Up Next")
             .accessibilityAddTraits(showQueue ? .isSelected : [])
             .disabled(playback.queue.isEmpty)
-            Spacer()
         }
         .padding(.vertical, 14)
         .padding(.horizontal, 28)
-        .frame(maxWidth: 300)
+        .frame(maxWidth: 420)
         .glassToolbar()
     }
 }

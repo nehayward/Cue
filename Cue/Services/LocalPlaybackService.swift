@@ -84,6 +84,11 @@ final class LocalPlaybackService {
     /// means "run ended", not "still warming up".
     @ObservationIgnored private var appleWasPlaying = false
     @ObservationIgnored private var streamPlayer: AVQueuePlayer?
+    /// The stream player's own output level, 0...1 — `DeviceVolume` drives
+    /// it where the device volume can't be set. Carried onto each new run.
+    @ObservationIgnored var streamVolume: Float = 1 {
+        didSet { streamPlayer?.volume = streamVolume }
+    }
     /// The armed stream run: player item → queue index.
     @ObservationIgnored private var streamRun: [ObjectIdentifier: Int] = [:]
     /// Resolved Apple `Song`s by catalog id, so replaying or skipping back to
@@ -684,6 +689,7 @@ final class LocalPlaybackService {
         streamRun = Dictionary(uniqueKeysWithValues: rows.map { (ObjectIdentifier($0.item), $0.queueIndex) })
         let player = AVQueuePlayer(items: rows.map(\.item))
         streamPlayer = player
+        player.volume = streamVolume
         player.play()
 
         backend = .stream

@@ -252,15 +252,9 @@ struct CueApp: App {
             } header: {
                 Text(service.title)
             }
-            .sectionActions {
-                // One entry: everything about the section — what it shows,
-                // its order, taking it out — lives in the sheet.
-                Button {
-                    tabSheet = .customizeTabs
-                } label: {
-                    Label("Customize Tabs…", systemImage: "slider.horizontal.3")
-                }
-            }
+            // No section action: the sidebar's own Edit handles hiding and
+            // reordering, and the Customize sheet is reachable from Home
+            // and the plus menu.
         }
     }
 
@@ -303,10 +297,10 @@ struct CueApp: App {
                 }
             }
             .withSheetDestinations(sheetDestinations: $tabSheet)
-            // Hidden at compact widths rather than a sheet: on iPhone the
-            // queue is the player's, and a sheet here would fight the one it
-            // presents (they share the stored flag).
-            .queuePanel(isPresented: $showInspector, compact: .hidden) { QueueNextUpView() }
+            // The queue panel is inside each tab (`Screens`), not out here:
+            // wrapped around the whole `TabView` it took its width from the
+            // sidebar's, which then had to overlay the content instead of
+            // sitting beside it.
             .tabBarMinimizeBehavior(.onScrollDown)
             .tabViewBottomAccessory {
                 MusicPlaybackView(showPlayer: $router.isPlayerPresented, zoomNamespace: zoomNamespace)
