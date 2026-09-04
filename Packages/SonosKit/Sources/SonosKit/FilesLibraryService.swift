@@ -205,7 +205,16 @@ public final class FilesLibraryService {
     @ObservationIgnored private var albumYear: [String: Int] = [:]
     @ObservationIgnored private var sortedSongs: [String: [PlayableContent]] = [:]
     @ObservationIgnored private var scanTask: Task<Void, Never>?
+    @ObservationIgnored private var rescanRequested = false
+    /// Bumped when the folder changes, so a scan of the old folder that is
+    /// still winding down can't publish into the new one.
+    @ObservationIgnored private var folderGeneration = 0
     @ObservationIgnored private let defaults = UserDefaults.standard
+
+    /// Called on the main actor as a scan begins. The app hangs the
+    /// continued-processing task off it, so a long scan carries on with
+    /// progress on the Lock Screen after the app is backgrounded.
+    @ObservationIgnored public var onScanStarted: (@MainActor () -> Void)?
 
     nonisolated private static let audioExtensions: Set<String> = [
         "mp3", "m4a", "aac", "flac", "wav", "aif", "aiff", "aifc", "caf", "m4b", "alac"
@@ -259,6 +268,7 @@ public final class FilesLibraryService {
         }
 
         scanTask?.cancel()
+        folderGeneration += 1
         stopAccessingFolder()
         tracks = []
         filePlaylists = []
@@ -382,10 +392,21 @@ public final class FilesLibraryService {
         }
     }
 
-    /// Starts a fresh scan, replacing any running one.
+    /// Starts a scan, or asks the running one to go again when it's done.
+    /// Never cancels: a scan that was cancelled midway would have to start
+    /// over, and two scans of the same folder would only race.
     public func rescan() {
-        scanTask?.cancel()
+        if isScanning {
+            rescanRequested = true
+            return
+        }
         scanTask = Task { await scan() }
+    }
+
+    /// Stops the running scan. What it has read so far is kept; the next
+    /// open of the library picks up the rest.
+    public func cancelScan() {
+        scanTask?.cancel()
     }
 
     public func scan() async {
@@ -393,12 +414,23 @@ public final class FilesLibraryService {
             Self.log.error("scan requested with no folder")
             return
         }
-        guard !isScanning else { return }
+        if isScanning {
+            rescanRequested = true
+            return
+        }
         isScanning = true
         scannedCount = 0
         foundCount = 0
-        defer { isScanning = false }
+        let generation = folderGeneration
+        defer {
+            isScanning = false
+            if rescanRequested {
+                rescanRequested = false
+                scanTask = Task { await self.scan() }
+            }
+        }
         Self.log.notice("scan started: \(folderURL.path, privacy: .public)")
+        onScanStarted?()
 
         let root = folderURL
         let artworkDirectory = Self.artworkDirectory
@@ -408,9 +440,23 @@ public final class FilesLibraryService {
         let walk = await Task.detached(priority: .userInitiated) {
             Self.walkFolder(root)
         }.value
-        guard !Task.isCancelled else { return }
+        guard generation == folderGeneration else { return }
         foundCount = walk.files.count + walk.placeholders.count
         pendingDownloadCount = walk.placeholders.count
+
+        // Files still in iCloud are listed by name and folder layout until
+        // they come down; opening one would make iCloud fetch it, and a
+        // scan is not the place to download a library.
+        let placeholders = walk.placeholders.map { url -> FileTrack in
+            var track = FileTrack(
+                relativePath: Self.relativePath(of: url, in: root),
+                title: url.deletingPathExtension().lastPathComponent,
+                fileExtension: url.pathExtension.lowercased(),
+                isDownloaded: false
+            )
+            Self.applyFolderLayout(to: &track, url: url, root: root, titleFromFileName: true)
+            return track
+        }
 
         // Only files that changed since the last scan have their tags read
         // again; the rest keep what they had.
@@ -428,12 +474,17 @@ public final class FilesLibraryService {
         }
         scannedCount = kept.count
 
+        // What's known so far goes up straight away, so the library fills
+        // in while the tags are read rather than appearing all at once.
+        publish(kept + placeholders, playlists: filePlaylists, generation: generation, final: false)
+
         // Tags are read a few files at a time: AVFoundation opens each file,
         // and a folder can hold thousands.
         var read: [FileTrack] = []
         var next = 0
+        var sincePublish = 0
         await withTaskGroup(of: FileTrack?.self) { group in
-            let width = min(4, toRead.count)
+            let width = min(6, toRead.count)
             while next < width {
                 let entry = toRead[next]
                 next += 1
@@ -442,7 +493,12 @@ public final class FilesLibraryService {
             while let result = await group.next() {
                 if let result { read.append(result) }
                 scannedCount += 1
+                sincePublish += 1
                 if Task.isCancelled { group.cancelAll() }
+                if sincePublish >= 100 {
+                    sincePublish = 0
+                    publish(kept + read + placeholders, playlists: filePlaylists, generation: generation, final: false)
+                }
                 if next < toRead.count, !Task.isCancelled {
                     let entry = toRead[next]
                     next += 1
@@ -450,34 +506,48 @@ public final class FilesLibraryService {
                 }
             }
         }
-        guard !Task.isCancelled else { return }
+        guard generation == folderGeneration else { return }
 
-        // Placeholders are listed by name until they download.
-        let placeholders = walk.placeholders.map { url -> FileTrack in
-            var track = FileTrack(
-                relativePath: Self.relativePath(of: url, in: root),
-                title: url.deletingPathExtension().lastPathComponent,
-                fileExtension: url.pathExtension.lowercased(),
-                isDownloaded: false
-            )
-            Self.applyFolderLayout(to: &track, url: url, root: root, titleFromFileName: true)
-            return track
+        if Task.isCancelled {
+            // Keep what was read; the unread files list by name for now and
+            // the next scan reads their tags.
+            let unread = toRead.dropFirst(read.count).map { entry -> FileTrack in
+                var track = FileTrack(
+                    relativePath: Self.relativePath(of: entry.url, in: root),
+                    title: entry.url.deletingPathExtension().lastPathComponent,
+                    fileExtension: entry.url.pathExtension.lowercased(),
+                    isDownloaded: false
+                )
+                Self.applyFolderLayout(to: &track, url: entry.url, root: root, titleFromFileName: true)
+                return track
+            }
+            publish(kept + read + Array(unread) + placeholders, playlists: filePlaylists, generation: generation, final: false)
+            Self.log.notice("scan cancelled after \(read.count) of \(toRead.count)")
+            return
         }
 
-        let all = (kept + read + placeholders)
-            .sorted { $0.relativePath.localizedStandardCompare($1.relativePath) == .orderedAscending }
+        let all = kept + read + placeholders
         let known = Set(all.map(\.relativePath))
         let playlists = await Task.detached(priority: .userInitiated) {
             Self.readPlaylists(walk.playlists, root: root, knownPaths: known)
         }.value
-        guard !Task.isCancelled else { return }
+        guard generation == folderGeneration else { return }
 
-        tracks = all
+        publish(all, playlists: playlists, generation: generation, final: true)
+        Self.log.notice("scan finished: \(all.count) tracks, \(playlists.count) playlists, \(walk.placeholders.count) in iCloud only")
+    }
+
+    /// Replaces the index with `tracks`, sorted by path. A final publish
+    /// also stamps the scan and writes the index to disk.
+    private func publish(_ tracks: [FileTrack], playlists: [FilePlaylist], generation: Int, final: Bool) {
+        guard generation == folderGeneration else { return }
+        self.tracks = tracks.sorted { $0.relativePath.localizedStandardCompare($1.relativePath) == .orderedAscending }
         filePlaylists = playlists
-        lastScan = .now
         rebuildIndex()
-        Self.saveIndex(tracks: tracks, playlists: filePlaylists)
-        Self.log.notice("scan finished: \(all.count) tracks, \(playlists.count) playlists, \(walk.placeholders.count) still in iCloud")
+        if final {
+            lastScan = .now
+            Self.saveIndex(tracks: self.tracks, playlists: filePlaylists)
+        }
     }
 
     private struct FolderWalk: Sendable {
@@ -491,12 +561,17 @@ public final class FilesLibraryService {
         var playlists: [URL] = []
     }
 
-    /// Every audio file and playlist under `root`. iCloud placeholders
-    /// (`.name.ext.icloud`) are asked to download and reported separately,
-    /// by the URL the real file will have.
+    /// Every audio file and playlist under `root`. Files still in iCloud are
+    /// reported separately, by the URL the real file has: the old
+    /// `.name.ext.icloud` placeholders, and the dataless files newer iCloud
+    /// Drive lists under their real names — which look like ordinary files
+    /// but make iCloud fetch them the moment they're opened.
     nonisolated private static func walkFolder(_ root: URL) -> FolderWalk {
         var walk = FolderWalk()
-        let keys: [URLResourceKey] = [.isRegularFileKey, .isDirectoryKey, .contentModificationDateKey, .fileSizeKey]
+        let keys: [URLResourceKey] = [
+            .isRegularFileKey, .isDirectoryKey, .contentModificationDateKey, .fileSizeKey,
+            .isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey
+        ]
         guard let enumerator = FileManager.default.enumerator(
             at: root,
             includingPropertiesForKeys: keys,
@@ -515,7 +590,6 @@ public final class FilesLibraryService {
                     let realName = String(name.dropFirst().dropLast(".icloud".count))
                     let real = url.deletingLastPathComponent().appendingPathComponent(realName)
                     if audioExtensions.contains(real.pathExtension.lowercased()) {
-                        try? FileManager.default.startDownloadingUbiquitousItem(at: real)
                         walk.placeholders.append(real)
                     }
                 }
@@ -524,9 +598,16 @@ public final class FilesLibraryService {
 
             guard values?.isRegularFile == true else { continue }
             let ext = url.pathExtension.lowercased()
+            let isDataless = values?.isUbiquitousItem == true
+                && values?.ubiquitousItemDownloadingStatus != nil
+                && values?.ubiquitousItemDownloadingStatus != .current
             if audioExtensions.contains(ext) {
-                walk.files.append(.init(url: url, modificationDate: values?.contentModificationDate, fileSize: values?.fileSize))
-            } else if playlistExtensions.contains(ext) {
+                if isDataless {
+                    walk.placeholders.append(url)
+                } else {
+                    walk.files.append(.init(url: url, modificationDate: values?.contentModificationDate, fileSize: values?.fileSize))
+                }
+            } else if playlistExtensions.contains(ext), !isDataless {
                 walk.playlists.append(url)
             }
         }
@@ -830,7 +911,9 @@ public final class FilesLibraryService {
                 content: .init(service: .files, id: songID, type: .track, location: url),
                 // The file itself: the on-device player reads it, and the
                 // row's preview plays it in full like Plex and Subsonic.
-                previewURL: track.isDownloaded ? url : nil,
+                // The file itself even when it's still in iCloud: opening
+                // it makes iCloud fetch it, and the player asks ahead.
+                previewURL: url,
                 metadata: .init(
                     duration: track.duration.map { Duration.seconds($0) },
                     artist: track.artist ?? artistName,

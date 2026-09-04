@@ -62,8 +62,8 @@ struct FilesManagementView: View {
                         if library.pendingDownloadCount > 0 {
                             Label {
                                 Text(library.pendingDownloadCount == 1
-                                     ? "1 file is still downloading from iCloud. Rescan once it has arrived."
-                                     : "\(library.pendingDownloadCount) files are still downloading from iCloud. Rescan once they have arrived.")
+                                     ? "1 song is in iCloud only. It's listed by name until it's downloaded — play it, or fetch it from Downloads."
+                                     : "\(library.pendingDownloadCount.formatted()) songs are in iCloud only. They're listed by name until downloaded — play them, or fetch them from Downloads.")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                             } icon: {

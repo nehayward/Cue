@@ -653,6 +653,11 @@ final class LocalPlaybackService {
             guard let url = DownloadManager.shared.localURL(for: item)
                     ?? PlaybackCache.shared.localURL(for: item)
                     ?? item.previewURL else { return nil }
+            if item.content.service == .files, item.metadata?.isPlayable == false {
+                // Still in iCloud: ask for it now so the player's own read
+                // finds it arriving rather than starting the fetch itself.
+                try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+            }
             return (queueIndex, AVPlayerItem(url: url))
         }
         guard !rows.isEmpty else {

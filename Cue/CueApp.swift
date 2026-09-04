@@ -1230,6 +1230,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // The continued-processing task's launch handler has to be in place
         // before a download batch submits it.
         ContinuedDownloadTask.shared.register()
+        // A Files scan gets the same card: progress on the Lock Screen and
+        // the app kept running until it's done.
+        Task { @MainActor in
+            FilesLibraryService.shared.onScanStarted = {
+                ContinuedDownloadTask.shared.trackScan(folderName: FilesLibraryService.shared.folderName ?? "Music")
+            }
+        }
         return true
     }
 
