@@ -221,6 +221,10 @@ struct CueApp: App {
     @TabContentBuilder<AppTab>
     private func providerTabs(for provider: TabProvider) -> some TabContent<AppTab> {
         let service = provider.service
+        // iPhone has only the tab bar, and its More list shows every tab
+        // whatever `defaultVisibility` says — so the phone gets the one tab
+        // and no section at all.
+        let isPhone = UIDevice.current.userInterfaceIdiom == .phone
 
         Tab(value: AppTab.provider(service)) {
             Screens.providerRoot(provider)
@@ -234,26 +238,28 @@ struct CueApp: App {
             }
         }
         .customizationID(service.tabCustomizationID)
-        .defaultVisibility(.hidden, for: .sidebar)
+        .defaultVisibility(isPhone ? .visible : .hidden, for: .sidebar)
 
-        TabSection {
-            ForEach(provider.collections, id: \.self) { collection in
-                Tab(collection.title, systemImage: collection.systemImage, value: AppTab.providerCollection(service, collection)) {
-                    Screens.providerCollection(provider, collection)
+        if !isPhone {
+            TabSection {
+                ForEach(provider.collections, id: \.self) { collection in
+                    Tab(collection.title, systemImage: collection.systemImage, value: AppTab.providerCollection(service, collection)) {
+                        Screens.providerCollection(provider, collection)
+                    }
+                    .customizationID(service.tabCustomizationID(for: collection))
+                    .defaultVisibility(.hidden, for: .tabBar)
                 }
-                .customizationID(service.tabCustomizationID(for: collection))
-                .defaultVisibility(.hidden, for: .tabBar)
+            } header: {
+                Text(service.title)
             }
-        } header: {
-            Text(service.title)
-        }
-        .sectionActions {
-            // One entry: everything about the section — what it shows, its
-            // order, taking it out — lives in the sheet.
-            Button {
-                tabSheet = .customizeTabs
-            } label: {
-                Label("Customize Tabs…", systemImage: "slider.horizontal.3")
+            .sectionActions {
+                // One entry: everything about the section — what it shows,
+                // its order, taking it out — lives in the sheet.
+                Button {
+                    tabSheet = .customizeTabs
+                } label: {
+                    Label("Customize Tabs…", systemImage: "slider.horizontal.3")
+                }
             }
         }
     }

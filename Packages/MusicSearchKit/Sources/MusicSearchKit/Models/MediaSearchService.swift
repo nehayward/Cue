@@ -270,14 +270,26 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         case .sonosRadio, .pandora:
             // Full-colour badges: left in their original rendering, as
             // `image` does, so they don't collapse into a solid blob.
-            Image(self.title, bundle: .module)
+            Self.tabSized(named: self.title, template: false)
         case .tuneIn, .soundcloud, .deezer:
-            Image(self.title, bundle: .module)
-                .renderingMode(.template)
+            Self.tabSized(named: self.title, template: true)
         default:
-            Image(self.rawValue.capitalized, bundle: .module)
-                .renderingMode(.template)
+            Self.tabSized(named: self.rawValue.capitalized, template: true)
         }
+    }
+
+    /// A bundle asset at tab-icon size. The tab bar scales what it draws
+    /// itself, but the More list on iPhone draws the image as it comes —
+    /// and the brand assets come large.
+    private static func tabSized(named name: String, template: Bool) -> Image {
+        #if canImport(UIKit) && !os(watchOS) && !os(visionOS)
+        if let base = UIImage(named: name, in: .module, with: nil) {
+            let resized = base.resized(to: CGSize(width: 24, height: 24))
+            return Image(uiImage: template ? resized.withRenderingMode(.alwaysTemplate) : resized)
+        }
+        #endif
+        let image = Image(name, bundle: .module)
+        return template ? image.renderingMode(.template) : image
     }
 
     public var brandColor: Color {
