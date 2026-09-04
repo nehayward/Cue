@@ -159,7 +159,9 @@ struct QueuePanel<Panel: View>: ViewModifier {
             panel()
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
-                .presentationBackground(.regularMaterial)
+                // No `presentationBackground`: the system's own sheet
+                // background is Liquid Glass, and naming a material here
+                // replaces it with a flat blur.
                 // The player stays usable under the half-height sheet — the
                 // queue is something you glance at while the music plays.
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
