@@ -165,6 +165,8 @@ final class LocalPlaybackService {
     /// The stream item `audioQuality` describes, so the poll only reads a
     /// format when the item changes.
     @ObservationIgnored private var audioQualityItem: ObjectIdentifier?
+    /// The Apple queue entry whose variant has been read, likewise.
+    @ObservationIgnored private var audioVariantEntryID: String?
 
     /// Whether the queue can take this item: Apple tracks (catalog or library),
     /// and Plex or Subsonic tracks that carry their stream URL.
@@ -636,6 +638,7 @@ final class LocalPlaybackService {
         audioQualityTask?.cancel()
         audioQualityTask = nil
         audioQualityItem = nil
+        audioVariantEntryID = nil
         if audioQuality != nil {
             audioQuality = nil
         }
@@ -887,16 +890,16 @@ final class LocalPlaybackService {
         switch backend {
         case .appleMusic:
             let status = musicPlayer.state.playbackStatus
-            isPlaying = status == .playing
+            // Every property here is observed by the player screen, and
+            // `@Observable` notifies on every write, equal or not — so only
+            // `progress` is written each tick. Writing the rest unchanged
+            // re-rendered the whole screen twice a second, artwork and
+            // blurred backdrop included, which is what made the scrubber's
+            // fill stutter between polls.
+            let playing = status == .playing
+            if isPlaying != playing { isPlaying = playing }
             progress = musicPlayer.playbackTime
-            if status == .playing { appleWasPlaying = true }
-
-            // What the player is actually decoding, not what the catalog
-            // offers — the person's Music settings decide between them.
-            let quality = Self.quality(for: musicPlayer.state.audioVariant)
-            if quality != audioQuality {
-                audioQuality = quality
-            }
+            if playing { appleWasPlaying = true }
 
             // Follow the player's own advance through the run.
             let entries = musicPlayer.queue.entries
@@ -904,8 +907,21 @@ final class LocalPlaybackService {
                let entryIndex = entries.firstIndex(where: { $0.id == current.id }) {
                 let offset = entries.distance(from: entries.startIndex, to: entryIndex)
                 if let row = appleRun[safe: offset] {
-                    currentIndex = row.queueIndex
-                    duration = row.song.duration ?? 0
+                    if currentIndex != row.queueIndex { currentIndex = row.queueIndex }
+                    let songDuration = row.song.duration ?? 0
+                    if duration != songDuration { duration = songDuration }
+                }
+                // What the player is actually decoding, not what the catalog
+                // offers — the person's Music settings decide between them.
+                // Read once the entry is playing, and again over its first
+                // seconds while the answer is still empty: the variant lands
+                // a moment after playback starts.
+                if playing, audioVariantEntryID != current.id || (audioQuality == nil && progress < 5) {
+                    audioVariantEntryID = current.id
+                    let quality = Self.quality(for: musicPlayer.state.audioVariant)
+                    if quality != audioQuality {
+                        audioQuality = quality
+                    }
                 }
             }
 
@@ -930,11 +946,14 @@ final class LocalPlaybackService {
                 advancePastRun(endingAt: end)
                 return
             }
-            isPlaying = streamPlayer.timeControlStatus != .paused
+            // Only what changed, as above.
+            let playing = streamPlayer.timeControlStatus != .paused
+            if isPlaying != playing { isPlaying = playing }
             progress = current.currentTime().seconds
             let total = current.duration.seconds
-            duration = total.isFinite ? total : 0
-            if let queueIndex = streamRun[ObjectIdentifier(current)] {
+            let itemDuration = total.isFinite ? total : 0
+            if duration != itemDuration { duration = itemDuration }
+            if let queueIndex = streamRun[ObjectIdentifier(current)], currentIndex != queueIndex {
                 currentIndex = queueIndex
             }
             if audioQualityItem != ObjectIdentifier(current) {
@@ -949,7 +968,7 @@ final class LocalPlaybackService {
                 canSkip: currentIndex + 1 < queue.count
             )
         case nil:
-            isPlaying = false
+            if isPlaying { isPlaying = false }
         }
     }
 

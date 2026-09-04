@@ -8,12 +8,13 @@ import VibesDS
 /// tab bar accessory.
 ///
 /// The same screen as `LargePlayerView`, driven by `LocalPlaybackService`
-/// instead of a `GroupRoom`. The navigation bar names the device the way the
-/// Sonos player names its group, and carries the sleep timer, the like
-/// button and the menu; below it the artwork, the album line, the title and
-/// the artist (each opening its detail), the scrubber with the audio-quality
-/// badge, the transport, the volume row with its steppers, and the glass
-/// toolbar — route, search, browse, Up Next. All state is the
+/// instead of a `GroupRoom`. A header names the device the way the Sonos
+/// player names its group, with the sleep timer beside it; below it the
+/// artwork, the album line, the title and the artist (each opening its
+/// detail), the scrubber with the audio-quality badge, the transport, the
+/// volume row with its steppers, and the glass bar — on a phone the route
+/// picker, like, Up Next and the menu; wider, route, search, browse and Up
+/// Next with like and the menu up in the header. All state is the
 /// `PlayableContent` the search returned, so nothing here needs a lookup.
 struct PlayerView: View {
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
@@ -21,6 +22,7 @@ struct PlayerView: View {
     /// shows it there too rather than the two disagreeing.
     @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     /// The cover's own router. The main window's sheets hang off the tab
     /// content underneath this cover, so anything routed there would come
@@ -44,27 +46,23 @@ struct PlayerView: View {
 #endif
     }
 
-    /// The navigation bar's title: this device, where the Sonos player has
-    /// its group's name.
+    /// A phone, or an iPad window squeezed to one: the like button and the
+    /// menu move down into the bottom bar.
+    private var isCompact: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact
+    }
+
+    /// The header's title: this device, where the Sonos player has its
+    /// group's name.
     private var deviceName: String { UIDevice.current.name }
 
     var body: some View {
-        NavigationStack {
-            content
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar { toolbarContent }
-                .toolbarTitleDisplayMode(.inline)
-        }
-        .withSheetDestinations(sheetDestinations: $router.presentedSheet)
-        .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
-        .withAlert()
-        .environment(router)
-        .environment(FavoriteRatingCache.shared)
-        .withEnvironments()
-    }
-
-    private var content: some View {
+        // No `NavigationStack`: the cover's root stays the view the zoom
+        // transition morphs out of the mini player — wrapping it in a stack
+        // lost the zoom. The bar is drawn as `header` instead.
         VStack(alignment: .center) {
+            header
+
             if let item = playback.nowPlaying {
                 ContentArtworkView(content: item, showMusicSource: true, preferredSize: 600, cornerRadius: 8, isDraggable: true)
                     .shadow(radius: 2)
@@ -99,7 +97,7 @@ struct PlayerView: View {
                             .padding(.horizontal, -12)
                             .frame(maxWidth: 500)
 
-                        LocalBottomToolbarView(item: item, showQueue: $showQueue)
+                        LocalBottomToolbarView(item: item, showQueue: $showQueue, showArtworkOnly: $showArtworkOnly)
                     }
                     .transition(.opacity)
                 }
@@ -112,8 +110,15 @@ struct PlayerView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.interactiveSpring, value: showArtworkOnly)
         .padding(.horizontal, 32)
+        .padding(.top, 8)
         .safeAreaPadding(.bottom)
         .ignoresSafeArea(.keyboard)
+        // Presented from in here rather than the main window: its sheets
+        // hang off the tab content underneath this cover and would come up
+        // behind it.
+        .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+        .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
+        .withAlert()
         // The same trailing panel the main window uses where there's room —
         // it shows and hides in place, and the artwork reflows around it —
         // and a half-height sheet on a phone, where a side panel would only
@@ -128,32 +133,23 @@ struct PlayerView: View {
         // Sonos player plays on that group.
         .dropDestinationPlayOnDevice()
         .fontDesign(.rounded)
+        .environment(router)
+        .environment(FavoriteRatingCache.shared)
+        .withEnvironments()
     }
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-#if targetEnvironment(macCatalyst)
-        // A phone drags the cover back into the mini player; a Mac has no
-        // such gesture, so it gets the chevron.
-        ToolbarItem(placement: .cancellationAction) {
-            Button {
-                dismiss()
-            } label: {
-                Label("Close", systemImage: "chevron.down")
-                    .labelStyle(.iconOnly)
-            }
-            .help("Close")
-        }
-#endif
-
-        ToolbarItem(placement: .principal) {
+    /// Stands in for the Sonos player's navigation bar: the device and its
+    /// service in the middle, the sleep timer beside them, and where there
+    /// is room the like button and the menu. A phone keeps those two in the
+    /// bottom bar so the top stays clear.
+    private var header: some View {
+        ZStack {
             VStack(spacing: 0) {
                 Text(deviceName)
                     .bold()
                     .fontDesign(.rounded)
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
-                    .tint(.primary)
                 // Where the Sonos player shows a battery, this shows the
                 // service the track is coming from.
                 if let item = playback.nowPlaying {
@@ -163,78 +159,59 @@ struct PlayerView: View {
                         .contentTransition(.identity)
                 }
             }
-        }
 
-        if let item = playback.nowPlaying {
-            if let date = playback.sleepTimerEndDate, date > Date.now {
-#if !os(visionOS)
-                if #available(iOS 26.0, visionOS 26.0, *) {
-                    ToolbarItem {
-                        sleepTimerButton {
+            HStack(spacing: 12) {
+#if targetEnvironment(macCatalyst)
+                // A phone drags the cover back into the mini player; a Mac
+                // has no such gesture, so it gets the chevron.
+                Button {
+                    dismiss()
+                } label: {
+                    Label("Close", systemImage: "chevron.down")
+                        .labelStyle(.iconOnly)
+                        .frame(width: 24, height: 24)
+                }
+                .buttonBorderShape(.circle)
+                .glassButton()
+                .help("Close")
+#endif
+                Spacer()
+
+                if let item = playback.nowPlaying {
+                    if let date = playback.sleepTimerEndDate, date > Date.now {
+                        sleepTimerChip {
                             Text(date, style: .timer)
                                 .contentTransition(.numericText(countsDown: true))
                                 .animation(.spring, value: date)
                                 .monospacedDigit()
                                 .bold()
                         }
-                    }
-                    .sharedBackgroundVisibility(.hidden)
-                } else {
-                    ToolbarItem {
-                        sleepTimerButton {
-                            Text(date, style: .timer)
-                                .contentTransition(.numericText(countsDown: true))
-                                .animation(.spring, value: date)
-                                .monospacedDigit()
+                    } else if playback.sleepsAtEndOfTrack {
+                        sleepTimerChip {
+                            Text("End of Song")
                                 .bold()
                         }
                     }
-                }
-#else
-                ToolbarItem {
-                    sleepTimerButton {
-                        Text(date, style: .timer)
-                            .contentTransition(.numericText(countsDown: true))
-                            .animation(.spring, value: date)
-                            .monospacedDigit()
-                            .bold()
-                    }
-                }
-#endif
-            } else if playback.sleepsAtEndOfTrack {
-                ToolbarItem {
-                    sleepTimerButton {
-                        Text("End of Song")
-                            .bold()
-                    }
-                }
-            }
 
-#if !os(visionOS)
-            if #available(iOS 26.0, visionOS 26.0, *) {
-                ToolbarSpacer(.fixed)
-            }
-#endif
-            if item.content.service.supportsFavoriteTrack {
-                ToolbarItem {
-                    LikeButtonView(content: item)
+                    if !isCompact {
+                        if item.content.service.supportsFavoriteTrack {
+                            LikeButtonView(content: item)
+                                .glassButton()
+                        }
+                        LocalPlayerMenuView(item: item, showArtworkOnly: $showArtworkOnly)
+                            .buttonBorderShape(.circle)
+                            .glassButton()
+                            .tint(.primary)
+                    }
                 }
-#if !os(visionOS)
-                if #available(iOS 26.0, visionOS 26.0, *) {
-                    ToolbarSpacer(.fixed)
-                }
-#endif
-            }
-            ToolbarItem {
-                LocalPlayerMenuView(item: item, showArtworkOnly: $showArtworkOnly)
-                    .tint(.primary)
             }
         }
+        .frame(minHeight: 44)
     }
 
     /// The sleep timer chip: the moon, whatever `detail` says about when,
     /// and a confirmation to call it off — as on the Sonos player.
-    private func sleepTimerButton<Detail: View>(@ViewBuilder detail: () -> Detail) -> some View {
+    private func sleepTimerChip<Detail: View>(@ViewBuilder detail: () -> Detail) -> some View {
         Button {
             showSleepTimerCancelConfirmation = true
         } label: {
@@ -244,8 +221,11 @@ struct PlayerView: View {
                     .foregroundStyle(Color.primary.gradient, .indigo)
                 detail()
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
         .buttonStyle(.plain)
+        .capsuleGlass()
         .accessibilityLabel("Sleep Timer")
         .confirmationDialog(
             "Cancel Sleep Timer",
@@ -560,16 +540,19 @@ private struct LocalVolumeControlView: View {
 
 // MARK: - Bottom toolbar
 
-/// The glass row under the volume, mirroring `LargePlayerView.BottomToolbarView`:
-/// where the Sonos player has its group button this has the route picker,
-/// then search, browse, and the Up Next toggle with its queue gauge. Capsule
-/// on a phone, a row of glass circles where there's room.
+/// The glass row under the volume, mirroring `LargePlayerView.BottomToolbarView`.
+/// On a phone: the route picker where the Sonos player has its group button,
+/// the like button, the Up Next toggle with its queue gauge, and the menu —
+/// the bar carries what the navigation bar would, so the top stays clear.
+/// Where there's room the like button and the menu sit in the header, and
+/// the row is glass circles for route, search, browse and Up Next.
 private struct LocalBottomToolbarView: View {
     @Environment(Router.self) private var router: Router
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     let item: PlayableContent
     @Binding var showQueue: Bool
+    @Binding var showArtworkOnly: Bool
 
     @State private var isHoveringOnQueueList: Bool = false
 
@@ -582,20 +565,23 @@ private struct LocalBottomToolbarView: View {
                     .buttonStyle(.plain)
                     .imageScale(.large)
 
-                Spacer()
-                searchButton
-                    .buttonStyle(.plain)
-                    .imageScale(.large)
-
-                Spacer()
-                browseButton
-                    .buttonStyle(.plain)
-                    .imageScale(.large)
+                if item.content.service.supportsFavoriteTrack {
+                    Spacer()
+                    LikeButtonView(content: item)
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
+                }
 
                 Spacer()
                 queueButton
                     .buttonStyle(.plain)
                     .imageScale(.large)
+
+                Spacer()
+                LocalPlayerMenuView(item: item, showArtworkOnly: $showArtworkOnly)
+                    .buttonStyle(.plain)
+                    .imageScale(.large)
+                    .tint(.primary)
             }
             .padding(.vertical, 14)
             .padding(.horizontal, 28)
@@ -625,6 +611,7 @@ private struct LocalBottomToolbarView: View {
             }
         }
     }
+
 
     private var searchButton: some View {
         Button {
@@ -824,7 +811,7 @@ private struct LocalPlayerMenuView: View {
         } label: {
             Label("Menu", systemImage: "ellipsis")
                 .labelStyle(.iconOnly)
-                .padding(.vertical)
+                .frame(width: 24, height: 24)
         }
         .accessibilityLabel("Menu")
         .help("Menu")
