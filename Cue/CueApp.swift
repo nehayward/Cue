@@ -303,7 +303,10 @@ struct CueApp: App {
                 }
             }
             .withSheetDestinations(sheetDestinations: $tabSheet)
-            .queuePanel(isPresented: $showInspector) { QueueNextUpView() }
+            // Hidden at compact widths rather than a sheet: on iPhone the
+            // queue is the player's, and a sheet here would fight the one it
+            // presents (they share the stored flag).
+            .queuePanel(isPresented: $showInspector, compact: .hidden) { QueueNextUpView() }
             .tabBarMinimizeBehavior(.onScrollDown)
             .tabViewBottomAccessory {
                 MusicPlaybackView(showPlayer: $router.isPlayerPresented, zoomNamespace: zoomNamespace)
