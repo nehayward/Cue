@@ -1326,6 +1326,33 @@ struct PreferenceScreen: View {
 
     var storageCacheSection: some View {
         Section {
+            NavigationLink(value: RouterDestination.downloads) {
+                let downloads = DownloadManager.shared
+                Label {
+                    VStack(alignment: .leading) {
+                        Text("Downloads")
+                        Text(downloads.hasActiveDownloads
+                             ? "\(downloads.active.count) downloading • \(formattedSize(Int(downloads.completedBytes)))"
+                             : formattedSize(Int(downloads.completedBytes)))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white)
+                        .bold()
+                        .padding(8)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.6, blue: 1.0), Color(red: 0.2, green: 0.45, blue: 0.95)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        )
+                        .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                }
+            }
+
             Button {
                 Task {
                     isClearing = true

@@ -20,6 +20,9 @@ public enum AppStorageKeys {
     /// That folder's name, kept beside the bookmark so the Services row can
     /// name it without resolving the bookmark first.
     public static let filesFolderName = "\(Prefix.id).filesFolderName"
+    /// Whether the download manager may fetch over cellular data. Off when
+    /// unset: a whole album on a phone plan is a surprise nobody asked for.
+    public static let downloadsOverCellular = "\(Prefix.id).downloadsOverCellular"
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"
     public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"

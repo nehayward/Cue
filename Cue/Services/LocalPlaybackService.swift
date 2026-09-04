@@ -103,13 +103,13 @@ final class LocalPlaybackService {
         case .apple where [.track, .libraryTrack].contains(item.content.type):
             .appleMusic
         case .plex where item.content.type == .track
-            && (item.previewURL != nil || PlexDownloadService.shared.isDownloaded(item)):
+            && (item.previewURL != nil || DownloadManager.shared.isDownloaded(item)):
             .stream
         // Subsonic's `previewURL` is the whole track off the user's own server
         // (`/rest/stream`), exactly like Plex's — so the same `AVQueuePlayer`
-        // path plays it. There's no download service for Subsonic, so the URL
-        // is the only source.
-        case .subsonic where item.content.type == .track && item.previewURL != nil:
+        // path plays it, and the same download manager keeps a copy.
+        case .subsonic where item.content.type == .track
+            && (item.previewURL != nil || DownloadManager.shared.isDownloaded(item)):
             .stream
         // A file in the user's folder: `previewURL` is the file itself, and
         // only set once an iCloud file has actually downloaded.
@@ -129,6 +129,11 @@ final class LocalPlaybackService {
         case (.playlist, .apple), (.libraryPlaylist, .apple), (.playlist, .plex):
             true
         case (.album, .files), (.artist, .files), (.playlist, .files):
+            true
+        // Subsonic containers expand the way they do for Sonos: the same
+        // tracks, with the same stream URLs, so the local queue and the
+        // download manager can take an album whole.
+        case (.album, .subsonic), (.artist, .subsonic), (.playlist, .subsonic):
             true
         default:
             false
@@ -177,6 +182,9 @@ final class LocalPlaybackService {
             // Songs list's Play All.
             guard offset == 0 else { return [] }
             return FilesLibraryService.shared.playlistTracks(playlistID: container.content.id)
+        case (.album, .subsonic), (.artist, .subsonic), (.playlist, .subsonic):
+            guard offset == 0 else { return [] }
+            return await MusicSearchService.shared.containerTracks(for: container)
         default:
             return []
         }
@@ -602,9 +610,8 @@ final class LocalPlaybackService {
         let rows: [(queueIndex: Int, item: AVPlayerItem)] = (index...end).compactMap { queueIndex in
             let item = queue[queueIndex]
             // A downloaded copy beats the server URL — it plays with no
-            // network, including away from the Plex server entirely. Nothing is
-            // ever downloaded for Subsonic, so those fall through to the URL.
-            guard let url = PlexDownloadService.shared.localURL(for: item) ?? item.previewURL else { return nil }
+            // network, including away from the server entirely.
+            guard let url = DownloadManager.shared.localURL(for: item) ?? item.previewURL else { return nil }
             return (queueIndex, AVPlayerItem(url: url))
         }
         guard !rows.isEmpty else {

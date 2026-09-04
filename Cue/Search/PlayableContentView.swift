@@ -140,6 +140,17 @@ struct PlayableContentView: View {
                                 .font(.caption2)
                         }
 
+                        // Kept on this device, or still up in iCloud Drive.
+                        if DownloadManager.shared.isDownloaded(item) {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .foregroundStyle(.secondary)
+                                .font(.caption2)
+                        } else if item.content.service == .files, item.metadata?.isPlayable == false {
+                            Image(systemName: "icloud.and.arrow.down")
+                                .foregroundStyle(.secondary)
+                                .font(.caption2)
+                        }
+
                         if item.metadata?.isExplicit == true {
                             Image(systemName: "e.square.fill")
                         }

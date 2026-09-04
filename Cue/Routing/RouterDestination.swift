@@ -21,6 +21,9 @@ public enum RouterDestination: Hashable, Identifiable {
     case playableGridScreen(title: String, items: Binding<OrderedSet<PlayableContent>>, action: ((Int) async -> Void))
     case fullPlayHistoryList
     case servicePreferenceScreen
+    /// The download manager: what's coming down, what's here, and the
+    /// iCloud Drive side of the Files folder.
+    case downloads
     case houseHold
     case spotifyUserPlaylist
     case genreList
@@ -64,6 +67,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "houseHold"
         case .servicePreferenceScreen:
             return "servicePreferenceScreen"
+        case .downloads:
+            return "downloads"
         case .spotifyUserPlaylist:
             return "spotifyUserPlaylist"
         case .genreList:
@@ -162,6 +167,8 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("houseHolds")
         case .servicePreferenceScreen:
             hasher.combine("servicePreferenceScreen")
+        case .downloads:
+            hasher.combine("downloads")
         case .spotifyUserPlaylist:
             hasher.combine("spotifyUserPlaylist")
         case .genreList:

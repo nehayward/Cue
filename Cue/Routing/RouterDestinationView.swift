@@ -85,6 +85,8 @@ struct RouterDestinationView: View {
                 HouseholdScreen()
             case .servicePreferenceScreen:
                 ServicePreferenceScreen()
+            case .downloads:
+                DownloadsScreen()
             case .spotifyUserPlaylist:
                 List {
                     SpotifyUsersPlaylistView(playlistCountLimit: .max, hideNavigation: true)

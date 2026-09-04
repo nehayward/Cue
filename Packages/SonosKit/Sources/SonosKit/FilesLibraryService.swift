@@ -262,6 +262,7 @@ public final class FilesLibraryService {
         scanTask?.cancel()
         scanTask = nil
         isScanning = false
+        stopCloudMonitor()
         stopAccessingFolder()
         folderURL = nil
         folderName = nil
@@ -1169,6 +1170,149 @@ public final class FilesLibraryService {
         }
         let ups = Array(repeating: "..", count: from.count - common)
         return (ups + to[common...]).joined(separator: "/")
+    }
+
+    // MARK: - iCloud Drive
+
+    /// Where a file in an iCloud Drive folder is.
+    public enum CloudStatus: Equatable, Sendable {
+        /// On this device.
+        case local
+        /// Coming down, with the fraction done where the system reports one.
+        case downloading(Double?)
+        /// Only in iCloud; playing it means fetching it first.
+        case notDownloaded
+        /// The folder isn't in iCloud Drive at all.
+        case notCloud
+    }
+
+    /// Download progress by relative path for files on their way down, kept
+    /// fresh while something is watching (`startCloudMonitor`).
+    public private(set) var cloudProgress: [String: Double] = [:]
+
+    @ObservationIgnored private var cloudQuery: NSMetadataQuery?
+    @ObservationIgnored private var cloudObservers: [NSObjectProtocol] = []
+
+    public func cloudStatus(trackID: String) -> CloudStatus {
+        guard isCloudFolder, let track = tracksByID[trackID], let folderURL else { return .notCloud }
+        if let progress = cloudProgress[track.relativePath] { return .downloading(progress) }
+        let url = folderURL.appendingPathComponent(track.relativePath)
+        guard FileManager.default.fileExists(atPath: url.path),
+              let values = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey, .ubiquitousItemIsDownloadingKey])
+        else { return .notDownloaded }
+        if values.ubiquitousItemIsDownloading == true { return .downloading(nil) }
+        return values.ubiquitousItemDownloadingStatus == .current ? .local : .notDownloaded
+    }
+
+    /// The song a relative path stands for, for the rows that report
+    /// progress by path.
+    public func song(atRelativePath path: String) -> PlayableContent? {
+        songIDByPath[path].flatMap { songsByID[$0] }
+    }
+
+    /// How much of the folder is on this device. Touches every file, so
+    /// it's for the Downloads screen rather than a row.
+    public func cloudSummary() -> (local: Int, remote: Int) {
+        guard isCloudFolder else { return (tracks.count, 0) }
+        var local = 0
+        var remote = 0
+        for track in tracks {
+            switch cloudStatus(trackID: Self.hash("song|\(track.relativePath)")) {
+            case .local: local += 1
+            default: remote += 1
+            }
+        }
+        return (local, remote)
+    }
+
+    /// Asks iCloud for the files. The system carries the transfer itself,
+    /// app suspended or not, and the scan notices when they land.
+    public func downloadFromCloud(trackIDs: [String]) {
+        guard let folderURL else { return }
+        for id in trackIDs {
+            guard let track = tracksByID[id] else { continue }
+            try? FileManager.default.startDownloadingUbiquitousItem(at: folderURL.appendingPathComponent(track.relativePath))
+        }
+        startCloudMonitor()
+    }
+
+    /// Every song not on this device.
+    public func downloadAllFromCloud() {
+        let ids = tracks.compactMap { track -> String? in
+            let id = Self.hash("song|\(track.relativePath)")
+            return cloudStatus(trackID: id) == .notDownloaded ? id : nil
+        }
+        downloadFromCloud(trackIDs: ids)
+    }
+
+    /// Hands the space back; the files stay in iCloud and list as before.
+    public func removeFromDevice(trackIDs: [String]) {
+        guard let folderURL else { return }
+        for id in trackIDs {
+            guard let track = tracksByID[id] else { continue }
+            try? FileManager.default.evictUbiquitousItem(at: folderURL.appendingPathComponent(track.relativePath))
+        }
+    }
+
+    public func removeAllFromDevice() {
+        removeFromDevice(trackIDs: tracks.map { Self.hash("song|\($0.relativePath)") })
+    }
+
+    /// Watches the folder's downloads for live progress. Cheap while it
+    /// runs and stopped when the screen goes; a placeholder that finishes
+    /// while it watches triggers the incremental rescan that reads its tags.
+    public func startCloudMonitor() {
+        #if os(iOS) || os(macOS) || targetEnvironment(macCatalyst)
+        guard cloudQuery == nil, isCloudFolder, let folderURL else { return }
+        let query = NSMetadataQuery()
+        query.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope, NSMetadataQueryAccessibleUbiquitousExternalDocumentsScope]
+        query.predicate = NSPredicate(format: "%K BEGINSWITH %@", NSMetadataItemPathKey, folderURL.standardizedFileURL.path)
+        query.notificationBatchingInterval = 0.5
+        let names: [Notification.Name] = [.NSMetadataQueryDidFinishGathering, .NSMetadataQueryDidUpdate]
+        cloudObservers = names.map { name in
+            NotificationCenter.default.addObserver(forName: name, object: query, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.readCloudQuery() }
+            }
+        }
+        cloudQuery = query
+        query.start()
+        #endif
+    }
+
+    public func stopCloudMonitor() {
+        cloudQuery?.stop()
+        cloudQuery = nil
+        cloudObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        cloudObservers = []
+        cloudProgress = [:]
+    }
+
+    private func readCloudQuery() {
+        #if os(iOS) || os(macOS) || targetEnvironment(macCatalyst)
+        guard let query = cloudQuery, let folderURL else { return }
+        query.disableUpdates()
+        defer { query.enableUpdates() }
+        let rootPath = folderURL.standardizedFileURL.path
+        var progress: [String: Double] = [:]
+        var landed = false
+        for case let item as NSMetadataItem in query.results {
+            guard let path = item.value(forAttribute: NSMetadataItemPathKey) as? String, path.hasPrefix(rootPath) else { continue }
+            let relative = String(path.dropFirst(rootPath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            let status = item.value(forAttribute: NSMetadataUbiquitousItemDownloadingStatusKey) as? String
+            if status == NSMetadataUbiquitousItemDownloadingStatusCurrent {
+                if let id = songIDByPath[relative], tracksByID[id]?.isDownloaded == false { landed = true }
+                continue
+            }
+            let isDownloading = (item.value(forAttribute: NSMetadataUbiquitousItemIsDownloadingKey) as? Bool) ?? false
+            guard isDownloading else { continue }
+            let percent = (item.value(forAttribute: NSMetadataUbiquitousItemPercentDownloadedKey) as? Double) ?? 0
+            progress[relative] = percent / 100
+        }
+        cloudProgress = progress
+        if landed, !isScanning {
+            rescan()
+        }
+        #endif
     }
 
     // MARK: - Storage

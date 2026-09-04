@@ -1230,6 +1230,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
 
+    /// The system relaunched (or woke) the app because the download
+    /// session has events to deliver. Handing the completion handler to the
+    /// manager makes it recreate the session, which drains the events; it
+    /// calls the handler once they're done.
+    func application(
+        _ application: UIApplication,
+        handleEventsForBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        guard identifier == DownloadManager.sessionIdentifier else {
+            completionHandler()
+            return
+        }
+        Task { @MainActor in
+            DownloadManager.shared.backgroundCompletionHandler = completionHandler
+        }
+    }
+
     func application(
        _ application: UIApplication,
        configurationForConnecting connectingSceneSession: UISceneSession,
