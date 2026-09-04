@@ -31,14 +31,22 @@ struct QueuePanel<Panel: View>: ViewModifier {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var isCompact: Bool { horizontalSizeClass == .compact }
+    private var wantsSheet: Bool { isCompact && compactBehavior == .sheet }
 
-    /// The sheet's binding: the panel's own in a compact width that wants
-    /// one, otherwise never presented. Sharing `isPresented` means a swipe
-    /// to dismiss the sheet is the same as hiding the panel.
-    private var sheetIsPresented: Binding<Bool> {
-        guard isCompact, compactBehavior == .sheet else { return .constant(false) }
-        return $isPresented
-    }
+    /// The sheet's own visibility, kept apart from `isPresented`. A window
+    /// changing size class (an iPad going in or out of multitasking) takes
+    /// a presented sheet down, and SwiftUI reports that through the binding
+    /// as if the person had swiped it away — bound straight to
+    /// `isPresented`, the queue then stayed hidden once the width came back.
+    /// With its own state the sheet can come and go with the width while the
+    /// person's choice holds, and only a dismissal made while the window is
+    /// standing still counts as theirs.
+    @State private var sheetShown = false
+    /// When the window last changed size. A sheet dismissal within a
+    /// moment of it is the resize's doing, not the person's.
+    @State private var lastResize: Date = .distantPast
+
+    private static var resizeGrace: TimeInterval { 1 }
 
     static var minWidth: CGFloat { 260 }
     static var maxWidth: CGFloat { 520 }
@@ -59,6 +67,12 @@ struct QueuePanel<Panel: View>: ViewModifier {
     /// which accelerates away from the cursor.
     @State private var widthAtDragStart: CGFloat?
     @State private var isHoveringDivider = false
+    /// How far past the panel's minimum width the divider has been dragged
+    /// toward the trailing edge. The panel slides out by this much, and past
+    /// `dismissDistance` letting go dismisses it.
+    @State private var dismissOvershoot: CGFloat = 0
+
+    static var dismissDistance: CGFloat { 72 }
     /// The whole window's width — this modifier sits on the `TabView`, so the
     /// `HStack` spans it.
     @State private var availableWidth: CGFloat?
@@ -102,10 +116,15 @@ struct QueuePanel<Panel: View>: ViewModifier {
                     divider
                     panel()
                         .frame(width: width)
-                        .background(.regularMaterial, in: .rect(cornerRadius: 12))
+                        .modifier(PanelBackground())
                         .padding(.trailing, 10)
                         .padding(.vertical, 10)
                 }
+                // Following the finger past the minimum width: the pair moves
+                // off the edge, dimming as it goes, so a drag to dismiss reads
+                // as one before it lands.
+                .offset(x: dismissOvershoot)
+                .opacity(1 - min(1, dismissOvershoot / Self.dismissDistance) * 0.5)
                 .geometryGroup()
                 // Clipped so the pair slides out from under its own edge
                 // rather than overhanging the window during the move.
@@ -115,13 +134,45 @@ struct QueuePanel<Panel: View>: ViewModifier {
         }
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.width
-        } action: { availableWidth = $0 }
+        } action: { newWidth in
+            if availableWidth != nil, availableWidth != newWidth {
+                lastResize = .now
+            }
+            availableWidth = newWidth
+        }
         .animation(.snappy, value: isPresented)
-        .sheet(isPresented: sheetIsPresented) {
+        // The person's choice, or the width, changed: the sheet follows.
+        .onChange(of: wantsSheet, initial: true) { _, wants in
+            lastResize = .now
+            sheetShown = wants && isPresented
+        }
+        .onChange(of: isPresented) { _, presented in
+            sheetShown = wantsSheet && presented
+        }
+        // The sheet went down. Theirs, or the window's?
+        .onChange(of: sheetShown) { _, shown in
+            guard !shown, isPresented else { return }
+            if Date.now.timeIntervalSince(lastResize) < Self.resizeGrace {
+                // The resize took it. Put it back once the layout settles,
+                // if this width still wants one; a regular width shows the
+                // side panel from the same flag instead.
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(400))
+                    if isPresented, wantsSheet, !sheetShown {
+                        sheetShown = true
+                    }
+                }
+            } else {
+                isPresented = false
+            }
+        }
+        .sheet(isPresented: $sheetShown) {
             panel()
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
-                .presentationBackground(.regularMaterial)
+                // No `presentationBackground`: the system's own sheet
+                // background is Liquid Glass, and naming a material here
+                // replaces it with a flat blur.
                 // The player stays usable under the half-height sheet — the
                 // queue is something you glance at while the music plays.
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
@@ -159,15 +210,45 @@ struct QueuePanel<Panel: View>: ViewModifier {
                         // Trailing panel: dragging left (negative) widens it.
                         // Rounded to whole points — sub-pixel changes re-lay out
                         // the entire tab content for no visible difference.
-                        dragWidth = clamped((start - value.translation.width).rounded())
+                        let proposed = (start - value.translation.width).rounded()
+                        dragWidth = clamped(proposed)
+                        // Past the minimum the width stops but the finger
+                        // doesn't: the rest of the drag is toward dismissal.
+                        dismissOvershoot = max(0, Self.minWidth - proposed)
                     }
                     .onEnded { _ in
-                        if let dragWidth { storedWidth = Double(dragWidth) }
+                        if dismissOvershoot >= Self.dismissDistance {
+                            // Off the edge: the drag was a dismissal. The
+                            // stored width is left alone, so the panel comes
+                            // back at the size it had.
+                            withAnimation(.snappy) {
+                                isPresented = false
+                            }
+                        } else if let dragWidth {
+                            storedWidth = Double(dragWidth)
+                        }
+                        withAnimation(.snappy) {
+                            dismissOvershoot = 0
+                        }
                         widthAtDragStart = nil
                         dragWidth = nil
                     }
             )
             .animation(.easeOut(duration: 0.15), value: isHoveringDivider)
+    }
+}
+
+/// The side panel's card: Liquid Glass where the system has it, the
+/// material it always had elsewhere.
+private struct PanelBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, macCatalyst 26.0, visionOS 26.0, *) {
+            content
+                .glassEffect(.regular, in: .rect(cornerRadius: 12))
+        } else {
+            content
+                .background(.regularMaterial, in: .rect(cornerRadius: 12))
+        }
     }
 }
 

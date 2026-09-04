@@ -38,6 +38,10 @@ public enum AppStorageKeys {
     /// Width in points of the trailing queue panel, so a drag-to-resize
     /// survives relaunch.
     public static let queuePanelWidth = "\(Prefix.id).queuePanelWidth"
+    /// The app's own output level for local playback, 0...1, where the
+    /// device's volume can't be driven (Mac Catalyst). On iOS the slider is
+    /// the system volume and nothing is stored.
+    public static let localPlaybackVolume = "\(Prefix.id).localPlaybackVolume"
     public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
