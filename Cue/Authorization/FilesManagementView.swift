@@ -1,7 +1,6 @@
 import MusicSearchKit
 import SonosKit
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// The Files provider's setup: which folder, how the scan is going, and a
 /// way out. Unlike the streaming services there is no account — the folder
@@ -10,7 +9,6 @@ struct FilesManagementView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var library = FilesLibraryService.shared
-    @State private var isPickingFolder = false
     @State private var pickError: String?
 
     var body: some View {
@@ -31,7 +29,7 @@ struct FilesManagementView: View {
                         }
                     }
                     Button {
-                        isPickingFolder = true
+                        chooseFolder()
                     } label: {
                         Label(library.isConfigured ? "Choose a Different Folder…" : "Choose Folder…", systemImage: "folder.badge.plus")
                     }
@@ -114,24 +112,18 @@ struct FilesManagementView: View {
                     Button("Dismiss", systemImage: "xmark") { dismiss() }
                 }
             }
-            .fileImporter(
-                isPresented: $isPickingFolder,
-                allowedContentTypes: [.folder],
-                allowsMultipleSelection: false
-            ) { result in
-                switch result {
-                case let .success(urls):
-                    guard let url = urls.first else { return }
-                    pickError = nil
-                    library.setFolder(url)
-                    // Discovery turns Files off while no folder is chosen
-                    // (it can't play from nothing); a chosen folder turns it
-                    // back on so it shows in search and browse straight away.
-                    CoreFeatures.shared.enabledServices(.files).wrappedValue = true
-                case let .failure(error):
-                    pickError = error.localizedDescription
-                }
-            }
+        }
+    }
+
+    private func chooseFolder() {
+        FolderPicker.shared.present { url in
+            guard let url else { return }
+            pickError = nil
+            library.setFolder(url)
+            // Discovery turns Files off while no folder is chosen (it can't
+            // play from nothing); a chosen folder turns it back on so it
+            // shows in search and browse straight away.
+            CoreFeatures.shared.enabledServices(.files).wrappedValue = true
         }
     }
 }

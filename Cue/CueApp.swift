@@ -248,22 +248,12 @@ struct CueApp: App {
             Text(service.title)
         }
         .sectionActions {
+            // One entry: everything about the section — what it shows, its
+            // order, taking it out — lives in the sheet.
             Button {
                 tabSheet = .customizeTabs
             } label: {
                 Label("Customize Tabs…", systemImage: "slider.horizontal.3")
-            }
-            if let sheet = service.managementSheet {
-                Button {
-                    tabSheet = sheet
-                } label: {
-                    Label("Manage \(service.title)…", systemImage: "server.rack")
-                }
-            }
-            Button(role: .destructive) {
-                tabProviders.remove(service)
-            } label: {
-                Label("Remove from Sidebar", systemImage: "minus.circle")
             }
         }
     }
