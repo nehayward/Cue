@@ -33,6 +33,9 @@ public enum AppStorageKeys {
     /// they come up and taken off the device again once they drop out of
     /// the playback cache. On when unset.
     public static let filesStreamFromCloud = "\(Prefix.id).filesStreamFromCloud"
+    /// Whether the tags of Files songs still in iCloud are read by fetching
+    /// just their headers, on Wi‑Fi. On when unset.
+    public static let filesReadCloudTags = "\(Prefix.id).filesReadCloudTags"
     /// The iCloud songs the cache fetched to play, oldest first, so a
     /// relaunch still knows which ones are its to evict.
     public static let playbackCacheCloudIDs = "\(Prefix.id).playbackCacheCloudIDs"

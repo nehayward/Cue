@@ -291,6 +291,36 @@ final class FilesLibraryParsingTests: XCTestCase {
         XCTAssertEqual(walk.playlists.map { FilesLibraryService.relativePath(of: $0, in: folder) }, ["Mix.m3u8"])
     }
 
+    // MARK: - Applying tags
+
+    func testTagsOverrideFolderLayoutGuessesButKeepWhatTheyLackAndMarkCompilations() {
+        var track = track("Various/Now That's Music/03 Guest Song.mp3")
+        var titleFromFileName = true
+        FilesLibraryService.applyFolderLayout(
+            to: &track, url: root.appendingPathComponent(track.relativePath), root: root, titleFromFileName: true
+        )
+        XCTAssertEqual(track.artist, "Various", "The folder is the best guess before the tags are read")
+
+        var tags = AudioTags()
+        tags.title = "Guest Song (Live)"
+        tags.artist = "Some Guest"
+        tags.year = 2001
+        tags.artwork = Data([1, 2, 3])
+        tags.isCompilation = true
+        let artwork = FilesLibraryService.apply(tags, to: &track, titleFromFileName: &titleFromFileName)
+
+        XCTAssertFalse(titleFromFileName)
+        XCTAssertEqual(track.title, "Guest Song (Live)")
+        XCTAssertEqual(track.artist, "Some Guest")
+        XCTAssertEqual(track.album, "Now That's Music", "The folder's album stands where the tags have none")
+        XCTAssertEqual(track.trackNumber, 3)
+        XCTAssertEqual(track.year, 2001)
+        XCTAssertEqual(track.albumArtist, "Various Artists", "A compilation with no album artist groups under Various Artists")
+        XCTAssertEqual(artwork, Data([1, 2, 3]))
+        XCTAssertNil(FilesLibraryService.apply(nil, to: &track, titleFromFileName: &titleFromFileName))
+        XCTAssertNil(FilesLibraryService.apply(AudioTags(), to: &track, titleFromFileName: &titleFromFileName), "No artwork, nothing to store")
+    }
+
     // MARK: - Helpers
 
     private func makeTempFolder() throws -> URL {

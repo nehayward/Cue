@@ -33,6 +33,12 @@ struct FileTrack: Codable, Sendable, Hashable {
     /// only when one of these moved, so a big library rescans in seconds.
     var modificationDate: Date?
     var fileSize: Int?
+    /// Whether the file's own tags have been read — for a song still in
+    /// iCloud, by reading just its header. Nil in an index from before this
+    /// existed, when only downloaded files had been read.
+    var tagsRead: Bool?
+
+    var hasReadTags: Bool { tagsRead ?? isDownloaded }
 
     /// The credited artist for grouping: the album artist where the tags
     /// have one, so a compilation stays one album.
@@ -161,6 +167,25 @@ public final class FilesLibraryService {
     public private(set) var foundCount = 0
     /// iCloud placeholders the last scan asked the system to download.
     public private(set) var pendingDownloadCount = 0
+    /// Progress of the pass that reads the tags of songs still in iCloud,
+    /// once a scan has listed them.
+    public private(set) var cloudTagsRead = 0
+    public private(set) var cloudTagsTotal = 0
+    public var isReadingCloudTags: Bool { cloudTagsTotal > 0 }
+
+    /// Whether songs still in iCloud have their tags read without being
+    /// downloaded: on Wi‑Fi, a read of just each file's header. Off, they
+    /// list by name and folder until they come down.
+    public var readsCloudTags = true {
+        didSet {
+            defaults.set(readsCloudTags, forKey: AppStorageKeys.filesReadCloudTags)
+            if readsCloudTags {
+                readCloudTagsIfNeeded()
+            } else {
+                cloudTagTask?.cancel()
+            }
+        }
+    }
     public private(set) var lastScan: Date?
     public private(set) var lastError: String?
     /// The picked folder's name, for the rows that describe the provider.
@@ -208,6 +233,7 @@ public final class FilesLibraryService {
     @ObservationIgnored private var albumYear: [String: Int] = [:]
     @ObservationIgnored private var sortedSongs: [String: [PlayableContent]] = [:]
     @ObservationIgnored private var scanTask: Task<Void, Never>?
+    @ObservationIgnored private var cloudTagTask: Task<Void, Never>?
     @ObservationIgnored private var rescanRequested = false
     /// Bumped when the folder changes, so a scan of the old folder that is
     /// still winding down can't publish into the new one.
@@ -230,6 +256,7 @@ public final class FilesLibraryService {
 
     private init() {
         folderName = defaults.string(forKey: AppStorageKeys.filesFolderName)
+        readsCloudTags = defaults.object(forKey: AppStorageKeys.filesReadCloudTags) as? Bool ?? true
         resolveFolder()
         let stored = Self.loadIndex()
         tracks = stored.tracks
@@ -281,6 +308,8 @@ public final class FilesLibraryService {
         }
 
         scanTask?.cancel()
+        cloudTagTask?.cancel()
+        cloudTagTask = nil
         folderGeneration += 1
         stopAccessingFolder()
         tracks = []
@@ -319,6 +348,10 @@ public final class FilesLibraryService {
     public func removeFolder() {
         scanTask?.cancel()
         scanTask = nil
+        cloudTagTask?.cancel()
+        cloudTagTask = nil
+        cloudTagsTotal = 0
+        cloudTagsRead = 0
         isScanning = false
         stopCloudMonitor()
         stopAccessingFolder()
@@ -420,6 +453,7 @@ public final class FilesLibraryService {
     /// open of the library picks up the rest.
     public func cancelScan() {
         scanTask?.cancel()
+        cloudTagTask?.cancel()
     }
 
     public func scan() async {
@@ -474,7 +508,8 @@ public final class FilesLibraryService {
                 relativePath: Self.relativePath(of: url, in: root),
                 title: url.deletingPathExtension().lastPathComponent,
                 fileExtension: url.pathExtension.lowercased(),
-                isDownloaded: false
+                isDownloaded: false,
+                tagsRead: false
             )
             Self.applyFolderLayout(to: &track, url: url, root: root, titleFromFileName: true)
             return track
@@ -527,7 +562,8 @@ public final class FilesLibraryService {
                     relativePath: Self.relativePath(of: entry.url, in: root),
                     title: entry.url.deletingPathExtension().lastPathComponent,
                     fileExtension: entry.url.pathExtension.lowercased(),
-                    isDownloaded: false
+                    isDownloaded: false,
+                    tagsRead: false
                 )
                 Self.applyFolderLayout(to: &track, url: entry.url, root: root, titleFromFileName: true)
                 return track
@@ -546,6 +582,7 @@ public final class FilesLibraryService {
 
         publish(all, playlists: playlists, generation: generation, final: true)
         Self.log.notice("scan finished: \(all.count) tracks, \(playlists.count) playlists, \(walk.placeholders.count) in iCloud only")
+        readCloudTagsIfNeeded()
     }
 
     /// Replaces the index with `tracks`, sorted by path. A final publish
@@ -662,6 +699,70 @@ public final class FilesLibraryService {
         )
         var titleFromFileName = true
 
+        // Cue's own reader first: it knows the FLAC, WAV and AIFF tags
+        // AVFoundation leaves out, and reads only the bytes the tags are in.
+        var artworkData = apply(parseTags(url: url, fileSize: entry.fileSize), to: &track, titleFromFileName: &titleFromFileName)
+        // AVFoundation fills whatever that left — a format it doesn't
+        // cover, or a file with little in its tags.
+        if titleFromFileName || track.artist == nil || track.album == nil || track.duration == nil {
+            let fromAVFoundation = await readWithAVFoundation(url: url, into: &track, titleFromFileName: &titleFromFileName)
+            artworkData = artworkData ?? fromAVFoundation
+        }
+        track.tagsRead = true
+
+        applyFolderLayout(to: &track, url: url, root: root, titleFromFileName: titleFromFileName)
+
+        if let artworkData {
+            storeArtwork(artworkData, for: &track, in: artworkDirectory)
+        }
+        return track
+    }
+
+    nonisolated static func parseTags(url: URL, fileSize: Int?) -> AudioTags? {
+        guard let source = try? FileTagSource(url: url, length: fileSize) else { return nil }
+        defer { source.close() }
+        return try? TagReader.read(from: source)
+    }
+
+    /// Puts what the tags say onto the track. A tag's value wins over what
+    /// was there — a placeholder's folder-layout guesses, most often.
+    /// Returns the embedded cover for the caller to store.
+    @discardableResult
+    nonisolated static func apply(_ tags: AudioTags?, to track: inout FileTrack, titleFromFileName: inout Bool) -> Data? {
+        guard let tags else { return nil }
+        if let title = tags.title {
+            track.title = title
+            titleFromFileName = false
+        }
+        track.artist = tags.artist ?? track.artist
+        track.albumArtist = tags.albumArtist ?? track.albumArtist
+        track.album = tags.album ?? track.album
+        track.genre = tags.genre ?? track.genre
+        track.year = tags.year ?? track.year
+        track.trackNumber = tags.trackNumber ?? track.trackNumber
+        track.discNumber = tags.discNumber ?? track.discNumber
+        track.duration = tags.duration ?? track.duration
+        // A compilation with no album artist of its own is Various Artists,
+        // so its songs stay one album rather than one per artist.
+        if tags.isCompilation, track.albumArtist == nil {
+            track.albumArtist = "Various Artists"
+        }
+        guard let artwork = tags.artwork, !artwork.isEmpty else { return nil }
+        return artwork
+    }
+
+    /// One cover per album, written the first time it's seen.
+    nonisolated static func storeArtwork(_ data: Data, for track: inout FileTrack, in artworkDirectory: URL) {
+        let fileName = hash("\(track.groupingArtist)|\(track.albumTitle)") + ".img"
+        let file = artworkDirectory.appendingPathComponent(fileName)
+        if !FileManager.default.fileExists(atPath: file.path) {
+            try? data.write(to: file)
+        }
+        track.artworkFileName = fileName
+    }
+
+    /// AVFoundation's reading, filling only what is still missing.
+    nonisolated private static func readWithAVFoundation(url: URL, into track: inout FileTrack, titleFromFileName: inout Bool) async -> Data? {
         let asset = AVURLAsset(url: url)
         var artworkData: Data?
 
@@ -670,18 +771,18 @@ public final class FilesLibraryService {
                 guard let key = item.commonKey else { continue }
                 switch key {
                 case .commonKeyTitle:
-                    if let value = try? await item.load(.stringValue), !value.isEmpty {
+                    if titleFromFileName, let value = try? await item.load(.stringValue), !value.isEmpty {
                         track.title = value
                         titleFromFileName = false
                     }
                 case .commonKeyArtist:
-                    track.artist = nonEmpty(try? await item.load(.stringValue))
+                    if track.artist == nil { track.artist = nonEmpty(try? await item.load(.stringValue)) }
                 case .commonKeyAlbumName:
-                    track.album = nonEmpty(try? await item.load(.stringValue))
+                    if track.album == nil { track.album = nonEmpty(try? await item.load(.stringValue)) }
                 case .commonKeyType:
-                    track.genre = nonEmpty(try? await item.load(.stringValue))
+                    if track.genre == nil { track.genre = nonEmpty(try? await item.load(.stringValue)) }
                 case .commonKeyCreationDate:
-                    if let value = try? await item.load(.stringValue) { track.year = year(from: value) }
+                    if track.year == nil, let value = try? await item.load(.stringValue) { track.year = year(from: value) }
                 case .commonKeyArtwork:
                     if artworkData == nil { artworkData = try? await item.load(.dataValue) }
                 default:
@@ -690,7 +791,7 @@ public final class FilesLibraryService {
             }
         }
 
-        if let duration = try? await asset.load(.duration), duration.seconds.isFinite, duration.seconds > 0 {
+        if track.duration == nil, let duration = try? await asset.load(.duration), duration.seconds.isFinite, duration.seconds > 0 {
             track.duration = duration.seconds
         }
 
@@ -713,20 +814,7 @@ public final class FilesLibraryService {
                 track.year = year(from: dated)
             }
         }
-
-        applyFolderLayout(to: &track, url: url, root: root, titleFromFileName: titleFromFileName)
-
-        // One cover per album, written the first time it's seen.
-        if let artworkData, !artworkData.isEmpty {
-            let fileName = hash("\(track.groupingArtist)|\(track.albumTitle)") + ".img"
-            let file = artworkDirectory.appendingPathComponent(fileName)
-            if !FileManager.default.fileExists(atPath: file.path) {
-                try? artworkData.write(to: file)
-            }
-            track.artworkFileName = fileName
-        }
-
-        return track
+        return artworkData
     }
 
     /// The layout fallback. Folders above the file stand in for missing
@@ -1534,6 +1622,118 @@ public final class FilesLibraryService {
             rescan()
         }
         #endif
+    }
+
+    // MARK: - Tags of songs still in iCloud
+
+    /// Starts the pass that reads the tags of songs still in iCloud, when
+    /// the setting allows it and something is left unread. Each read asks
+    /// for the tag bytes only; on a system that fetches a cloud file in
+    /// parts, that is all that comes down. Where the whole file came down
+    /// to serve the read, it is evicted again unless the user had asked
+    /// for it — the library ends the pass no bigger than it started.
+    public func readCloudTagsIfNeeded() {
+        guard readsCloudTags, isCloudFolder, cloudTagTask == nil, let folderURL else { return }
+        let pending = tracks.filter { !$0.hasReadTags }
+        guard !pending.isEmpty else { return }
+        let generation = folderGeneration
+        cloudTagTask = Task { [weak self] in
+            await self?.readCloudTags(pending, folderURL: folderURL, generation: generation)
+            self?.cloudTagTask = nil
+        }
+    }
+
+    private struct CloudTagResult: Sendable {
+        var relativePath: String
+        var tags: AudioTags?
+        /// True when the read left the whole file on the device and the
+        /// user had asked for it, so it stays.
+        var isLocalNow: Bool
+    }
+
+    private func readCloudTags(_ pending: [FileTrack], folderURL: URL, generation: Int) async {
+        guard await NetworkConditions.isUnmetered() else {
+            Self.log.notice("cloud tags: waiting for Wi‑Fi, \(pending.count) unread")
+            return
+        }
+        guard generation == folderGeneration, !Task.isCancelled else { return }
+        Self.log.notice("cloud tags: reading \(pending.count)")
+        cloudTagsTotal = pending.count
+        cloudTagsRead = 0
+        defer {
+            cloudTagsTotal = 0
+            cloudTagsRead = 0
+        }
+        let root = folderURL
+        let artworkDirectory = Self.artworkDirectory
+        let kept = keptTrackIDs
+        var sincePublish = 0
+        var changed = false
+
+        // Two at a time: each read may block while the system fetches.
+        let jobs = pending.map { track in
+            (url: root.appendingPathComponent(track.relativePath),
+             keep: kept.contains(Self.hash("song|\(track.relativePath)")))
+        }
+        await withTaskGroup(of: CloudTagResult.self) { group in
+            var next = 0
+            while next < min(2, jobs.count) {
+                let job = jobs[next]
+                next += 1
+                group.addTask { Self.readCloudTag(url: job.url, root: root, keep: job.keep) }
+            }
+            while let result = await group.next() {
+                cloudTagsRead += 1
+                if generation != folderGeneration || Task.isCancelled {
+                    group.cancelAll()
+                    continue
+                }
+                if let index = tracks.firstIndex(where: { $0.relativePath == result.relativePath }) {
+                    var track = tracks[index]
+                    var titleFromFileName = true
+                    if let artwork = Self.apply(result.tags, to: &track, titleFromFileName: &titleFromFileName) {
+                        Self.storeArtwork(artwork, for: &track, in: artworkDirectory)
+                    }
+                    track.tagsRead = true
+                    if result.isLocalNow { track.isDownloaded = true }
+                    tracks[index] = track
+                    changed = true
+                    sincePublish += 1
+                }
+                if sincePublish >= 25 {
+                    sincePublish = 0
+                    rebuildIndex()
+                }
+                if next < jobs.count, !Task.isCancelled {
+                    let job = jobs[next]
+                    next += 1
+                    group.addTask { Self.readCloudTag(url: job.url, root: root, keep: job.keep) }
+                }
+            }
+        }
+        guard generation == folderGeneration, changed else { return }
+        pendingDownloadCount = tracks.filter { !$0.isDownloaded }.count
+        rebuildIndex()
+        Self.saveIndex(tracks: tracks, playlists: filePlaylists)
+        Self.log.notice("cloud tags: done")
+    }
+
+    nonisolated private static func readCloudTag(url: URL, root: URL, keep: Bool) -> CloudTagResult {
+        let path = relativePath(of: url, in: root)
+        var tags: AudioTags?
+        if let source = try? FileTagSource(url: url) {
+            tags = try? TagReader.read(from: source)
+            source.close()
+        }
+        // If the system brought the whole file down to serve the read, hand
+        // the space back — unless the user had asked for this song.
+        let status = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey]).ubiquitousItemDownloadingStatus
+        var isLocal = status == .current
+        if isLocal, !keep {
+            try? FileManager.default.evictUbiquitousItem(at: url)
+            isLocal = false
+        }
+        return CloudTagResult(relativePath: path, tags: tags, isLocalNow: isLocal)
     }
 
     // MARK: - Storage
