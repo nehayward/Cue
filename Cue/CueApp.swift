@@ -37,7 +37,9 @@ struct MusicPlaybackView: View {
                 showPlayer.toggle()
             } label: {
                 HStack(spacing: 12) {
-                    if let item = playback.nowPlaying {
+                    // The display item, not the queue row: a station reads
+                    // as the song on air here just as it does in the player.
+                    if let item = playback.nowPlayingDisplay {
                         ContentArtworkView(content: item, showMusicSource: false)
                             .frame(width: 40, height: 40)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
