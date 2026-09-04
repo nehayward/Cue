@@ -298,7 +298,7 @@ struct ProviderLibrary {
 
         switch collection {
         case .artists:
-            return .playableList(title: "Artists", refreshAction: { await files.scan() }, action: { offset in
+            return .playableList(title: "Artists", refreshAction: { await files.scan() }, changeToken: { files.indexVersion }, action: { offset in
                 await files.scanIfNeeded()
                 return offset == 0 ? files.artists : []
             })
@@ -318,7 +318,8 @@ struct ProviderLibrary {
                     }
                 },
                 sortKey: "files.albums",
-                refreshAction: { await files.scan() }
+                refreshAction: { await files.scan() },
+                changeToken: { files.indexVersion }
             )
         case .songs:
             return .playableList(
@@ -348,15 +349,16 @@ struct ProviderLibrary {
                     }
                     let count = files.songs.count
                     return count == 0 ? nil : (count == 1 ? "1 song" : "\(count.formatted()) songs")
-                }
+                },
+                changeToken: { files.indexVersion }
             )
         case .playlists:
-            return .playableList(title: "Playlists", showSectionIndex: false, refreshAction: { await files.scan() }, action: { offset in
+            return .playableList(title: "Playlists", showSectionIndex: false, refreshAction: { await files.scan() }, changeToken: { files.indexVersion }, action: { offset in
                 await files.scanIfNeeded()
                 return offset == 0 ? files.playlists : []
             })
         case .recentlyAdded:
-            return .playableList(title: "Recently Added", showSectionIndex: false, refreshAction: { await files.scan() }, action: { offset in
+            return .playableList(title: "Recently Added", showSectionIndex: false, refreshAction: { await files.scan() }, changeToken: { files.indexVersion }, action: { offset in
                 await files.scanIfNeeded()
                 return offset == 0 ? files.recentlyAddedAlbums() : []
             })

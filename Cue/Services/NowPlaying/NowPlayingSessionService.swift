@@ -107,6 +107,9 @@ final class NowPlayingSessionService {
     /// Addressing of the declared subscription, to skip re-declaring it on
     /// every observation pass. Correctness lives in the registry, not here.
     @ObservationIgnored private var subscribedKey: String?
+    /// The remote-command targets this service added, so only they are
+    /// removed on the way out — the on-device player registers its own.
+    @ObservationIgnored private var commandTokens: [(MPRemoteCommand, Any)] = []
 
     /// Artwork is keyed by URL: the expensive part is decoding, and the same
     /// song can republish many times (pause, seek, volume).
@@ -326,8 +329,12 @@ final class NowPlayingSessionService {
     /// `isEnabled` rather than folded into it because `reconcileLiveActivities`
     /// reads that one: a drive to the shops shouldn't look like turning the
     /// feature off and put Live Activities back.
+    /// Also off while the on-device player has a stream run armed: iOS
+    /// shows one Now Playing app, and that player publishes its own card.
+    /// Read inside `evaluate()`'s observation, so the mirror comes back the
+    /// moment local playback ends.
     private var canMirror: Bool {
-        isEnabled && !isRouteExternal
+        isEnabled && !isRouteExternal && !LocalPlaybackService.shared.isPlayingLocalStream
     }
 
     /// The group the card mirrors. iOS has exactly one Now Playing app and one
@@ -742,8 +749,11 @@ final class NowPlayingSessionService {
         publishedArtwork = nil
 
         AudioSessionArbiter.shared.resign()
-        MPNowPlayingInfoCenter.default().playbackState = .stopped
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        // Leave a card the on-device player has already put up.
+        if !LocalPlaybackService.shared.isPlayingLocalStream {
+            MPNowPlayingInfoCenter.default().playbackState = .stopped
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        }
         unregisterCommands()
 
         let sonosService = SonosService.shared
@@ -991,38 +1001,38 @@ final class NowPlayingSessionService {
         center.previousTrackCommand.isEnabled = true
         center.changePlaybackPositionCommand.isEnabled = true
 
-        center.playCommand.addTarget { [weak self] _ in
+        commandTokens.append((center.playCommand, center.playCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.perform { service, group in await service.play(ip: group.ip) } ?? .commandFailed
             }
-        }
-        center.pauseCommand.addTarget { [weak self] _ in
+        }))
+        commandTokens.append((center.pauseCommand, center.pauseCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.perform { service, group in await service.pause(ip: group.ip) } ?? .commandFailed
             }
-        }
-        center.togglePlayPauseCommand.addTarget { [weak self] _ in
+        }))
+        commandTokens.append((center.togglePlayPauseCommand, center.togglePlayPauseCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.perform { service, group in await service.togglePlayPause(for: group) } ?? .commandFailed
             }
-        }
-        center.nextTrackCommand.addTarget { [weak self] _ in
+        }))
+        commandTokens.append((center.nextTrackCommand, center.nextTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.perform { service, group in
                     group.coordinatorRoom.playbackPosition = 0
                     await service.next(ip: group.ip)
                 } ?? .commandFailed
             }
-        }
-        center.previousTrackCommand.addTarget { [weak self] _ in
+        }))
+        commandTokens.append((center.previousTrackCommand, center.previousTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.perform { service, group in
                     group.coordinatorRoom.playbackPosition = 0
                     await service.previous(ip: group.ip)
                 } ?? .commandFailed
             }
-        }
-        center.changePlaybackPositionCommand.addTarget { [weak self] event in
+        }))
+        commandTokens.append((center.changePlaybackPositionCommand, center.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             let milliseconds = event.positionTime * 1000
             return MainActor.assumeIsolated {
@@ -1031,7 +1041,7 @@ final class NowPlayingSessionService {
                     await service.seek(to: milliseconds, on: group)
                 } ?? .commandFailed
             }
-        }
+        }))
 
         // Favorites the playing song on whichever service it came from, the same
         // as the player's heart/star. `isActive` carries the current state and
@@ -1040,11 +1050,11 @@ final class NowPlayingSessionService {
         // card has no slot for an app button, so it doesn't appear there.
         center.likeCommand.localizedTitle = "Favorite"
         center.likeCommand.localizedShortTitle = "Favorite"
-        center.likeCommand.addTarget { [weak self] _ in
+        commandTokens.append((center.likeCommand, center.likeCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.toggleFavorite() ?? .commandFailed
             }
-        }
+        }))
 
         // Nothing here maps onto a Sonos transport — leaving them enabled makes
         // the card offer controls that silently do nothing. `dislike` included:
@@ -1147,14 +1157,14 @@ final class NowPlayingSessionService {
     }
 
     private func unregisterCommands() {
+        // Only this service's own targets. `removeTarget(nil)` would take the
+        // on-device player's handlers with them, which is what left its card
+        // with buttons that did nothing.
+        for (command, token) in commandTokens {
+            command.removeTarget(token)
+        }
+        commandTokens = []
         let center = MPRemoteCommandCenter.shared()
-        center.playCommand.removeTarget(nil)
-        center.pauseCommand.removeTarget(nil)
-        center.togglePlayPauseCommand.removeTarget(nil)
-        center.nextTrackCommand.removeTarget(nil)
-        center.previousTrackCommand.removeTarget(nil)
-        center.changePlaybackPositionCommand.removeTarget(nil)
-        center.likeCommand.removeTarget(nil)
         center.likeCommand.isEnabled = false
         center.likeCommand.isActive = false
     }
