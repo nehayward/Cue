@@ -100,6 +100,7 @@ struct MusicPlaybackView: View {
             }
             .buttonStyle(.plain)
             .font(.title3)
+            .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
 
             if placement != .inline {
                 Button {
@@ -109,6 +110,7 @@ struct MusicPlaybackView: View {
                 }
                 .buttonStyle(.plain)
                 .font(.title3)
+                .accessibilityLabel("Next")
             }
         }
     }
@@ -170,6 +172,7 @@ struct MusicPlaybackView: View {
             }
             .buttonStyle(.plain)
             .font(.title3)
+            .accessibilityLabel(room.isPlaying ? "Pause" : "Play")
 
             if placement != .inline {
                 Button {
@@ -184,6 +187,7 @@ struct MusicPlaybackView: View {
                 }
                 .buttonStyle(.plain)
                 .font(.title3)
+                .accessibilityLabel("Next")
                 .disabled(!group.availableActions.contains(.next))
             }
         }

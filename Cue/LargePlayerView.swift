@@ -209,6 +209,8 @@ struct LargePlayerView: View {
                                 }
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Sleep Timer")
+                            .accessibilityHint("Cancels the sleep timer")
                             .modifier(RefreshOnForegroundModifier())
                             .confirmationDialog(
                                 "Cancel Sleep Timer",
@@ -245,6 +247,8 @@ struct LargePlayerView: View {
                                 }
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Sleep Timer")
+                            .accessibilityHint("Cancels the sleep timer")
                             .modifier(RefreshOnForegroundModifier())
                             .confirmationDialog(
                                 "Cancel Sleep Timer",
@@ -482,6 +486,8 @@ fileprivate struct PlaybackView: View {
             .frame(maxWidth: 500)
             .frame(height: 40)
             .foregroundStyle(.primary)
+            .accessibilityLabel("Playback Position")
+            .accessibilityValue(Duration.milliseconds(group.coordinatorRoom.playbackPosition).formatted(.time(pattern: .minuteSecond)))
             .disabled(!group.availableActions.contains(.scrubbable))
 
             HStack {
@@ -553,6 +559,7 @@ fileprivate struct PlayerMediaControlsView: View {
                     .frame(width: 32, height: 32)
             }
             .buttonStyle(.liveActivity)
+            .accessibilityLabel("Previous")
             .disabled(!group.availableActions.contains(.previous) && group.playbackService != .queue)
 
             Spacer()
@@ -576,6 +583,7 @@ fileprivate struct PlayerMediaControlsView: View {
 
             }
             .buttonStyle(.liveActivity)
+            .accessibilityLabel(group.coordinatorRoom.isPlaying ? "Pause" : "Play")
             #if DEBUG && !targetEnvironment(macCatalyst)
             .keyboardShortcut(.space, modifiers: [])
             .id(group.coordinatorID)
@@ -606,6 +614,7 @@ fileprivate struct PlayerMediaControlsView: View {
                     .frame(width: 32, height: 32)
             }
             .buttonStyle(.liveActivity)
+            .accessibilityLabel("Next")
             .disabled(!group.availableActions.contains(.next))
         }
         .frame(maxWidth: 300)
@@ -633,6 +642,7 @@ fileprivate struct BottomToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .imageScale(.large)
+                .accessibilityLabel("Group Speakers")
 
                 if group.rooms.count > 1 {
                     Spacer()
@@ -659,6 +669,7 @@ fileprivate struct BottomToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .imageScale(.large)
+                .accessibilityLabel("Search")
                 Spacer()
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
@@ -669,6 +680,7 @@ fileprivate struct BottomToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .imageScale(.large)
+                .accessibilityLabel("Browse")
 
                 Spacer()
                 Button {
@@ -706,6 +718,8 @@ fileprivate struct BottomToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .imageScale(.large)
+                .accessibilityLabel("Up Next")
+                .accessibilityValue(group.playMode.accessibilityDescription)
                 .overlay(alignment: .topTrailing) {
                     if group.playMode.contains(.shuffle) {
                         Image(systemName: "shuffle.circle.fill")

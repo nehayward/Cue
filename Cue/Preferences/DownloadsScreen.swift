@@ -193,6 +193,7 @@ struct DownloadsScreen: View {
                     .font(.title2)
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel(item.isActive ? "Pause Download" : "Resume Download")
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {

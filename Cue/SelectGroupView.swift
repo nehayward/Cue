@@ -113,7 +113,10 @@ struct SelectGroupView: View {
                             .tint(.primary)
                             .buttonStyle(.liveActivity)
                             .buttonRepeatBehavior(.enabled)
+                            .accessibilityLabel("Volume Down")
                             VibeSlider(value: $groupVolume, step: 1, showValue: true)
+                                .accessibilityLabel("Volume")
+                                .accessibilityValue("\(Int(groupVolume.rounded())) percent")
                             Button {
                                 groupVolume = min(100, groupVolume + 1)
                             } label: {
@@ -124,6 +127,7 @@ struct SelectGroupView: View {
                             .tint(.primary)
                             .buttonStyle(.liveActivity)
                             .buttonRepeatBehavior(.enabled)
+                            .accessibilityLabel("Volume Up")
                         }
                         .frame(height: 20)
                         .padding(.bottom)

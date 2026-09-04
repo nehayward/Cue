@@ -353,6 +353,7 @@ struct MediaDetailView: View {
                         Image(systemName: "ellipsis")
                             .frame(width: 24, height: 24)
                     }
+                    .accessibilityLabel("More Options")
                     .buttonBorderShape(.circle)
                     .contentShape(.rect)
                     .glassButton()

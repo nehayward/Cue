@@ -82,6 +82,7 @@ struct TVModeViewCell: View {
                     .frame(width: 20)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Group Speakers")
             .tint(.primary)
         }
     }

@@ -148,8 +148,11 @@ struct GroupScreen: View {
                         }
                         .buttonStyle(.plain)
                         .buttonRepeatBehavior(.enabled)
+                        .accessibilityLabel("Volume Down")
 
                         VibeSlider(value: $groupVolume, in: 0...100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20)
+                            .accessibilityLabel("All Speakers Volume")
+                            .accessibilityValue("\(Int(groupVolume.rounded())) percent")
 
                         Button {
                             groupVolume = min(100, groupVolume + 1)
@@ -160,6 +163,7 @@ struct GroupScreen: View {
                         }
                         .buttonStyle(.plain)
                         .buttonRepeatBehavior(.enabled)
+                        .accessibilityLabel("Volume Up")
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 12)

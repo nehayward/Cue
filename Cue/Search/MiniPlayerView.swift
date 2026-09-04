@@ -152,6 +152,7 @@ struct MiniPlayerView: View {
         }
         .buttonStyle(.plain)
         .buttonBorderShape(.circle)
+        .accessibilityLabel(group.coordinatorRoom.isPlaying ? "Pause" : "Play")
     }
 
     private func nextTrackButton(for group: GroupRoom) -> some View {
@@ -167,6 +168,7 @@ struct MiniPlayerView: View {
                 .padding(4)
         }
         .buttonBorderShape(.circle)
+        .accessibilityLabel("Next")
         .disabled(!group.availableActions.contains(.next))
     }
 }
@@ -195,6 +197,8 @@ private struct MiniTVControlsView: View {
             .tint(nightMode ? .accent : nil)
             .animation(.spring, value: nightMode)
             .disabled(settings == nil)
+            .accessibilityLabel("Night Mode")
+            .accessibilityValue(nightMode ? "On" : "Off")
 
             Button {
                 Task {
@@ -211,6 +215,7 @@ private struct MiniTVControlsView: View {
             .buttonStyle(.bordered)
             .tint(group.isMuted ? .accent : nil)
             .animation(.spring, value: group.isMuted)
+            .accessibilityLabel(group.isMuted ? "Unmute" : "Mute")
 
             if group.isArcUltra {
                 SpeechEnhancementMenu(group: group, compact: true)
@@ -232,6 +237,8 @@ private struct MiniTVControlsView: View {
                 .tint(dialogLevel ? .accent : nil)
                 .animation(.spring, value: dialogLevel)
                 .disabled(settings == nil)
+                .accessibilityLabel("Speech Enhancement")
+                .accessibilityValue(dialogLevel ? "On" : "Off")
             }
         }
         .controlSize(.small)

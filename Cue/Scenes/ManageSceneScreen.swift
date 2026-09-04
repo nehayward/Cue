@@ -20,6 +20,7 @@ struct ManageSceneScreen: View {
                         Image(systemName: "trash")
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Delete \(scene.name)")
                 }
             }
             .onMove(perform: moveItem)

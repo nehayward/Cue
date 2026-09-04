@@ -92,6 +92,7 @@ struct SpeakerListScreen: View {
                 } label: {
                     if !scenes.isEmpty {
                         Image(systemName: "bolt.fill")
+                            .accessibilityLabel("Scenes")
                     } else {
                         HStack {
                             Image(systemName: "bolt.fill")
