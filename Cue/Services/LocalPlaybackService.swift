@@ -105,6 +105,12 @@ final class LocalPlaybackService {
     /// Bumped on every re-arm so a stale async resolve can't start playback
     /// for a run the user has already skipped away from.
     @ObservationIgnored private var playToken = 0
+    /// The Lock Screen card for the stream backend. Apple Music's player
+    /// publishes its own.
+    @ObservationIgnored private lazy var nowPlayingCard = LocalNowPlayingPresenter(player: self)
+    /// True while the stream backend is armed — the Sonos Lock Screen mirror
+    /// stands down for it, since iOS has one Now Playing app at a time.
+    private(set) var isPlayingLocalStream = false
     /// Debounces the playback cache's look at the queue: page appends and
     /// polled index changes come in bursts.
     @ObservationIgnored private var cacheRefreshTask: Task<Void, Never>?
@@ -347,6 +353,7 @@ final class LocalPlaybackService {
             musicPlayer.playbackTime = seconds
         case .stream:
             streamPlayer?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
+            nowPlayingCard.noteSeek(elapsed: seconds)
         case .appleStation, nil:
             // A station has nowhere to seek to.
             break
@@ -509,6 +516,8 @@ final class LocalPlaybackService {
             streamPlayer?.removeAllItems()
             streamPlayer = nil
             streamRun = [:]
+            nowPlayingCard.end()
+            isPlayingLocalStream = false
             // Hand the audio session back to whatever held it behind us (see
             // `AudioSessionArbiter`), otherwise release it entirely.
             if !AudioSessionArbiter.shared.handBack() {
@@ -717,9 +726,15 @@ final class LocalPlaybackService {
         if item.content.service == .tuneIn, item.content.type == .radio {
             return await MusicSearchService.shared.tuneInStreamURL(id: item.content.id)
         }
-        return DownloadManager.shared.localURL(for: item)
-            ?? PlaybackCache.shared.localURL(for: item)
-            ?? item.previewURL
+        guard let url = DownloadManager.shared.localURL(for: item)
+                ?? PlaybackCache.shared.localURL(for: item)
+                ?? item.previewURL else { return nil }
+        if item.content.service == .files, item.metadata?.isPlayable == false {
+            // Still in iCloud: ask for it now so the player's own read
+            // finds it arriving rather than starting the fetch itself.
+            try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+        }
+        return url
     }
 
     private func armStream(index: Int, end: Int, token: Int) async {
@@ -757,6 +772,15 @@ final class LocalPlaybackService {
         backend = .stream
         runEnd = end
         currentIndex = rows[0].queueIndex
+        isPlayingLocalStream = true
+        nowPlayingCard.begin()
+        nowPlayingCard.update(
+            item: queue[safe: currentIndex],
+            isPlaying: true,
+            duration: 0,
+            elapsed: 0,
+            canSkip: currentIndex + 1 < queue.count
+        )
     }
 
     // MARK: - State polling
@@ -822,6 +846,13 @@ final class LocalPlaybackService {
             if let queueIndex = streamRun[ObjectIdentifier(current)] {
                 currentIndex = queueIndex
             }
+            nowPlayingCard.update(
+                item: queue[safe: currentIndex],
+                isPlaying: isPlaying,
+                duration: duration,
+                elapsed: progress,
+                canSkip: currentIndex + 1 < queue.count
+            )
         case nil:
             isPlaying = false
         }

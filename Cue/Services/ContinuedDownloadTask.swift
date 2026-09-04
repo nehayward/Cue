@@ -1,14 +1,38 @@
 import Foundation
 import SonosKit
 
+/// A job the continued-processing task (or, on the Mac, the watcher)
+/// follows: how far along it is, and what to say when it's done.
+@MainActor
+private protocol ContinuedWork: AnyObject {
+    var title: String { get }
+    var total: Int { get }
+    var expired: Bool { get set }
+    var completionSymbol: String { get }
+    func measure() -> WorkReading
+    var completionMessage: String { get }
+    /// The person cancelled from the Live Activity, or the system ran out
+    /// of room for the task.
+    func expire()
+}
+
+private struct WorkReading {
+    var settled = 0
+    var completed = 0
+    var failed = 0
+    var units: Int64 = 0
+    var subtitle = ""
+}
+
 /// A batch of downloads being followed as one job: server downloads by their
 /// manager keys, iCloud Drive songs by their track ids.
 @MainActor
-private final class DownloadBatch {
+private final class DownloadBatch: ContinuedWork {
     var title: String
     var keys: Set<String>
     var cloudTrackIDs: Set<String>
     var expired = false
+    let completionSymbol = "arrow.down.circle.fill"
 
     init(title: String, keys: Set<String>, cloudTrackIDs: Set<String>) {
         self.title = title
@@ -18,22 +42,24 @@ private final class DownloadBatch {
 
     var total: Int { keys.count + cloudTrackIDs.count }
 
-    struct Reading {
-        var settled = 0
-        var completed = 0
-        var failed = 0
-        var units: Int64 = 0
-        var subtitle = ""
+    /// In-flight server downloads pause — resume data kept, one tap in
+    /// Downloads to continue — rather than run on invisibly. iCloud
+    /// transfers can't be stopped from here; they simply finish on their own.
+    func expire() {
+        expired = true
+        for key in keys {
+            DownloadManager.shared.pause(key: key)
+        }
     }
 
     /// Where the batch stands, from the manager's entries and the folder's
     /// iCloud status. A download that was cancelled or removed counts as
     /// settled; a paused or failed one does too, since it won't move again
     /// without the person's say-so.
-    func measure() -> Reading {
+    func measure() -> WorkReading {
         let manager = DownloadManager.shared
         let files = FilesLibraryService.shared
-        var reading = Reading()
+        var reading = WorkReading()
         var received: Int64 = 0
         var expected: Int64 = 0
 
@@ -98,6 +124,50 @@ private final class DownloadBatch {
     }
 }
 
+/// A scan of the Files folder: progress is files read against files found,
+/// and it's done when the library says so.
+@MainActor
+private final class ScanBatch: ContinuedWork {
+    let title: String
+    var expired = false
+    let completionSymbol = "folder.fill"
+
+    init(title: String) {
+        self.title = title
+    }
+
+    var total: Int { max(1, FilesLibraryService.shared.foundCount) }
+
+    func expire() {
+        expired = true
+        FilesLibraryService.shared.cancelScan()
+    }
+
+    func measure() -> WorkReading {
+        let files = FilesLibraryService.shared
+        var reading = WorkReading()
+        if files.isScanning {
+            if files.foundCount > 0 {
+                reading.units = Int64(min(files.scannedCount, files.foundCount)) * 100 / Int64(files.foundCount) * Int64(total)
+                reading.subtitle = "\(files.scannedCount.formatted()) of \(files.foundCount.formatted()) songs"
+            } else {
+                reading.subtitle = "Looking for music…"
+            }
+        } else {
+            reading.settled = total
+            reading.completed = total
+            reading.units = Int64(total) * 100
+            reading.subtitle = "Done"
+        }
+        return reading
+    }
+
+    var completionMessage: String {
+        let count = FilesLibraryService.shared.songs.count
+        return count == 1 ? "Found 1 song" : "Found \(count.formatted()) songs"
+    }
+}
+
 #if os(iOS) && !targetEnvironment(macCatalyst)
 import BackgroundTasks
 
@@ -125,7 +195,7 @@ final class ContinuedDownloadTask {
     }
 
     private var registered = false
-    private var current: DownloadBatch?
+    private var current: (any ContinuedWork)?
     private var currentTask: BGContinuedProcessingTask?
 
     /// Registers the launch handler. Cheap, idempotent, and required
@@ -154,28 +224,43 @@ final class ContinuedDownloadTask {
         add(keys: [], cloud: Set(ids), title: title)
     }
 
+    /// Follows a scan of the Files folder. Wired to
+    /// `FilesLibraryService.onScanStarted` at launch.
+    func trackScan(folderName: String) {
+        if let current, !current.expired {
+            // A batch is already on the card; the scan runs regardless.
+            return
+        }
+        start(ScanBatch(title: "Scanning \(folderName)"))
+    }
+
     private func add(keys: Set<String>, cloud: Set<String>, title: String) {
         guard !keys.isEmpty || !cloud.isEmpty else { return }
 
         if let current, !current.expired {
             // Joining the running batch: more to do, same Live Activity.
-            current.keys.formUnion(keys)
-            current.cloudTrackIDs.formUnion(cloud)
+            // A scan on the card can't take downloads; they run without one.
+            guard let batch = current as? DownloadBatch else { return }
+            batch.keys.formUnion(keys)
+            batch.cloudTrackIDs.formUnion(cloud)
             if let task = currentTask {
-                task.progress.totalUnitCount = Int64(max(1, current.total) * 100)
-                task.updateTitle(current.title, subtitle: current.measure().subtitle)
+                task.progress.totalUnitCount = Int64(max(1, batch.total) * 100)
+                task.updateTitle(batch.title, subtitle: batch.measure().subtitle)
             }
             return
         }
 
+        start(DownloadBatch(title: title, keys: keys, cloudTrackIDs: cloud))
+    }
+
+    private func start(_ work: any ContinuedWork) {
         register()
-        let batch = DownloadBatch(title: title, keys: keys, cloudTrackIDs: cloud)
-        current = batch
+        current = work
         currentTask = nil
 
         let request = BGContinuedProcessingTaskRequest(
             identifier: Self.identifier,
-            title: title,
+            title: work.title,
             subtitle: "Starting…"
         )
         // Queue rather than fail: if the system is busy the task waits its
@@ -192,56 +277,45 @@ final class ContinuedDownloadTask {
     }
 
     private func run(_ task: BGContinuedProcessingTask) {
-        guard let batch = current, currentTask == nil else {
+        guard let work = current, currentTask == nil else {
             task.setTaskCompleted(success: false)
             return
         }
         currentTask = task
-        task.progress.totalUnitCount = Int64(max(1, batch.total) * 100)
-        task.expirationHandler = { [weak self] in
+        task.progress.totalUnitCount = Int64(max(1, work.total) * 100)
+        task.expirationHandler = {
             Task { @MainActor in
-                self?.expire(batch)
+                work.expire()
             }
         }
         Task { @MainActor [weak self] in
-            await self?.drive(task, batch: batch)
+            await self?.drive(task, work: work)
         }
     }
 
-    /// The person cancelled from the Live Activity, or the system ran out
-    /// of room for the task. Either way the in-flight server downloads
-    /// pause — resume data kept, one tap in Downloads to continue — rather
-    /// than run on invisibly. iCloud transfers can't be stopped from here;
-    /// they simply finish on their own.
-    private func expire(_ batch: DownloadBatch) {
-        batch.expired = true
-        for key in batch.keys {
-            DownloadManager.shared.pause(key: key)
-        }
-    }
-
-    private func drive(_ task: BGContinuedProcessingTask, batch: DownloadBatch) async {
-        if !batch.cloudTrackIDs.isEmpty {
+    private func drive(_ task: BGContinuedProcessingTask, work: any ContinuedWork) async {
+        if let batch = work as? DownloadBatch, !batch.cloudTrackIDs.isEmpty {
             FilesLibraryService.shared.startCloudMonitor()
         }
         var settled = false
-        while !batch.expired {
-            let reading = batch.measure()
+        while !work.expired {
+            let reading = work.measure()
             // Progress is what the system judges the task by: a task that
             // reports none is the first to go when resources run short.
-            task.progress.completedUnitCount = reading.units
-            task.updateTitle(batch.title, subtitle: reading.subtitle)
-            if reading.settled == batch.total {
+            task.progress.totalUnitCount = Int64(max(1, work.total) * 100)
+            task.progress.completedUnitCount = min(reading.units, task.progress.totalUnitCount)
+            task.updateTitle(work.title, subtitle: reading.subtitle)
+            if reading.settled == work.total {
                 settled = true
                 break
             }
             try? await Task.sleep(for: .seconds(1))
         }
-        if current === batch {
+        if current === work {
             current = nil
             currentTask = nil
         }
-        task.setTaskCompleted(success: settled && !batch.expired)
+        task.setTaskCompleted(success: settled && !work.expired)
     }
 }
 
@@ -255,7 +329,7 @@ final class ContinuedDownloadTask {
 final class ContinuedDownloadTask {
     static let shared = ContinuedDownloadTask()
 
-    private var current: DownloadBatch?
+    private var current: (any ContinuedWork)?
     private var watcher: Task<Void, Never>?
 
     func register() {}
@@ -268,28 +342,38 @@ final class ContinuedDownloadTask {
         add(keys: [], cloud: Set(ids), title: title)
     }
 
+    func trackScan(folderName: String) {
+        guard current == nil else { return }
+        start(ScanBatch(title: "Scanning \(folderName)"))
+    }
+
     private func add(keys: Set<String>, cloud: Set<String>, title: String) {
         guard !keys.isEmpty || !cloud.isEmpty else { return }
         if let current {
-            current.keys.formUnion(keys)
-            current.cloudTrackIDs.formUnion(cloud)
+            if let batch = current as? DownloadBatch {
+                batch.keys.formUnion(keys)
+                batch.cloudTrackIDs.formUnion(cloud)
+            }
             return
         }
-        let batch = DownloadBatch(title: title, keys: keys, cloudTrackIDs: cloud)
-        current = batch
         if !cloud.isEmpty {
             FilesLibraryService.shared.startCloudMonitor()
         }
+        start(DownloadBatch(title: title, keys: keys, cloudTrackIDs: cloud))
+    }
+
+    private func start(_ work: any ContinuedWork) {
+        current = work
         watcher = Task { [weak self] in
             while !Task.isCancelled {
-                if batch.measure().settled == batch.total { break }
+                if work.measure().settled == work.total { break }
                 try? await Task.sleep(for: .seconds(1))
             }
             guard !Task.isCancelled, let self else { return }
-            if batch.total > 1 || batch.measure().failed > 0 {
-                AlertService.shared.showAlert(with: batch.completionMessage, imageName: "arrow.down.circle.fill")
+            if work.total > 1 || work.measure().failed > 0 {
+                AlertService.shared.showAlert(with: work.completionMessage, imageName: work.completionSymbol)
             }
-            if self.current === batch {
+            if self.current === work {
                 self.current = nil
                 self.watcher = nil
             }

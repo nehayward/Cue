@@ -43,8 +43,8 @@ struct FilesBrowseScreen: View {
                         if library.pendingDownloadCount > 0 {
                             Label {
                                 Text(library.pendingDownloadCount == 1
-                                     ? "1 file is still downloading from iCloud."
-                                     : "\(library.pendingDownloadCount) files are still downloading from iCloud.")
+                                     ? "1 song is in iCloud only."
+                                     : "\(library.pendingDownloadCount.formatted()) songs are in iCloud only.")
                             } icon: {
                                 Image(systemName: "icloud.and.arrow.down")
                             }
