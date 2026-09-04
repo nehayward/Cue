@@ -604,7 +604,7 @@ public final class FilesLibraryService {
 
         // "03 Title", "03 - Title", "03. Title", "1-03 Title" (disc-track).
         let fileName = url.deletingPathExtension().lastPathComponent
-        if let match = fileName.firstMatch(of: /^\s*(?:(\d)[-.])?(\d{1,3})\s*[-._)]?\s+(.+)$/) {
+        if let match = fileName.firstMatch(of: #/^\s*(?:(\d)[-.])?(\d{1,3})\s*[-._)]?\s+(.+)$/#) {
             if track.trackNumber == nil { track.trackNumber = Int(match.2) }
             if track.discNumber == nil, let disc = match.1 { track.discNumber = Int(disc) }
             if titleFromFileName {
@@ -615,7 +615,7 @@ public final class FilesLibraryService {
     }
 
     nonisolated private static func discNumber(fromFolder name: String) -> Int? {
-        guard let match = name.firstMatch(of: /^(?:disc|disk|cd)\s*(\d{1,2})$/.ignoresCase()) else { return nil }
+        guard let match = name.firstMatch(of: #/^(?:disc|disk|cd)\s*(\d{1,2})$/#.ignoresCase()) else { return nil }
         return Int(match.1)
     }
 
@@ -660,7 +660,7 @@ public final class FilesLibraryService {
 
     /// The first four-digit year in a date string, whatever else it holds.
     nonisolated private static func year(from string: String) -> Int? {
-        guard let match = string.firstMatch(of: /(?<!\d)(\d{4})(?!\d)/) else { return nil }
+        guard let match = string.firstMatch(of: #/(?<!\d)(\d{4})(?!\d)/#) else { return nil }
         let value = Int(match.1) ?? 0
         return (1900...2100).contains(value) ? value : nil
     }
