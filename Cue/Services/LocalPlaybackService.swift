@@ -76,6 +76,30 @@ final class LocalPlaybackService {
     private(set) var duration: TimeInterval = 0
 
     var nowPlaying: PlayableContent? { queue[safe: currentIndex] }
+
+    /// What's on air on the current station: the song, who's playing it, and
+    /// its artwork when a lookup found some. Nil for a track, and for a
+    /// station that hasn't said yet.
+    private(set) var liveMetadata: LiveStationMetadata?
+
+    /// The item the player draws. A track is itself; a station becomes the
+    /// song on air, with the station's name where an album's would go — the
+    /// same shape `LargePlayerView` gives a Sonos radio stream.
+    var nowPlayingDisplay: PlayableContent? {
+        guard let item = nowPlaying else { return nil }
+        guard isStation(item), let live = liveMetadata else { return item }
+        return PlayableContent(
+            title: live.song,
+            subtitle: live.artist ?? item.title,
+            thumbnail: live.artworkURL ?? item.thumbnail,
+            artwork: live.artworkURL ?? item.artwork,
+            content: item.content,
+            // Song as the album, artist as the artist: `imageKey` is built
+            // from those two, so each song's artwork gets its own cache
+            // entry instead of the station's first song sticking.
+            metadata: .init(artist: live.artist, album: live.song, radioStation: true)
+        )
+    }
     var upNext: [PlayableContent] { Array(queue.dropFirst(currentIndex + 1)) }
     var isActive: Bool { !queue.isEmpty }
 
@@ -94,6 +118,10 @@ final class LocalPlaybackService {
     /// means "run ended", not "still warming up".
     @ObservationIgnored private var appleWasPlaying = false
     @ObservationIgnored private var streamPlayer: AVQueuePlayer?
+    /// Reads ICY stream titles off a station's player item.
+    @ObservationIgnored private var streamMetadataListener: StreamMetadataListener?
+    /// Polls TuneIn for what the current station is playing.
+    @ObservationIgnored private var stationMetadataTask: Task<Void, Never>?
     /// The armed stream run: player item → queue index.
     @ObservationIgnored private var streamRun: [ObjectIdentifier: Int] = [:]
     /// Resolved Apple `Song`s by catalog id, so replaying or skipping back to
@@ -507,6 +535,10 @@ final class LocalPlaybackService {
         runEnd = -1
         appleRun = []
         appleWasPlaying = false
+        stationMetadataTask?.cancel()
+        stationMetadataTask = nil
+        streamMetadataListener = nil
+        liveMetadata = nil
 
         if previous == .appleMusic || previous == .appleStation {
             musicPlayer.stop()
@@ -747,7 +779,11 @@ final class LocalPlaybackService {
         var rows: [(queueIndex: Int, item: AVPlayerItem)] = []
         for queueIndex in index...end {
             guard let url = await streamURL(for: queue[queueIndex]) else { continue }
-            rows.append((queueIndex, AVPlayerItem(url: url)))
+            let playerItem = AVPlayerItem(url: url)
+            if isStation(queue[queueIndex]) {
+                listenForStreamTitles(on: playerItem, token: token)
+            }
+            rows.append((queueIndex, playerItem))
         }
         // The user skipped elsewhere while a station resolved — that call
         // owns playback now.
@@ -772,15 +808,77 @@ final class LocalPlaybackService {
         backend = .stream
         runEnd = end
         currentIndex = rows[0].queueIndex
+        if let station = queue[safe: currentIndex], isStation(station) {
+            pollStationMetadata(for: station, token: token)
+        }
         isPlayingLocalStream = true
         nowPlayingCard.begin()
         nowPlayingCard.update(
-            item: queue[safe: currentIndex],
+            item: nowPlayingDisplay,
             isPlaying: true,
             duration: 0,
             elapsed: 0,
             canSkip: currentIndex + 1 < queue.count
         )
+    }
+
+    // MARK: - Station metadata
+
+    /// TuneIn's station lookup says what's on air — the same call the Sonos
+    /// player makes for a TuneIn stream. Polled, since nothing pushes it;
+    /// the ICY listener below fills the gap between polls.
+    private func pollStationMetadata(for station: PlayableContent, token: Int) {
+        stationMetadataTask?.cancel()
+        stationMetadataTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self, self.playToken == token else { return }
+                if let info = await MusicSearchService.shared.lookupTuneInStation(id: station.content.id)?.stationInfo {
+                    await self.noteOnAir(song: info.song, artist: info.artist, token: token)
+                }
+                try? await Task.sleep(for: .seconds(30))
+            }
+        }
+    }
+
+    /// ICY metadata rides inside most MP3 and AAC streams as a title line the
+    /// moment a song changes, well ahead of TuneIn's next poll.
+    private func listenForStreamTitles(on playerItem: AVPlayerItem, token: Int) {
+        let listener = StreamMetadataListener { [weak self] title in
+            guard let self, self.playToken == token else { return }
+            // The convention is "Artist - Title"; a bare line is the song.
+            let parts = title.components(separatedBy: " - ")
+            if parts.count >= 2 {
+                await self.noteOnAir(song: parts.dropFirst().joined(separator: " - "), artist: parts[0], token: token)
+            } else {
+                await self.noteOnAir(song: title, artist: nil, token: token)
+            }
+        }
+        let output = AVPlayerItemMetadataOutput(identifiers: nil)
+        output.setDelegate(listener, queue: .main)
+        playerItem.add(output)
+        streamMetadataListener = listener
+    }
+
+    /// Takes a new song on air and looks its artwork up the way the Sonos
+    /// player does. A station that reports nothing keeps whatever the
+    /// stream itself last said.
+    private func noteOnAir(song: String?, artist: String?, token: Int) async {
+        guard playToken == token else { return }
+        let song = song?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let artist = artist?.trimmingCharacters(in: .whitespacesAndNewlines).flatMap { $0.isEmpty ? nil : $0 }
+        guard !song.isEmpty else { return }
+        // TuneIn sometimes hands the station's own name back as the song.
+        guard song != nowPlaying?.title else { return }
+        guard liveMetadata?.song != song || liveMetadata?.artist != artist else { return }
+
+        let live = LiveStationMetadata(song: song, artist: artist, artworkURL: nil)
+        liveMetadata = live
+
+        let results = await MusicSearchService.shared.search(song: song, artist: live.artist ?? "", album: "")
+        guard playToken == token, liveMetadata == live,
+              let match = results.first,
+              let artwork = URL(string: match.artworkURL(with: "600")) else { return }
+        liveMetadata?.artworkURL = artwork
     }
 
     // MARK: - State polling
@@ -806,6 +904,17 @@ final class LocalPlaybackService {
             isPlaying = status == .playing
             progress = musicPlayer.playbackTime
             if status == .playing { appleWasPlaying = true }
+
+            // A station's entries are the songs it streams; the current one
+            // is what's on air.
+            if backend == .appleStation, let entry = musicPlayer.queue.currentEntry {
+                let live = LiveStationMetadata(
+                    song: entry.title,
+                    artist: entry.subtitle,
+                    artworkURL: entry.artwork?.url(width: 600, height: 600)
+                )
+                if live != liveMetadata { liveMetadata = live }
+            }
 
             // Follow the player's own advance through the run.
             let entries = musicPlayer.queue.entries
@@ -847,7 +956,7 @@ final class LocalPlaybackService {
                 currentIndex = queueIndex
             }
             nowPlayingCard.update(
-                item: queue[safe: currentIndex],
+                item: nowPlayingDisplay,
                 isPlaying: isPlaying,
                 duration: duration,
                 elapsed: progress,
@@ -855,6 +964,33 @@ final class LocalPlaybackService {
             )
         case nil:
             isPlaying = false
+        }
+    }
+}
+
+/// What a station is playing right now.
+struct LiveStationMetadata: Equatable {
+    var song: String
+    var artist: String?
+    var artworkURL: URL?
+}
+
+/// Hands ICY stream titles (`StreamTitle`) to a closure as they arrive.
+private final class StreamMetadataListener: NSObject, AVPlayerItemMetadataOutputPushDelegate {
+    private let onTitle: @MainActor (String) async -> Void
+
+    init(onTitle: @escaping @MainActor (String) async -> Void) {
+        self.onTitle = onTitle
+    }
+
+    func metadataOutput(_ output: AVPlayerItemMetadataOutput, didOutputTimedMetadataGroups groups: [AVTimedMetadataGroup], from track: AVPlayerItemTrack?) {
+        for group in groups {
+            for item in group.items where item.identifier == .icyMetadataStreamTitle {
+                Task {
+                    guard let title = try? await item.load(.stringValue), !title.isEmpty else { return }
+                    await onTitle(title)
+                }
+            }
         }
     }
 }

@@ -36,7 +36,7 @@ struct PlayerView: View {
         VStack(alignment: .center) {
             header
 
-            if let item = playback.nowPlaying {
+            if let item = playback.nowPlayingDisplay {
                 ContentArtworkView(content: item, showMusicSource: false, preferredSize: 600)
                     .padding(.bottom, 12)
                     .frame(
@@ -47,10 +47,11 @@ struct PlayerView: View {
                     )
 
                 // Album line, in the slot `LargePlayerView` gives the
-                // container/radio-station line. Fixed height so the layout
+                // container/radio-station line — and the station's name
+                // when a station is playing. Fixed height so the layout
                 // doesn't shift between tracks that have one and tracks
                 // that don't.
-                Text(item.metadata?.album ?? "")
+                Text(item.content.type.isRadio ? (playback.nowPlaying?.title ?? "") : (item.metadata?.album ?? ""))
                     .font(.caption.smallCaps())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -88,7 +89,7 @@ struct PlayerView: View {
             QueueNextUpView()
         }
         .background {
-            PlayerBackgroundView(content: playback.nowPlaying)
+            PlayerBackgroundView(content: playback.nowPlayingDisplay)
         }
         .fontDesign(.rounded)
     }
