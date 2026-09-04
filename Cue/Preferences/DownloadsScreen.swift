@@ -57,7 +57,7 @@ struct DownloadsScreen: View {
             } header: {
                 Text("Playback Cache")
             } footer: {
-                Text("Songs coming up in the on-device queue are fetched before they play, and recent ones kept, so playback holds through a tunnel or a dead spot. The least recently played goes first when the cap is reached. Covers Plex and Subsonic; upcoming iCloud Drive songs are asked to download ahead too. Downloads you choose yourself are kept separately.")
+                Text("Songs coming up in the on-device queue are fetched before they play, and recent ones kept, so playback holds through a tunnel or a dead spot. The least recently played goes first when the cap is reached. Covers Plex and Subsonic, and a Files folder in iCloud Drive when streaming is on below. Downloads you choose yourself are kept separately.")
             }
 
             if !manager.active.isEmpty {
@@ -81,7 +81,7 @@ struct DownloadsScreen: View {
                     Label("Use Cellular Data", systemImage: "antenna.radiowaves.left.and.right")
                 }
             } footer: {
-                Text("Applies to downloads queued from now on. iCloud Drive follows the Files setting in iOS Settings.")
+                Text("Applies to downloads queued from now on. Songs fetched ahead from iCloud Drive wait for Wi‑Fi unless the playback cache allows cellular.")
             }
 
             if !manager.completed.isEmpty {
@@ -259,7 +259,14 @@ struct DownloadsScreen: View {
     // MARK: - iCloud Drive
 
     private var cloudSection: some View {
-        Section {
+        @Bindable var cache = cache
+        return Section {
+            Toggle(isOn: $cache.streamsFromCloud) {
+                Label("Stream from iCloud", systemImage: "icloud.and.arrow.down")
+            }
+            if cache.streamsFromCloud, !cache.streamedCloudIDs.isEmpty {
+                LabeledContent("Fetched to Play", value: cache.streamedCloudIDs.count == 1 ? "1 song" : "\(cache.streamedCloudIDs.count.formatted()) songs")
+            }
             if let cloudSummary {
                 LabeledContent("On This Device", value: "\(cloudSummary.local.formatted()) of \((cloudSummary.local + cloudSummary.remote).formatted()) songs")
             } else {
@@ -302,7 +309,7 @@ struct DownloadsScreen: View {
         } header: {
             Text(files.folderName.map { "iCloud Drive • \($0)" } ?? "iCloud Drive")
         } footer: {
-            Text("iCloud downloads are carried by the system, so they finish even when Cue is closed. Removed songs stay in iCloud and download again when played.")
+            Text("Streaming fetches songs from iCloud as they come up — the next \(PlaybackCache.cloudPrefetchCount) ahead — and takes them off the device again once they've dropped out of the playback cache, so the folder can stay in iCloud without filling this device. Songs you download yourself stay put. iCloud downloads are carried by the system, so they finish even when Cue is closed; removed songs stay in iCloud and download again when played.")
         }
     }
 

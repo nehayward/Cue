@@ -441,7 +441,7 @@ final class LocalPlaybackService {
 
         switch backendKind(for: queue[index]) {
         case .stream:
-            armStream(index: index, end: end)
+            try await armStream(index: index, end: end, token: token)
         case .appleMusic:
             try await armApple(index: index, end: end, token: token)
         case nil:
@@ -658,24 +658,42 @@ final class LocalPlaybackService {
 
     // MARK: - Stream (Plex, Subsonic) backend
 
-    private func armStream(index: Int, end: Int) {
-        let rows: [(queueIndex: Int, item: AVPlayerItem)] = (index...end).compactMap { queueIndex in
+    private func armStream(index: Int, end: Int, token: Int) async throws {
+        // A Files song still in iCloud can't be handed to the player: there
+        // is no streaming from iCloud Drive, and a read of the placeholder
+        // blocks until the whole file is down. Fetch it first, showing the
+        // wait as loading, and stop the run at the next one still up there
+        // — the cache asks for those ahead, so by the time the run ends it
+        // is usually already here.
+        if let pending = cloudPendingURL(for: queue[index]) {
+            isLoading = true
+            defer { if playToken == token { isLoading = false } }
+            FilesLibraryService.shared.downloadFromCloud(trackIDs: [queue[index].content.id], keep: !PlaybackCache.shared.streamsFromCloud)
+            let landed = await Self.waitForCloudFile(at: pending)
+            guard playToken == token else { return }
+            guard landed else {
+                AlertService.shared.showAlert(with: "Couldn't get “\(queue[index].title)” from iCloud", imageName: "icloud.slash")
+                advancePastRun(endingAt: index)
+                return
+            }
+        }
+
+        var rows: [(queueIndex: Int, item: AVPlayerItem)] = []
+        var lastArmed = index
+        for queueIndex in index...end {
             let item = queue[queueIndex]
+            if queueIndex > index, cloudPendingURL(for: item) != nil { break }
             // A local copy beats the server URL — a download, or the cache's
             // copy — it plays with no network, including away from the
             // server entirely.
             guard let url = DownloadManager.shared.localURL(for: item)
                     ?? PlaybackCache.shared.localURL(for: item)
-                    ?? item.previewURL else { return nil }
-            if item.content.service == .files, item.metadata?.isPlayable == false {
-                // Still in iCloud: ask for it now so the player's own read
-                // finds it arriving rather than starting the fetch itself.
-                try? FileManager.default.startDownloadingUbiquitousItem(at: url)
-            }
-            return (queueIndex, AVPlayerItem(url: url))
+                    ?? item.previewURL else { continue }
+            rows.append((queueIndex, AVPlayerItem(url: url)))
+            lastArmed = queueIndex
         }
         guard !rows.isEmpty else {
-            advancePastRun(endingAt: end)
+            advancePastRun(endingAt: lastArmed)
             return
         }
 
@@ -693,7 +711,7 @@ final class LocalPlaybackService {
         player.play()
 
         backend = .stream
-        runEnd = end
+        runEnd = lastArmed
         currentIndex = rows[0].queueIndex
         isPlayingLocalStream = true
         nowPlayingCard.begin()
@@ -704,6 +722,37 @@ final class LocalPlaybackService {
             elapsed: 0,
             canSkip: currentIndex + 1 < queue.count
         )
+    }
+
+    /// The file URL of a Files song that is still only in iCloud, or nil
+    /// when it is here (or not an iCloud file at all).
+    private func cloudPendingURL(for item: PlayableContent) -> URL? {
+        guard item.content.service == .files, let url = item.previewURL else { return nil }
+        switch FilesLibraryService.shared.cloudStatus(trackID: item.content.id) {
+        case .local, .notCloud:
+            return nil
+        case .downloading, .notDownloaded:
+            return url
+        }
+    }
+
+    /// Waits for iCloud to bring the file down. False on giving up: a long
+    /// enough wait for a large file on a slow link, not for ever.
+    private static func waitForCloudFile(at url: URL) async -> Bool {
+        let deadline = Date.now.addingTimeInterval(5 * 60)
+        while Date.now < deadline, !Task.isCancelled {
+            let values = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
+            switch values?.ubiquitousItemDownloadingStatus {
+            case .current?, .downloaded?:
+                return true
+            case nil where FileManager.default.fileExists(atPath: url.path):
+                // Not an iCloud placeholder after all — nothing to wait for.
+                return true
+            default:
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+        }
+        return false
     }
 
     // MARK: - State polling

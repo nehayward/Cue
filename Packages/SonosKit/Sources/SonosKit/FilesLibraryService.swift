@@ -447,10 +447,19 @@ public final class FilesLibraryService {
         foundCount = walk.files.count + walk.placeholders.count
         pendingDownloadCount = walk.placeholders.count
 
+        let previous = Dictionary(tracks.map { ($0.relativePath, $0) }, uniquingKeysWith: { first, _ in first })
+
         // Files still in iCloud are listed by name and folder layout until
         // they come down; opening one would make iCloud fetch it, and a
         // scan is not the place to download a library.
         let placeholders = walk.placeholders.map { url -> FileTrack in
+            // One that was here and left again — evicted after streaming,
+            // or removed from the device — keeps the tags read while it was
+            // down; only the bytes went.
+            if var old = previous[Self.relativePath(of: url, in: root)] {
+                old.isDownloaded = false
+                return old
+            }
             var track = FileTrack(
                 relativePath: Self.relativePath(of: url, in: root),
                 title: url.deletingPathExtension().lastPathComponent,
@@ -463,7 +472,6 @@ public final class FilesLibraryService {
 
         // Only files that changed since the last scan have their tags read
         // again; the rest keep what they had.
-        let previous = Dictionary(tracks.map { ($0.relativePath, $0) }, uniquingKeysWith: { first, _ in first })
         var kept: [FileTrack] = []
         var toRead: [FolderWalk.Entry] = []
         for entry in walk.files {
@@ -1354,15 +1362,58 @@ public final class FilesLibraryService {
         return (local, remote)
     }
 
+    /// Songs the user asked for by name — Download Everything, a row's
+    /// download — as opposed to ones fetched to play. Streaming evicts
+    /// behind itself; these it leaves alone.
+    public private(set) var keptTrackIDs: Set<String> = FilesLibraryService.loadKept()
+
+    public func isKept(trackID: String) -> Bool {
+        keptTrackIDs.contains(trackID)
+    }
+
     /// Asks iCloud for the files. The system carries the transfer itself,
     /// app suspended or not, and the scan notices when they land.
-    public func downloadFromCloud(trackIDs: [String]) {
+    ///
+    /// `keep` marks them as the user's own downloads, which streaming
+    /// never evicts; the playback cache passes `false` for what it fetches
+    /// to play.
+    public func downloadFromCloud(trackIDs: [String], keep: Bool = true) {
         guard let folderURL else { return }
         for id in trackIDs {
             guard let track = tracksByID[id] else { continue }
             try? FileManager.default.startDownloadingUbiquitousItem(at: folderURL.appendingPathComponent(track.relativePath))
         }
+        if keep {
+            keptTrackIDs.formUnion(trackIDs)
+            Self.saveKept(keptTrackIDs)
+        }
         startCloudMonitor()
+    }
+
+    /// Takes streamed copies off the device — only ones the user didn't
+    /// ask to keep. Returns the ids it evicted.
+    @discardableResult
+    public func evictStreamed(trackIDs: [String]) -> [String] {
+        let evictable = trackIDs.filter { !keptTrackIDs.contains($0) }
+        guard !evictable.isEmpty else { return [] }
+        removeFromDevice(trackIDs: evictable)
+        return evictable
+    }
+
+    /// Flips the index for files that just left the device, so rows and
+    /// the player see them as in iCloud again without a full rescan.
+    private func markNotDownloaded(trackIDs: [String]) {
+        let paths = Set(trackIDs.compactMap { tracksByID[$0]?.relativePath })
+        guard !paths.isEmpty else { return }
+        var changed = false
+        for index in tracks.indices where paths.contains(tracks[index].relativePath) && tracks[index].isDownloaded {
+            tracks[index].isDownloaded = false
+            changed = true
+        }
+        guard changed else { return }
+        pendingDownloadCount = tracks.filter { !$0.isDownloaded }.count
+        rebuildIndex()
+        Self.saveIndex(tracks: tracks, playlists: filePlaylists)
     }
 
     /// Every song not on this device. Returns the ids it asked for, so the
@@ -1377,13 +1428,17 @@ public final class FilesLibraryService {
         return ids
     }
 
-    /// Hands the space back; the files stay in iCloud and list as before.
+    /// Hands the space back; the files stay in iCloud and list as before,
+    /// tags included.
     public func removeFromDevice(trackIDs: [String]) {
         guard let folderURL else { return }
         for id in trackIDs {
             guard let track = tracksByID[id] else { continue }
             try? FileManager.default.evictUbiquitousItem(at: folderURL.appendingPathComponent(track.relativePath))
         }
+        keptTrackIDs.subtract(trackIDs)
+        Self.saveKept(keptTrackIDs)
+        markNotDownloaded(trackIDs: trackIDs)
     }
 
     public func removeAllFromDevice() {
@@ -1466,6 +1521,22 @@ public final class FilesLibraryService {
 
     private static var artworkDirectory: URL {
         supportDirectory.appendingPathComponent("Artwork", isDirectory: true)
+    }
+
+    private static var keptURL: URL {
+        supportDirectory.appendingPathComponent("kept.json")
+    }
+
+    private static func loadKept() -> Set<String> {
+        guard let data = try? Data(contentsOf: keptURL),
+              let ids = try? JSONDecoder().decode([String].self, from: data) else { return [] }
+        return Set(ids)
+    }
+
+    private static func saveKept(_ ids: Set<String>) {
+        try? FileManager.default.createDirectory(at: supportDirectory, withIntermediateDirectories: true)
+        guard let data = try? JSONEncoder().encode(Array(ids).sorted()) else { return }
+        try? data.write(to: keptURL, options: .atomic)
     }
 
     private static func loadIndex() -> (tracks: [FileTrack], playlists: [FilePlaylist]) {

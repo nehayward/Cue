@@ -29,6 +29,13 @@ public enum AppStorageKeys {
     public static let playbackCacheSongLimit = "\(Prefix.id).playbackCacheSongLimit"
     public static let playbackCachePrefetchCount = "\(Prefix.id).playbackCachePrefetchCount"
     public static let playbackCacheOverCellular = "\(Prefix.id).playbackCacheOverCellular"
+    /// Whether a Files folder in iCloud Drive is streamed: songs fetched as
+    /// they come up and taken off the device again once they drop out of
+    /// the playback cache. On when unset.
+    public static let filesStreamFromCloud = "\(Prefix.id).filesStreamFromCloud"
+    /// The iCloud songs the cache fetched to play, oldest first, so a
+    /// relaunch still knows which ones are its to evict.
+    public static let playbackCacheCloudIDs = "\(Prefix.id).playbackCacheCloudIDs"
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"
     public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"

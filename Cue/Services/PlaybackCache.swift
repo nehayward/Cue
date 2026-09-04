@@ -1,5 +1,6 @@
 import Defaults
 import Foundation
+import Network
 import Observation
 import SonosKit
 
@@ -10,8 +11,12 @@ import SonosKit
 /// by name, and the least recently played goes first when the cap is hit.
 ///
 /// Covers Plex and Subsonic, whose songs stream from the user's own server.
-/// For a Files folder in iCloud Drive the same window of upcoming songs is
-/// asked of iCloud instead, which keeps them itself.
+/// A Files folder in iCloud Drive is streamed the only way iCloud allows:
+/// upcoming songs are asked of iCloud ahead of time — further ahead than
+/// the server window, since a file has to land whole before it can play —
+/// and once they drop out of the cache they are evicted from the device
+/// again, so the folder can live in iCloud with a rolling window here.
+/// Songs the user downloaded by name are never evicted.
 ///
 /// Files live in Application Support/PlaybackCache, excluded from backups.
 @MainActor
@@ -40,6 +45,7 @@ final class PlaybackCache {
         didSet {
             UserDefaults.standard.set(songLimit, forKey: AppStorageKeys.playbackCacheSongLimit)
             trim()
+            trimCloud()
         }
     }
 
@@ -54,6 +60,32 @@ final class PlaybackCache {
         didSet { UserDefaults.standard.set(allowsCellular, forKey: AppStorageKeys.playbackCacheOverCellular) }
     }
 
+    /// Whether an iCloud Drive folder is streamed — fetched ahead and
+    /// evicted behind — or upcoming songs are simply downloaded and kept.
+    var streamsFromCloud: Bool {
+        didSet {
+            UserDefaults.standard.set(streamsFromCloud, forKey: AppStorageKeys.filesStreamFromCloud)
+            if !streamsFromCloud {
+                // What's here stays; it's just no longer ours to evict.
+                streamedCloudIDs = []
+                saveStreamed()
+            }
+        }
+    }
+
+    /// How far ahead to ask iCloud, in songs. Wider than `prefetchCount`:
+    /// a server song plays as it arrives, an iCloud one only once it has
+    /// arrived whole.
+    static let cloudPrefetchCount = 8
+
+    /// The iCloud songs fetched to play, oldest first. Bounded by
+    /// `songLimit` like the server copies; the user's own downloads are
+    /// tracked by `FilesLibraryService.keptTrackIDs` instead.
+    private(set) var streamedCloudIDs: [String]
+
+    /// Whether the current network is metered — cellular, or a hotspot.
+    private(set) var isOnExpensivePath = false
+
     var isEnabled: Bool { songLimit > 0 }
 
     var totalBytes: Int64 {
@@ -65,6 +97,9 @@ final class PlaybackCache {
     /// Keys the queue wants next, kept clear of eviction.
     @ObservationIgnored private var wanted: [String] = []
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    /// The iCloud songs coming up, kept clear of eviction.
+    @ObservationIgnored private var cloudWanted: Set<String> = []
+    @ObservationIgnored private let pathMonitor = NWPathMonitor()
 
     @ObservationIgnored private lazy var session: URLSession = {
         let configuration = URLSessionConfiguration.default
@@ -82,9 +117,17 @@ final class PlaybackCache {
             ? 3 : defaults.integer(forKey: AppStorageKeys.playbackCachePrefetchCount)
         allowsCellular = defaults.object(forKey: AppStorageKeys.playbackCacheOverCellular) == nil
             ? true : defaults.bool(forKey: AppStorageKeys.playbackCacheOverCellular)
+        streamsFromCloud = defaults.object(forKey: AppStorageKeys.filesStreamFromCloud) == nil
+            ? true : defaults.bool(forKey: AppStorageKeys.filesStreamFromCloud)
+        streamedCloudIDs = defaults.stringArray(forKey: AppStorageKeys.playbackCacheCloudIDs) ?? []
         Self.prepareDirectory()
         entries = Self.loadManifest()
         reconcileWithDisk()
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            let expensive = path.isExpensive || path.isConstrained
+            Task { @MainActor in self?.isOnExpensivePath = expensive }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "dance.cue.playbackcache.path", qos: .utility))
     }
 
     // MARK: - Reading
@@ -118,13 +161,7 @@ final class PlaybackCache {
         let start = max(0, min(currentIndex, queue.count))
         let window = Array(queue.dropFirst(start).prefix(prefetchCount + 1))
 
-        // iCloud Drive keeps its own copies; it only needs asking.
-        let cloudIDs = window
-            .filter { $0.content.service == .files && $0.metadata?.isPlayable == false }
-            .map(\.content.id)
-        if !cloudIDs.isEmpty {
-            FilesLibraryService.shared.downloadFromCloud(trackIDs: cloudIDs)
-        }
+        fillFromCloud(queue: queue, start: start)
 
         let manager = DownloadManager.shared
         let cacheable = window.filter { manager.canDownload($0) && !manager.isDownloaded($0) }
@@ -142,6 +179,69 @@ final class PlaybackCache {
         }
         trim()
     }
+
+    // MARK: - iCloud Drive
+
+    /// Asks iCloud for the Files songs coming up, and evicts the streamed
+    /// ones that have dropped behind.
+    private func fillFromCloud(queue: [PlayableContent], start: Int) {
+        let files = FilesLibraryService.shared
+        guard files.isConfigured, files.isCloudFolder else { return }
+
+        let reach = streamsFromCloud ? Self.cloudPrefetchCount : prefetchCount
+        let upcoming = queue.dropFirst(start).prefix(reach + 1).filter { $0.content.service == .files }
+        guard !upcoming.isEmpty else {
+            cloudWanted = []
+            trimCloud()
+            return
+        }
+
+        // The song about to play is needed whatever the network is; the
+        // ones behind it wait for Wi-Fi when cellular is off.
+        let fetchable = allowsCellular || !isOnExpensivePath
+            ? Array(upcoming)
+            : upcoming.filter { $0.content.id == queue[start].content.id }
+        let ids = fetchable
+            .filter { files.cloudStatus(trackID: $0.content.id) == .notDownloaded }
+            .map(\.content.id)
+        if !ids.isEmpty {
+            files.downloadFromCloud(trackIDs: ids, keep: !streamsFromCloud)
+        }
+
+        guard streamsFromCloud else { return }
+        cloudWanted = Set(upcoming.map(\.content.id))
+        // Only what this cache fetched is its to evict: a song that was
+        // already here — downloaded before streaming existed, say — is
+        // never adopted. Fetched now, or played again, goes to the back of
+        // the eviction order.
+        let playing = upcoming.first.map(\.content.id)
+        for id in ids + (playing.map { streamedCloudIDs.contains($0) ? [$0] : [] } ?? []) {
+            streamedCloudIDs.removeAll { $0 == id }
+            streamedCloudIDs.append(id)
+        }
+        trimCloud()
+    }
+
+    /// Evicts the oldest streamed iCloud copies beyond the cap, never one
+    /// coming up, never one the user kept.
+    private func trimCloud() {
+        guard streamsFromCloud else { return }
+        let files = FilesLibraryService.shared
+        streamedCloudIDs.removeAll { files.isKept(trackID: $0) }
+        var evictable = streamedCloudIDs.filter { !cloudWanted.contains($0) }
+        while streamedCloudIDs.count > songLimit, !evictable.isEmpty {
+            let victim = evictable.removeFirst()
+            files.evictStreamed(trackIDs: [victim])
+            streamedCloudIDs.removeAll { $0 == victim }
+        }
+        saveStreamed()
+    }
+
+    private func saveStreamed() {
+        UserDefaults.standard.set(streamedCloudIDs, forKey: AppStorageKeys.playbackCacheCloudIDs)
+    }
+
+    // MARK: - Server streams
 
     private func fetch(_ item: PlayableContent) {
         let key = DownloadManager.key(for: item)
@@ -226,8 +326,14 @@ final class PlaybackCache {
         scheduleSave()
     }
 
-    /// Empties the cache. Fetches in flight are dropped too.
+    /// Empties the cache — the streamed iCloud copies too. Fetches in
+    /// flight are dropped.
     func clear() {
+        if !streamedCloudIDs.isEmpty {
+            FilesLibraryService.shared.evictStreamed(trackIDs: streamedCloudIDs)
+            streamedCloudIDs = []
+            saveStreamed()
+        }
         for task in tasks.values {
             task.cancel()
         }
