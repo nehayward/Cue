@@ -88,6 +88,11 @@ struct PlayableListView: View {
     /// observable progress reaches it without this view knowing anything
     /// about that service; `nil` means nothing is loading.
     var loadingStatus: (() -> String?)? = nil
+    /// Read in `body`, so a source whose rows can change underneath the
+    /// list — the Files index while a scan runs — makes it reload: the
+    /// closure reads an observable counter, and a new value means fetch
+    /// again. Nil for sources that only change when asked.
+    var changeToken: (() -> Int)? = nil
     var action: ((Int) async -> ([PlayableContent]))? = nil
 
     /// Falls back to the first option when nothing is chosen yet, or when a
@@ -163,6 +168,7 @@ struct PlayableListView: View {
         // climbs — the status would stay at whatever it was (usually nil,
         // since the sync starts after the first render) and never appear.
         let status = loadingStatus?()
+        let token = changeToken?() ?? 0
 
         return List {
             PlayAllButtonView(item: playAllItem)
@@ -180,6 +186,10 @@ struct PlayableListView: View {
             } else if items.isEmpty, !appliedQuery.isEmpty {
                 ContentUnavailableView.search(text: appliedQuery)
             }
+        }
+        .onChange(of: token) { _, _ in
+            guard hasLoadedOnce else { return }
+            Task { await reload() }
         }
         .searchableIfAvailable(text: $searchText, enabled: searchAction != nil)
         .refreshableIfAvailable(refreshAction == nil ? nil : {

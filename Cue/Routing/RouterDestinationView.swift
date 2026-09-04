@@ -62,7 +62,7 @@ struct RouterDestinationView: View {
             case let .playableLibraryList(title: title, items: items, action: action):
                 PlayableList(items: items, action: action)
                     .navigationTitle(title)
-            case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, sortOptions: sortOptions, sortKey: sortKey, refreshAction: refreshAction, searchAction: searchAction, loadingStatus: loadingStatus, action: action):
+            case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, sortOptions: sortOptions, sortKey: sortKey, refreshAction: refreshAction, searchAction: searchAction, loadingStatus: loadingStatus, changeToken: changeToken, action: action):
                 PlayableListView(
                     title: title,
                     playAllItem: playAllItem,
@@ -75,6 +75,7 @@ struct RouterDestinationView: View {
                     refreshAction: refreshAction,
                     searchAction: searchAction,
                     loadingStatus: loadingStatus,
+                    changeToken: changeToken,
                     action: action
                 )
                 .navigationTitle(title)

@@ -150,6 +150,9 @@ public final class FilesLibraryService {
     public private(set) var albums: [PlayableContent] = []
     public private(set) var artists: [PlayableContent] = []
     public private(set) var playlists: [PlayableContent] = []
+    /// Bumped every time the index is rebuilt — a scan publishing, a
+    /// playlist edit — so a list that took a snapshot knows to take another.
+    public private(set) var indexVersion = 0
 
     public private(set) var isScanning = false
     /// Files whose tags have been read in the running scan.
@@ -996,6 +999,7 @@ public final class FilesLibraryService {
         self.albums = albumsByID.values.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
         self.artists = artistsByID.values.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
         self.playlists = playlistsByID.values.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        indexVersion += 1
     }
 
     private static func date(year: Int) -> Date? {
