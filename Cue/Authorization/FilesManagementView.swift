@@ -124,6 +124,9 @@ struct FilesManagementView: View {
             // play from nothing); a chosen folder turns it back on so it
             // shows in search and browse straight away.
             CoreFeatures.shared.enabledServices(.files).wrappedValue = true
+            // And into the tab view, so the folder is one tap away rather
+            // than another trip through Customize Tabs.
+            TabProviderStore.shared.add(.files)
         }
     }
 }

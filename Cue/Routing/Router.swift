@@ -7,6 +7,8 @@ import MusicSearchKit
 
 /// Which tab the window is showing.
 enum AppTab: Hashable {
+    /// Where the library is set up and reached from — the first tab.
+    case home
     case search
     case browse
     /// A provider the user added to the tab view, as one tab: its library's
@@ -21,7 +23,7 @@ enum AppTab: Hashable {
     /// take its selection with it.
     var provider: MediaSearchService? {
         switch self {
-        case .search, .browse: nil
+        case .home, .search, .browse: nil
         case let .provider(service): service
         case let .providerCollection(service, _): service
         }
@@ -38,7 +40,7 @@ enum AppTab: Hashable {
     /// The selected tab. On `Router.main` only — the per-screen routers
     /// (`search`, `browse`) navigate within a tab and have no say over which
     /// one is showing.
-    var selectedTab: AppTab = .search
+    var selectedTab: AppTab = .home
     /// Drives the local player's `fullScreenCover`. Presentation state, so it
     /// belongs beside `presentedSheet` rather than in the tab bar accessory
     /// that happens to open it — the accessory is re-hosted by the system, and
@@ -73,7 +75,7 @@ enum AppTab: Hashable {
     func handleReselection(of tab: AppTab) {
         switch tab {
         case .search: SearchActivator.shared.requestFocus()
-        case .browse, .provider, .providerCollection: break
+        case .home, .browse, .provider, .providerCollection: break
         }
     }
 

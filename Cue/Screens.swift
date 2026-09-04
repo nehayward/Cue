@@ -9,6 +9,15 @@ import SwiftUI
 
 @MainActor
 enum Screens {
+
+    @ViewBuilder
+    static var home: some View {
+        let selectedGroupService = SelectedGroupService(group: nil)
+
+        HomeScreen()
+            .tint(Color("Accent"))
+            .environment(selectedGroupService)
+    }
     
     @ViewBuilder
     static var search: some View {

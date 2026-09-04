@@ -268,6 +268,10 @@ struct CueApp: App {
                 // it never took the selected appearance. `SearchScreen` draws
                 // its own field in the navigation bar again, so the role has
                 // nothing left to hoist.
+                Tab("Home", systemImage: "house", value: AppTab.home) {
+                    Screens.home
+                }
+
                 Tab("Search", systemImage: "magnifyingglass", value: AppTab.search) {
                     Screens.search
                 }
@@ -289,7 +293,7 @@ struct CueApp: App {
                 // it; a `TabView` whose selection names no tab shows nothing.
                 if let service = router.selectedTab.provider,
                    !providers.contains(where: { $0.service == service }) {
-                    router.selectedTab = .browse
+                    router.selectedTab = .home
                 }
             }
             .withSheetDestinations(sheetDestinations: $tabSheet)
