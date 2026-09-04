@@ -109,6 +109,7 @@ struct PlayableContentRowView: View {
                         Text(item.title)
                             .lineLimit(1)
                         Spacer(minLength: 0)
+                        DownloadStateBadge(item: item)
                         if item.metadata?.isExplicit == true {
                             Image(systemName: "e.square.fill")
                         }

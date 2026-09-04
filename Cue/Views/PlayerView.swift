@@ -83,8 +83,10 @@ struct PlayerView: View {
         .padding(.horizontal, 32)
         .padding(.vertical)
         .safeAreaPadding(.bottom)
-        // The same trailing panel the main window uses, rather than a sheet:
-        // it shows and hides in place, and the artwork reflows around it.
+        // The same trailing panel the main window uses where there's room —
+        // it shows and hides in place, and the artwork reflows around it —
+        // and a half-height sheet on a phone, where a side panel would only
+        // squeeze both halves.
         .queuePanel(isPresented: $showQueue) {
             QueueNextUpView()
         }
