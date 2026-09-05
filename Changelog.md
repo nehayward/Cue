@@ -55,6 +55,13 @@ The reason is Subsonic: its API has no sort for songs. `search3` takes only coun
 - **List.** `PlayableListView` grows opt-in sort options (each carrying its own paged loader, so the list never learns whether the order came from the server or a local copy), search, pull-to-refresh, and a status line under the title. `RouterDestination.playableList` carries them, plus a `sortKey` — Plex and Subsonic both have a list titled "Songs" and would otherwise share one remembered choice. A first page replaces `items` rather than appending, so a search narrows in place instead of blanking the list per keystroke.
 - **Settings.** Services splits self-hosted services into their own section (membership follows `MediaSearchService.isConfiguredInCue`), since Subsonic sat under "Available with Sonos" telling people to add it in the Sonos app. Storage counts and clears all three caches. `PlexRatingCache` becomes `FavoriteRatingCache` and Subsonic rows draw the favorite heart from it.
 
+### Player crash on Apple Music radio
+Opening the large player while an Apple Music station was playing could crash. A station's tracks arrive through the ordinary metadata path — unlike Sonos Radio or TuneIn, whose stream announcements leave the position at zero — so `RelTime` counts up while `TrackDuration` is a placeholder the parser turns into zero. The scrubber then built its `0...duration` range around that zero and handed in a position past it, and `VibeSlider` divided the position by the range's upper bound: infinity for the fill width, and an accessibility `Slider` over an empty range.
+
+- `SliderMath` (VibesDS) now owns the slider arithmetic for `VibeSlider` and `VibeSliderTV`: a `safeRange` that is never empty and drops non-finite bounds, and every fill width, drag, click and accessibility value clamped inside it. It also stops assuming the range starts at zero.
+- `LargePlayerView.PlaybackView` and `TVPlayerView` floor the scrubber's range at one (twin of `LocalPlaybackScrubber`), since an inverted `ClosedRange` traps before the slider can see it. `SonosTrackParser.parseTime` clamps a negative placeholder to zero for the same reason.
+- `PositionInfoParserTests` pins the three shapes: a normal duration, a stream with `NOT_IMPLEMENTED` for a duration but a counting position, and negative placeholders.
+
 ---
 
 ## 2026.7
