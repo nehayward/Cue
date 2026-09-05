@@ -52,6 +52,10 @@ public enum AppStorageKeys {
     /// device's volume can't be driven (Mac Catalyst). On iOS the slider is
     /// the system volume and nothing is stored.
     public static let localPlaybackVolume = "\(Prefix.id).localPlaybackVolume"
+    /// Where the device queue is — track index, seconds in, duration, repeat
+    /// mode — so a relaunch picks up the track that was playing where it
+    /// was. The queue itself is a file in Application Support.
+    public static let localQueuePosition = "\(Prefix.id).localQueuePosition"
     public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
