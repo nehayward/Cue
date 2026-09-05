@@ -34,7 +34,9 @@ import UIKit
 /// paused — the track that was playing, at the point it had reached — so a
 /// kill from the app switcher, or the system reclaiming the app, doesn't
 /// throw away what was queued. Nothing is armed until Play; the first arm
-/// then seeks to the saved spot.
+/// then seeks to the saved spot. The route moving to a speaker parks the
+/// queue the same way (`park()`): the speaker takes over, and the phone's
+/// queue waits where it was rather than being thrown away.
 @MainActor
 @Observable
 final class LocalPlaybackService {
@@ -600,6 +602,37 @@ final class LocalPlaybackService {
         duration = 0
     }
 
+    /// Takes the player down but keeps the queue: nothing armed, paused on
+    /// the current track with the scrubber where it was, the same state a
+    /// relaunch restores into. For the route moving to a speaker — the
+    /// speaker takes over, and the phone's queue waits here for the route
+    /// to come back (or for the next Play on this device), where `stop()`
+    /// would have thrown it away. Play arms the track again and picks up
+    /// from this spot, via `resumePosition`.
+    func park() {
+        guard isActive else { return }
+        poller?.invalidate()
+        poller = nil
+        cancelSleepTimer()
+        // Read before the teardown, which is what the poll's last tick left.
+        let position = progress
+        teardownRun()
+        isPlaying = false
+        isLoading = false
+        // Under a couple of seconds is the start of the track, the same
+        // cutoff a restore and a route switch use.
+        resumePosition = position > 2 ? position : nil
+        savePosition()
+    }
+
+    /// Arms the current track again and plays it, from the parked spot when
+    /// there is one — the undo of `park()`, for a hand-off the speaker
+    /// refused. `play(_:)` would replace the queue; this keeps it.
+    func resumeCurrent() async throws {
+        guard isActive else { return }
+        try await arm(at: currentIndex)
+    }
+
     // MARK: - Arming runs
 
     /// The last index of the contiguous same-backend run starting at `index`.
@@ -1101,16 +1134,13 @@ final class LocalPlaybackService {
     // MARK: - Surviving a relaunch
 
     /// Loads the queue the last run of the app left, paused on the track it
-    /// was playing with the scrubber where it was. Only for the device route:
-    /// a speaker route means the queue was handed across or replaced, and a
-    /// stale one here would be carried onto the next speaker chosen (see
-    /// `PlaybackRoute`), so that case throws the saved copy away instead.
+    /// was playing with the scrubber where it was. Whatever the route: on a
+    /// speaker route this is the queue `park()` left behind when the speaker
+    /// took over, and it waits for the route to come back the same way.
+    /// `PlaybackRoute` only carries it onto a speaker when the device is the
+    /// source, so it can't be dragged onto the next speaker chosen.
     private func restoreSavedQueue() {
         guard let saved = LocalQueueStore.load(), !saved.queue.isEmpty else { return }
-        guard (PlayDestination.remembered ?? .device) == .device else {
-            LocalQueueStore.clear()
-            return
-        }
         isRestoring = true
         defer { isRestoring = false }
         queue = saved.queue

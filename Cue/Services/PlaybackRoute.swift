@@ -16,6 +16,11 @@ import SwiftUI
 /// switching carries the queue across, starts the target where the source
 /// left off, stops the source, and the player surfaces follow the route.
 ///
+/// Moving to a speaker parks the phone's queue rather than clearing it: the
+/// speaker plays on, and the phone's queue keeps its place for the route
+/// coming back, or for the next Play on the device. A speaker's queue lives
+/// on the speaker anyway, so nothing is cleared on that side either.
+///
 /// Views read `destination` and `group` off `shared` rather than the
 /// environment: the tab bar accessory and the Next Up panel are hosted
 /// outside what `withEnvironments()` installs.
@@ -91,6 +96,11 @@ final class PlaybackRoute {
         guard target != destination else { return }
 
         let source = group
+        // Whether the phone is what's playing now. Decided by the route, not
+        // by whether the local queue has anything in it: a parked queue is
+        // still there under a speaker route, and mustn't be carried onto the
+        // next speaker chosen in place of that speaker's own queue.
+        let fromDevice = destination == .device
         let targetGroup: GroupRoom?
         switch target {
         case .device:
@@ -117,7 +127,7 @@ final class PlaybackRoute {
                 }
             }
             if let targetGroup {
-                await self.handOffToGroup(targetGroup, from: source)
+                await self.handOffToGroup(targetGroup, from: source, fromDevice: fromDevice)
             } else {
                 await self.handOffToDevice(from: source)
             }
@@ -180,19 +190,18 @@ final class PlaybackRoute {
 
     // MARK: - To a speaker
 
-    private func handOffToGroup(_ target: GroupRoom, from source: GroupRoom?) async {
+    /// `fromDevice` says the phone was the route when the switch was made;
+    /// only then is its queue the one to carry. Otherwise the source
+    /// speaker's is, when there is one and it isn't the target.
+    private func handOffToGroup(_ target: GroupRoom, from source: GroupRoom?, fromDevice: Bool) async {
         let sonos = SonosService.shared
         let snapshot: Snapshot?
-        let fromDevice: Bool
-        if let local = localSnapshot() {
-            snapshot = local
-            fromDevice = true
+        if fromDevice {
+            snapshot = localSnapshot()
         } else if let source, source.coordinatorID != target.coordinatorID {
             snapshot = await self.snapshot(of: source)
-            fromDevice = false
         } else {
             snapshot = nil
-            fromDevice = false
         }
 
         guard let snapshot else {
@@ -209,10 +218,11 @@ final class PlaybackRoute {
         }
         Self.log.notice("route → \(target.nameWithCount, privacy: .public): carrying \(items.count) items from \(fromDevice ? "device" : "speaker", privacy: .public) at \(Int(snapshot.position))s")
 
-        // Take the phone down first so the two don't overlap. Put back below
-        // if the speaker refuses the content.
+        // Take the phone down first so the two don't overlap — parked, not
+        // stopped: its queue stays, paused where it was, for the route
+        // coming back. Resumed below if the speaker refuses the content.
         if fromDevice {
-            LocalPlaybackService.shared.stop()
+            LocalPlaybackService.shared.park()
         }
 
         // The cached transport can be stale in the same way as above, and a
@@ -273,13 +283,13 @@ final class PlaybackRoute {
         }
     }
 
+    /// Picks the parked queue back up where `park()` left it — the same
+    /// queue, not the snapshot's tail, so the tracks already played are still
+    /// behind the current one.
     private func restoreLocal(_ snapshot: Snapshot) async {
         let playback = LocalPlaybackService.shared
         do {
-            try await playback.play(snapshot.items)
-            if snapshot.position > 2 {
-                playback.seek(to: snapshot.position)
-            }
+            try await playback.resumeCurrent()
             if !snapshot.isPlaying {
                 playback.pause()
             }

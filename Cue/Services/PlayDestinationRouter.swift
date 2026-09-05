@@ -75,12 +75,13 @@ enum PlayDestinationRouter {
                 askForSpeaker(contents, position: position, queue: queue)
                 return
             }
-            // Playing on the speaker replaces what this device was playing;
-            // adding to its queue doesn't. Left running, the phone kept
+            // Playing on the speaker takes over from this device; adding to
+            // the speaker's queue doesn't. Left running, the phone kept
             // going under a route that pointed at the speaker, with no
-            // control on screen for it.
-            if [.now, .replace].contains(position), LocalPlaybackService.shared.isActive {
-                LocalPlaybackService.shared.stop()
+            // control on screen for it. Parked rather than stopped: the
+            // device's queue keeps its place for the route coming back.
+            if [.now, .replace].contains(position) {
+                LocalPlaybackService.shared.park()
             }
             do {
                 try await queue(group, position)
