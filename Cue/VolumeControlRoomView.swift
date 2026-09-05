@@ -35,6 +35,7 @@ struct VolumeControlRoomView: View {
                 .tint(.primary)
                 .buttonStyle(.liveActivity)
                 .buttonRepeatBehavior(.enabled)
+                .accessibilityLabel("Volume Down")
                 
                 VibeSlider(value: $room.volume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 20 : 24, delayDrag: true, showValue: true) { isEditing in
                     if room.isMuted {
@@ -49,6 +50,8 @@ struct VolumeControlRoomView: View {
                         room.isEditingVolume = isEditing
                     }
                 }
+                .accessibilityLabel("\(room.name) Volume")
+                .accessibilityValue("\(Int(room.volume.rounded())) percent\(room.isMuted ? ", muted" : "")")
                 
                 Button {
                     if room.isMuted {
@@ -74,6 +77,7 @@ struct VolumeControlRoomView: View {
                 .tint(.primary)
                 .buttonStyle(.liveActivity)
                 .buttonRepeatBehavior(.enabled)
+                .accessibilityLabel("Volume Up")
             }
         }
         .opacity(room.isMuted ? 0.4 : 1)

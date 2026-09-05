@@ -116,6 +116,7 @@ struct ArtworkView: View {
                                 }
                                 .tint(.primary)
                         }
+                        .accessibilityLabel("Unmute")
                         .buttonStyle(.plain)
                         .transition(.opacity)
                     }

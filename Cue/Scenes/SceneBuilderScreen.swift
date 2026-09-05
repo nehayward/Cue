@@ -56,6 +56,7 @@ struct SceneBuilderScreen: View {
                                Image(systemName: "x.circle.fill")
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Remove Music")
                         }
                 }
                 
@@ -76,6 +77,8 @@ struct SceneBuilderScreen: View {
                             .contentTransition(.symbolEffect(.automatic))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Shuffle")
+                    .accessibilityValue(scene.playMode?.contains(.shuffle) == true ? "On" : "Off")
 
                                          // MARK: - Repeat Mode Cycle
                      Button {
@@ -104,6 +107,8 @@ struct SceneBuilderScreen: View {
                              .contentTransition(.symbolEffect(.automatic))
                      }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Repeat")
+                    .accessibilityValue((scene.playMode ?? .normal).repeatAccessibilityValue)
                 }
                 
                 Picker("Queue Position", selection: $scene.position) {
@@ -303,6 +308,8 @@ fileprivate struct RoomSpeakerScreen: View {
                     .bold()
                 HStack(alignment: .center, spacing: 0) {
                     VibeSlider(value: $groupVolume, in: 0...100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20)
+                        .accessibilityLabel("Scene Volume")
+                        .accessibilityValue("\(Int(groupVolume.rounded())) percent")
                     Text("\(groupVolume, specifier: "%03.0f")%")
                         .contentTransition(.numericText())
                         .monospacedDigit()

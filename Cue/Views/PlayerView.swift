@@ -134,7 +134,6 @@ struct PlayerView: View {
         .dropDestinationPlayOnDevice()
         .fontDesign(.rounded)
         .environment(router)
-        .environment(FavoriteRatingCache.shared)
         .withEnvironments()
     }
 
@@ -384,6 +383,8 @@ private struct LocalPlaybackScrubber: View {
             .frame(maxWidth: 500)
             .frame(height: 40)
             .foregroundStyle(.primary)
+            .accessibilityLabel("Playback Position")
+            .accessibilityValue(Duration.seconds(scrubPosition ?? playback.progress).formatted(.time(pattern: .minuteSecond)))
 
             HStack {
                 let position = Duration.seconds(scrubPosition ?? playback.progress)
@@ -430,6 +431,7 @@ private struct LocalMediaControlsView: View {
                     .frame(width: 32, height: 32)
             }
             .buttonStyle(.liveActivity)
+            .accessibilityLabel("Previous")
 
             Spacer()
 
@@ -445,6 +447,7 @@ private struct LocalMediaControlsView: View {
                     .frame(width: 32, height: 32)
             }
             .buttonStyle(.liveActivity)
+            .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
 
             Spacer()
 
@@ -458,6 +461,7 @@ private struct LocalMediaControlsView: View {
                     .frame(width: 32, height: 32)
             }
             .buttonStyle(.liveActivity)
+            .accessibilityLabel("Next")
             .disabled(!playback.hasNext)
         }
         .frame(maxWidth: 300)
@@ -494,6 +498,7 @@ private struct LocalVolumeControlView: View {
             .tint(.primary)
             .buttonStyle(.liveActivity)
             .buttonRepeatBehavior(.enabled)
+            .accessibilityLabel("Volume Down")
 
             VibeSlider(
                 value: Binding(
@@ -524,6 +529,7 @@ private struct LocalVolumeControlView: View {
             .tint(.primary)
             .buttonStyle(.liveActivity)
             .buttonRepeatBehavior(.enabled)
+            .accessibilityLabel("Volume Up")
         }
         .font(.caption)
         .fontDesign(.rounded)

@@ -309,9 +309,14 @@ struct PlayableListView: View {
     @ViewBuilder
     private var contentSection: some View {
         if showSectionIndex {
-            ForEach(groupedItems.keys.sorted(), id: \.self) { letter in
+            // Grouped once per render: `groupedItems` is computed, and
+            // reading it again inside every section regrouped the whole
+            // list once per letter — ~27 full passes each time a row
+            // appeared and nudged the load-more check.
+            let grouped = groupedItems
+            ForEach(grouped.keys.sorted(), id: \.self) { letter in
                 Section(header: Text(letter)) {
-                    ForEach(groupedItems[letter] ?? []) { item in
+                    ForEach(grouped[letter] ?? []) { item in
                         playableRow(item: item)
                     }
                 }

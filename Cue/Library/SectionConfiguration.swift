@@ -203,6 +203,7 @@ struct ReorderSectionsView<SectionID: Codable & Hashable & CaseIterable & RawRep
                             }
                         } label: {
                             Image(systemName: item.isVisible ? "checkmark.circle.fill" : "circle")
+                                .accessibilityLabel(item.isVisible ? "Hide \(item.title)" : "Show \(item.title)")
                                 .fontWeight(.semibold)
                                 .contentTransition(.symbolEffect(.automatic))
                                 .foregroundStyle(.primary)

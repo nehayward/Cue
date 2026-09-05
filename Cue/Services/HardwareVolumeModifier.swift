@@ -14,7 +14,7 @@ private struct VolumeViewRepresentable: UIViewRepresentable {
 private struct HardwareVolumeControlModifier: ViewModifier {
     let group: GroupRoom
     @Environment(SonosService.self) private var sonosService
-    @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(FeatureGate.self) private var featureGate
     // Both default to true — see `AppStorageKeys`. The literals have to match
     // the `UserDefaults` accessors the Lock Screen path reads
     // (`hardwareVolumeButtonsEnabled`, `lockScreenNowPlayingEnabled`); a
@@ -39,7 +39,7 @@ private struct HardwareVolumeControlModifier: ViewModifier {
     private var enabled: Bool {
         useHardwareVolumeButtons
             && lockScreenNowPlaying
-            && subscriptionService.subscription.isActive
+            && featureGate.isAvailable(.hardwareVolumeButtons)
     }
 
     @State private var volumeView: MPVolumeView = {

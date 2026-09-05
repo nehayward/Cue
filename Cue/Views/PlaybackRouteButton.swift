@@ -65,6 +65,7 @@ struct PlaybackRouteButton: View {
     }
 
     private func select(_ target: PlayDestination) {
+        if target == .device, !FeatureGate.shared.unlock(.onDevicePlayback) { return }
         HapticManager.shared.fireHaptic(.selection)
         PlaybackRoute.shared.switchTo(target)
     }
