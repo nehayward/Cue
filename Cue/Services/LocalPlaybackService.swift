@@ -332,14 +332,20 @@ final class LocalPlaybackService {
 
     /// Replaces the queue with `items` and starts at `index` (an index into
     /// `items` — unplayable rows are dropped, and the start follows the item).
-    func play(_ items: [PlayableContent], startingAt index: Int = 0) async throws {
+    ///
+    /// `position` starts the track that many seconds in — a hand-off from a
+    /// speaker picks up where it was. It is applied before the player starts
+    /// rather than as a seek after: a seek landing while the Apple player is
+    /// still preparing its entry is dropped, and the track started from the
+    /// top.
+    func play(_ items: [PlayableContent], startingAt index: Int = 0, from position: TimeInterval? = nil) async throws {
         let playable = items.filter { canPlayLocally($0) }
         guard !playable.isEmpty else { throw LocalPlaybackError.nothingPlayable }
         queue = playable
         let start = items[safe: index].flatMap { playable.firstIndex(of: $0) } ?? 0
         // A new queue, so a restored position belongs to nothing in it.
         resumePosition = nil
-        try await arm(at: start)
+        try await arm(at: start, from: position)
     }
 
     /// Inserts `items` right after the current track, in order. Starts
@@ -613,7 +619,12 @@ final class LocalPlaybackService {
     }
 
     /// Hands the run starting at `index` to its native player and starts it.
-    private func arm(at index: Int) async throws {
+    ///
+    /// `position` starts the track that many seconds in. Without it, the
+    /// saved position is for the track that was current when the app last
+    /// ran: this arm takes it if that is the track, and any other arm drops
+    /// it, so a tap on another row can't land partway into it.
+    private func arm(at index: Int, from position: TimeInterval? = nil) async throws {
         playToken += 1
         let token = playToken
         teardownRun()
@@ -621,10 +632,7 @@ final class LocalPlaybackService {
             stop()
             return
         }
-        // The saved position is for the track that was current when the app
-        // last ran. This arm takes it if that is the track; any other arm
-        // drops it, so a tap on another row can't land partway into it.
-        let resume = index == currentIndex ? resumePosition : nil
+        let resume = position ?? (index == currentIndex ? resumePosition : nil)
         resumePosition = nil
         currentIndex = index
         progress = 0
@@ -638,18 +646,39 @@ final class LocalPlaybackService {
 
         switch backendKind(for: queue[index]) {
         case .stream:
-            try await armStream(index: index, end: end, token: token)
+            try await armStream(index: index, end: end, token: token, resume: resume)
         case .appleMusic:
-            try await armApple(index: index, end: end, token: token)
+            try await armApple(index: index, end: end, token: token, resume: resume)
         case nil:
             // Shouldn't happen — the queue only takes playable items.
             advancePastRun(endingAt: index)
         }
-        // Pick up where the last run of the app left off. Only when this arm
-        // still owns playback and started the track it was asked to — the
-        // resolve can skip a row that failed, and a skip meanwhile moves on.
+        // Pick up partway in. Only when this arm still owns playback and
+        // started the track it was asked to — the resolve can skip a row that
+        // failed, and a skip meanwhile moves on. The player was pointed there
+        // before it started; this is the fallback for one that ignored it,
+        // and otherwise just shows the position rather than rewinding the
+        // moment already played.
         if let resume, playToken == token, backend != nil, currentIndex == index {
-            seek(to: resume)
+            if playerTime < resume - 1 {
+                seek(to: resume)
+            } else {
+                progress = max(playerTime, resume)
+                savePosition()
+            }
+        }
+    }
+
+    /// Where the armed player is in its track, straight from the player.
+    private var playerTime: TimeInterval {
+        switch backend {
+        case .appleMusic:
+            return musicPlayer.playbackTime
+        case .stream:
+            let seconds = streamPlayer?.currentTime().seconds ?? 0
+            return seconds.isFinite ? seconds : 0
+        case nil:
+            return 0
         }
     }
 
@@ -762,7 +791,7 @@ final class LocalPlaybackService {
 
     // MARK: - Apple Music backend
 
-    private func armApple(index: Int, end: Int, token: Int) async throws {
+    private func armApple(index: Int, end: Int, token: Int, resume: TimeInterval? = nil) async throws {
         isLoading = true
         defer { if playToken == token { isLoading = false } }
 
@@ -830,6 +859,14 @@ final class LocalPlaybackService {
         }
 
         musicPlayer.queue = ApplicationMusicPlayer.Queue(for: resolved.map(\.song), startingAt: first.song)
+        if let resume, resume > 0 {
+            // Point the player partway in before it starts. A seek issued
+            // after `play()` returns is dropped while the entry is still
+            // preparing, which started a hand-off's track from the top.
+            try await musicPlayer.prepareToPlay()
+            guard playToken == token else { return }
+            musicPlayer.playbackTime = resume
+        }
         try await musicPlayer.play()
         guard playToken == token else { return }
 
@@ -895,7 +932,7 @@ final class LocalPlaybackService {
 
     // MARK: - Stream (Plex, Subsonic) backend
 
-    private func armStream(index: Int, end: Int, token: Int) async throws {
+    private func armStream(index: Int, end: Int, token: Int, resume: TimeInterval? = nil) async throws {
         // A Files song still in iCloud can't be handed to the player: there
         // is no streaming from iCloud Drive, and a read of the placeholder
         // blocks until the whole file is down. Fetch it first, showing the
@@ -945,6 +982,12 @@ final class LocalPlaybackService {
         let player = AVQueuePlayer(items: rows.map(\.item))
         streamPlayer = player
         player.volume = streamVolume
+        if let resume, resume > 0 {
+            // Partway in before the first note, so nothing from the top of
+            // the track is heard first. Pending until the item is ready, so
+            // not awaited — it lands before playback does.
+            player.seek(to: CMTime(seconds: resume, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
+        }
         player.play()
 
         backend = .stream
@@ -956,7 +999,7 @@ final class LocalPlaybackService {
             item: queue[safe: currentIndex],
             isPlaying: true,
             duration: 0,
-            elapsed: 0,
+            elapsed: resume ?? 0,
             canSkip: currentIndex + 1 < queue.count
         )
     }

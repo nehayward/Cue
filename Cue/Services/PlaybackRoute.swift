@@ -146,6 +146,9 @@ final class PlaybackRoute {
         /// Seconds into `items[0]`.
         var position: TimeInterval
         var isPlaying: Bool
+        /// The speaker's 1-based queue position of `items[0]`; nil for the
+        /// device. Lets a later read of the speaker be matched to this track.
+        var queuePosition: Int?
     }
 
     private func localSnapshot() -> Snapshot? {
@@ -157,24 +160,39 @@ final class PlaybackRoute {
     /// Only a queue can be carried across — radio, TV and a line-in have
     /// nothing to hand over, so those come back `nil` and the speaker keeps
     /// going.
+    ///
+    /// Everything is fetched rather than read off the cached room: after
+    /// backgrounding, or with the group not the one being listened to, the
+    /// cache lags the device — a stale "paused" left the speaker playing
+    /// under the phone, and a stale position started the phone in the wrong
+    /// place. Same reason `seek(trackNumber:)` fetches.
     private func snapshot(of group: GroupRoom) async -> Snapshot? {
         let sonos = SonosService.shared
-        let track = group.coordinatorRoom.track
-        guard !track.isEmpty else { return nil }
-        // Fetched rather than trusting the cached value: after backgrounding
-        // it can lag the device, the same reason `seek(trackNumber:)` does.
         let service = await sonos.playbackService(ip: group.ip) ?? group.playbackService
         guard service == .queue else { return nil }
         let queue = await sonos.getQueue(ip: group.ip)
         guard !queue.isEmpty else { return nil }
+        let fetched = await sonos.getTrack(ip: group.ip)
+        let state = await sonos.getPlaybackInfo(ip: group.ip)
+        // The cached track stands in when the read fails.
+        let track = fetched ?? group.coordinatorRoom.track
+        guard !track.isEmpty else { return nil }
         // Queue positions are 1-based; the current one is on the track.
         let start = queue.firstIndex { $0.metadata?.position == track.position }
             ?? max(0, min(track.position - 1, queue.count - 1))
+        let isPlaying: Bool
+        switch state {
+        case .playing: isPlaying = true
+        case .paused: isPlaying = false
+        // Between states, or the read failed: the cache is the best guess.
+        case .transitioning: isPlaying = group.coordinatorRoom.isPlaying
+        }
         return Snapshot(
             items: Array(queue[start...]),
-            // `Room.playbackPosition` is in milliseconds.
-            position: group.coordinatorRoom.playbackPosition / 1000,
-            isPlaying: group.coordinatorRoom.isPlaying
+            // Positions from the device are in milliseconds.
+            position: (fetched?.playbackPosition ?? group.coordinatorRoom.playbackPosition) / 1000,
+            isPlaying: isPlaying,
+            queuePosition: track.position
         )
     }
 
@@ -276,10 +294,7 @@ final class PlaybackRoute {
     private func restoreLocal(_ snapshot: Snapshot) async {
         let playback = LocalPlaybackService.shared
         do {
-            try await playback.play(snapshot.items)
-            if snapshot.position > 2 {
-                playback.seek(to: snapshot.position)
-            }
+            try await playback.play(snapshot.items, from: snapshot.position > 2 ? snapshot.position : nil)
             if !snapshot.isPlaying {
                 playback.pause()
             }
@@ -290,9 +305,12 @@ final class PlaybackRoute {
 
     // MARK: - To this device
 
+    /// The AirPlay half in this direction: the speaker stops the moment the
+    /// route moves, and the device picks the track up at the second the
+    /// speaker stopped on.
     private func handOffToDevice(from source: GroupRoom?) async {
         guard let source else { return }
-        guard let snapshot = await snapshot(of: source) else {
+        guard var snapshot = await snapshot(of: source) else {
             Self.log.notice("route → device: nothing on \(source.nameWithCount, privacy: .public) to carry over")
             return
         }
@@ -305,17 +323,30 @@ final class PlaybackRoute {
             AlertService.shared.showAlert(with: "Nothing playing on \(source.nameWithCount) can play on this device", imageName: "iphone.slash")
             return
         }
-        Self.log.notice("route → device: carrying \(items.count) of \(snapshot.items.count) items from \(source.nameWithCount, privacy: .public) at \(Int(snapshot.position))s")
 
         // Speaker down first, so the two don't overlap; resumed below if the
-        // device can't take over.
+        // device can't take over. Not gated on the snapshot's state: a pause
+        // on a paused speaker is a no-op, and a wrong "paused" is what used
+        // to leave it playing under the phone.
         let sonos = SonosService.shared
-        if snapshot.isPlaying {
-            await sonos.pause(ip: source.ip)
+        await sonos.pause(ip: source.ip)
+        guard !Task.isCancelled else { return }
+
+        // Frozen now, so this is the exact second to pick up from — the
+        // snapshot's was read while the speaker was still going and the
+        // queue fetch alone puts it a moment behind. Only when it is still
+        // the same track: it could have run onto the next one in between.
+        if let frozen = await sonos.getTrack(ip: source.ip), frozen.position == snapshot.queuePosition {
+            snapshot.position = frozen.playbackPosition / 1000
         }
+        guard !Task.isCancelled else { return }
+        Self.log.notice("route → device: carrying \(items.count) of \(snapshot.items.count) items from \(source.nameWithCount, privacy: .public) at \(Int(snapshot.position))s")
 
         do {
-            try await playback.play(items)
+            // Under a couple of seconds is the start of the track as far as
+            // anyone can tell; the position goes in with the play so the
+            // first note heard is the one the speaker stopped on.
+            try await playback.play(items, from: snapshot.position > 2 ? snapshot.position : nil)
         } catch {
             Self.log.error("route → device: play failed: \(error.localizedDescription, privacy: .public)")
             if snapshot.isPlaying {
@@ -323,9 +354,6 @@ final class PlaybackRoute {
             }
             AlertService.shared.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
             return
-        }
-        if snapshot.position > 2 {
-            playback.seek(to: snapshot.position)
         }
         if !snapshot.isPlaying {
             playback.pause()
