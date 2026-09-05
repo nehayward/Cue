@@ -3,6 +3,7 @@ import Defaults
 import Glur
 import MusicKit
 import MusicSearchKit
+import Nuke
 import NukeUI
 import OrderedCollections
 import SonosKit
@@ -128,11 +129,22 @@ struct ArtistDetailView: View {
     
     // MARK: - Artwork Section
     
+    /// The hero image, decoded no larger than it is drawn. The header shows
+    /// at most ~400pt and blurs it, but the URL is the full-size art — for
+    /// Plex the original file, often several megapixels — and a 100pt blur
+    /// over a bitmap that size costs Core Animation offscreen buffers many
+    /// times the image, which is where this screen's memory jumps came from.
+    private var heroRequest: ImageRequest {
+        var request = ImageRequest(url: artworkURL)
+        request.thumbnail = ImageRequest.ThumbnailOptions(maxPixelSize: 800)
+        return request
+    }
+
     @ViewBuilder
     private var artworkSection: some View {
         Color.clear.overlay {
             ZStack {
-                LazyImage(url: artworkURL) { phase in
+                LazyImage(request: heroRequest) { phase in
                     if let image = phase.image {
                         image
                             .resizable()
@@ -141,7 +153,7 @@ struct ArtistDetailView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: maxHeight)
-                LazyImage(url: artworkURL) { phase in
+                LazyImage(request: heroRequest) { phase in
                     if let image = phase.image {
                         image
                             .resizable()

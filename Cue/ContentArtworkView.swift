@@ -57,10 +57,22 @@ struct ContentArtworkView: View {
     private var artworkRequest: ImageRequest {
         var request = ImageRequest(url: artworkURL)
         request.imageID = usesFullSizeArtwork ? "\(content.imageKey)#full" : content.imageKey
+        // Decode no bigger than the view shows. Plex (and Subsonic, and a
+        // local folder) hand back the original embedded cover, which is often
+        // 1500–3000px — 9 to 36 MB once decoded, for a 50pt row. Nuke's
+        // thumbnail path downsamples inside ImageIO, so the full bitmap is
+        // never materialized, and the pixel size is part of its cache key,
+        // so a row's thumbnail never satisfies the player's request.
+        request.thumbnail = ImageRequest.ThumbnailOptions(maxPixelSize: Self.maxPixelSize(for: preferredSize))
         return request
     }
 
-    private static let targetSize = CGSize(width: 150, height: 150) // 50pt * 3x scale
+    /// The most pixels worth decoding for a view `points` wide: enough for a
+    /// 3x screen, capped so the full-size player doesn't ask for more than
+    /// any speaker or service actually serves.
+    static func maxPixelSize(for points: Double) -> Float {
+        Float(min(points * 3, 1200))
+    }
     
     private var placeholder: some View {
         Rectangle()

@@ -58,7 +58,13 @@ public final class MusicSearchService {
     /// Subsonic one below, and for the same reason: a list you can sort and
     /// search instantly beats one that re-asks the server for every page.
     @ObservationIgnored private var plexSongSync: Task<[PlexMetadata], Never>?
-    @ObservationIgnored private var plexSortedSongs: [PlexSongOrder: [PlayableContent]] = [:]
+    /// The library in the order last asked for — one order, not one per
+    /// order ever chosen. Every entry was a full `PlayableContent` copy of
+    /// the library that stayed until refresh, so browsing through the sort
+    /// menu multiplied the library's memory by however many were tried.
+    /// Re-sorting on a change is the same work as the first sort, off the
+    /// main actor.
+    @ObservationIgnored private var plexSortedSongs: (order: PlexSongOrder, songs: [PlayableContent])?
     public private(set) var plexSyncedSongCount = 0
     public private(set) var plexLibrarySongCount: Int?
     public private(set) var isSyncingPlexSongs = false
@@ -2224,15 +2230,18 @@ public final class MusicSearchService {
         guard offset == 0 else { return [] }
         // Waits on the same sync the list itself started — never a second
         // fetch — and builds the library if nothing has yet.
-        let songs = await sortedPlexSongs(by: .title, reversed: false)
-        guard !songs.isEmpty else {
+        let library = await plexSongLibrary()
+        guard !library.isEmpty else {
             // No local copy (the sync failed, or the server is unreachable):
             // ask the server rather than answering "no results" for a library
             // that is full of them.
             return await plex.search(for: query)?.tracks.map(\.toPlayable) ?? []
         }
-        // Runs per keystroke over the whole library, so off the main actor.
-        return await Self.filtered(songs, query: query)
+        // Filters the raw library and converts only the matches, so a search
+        // never needs (or builds) a title-ordered copy of every song next to
+        // whatever order the list is showing. Per keystroke over the whole
+        // library, so off the main actor.
+        return await Self.filtered(library, query: query)
     }
 
     /// Re-checks the server's song count and drops the synced copy when it
@@ -2255,7 +2264,7 @@ public final class MusicSearchService {
     public func clearPlexSongCache() {
         plexSongSync?.cancel()
         plexSongSync = nil
-        plexSortedSongs.removeAll()
+        plexSortedSongs = nil
         plexSyncedSongCount = 0
         plexLibrarySongCount = nil
         plexSongCount = nil
@@ -2264,16 +2273,19 @@ public final class MusicSearchService {
 
     private func sortedPlexSongs(by sort: PlexSongSort, reversed: Bool) async -> [PlayableContent] {
         let order = PlexSongOrder(sort: sort, reversed: reversed)
-        if let sorted = plexSortedSongs[order] { return sorted }
+        if let cached = plexSortedSongs, cached.order == order { return cached.songs }
 
         let library = await plexSongLibrary()
         guard !library.isEmpty else { return [] }
+        // Let go of the previous order before building the next one, so the
+        // two never coexist.
+        plexSortedSongs = nil
         // `nonisolated async` runs off this class's main actor without
         // detaching: ordering tens of thousands of rows and building a
         // PlayableContent for each is not main-thread work, but it is still
         // this task's work, and should keep its priority and cancellation.
         let sorted = await Self.ordered(library, by: sort, reversed: reversed)
-        plexSortedSongs[order] = sorted
+        plexSortedSongs = (order, sorted)
         return sorted
     }
 
@@ -2717,6 +2729,17 @@ public final class MusicSearchService {
     /// the user can't see.
     private nonisolated static func filtered(_ songs: [PlayableContent], query: String) async -> [PlayableContent] {
         songs.filter { matches($0, query: query) }
+    }
+
+    /// The Plex songs matching a query, in title order. Same fields as the
+    /// `PlayableContent` match — title, artist, album — read off the raw
+    /// library so only the matches are converted.
+    private nonisolated static func filtered(_ songs: [PlexMetadata], query: String) async -> [PlayableContent] {
+        let matches = songs.filter { song in
+            [song.title, song.grandparentTitle, song.parentTitle]
+                .contains { $0?.localizedCaseInsensitiveContains(query) == true }
+        }
+        return PlexSongSort.title.sort(matches).compactMap(\.toPlayable)
     }
 
     private nonisolated static func matches(_ content: PlayableContent, query: String) -> Bool {
