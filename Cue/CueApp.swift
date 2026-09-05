@@ -1356,6 +1356,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
         UserDefaults.standard.set(true, forKey: "NSDisabledCharacterPaletteMenuItem")
         #endif
+        // RevenueCat, analytics, remote flags and the image pipeline. Before
+        // any view body: `Purchases.shared` is a fatal error until
+        // `Purchases.configure` has run, and Preferences reads it for the
+        // app user ID it shows — opening Settings crashed once this stopped
+        // being called from the root view's onAppear.
+        if !AppBootstrapper.shared.didLaunch {
+            AppBootstrapper.shared.didLaunch = true
+            AppBootstrapper.shared.bootstrap()
+        }
         // The continued-processing task's launch handler has to be in place
         // before a download batch submits it.
         ContinuedDownloadTask.shared.register()

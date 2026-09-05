@@ -960,7 +960,7 @@ struct PreferenceScreen: View {
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
-                    let message = "mailto:hi@cue.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
+                    let message = "mailto:hi@cue.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(subscriptionService.userID)"
                     Label {
                         HStack {
                             Link("Support hi@cue.dance", destination: URL(string: message)!)
@@ -1012,7 +1012,7 @@ struct PreferenceScreen: View {
                 } footer: {
                     VStack(alignment: .center) {
                         Text("Version **\(OSEnvironment.versionInfo)**")
-                        Text(Purchases.shared.appUserID)
+                        Text(subscriptionService.userID)
                             .textSelection(.enabled)
                             .scaledToFit()
                     }

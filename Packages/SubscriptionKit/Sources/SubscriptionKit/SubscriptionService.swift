@@ -18,7 +18,11 @@ public final class SubscriptionService {
     public var subscriptionUpdated: ((Subscription) -> ())?
     private var keyID: String?
 
+    /// Empty until `initialize(key:)` has configured RevenueCat.
+    /// `Purchases.shared` is a fatal error before then, and an ID shown in
+    /// Preferences and a support email isn't worth taking the app down for.
     public var userID: String {
+        guard Purchases.isConfigured else { return "" }
         return Purchases.shared.appUserID
     }
 

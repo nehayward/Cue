@@ -6,6 +6,13 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ## 2026.8
 
+### Settings crashed on open: RevenueCat was never configured
+Opening Preferences took the app down with RevenueCat's `Purchases has not been configured` fatal error. `AppBootstrapper.bootstrap()` — which configures `Purchases`, analytics, the remote flags and the Nuke pipeline — was only ever called from the root view's `onAppear`, and that block has been commented out since the TabView rewrite, so nothing ran it. Debug builds survive launch because `checkSubscription()` returns before touching the SDK; Preferences is the first screen that reads `Purchases.shared` directly (the app user ID in the About footer and the support `mailto:`), so that's where it surfaced.
+
+- `AppDelegate.didFinishLaunching` now runs the bootstrap, once, before any view body — earlier than the old `onAppear`, which also means the image pipeline is configured before the first artwork request rather than after.
+- `SubscriptionService.userID` returns `""` while `Purchases.isConfigured` is false instead of trapping, and `PreferenceScreen` reads the ID through it rather than `Purchases.shared`. A diagnostics string isn't worth the app.
+- The rest of that commented-out launch block (onboarding gate, `subscriptionUpdated`/`groupsChanged` wiring, Now Playing session activation, saved-group restore, App Shortcuts refresh) is still dead and is not restored here.
+
 ### Subsonic / Navidrome integration
 Full integration for Subsonic-compatible self-hosted servers (Navidrome, Airsonic, Gonic, …), modeled on the Plex/Deezer service pattern per `Docs/AddingMusicService.md`.
 
