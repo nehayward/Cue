@@ -17,6 +17,7 @@ struct PreferenceScreen: View {
     @Environment(MusicSearchService.self) var musicSearchService
     @Environment(AlertService.self) var alertService
     @Environment(CoreFeatures.self) var coreFeatures
+    @Environment(FeatureGate.self) var featureGate
     
     var destination: RouterDestination? = nil
     
@@ -377,11 +378,7 @@ struct PreferenceScreen: View {
                             HStack {
                                 Text("Scenes")
                                 Spacer()
-                                // Only while it's still something to buy — once
-                                // subscribed the badge is noise on every Super row.
-                                if !subscriptionService.subscription.isActive {
-                                    SuperBadge()
-                                }
+                                FeatureBadge(feature: .scenes)
                             }
                         } icon: {
                             Image(systemName: "bolt.fill")
@@ -397,7 +394,7 @@ struct PreferenceScreen: View {
                                 )
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
-                    }.disabled(!subscriptionService.subscription.isActive)
+                    }.gated(.scenes)
                 } header: {
                     Text("Music")
                         .headerProminence(.increased)
@@ -483,18 +480,9 @@ struct PreferenceScreen: View {
                     // Greyed out without Super, the same way the Scenes row is.
                     // Every option here needs a subscription — `CueApp` won't
                     // even start a Live Activity without one — so there is
-                    // nothing to leave enabled.
-                    .disabled(!subscriptionService.subscription.isActive)
-                    // Outside the `.disabled`, so it still takes taps: a
-                    // disabled row can't open the paywall by itself.
-                    .overlay {
-                        if !subscriptionService.subscription.isActive {
-                            Rectangle()
-                                .fill(.clear)
-                                .contentShape(Rectangle())
-                                .onTapGesture(perform: presentPaywall)
-                        }
-                    }
+                    // nothing to leave enabled. `gated` keeps the tap for the
+                    // paywall outside the `.disabled`.
+                    .gated(.liveActivities)
 
                     // Directly under the picker, and present only while Now
                     // Playing is the chosen surface — the same treatment the
@@ -556,7 +544,7 @@ struct PreferenceScreen: View {
                         // row greyed out, with the paywall overlay on the picker
                         // rather than here: the original beta complaint, plus the
                         // toggle taken away.
-                        .disabled(!subscriptionService.subscription.isActive)
+                        .disabled(!featureGate.isAvailable(.hardwareVolumeButtons))
                     }
 #endif
                     // Both of these only shape the Live Activity, so they appear
@@ -588,7 +576,7 @@ struct PreferenceScreen: View {
                                 )
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
-                        .disabled(!subscriptionService.subscription.isActive)
+                        .disabled(!featureGate.isAvailable(.liveActivities))
 
                         Label {
                             Stepper(value: $liveActivityStep, in: 1...10) {
@@ -610,7 +598,7 @@ struct PreferenceScreen: View {
                                 )
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
-                        .disabled(!subscriptionService.subscription.isActive)
+                        .disabled(!featureGate.isAvailable(.liveActivities))
                     }
                 } header: {
                     // Carries the `SuperBadge` now that the picker's row has no
@@ -620,9 +608,7 @@ struct PreferenceScreen: View {
                     HStack(spacing: 6) {
                         Text("Lock Screen")
                             .foregroundStyle(.primary)
-                        if !subscriptionService.subscription.isActive {
-                            SuperBadge()
-                        }
+                        FeatureBadge(feature: .liveActivities)
                     }
                     .headerProminence(.increased)
                 }
@@ -1032,6 +1018,17 @@ struct PreferenceScreen: View {
                     }
                     .frame(maxWidth: .infinity)
                 }
+
+#if DEBUG
+                Section("Debug") {
+                    NavigationLink {
+                        FeatureGateDebugView()
+                            .withEnvironments()
+                    } label: {
+                        Label("Feature Gates", systemImage: "lock.open")
+                    }
+                }
+#endif
             }
             .animation(.smooth(duration: 0.35), value: hasUnseenWhatsNew)
             .navigationTitle("Preferences")
@@ -1198,9 +1195,7 @@ struct PreferenceScreen: View {
     }
 
     private func presentPaywall() {
-        HapticManager.shared.fireHaptic(.buttonPress)
-        Analytics.shared.track(.viewedPaywall)
-        router.presentedFullScreenCover = .paywall
+        featureGate.presentPaywall(via: router)
     }
 
     /// Derived, never stored: two booleans already describe this, and a third
@@ -1226,8 +1221,7 @@ struct PreferenceScreen: View {
             set: { surface in
                 // Outside the animation below: this path writes nothing, so the
                 // picker snaps back and there are no rows to move.
-                if surface == .nowPlaying, !subscriptionService.subscription.isActive {
-                    presentPaywall()
+                if surface == .nowPlaying, !featureGate.unlock(.lockScreenNowPlaying, via: router) {
                     return
                 }
                 // The rows under the picker belong to one surface each and are

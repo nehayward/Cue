@@ -166,6 +166,7 @@ struct PlayableContentView: View {
                         PlayableMenuView(item: item, onRemoveFromPlaylist: onRemoveFromPlaylist)
                     } label: {
                         Image(systemName: "ellipsis")
+                            .accessibilityLabel("More Options for \(item.title)")
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                             .opacity(isPreviewing ? 0 : 1)

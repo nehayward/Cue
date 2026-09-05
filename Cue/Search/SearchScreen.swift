@@ -713,6 +713,8 @@ private struct MediaServiceMenu: View {
         } label: {
             ServiceIconRow(services: displayedServices)
         }
+        .accessibilityLabel("Search Services")
+        .accessibilityValue(displayedServices.map(\.title).joined(separator: ", "))
     }
 
     private func selectionBinding(for service: MediaSearchService) -> Binding<Bool> {

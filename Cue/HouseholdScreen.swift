@@ -42,6 +42,7 @@ struct HouseholdScreen: View {
                         Image(systemName: "arrow.clockwise")
                     }
                 }
+                .accessibilityLabel(isScanning ? "Scanning for Systems" : "Scan for Systems")
                 .disabled(isScanning)
             }
         }
