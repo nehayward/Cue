@@ -1154,15 +1154,27 @@ final class LocalPlaybackService {
             LocalQueueStore.clear()
             return
         }
+        // Only what the queue would take today: a row an earlier build let
+        // in — a station, say — would otherwise sit at the front of the
+        // player for good, and be carried onto every speaker chosen.
+        let kept = saved.queue.filter { canPlayLocally($0) }
+        guard !kept.isEmpty else {
+            LocalQueueStore.clear()
+            return
+        }
         isRestoring = true
         defer { isRestoring = false }
-        queue = saved.queue
-        currentIndex = max(0, min(saved.position.index, saved.queue.count - 1))
+        let current = saved.queue[safe: saved.position.index]
+        let currentKept = current.flatMap { kept.firstIndex(of: $0) }
+        queue = kept
+        currentIndex = currentKept ?? 0
         repeatMode = saved.position.repeatMode
-        duration = saved.position.duration
+        // The position belongs to the track that was current; with that
+        // one dropped, the queue starts from the top of what's left.
+        duration = currentKept == nil ? 0 : saved.position.duration
         // Under a couple of seconds is the start of the track as far as
         // anyone can tell, the same cutoff a route switch uses.
-        if saved.position.progress > 2 {
+        if currentKept != nil, saved.position.progress > 2 {
             progress = saved.position.progress
             resumePosition = saved.position.progress
         }

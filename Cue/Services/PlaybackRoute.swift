@@ -169,6 +169,8 @@ final class PlaybackRoute {
     private func snapshot(of group: GroupRoom) async -> Snapshot? {
         let sonos = SonosService.shared
         let service = await sonos.playbackService(ip: group.ip) ?? group.playbackService
+        // Kept, so a caller can say what it was that couldn't be carried.
+        group.playbackService = service
         guard service == .queue else { return nil }
         let queue = await sonos.getQueue(ip: group.ip)
         guard !queue.isEmpty else { return nil }
@@ -310,15 +312,40 @@ final class PlaybackRoute {
     /// speaker stopped on.
     private func handOffToDevice(from source: GroupRoom?) async {
         guard let source else { return }
+        let sonos = SonosService.shared
         guard var snapshot = await snapshot(of: source) else {
-            Self.log.notice("route → device: nothing on \(source.nameWithCount, privacy: .public) to carry over")
+            guard !Task.isCancelled else { return }
+            // A radio station, the TV or a line-in can't be carried, and
+            // saying nothing left the route on the device with the speaker
+            // playing on — which read as the switch having done nothing.
+            // Fetched: the cached state is what a stale poll left there.
+            if await sonos.getPlaybackInfo(ip: source.ip) == .playing {
+                let service = source.playbackService
+                let what = [.radio, .tv, .lineIn, .airplay, .spotifyConnect].contains(service) ? service.title : "What's playing"
+                Self.log.notice("route → device: \(service.title, privacy: .public) on \(source.nameWithCount, privacy: .public) can't be carried over")
+                AlertService.shared.showAlert(with: "\(what) on \(source.nameWithCount) can't play on this device", imageName: "iphone.slash")
+            } else {
+                Self.log.notice("route → device: nothing on \(source.nameWithCount, privacy: .public) to carry over")
+            }
             return
         }
         guard !Task.isCancelled else { return }
 
         let playback = LocalPlaybackService.shared
-        let items = snapshot.items.filter { playback.canPlayLocally($0) }
-        guard let first = items.first else {
+        // The first row the device can take, looked up if it has to be —
+        // on its own, so the first note doesn't wait on a long queue's
+        // lookups. The rest follow once it's playing.
+        var first: PlayableContent?
+        var firstIndex = 0
+        for (index, item) in snapshot.items.enumerated() {
+            guard !Task.isCancelled else { return }
+            if let local = await localItem(item) {
+                first = local
+                firstIndex = index
+                break
+            }
+        }
+        guard let first else {
             Self.log.notice("route → device: nothing on \(source.nameWithCount, privacy: .public) has a local backend")
             AlertService.shared.showAlert(with: "Nothing playing on \(source.nameWithCount) can play on this device", imageName: "iphone.slash")
             return
@@ -328,7 +355,6 @@ final class PlaybackRoute {
         // device can't take over. Not gated on the snapshot's state: a pause
         // on a paused speaker is a no-op, and a wrong "paused" is what used
         // to leave it playing under the phone.
-        let sonos = SonosService.shared
         await sonos.pause(ip: source.ip)
         guard !Task.isCancelled else { return }
 
@@ -340,13 +366,16 @@ final class PlaybackRoute {
             snapshot.position = frozen.playbackPosition / 1000
         }
         guard !Task.isCancelled else { return }
-        Self.log.notice("route → device: carrying \(items.count) of \(snapshot.items.count) items from \(source.nameWithCount, privacy: .public) at \(Int(snapshot.position))s")
+        Self.log.notice("route → device: carrying \(snapshot.items.count - firstIndex) items from \(source.nameWithCount, privacy: .public) at \(Int(snapshot.position))s")
 
+        // The position is the current track's; with that one dropped the
+        // next starts from its top. Under a couple of seconds is the start
+        // of the track as far as anyone can tell.
+        let position = firstIndex == 0 && snapshot.position > 2 ? snapshot.position : nil
         do {
-            // Under a couple of seconds is the start of the track as far as
-            // anyone can tell; the position goes in with the play so the
-            // first note heard is the one the speaker stopped on.
-            try await playback.play(items, from: snapshot.position > 2 ? snapshot.position : nil)
+            // The position goes in with the play so the first note heard
+            // is the one the speaker stopped on.
+            try await playback.play([first], from: position)
         } catch {
             Self.log.error("route → device: play failed: \(error.localizedDescription, privacy: .public)")
             if snapshot.isPlaying {
@@ -364,5 +393,58 @@ final class PlaybackRoute {
             subtitle: "Now playing on this device",
             symbolName: "iphone.radiowaves.left.and.right"
         )
+
+        // Playing now: the switch is done as far as the UI is concerned. The
+        // tail fills in behind it, and a further switch cancels that.
+        guard !Task.isCancelled else { return }
+        isSwitching = false
+
+        let rest = await localItems(Array(snapshot.items.dropFirst(firstIndex + 1)))
+        guard !Task.isCancelled, !rest.isEmpty else { return }
+        do {
+            try await playback.addToQueue(rest)
+        } catch {
+            Self.log.error("route → device: tail failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// A speaker queue row as the device can take it, or nil. Apple rows
+    /// come off the speaker ready; Plex and Subsonic rows come off it with
+    /// only their id — the stream URL the local player needs isn't in the
+    /// queue's DIDL — so those are looked up on their server again, which
+    /// is what let a queue go to a speaker and not come back.
+    private func localItem(_ item: PlayableContent) async -> PlayableContent? {
+        let playback = LocalPlaybackService.shared
+        if playback.canPlayLocally(item) { return item }
+        guard item.content.type == .track, [.plex, .subsonic].contains(item.content.service) else { return nil }
+        guard let resolved = await SonosService.shared.contentLookup(id: item.content.id, type: .track, service: item.content.service) else {
+            return nil
+        }
+        return playback.canPlayLocally(resolved) ? resolved : nil
+    }
+
+    /// `items` as the device can take them, in order, dropping what it
+    /// can't. The lookups run a few at a time: a long Plex queue fired at
+    /// a home server all at once is how you get throttled.
+    private func localItems(_ items: [PlayableContent]) async -> [PlayableContent] {
+        guard !items.isEmpty else { return [] }
+        let maxInFlight = 4
+        var resolved = [PlayableContent?](repeating: nil, count: items.count)
+        await withTaskGroup(of: (Int, PlayableContent?).self) { group in
+            var next = 0
+            while next < min(maxInFlight, items.count) {
+                let index = next
+                group.addTask { (index, await self.localItem(items[index])) }
+                next += 1
+            }
+            for await (index, item) in group {
+                resolved[index] = item
+                guard !Task.isCancelled, next < items.count else { continue }
+                let pending = next
+                group.addTask { (pending, await self.localItem(items[pending])) }
+                next += 1
+            }
+        }
+        return resolved.compactMap { $0 }
     }
 }
