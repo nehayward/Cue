@@ -436,6 +436,7 @@ final class LocalPlaybackService {
     /// takes it — the two backends share no seek API, and neither is armed
     /// when nothing is playing.
     func seek(to seconds: TimeInterval) {
+        let seconds = Self.finite(seconds, else: 0)
         progress = seconds
         savePosition()
         switch backend {
@@ -1021,7 +1022,7 @@ final class LocalPlaybackService {
             let playing = status == .playing
             let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
-            progress = musicPlayer.playbackTime
+            progress = Self.finite(musicPlayer.playbackTime, else: progress)
             if playing { appleWasPlaying = true }
             savePositionIfDue(paused: paused)
 
@@ -1074,7 +1075,7 @@ final class LocalPlaybackService {
             let playing = streamPlayer.timeControlStatus != .paused
             let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
-            progress = current.currentTime().seconds
+            progress = Self.finite(current.currentTime().seconds, else: progress)
             savePositionIfDue(paused: paused)
             let total = current.duration.seconds
             let itemDuration = total.isFinite ? total : 0
@@ -1116,10 +1117,10 @@ final class LocalPlaybackService {
         queue = saved.queue
         currentIndex = max(0, min(saved.position.index, saved.queue.count - 1))
         repeatMode = saved.position.repeatMode
-        duration = saved.position.duration
+        duration = Self.finite(saved.position.duration, else: 0)
         // Under a couple of seconds is the start of the track as far as
         // anyone can tell, the same cutoff a route switch uses.
-        if saved.position.progress > 2 {
+        if saved.position.progress.isFinite, saved.position.progress > 2 {
             progress = saved.position.progress
             resumePosition = saved.position.progress
         }
@@ -1176,6 +1177,19 @@ final class LocalPlaybackService {
             LocalQueueStore.save(queue: queue, waitUntilDone: true)
         }
         savePosition()
+    }
+
+    /// A player's clock as a number the rest of the app can use.
+    ///
+    /// `ApplicationMusicPlayer.playbackTime` is NaN while its entry is still
+    /// loading — a station's first track, say — and `CMTime.seconds` is NaN
+    /// for an invalid time. Published as `progress`, that reached the player
+    /// screen as `Duration.seconds(progress)`, which traps on a non-finite
+    /// value ("Double value cannot be converted to _Int128"). So the clock is
+    /// read through here: a finite time is clamped at zero, anything else
+    /// leaves `fallback` — usually the last good reading — in place.
+    private static func finite(_ time: TimeInterval, else fallback: TimeInterval) -> TimeInterval {
+        time.isFinite ? max(0, time) : fallback
     }
 
     // MARK: - Audio quality
