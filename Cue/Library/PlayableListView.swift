@@ -344,15 +344,20 @@ struct PlayableListView: View {
 
     // MARK: - Alphabetical Grouping
 
+    /// Rows are bucketed by their first letter or digit, skipping any leading
+    /// punctuation or whitespace. Services sort the same way — Plex's
+    /// `titleSort` drops a leading "[" — so "[Unknown Album]" arrives with the
+    /// U albums; filing it under "#" by its bracket would jump it to the top
+    /// of the list the moment that page loads.
     private var groupedItems: [String: [PlayableContent]] {
         Dictionary(grouping: items) { item in
             guard let scalar = item.title
                 .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
                 .unicodeScalars
-                .first,
+                .first(where: { CharacterSet.alphanumerics.contains($0) }),
                   CharacterSet.letters.contains(scalar)
             else { return "#" }
-            
+
             return String(scalar).uppercased()
         }
     }
