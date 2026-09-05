@@ -63,7 +63,9 @@ public struct DataTagSource: TagByteSource {
 
     public func read(at offset: Int, count: Int) throws -> Data {
         guard offset >= 0, offset < data.count, count > 0 else { return Data() }
-        let end = min(data.count, offset + count)
+        // `count` can be a size read from the file — anything up to
+        // `Int.max` — so clamp against the remainder rather than adding.
+        let end = count >= data.count - offset ? data.count : offset + count
         return data.subdata(in: (data.startIndex + offset)..<(data.startIndex + end))
     }
 }
@@ -196,7 +198,9 @@ struct ByteView {
 
     func bytes(_ i: Int, _ n: Int) -> Data {
         guard i >= 0, i < data.count, n > 0 else { return Data() }
-        let end = min(data.count, i + n)
+        // `n` is often a size the file claims, up to `Int.max` for a 64-bit
+        // atom: clamp against what is left rather than adding and overflowing.
+        let end = n >= data.count - i ? data.count : i + n
         return data.subdata(in: (data.startIndex + i)..<(data.startIndex + end))
     }
 

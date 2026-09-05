@@ -243,6 +243,26 @@ final class TagReaderTests: XCTestCase {
         assertMP4(try read(mp4(moovFirst: false, wideMdat: true)))
     }
 
+    func testMP4AtomSizesPastTheEndOfTheFileDoNotTrap() throws {
+        // A 64-bit size of all ones — a corrupt `free` atom — used to be
+        // added to the walk position, which overflows.
+        let huge = be32(1) + ascii("free") + Array(repeating: UInt8(0xFF), count: 8)
+        let file = atom("ftyp", ascii("M4A ")) + huge + atom("moov", [])
+        XCTAssertNil(try TagReader.read(from: DataTagSource(Data(file))), "The walk stops at the atom it can't step over")
+
+        // The same inside `moov`, where the children are walked in memory.
+        let c: UInt8 = 0xA9
+        let ilst = atom([c] + ascii("nam"), dataAtom(type: 1, ascii("Song")))
+        let meta = atom("meta", be32(0) + atom("ilst", ilst))
+        let corrupt = atom("moov", atom("udta", meta) + be32(1) + ascii("trak") + Array(repeating: UInt8(0xFF), count: 8))
+        let tags = try read(atom("ftyp", ascii("M4A ")) + corrupt)
+        XCTAssertEqual(tags.title, "Song", "What came before the corrupt atom is kept")
+
+        // A 32-bit size beyond the file, likewise.
+        let past = be32(1_000_000) + ascii("free")
+        XCTAssertNil(try TagReader.read(from: DataTagSource(Data(atom("ftyp", ascii("M4A ")) + past))))
+    }
+
     func testMP4TextGenreAndVersionOneMovieHeader() throws {
         let c: UInt8 = 0xA9
         let ilst = atom([c] + ascii("gen"), dataAtom(type: 1, ascii("Shoegaze")))
@@ -352,6 +372,23 @@ final class TagReaderTests: XCTestCase {
         XCTAssertEqual(tags.title, "Tag Title", "The ID3 chunk wins over NAME")
         XCTAssertEqual(tags.artist, "Aiff Artist", "AUTH stands where the ID3 chunk is silent")
         XCTAssertEqual(tags.duration, 1)
+    }
+
+    func testAIFFCorruptSampleRateLeavesTheDurationOut() throws {
+        func aiff(rate: [UInt8]) -> [UInt8] {
+            let comm = be16(2) + be32(44100) + be16(16) + rate
+            let body = ascii("AIFF") + chunk("COMM", comm, bigEndian: true) + chunk("NAME", ascii("Title"), bigEndian: true)
+            return ascii("FORM") + be32(body.count) + body
+        }
+        // An exponent of all ones is infinity.
+        let infinite = try read(aiff(rate: [0x7F, 0xFF, 0x80, 0, 0, 0, 0, 0, 0, 0]))
+        XCTAssertEqual(infinite.title, "Title")
+        XCTAssertNil(infinite.duration)
+        // A tiny rate divides the frame count into something astronomical;
+        // still a number, so the parser keeps it and the index filters it.
+        let tiny = try read(aiff(rate: [0x3F, 0xC0, 0x80, 0, 0, 0, 0, 0, 0, 0]))
+        XCTAssertNotNil(tiny.duration)
+        XCTAssertNil(FilesLibraryService.playableDuration(tiny.duration))
     }
 
     func testExtended80() {

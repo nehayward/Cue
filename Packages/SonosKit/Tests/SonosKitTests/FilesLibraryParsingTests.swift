@@ -321,6 +321,29 @@ final class FilesLibraryParsingTests: XCTestCase {
         XCTAssertNil(FilesLibraryService.apply(AudioTags(), to: &track, titleFromFileName: &titleFromFileName), "No artwork, nothing to store")
     }
 
+    func testPlayableDurationKeepsOnlyRealLengths() {
+        XCTAssertEqual(FilesLibraryService.playableDuration(284.5), 284.5)
+        XCTAssertEqual(FilesLibraryService.playableDuration(FilesLibraryService.longestDuration), FilesLibraryService.longestDuration)
+        XCTAssertNil(FilesLibraryService.playableDuration(nil))
+        XCTAssertNil(FilesLibraryService.playableDuration(0))
+        XCTAssertNil(FilesLibraryService.playableDuration(-1))
+        XCTAssertNil(FilesLibraryService.playableDuration(.nan))
+        XCTAssertNil(FilesLibraryService.playableDuration(.infinity))
+        XCTAssertNil(FilesLibraryService.playableDuration(FilesLibraryService.longestDuration + 1))
+
+        var track = FileTrack(relativePath: "a.mp3", title: "A", duration: 100, fileExtension: "mp3", isDownloaded: true)
+        var titleFromFileName = true
+        var tags = AudioTags()
+        tags.duration = .infinity
+        FilesLibraryService.apply(tags, to: &track, titleFromFileName: &titleFromFileName)
+        XCTAssertEqual(track.duration, 100, "A length that isn't one leaves what was there")
+
+        track.duration = .nan
+        let playlist = FilePlaylist(relativePath: "Playlists/Mix.m3u", title: "Mix", trackRelativePaths: ["a.mp3"])
+        XCTAssertTrue(FilesLibraryService.m3uText(for: playlist, tracksByPath: ["a.mp3": track]).contains("#EXTINF:-1,"),
+                      "A NaN from an old index writes as unknown rather than trapping")
+    }
+
     // MARK: - Helpers
 
     private func makeTempFolder() throws -> URL {
