@@ -80,9 +80,11 @@ enum RIFFTagParser {
                 let rate = extended80(comm, at: 8)
                 if frames > 0, rate > 0 { tags.duration = Double(frames) / rate }
             case "NAME":
-                tags.title = tags.title ?? TagText.string(try source.read(at: start, count: min(size, 4096)), encoding: .utf8)
+                let name = try source.read(at: start, count: min(size, 4096))
+                tags.title = tags.title ?? TagText.string(name, encoding: .utf8)
             case "AUTH":
-                tags.artist = tags.artist ?? TagText.string(try source.read(at: start, count: min(size, 4096)), encoding: .utf8)
+                let author = try source.read(at: start, count: min(size, 4096))
+                tags.artist = tags.artist ?? TagText.string(author, encoding: .utf8)
             case "ID3 ", "id3 ":
                 if size <= TagReader.regionLimit, let embedded = ID3v2Parser.parse(data: try source.read(at: start, count: size)) {
                     // The ID3 chunk is the richer source; its values win.
