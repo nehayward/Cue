@@ -1436,6 +1436,28 @@ public final class MusicSearchService {
         return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
+    /// TuneIn stations matching `query`, ranked — the Radio tab's search.
+    public func searchTuneInStations(query: String) async -> [PlayableContent] {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [] }
+        return await searchTuneIn(query: query)
+    }
+
+    /// Apple Music stations matching `query` — the Radio tab's search.
+    /// `searchAppleMusic` folds five of these into a whole-catalog search;
+    /// this asks for stations alone.
+    public func searchAppleRadioStations(query: String, limit: Int = 25) async -> [PlayableContent] {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty, await requestMusicAuthorization() else { return [] }
+        guard let container = try? await apple.searchRadioStations(term: query, limit: limit) else { return [] }
+        return container.data.compactMap(\.toPlayable)
+    }
+
+    /// The stream URL to play a TuneIn station on this device.
+    public func tuneInStreamURL(id: String) async -> URL? {
+        await tuneIn.streamURL(for: id)
+    }
+
     public func lookupTuneInStation(id: String) async -> TuneInStation? {
         await tuneIn.lookupStation(for: id)
     }

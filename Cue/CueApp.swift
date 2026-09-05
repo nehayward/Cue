@@ -62,7 +62,9 @@ struct MusicPlaybackView: View {
             showPlayer.toggle()
         } label: {
             HStack(spacing: 12) {
-                if let item = playback.nowPlaying {
+                // The display item, not the queue row: a station reads
+                // as the song on air here just as it does in the player.
+                if let item = playback.nowPlayingDisplay {
                     ContentArtworkView(content: item, showMusicSource: false)
                         .frame(width: 40, height: 40)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -310,6 +312,15 @@ struct CueApp: App {
         tabProviders.visibleProviders(enabledIn: coreFeatures)
     }
 
+    /// Whether the Radio tab has a source to draw on: TuneIn or Apple Music
+    /// switched on in Services. Those are the two whose stations play on
+    /// this device as well as on a speaker, which is the tab's rule — Sonos
+    /// Radio and Sonos favorites are speaker-only and stay on Browse and
+    /// Search.
+    private var showsRadioTab: Bool {
+        [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
+    }
+
     /// The sidebar header's plus: the providers switched on in Services
     /// that aren't tabs yet, and the full arrangement behind them.
     private var addProviderMenu: some View {
@@ -405,12 +416,21 @@ struct CueApp: App {
                     Screens.home
                 }
 
-                Tab("Search", systemImage: "magnifyingglass", value: AppTab.search) {
+                Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
                     Screens.search
                 }
                 
                 Tab("Browse", systemImage: "square.grid.2x2", value: AppTab.browse) {
                     Screens.browse
+                }
+
+                // Radio: every station source in one place. Fixed like
+                // Search and Browse — no `customizationID` — but only while
+                // a radio provider is switched on in Services.
+                if showsRadioTab {
+                    Tab("Radio", systemImage: "radio", value: AppTab.radio) {
+                        Screens.radio
+                    }
                 }
 
                 // One tab per added provider, plus its sidebar section. A
@@ -426,6 +446,13 @@ struct CueApp: App {
                 // it; a `TabView` whose selection names no tab shows nothing.
                 if let service = router.selectedTab.provider,
                    !providers.contains(where: { $0.service == service }) {
+                    router.selectedTab = .home
+                }
+            }
+            .onChange(of: showsRadioTab) { _, shows in
+                // Switching the last radio provider off takes the tab with
+                // it, and the selection has to move too.
+                if !shows, router.selectedTab == .radio {
                     router.selectedTab = .home
                 }
             }

@@ -1,7 +1,7 @@
 import Foundation
 import SWXMLHash
 
-public final class TuneInAPI {
+public final class TuneInAPI: Sendable {
     private let session: URLSession
     private let parser = TuneInParser()
 
@@ -21,6 +21,43 @@ public final class TuneInAPI {
             return []
         }
         return parser.parseStations(xmlData: data)
+    }
+
+    /// A page of TuneIn's directory: the stations near the caller, what's
+    /// trending, a category, or any page a link points at.
+    public func browse(_ page: TuneInBrowsePage) async -> [TuneInBrowseItem] {
+        await browse(url: page.url)
+    }
+
+    public func browse(url: URL) async -> [TuneInBrowseItem] {
+        guard let url = TuneInParser.secured(url),
+              let (data, _) = try? await session.data(for: URLRequest(url: url)) else {
+            return []
+        }
+        return parser.parseBrowse(xmlData: data)
+    }
+
+    /// The station's streams, for playing it on this device. `Tune.ashx`
+    /// without `render=json` answers with a bare playlist file that
+    /// `AVPlayer` can't open, so this asks for the JSON form and hands back
+    /// the URLs inside it.
+    public func streams(for stationID: String) async -> [TuneInStream] {
+        var url = URL(string: "https://opml.radiotime.com/Tune.ashx")!
+        url.append(queryItems: [
+            URLQueryItem(name: "id", value: stationID),
+            URLQueryItem(name: "render", value: "json"),
+            URLQueryItem(name: "formats", value: "mp3,aac,ogg,hls"),
+        ])
+        guard let (data, _) = try? await session.data(for: URLRequest(url: url)),
+              let response = try? JSONDecoder().decode(TuneInStreamResponse.self, from: data) else {
+            return []
+        }
+        return response.body
+    }
+
+    /// The one stream to play, or nil when the station has none.
+    public func streamURL(for stationID: String) async -> URL? {
+        await streams(for: stationID).preferred?.url
     }
 
     public func lookupStation(for stationID: String) async -> TuneInStation? {

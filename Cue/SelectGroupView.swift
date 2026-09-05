@@ -33,8 +33,9 @@ struct SelectGroupView: View {
     }
 
     /// Device is only on the table for a real queue flow (the grouping and
-    /// radio callers pass `onSelection` alone) and content the local queue can
-    /// actually take — Apple and Plex, never Spotify or a station.
+    /// song-radio callers pass `onSelection` alone) and content the local
+    /// queue can actually take — Apple and Plex tracks, TuneIn and Apple
+    /// Music stations; never Spotify or a Sonos-only station.
     private var canPlayOnDevice: Bool {
         guard onQueueSelection != nil, let content else { return false }
         return LocalPlaybackService.shared.canPlayAnywhereLocally(content)
