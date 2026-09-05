@@ -107,6 +107,11 @@ struct ContainerLargePlayerView: View {
                                 }
                                 .id(refreshID)
                                 .help("Queue")
+                                .accessibilityLabel("Queue")
+                                .accessibilityValue(
+                                    sonosService.sorted.first { $0.coordinatorID == id }?.playMode.accessibilityDescription ?? ""
+                                )
+                                .accessibilityAddTraits(router.inspectorSheet?.id == "queue" ? .isSelected : [])
 
                                 if let groupIndex = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
                                     MenuInfoView(group: sonosService.sorted[groupIndex], showArtworkOnly: $showArtworkOnly)

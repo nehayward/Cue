@@ -400,6 +400,11 @@ extension View {
             .environment(MiniPlayerManger.shared)
             .environment(CoreFeatures.shared)
             .environment(RemoteFeatureFlags.shared)
+            // Read by `PlayableContentView`, `LikeButtonView` and
+            // `FavoriteMenuButton`, which are hosted from every root that
+            // installs these environments — not only the tab view.
+            .environment(FavoriteRatingCache.shared)
+            .environment(FeatureGate.shared)
     }
     
     @ViewBuilder

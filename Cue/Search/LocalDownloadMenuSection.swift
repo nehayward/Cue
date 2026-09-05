@@ -26,6 +26,7 @@ struct LocalDownloadMenuSection: View {
                     Label("Downloading…", systemImage: "arrow.down.circle.dotted")
                 } else if manager.canDownload(item) {
                     Button {
+                        guard FeatureGate.shared.unlock(.downloads) else { return }
                         manager.download(item)
                         alertService.showAlertContent(with: item, subtitle: "Downloading", symbolName: "arrow.down.circle")
                     } label: {
@@ -56,6 +57,7 @@ struct LocalDownloadMenuSection: View {
                 switch files.cloudStatus(trackID: item.content.id) {
                 case .notDownloaded:
                     Button {
+                        guard FeatureGate.shared.unlock(.downloads) else { return }
                         files.downloadFromCloud(trackIDs: [item.content.id])
                         ContinuedDownloadTask.shared.track(cloudTrackIDs: [item.content.id], title: "Downloading \(item.title)")
                         alertService.showAlertContent(with: item, subtitle: "Downloading from iCloud", symbolName: "icloud.and.arrow.down")
@@ -104,6 +106,7 @@ struct LocalDownloadMenuSection: View {
     }
 
     private func downloadContainer() {
+        guard FeatureGate.shared.unlock(.downloads) else { return }
         Task { @MainActor in
             let count = await DownloadManager.shared.download(contentsOf: item)
             guard count > 0 else {

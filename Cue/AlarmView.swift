@@ -105,6 +105,7 @@ struct AlarmView: View {
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                             }
+                            .accessibilityLabel("Clear Music")
                         }
                     }
                 }
@@ -119,6 +120,8 @@ struct AlarmView: View {
                 HStack {
                     VibeSlider(value: $alarm.volume)
                         .foregroundStyle(.accent)
+                        .accessibilityLabel("Alarm Volume")
+                        .accessibilityValue("\(Int(alarm.volume.rounded())) percent")
                     Text(alarm.volume, format: .number)
                 }
                 .frame(height: 40)

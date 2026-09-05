@@ -1,8 +1,10 @@
 import AVFoundation
+import Defaults
 import Foundation
 import MusicKit
 import Observation
 import SonosKit
+import UIKit
 
 /// Plays full songs on this device instead of on a Sonos group. Keeps one
 /// queue of `PlayableContent` — Apple Music and Plex tracks can mix freely.
@@ -26,10 +28,32 @@ import SonosKit
 /// `PlayableContent` the search returned. The only network hop is resolving
 /// Apple ids into `Song` values, because MusicKit refuses to queue anything
 /// less than a real catalog `Song`.
+///
+/// The queue outlives the process: it is written to disk as it changes and
+/// the position a few times a minute, and the next launch loads both back
+/// paused — the track that was playing, at the point it had reached — so a
+/// kill from the app switcher, or the system reclaiming the app, doesn't
+/// throw away what was queued. Nothing is armed until Play; the first arm
+/// then seeks to the saved spot.
 @MainActor
 @Observable
 final class LocalPlaybackService {
     static let shared = LocalPlaybackService()
+
+    private init() {
+        restoreSavedQueue()
+        // The position is what changes most and is written least: make sure
+        // the latest one is on disk before the app can be killed quietly.
+        // `willTerminate` doesn't come for a kill from the switcher while
+        // suspended, which is why the poll also writes every few seconds.
+        for name in [UIApplication.didEnterBackgroundNotification, UIApplication.willTerminateNotification] {
+            observers.append(Task { [weak self] in
+                for await _ in NotificationCenter.default.notifications(named: name) {
+                    self?.flushSavedState()
+                }
+            })
+        }
+    }
 
     enum LocalPlaybackError: LocalizedError {
         case songNotFound
@@ -52,7 +76,7 @@ final class LocalPlaybackService {
 
     /// What happens when the queue runs out, or a track ends — the same three
     /// modes a Sonos queue has.
-    enum RepeatMode: String, CaseIterable {
+    enum RepeatMode: String, CaseIterable, Codable {
         case off
         case all
         case one
@@ -87,10 +111,18 @@ final class LocalPlaybackService {
     /// The local queue, in play order. Mixed services are fine — playback is
     /// armed per same-service run.
     private(set) var queue: [PlayableContent] = [] {
-        didSet { cacheNeedsRefresh() }
+        didSet {
+            cacheNeedsRefresh()
+            queueNeedsSave()
+        }
     }
     private(set) var currentIndex: Int = 0 {
-        didSet { if oldValue != currentIndex { cacheNeedsRefresh() } }
+        didSet {
+            if oldValue != currentIndex {
+                cacheNeedsRefresh()
+                savePosition()
+            }
+        }
     }
     private(set) var isPlaying = false
     private(set) var isLoading = false
@@ -167,6 +199,21 @@ final class LocalPlaybackService {
     @ObservationIgnored private var audioQualityItem: ObjectIdentifier?
     /// The Apple queue entry whose variant has been read, likewise.
     @ObservationIgnored private var audioVariantEntryID: String?
+    /// Seconds into the current track to pick up from once it is armed —
+    /// set by a restore, used by the first arm of that same track, and
+    /// dropped by anything that arms a different one.
+    @ObservationIgnored private var resumePosition: TimeInterval?
+    /// Debounces the queue's write to disk, for the same bursts as the cache.
+    @ObservationIgnored private var queueSaveTask: Task<Void, Never>?
+    /// True from a queue change until it has been written.
+    @ObservationIgnored private var queueNeedsWrite = false
+    /// The progress last written, so the poll only writes every few seconds
+    /// of playback rather than every tick.
+    @ObservationIgnored private var savedProgress: TimeInterval = 0
+    /// True while the saved queue is being loaded back, so the loads don't
+    /// write themselves straight back out.
+    @ObservationIgnored private var isRestoring = false
+    @ObservationIgnored private var observers: [Task<Void, Never>] = []
 
     /// Whether the queue can take this item: Apple tracks (catalog or library),
     /// and Plex or Subsonic tracks that carry their stream URL.
@@ -290,7 +337,8 @@ final class LocalPlaybackService {
         guard !playable.isEmpty else { throw LocalPlaybackError.nothingPlayable }
         queue = playable
         let start = items[safe: index].flatMap { playable.firstIndex(of: $0) } ?? 0
-        startPolling()
+        // A new queue, so a restored position belongs to nothing in it.
+        resumePosition = nil
         try await arm(at: start)
     }
 
@@ -389,6 +437,7 @@ final class LocalPlaybackService {
     /// when nothing is playing.
     func seek(to seconds: TimeInterval) {
         progress = seconds
+        savePosition()
         switch backend {
         case .appleMusic:
             musicPlayer.playbackTime = seconds
@@ -396,7 +445,10 @@ final class LocalPlaybackService {
             streamPlayer?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
             nowPlayingCard.noteSeek(elapsed: seconds)
         case nil:
-            break
+            // Nothing armed — a restored queue, or one parked by an
+            // end-of-track sleep timer. Play arms the track and picks up
+            // from here rather than from where it was saved.
+            resumePosition = seconds
         }
     }
 
@@ -447,6 +499,7 @@ final class LocalPlaybackService {
     func setRepeatMode(_ mode: RepeatMode) {
         guard mode != repeatMode else { return }
         repeatMode = mode
+        savePosition()
         // The armed run would carry straight past the current track; end it
         // there so the run-end hook can play it again. Leaving Repeat One
         // needs nothing: the next arm reads the mode and takes the whole run.
@@ -538,6 +591,7 @@ final class LocalPlaybackService {
         poller = nil
         cancelSleepTimer()
         teardownRun()
+        resumePosition = nil
         queue = []
         currentIndex = 0
         isPlaying = false
@@ -567,9 +621,17 @@ final class LocalPlaybackService {
             stop()
             return
         }
+        // The saved position is for the track that was current when the app
+        // last ran. This arm takes it if that is the track; any other arm
+        // drops it, so a tap on another row can't land partway into it.
+        let resume = index == currentIndex ? resumePosition : nil
+        resumePosition = nil
         currentIndex = index
         progress = 0
         duration = 0
+        // A restored queue arms from Play rather than `play(_:)`, which is
+        // where the poll used to start.
+        startPolling()
         // A run of one when the track has to hand back at its end: to play
         // again, or to pause there.
         let end = (repeatMode == .one || sleepsAtEndOfTrack) ? index : runEnd(from: index)
@@ -582,6 +644,12 @@ final class LocalPlaybackService {
         case nil:
             // Shouldn't happen — the queue only takes playable items.
             advancePastRun(endingAt: index)
+        }
+        // Pick up where the last run of the app left off. Only when this arm
+        // still owns playback and started the track it was asked to — the
+        // resolve can skip a row that failed, and a skip meanwhile moves on.
+        if let resume, playToken == token, backend != nil, currentIndex == index {
+            seek(to: resume)
         }
     }
 
@@ -626,6 +694,8 @@ final class LocalPlaybackService {
         case .stream:
             streamPlayer?.seek(to: .zero)
         case nil:
+            // From the top, not from where a restored track was.
+            resumePosition = nil
             Task { try? await arm(at: currentIndex) }
         }
     }
@@ -949,9 +1019,11 @@ final class LocalPlaybackService {
             // blurred backdrop included, which is what made the scrubber's
             // fill stutter between polls.
             let playing = status == .playing
+            let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
             progress = musicPlayer.playbackTime
             if playing { appleWasPlaying = true }
+            savePositionIfDue(paused: paused)
 
             // Follow the player's own advance through the run.
             let entries = musicPlayer.queue.entries
@@ -1000,8 +1072,10 @@ final class LocalPlaybackService {
             }
             // Only what changed, as above.
             let playing = streamPlayer.timeControlStatus != .paused
+            let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
             progress = current.currentTime().seconds
+            savePositionIfDue(paused: paused)
             let total = current.duration.seconds
             let itemDuration = total.isFinite ? total : 0
             if duration != itemDuration { duration = itemDuration }
@@ -1022,6 +1096,86 @@ final class LocalPlaybackService {
         case nil:
             if isPlaying { isPlaying = false }
         }
+    }
+
+    // MARK: - Surviving a relaunch
+
+    /// Loads the queue the last run of the app left, paused on the track it
+    /// was playing with the scrubber where it was. Only for the device route:
+    /// a speaker route means the queue was handed across or replaced, and a
+    /// stale one here would be carried onto the next speaker chosen (see
+    /// `PlaybackRoute`), so that case throws the saved copy away instead.
+    private func restoreSavedQueue() {
+        guard let saved = LocalQueueStore.load(), !saved.queue.isEmpty else { return }
+        guard (PlayDestination.remembered ?? .device) == .device else {
+            LocalQueueStore.clear()
+            return
+        }
+        isRestoring = true
+        defer { isRestoring = false }
+        queue = saved.queue
+        currentIndex = max(0, min(saved.position.index, saved.queue.count - 1))
+        repeatMode = saved.position.repeatMode
+        duration = saved.position.duration
+        // Under a couple of seconds is the start of the track as far as
+        // anyone can tell, the same cutoff a route switch uses.
+        if saved.position.progress > 2 {
+            progress = saved.position.progress
+            resumePosition = saved.position.progress
+        }
+        savedProgress = progress
+        // The observer may or may not run for an assignment in `init`; the
+        // cache wants to know either way, and the call is debounced.
+        cacheNeedsRefresh()
+    }
+
+    private func queueNeedsSave() {
+        guard !isRestoring else { return }
+        queueNeedsWrite = true
+        queueSaveTask?.cancel()
+        queueSaveTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled, let self else { return }
+            self.writeQueue()
+        }
+    }
+
+    /// Hands the queue to the store, which encodes and writes it off the
+    /// main thread — a queue can run to thousands of rows.
+    private func writeQueue() {
+        queueNeedsWrite = false
+        LocalQueueStore.save(queue: queue)
+    }
+
+    /// Writes where the queue is — index, progress, duration, repeat mode.
+    /// A handful of scalars in the defaults, cheap enough to write on every
+    /// index change.
+    private func savePosition() {
+        guard !isRestoring, !queue.isEmpty else { return }
+        savedProgress = progress
+        LocalQueueStore.save(position: .init(index: currentIndex, progress: progress, duration: duration, repeatMode: repeatMode))
+    }
+
+    /// The poll's version: every few seconds of progress, and at the moment
+    /// playback pauses so the saved spot is the one the scrubber shows.
+    private func savePositionIfDue(paused: Bool) {
+        if paused || abs(progress - savedProgress) >= 5 {
+            savePosition()
+        }
+    }
+
+    /// Everything, now — for the moments the app may not get another chance.
+    private func flushSavedState() {
+        guard !isRestoring else { return }
+        if queueNeedsWrite {
+            queueSaveTask?.cancel()
+            queueSaveTask = nil
+            queueNeedsWrite = false
+            // Waited for: the app may be about to suspend, and a write still
+            // pending on the store's queue would be left half done.
+            LocalQueueStore.save(queue: queue, waitUntilDone: true)
+        }
+        savePosition()
     }
 
     // MARK: - Audio quality
@@ -1117,5 +1271,72 @@ private enum SongDiskCache {
     static func save(_ cache: [String: Song]) {
         guard let url, let data = try? JSONEncoder().encode(cache) else { return }
         try? data.write(to: url, options: .atomic)
+    }
+}
+
+/// The device queue and its position, kept across launches. The queue goes
+/// in a file in Application Support beside the song cache — it can run to
+/// thousands of rows — and the position, which changes far more often, in
+/// the defaults as a few scalars. An empty queue clears both.
+///
+/// Queue writes go through one serial queue, in order, so a slow write of
+/// an older copy can't land on top of a newer one.
+private enum LocalQueueStore {
+    private static let io = DispatchQueue(label: "dance.cue.localQueue", qos: .utility)
+
+    struct Position: Codable {
+        var index: Int
+        var progress: TimeInterval
+        var duration: TimeInterval
+        var repeatMode: LocalPlaybackService.RepeatMode
+    }
+
+    struct Saved {
+        var queue: [PlayableContent]
+        var position: Position
+    }
+
+    private static var queueURL: URL? {
+        guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+        return support.appendingPathComponent("LocalQueue.json")
+    }
+
+    private static var positionKey: String { AppStorageKeys.localQueuePosition }
+
+    static func load() -> Saved? {
+        guard let queueURL, let data = try? Data(contentsOf: queueURL),
+              let queue = try? JSONDecoder().decode([PlayableContent].self, from: data) else { return nil }
+        let position = UserDefaults.standard.data(forKey: positionKey)
+            .flatMap { try? JSONDecoder().decode(Position.self, from: $0) }
+            ?? Position(index: 0, progress: 0, duration: 0, repeatMode: .off)
+        return Saved(queue: queue, position: position)
+    }
+
+    static func save(queue: [PlayableContent], waitUntilDone: Bool = false) {
+        let work: @Sendable () -> Void = {
+            guard !queue.isEmpty else { return Self.clear() }
+            guard let url = Self.queueURL, let data = try? JSONEncoder().encode(queue) else { return }
+            try? data.write(to: url, options: .atomic)
+        }
+        if waitUntilDone {
+            io.sync(execute: work)
+        } else {
+            io.async(execute: work)
+        }
+    }
+
+    static func save(position: Position) {
+        guard let data = try? JSONEncoder().encode(position) else { return }
+        UserDefaults.standard.set(data, forKey: positionKey)
+    }
+
+    static func clear() {
+        if let queueURL {
+            try? FileManager.default.removeItem(at: queueURL)
+        }
+        UserDefaults.standard.removeObject(forKey: positionKey)
     }
 }

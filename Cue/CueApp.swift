@@ -100,6 +100,7 @@ struct MusicPlaybackView: View {
             }
             .buttonStyle(.plain)
             .font(.title3)
+            .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
 
             if placement != .inline {
                 Button {
@@ -109,6 +110,7 @@ struct MusicPlaybackView: View {
                 }
                 .buttonStyle(.plain)
                 .font(.title3)
+                .accessibilityLabel("Next")
             }
         }
     }
@@ -170,6 +172,7 @@ struct MusicPlaybackView: View {
             }
             .buttonStyle(.plain)
             .font(.title3)
+            .accessibilityLabel(room.isPlaying ? "Pause" : "Play")
 
             if placement != .inline {
                 Button {
@@ -184,6 +187,7 @@ struct MusicPlaybackView: View {
                 }
                 .buttonStyle(.plain)
                 .font(.title3)
+                .accessibilityLabel("Next")
                 .disabled(!group.availableActions.contains(.next))
             }
         }
@@ -246,7 +250,6 @@ struct CueApp: App {
     private var playlistContainer = PlaylistContainer.shared
     private var playHistoryService = PlayHistoryService.shared
     private var miniPlayerManager = MiniPlayerManger.shared
-    private var favoriteRatingCache = FavoriteRatingCache.shared
 
     @CloudStorage(CloudKeys.hasSubscription) private var activeSubscription: Bool = false
     @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
@@ -496,7 +499,6 @@ struct CueApp: App {
             // by name, since `.accentColor` now resolves to this tint.
 //            .tint(Color.primary.opacity(0.12))
             .withEnvironments()
-            .environment(favoriteRatingCache)
             // Presented from the `TabView`, not from inside the tab bar
             // accessory. The system re-hosts that accessory when its placement
             // changes or the scene returns to the foreground, and a
@@ -933,7 +935,7 @@ struct CueApp: App {
                 }
             }
             
-            if !subscriptionService.subscription.isActive {
+            if !FeatureGate.shared.isAvailable(.liveActivities) {
                 return
             }
             

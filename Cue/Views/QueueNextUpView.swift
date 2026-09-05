@@ -47,6 +47,8 @@ private struct LocalNextUpView: View {
                                 isCurrent: index == playback.currentIndex
                             )
                             .onTapGesture { playback.play(at: index) }
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityHint("Plays this song")
                         }
                     }
                     .padding(.horizontal, 8)
@@ -120,6 +122,8 @@ private struct GroupNextUpView: View {
                                 isCurrent: isQueueActive && group.isNowPlaying(item)
                             )
                             .onTapGesture { play(item) }
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityHint("Plays this song")
                         }
                     }
                     .padding(.horizontal, 8)

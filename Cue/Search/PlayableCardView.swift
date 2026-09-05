@@ -42,6 +42,7 @@ struct PlayableCardView: View {
                     PlayableMenuView(item: item)
                 } label: {
                     Image(systemName: "ellipsis")
+                        .accessibilityLabel("More Options for \(item.title)")
                         .foregroundStyle(.white)
                         .fontWeight(.semibold)
                         .shadow(radius: 4)

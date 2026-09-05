@@ -16,6 +16,7 @@ struct MediaControlsView: View {
                 GroupIconView()
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel("Group Speakers")
             Button {
                 Task {
                     HapticManager.shared.fireHaptic(.buttonPress)
@@ -36,6 +37,7 @@ struct MediaControlsView: View {
             }
             .buttonStyle(.plain)
             .buttonBorderShape(.circle)
+            .accessibilityLabel(group.coordinatorRoom.isPlaying ? "Pause" : "Play")
         }
         .tint(.primary)
     }
