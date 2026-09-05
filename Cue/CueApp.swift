@@ -365,26 +365,31 @@ struct CueApp: App {
     @TabContentBuilder<AppTab>
     private func providerTabs(for provider: TabProvider) -> some TabContent<AppTab> {
         let service = provider.service
-        // iPhone has only the tab bar, and its More list shows every tab
-        // whatever `defaultVisibility` says — so the phone gets the one tab
-        // and no section at all.
-        let isPhone = UIDevice.current.userInterfaceIdiom == .phone
 
-        Tab(value: AppTab.provider(service)) {
-            Screens.providerRoot(provider)
-        } label: {
-            // A bare `Image`: the tab bar pulls the image out of the label
-            // and draws nothing for a sized or tinted view around it.
-            Label {
-                Text(service.title)
-            } icon: {
-                service.tabImage
+        if isPhone {
+            // iPhone has only the tab bar, and its More list shows every tab
+            // whatever `defaultVisibility` says — so the phone gets the one
+            // tab and no section at all. And nothing sidebar-only on that
+            // tab: `customizationID` and `defaultVisibility` exist for the
+            // sidebar's edit mode, which the phone doesn't have, and a tab
+            // the sidebar's model can hide is a tab bar item UIKit may find
+            // no view controller for — the "Inconsistency in UITabBar items
+            // and view controllers" assertion, raised during layout with
+            // the provider's item selected.
+            Tab(value: AppTab.provider(service)) {
+                Screens.providerRoot(provider)
+            } label: {
+                providerTabLabel(service)
             }
-        }
-        .customizationID(service.tabCustomizationID)
-        .defaultVisibility(isPhone ? .visible : .hidden, for: .sidebar)
+        } else {
+            Tab(value: AppTab.provider(service)) {
+                Screens.providerRoot(provider)
+            } label: {
+                providerTabLabel(service)
+            }
+            .customizationID(service.tabCustomizationID)
+            .defaultVisibility(.hidden, for: .sidebar)
 
-        if !isPhone {
             TabSection {
                 ForEach(provider.collections, id: \.self) { collection in
                     Tab(collection.title, systemImage: collection.systemImage, value: AppTab.providerCollection(service, collection)) {
@@ -402,10 +407,69 @@ struct CueApp: App {
         }
     }
 
+    /// A provider tab's label. A bare `Image`: the tab bar pulls the image
+    /// out of the label and draws nothing for a sized or tinted view around
+    /// it.
+    private func providerTabLabel(_ service: MediaSearchService) -> some View {
+        Label {
+            Text(service.title)
+        } icon: {
+            service.tabImage
+        }
+    }
+
+    private var isPhone: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone
+    }
+
+    /// Every tab the view builds right now. The selection is checked
+    /// against this before the `TabView` sees it: a selection naming a tab
+    /// that isn't there — a provider switched off in Services, Files with
+    /// its folder removed, Home's "Open" on a provider that's out — is what
+    /// UIKit's tab bar asserts on ("No view controller matches the
+    /// UITabBarItem"), and it asserts during layout, before any `onChange`
+    /// gets a chance to move the selection.
+    private var availableTabs: Set<AppTab> {
+        var tabs: Set<AppTab> = [.home, .search, .browse]
+        if showsRadioTab {
+            tabs.insert(.radio)
+        }
+        for provider in visibleTabProviders {
+            tabs.insert(.provider(provider.service))
+            if !isPhone {
+                for collection in provider.collections {
+                    tabs.insert(.providerCollection(provider.service, collection))
+                }
+            }
+        }
+        return tabs
+    }
+
+    /// The router's selection, or Home when it names a tab that isn't built.
+    private func resolvedTab(_ tab: AppTab) -> AppTab {
+        availableTabs.contains(tab) ? tab : .home
+    }
+
+    /// The `TabView`'s selection: the router's, clamped to a tab that exists,
+    /// with a tap on the already-selected tab reported as a reselection.
+    /// SwiftUI has no reselection callback and reports the tap as a set to
+    /// the same value, which is why the setter compares before writing.
+    private var tabSelection: Binding<AppTab> {
+        Binding {
+            resolvedTab(router.selectedTab)
+        } set: { newValue in
+            guard newValue != resolvedTab(router.selectedTab) else {
+                router.handleReselection(of: newValue)
+                return
+            }
+            router.selectedTab = newValue
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             @Bindable var router = router
-            TabView(selection: $router.selectedTab.reselecting(perform: router.handleReselection)) {
+            TabView(selection: tabSelection) {
                 // No `role: .search`. The role exists so the system can hoist a
                 // `.searchable` out of the tab, and it renders the tab as a
                 // separate search affordance rather than a peer — which is why
@@ -440,19 +504,14 @@ struct CueApp: App {
                     providerTabs(for: provider)
                 }
             }
-            .tabViewCustomization($tabCustomization)
-            .onChange(of: visibleTabProviders) { _, providers in
-                // A provider that left the tab view takes its selection with
-                // it; a `TabView` whose selection names no tab shows nothing.
-                if let service = router.selectedTab.provider,
-                   !providers.contains(where: { $0.service == service }) {
-                    router.selectedTab = .home
-                }
-            }
-            .onChange(of: showsRadioTab) { _, shows in
-                // Switching the last radio provider off takes the tab with
-                // it, and the selection has to move too.
-                if !shows, router.selectedTab == .radio {
+            // No customization on the phone: it holds the sidebar's edits,
+            // and the phone has no sidebar to make them in.
+            .tabViewCustomization(isPhone ? nil : $tabCustomization)
+            .onChange(of: availableTabs) { _, tabs in
+                // A tab that left takes its selection with it. The binding
+                // already shows Home in that case; this keeps the stored
+                // value honest so nothing else acts on a tab that's gone.
+                if !tabs.contains(router.selectedTab) {
                     router.selectedTab = .home
                 }
             }
@@ -542,7 +601,7 @@ struct CueApp: App {
                     .presentationBackgroundInteraction(.enabled)
                     .zoomTransition(from: .miniPlayer, in: zoomNamespace)
             }
-            .tabViewStyle(.sidebarAdaptable)
+            .modifier(AdaptiveTabViewStyle())
             .onOpenURL(perform: handle)
             .onAppear {
                 SonosService.shared.monitor()
@@ -1282,6 +1341,20 @@ struct CueApp: App {
             router.sheet(to: .playMedia(url: url))
         } catch {
             alertService.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
+        }
+    }
+}
+
+/// `.sidebarAdaptable` on iPad and Mac, where the sidebar is; the plain tab
+/// bar on iPhone, which has none. The adaptable style runs the sidebar's tab
+/// model on the phone too — hidden tabs, customization — and a tab that
+/// model hides is a tab bar item with no view controller behind it.
+private struct AdaptiveTabViewStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        if UIDevice.current.userInterfaceIdiom == .phone {
+            content
+        } else {
+            content.tabViewStyle(.sidebarAdaptable)
         }
     }
 }

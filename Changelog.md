@@ -13,6 +13,12 @@ Opening Preferences took the app down with RevenueCat's `Purchases has not been 
 - `SubscriptionService.userID` returns `""` while `Purchases.isConfigured` is false instead of trapping, and `PreferenceScreen` reads the ID through it rather than `Purchases.shared`. A diagnostics string isn't worth the app.
 - The rest of that commented-out launch block (onboarding gate, `subscriptionUpdated`/`groupsChanged` wiring, Now Playing session activation, saved-group restore, App Shortcuts refresh) is still dead and is not restored here.
 
+### Files tab crashed the iPhone tab bar
+Opening the Files tab on iPhone raised UIKit's `Inconsistency in UITabBar items and view controllers detected. No view controller matches the UITabBarItem 'Files'` assertion — during layout, with the Files item selected. Two things fed it, both in `CueApp`'s `TabView`:
+
+- The provider tabs carried the sidebar's machinery on the phone as well: `customizationID`, `defaultVisibility(for: .sidebar)` and the `tabViewCustomization` binding, all under `.tabViewStyle(.sidebarAdaptable)`. The phone has no sidebar, so none of it had a job there, but the adaptable style still runs the sidebar's tab model — and a tab that model can hide is a tab bar item UIKit finds no view controller for. On iPhone the provider tabs are now plain `Tab`s, the customization binding is `nil`, and the style is the default tab bar (`AdaptiveTabViewStyle`); iPad and Mac keep the sidebar, sections and customization unchanged.
+- The selection could name a tab that wasn't built. `visibleTabProviders` drops a provider the moment Services turns it off (or the Files folder is removed), and Home's "Open" selects any added provider, enabled or not; the two `onChange` handlers that moved the selection back to Home ran a pass *after* the `TabView` had already been handed the stale selection, which is the window UIKit asserts in. The `TabView` now reads its selection through `tabSelection`, a binding whose getter clamps `Router.main.selectedTab` to `availableTabs` (the set of tabs the body builds right now) synchronously, with reselection detection folded into its setter; one `onChange(of: availableTabs)` tidies the stored value afterwards. `Binding+Reselecting.swift` went with it, having no other caller.
+
 ### Subsonic / Navidrome integration
 Full integration for Subsonic-compatible self-hosted servers (Navidrome, Airsonic, Gonic, …), modeled on the Plex/Deezer service pattern per `Docs/AddingMusicService.md`.
 
