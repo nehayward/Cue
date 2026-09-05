@@ -196,13 +196,21 @@ extension View {
     #endif
     }
 
+    /// The A–Z index down a list's trailing edge. Skipped on Catalyst: on
+    /// macOS 27 the index sticks in its scrubbing state, which blurs and
+    /// dims every row while the section headers stay sharp. iPhone and iPad
+    /// keep it, where a finger scrub ends and the state clears.
     @ViewBuilder
     func sectionIndex(_ label: String) -> some View {
-        if #available(iOS 26.0, macCatalyst 26.0, visionOS 26.0, *) {
+#if targetEnvironment(macCatalyst)
+        self
+#else
+        if #available(iOS 26.0, visionOS 26.0, *) {
             self.sectionIndexLabel(label)
         } else {
             self
         }
+#endif
     }
     
     @ViewBuilder
