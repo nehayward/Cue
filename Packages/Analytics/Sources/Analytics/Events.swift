@@ -8,6 +8,9 @@ public enum AnalyticEvents: String {
     case createdScene
     case selectedMusicService
     case numberOfDevices
+    /// A download was refused by the free song limit. `viewedPaywall` with
+    /// `source: downloads` follows if the banner is tapped.
+    case downloadLimitReached
 
     var name: String { self.rawValue }
 }

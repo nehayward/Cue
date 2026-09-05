@@ -24,6 +24,7 @@ struct CuePaywall: View {
         .init(label: "Lock Screen controls", description: "Widgets + Live Activities", inFree: false),
         .init(label: "Apple Watch", description: "Full control from your wrist", inFree: false),
         .init(label: "Scenes", description: "One-tap automations", inFree: false),
+        .init(label: "Unlimited downloads", description: "Keep Plex & Subsonic songs on this device", inFree: false),
         .init(label: "Apple Shortcuts", inFree: false)
     ]
 

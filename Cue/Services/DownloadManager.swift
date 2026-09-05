@@ -2,6 +2,7 @@ import Defaults
 import Foundation
 import Observation
 import SonosKit
+import SubscriptionKit
 import UIKit
 
 /// Downloads tracks from the user's own servers — Plex and Subsonic, whose
@@ -117,6 +118,33 @@ final class DownloadManager {
         items.values.contains { $0.isActive }
     }
 
+    // MARK: - Free limit
+
+    /// How many songs may be kept without Cue Super. It's a ceiling on what's
+    /// held, not a lifetime allowance: every entry counts, finished or on its
+    /// way, and removing one frees its slot. iCloud Drive downloads and the
+    /// playback cache are the system's and the cache's own and don't count.
+    nonisolated static let freeSongLimit = 50
+
+    /// Songs held against the free limit.
+    var heldCount: Int { items.count }
+
+    /// Slots left before the free limit, or nil with Super, which has none.
+    var remainingFreeSlots: Int? {
+        guard !SubscriptionService.shared.subscription.isActive else { return nil }
+        return max(0, Self.freeSongLimit - heldCount)
+    }
+
+    /// Whether the next new download would be refused.
+    var isAtFreeLimit: Bool { remainingFreeSlots == 0 }
+
+    /// What a container download did: how many tracks it queued, and how
+    /// many it left behind because the free limit was reached.
+    struct BatchResult: Equatable {
+        var queued = 0
+        var heldBack = 0
+    }
+
     /// Whether the manager can download this at all: a Plex or Subsonic
     /// track carrying its stream URL.
     func canDownload(_ item: PlayableContent) -> Bool {
@@ -149,28 +177,47 @@ final class DownloadManager {
 
     /// Queues a track as a batch of one — the system card still shows it
     /// and lets it be cancelled. Already-downloaded and in-flight tracks
-    /// are left alone.
-    func download(_ item: PlayableContent) {
-        guard canDownload(item), !isDownloaded(item) else { return }
+    /// are left alone. Returns false when the free limit stops a new track;
+    /// a paused or failed one already holds its slot and always resumes.
+    @discardableResult
+    func download(_ item: PlayableContent) -> Bool {
+        guard canDownload(item), !isDownloaded(item) else { return false }
+        if takesNewSlot(item), isAtFreeLimit { return false }
         queue(item)
         ContinuedDownloadTask.shared.track(downloadKeys: [Self.key(for: item)], title: "Downloading \(item.title)")
+        return true
     }
 
     /// Queues everything inside an album, playlist or artist, fetched the
     /// way the local queue fetches it, as one batch the system shows and
-    /// keeps running. Returns how many tracks were queued.
+    /// keeps running. Without Super the batch fills the free slots that are
+    /// left, in the container's order, and reports what it couldn't take.
     @discardableResult
-    func download(contentsOf container: PlayableContent) async -> Int {
+    func download(contentsOf container: PlayableContent) async -> BatchResult {
         let tracks = await LocalPlaybackService.shared.containerTracks(for: container)
         let downloadable = tracks.filter { canDownload($0) && !isDownloaded($0) }
-        guard !downloadable.isEmpty else { return 0 }
+        guard !downloadable.isEmpty else { return BatchResult() }
+        var result = BatchResult()
         var keys: [String] = []
         for track in downloadable {
+            if takesNewSlot(track), isAtFreeLimit {
+                result.heldBack += 1
+                continue
+            }
             queue(track)
             keys.append(Self.key(for: track))
+            result.queued += 1
         }
-        ContinuedDownloadTask.shared.track(downloadKeys: keys, title: "Downloading \(container.title)")
-        return downloadable.count
+        if !keys.isEmpty {
+            ContinuedDownloadTask.shared.track(downloadKeys: keys, title: "Downloading \(container.title)")
+        }
+        return result
+    }
+
+    /// Whether downloading this would add an entry, as opposed to resuming
+    /// one that already counts against the limit.
+    private func takesNewSlot(_ item: PlayableContent) -> Bool {
+        items[Self.key(for: item)] == nil
     }
 
     /// `download(_:)` without the batch bookkeeping, for callers that batch

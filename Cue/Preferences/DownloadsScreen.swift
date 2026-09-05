@@ -7,6 +7,7 @@ import SwiftUI
 /// and — for a Files folder in iCloud Drive — how much of it is here.
 /// Reached from Settings › Storage.
 struct DownloadsScreen: View {
+    @Environment(Router.self) private var router: Router?
     @State private var manager = DownloadManager.shared
     @State private var cache = PlaybackCache.shared
     @State private var files = FilesLibraryService.shared
@@ -58,6 +59,10 @@ struct DownloadsScreen: View {
                 Text("Playback Cache")
             } footer: {
                 Text("Songs coming up in the on-device queue are fetched before they play, and recent ones kept, so playback holds through a tunnel or a dead spot. The least recently played goes first when the cap is reached. Covers Plex and Subsonic, and a Files folder in iCloud Drive when streaming is on below. Downloads you choose yourself are kept separately.")
+            }
+
+            if let remaining = manager.remainingFreeSlots {
+                freeLimitSection(remaining: remaining)
             }
 
             if !manager.active.isEmpty {
@@ -114,7 +119,9 @@ struct DownloadsScreen: View {
                     ContentUnavailableView {
                         Label("No Downloads", systemImage: "arrow.down.circle")
                     } description: {
-                        Text("Download a Plex or Subsonic song or album from its menu to keep it on this device.")
+                        Text(manager.remainingFreeSlots == nil
+                             ? "Download a Plex or Subsonic song or album from its menu to keep it on this device."
+                             : "Download a Plex or Subsonic song or album from its menu to keep it on this device. Up to \(DownloadManager.freeSongLimit) songs are free.")
                     }
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -158,6 +165,40 @@ struct DownloadsScreen: View {
         }
         .onChange(of: files.cloudProgress.isEmpty) {
             Task { await refreshCloudSummary() }
+        }
+    }
+
+    // MARK: - Free limit
+
+    /// How much of the free allowance is used, and the way past it. The
+    /// upgrade card appears once the meter is mostly full — early enough to
+    /// read as "here's what's coming", not as a wall.
+    private func freeLimitSection(remaining: Int) -> some View {
+        let limit = DownloadManager.freeSongLimit
+        let held = manager.heldCount
+        return Section {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label("Free Downloads", systemImage: "arrow.down.circle")
+                    Spacer()
+                    Text("\(held) of \(limit) songs")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                ProgressView(value: Double(held), total: Double(limit))
+                    .progressViewStyle(.linear)
+                    .tint(remaining == 0 ? .red : .accentColor)
+            }
+            if remaining <= limit / 5 {
+                PaywallButtonView()
+                    .environment(router)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+            }
+        } footer: {
+            Text(remaining == 0
+                 ? "Every free slot is taken. Remove a download to free one, or get Cue Super for unlimited downloads."
+                 : "Songs on this device and on their way count; removing one frees its slot. Cue Super removes the limit.")
         }
     }
 

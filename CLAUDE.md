@@ -162,3 +162,13 @@ Key findings for whoever picks this up:
   the ellipsis menu.
 - Scope decided: Apple Music only first (Spotify/Deezer would each need their
   own preview-URL lookup path).
+
+### Monetization notes
+- Downloads (Plex/Subsonic, `DownloadManager`) are free up to
+  `DownloadManager.freeSongLimit` songs held at a time; Cue Super lifts the
+  cap. The gate lives in the manager (`download(_:)` returns `false`,
+  `download(contentsOf:)` returns a `BatchResult`), with the meter in
+  `DownloadsScreen` and the "This Device" menu.
+- Super Day (a free 24-hour pass to Super, once a month) is designed but not
+  built — see `Ideas/super-day.md`. It needs the `SubscriptionService`
+  activity check moved to `entitlements.active` first.
