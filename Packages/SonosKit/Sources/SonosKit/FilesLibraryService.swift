@@ -168,7 +168,9 @@ public final class FilesLibraryService {
     /// iCloud placeholders the last scan asked the system to download.
     public private(set) var pendingDownloadCount = 0
     /// Progress of the pass that reads the tags of songs still in iCloud,
-    /// once a scan has listed them.
+    /// once a scan has listed them. The total is set the moment the pass
+    /// is queued, so nothing following it sees a gap between the scan
+    /// ending and the first read.
     public private(set) var cloudTagsRead = 0
     public private(set) var cloudTagsTotal = 0
     public var isReadingCloudTags: Bool { cloudTagsTotal > 0 }
@@ -232,6 +234,13 @@ public final class FilesLibraryService {
     /// continued-processing task off it, so a long scan carries on with
     /// progress on the Lock Screen after the app is backgrounded.
     @ObservationIgnored public var onScanStarted: (@MainActor () -> Void)?
+    /// Called on the main actor as the pass over songs still in iCloud
+    /// begins. It follows a scan most of the time, but also starts on its
+    /// own when the setting is turned on, so the app hangs the same
+    /// continued-processing task off it: reading a big library's tags takes
+    /// far longer than listing it, and would otherwise stop with the app
+    /// suspended.
+    @ObservationIgnored public var onCloudTagsStarted: (@MainActor () -> Void)?
 
     nonisolated private static let audioExtensions: Set<String> = [
         "mp3", "m4a", "aac", "flac", "wav", "aif", "aiff", "aifc", "caf", "m4b", "alac"
@@ -439,8 +448,9 @@ public final class FilesLibraryService {
         scanTask = Task { await scan() }
     }
 
-    /// Stops the running scan. What it has read so far is kept; the next
-    /// open of the library picks up the rest.
+    /// Stops the running scan, and the iCloud tag pass with it. What they
+    /// have read so far is kept; the next open of the library picks up the
+    /// rest.
     public func cancelScan() {
         scanTask?.cancel()
         cloudTagTask?.cancel()
@@ -1500,10 +1510,16 @@ public final class FilesLibraryService {
         let pending = tracks.filter { !$0.hasReadTags }
         guard !pending.isEmpty else { return }
         let generation = folderGeneration
+        // Counted from here rather than from the first read: a scan calls
+        // this as its last step, and whatever follows the scan's progress
+        // must see the pass as under way before the scan reports done.
+        cloudTagsTotal = pending.count
+        cloudTagsRead = 0
         cloudTagTask = Task { [weak self] in
             await self?.readCloudTags(pending, folderURL: folderURL, generation: generation)
             self?.cloudTagTask = nil
         }
+        onCloudTagsStarted?()
     }
 
     private struct CloudTagResult: Sendable {
@@ -1515,18 +1531,16 @@ public final class FilesLibraryService {
     }
 
     private func readCloudTags(_ pending: [FileTrack], folderURL: URL, generation: Int) async {
+        defer {
+            cloudTagsTotal = 0
+            cloudTagsRead = 0
+        }
         guard await NetworkConditions.isUnmetered() else {
             Self.log.notice("cloud tags: waiting for Wi‑Fi, \(pending.count) unread")
             return
         }
         guard generation == folderGeneration, !Task.isCancelled else { return }
         Self.log.notice("cloud tags: reading \(pending.count)")
-        cloudTagsTotal = pending.count
-        cloudTagsRead = 0
-        defer {
-            cloudTagsTotal = 0
-            cloudTagsRead = 0
-        }
         let root = folderURL
         let artworkDirectory = Self.artworkDirectory
         let kept = keptTrackIDs

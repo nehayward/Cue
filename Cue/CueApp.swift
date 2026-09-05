@@ -1369,11 +1369,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // before a download batch submits it.
         ContinuedDownloadTask.shared.register()
         // A Files scan gets the same card: progress on the Lock Screen and
-        // the app kept running until it's done.
+        // the app kept running until it's done. The pass that reads the
+        // tags of songs still in iCloud follows the scan on the same card,
+        // and gets one of its own when it starts by itself.
         Task { @MainActor in
-            FilesLibraryService.shared.onScanStarted = {
-                ContinuedDownloadTask.shared.trackScan(folderName: FilesLibraryService.shared.folderName ?? "Music")
+            let files = FilesLibraryService.shared
+            let track: @MainActor () -> Void = {
+                ContinuedDownloadTask.shared.trackLibrary(folderName: files.folderName ?? "Music")
             }
+            files.onScanStarted = track
+            files.onCloudTagsStarted = track
         }
         return true
     }
