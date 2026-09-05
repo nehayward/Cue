@@ -161,6 +161,24 @@ final class FilesLibraryIndexTests: XCTestCase {
         XCTAssertEqual(a.playlists.map(\.content.id), b.playlists.map(\.content.id))
     }
 
+    func testDurationsDurationCannotHoldAreLeftOut() {
+        // A NaN, an infinity or a number past what `Duration` stores would
+        // trap when the index is built; an old index can hold any of them.
+        let library = FilesLibraryService(tracks: [
+            track("a.mp3", title: "NaN", duration: .nan),
+            track("b.mp3", title: "Infinite", duration: .infinity),
+            track("c.mp3", title: "Astronomical", duration: 1e28),
+            track("d.mp3", title: "Negative", duration: -5),
+            track("e.mp3", title: "Fine", duration: 200),
+        ], folderURL: root)
+        XCTAssertNil(library.track(id: FilesLibraryService.hash("song|a.mp3"))?.metadata?.duration)
+        XCTAssertNil(library.track(id: FilesLibraryService.hash("song|b.mp3"))?.metadata?.duration)
+        XCTAssertNil(library.track(id: FilesLibraryService.hash("song|c.mp3"))?.metadata?.duration)
+        XCTAssertNil(library.track(id: FilesLibraryService.hash("song|d.mp3"))?.metadata?.duration)
+        XCTAssertEqual(library.track(id: FilesLibraryService.hash("song|e.mp3"))?.metadata?.duration, .seconds(200))
+        XCTAssertEqual(library.songs(sortedBy: .duration, descending: true, offset: 0).first?.title, "Fine")
+    }
+
     func testUntaggedTrackFallsToUnknownArtistAndAlbum() {
         let library = FilesLibraryService(tracks: [track("loose.mp3", title: "Loose")], folderURL: root)
         XCTAssertEqual(library.albums.map(\.title), ["Unknown Album"])

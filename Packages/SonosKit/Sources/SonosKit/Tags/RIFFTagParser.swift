@@ -78,7 +78,13 @@ enum RIFFTagParser {
                 let comm = ByteView(try source.read(at: start, count: min(size, 18)))
                 let frames = comm.u32BE(2)
                 let rate = extended80(comm, at: 8)
-                if frames > 0, rate > 0 { tags.duration = Double(frames) / rate }
+                // A corrupt rate can come out infinite, or tiny enough that
+                // the division does; a length that isn't a real number is
+                // no length at all.
+                if frames > 0, rate.isFinite, rate > 0 {
+                    let seconds = Double(frames) / rate
+                    if seconds.isFinite, seconds > 0 { tags.duration = seconds }
+                }
             case "NAME":
                 let name = try source.read(at: start, count: min(size, 4096))
                 tags.title = tags.title ?? TagText.string(name, encoding: .utf8)

@@ -19,7 +19,11 @@ enum MP4TagParser {
             } else if size == 0 {
                 size = source.length - position
             }
-            guard size >= headerLength else { break }
+            // A size the file can't hold — a corrupt 64-bit size can be
+            // anything up to `Int.max` — ends the walk. Compared against
+            // what is left rather than added to `position`, which would
+            // overflow for such a size.
+            guard size >= headerLength, size <= source.length - position else { break }
 
             if header.matches(4, "moov") {
                 let bodySize = size - headerLength
@@ -151,7 +155,9 @@ enum MP4TagParser {
             } else if size == 0 {
                 size = view.count - position
             }
-            guard size >= headerLength, position + size <= view.count else { break }
+            // Against what is left, not `position + size`: a corrupt 64-bit
+            // size can be up to `Int.max`, and the sum would overflow.
+            guard size >= headerLength, size <= view.count - position else { break }
             let type = Array(view.bytes(position + 4, 4))
             body(type, ByteView(view.bytes(position + headerLength, size - headerLength)))
             position += size

@@ -101,6 +101,9 @@ struct FilesIndex: Sendable {
             let artwork = track.artworkFileName.map { artworkDirectory.appendingPathComponent($0) } ?? albumArtwork[albumID]
             let year = index.albumYear[albumID]
             let songArtist = track.artist ?? artistName
+            // Checked here as well as when read: an index stored before the
+            // check existed can carry a value `Duration` would trap on.
+            let duration = FilesLibraryService.playableDuration(track.duration)
 
             let song = PlayableContent(
                 title: track.title,
@@ -115,7 +118,7 @@ struct FilesIndex: Sendable {
                 // full, and opening it makes iCloud fetch it.
                 previewURL: url,
                 metadata: .init(
-                    duration: track.duration.map { Duration.seconds($0) },
+                    duration: duration.map { Duration.seconds($0) },
                     artist: songArtist,
                     artistID: artistID,
                     album: track.albumTitle,
@@ -133,7 +136,7 @@ struct FilesIndex: Sendable {
                 album: NaturalSortKey.key(for: track.albumTitle),
                 position: track.trackNumber ?? 0,
                 added: track.modificationDate ?? .distantPast,
-                duration: track.duration ?? 0,
+                duration: duration ?? 0,
                 path: track.relativePath
             ))
             index.tracksByID[songID] = track

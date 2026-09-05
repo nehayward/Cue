@@ -738,7 +738,7 @@ public final class FilesLibraryService {
         track.year = tags.year ?? track.year
         track.trackNumber = tags.trackNumber ?? track.trackNumber
         track.discNumber = tags.discNumber ?? track.discNumber
-        track.duration = tags.duration ?? track.duration
+        track.duration = playableDuration(tags.duration) ?? track.duration
         // A compilation with no album artist of its own is Various Artists,
         // so its songs stay one album rather than one per artist.
         if tags.isCompilation, track.albumArtist == nil {
@@ -746,6 +746,21 @@ public final class FilesLibraryService {
         }
         guard let artwork = tags.artwork, !artwork.isEmpty else { return nil }
         return artwork
+    }
+
+    /// The longest a song is taken to be: a month, which is past any
+    /// audiobook. Nothing real is longer, and a corrupt tag can claim any
+    /// number at all.
+    nonisolated static let longestDuration: Double = 30 * 24 * 60 * 60
+
+    /// A length worth keeping, or nil: finite, positive and no longer than
+    /// `longestDuration`. Tags and AVFoundation both go through this, and so
+    /// does the index for what was stored before it existed, because turning
+    /// a NaN, an infinity or a number beyond what `Duration` can hold into a
+    /// `Duration` traps — and the index is built every time the library opens.
+    nonisolated static func playableDuration(_ seconds: Double?) -> Double? {
+        guard let seconds, seconds.isFinite, seconds > 0, seconds <= longestDuration else { return nil }
+        return seconds
     }
 
     /// One cover per album, written the first time it's seen.
@@ -788,8 +803,8 @@ public final class FilesLibraryService {
             }
         }
 
-        if track.duration == nil, let duration = try? await asset.load(.duration), duration.seconds.isFinite, duration.seconds > 0 {
-            track.duration = duration.seconds
+        if track.duration == nil, let duration = try? await asset.load(.duration), let seconds = playableDuration(duration.seconds) {
+            track.duration = seconds
         }
 
         // Track and disc numbers, album artist, genre and year have no
@@ -1255,7 +1270,9 @@ public final class FilesLibraryService {
         var lines = ["#EXTM3U", "#PLAYLIST:\(playlist.title)"]
         for path in playlist.trackRelativePaths {
             if let track = tracksByPath[path] {
-                let seconds = Int((track.duration ?? -1).rounded())
+                // Through the same check as the index: `Int(_:)` of a NaN or
+                // an infinity traps, and an old index can hold one.
+                let seconds = Int((playableDuration(track.duration) ?? -1).rounded())
                 lines.append("#EXTINF:\(seconds),\(track.artist ?? track.groupingArtist) - \(track.title)")
             }
             lines.append(relativePath(from: directory, to: path))
