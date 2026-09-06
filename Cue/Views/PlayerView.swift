@@ -365,13 +365,25 @@ private struct LocalPlaybackScrubber: View {
         playback.progress < 2 ? nil : .interactiveSpring
     }
 
-    private var duration: TimeInterval { max(playback.duration, 1) }
+    /// Both kept finite here as well as in the service: everything below
+    /// goes through `Duration.seconds(_:)`, which traps on NaN or infinity,
+    /// and `max(_:_:)` passes a NaN straight through rather than flooring it.
+    private var duration: TimeInterval {
+        playback.duration.isFinite ? max(playback.duration, 1) : 1
+    }
+
+    /// Where the scrubber sits: the finger while dragging, the player's
+    /// clock otherwise.
+    private var position: TimeInterval {
+        let value = scrubPosition ?? playback.progress
+        return value.isFinite ? min(max(0, value), duration) : 0
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             VibeSlider(
                 value: Binding(
-                    get: { min(scrubPosition ?? playback.progress, duration) },
+                    get: { position },
                     set: { scrubPosition = $0 }
                 ),
                 in: 0...duration,
@@ -390,15 +402,15 @@ private struct LocalPlaybackScrubber: View {
             .frame(height: 40)
             .foregroundStyle(.primary)
             .accessibilityLabel("Playback Position")
-            .accessibilityValue(Duration.seconds(scrubPosition ?? playback.progress).formatted(.time(pattern: .minuteSecond)))
+            .accessibilityValue(Duration.seconds(position).formatted(.time(pattern: .minuteSecond)))
 
             HStack {
-                let position = Duration.seconds(scrubPosition ?? playback.progress)
-                let remaining = Duration.seconds(max(0, duration - (scrubPosition ?? playback.progress)))
+                let elapsed = Duration.seconds(position)
+                let remaining = Duration.seconds(max(0, duration - position))
                 let pattern: Duration.TimeFormatStyle.Pattern =
                     duration > 3600 ? .hourMinuteSecond : .minuteSecond
 
-                Text(position.formatted(.time(pattern: pattern)))
+                Text(elapsed.formatted(.time(pattern: pattern)))
                     .contentTransition(.identity)
                 Spacer()
                 // Lossless / Atmos / bit depth, as far as the backend says —

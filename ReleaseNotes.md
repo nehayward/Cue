@@ -10,6 +10,7 @@
 - Sort your songs: Order Plex and Subsonic songs by title, artist, album, year, play count, date added, or your favorites — and flip any of them, A–Z or Z–A, newest or oldest, most or least played. Each list remembers what you picked
 
 –– Bug Fixes & Improvements ––
+- Fixed the Plex Albums and Artists lists stuttering as they scrolled — every page of albums that arrived was re-sorted into letter groups many times over
 - Discography on artist pages now starts fresh — it clears the queue and plays every album in order, oldest first, starting as soon as the first song is ready. Play Next and Play Last are still in the ••• menu
 - Restored the Favorite option in Deezer song menus — it had quietly gone missing from the ••• menu
 - Fixed the volume buttons moving a speaker several steps per press while Lock Screen Now Playing is on — each press is one step again, and the Lock Screen slider still sets the level directly

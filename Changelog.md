@@ -73,6 +73,19 @@ The reason is Subsonic: its API has no sort for songs. `search3` takes only coun
 - **List.** `PlayableListView` grows opt-in sort options (each carrying its own paged loader, so the list never learns whether the order came from the server or a local copy), search, pull-to-refresh, and a status line under the title. `RouterDestination.playableList` carries them, plus a `sortKey` — Plex and Subsonic both have a list titled "Songs" and would otherwise share one remembered choice. A first page replaces `items` rather than appending, so a search narrows in place instead of blanking the list per keystroke.
 - **Settings.** Services splits self-hosted services into their own section (membership follows `MediaSearchService.isConfiguredInCue`), since Subsonic sat under "Available with Sonos" telling people to add it in the Sonos app. Storage counts and clears all three caches. `PlexRatingCache` becomes `FavoriteRatingCache` and Subsonic rows draw the favorite heart from it.
 
+### Device player crash on an Apple Music station
+Playing an Apple Music station on this device crashed the device player as soon as it opened, with `Double value cannot be converted to _Int128 because it is outside the representable range`. `ApplicationMusicPlayer.playbackTime` is NaN while its entry is still loading — a station's first track — and the poll published that straight as `progress`; the scrubber then built `Duration.seconds(progress)`, which traps on a non-finite value. The stream backend had the same hole through `CMTime.seconds`, which is NaN for an invalid time.
+
+- `LocalPlaybackService` reads both players' clocks through `finite(_:else:)`: a finite time is clamped at zero, anything else keeps the last good reading. `seek(to:)` and the restored position get the same treatment, so a NaN can't be saved and loaded back either.
+- `LocalPlaybackScrubber` keeps `position` and `duration` finite on its own side too — `max(_:_:)` passes a NaN through rather than flooring it — so nothing in the view can build a `Duration` from a bad number whatever the service publishes.
+
+### Scrubber arithmetic on a radio source
+Found on the way: the Sonos player's scrubber divides the position by the track's duration, and a radio source has none. Sonos Radio and TuneIn announce through `streamContent`, which leaves the position at zero, but an Apple Music station on a speaker comes through the ordinary metadata path — `RelTime` counts up while `TrackDuration` is a placeholder the parser turns into zero — so the range was `0...0` with a value past it: infinity for the fill width, and an accessibility `Slider` over an empty range.
+
+- `SliderMath` (VibesDS) now owns the slider arithmetic for `VibeSlider` and `VibeSliderTV`: a `safeRange` that is never empty and drops non-finite bounds, and every fill width, drag, click and accessibility value clamped inside it. It also stops assuming the range starts at zero.
+- `LargePlayerView.PlaybackView` and `TVPlayerView` floor the scrubber's range at one (twin of `LocalPlaybackScrubber`), since an inverted `ClosedRange` traps before the slider can see it. `SonosTrackParser.parseTime` clamps a negative placeholder to zero for the same reason.
+- `PositionInfoParserTests` pins the three shapes: a normal duration, a stream with `NOT_IMPLEMENTED` for a duration but a counting position, and negative placeholders.
+
 ---
 
 ## 2026.7

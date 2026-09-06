@@ -257,7 +257,10 @@ struct TVPlayerView: View {
     
     private func playbackView() -> some View {
         VStack(spacing: 0) {
-            VibeSliderTV(value: $group.coordinatorRoom.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 1000, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, showValue: false) { isEditing in
+            // Floored at one: a radio stream has no duration, and a
+            // `ClosedRange` with its bounds inverted traps. See the same
+            // guard on `LargePlayerView`'s scrubber.
+            VibeSliderTV(value: $group.coordinatorRoom.playbackPosition, in: 0...max(group.coordinatorRoom.track.duration, 1), step: 1000, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, showValue: false) { isEditing in
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
                     group.isEditingPlayback = isEditing

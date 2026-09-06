@@ -45,7 +45,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "E9C03AFB2A586F5E00FB9118"
             BuildableName = "Cue Watch.app"
-            BlueprintName = "Cue (Watch)"
             ReferencedContainer = "container:Cue.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -69,7 +68,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "E9C03AFB2A586F5E00FB9118"
             BuildableName = "Cue Watch.app"
-            BlueprintName = "Cue (Watch)"
             ReferencedContainer = "container:Cue.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
