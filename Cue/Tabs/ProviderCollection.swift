@@ -115,4 +115,11 @@ extension MediaSearchService {
     func tabCustomizationID(for collection: ProviderCollection) -> String {
         "cue.tab.\(rawValue).\(collection.rawValue)"
     }
+
+    /// The `customizationID` of this provider's sidebar section — distinct
+    /// from its own tab's, so the section's order and the tab's visibility
+    /// are kept apart.
+    var tabSectionCustomizationID: String {
+        "cue.section.\(rawValue)"
+    }
 }

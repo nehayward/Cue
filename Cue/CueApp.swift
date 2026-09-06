@@ -387,6 +387,10 @@ struct CueApp: App {
         } header: {
             Text(service.title)
         }
+        // The section's own ID is what lets the sidebar's Edit drag it
+        // above or below the other providers and keep that order; without
+        // one the section sits where it is declared.
+        .customizationID(service.tabSectionCustomizationID)
         // No section action: the sidebar's own Edit is the one place tabs
         // are hidden and reordered.
     }
@@ -468,8 +472,9 @@ struct CueApp: App {
                     // reaching their sections — and the phone has neither:
                     // providers are browsed from Browse's menu and set up in
                     // Settings › Services. No provider tabs here either, so
-                    // the bar never overflows into More.
-                    Tab("Browse", systemImage: "square.grid.2x2", value: AppTab.browse) {
+                    // the bar never overflows into More. The house is
+                    // Browse's here, since it is the phone's home.
+                    Tab("Browse", systemImage: "house", value: AppTab.browse) {
                         Screens.browse
                     }
                     searchTab
