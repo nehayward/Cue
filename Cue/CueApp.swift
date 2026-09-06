@@ -332,11 +332,14 @@ struct CueApp: App {
         [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
     }
 
-    /// Search, with the search role so the system draws it as the tab
-    /// bar's search affordance.
+    /// Search. The search role only on the phone, where it draws the tab as
+    /// the bar's separate search bubble. On iPad and Mac the role takes the
+    /// tab out of the sidebar's list too — it exists to hoist a `.searchable`
+    /// out of the tab, and `SearchScreen` draws its own field, so there is
+    /// nothing to hoist and Search went missing. A plain tab there.
     @TabContentBuilder<AppTab>
     private var searchTab: some TabContent<AppTab> {
-        Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
+        Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: isPhone ? TabRole.search : nil) {
             Screens.search
         }
     }
