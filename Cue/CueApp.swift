@@ -353,27 +353,42 @@ struct CueApp: App {
         }
     }
 
-    /// A provider's tabs, on iPad and Mac: one of its own for the tab bar,
-    /// and a sidebar section holding a tab per collection. The two never
-    /// show together — the root tab is hidden from the sidebar, the
-    /// collection tabs from the tab bar — so the collapsed tab bar gets a
-    /// single "Plex" tab listing the same collections the sidebar shows as
-    /// a Plex section. Every tab carries a `customizationID`, which is what
-    /// lets the sidebar's edit mode hide and reorder them; the collections
-    /// outside `defaultTabCollections` start hidden and wait there to be
-    /// switched on. Home, Search, Browse and Radio carry none and stay put.
+    /// The Providers section, on iPad and Mac: one tab per switched-on
+    /// provider, opening its front page. Apple's sidebar only lets tabs be
+    /// dragged within a section, so this is what makes the providers
+    /// reorderable there — and hideable, each with a `customizationID`. In
+    /// the collapsed tab bar these same tabs are the bar's entries.
     @TabContentBuilder<AppTab>
-    private func providerTabs(for service: MediaSearchService) -> some TabContent<AppTab> {
+    private var providersSection: some TabContent<AppTab> {
+        TabSection {
+            ForEach(tabProviders, id: \.self) { service in
+                Tab(value: AppTab.provider(service)) {
+                    Screens.providerRoot(service, collections: shownCollections(of: service))
+                } label: {
+                    providerTabLabel(service)
+                }
+                .customizationID(service.tabCustomizationID)
+            }
+        } header: {
+            Text("Providers")
+        }
+        .customizationID(Self.providersSectionCustomizationID)
+    }
+
+    private static let providersSectionCustomizationID = "cue.section.providers"
+
+    /// A provider's collection section, on iPad and Mac: a tab per
+    /// collection, so the sidebar can jump straight to Albums. Hidden from
+    /// the tab bar, where the provider's own tab in the Providers section
+    /// stands for all of them. Every tab carries a `customizationID`, which
+    /// is what lets the sidebar's edit mode hide and reorder them; the
+    /// collections outside `defaultTabCollections` start hidden and wait
+    /// there to be switched on. The section's own ID is what lets Edit drag
+    /// it above or below the other providers' sections.
+    @TabContentBuilder<AppTab>
+    private func collectionSection(for service: MediaSearchService) -> some TabContent<AppTab> {
         let collections = shownCollections(of: service)
         let defaults = service.defaultTabCollections
-
-        Tab(value: AppTab.provider(service)) {
-            Screens.providerRoot(service, collections: collections)
-        } label: {
-            providerTabLabel(service)
-        }
-        .customizationID(service.tabCustomizationID)
-        .defaultVisibility(.hidden, for: .sidebar)
 
         TabSection {
             ForEach(service.tabCollections, id: \.self) { collection in
@@ -387,12 +402,7 @@ struct CueApp: App {
         } header: {
             Text(service.title)
         }
-        // The section's own ID is what lets the sidebar's Edit drag it
-        // above or below the other providers and keep that order; without
-        // one the section sits where it is declared.
         .customizationID(service.tabSectionCustomizationID)
-        // No section action: the sidebar's own Edit is the one place tabs
-        // are hidden and reordered.
     }
 
     /// A provider tab's label. A bare `Image`: the tab bar pulls the image
@@ -489,11 +499,15 @@ struct CueApp: App {
                     }
                     radioTab
 
-                    // A section per switched-on provider. One turned off in
-                    // Services drops out here; its sidebar edits stay in the
-                    // customization for when it comes back.
+                    // The providers twice over, both driven by the switched-on
+                    // set: once as tabs in one section, which is how the
+                    // sidebar lets them be reordered and hidden, and then a
+                    // collection section per provider. One turned off in
+                    // Services drops out of both; its sidebar edits stay in
+                    // the customization for when it comes back.
+                    providersSection
                     ForEach(tabProviders, id: \.self) { service in
-                        providerTabs(for: service)
+                        collectionSection(for: service)
                     }
                 }
             }
