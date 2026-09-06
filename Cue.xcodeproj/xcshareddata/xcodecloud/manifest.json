@@ -3,6 +3,10 @@
   "targets" : [
     {
       "id" : "93315F3E-4057-4971-9AC9-3EBDDB3DF9A1",
+      "name" : "Clic"
+    },
+    {
+      "id" : "93315F3E-4057-4971-9AC9-3EBDDB3DF9A1",
       "name" : "Cue"
     }
   ]
