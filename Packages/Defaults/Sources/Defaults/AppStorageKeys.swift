@@ -7,12 +7,8 @@ public enum AppStorageKeys {
     /// resets once and users re-pick.
     public static let selectedSearchServices = "\(Prefix.id).selectedSearchServices"
     public static let browseMediaService = "\(Prefix.id).browseMediaService"
-    /// The music providers the user has added to the tab view, in order —
-    /// raw `MediaSearchService` values. Each gets a tab of its own (and, on
-    /// iPad and Mac, a sidebar section split into its collections).
-    public static let tabProviders = "\(Prefix.id).tabProviders"
-    /// The sidebar edits the system lets the user make to those tabs — hiding
-    /// and reordering — as a `TabViewCustomization`.
+    /// The sidebar edits the system lets the user make to the provider tabs
+    /// on iPad and Mac — hiding and reordering — as a `TabViewCustomization`.
     public static let tabViewCustomization = "\(Prefix.id).tabViewCustomization"
     /// The Files provider's folder, as a security-scoped bookmark (`Data`)
     /// of the folder the user picked — on this device or in iCloud Drive.

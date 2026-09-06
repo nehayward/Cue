@@ -88,9 +88,10 @@ extension MediaSearchService {
         }
     }
 
-    /// The collections switched on when the provider is first added. The
-    /// core four where a provider has them, so a section starts at a size
-    /// the sidebar can take; the rest wait in Customize Tabs.
+    /// The collections whose tabs show before the user edits the sidebar.
+    /// The core four where a provider has them, so a section starts at a
+    /// size the sidebar can take; the rest start hidden, for the sidebar's
+    /// Edit to switch on.
     var defaultTabCollections: [ProviderCollection] {
         let core: Set<ProviderCollection> = [
             .artists, .albums, .songs, .playlists,
@@ -100,7 +101,7 @@ extension MediaSearchService {
         return defaults.isEmpty ? tabCollections : defaults
     }
 
-    /// Whether the user can add this provider to the tab view at all.
+    /// Whether this provider gets tabs at all.
     var canBeTab: Bool {
         isBrowseSupported && !tabCollections.isEmpty
     }

@@ -291,25 +291,36 @@ struct CueApp: App {
     /// the `fullScreenCover` on the `TabView` below.
     @Namespace private var zoomNamespace
 
-    /// The providers the user added to the tab view. Each is a tab of its
-    /// own and, on iPad and Mac, a sidebar section split into its
-    /// collections. Singletons rather than the environment: the sidebar's
-    /// bottom bar reads these too, and it is hosted outside what
-    /// `withEnvironments()` installs on the tab content.
-    @State private var tabProviders = TabProviderStore.shared
     @State private var coreFeatures = CoreFeatures.shared
-    /// The sidebar edits the system makes for the user — hiding and
-    /// reordering the provider tabs — kept across launches.
+    /// The sidebar's edits — which of the provider tabs show, and the order
+    /// of their sections — kept across launches. This is the whole of tab
+    /// customization: the sidebar's own edit mode writes it, and the
+    /// provider front pages read it back (`shownCollections(of:)`).
     @AppStorage(AppStorageKeys.tabViewCustomization) private var tabCustomization = TabViewCustomization()
-    /// Sheets the tab view itself presents (Customize Tabs, a provider's
-    /// management), as opposed to the ones each tab's router owns.
-    @State private var tabSheet: SheetDestination?
 
-    /// Added providers that are switched on in Services. One turned off
-    /// there loses its tabs but keeps its place, so it comes back where it
-    /// was.
-    private var visibleTabProviders: [TabProvider] {
-        tabProviders.visibleProviders(enabledIn: coreFeatures)
+    /// The providers with a section in the sidebar: every one that browses
+    /// by collection and is switched on in Services, in the order the app
+    /// lists services. Nothing is added or removed by hand any more — a
+    /// provider comes with being switched on, and which of its tabs show is
+    /// the sidebar's edit mode's to decide.
+    private var tabProviders: [MediaSearchService] {
+        MediaSearchService.allCases.filter { $0.canBeTab && coreFeatures.isEnabled($0) }
+    }
+
+    /// The collections a provider's own tab lists on its front page: the
+    /// ones its sidebar section is showing. Read from the customization —
+    /// a tab the user hid there is left off, one they showed is added — with
+    /// `defaultTabCollections` standing in where they haven't decided.
+    private func shownCollections(of service: MediaSearchService) -> [ProviderCollection] {
+        let defaults = service.defaultTabCollections
+        return service.tabCollections.filter { collection in
+            switch tabCustomization[visibilityFor: service.tabCustomizationID(for: collection)] {
+            case .visible: true
+            case .hidden: false
+            case .automatic: defaults.contains(collection)
+            @unknown default: defaults.contains(collection)
+            }
+        }
     }
 
     /// Whether the Radio tab has a source to draw on: TuneIn or Apple Music
@@ -321,90 +332,63 @@ struct CueApp: App {
         [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
     }
 
-    /// The sidebar header's plus: the providers switched on in Services
-    /// that aren't tabs yet, and the full arrangement behind them.
-    private var addProviderMenu: some View {
-        let available = tabProviders.availableProviders(enabledIn: coreFeatures)
-
-        return Menu {
-            ForEach(available, id: \.self) { service in
-                Button {
-                    tabProviders.add(service)
-                } label: {
-                    // Text then mark, as the Browse tab's provider menu
-                    // lays its rows out.
-                    HStack {
-                        Text("Add \(service.title)")
-                        service.image
-                    }
-                }
-            }
-            if !available.isEmpty {
-                Divider()
-            }
-            Button {
-                tabSheet = .customizeTabs
-            } label: {
-                Label("Customize Tabs…", systemImage: "slider.horizontal.3")
-            }
-        } label: {
-            Label("Add Provider", systemImage: "plus")
-                .labelStyle(.iconOnly)
+    /// Search, with the search role so the system draws it as the tab
+    /// bar's search affordance.
+    @TabContentBuilder<AppTab>
+    private var searchTab: some TabContent<AppTab> {
+        Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
+            Screens.search
         }
-        .menuIndicator(.hidden)
-        .accessibilityLabel("Add Provider")
     }
 
-    /// A provider's tabs: one of its own for the tab bar, and a sidebar
-    /// section holding a tab per switched-on collection. The two never show
-    /// together — the root tab is hidden from the sidebar, the collection
-    /// tabs from the tab bar — so iPhone gets a single "Plex" tab listing
-    /// the same collections that iPad and Mac show as a Plex section. Every
-    /// tab carries a `customizationID` so the sidebar's edit mode can hide
-    /// and reorder them; Search and Browse carry none and stay put.
+    /// Radio: every station source in one place. Fixed like Search and
+    /// Browse — no `customizationID` — but only while a radio provider is
+    /// switched on in Services.
     @TabContentBuilder<AppTab>
-    private func providerTabs(for provider: TabProvider) -> some TabContent<AppTab> {
-        let service = provider.service
-
-        if isPhone {
-            // iPhone has only the tab bar, and its More list shows every tab
-            // whatever `defaultVisibility` says — so the phone gets the one
-            // tab and no section at all. And nothing sidebar-only on that
-            // tab: `customizationID` and `defaultVisibility` exist for the
-            // sidebar's edit mode, which the phone doesn't have, and a tab
-            // the sidebar's model can hide is a tab bar item UIKit may find
-            // no view controller for — the "Inconsistency in UITabBar items
-            // and view controllers" assertion, raised during layout with
-            // the provider's item selected.
-            Tab(value: AppTab.provider(service)) {
-                Screens.providerRoot(provider)
-            } label: {
-                providerTabLabel(service)
+    private var radioTab: some TabContent<AppTab> {
+        if showsRadioTab {
+            Tab("Radio", systemImage: "radio", value: AppTab.radio) {
+                Screens.radio
             }
-        } else {
-            Tab(value: AppTab.provider(service)) {
-                Screens.providerRoot(provider)
-            } label: {
-                providerTabLabel(service)
-            }
-            .customizationID(service.tabCustomizationID)
-            .defaultVisibility(.hidden, for: .sidebar)
-
-            TabSection {
-                ForEach(provider.collections, id: \.self) { collection in
-                    Tab(collection.title, systemImage: collection.systemImage, value: AppTab.providerCollection(service, collection)) {
-                        Screens.providerCollection(provider, collection)
-                    }
-                    .customizationID(service.tabCustomizationID(for: collection))
-                    .defaultVisibility(.hidden, for: .tabBar)
-                }
-            } header: {
-                Text(service.title)
-            }
-            // No section action: the sidebar's own Edit handles hiding and
-            // reordering, and the Customize sheet is reachable from Home
-            // and the plus menu.
         }
+    }
+
+    /// A provider's tabs, on iPad and Mac: one of its own for the tab bar,
+    /// and a sidebar section holding a tab per collection. The two never
+    /// show together — the root tab is hidden from the sidebar, the
+    /// collection tabs from the tab bar — so the collapsed tab bar gets a
+    /// single "Plex" tab listing the same collections the sidebar shows as
+    /// a Plex section. Every tab carries a `customizationID`, which is what
+    /// lets the sidebar's edit mode hide and reorder them; the collections
+    /// outside `defaultTabCollections` start hidden and wait there to be
+    /// switched on. Home, Search, Browse and Radio carry none and stay put.
+    @TabContentBuilder<AppTab>
+    private func providerTabs(for service: MediaSearchService) -> some TabContent<AppTab> {
+        let collections = shownCollections(of: service)
+        let defaults = service.defaultTabCollections
+
+        Tab(value: AppTab.provider(service)) {
+            Screens.providerRoot(service, collections: collections)
+        } label: {
+            providerTabLabel(service)
+        }
+        .customizationID(service.tabCustomizationID)
+        .defaultVisibility(.hidden, for: .sidebar)
+
+        TabSection {
+            ForEach(service.tabCollections, id: \.self) { collection in
+                Tab(collection.title, systemImage: collection.systemImage, value: AppTab.providerCollection(service, collection)) {
+                    Screens.providerCollection(service, collections: collections, collection: collection)
+                }
+                .customizationID(service.tabCustomizationID(for: collection))
+                .defaultVisibility(.hidden, for: .tabBar)
+                .defaultVisibility(defaults.contains(collection) ? .visible : .hidden, for: .sidebar)
+            }
+        } header: {
+            Text(service.title)
+        }
+        // No section action: the sidebar's own Edit is the one place tabs
+        // are hidden and reordered.
     }
 
     /// A provider tab's label. A bare `Image`: the tab bar pulls the image
@@ -422,32 +406,40 @@ struct CueApp: App {
         UIDevice.current.userInterfaceIdiom == .phone
     }
 
+    /// The tab the selection falls back to: Browse on the phone, which has
+    /// no Home tab, Home everywhere else.
+    private var fallbackTab: AppTab {
+        isPhone ? .browse : .home
+    }
+
     /// Every tab the view builds right now. The selection is checked
     /// against this before the `TabView` sees it: a selection naming a tab
-    /// that isn't there — a provider switched off in Services, Files with
-    /// its folder removed, Home's "Open" on a provider that's out — is what
-    /// UIKit's tab bar asserts on ("No view controller matches the
-    /// UITabBarItem"), and it asserts during layout, before any `onChange`
-    /// gets a chance to move the selection.
+    /// that isn't there — a provider switched off in Services, a collection
+    /// tab hidden in the sidebar's Edit while it was showing, Home's "Open"
+    /// on a provider that's out — is what UIKit's tab bar asserts on ("No
+    /// view controller matches the UITabBarItem"), and it asserts during
+    /// layout, before any `onChange` gets a chance to move the selection.
     private var availableTabs: Set<AppTab> {
-        var tabs: Set<AppTab> = [.home, .search, .browse]
+        var tabs: Set<AppTab> = [.search, .browse]
         if showsRadioTab {
             tabs.insert(.radio)
         }
-        for provider in visibleTabProviders {
-            tabs.insert(.provider(provider.service))
-            if !isPhone {
-                for collection in provider.collections {
-                    tabs.insert(.providerCollection(provider.service, collection))
+        if !isPhone {
+            tabs.insert(.home)
+            for service in tabProviders {
+                tabs.insert(.provider(service))
+                for collection in shownCollections(of: service) {
+                    tabs.insert(.providerCollection(service, collection))
                 }
             }
         }
         return tabs
     }
 
-    /// The router's selection, or Home when it names a tab that isn't built.
+    /// The router's selection, or the fallback when it names a tab that
+    /// isn't built.
     private func resolvedTab(_ tab: AppTab) -> AppTab {
-        availableTabs.contains(tab) ? tab : .home
+        availableTabs.contains(tab) ? tab : fallbackTab
     }
 
     /// The `TabView`'s selection: the router's, clamped to a tab that exists,
@@ -470,38 +462,34 @@ struct CueApp: App {
         WindowGroup {
             @Bindable var router = router
             TabView(selection: tabSelection) {
-                // No `role: .search`. The role exists so the system can hoist a
-                // `.searchable` out of the tab, and it renders the tab as a
-                // separate search affordance rather than a peer — which is why
-                // it never took the selected appearance. `SearchScreen` draws
-                // its own field in the navigation bar again, so the role has
-                // nothing left to hoist.
-                Tab("Home", systemImage: "house", value: AppTab.home) {
-                    Screens.home
-                }
-
-                Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
-                    Screens.search
-                }
-                
-                Tab("Browse", systemImage: "square.grid.2x2", value: AppTab.browse) {
-                    Screens.browse
-                }
-
-                // Radio: every station source in one place. Fixed like
-                // Search and Browse — no `customizationID` — but only while
-                // a radio provider is switched on in Services.
-                if showsRadioTab {
-                    Tab("Radio", systemImage: "radio", value: AppTab.radio) {
-                        Screens.radio
+                if isPhone {
+                    // The phone's three, Browse first in Home's place. Home
+                    // is the sidebar's companion — setting providers up and
+                    // reaching their sections — and the phone has neither:
+                    // providers are browsed from Browse's menu and set up in
+                    // Settings › Services. No provider tabs here either, so
+                    // the bar never overflows into More.
+                    Tab("Browse", systemImage: "square.grid.2x2", value: AppTab.browse) {
+                        Screens.browse
                     }
-                }
+                    searchTab
+                    radioTab
+                } else {
+                    Tab("Home", systemImage: "house", value: AppTab.home) {
+                        Screens.home
+                    }
+                    searchTab
+                    Tab("Browse", systemImage: "square.grid.2x2", value: AppTab.browse) {
+                        Screens.browse
+                    }
+                    radioTab
 
-                // One tab per added provider, plus its sidebar section. A
-                // provider the user turned off in Services drops out here
-                // without losing its place in the list.
-                ForEach(visibleTabProviders) { provider in
-                    providerTabs(for: provider)
+                    // A section per switched-on provider. One turned off in
+                    // Services drops out here; its sidebar edits stay in the
+                    // customization for when it comes back.
+                    ForEach(tabProviders, id: \.self) { service in
+                        providerTabs(for: service)
+                    }
                 }
             }
             // No customization on the phone: it holds the sidebar's edits,
@@ -509,13 +497,13 @@ struct CueApp: App {
             .tabViewCustomization(isPhone ? nil : $tabCustomization)
             .onChange(of: availableTabs) { _, tabs in
                 // A tab that left takes its selection with it. The binding
-                // already shows Home in that case; this keeps the stored
-                // value honest so nothing else acts on a tab that's gone.
+                // already shows the fallback in that case; this keeps the
+                // stored value honest so nothing else acts on a tab that's
+                // gone.
                 if !tabs.contains(router.selectedTab) {
-                    router.selectedTab = .home
+                    router.selectedTab = fallbackTab
                 }
             }
-            .withSheetDestinations(sheetDestinations: $tabSheet)
             // The queue panel is inside each tab (`Screens`), not out here:
             // wrapped around the whole `TabView` it took its width from the
             // sidebar's, which then had to overlay the content instead of
@@ -539,10 +527,6 @@ struct CueApp: App {
                     Text("Cue")
                         .font(.title3.bold())
                     Spacer(minLength: 0)
-                    // The plus that adds a provider to the sidebar lives up
-                    // here by the app name, where it can't be missed.
-                    addProviderMenu
-                        .tint(Color("Accent"))
                 }
                 .padding(.vertical, 4)
             }

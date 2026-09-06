@@ -2,17 +2,17 @@ import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// The first tab: where the library is set up and reached from. On iPhone
-/// there is no sidebar to add a provider from, and a provider that isn't
-/// set up yet — Files before a folder is chosen — has no tab to be found
-/// in, so this is the one place that always shows every provider with a
-/// way to add it, set it up, or open it.
+/// The first tab on iPad and Mac: where the library is set up and reached
+/// from. A provider that isn't set up yet — Files before a folder is
+/// chosen — has no section in the sidebar to be found in, so this is the
+/// one place that always shows every provider with a way to set it up,
+/// switch it on, or open it. The phone has no Home tab; Browse takes its
+/// place there, and providers are set up in Settings › Services.
 struct HomeScreen: View {
     @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(MusicSearchService.self) private var musicSearchService
 
     @State private var router = Router()
-    @State private var tabProviders = TabProviderStore.shared
     @State private var files = FilesLibraryService.shared
     @State private var downloads = DownloadManager.shared
 
@@ -27,7 +27,6 @@ struct HomeScreen: View {
                 if !files.isConfigured {
                     filesSetupSection
                 }
-                tabsSection
                 providersSection
                 moreSection
             }
@@ -71,36 +70,6 @@ struct HomeScreen: View {
         }
     }
 
-    private var tabsSection: some View {
-        Section {
-            if tabProviders.providers.isEmpty {
-                Text("No providers in the tab view yet. Add one below.")
-                    .foregroundStyle(.secondary)
-            }
-            ForEach(tabProviders.providers) { provider in
-                Button {
-                    Router.main.selectedTab = .provider(provider.service)
-                } label: {
-                    HStack(spacing: 12) {
-                        providerLabel(provider.service, subtitle: provider.collections.map(\.title).formatted(.list(type: .and, width: .narrow)))
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right")
-                            .font(.footnote)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-                .tint(.primary)
-            }
-            Button {
-                router.presentedSheet = .customizeTabs
-            } label: {
-                Label("Customize Tabs…", systemImage: "slider.horizontal.3")
-            }
-        } header: {
-            Text("Your Tabs")
-        }
-    }
-
     private var providersSection: some View {
         Section {
             ForEach(providers, id: \.self) { service in
@@ -109,7 +78,7 @@ struct HomeScreen: View {
         } header: {
             Text("Providers")
         } footer: {
-            Text("Streaming services are signed in through the Sonos app and switched on in Settings › Services. Plex, Subsonic and Files are set up here in Cue.")
+            Text("Streaming services are signed in through the Sonos app and switched on in Settings › Services. Plex, Subsonic and Files are set up here in Cue. Every provider that's on has a section in the sidebar; use the sidebar's Edit to hide or reorder its tabs.")
         }
     }
 
@@ -140,27 +109,19 @@ struct HomeScreen: View {
 
     // MARK: - Rows
 
-    /// One provider and the one thing to do with it next: open its tab,
-    /// add it, set it up, or switch it on.
+    /// One provider and the one thing to do with it next: set it up,
+    /// switch it on, or open its section. A provider that is on has a
+    /// section — there is no adding any more.
     @ViewBuilder
     private func providerRow(_ service: MediaSearchService) -> some View {
-        let inTabs = tabProviders.contains(service)
         let isSelfHosted = service.isConfiguredInCue != nil
         let isSetUp = service.isConfiguredInCue ?? true
         let isEnabled = coreFeatures.isEnabled(service)
 
         HStack(spacing: 12) {
-            providerLabel(service, subtitle: subtitle(for: service, inTabs: inTabs, isSelfHosted: isSelfHosted, isSetUp: isSetUp, isEnabled: isEnabled))
+            providerLabel(service, subtitle: subtitle(for: service, isSelfHosted: isSelfHosted, isSetUp: isSetUp, isEnabled: isEnabled))
             Spacer(minLength: 0)
-            if inTabs {
-                Button {
-                    Router.main.selectedTab = .provider(service)
-                } label: {
-                    Text("Open")
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.capsule)
-            } else if isSelfHosted, !isSetUp {
+            if isSelfHosted, !isSetUp {
                 Button {
                     if let sheet = service.managementSheet {
                         router.presentedSheet = sheet
@@ -172,14 +133,11 @@ struct HomeScreen: View {
                 .buttonBorderShape(.capsule)
             } else if isEnabled {
                 Button {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    withAnimation(.spring(response: 0.3)) {
-                        tabProviders.add(service)
-                    }
+                    Router.main.selectedTab = .provider(service)
                 } label: {
-                    Text("Add")
+                    Text("Open")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .buttonBorderShape(.capsule)
             } else {
                 Button {
@@ -193,8 +151,7 @@ struct HomeScreen: View {
         }
     }
 
-    private func subtitle(for service: MediaSearchService, inTabs: Bool, isSelfHosted: Bool, isSetUp: Bool, isEnabled: Bool) -> String {
-        if inTabs { return "In your tabs" }
+    private func subtitle(for service: MediaSearchService, isSelfHosted: Bool, isSetUp: Bool, isEnabled: Bool) -> String {
         if isSelfHosted, !isSetUp {
             return service == .files ? "Choose a folder of music" : "Connect your server"
         }

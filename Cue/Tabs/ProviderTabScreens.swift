@@ -2,11 +2,11 @@ import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// A provider's tab. With no `collection` it is the provider's own tab —
-/// the library's front page, listing the collections the user switched on,
-/// which is what the tab bar opens on iPhone. With one, it is that
-/// collection as a tab of its own: the tabs a provider's sidebar section
-/// holds on iPad and Mac. Both render the same destinations, so the row on
+/// A provider's tab, on iPad and Mac. With no `collection` it is the
+/// provider's own tab — the library's front page, listing the collections
+/// its sidebar section is showing, which is what the collapsed tab bar
+/// opens. With one, it is that collection as a tab of its own: the tabs the
+/// sidebar section holds. Both render the same destinations, so the row on
 /// the front page and the sidebar tab open one screen.
 struct ProviderTabScreen: View {
     let service: MediaSearchService
@@ -96,7 +96,7 @@ struct ProviderTabScreen: View {
                 }
             }
             if collections.isEmpty {
-                Text("No collections switched on. Choose some in Customize Tabs.")
+                Text("No collections showing. Switch some on with Edit in the sidebar.")
                     .foregroundStyle(.secondary)
             }
         }
