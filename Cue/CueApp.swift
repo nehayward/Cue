@@ -314,7 +314,7 @@ struct CueApp: App {
     private func shownCollections(of service: MediaSearchService) -> [ProviderCollection] {
         let defaults = service.defaultTabCollections
         return service.tabCollections.filter { collection in
-            switch tabCustomization[visibilityFor: service.tabCustomizationID(for: collection)] {
+            switch tabCustomization[tab: service.tabCustomizationID(for: collection)].sidebarVisibility {
             case .visible: true
             case .hidden: false
             case .automatic: defaults.contains(collection)
