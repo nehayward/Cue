@@ -4,6 +4,7 @@ Feature ideas and design notes for future development.
 
 ## Index
 
+- [Device Player Roadmap](device-player-roadmap.md) — Everything the on-device player still needs, one item per branch
 - [SwiftData Foundation](swiftdata-foundation.md) — Local database + CloudKit sync layer (prerequisite for several features below)
 - [Listening Stats](listening-stats.md) — Wrapped-style play history insights, shareable image card
 - [Auto-DJ](auto-dj.md) — Automatically seed the queue when it runs low
