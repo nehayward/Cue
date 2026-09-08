@@ -197,11 +197,10 @@ public final class FilesLibraryService {
     public var isConfigured: Bool { folderName != nil }
 
     /// Whether the folder is in iCloud Drive, for the copy that explains
-    /// placeholders.
-    public var isCloudFolder: Bool {
-        guard let folderURL else { return false }
-        return (try? folderURL.resourceValues(forKeys: [.isUbiquitousItemKey]).isUbiquitousItem) ?? false
-    }
+    /// placeholders. Read off the folder once, when it's resolved: rows,
+    /// the player and the playback cache ask constantly, and each ask used
+    /// to be a trip to the filesystem.
+    public private(set) var isCloudFolder = false
 
     /// A container standing for every song in the folder, for the Songs
     /// list's Play All: a playlist with a well-known id that the local queue
@@ -218,7 +217,9 @@ public final class FilesLibraryService {
         )
     }
 
-    @ObservationIgnored private var folderURL: URL?
+    @ObservationIgnored private var folderURL: URL? {
+        didSet { isCloudFolder = Self.isUbiquitous(folderURL) }
+    }
     @ObservationIgnored private var isAccessingFolder = false
     @ObservationIgnored private var tracks: [FileTrack] = []
     @ObservationIgnored private var filePlaylists: [FilePlaylist] = []
@@ -1360,19 +1361,34 @@ public final class FilesLibraryService {
         catalog.songIDByPath[path].flatMap { catalog.songsByID[$0] }
     }
 
-    /// How much of the folder is on this device. Touches every file, so
-    /// it's for the Downloads screen rather than a row.
-    public func cloudSummary() -> (local: Int, remote: Int) {
-        guard isCloudFolder else { return (tracks.count, 0) }
-        var local = 0
-        var remote = 0
-        for track in tracks {
-            switch cloudStatus(trackID: Self.hash("song|\(track.relativePath)")) {
-            case .local: local += 1
-            default: remote += 1
+    /// How much of the folder is on this device. Touches every file, so it
+    /// runs off the main actor — a big folder takes long enough to stall
+    /// the screen that asks — and it's for the Downloads screen rather
+    /// than a row.
+    public func cloudSummary() async -> (local: Int, remote: Int) {
+        guard isCloudFolder, let folderURL else { return (tracks.count, 0) }
+        let paths = tracks.map(\.relativePath)
+        let downloading = Set(cloudProgress.keys)
+        return await Task.detached(priority: .userInitiated) {
+            var local = 0
+            for path in paths where !downloading.contains(path) {
+                if Self.isLocal(folderURL.appendingPathComponent(path)) { local += 1 }
             }
-        }
-        return (local, remote)
+            return (local, paths.count - local)
+        }.value
+    }
+
+    nonisolated private static func isUbiquitous(_ url: URL?) -> Bool {
+        guard let url else { return false }
+        return (try? url.resourceValues(forKeys: [.isUbiquitousItemKey]).isUbiquitousItem) ?? false
+    }
+
+    /// Whether an iCloud file is here whole. Missing files, placeholders
+    /// and ones still coming down are not.
+    nonisolated private static func isLocal(_ url: URL) -> Bool {
+        guard let values = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey, .ubiquitousItemIsDownloadingKey])
+        else { return false }
+        return values.ubiquitousItemIsDownloading != true && values.ubiquitousItemDownloadingStatus == .current
     }
 
     /// Songs the user asked for by name — Download Everything, a row's

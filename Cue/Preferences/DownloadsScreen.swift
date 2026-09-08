@@ -16,6 +16,11 @@ struct DownloadsScreen: View {
     var body: some View {
         @Bindable var manager = manager
         @Bindable var cache = cache
+        // Each is a filter and sort over every download; once per render,
+        // not once per mention.
+        let active = manager.active
+        let completed = manager.completed
+        let completedBytes = completed.reduce(0) { $0 + ($1.fileSize ?? 0) }
 
         List {
             Section {
@@ -65,9 +70,9 @@ struct DownloadsScreen: View {
                 freeLimitSection(remaining: remaining)
             }
 
-            if !manager.active.isEmpty {
+            if !active.isEmpty {
                 Section {
-                    ForEach(manager.active) { item in
+                    ForEach(active) { item in
                         activeRow(item)
                     }
                 } header: {
@@ -89,13 +94,12 @@ struct DownloadsScreen: View {
                 Text("Applies to downloads queued from now on. Songs fetched ahead from iCloud Drive wait for Wi‑Fi unless the playback cache allows cellular.")
             }
 
-            if !manager.completed.isEmpty {
+            if !completed.isEmpty {
                 Section {
-                    ForEach(manager.completed) { item in
+                    ForEach(completed) { item in
                         completedRow(item)
                     }
                     .onDelete { offsets in
-                        let completed = manager.completed
                         for index in offsets where completed.indices.contains(index) {
                             manager.remove(key: completed[index].key)
                         }
@@ -112,9 +116,9 @@ struct DownloadsScreen: View {
                 } header: {
                     Text("On This Device")
                 } footer: {
-                    Text("\(manager.completed.count == 1 ? "1 song" : "\(manager.completed.count) songs") • \(ByteCountFormatter.string(fromByteCount: manager.completedBytes, countStyle: .file)). Kept until you remove them; not included in backups.")
+                    Text("\(completed.count == 1 ? "1 song" : "\(completed.count) songs") • \(ByteCountFormatter.string(fromByteCount: completedBytes, countStyle: .file)). Kept until you remove them; not included in backups.")
                 }
-            } else if manager.active.isEmpty {
+            } else if active.isEmpty {
                 Section {
                     ContentUnavailableView {
                         Label("No Downloads", systemImage: "arrow.down.circle")
@@ -131,7 +135,7 @@ struct DownloadsScreen: View {
         .navigationTitle("Downloads")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if !manager.active.isEmpty {
+            if !active.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button {
@@ -146,7 +150,7 @@ struct DownloadsScreen: View {
                         }
                         Divider()
                         Button(role: .destructive) {
-                            manager.active.forEach { manager.cancel(key: $0.key) }
+                            active.forEach { manager.cancel(key: $0.key) }
                         } label: {
                             Label("Cancel All", systemImage: "xmark.circle")
                         }
@@ -360,7 +364,7 @@ struct DownloadsScreen: View {
             cloudSummary = nil
             return
         }
-        cloudSummary = files.cloudSummary()
+        cloudSummary = await files.cloudSummary()
     }
 }
 
