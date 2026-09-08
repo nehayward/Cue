@@ -195,44 +195,6 @@ struct MusicPlaybackView: View {
     }
 }
 
-/// What the accessory's `fullScreenCover` shows: the local player, or the
-/// Sonos player for the group the route points at. Decided in a body of its
-/// own so the route is observed — a change while the cover is up swaps the
-/// player rather than leaving the old one behind.
-private struct PresentedPlayerView: View {
-    @Environment(\.dismiss) private var dismiss
-    /// The Sonos player's own navigation: the artist and album buttons push
-    /// their screens here, inside the cover, rather than into a tab.
-    @State private var playerRouter = Router()
-
-    private var route: PlaybackRoute { .shared }
-
-    var body: some View {
-        if let group = route.group {
-            @Bindable var playerRouter = playerRouter
-            NavigationStack(path: $playerRouter.path) {
-                LargePlayerView(coordinatorID: group.coordinatorID)
-                    .withAppRouter()
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button {
-                                dismiss()
-                            } label: {
-                                Image(systemName: "chevron.down")
-                            }
-                            .accessibilityLabel("Close")
-                        }
-                    }
-            }
-            .withSheetDestinations(sheetDestinations: $playerRouter.presentedSheet)
-            .environment(playerRouter)
-            .withEnvironments()
-        } else {
-            PlayerView()
-        }
-    }
-}
-
 @main
 struct CueApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -602,7 +564,7 @@ struct CueApp: App {
             // only happens when the cover presents, and the cover no longer
             // re-presents behind the user's back.
             .fullScreenCover(isPresented: $router.isPlayerPresented) {
-                PresentedPlayerView()
+                PlayerView()
                     .presentationBackgroundInteraction(.enabled)
                     .zoomTransition(from: .miniPlayer, in: zoomNamespace)
             }

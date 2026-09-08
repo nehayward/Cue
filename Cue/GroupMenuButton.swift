@@ -85,10 +85,18 @@ struct GroupMenuButton<Label: View>: View {
     private func regroup(to members: [Room]) {
         guard !members.isEmpty else { return }
         let current = group.rooms
+        let coordinatorID = group.coordinatorID
         Task {
             guard let newCoordinatorID = await sonosService.smartGroup(rooms: members, oldRooms: current, to: group) else { return }
-            Router.main.selectedID = newCoordinatorID
-            Router.main.navigate(to: .player(groupID: newCoordinatorID))
+            // The player the mini player opens follows the route, so the
+            // route is what moves to the promoted coordinator; the sidebar's
+            // player is reached through the router and moves with it.
+            if PlaybackRoute.shared.destination == .group(coordinatorID) {
+                PlaybackRoute.shared.follow(groupID: newCoordinatorID)
+            } else {
+                Router.main.selectedID = newCoordinatorID
+                Router.main.navigate(to: .player(groupID: newCoordinatorID))
+            }
         }
     }
 }

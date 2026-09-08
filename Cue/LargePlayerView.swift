@@ -94,7 +94,7 @@ struct LargePlayerView: View {
                             }
                             .animation(.spring, value: group.isMuted)
                             .frame(maxWidth: 400, maxHeight: 400)
-                        TVModeView(group: group)
+                        GroupTVModeView(group: group)
                         Spacer()
                     }
                     .transition(.opacity)
@@ -123,12 +123,12 @@ struct LargePlayerView: View {
                     }
                     .animation(.default, value: group.coordinatorRoom.container != nil)
                     .frame(height: 12)
-                    SongTitleButton(group: group)
-                    ArtistButton(group: group, showArtworkOnly: showArtworkOnly)
+                    GroupSongTitleButton(group: group)
+                    GroupArtistButton(group: group, showArtworkOnly: showArtworkOnly)
                     if !showArtworkOnly {
                         VStack {
-                            PlaybackView(group: group)
-                            PlayerMediaControlsView(group: group, shouldFade: $shouldFade)
+                            GroupPlaybackScrubber(group: group)
+                            GroupMediaControlsView(group: group, shouldFade: $shouldFade)
                         }
                         .geometryGroup()
                         .transition(.opacity.combined(with: .push(from: .bottom)))
@@ -211,7 +211,7 @@ struct LargePlayerView: View {
                             .buttonStyle(.plain)
                             .accessibilityLabel("Sleep Timer")
                             .accessibilityHint("Cancels the sleep timer")
-                            .modifier(RefreshOnForegroundModifier())
+                            .modifier(GroupRefreshOnForegroundModifier())
                             .confirmationDialog(
                                 "Cancel Sleep Timer",
                                 isPresented: $showSleepTimerCancelConfirmation,
@@ -249,7 +249,7 @@ struct LargePlayerView: View {
                             .buttonStyle(.plain)
                             .accessibilityLabel("Sleep Timer")
                             .accessibilityHint("Cancels the sleep timer")
-                            .modifier(RefreshOnForegroundModifier())
+                            .modifier(GroupRefreshOnForegroundModifier())
                             .confirmationDialog(
                                 "Cancel Sleep Timer",
                                 isPresented: $showSleepTimerCancelConfirmation,
@@ -285,7 +285,7 @@ struct LargePlayerView: View {
                     ToolbarItem {
                         MenuInfoView(group: group, showArtworkOnly: $showArtworkOnly)
                             .tint(.primary)
-                            .modifier(RefreshOnForegroundModifier())
+                            .modifier(GroupRefreshOnForegroundModifier())
                     }
                 }
             }
@@ -309,13 +309,13 @@ struct LargePlayerView: View {
                 sonosService.selectedGroup = group
                 try? await sonosService.updateTrackInformation(for: [group])
             }
-            .modifier(ScenePhaseSyncModifier(coordinatorID: coordinatorID))
+            .modifier(GroupScenePhaseSyncModifier(coordinatorID: coordinatorID))
             .environment(AlertService.shared)
             .padding(.horizontal, 32)
             .safeAreaPadding(.bottom)
             .ignoresSafeArea(.keyboard)
             .background {
-                BackgroundViewCatalyst(group: group, shouldFade: artworkShouldFade)
+                GroupPlayerBackgroundView(group: group, shouldFade: artworkShouldFade)
             }
             .hardwareVolumeControl(group: group)
             .task(id: coordinatorID) {
@@ -337,7 +337,13 @@ struct LargePlayerView: View {
     }
 }
 
-fileprivate struct ScenePhaseSyncModifier: ViewModifier {
+// MARK: - Shared with PlayerView
+//
+// Internal rather than fileprivate: `PlayerView` — the one player the mini
+// player opens — draws a Sonos group with these same pieces, so the two
+// screens can't drift apart.
+
+struct GroupScenePhaseSyncModifier: ViewModifier {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Environment(\.scenePhase) private var scenePhase
     // Resolve fresh by id on each scenePhase change — capturing a `GroupRoom`
@@ -367,7 +373,7 @@ fileprivate struct ScenePhaseSyncModifier: ViewModifier {
     }
 }
 
-fileprivate struct RefreshOnForegroundModifier: ViewModifier {
+struct GroupRefreshOnForegroundModifier: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var refreshID = UUID()
@@ -383,7 +389,7 @@ fileprivate struct RefreshOnForegroundModifier: ViewModifier {
     }
 }
 
-fileprivate struct SongTitleButton: View {
+struct GroupSongTitleButton: View {
     @Environment(Router.self) private var router: Router
     @Bindable var group: GroupRoom
 
@@ -415,7 +421,7 @@ fileprivate struct SongTitleButton: View {
     }
 }
 
-fileprivate struct ArtistButton: View {
+struct GroupArtistButton: View {
     @Environment(Router.self) private var router: Router
 
     let group: GroupRoom
@@ -451,7 +457,7 @@ fileprivate struct ArtistButton: View {
     }
 }
 
-fileprivate struct PlaybackView: View {
+struct GroupPlaybackScrubber: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Bindable var group: GroupRoom
 
@@ -532,7 +538,7 @@ fileprivate struct PlaybackView: View {
     }
 }
 
-fileprivate struct PlayerMediaControlsView: View {
+struct GroupMediaControlsView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Bindable var group: GroupRoom
     @Binding var shouldFade: Bool
@@ -802,7 +808,7 @@ fileprivate struct BottomToolbarView: View {
     }
 }
 
-fileprivate struct TVModeView: View {
+struct GroupTVModeView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Bindable var group: GroupRoom
     
@@ -886,7 +892,7 @@ fileprivate struct BackgroundView: View {
     }
 }
 
-fileprivate struct BackgroundViewCatalyst: View {
+struct GroupPlayerBackgroundView: View {
     var group: GroupRoom
     var shouldFade: Bool
     

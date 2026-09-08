@@ -134,6 +134,15 @@ final class PlaybackRoute {
         }
     }
 
+    /// Re-points a speaker route at another coordinator with no hand-off.
+    /// A regroup that promoted a different room moved the queue with it on
+    /// the speaker side, so there is nothing to carry; the player just
+    /// follows the group to its new coordinator.
+    func follow(groupID: String) {
+        guard destination.groupID != groupID else { return }
+        remember(.group(groupID))
+    }
+
     private func remember(_ target: PlayDestination) {
         destination = target
         target.remember()
