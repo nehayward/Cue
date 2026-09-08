@@ -744,7 +744,10 @@ private struct MediaServiceMenu: View {
                 Toggle(isOn: selectionBinding(for: service)) {
                     HStack {
                         Text(service.title)
-                        service.iconForMusicService
+                        // The pre-tinted image: a menu row drops any
+                        // foreground style and paints a template in the
+                        // accent, which turned every brand mark green.
+                        service.menuImage
                     }
                 }
                 .menuActionDismissBehavior(.disabled)

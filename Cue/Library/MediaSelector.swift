@@ -28,10 +28,11 @@ struct MediaSelector: View {
                     } label: {
                         HStack {
                             Text(service.title)
-                            service.image
+                            // Pre-tinted: the menu ignores `tint` and any
+                            // foreground style on the row's image.
+                            service.menuImage
                         }
                     }
-                    .tint(service.brandColor)
                     .tag(service)
                 }
             }
