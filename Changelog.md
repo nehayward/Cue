@@ -55,6 +55,14 @@ The reason is Subsonic: its API has no sort for songs. `search3` takes only coun
 - **List.** `PlayableListView` grows opt-in sort options (each carrying its own paged loader, so the list never learns whether the order came from the server or a local copy), search, pull-to-refresh, and a status line under the title. `RouterDestination.playableList` carries them, plus a `sortKey` — Plex and Subsonic both have a list titled "Songs" and would otherwise share one remembered choice. A first page replaces `items` rather than appending, so a search narrows in place instead of blanking the list per keystroke.
 - **Settings.** Services splits self-hosted services into their own section (membership follows `MediaSearchService.isConfiguredInCue`), since Subsonic sat under "Available with Sonos" telling people to add it in the Sonos app. Storage counts and clears all three caches. `PlexRatingCache` becomes `FavoriteRatingCache` and Subsonic rows draw the favorite heart from it.
 
+### Offline Mode
+Only what's on the device shows, and plays, when there's nothing to reach.
+
+- `OfflineMode` (`Cue/Services`): `@Observable` singleton with an `NWPathMonitor`-fed `hasNetwork` and the user's persisted `isOn` switch (`AppStorageKeys.offlineMode`); `isActive` is either. No network puts the app in the state on its own, so the switch is only offered — and only enabled in Settings — while there is a network to leave.
+- `HomeScreen` swaps its tabs and providers sections for an offline banner (why, and Turn Off when it was the switch) and an On This Device section: Play/Shuffle across everything local, a Downloads row and a Files-folder row, each a `RouterDestination.playableList` over `OnDeviceLibrary`. The More section carries an Offline Mode toggle; Settings › Storage has the same one.
+- `OnDeviceLibrary` gathers what plays with no connection: `DownloadManager.completed` mapped through the new `DownloadManager.Item.playableContent` (same service/id, so the local player resolves the file by the same `key(for:)` the download was stored under) and the Files folder's songs filtered on `isPlayable`, which tracks the index's download flag.
+- `PlayDestinationRouter.play` short-circuits to `playHere` while `OfflineMode.isActive`, whatever the remembered route: the speaker picker would only list speakers that can't answer, and the remembered group is left for when the network is back. Apple Music downloads aren't listed — the Music app owns those and the catalog lookup the local player needs isn't reliable offline — so that's a follow-up.
+
 ---
 
 ## 2026.7

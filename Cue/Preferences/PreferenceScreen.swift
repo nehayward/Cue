@@ -76,6 +76,7 @@ struct PreferenceScreen: View {
     @State private var cacheSize: Int = 0
     @State private var isClearing = false
     @State private var libraryCacheSize: Int = 0
+    @State private var offline = OfflineMode.shared
 
     
 #if DEBUG
@@ -1325,7 +1326,37 @@ struct PreferenceScreen: View {
     }
 
     var storageCacheSection: some View {
-        Section {
+        @Bindable var offline = offline
+        return Section {
+            Toggle(isOn: $offline.isOn) {
+                Label {
+                    VStack(alignment: .leading) {
+                        Text("Offline Mode")
+                        Text(offline.hasNetwork
+                             ? "Home shows only what's on this device, and everything plays here"
+                             : "No network — on until the connection is back")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "airplane")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white)
+                        .bold()
+                        .padding(8)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(LinearGradient(colors: [Color(red: 1.0, green: 0.6, blue: 0.3), Color(red: 0.95, green: 0.45, blue: 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        )
+                        .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                }
+            }
+            // With no network the app is offline whatever the switch says;
+            // flipping it would promise a change that can't happen.
+            .disabled(!offline.hasNetwork)
+
             NavigationLink(value: RouterDestination.downloads) {
                 let downloads = DownloadManager.shared
                 Label {

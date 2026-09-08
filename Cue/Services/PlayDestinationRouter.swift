@@ -49,6 +49,20 @@ enum PlayDestinationRouter {
         let destination = PlayDestination.remembered ?? .device
         log.notice("play \(String(describing: first.content.service), privacy: .public)/\(String(describing: first.content.type), privacy: .public) id=\(first.content.id, privacy: .public) count=\(contents.count) position=\(position.linkValue, privacy: .public) destination=\(String(describing: destination), privacy: .public)")
 
+        // No network, or Offline Mode: there is no speaker to reach, so
+        // this device it is — whatever the route says. The picker would
+        // only offer speakers that can't answer. The remembered group is
+        // left alone for when the network is back.
+        if OfflineMode.shared.isActive {
+            guard await playHere(contents, position: position, shuffle: shuffle) else {
+                log.error("offline: nothing here can play \(first.content.id, privacy: .public)")
+                AlertService.shared.showAlert(with: "That isn't on this device to play offline", imageName: "wifi.slash")
+                return
+            }
+            log.notice("offline: device play started")
+            return
+        }
+
         switch destination {
         case .device:
             guard await playHere(contents, position: position, shuffle: shuffle) else {

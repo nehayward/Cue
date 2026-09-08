@@ -36,6 +36,10 @@ public enum AppStorageKeys {
     /// The iCloud songs the cache fetched to play, oldest first, so a
     /// relaunch still knows which ones are its to evict.
     public static let playbackCacheCloudIDs = "\(Prefix.id).playbackCacheCloudIDs"
+    /// The user's Offline Mode switch: only what's on this device shows on
+    /// Home, and everything plays here. Off when unset; no network at all
+    /// puts the app in the same state on its own.
+    public static let offlineMode = "\(Prefix.id).offlineMode"
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"
     public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"
