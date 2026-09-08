@@ -822,9 +822,10 @@ private struct LocalVolumeControlView: View {
 /// `BottomToolbarView`: the route picker where the Sonos player has its
 /// group button; on a speaker, that group button too, with its
 /// press-and-hold regroup menu, and the room volume for a group of more
-/// than one; then search, browse, and the queue on the trailing edge. The
-/// like button and the menu live in the header on every size, so this row
-/// is only ever about where to go next.
+/// than one; then the queue on the trailing edge — with search and browse
+/// before it where there's room, since a phone has the tab bar a swipe
+/// away. The like button and the menu live in the header on every size, so
+/// this row is only ever about where to go next.
 private struct PlayerBottomToolbarView: View {
     @Environment(Router.self) private var router: Router
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -866,16 +867,8 @@ private struct PlayerBottomToolbarView: View {
                     }
                 }
 
-                Spacer()
-                searchButton
-                    .buttonStyle(.plain)
-                    .imageScale(.large)
-
-                Spacer()
-                browseButton
-                    .buttonStyle(.plain)
-                    .imageScale(.large)
-
+                // No search or browse on a phone: the tab bar is a swipe
+                // down away, and the cover's search sheet only doubled it.
                 Spacer()
                 queueButton
                     .buttonStyle(.plain)
