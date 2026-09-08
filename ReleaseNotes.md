@@ -8,9 +8,10 @@
 - Faster music libraries: Songs opens with your whole library ready instead of loading more as you scroll — for your Sonos music library, Plex and Subsonic alike. Cue syncs it once, keeps a copy on your device so it's there again next time you open the app, and picks up music you've added when you come back to the library
 - Search your library: Type in Songs to filter your entire library as you go, not just the part you've scrolled to — Subsonic albums are searchable too
 - Sort your songs: Order Plex and Subsonic songs by title, artist, album, year, play count, date added, or your favorites — and flip any of them, A–Z or Z–A, newest or oldest, most or least played. Each list remembers what you picked
-- Offline Mode: With no network — on a plane, in a tunnel — Home shows just what's on this device: your Plex and Subsonic downloads and the songs of your Files folder that are here, with Play and Shuffle for the lot, and everything plays on this device. Switch it on yourself from Home or Settings ▸ Storage to stay with your downloads while you still have a connection
+- Offline Mode: With no network — on a plane, in a tunnel — Home (Browse on iPhone) shows just what's on this device: your Plex and Subsonic downloads and the songs of your Files folder that are here, with Play and Shuffle for the lot, and everything plays on this device. Switch it on yourself from Home or Settings ▸ Storage to stay with your downloads while you still have a connection
 
 –– Bug Fixes & Improvements ––
+- Fixed the Plex Albums and Artists lists stuttering as they scrolled — every page of albums that arrived was re-sorted into letter groups many times over
 - Discography on artist pages now starts fresh — it clears the queue and plays every album in order, oldest first, starting as soon as the first song is ready. Play Next and Play Last are still in the ••• menu
 - Restored the Favorite option in Deezer song menus — it had quietly gone missing from the ••• menu
 - Fixed the volume buttons moving a speaker several steps per press while Lock Screen Now Playing is on — each press is one step again, and the Lock Screen slider still sets the level directly

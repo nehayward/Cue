@@ -97,6 +97,8 @@ struct RouterDestinationView: View {
                 GenreListView()
             case let .folderBrowse(item: item, title: title):
                 FolderBrowseView(item: item, title: title)
+            case let .tuneInBrowse(title: title, url: url):
+                TuneInBrowseScreen(title: title, url: url)
             case .connectByIP:
                 ConnectByIPScreen()
             }

@@ -17,11 +17,10 @@ struct MediaSelector: View {
     
     @Environment(Router.self) private var router
     @State private var coreFeatures = CoreFeatures.shared
-    @State private var tabProviders = TabProviderStore.shared
     
     var body: some View {
         Menu {
-            ForEach(MediaSearchService.allCases, id: \.self) { service in
+            ForEach(MediaSearchService.supported, id: \.self) { service in
                 if coreFeatures.enabledServices(service).wrappedValue, service.isBrowseSupported {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
@@ -29,38 +28,15 @@ struct MediaSelector: View {
                     } label: {
                         HStack {
                             Text(service.title)
-                            service.image
+                            // Pre-tinted: the menu ignores `tint` and any
+                            // foreground style on the row's image.
+                            service.menuImage
                         }
                     }
-                    .tint(service.brandColor)
                     .tag(service)
                 }
             }
             Divider()
-            // The provider on screen can be pinned as a tab of its own from
-            // here — the one place on iPhone, which has no sidebar, that
-            // is already about providers.
-            if tabProviders.contains(browseMediaService) {
-                Button {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    tabProviders.remove(browseMediaService)
-                } label: {
-                    Label("Remove \(browseMediaService.title) from Tabs", systemImage: "minus.circle")
-                }
-            } else if browseMediaService.canBeTab, coreFeatures.isEnabled(browseMediaService) {
-                Button {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    tabProviders.add(browseMediaService)
-                } label: {
-                    Label("Add \(browseMediaService.title) to Tabs", systemImage: "plus.circle")
-                }
-            }
-            Button {
-                HapticManager.shared.fireHaptic(.buttonPress)
-                router.presentedSheet = .customizeTabs
-            } label: {
-                Label("Customize Tabs…", systemImage: "slider.horizontal.3")
-            }
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 router.presentedSheet = .settings(destination: .servicePreferenceScreen)
@@ -77,7 +53,7 @@ struct MediaSelector: View {
             if coreFeatures.isEnabled(browseMediaService) {
                 return
             }
-            guard let service = MediaSearchService.allCases.first(where: { coreFeatures.isEnabled($0) }) else { return }
+            guard let service = MediaSearchService.supported.first(where: { coreFeatures.isEnabled($0) }) else { return }
             browseMediaService = service
         }
     }

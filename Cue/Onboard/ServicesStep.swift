@@ -18,7 +18,7 @@ struct ServicesStep: View {
     /// (MediaSearchService+Sonos.swift) — a new music backend added there
     /// shows up here automatically. Library is skipped: it has no Sonos
     /// counterpart to detect.
-    private let mapping: [(SonosServiceType, MediaSearchService)] = MediaSearchService.allCases.compactMap { service in
+    private let mapping: [(SonosServiceType, MediaSearchService)] = MediaSearchService.supported.compactMap { service in
         service.sonosServiceType.map { ($0, service) }
     }
 

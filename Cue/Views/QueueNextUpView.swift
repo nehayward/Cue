@@ -31,9 +31,11 @@ private struct LocalNextUpView: View {
                 .padding(.top, 14)
                 .padding(.bottom, 10)
 
-            if playback.queue.isEmpty {
+            // A station is live: nothing follows it, so the panel reads as
+            // empty rather than listing the station as a one-row queue.
+            if playback.queue.isEmpty || playback.isPlayingStation {
                 Spacer()
-                Text("Nothing queued")
+                Text(playback.isPlayingStation ? "Live radio — nothing queued" : "Nothing queued")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
@@ -47,6 +49,8 @@ private struct LocalNextUpView: View {
                                 isCurrent: index == playback.currentIndex
                             )
                             .onTapGesture { playback.play(at: index) }
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityHint("Plays this song")
                         }
                     }
                     .padding(.horizontal, 8)
@@ -120,6 +124,8 @@ private struct GroupNextUpView: View {
                                 isCurrent: isQueueActive && group.isNowPlaying(item)
                             )
                             .onTapGesture { play(item) }
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityHint("Plays this song")
                         }
                     }
                     .padding(.horizontal, 8)

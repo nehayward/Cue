@@ -79,6 +79,7 @@ struct AlarmListView: View {
                                         VibeSlider(value: .constant(alarm.volume))
                                             .foregroundStyle(.accent)
                                             .disabled(true)
+                                            .accessibilityHidden(true)
                                         Text(alarm.volume, format: .number) + Text("%")
                                     }
                                 }

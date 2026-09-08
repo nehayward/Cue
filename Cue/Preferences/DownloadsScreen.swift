@@ -7,6 +7,7 @@ import SwiftUI
 /// and — for a Files folder in iCloud Drive — how much of it is here.
 /// Reached from Settings › Storage.
 struct DownloadsScreen: View {
+    @Environment(Router.self) private var router: Router?
     @State private var manager = DownloadManager.shared
     @State private var cache = PlaybackCache.shared
     @State private var files = FilesLibraryService.shared
@@ -15,6 +16,11 @@ struct DownloadsScreen: View {
     var body: some View {
         @Bindable var manager = manager
         @Bindable var cache = cache
+        // Each is a filter and sort over every download; once per render,
+        // not once per mention.
+        let active = manager.active
+        let completed = manager.completed
+        let completedBytes = completed.reduce(0) { $0 + ($1.fileSize ?? 0) }
 
         List {
             Section {
@@ -60,9 +66,13 @@ struct DownloadsScreen: View {
                 Text("Songs coming up in the on-device queue are fetched before they play, and recent ones kept, so playback holds through a tunnel or a dead spot. The least recently played goes first when the cap is reached. Covers Plex and Subsonic, and a Files folder in iCloud Drive when streaming is on below. Downloads you choose yourself are kept separately.")
             }
 
-            if !manager.active.isEmpty {
+            if let remaining = manager.remainingFreeSlots {
+                freeLimitSection(remaining: remaining)
+            }
+
+            if !active.isEmpty {
                 Section {
-                    ForEach(manager.active) { item in
+                    ForEach(active) { item in
                         activeRow(item)
                     }
                 } header: {
@@ -84,13 +94,12 @@ struct DownloadsScreen: View {
                 Text("Applies to downloads queued from now on. Songs fetched ahead from iCloud Drive wait for Wi‑Fi unless the playback cache allows cellular.")
             }
 
-            if !manager.completed.isEmpty {
+            if !completed.isEmpty {
                 Section {
-                    ForEach(manager.completed) { item in
+                    ForEach(completed) { item in
                         completedRow(item)
                     }
                     .onDelete { offsets in
-                        let completed = manager.completed
                         for index in offsets where completed.indices.contains(index) {
                             manager.remove(key: completed[index].key)
                         }
@@ -107,14 +116,16 @@ struct DownloadsScreen: View {
                 } header: {
                     Text("On This Device")
                 } footer: {
-                    Text("\(manager.completed.count == 1 ? "1 song" : "\(manager.completed.count) songs") • \(ByteCountFormatter.string(fromByteCount: manager.completedBytes, countStyle: .file)). Kept until you remove them; not included in backups.")
+                    Text("\(completed.count == 1 ? "1 song" : "\(completed.count) songs") • \(ByteCountFormatter.string(fromByteCount: completedBytes, countStyle: .file)). Kept until you remove them; not included in backups.")
                 }
-            } else if manager.active.isEmpty {
+            } else if active.isEmpty {
                 Section {
                     ContentUnavailableView {
                         Label("No Downloads", systemImage: "arrow.down.circle")
                     } description: {
-                        Text("Download a Plex or Subsonic song or album from its menu to keep it on this device.")
+                        Text(manager.remainingFreeSlots == nil
+                             ? "Download a Plex or Subsonic song or album from its menu to keep it on this device."
+                             : "Download a Plex or Subsonic song or album from its menu to keep it on this device. Up to \(DownloadManager.freeSongLimit) songs are free.")
                     }
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -124,7 +135,7 @@ struct DownloadsScreen: View {
         .navigationTitle("Downloads")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if !manager.active.isEmpty {
+            if !active.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button {
@@ -139,7 +150,7 @@ struct DownloadsScreen: View {
                         }
                         Divider()
                         Button(role: .destructive) {
-                            manager.active.forEach { manager.cancel(key: $0.key) }
+                            active.forEach { manager.cancel(key: $0.key) }
                         } label: {
                             Label("Cancel All", systemImage: "xmark.circle")
                         }
@@ -158,6 +169,40 @@ struct DownloadsScreen: View {
         }
         .onChange(of: files.cloudProgress.isEmpty) {
             Task { await refreshCloudSummary() }
+        }
+    }
+
+    // MARK: - Free limit
+
+    /// How much of the free allowance is used, and the way past it. The
+    /// upgrade card appears once the meter is mostly full — early enough to
+    /// read as "here's what's coming", not as a wall.
+    private func freeLimitSection(remaining: Int) -> some View {
+        let limit = DownloadManager.freeSongLimit
+        let held = manager.heldCount
+        return Section {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label("Free Downloads", systemImage: "arrow.down.circle")
+                    Spacer()
+                    Text("\(held) of \(limit) songs")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                ProgressView(value: Double(held), total: Double(limit))
+                    .progressViewStyle(.linear)
+                    .tint(remaining == 0 ? .red : .accentColor)
+            }
+            if remaining <= limit / 5 {
+                PaywallButtonView()
+                    .environment(router)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+            }
+        } footer: {
+            Text(remaining == 0
+                 ? "Every free slot is taken. Remove a download to free one, or get Cue Super for unlimited downloads."
+                 : "Songs on this device and on their way count; removing one frees its slot. Cue Super removes the limit.")
         }
     }
 
@@ -193,6 +238,7 @@ struct DownloadsScreen: View {
                     .font(.title2)
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel(item.isActive ? "Pause Download" : "Resume Download")
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
@@ -318,7 +364,7 @@ struct DownloadsScreen: View {
             cloudSummary = nil
             return
         }
-        cloudSummary = files.cloudSummary()
+        cloudSummary = await files.cloudSummary()
     }
 }
 

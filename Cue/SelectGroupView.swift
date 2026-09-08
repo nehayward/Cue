@@ -33,8 +33,9 @@ struct SelectGroupView: View {
     }
 
     /// Device is only on the table for a real queue flow (the grouping and
-    /// radio callers pass `onSelection` alone) and content the local queue can
-    /// actually take — Apple and Plex, never Spotify or a station.
+    /// song-radio callers pass `onSelection` alone) and content the local
+    /// queue can actually take — Apple and Plex tracks, TuneIn and Apple
+    /// Music stations; never Spotify or a Sonos-only station.
     private var canPlayOnDevice: Bool {
         guard onQueueSelection != nil, let content else { return false }
         return LocalPlaybackService.shared.canPlayAnywhereLocally(content)
@@ -113,7 +114,10 @@ struct SelectGroupView: View {
                             .tint(.primary)
                             .buttonStyle(.liveActivity)
                             .buttonRepeatBehavior(.enabled)
+                            .accessibilityLabel("Volume Down")
                             VibeSlider(value: $groupVolume, step: 1, showValue: true)
+                                .accessibilityLabel("Volume")
+                                .accessibilityValue("\(Int(groupVolume.rounded())) percent")
                             Button {
                                 groupVolume = min(100, groupVolume + 1)
                             } label: {
@@ -124,6 +128,7 @@ struct SelectGroupView: View {
                             .tint(.primary)
                             .buttonStyle(.liveActivity)
                             .buttonRepeatBehavior(.enabled)
+                            .accessibilityLabel("Volume Up")
                         }
                         .frame(height: 20)
                         .padding(.bottom)
@@ -149,10 +154,11 @@ struct SelectGroupView: View {
                                         PlayDestination.group(newGroup.coordinatorID).remember()
                                         // The route now points at the speaker;
                                         // the phone shouldn't keep playing
-                                        // underneath it. Adding to the queue
-                                        // leaves it alone.
+                                        // underneath it. Parked, so its queue
+                                        // keeps its place. Adding to the
+                                        // queue leaves it alone.
                                         if [.now, .replace].contains(selectedPosition) || onQueueSelection == nil {
-                                            LocalPlaybackService.shared.stop()
+                                            LocalPlaybackService.shared.park()
                                         }
                                         for room in selectedRooms {
                                             await sonosService.setDeviceVolume(ip: room.ip, volume: Int(groupVolume))
@@ -548,8 +554,9 @@ struct SelectGroupView: View {
             Task {
                 selectedGroupService.group = group
                 // Same as the Play button: the speaker takes over from the
-                // phone rather than playing alongside it.
-                LocalPlaybackService.shared.stop()
+                // phone rather than playing alongside it. Parked, so the
+                // phone's queue keeps its place.
+                LocalPlaybackService.shared.park()
                 if let onQueueSelection {
                     try await onQueueSelection(group, selectedPosition)
                 } else {

@@ -278,6 +278,54 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         }
     }
 
+    /// The brand mark in its brand colour, baked into the image, for a
+    /// `Menu` row. A menu is a UIKit menu underneath: it takes the row's
+    /// image and throws away any `foregroundStyle` or `tint` around it,
+    /// drawing a template image in the menu's own tint. Only an image
+    /// rendered as original keeps its colour — so this tints the symbol or
+    /// asset up front, flat (no gradient) since a UIImage can't carry one.
+    public var menuImage: Image {
+        #if canImport(UIKit) && !os(watchOS) && !os(visionOS)
+        // `.label` outright for the marks whose brand colour is `.primary`:
+        // that stays dynamic where a converted Color might not.
+        let tint: UIColor = brandColor == .primary ? .label : UIColor(brandColor)
+        switch self {
+        case .apple, .library, .subsonic, .files:
+            let name = switch self {
+            case .apple: "apple.logo"
+            case .library: librarySymbolName
+            case .subsonic: "externaldrive.fill.badge.icloud"
+            default: "folder.fill"
+            }
+            if let symbol = UIImage(systemName: name) {
+                return Image(uiImage: symbol.withTintColor(tint, renderingMode: .alwaysOriginal))
+            }
+            return Image(systemName: name)
+        case .sonosRadio, .pandora:
+            // Full-colour badges: already their own colours.
+            return Self.tabSized(named: self.title, template: false)
+        case .tuneIn, .soundcloud, .deezer:
+            return Self.menuTinted(named: self.title, tint: tint)
+        default:
+            return Self.menuTinted(named: self.rawValue.capitalized, tint: tint)
+        }
+        #else
+        return tabImage
+        #endif
+    }
+
+    #if canImport(UIKit) && !os(watchOS) && !os(visionOS)
+    /// A bundle asset at menu size, tinted and rendered as original so the
+    /// menu leaves the colour alone.
+    private static func menuTinted(named name: String, tint: UIColor) -> Image {
+        guard let base = UIImage(named: name, in: .module, with: nil) else {
+            return Image(name, bundle: .module).renderingMode(.template)
+        }
+        let resized = base.withRenderingMode(.alwaysTemplate).resized(to: CGSize(width: 24, height: 24))
+        return Image(uiImage: resized.withTintColor(tint, renderingMode: .alwaysOriginal))
+    }
+    #endif
+
     /// A bundle asset at tab-icon size. The tab bar scales what it draws
     /// itself, but the More list on iPhone draws the image as it comes —
     /// and the brand assets come large.

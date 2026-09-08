@@ -5,6 +5,7 @@ import SwiftUI
 import SonosKit
 import MusicSearchKit
 import MusicKit
+import Nuke
 import NukeUI
 import VibesDS
 import Glur
@@ -214,11 +215,22 @@ struct MediaDetailView: View {
         .animation(.smooth, value: showNavigationTitle)
     }
     
+    /// The hero image, decoded no larger than it is drawn. The header shows
+    /// at most ~400pt and blurs it, but the URL is the full-size art — for
+    /// Plex the original file, often several megapixels — and a 100pt blur
+    /// over a bitmap that size costs Core Animation offscreen buffers many
+    /// times the image, which is where this screen's memory jumps came from.
+    private var heroRequest: ImageRequest {
+        var request = ImageRequest(url: content?.artwork)
+        request.thumbnail = ImageRequest.ThumbnailOptions(maxPixelSize: 800)
+        return request
+    }
+
     @ViewBuilder
     private var artworkSection: some View {
         Color.clear.overlay {
             ZStack {
-                LazyImage(url: content?.artwork) { phase in
+                LazyImage(request: heroRequest) { phase in
                     if let image = phase.image {
                         image
                             .resizable()
@@ -227,7 +239,7 @@ struct MediaDetailView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: maxHeight)
-                LazyImage(url: content?.artwork) { phase in
+                LazyImage(request: heroRequest) { phase in
                     if let image = phase.image {
                         image
                             .resizable()
@@ -353,6 +365,7 @@ struct MediaDetailView: View {
                         Image(systemName: "ellipsis")
                             .frame(width: 24, height: 24)
                     }
+                    .accessibilityLabel("More Options")
                     .buttonBorderShape(.circle)
                     .contentShape(.rect)
                     .glassButton()

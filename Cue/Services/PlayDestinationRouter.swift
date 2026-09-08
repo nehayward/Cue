@@ -28,9 +28,10 @@ enum PlayDestinationRouter {
         _ content: PlayableContent,
         position: QueuePosition,
         shuffle: Bool = false,
+        from origin: PlayableContent? = nil,
         queue: @escaping (GroupRoom, QueuePosition) async throws -> Void
     ) async {
-        await play([content], position: position, shuffle: shuffle, queue: queue)
+        await play([content], position: position, shuffle: shuffle, from: origin, queue: queue)
     }
 
     /// The many-at-once form, for the screens that play a whole run in one go —
@@ -39,10 +40,16 @@ enum PlayDestinationRouter {
     /// hands the local queue and what the banner says.
     /// `shuffle` only reaches the device path — the caller's `queue` closure
     /// already sets the Sonos play mode itself.
+    ///
+    /// `origin` is the playlist, album or folder the Play came from, where
+    /// the content itself doesn't say — a track row inside a playlist knows
+    /// its parent, and the row alone doesn't. Device-side only: the speaker
+    /// reads its own container off the queue it was given.
     static func play(
         _ contents: [PlayableContent],
         position: QueuePosition,
         shuffle: Bool = false,
+        from origin: PlayableContent? = nil,
         queue: @escaping (GroupRoom, QueuePosition) async throws -> Void
     ) async {
         guard let first = contents.first else { return }
@@ -54,7 +61,7 @@ enum PlayDestinationRouter {
         // only offer speakers that can't answer. The remembered group is
         // left alone for when the network is back.
         if OfflineMode.shared.isActive {
-            guard await playHere(contents, position: position, shuffle: shuffle) else {
+            guard await playHere(contents, position: position, shuffle: shuffle, origin: origin) else {
                 log.error("offline: nothing here can play \(first.content.id, privacy: .public)")
                 AlertService.shared.showAlert(with: "That isn't on this device to play offline", imageName: "wifi.slash")
                 return
@@ -65,7 +72,7 @@ enum PlayDestinationRouter {
 
         switch destination {
         case .device:
-            guard await playHere(contents, position: position, shuffle: shuffle) else {
+            guard await playHere(contents, position: position, shuffle: shuffle, origin: origin) else {
                 log.error("device play failed for \(first.content.id, privacy: .public)")
                 askForSpeaker(contents, position: position, queue: queue)
                 return
@@ -76,7 +83,7 @@ enum PlayDestinationRouter {
             // them. Straight to the device rather than a picker with nothing
             // in it — the remembered group is left alone for the next play.
             if contents.allSatisfy({ $0.content.service.playsOnDeviceOnly }) {
-                guard await playHere(contents, position: position, shuffle: shuffle) else {
+                guard await playHere(contents, position: position, shuffle: shuffle, origin: origin) else {
                     log.error("device-only content failed to play on the device")
                     AlertService.shared.showAlert(with: "Couldn't play this file on this device.", imageName: "exclamationmark.triangle")
                     return
@@ -89,12 +96,13 @@ enum PlayDestinationRouter {
                 askForSpeaker(contents, position: position, queue: queue)
                 return
             }
-            // Playing on the speaker replaces what this device was playing;
-            // adding to its queue doesn't. Left running, the phone kept
+            // Playing on the speaker takes over from this device; adding to
+            // the speaker's queue doesn't. Left running, the phone kept
             // going under a route that pointed at the speaker, with no
-            // control on screen for it.
-            if [.now, .replace].contains(position), LocalPlaybackService.shared.isActive {
-                LocalPlaybackService.shared.stop()
+            // control on screen for it. Parked rather than stopped: the
+            // device's queue keeps its place for the route coming back.
+            if [.now, .replace].contains(position) {
+                LocalPlaybackService.shared.park()
             }
             do {
                 try await queue(group, position)
@@ -106,16 +114,17 @@ enum PlayDestinationRouter {
         }
     }
 
-    /// The remembered group, for the Sonos-only actions — radio, grouping —
-    /// that have no local equivalent to fall back on. `nil` means the caller
+    /// The remembered group, for the Sonos-only actions — song and artist
+    /// radio, grouping — that have no local equivalent to fall back on. `nil` means the caller
     /// still has to ask.
     static var rememberedGroup: GroupRoom? {
         guard let id = PlayDestination.remembered?.groupID else { return nil }
         return SonosService.shared.groups.first { $0.coordinatorID == id }
     }
 
-    /// The remembered destination can't take this — radio and artists have no
-    /// local backend at all, and a remembered group can simply be gone. Falling
+    /// The remembered destination can't take this — artists, Spotify, and a
+    /// station from a service the device can't stream have no local backend,
+    /// and a remembered group can simply be gone. Falling
     /// back to the picker keeps those playable; an alert on its own was a dead
     /// end, since the route button is the only other way to change destination.
     /// Playing from the picker writes the new destination, so the next Play
@@ -134,15 +143,16 @@ enum PlayDestinationRouter {
         ))
     }
 
-    private static func playHere(_ contents: [PlayableContent], position: QueuePosition, shuffle: Bool) async -> Bool {
-        // Radio and artists have no local backend at all, so don't even try —
-        // falling straight through to the picker is the useful answer.
+    private static func playHere(_ contents: [PlayableContent], position: QueuePosition, shuffle: Bool, origin: PlayableContent?) async -> Bool {
+        // Artists and Spotify have no local backend at all, so don't even
+        // try — falling straight through to the picker is the useful answer.
+        // TuneIn and Apple Music stations do play here; other stations don't.
         guard contents.contains(where: { LocalPlaybackService.shared.canPlayAnywhereLocally($0) }) else {
             log.notice("no local backend for this content")
             return false
         }
         do {
-            try await LocalPlaybackService.shared.enqueue(contents, at: position, shuffle: shuffle)
+            try await LocalPlaybackService.shared.enqueue(contents, at: position, shuffle: shuffle, from: origin)
             record(contents)
             announce(contents, position: position)
             return true

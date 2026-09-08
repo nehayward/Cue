@@ -4,7 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Cue is a multi-platform SwiftUI music controller app for Sonos speakers that integrates with Apple Music, Spotify, Plex, Tidal, TuneIn, and other music services. It provides native apps for iOS, iPadOS, macOS, tvOS, watchOS, and includes widgets, live activities, and a menu bar app (Cue Mini).
+Cue is a multi-platform SwiftUI music player that also controls Sonos speakers. It plays Apple Music, Plex, Subsonic, TuneIn and local files on the device itself (`LocalPlaybackService`) and hands the same queue to a Sonos group (`PlaybackRoute`). It provides native apps for iOS, iPadOS, macOS, tvOS, watchOS, and includes widgets, live activities, and a menu bar app (Cue Mini).
+
+## Product Priorities
+
+1. **Best music player first.** Cue is a player that happens to be an excellent Sonos client, not a Sonos remote with a player bolted on. Playback, queue, library, search and Now Playing must be complete on the device alone, with no speaker on the network.
+2. **Best Sonos client second.** Everything the device can play must also play on a Sonos group, and the hand-off between the two must be seamless (`PlaybackRoute`).
+3. **Every service must play on the device and on Sonos.** A service belongs in Cue only if its audio can be played by the device (MusicKit, a direct stream URL, or a local file) *and* by a speaker. Services whose audio only a speaker can reach are not supported, however popular they are on Sonos. Today that rule excludes Spotify, Tidal, Deezer, SoundCloud, Pandora, Sonos Radio and the speaker's own Music Library. See `Ideas/device-first-services.md` for the audit and the removal plan.
+
+When a change forces a trade-off between the player and the Sonos client, the player wins. Do not add a service, feature or screen that only works when a speaker is present.
 
 ## Build & Development Commands
 
@@ -162,3 +170,13 @@ Key findings for whoever picks this up:
   the ellipsis menu.
 - Scope decided: Apple Music only first (Spotify/Deezer would each need their
   own preview-URL lookup path).
+
+### Monetization notes
+- Downloads (Plex/Subsonic, `DownloadManager`) are free up to
+  `DownloadManager.freeSongLimit` songs held at a time; Cue Super lifts the
+  cap. The gate lives in the manager (`download(_:)` returns `false`,
+  `download(contentsOf:)` returns a `BatchResult`), with the meter in
+  `DownloadsScreen` and the "This Device" menu.
+- Super Day (a free 24-hour pass to Super, once a month) is designed but not
+  built — see `Ideas/super-day.md`. It needs the `SubscriptionService`
+  activity check moved to `entitlements.active` first.

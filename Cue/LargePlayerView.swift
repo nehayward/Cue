@@ -94,7 +94,7 @@ struct LargePlayerView: View {
                             }
                             .animation(.spring, value: group.isMuted)
                             .frame(maxWidth: 400, maxHeight: 400)
-                        TVModeView(group: group)
+                        GroupTVModeView(group: group)
                         Spacer()
                     }
                     .transition(.opacity)
@@ -123,12 +123,12 @@ struct LargePlayerView: View {
                     }
                     .animation(.default, value: group.coordinatorRoom.container != nil)
                     .frame(height: 12)
-                    SongTitleButton(group: group)
-                    ArtistButton(group: group, showArtworkOnly: showArtworkOnly)
+                    GroupSongTitleButton(group: group)
+                    GroupArtistButton(group: group, showArtworkOnly: showArtworkOnly)
                     if !showArtworkOnly {
                         VStack {
-                            PlaybackView(group: group)
-                            PlayerMediaControlsView(group: group, shouldFade: $shouldFade)
+                            GroupPlaybackScrubber(group: group)
+                            GroupMediaControlsView(group: group, shouldFade: $shouldFade)
                         }
                         .geometryGroup()
                         .transition(.opacity.combined(with: .push(from: .bottom)))
@@ -209,7 +209,9 @@ struct LargePlayerView: View {
                                 }
                             }
                             .buttonStyle(.plain)
-                            .modifier(RefreshOnForegroundModifier())
+                            .accessibilityLabel("Sleep Timer")
+                            .accessibilityHint("Cancels the sleep timer")
+                            .modifier(GroupRefreshOnForegroundModifier())
                             .confirmationDialog(
                                 "Cancel Sleep Timer",
                                 isPresented: $showSleepTimerCancelConfirmation,
@@ -245,7 +247,9 @@ struct LargePlayerView: View {
                                 }
                             }
                             .buttonStyle(.plain)
-                            .modifier(RefreshOnForegroundModifier())
+                            .accessibilityLabel("Sleep Timer")
+                            .accessibilityHint("Cancels the sleep timer")
+                            .modifier(GroupRefreshOnForegroundModifier())
                             .confirmationDialog(
                                 "Cancel Sleep Timer",
                                 isPresented: $showSleepTimerCancelConfirmation,
@@ -281,7 +285,7 @@ struct LargePlayerView: View {
                     ToolbarItem {
                         MenuInfoView(group: group, showArtworkOnly: $showArtworkOnly)
                             .tint(.primary)
-                            .modifier(RefreshOnForegroundModifier())
+                            .modifier(GroupRefreshOnForegroundModifier())
                     }
                 }
             }
@@ -305,13 +309,13 @@ struct LargePlayerView: View {
                 sonosService.selectedGroup = group
                 try? await sonosService.updateTrackInformation(for: [group])
             }
-            .modifier(ScenePhaseSyncModifier(coordinatorID: coordinatorID))
+            .modifier(GroupScenePhaseSyncModifier(coordinatorID: coordinatorID))
             .environment(AlertService.shared)
             .padding(.horizontal, 32)
             .safeAreaPadding(.bottom)
             .ignoresSafeArea(.keyboard)
             .background {
-                BackgroundViewCatalyst(group: group, shouldFade: artworkShouldFade)
+                GroupPlayerBackgroundView(group: group, shouldFade: artworkShouldFade)
             }
             .hardwareVolumeControl(group: group)
             .task(id: coordinatorID) {
@@ -333,7 +337,13 @@ struct LargePlayerView: View {
     }
 }
 
-fileprivate struct ScenePhaseSyncModifier: ViewModifier {
+// MARK: - Shared with PlayerView
+//
+// Internal rather than fileprivate: `PlayerView` — the one player the mini
+// player opens — draws a Sonos group with these same pieces, so the two
+// screens can't drift apart.
+
+struct GroupScenePhaseSyncModifier: ViewModifier {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Environment(\.scenePhase) private var scenePhase
     // Resolve fresh by id on each scenePhase change — capturing a `GroupRoom`
@@ -363,7 +373,7 @@ fileprivate struct ScenePhaseSyncModifier: ViewModifier {
     }
 }
 
-fileprivate struct RefreshOnForegroundModifier: ViewModifier {
+struct GroupRefreshOnForegroundModifier: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var refreshID = UUID()
@@ -379,7 +389,7 @@ fileprivate struct RefreshOnForegroundModifier: ViewModifier {
     }
 }
 
-fileprivate struct SongTitleButton: View {
+struct GroupSongTitleButton: View {
     @Environment(Router.self) private var router: Router
     @Bindable var group: GroupRoom
 
@@ -411,7 +421,7 @@ fileprivate struct SongTitleButton: View {
     }
 }
 
-fileprivate struct ArtistButton: View {
+struct GroupArtistButton: View {
     @Environment(Router.self) private var router: Router
 
     let group: GroupRoom
@@ -447,7 +457,7 @@ fileprivate struct ArtistButton: View {
     }
 }
 
-fileprivate struct PlaybackView: View {
+struct GroupPlaybackScrubber: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Bindable var group: GroupRoom
 
@@ -463,9 +473,21 @@ fileprivate struct PlaybackView: View {
         group.coordinatorRoom.playbackPosition < 2000 ? nil : .interactiveSpring
     }
 
+    /// The range the scrubber runs over. A radio source has no duration —
+    /// Sonos reports none for a stream, and the parser hands that on as zero
+    /// — while its position keeps counting up, so the raw pair is a value
+    /// past an empty range. `VibeSlider` guards its own arithmetic, but the
+    /// `ClosedRange` is built here, and one whose bounds are inverted traps
+    /// before the slider sees it. Floored at one so it is never empty; the
+    /// row is hidden for a zero duration anyway. Twin of the local player's
+    /// `LocalPlaybackScrubber`.
+    private var scrubRange: ClosedRange<Double> {
+        0...max(group.coordinatorRoom.track.duration, 1)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            VibeSlider(value: $group.coordinatorRoom.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, valueAnimation: positionAnimation) { isEditing in
+            VibeSlider(value: $group.coordinatorRoom.playbackPosition, in: scrubRange, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, valueAnimation: positionAnimation) { isEditing in
                 sonosService.isEditing = true
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
@@ -482,6 +504,8 @@ fileprivate struct PlaybackView: View {
             .frame(maxWidth: 500)
             .frame(height: 40)
             .foregroundStyle(.primary)
+            .accessibilityLabel("Playback Position")
+            .accessibilityValue(Duration.milliseconds(group.coordinatorRoom.playbackPosition).formatted(.time(pattern: .minuteSecond)))
             .disabled(!group.availableActions.contains(.scrubbable))
 
             HStack {
@@ -514,7 +538,7 @@ fileprivate struct PlaybackView: View {
     }
 }
 
-fileprivate struct PlayerMediaControlsView: View {
+struct GroupMediaControlsView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Bindable var group: GroupRoom
     @Binding var shouldFade: Bool
@@ -553,6 +577,7 @@ fileprivate struct PlayerMediaControlsView: View {
                     .frame(width: 32, height: 32)
             }
             .buttonStyle(.liveActivity)
+            .accessibilityLabel("Previous")
             .disabled(!group.availableActions.contains(.previous) && group.playbackService != .queue)
 
             Spacer()
@@ -576,6 +601,7 @@ fileprivate struct PlayerMediaControlsView: View {
 
             }
             .buttonStyle(.liveActivity)
+            .accessibilityLabel(group.coordinatorRoom.isPlaying ? "Pause" : "Play")
             #if DEBUG && !targetEnvironment(macCatalyst)
             .keyboardShortcut(.space, modifiers: [])
             .id(group.coordinatorID)
@@ -606,6 +632,7 @@ fileprivate struct PlayerMediaControlsView: View {
                     .frame(width: 32, height: 32)
             }
             .buttonStyle(.liveActivity)
+            .accessibilityLabel("Next")
             .disabled(!group.availableActions.contains(.next))
         }
         .frame(maxWidth: 300)
@@ -633,6 +660,7 @@ fileprivate struct BottomToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .imageScale(.large)
+                .accessibilityLabel("Group Speakers")
 
                 if group.rooms.count > 1 {
                     Spacer()
@@ -659,6 +687,7 @@ fileprivate struct BottomToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .imageScale(.large)
+                .accessibilityLabel("Search")
                 Spacer()
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
@@ -669,6 +698,7 @@ fileprivate struct BottomToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .imageScale(.large)
+                .accessibilityLabel("Browse")
 
                 Spacer()
                 Button {
@@ -706,6 +736,8 @@ fileprivate struct BottomToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .imageScale(.large)
+                .accessibilityLabel("Up Next")
+                .accessibilityValue(group.playMode.accessibilityDescription)
                 .overlay(alignment: .topTrailing) {
                     if group.playMode.contains(.shuffle) {
                         Image(systemName: "shuffle.circle.fill")
@@ -776,7 +808,7 @@ fileprivate struct BottomToolbarView: View {
     }
 }
 
-fileprivate struct TVModeView: View {
+struct GroupTVModeView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Bindable var group: GroupRoom
     
@@ -860,7 +892,7 @@ fileprivate struct BackgroundView: View {
     }
 }
 
-fileprivate struct BackgroundViewCatalyst: View {
+struct GroupPlayerBackgroundView: View {
     var group: GroupRoom
     var shouldFade: Bool
     

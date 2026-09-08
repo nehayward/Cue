@@ -1,3 +1,4 @@
+import Analytics
 import SonosKit
 import SwiftUI
 
@@ -26,11 +27,16 @@ struct LocalDownloadMenuSection: View {
                     Label("Downloading…", systemImage: "arrow.down.circle.dotted")
                 } else if manager.canDownload(item) {
                     Button {
-                        manager.download(item)
-                        alertService.showAlertContent(with: item, subtitle: "Downloading", symbolName: "arrow.down.circle")
+                        guard FeatureGate.shared.unlock(.downloads) else { return }
+                        if manager.download(item) {
+                            alertService.showAlertContent(with: item, subtitle: "Downloading", symbolName: "arrow.down.circle")
+                        } else {
+                            offerSuperForDownloads()
+                        }
                     } label: {
                         Label("Download", systemImage: "arrow.down.circle")
                     }
+                    freeLimitNote
                 }
             } else if [.album, .playlist, .artist].contains(item.content.type) {
                 Button {
@@ -38,6 +44,7 @@ struct LocalDownloadMenuSection: View {
                 } label: {
                     Label("Download \(item.content.type.title)", systemImage: "arrow.down.circle")
                 }
+                freeLimitNote
             }
         } else if item.content.service == .files {
             filesCloudSection
@@ -56,6 +63,7 @@ struct LocalDownloadMenuSection: View {
                 switch files.cloudStatus(trackID: item.content.id) {
                 case .notDownloaded:
                     Button {
+                        guard FeatureGate.shared.unlock(.downloads) else { return }
                         files.downloadFromCloud(trackIDs: [item.content.id])
                         ContinuedDownloadTask.shared.track(cloudTrackIDs: [item.content.id], title: "Downloading \(item.title)")
                         alertService.showAlertContent(with: item, subtitle: "Downloading from iCloud", symbolName: "icloud.and.arrow.down")
@@ -103,14 +111,44 @@ struct LocalDownloadMenuSection: View {
         }
     }
 
+    /// Where the free limit stands, as a plain line under the download
+    /// action. Gone with Super, which has no limit to report.
+    @ViewBuilder
+    private var freeLimitNote: some View {
+        let manager = DownloadManager.shared
+        if manager.remainingFreeSlots != nil {
+            Text("\(manager.heldCount) of \(DownloadManager.freeSongLimit) free downloads")
+        }
+    }
+
     private func downloadContainer() {
+        guard FeatureGate.shared.unlock(.downloads) else { return }
         Task { @MainActor in
-            let count = await DownloadManager.shared.download(contentsOf: item)
-            guard count > 0 else {
+            let result = await DownloadManager.shared.download(contentsOf: item)
+            switch (result.queued, result.heldBack) {
+            case (0, 0):
                 alertService.showAlert(with: "Nothing left to download", imageName: "arrow.down.circle")
-                return
+            case (0, _):
+                offerSuperForDownloads()
+            case (let queued, 0):
+                alertService.showAlertContent(with: item, subtitle: queued == 1 ? "Downloading 1 song" : "Downloading \(queued) songs", symbolName: "arrow.down.circle")
+            case (let queued, let heldBack):
+                // Part of the album made it in before the limit; say how much
+                // didn't, and where the rest is.
+                offerSuperForDownloads(text: "Downloading \(queued) of \(queued + heldBack) songs")
             }
-            alertService.showAlertContent(with: item, subtitle: count == 1 ? "Downloading 1 song" : "Downloading \(count) songs", symbolName: "arrow.down.circle")
+        }
+    }
+
+    /// The free download limit was reached. Says so in a banner that opens
+    /// the paywall when tapped, so the menu's own tap isn't hijacked by a
+    /// full-screen cover.
+    private func offerSuperForDownloads(text: String = "\(DownloadManager.freeSongLimit) free downloads used") {
+        Analytics.shared.track(.downloadLimitReached)
+        alertService.showActionAlert(with: text, subtitle: "Tap for unlimited with Cue Super", imageName: "arrow.down.circle") {
+            HapticManager.shared.fireHaptic(.buttonPress)
+            Analytics.shared.track(.viewedPaywall, with: ["source": "downloads"])
+            Router.main.fullScreenCover(to: .paywall)
         }
     }
 }
