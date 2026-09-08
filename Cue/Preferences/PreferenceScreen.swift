@@ -346,7 +346,7 @@ struct PreferenceScreen: View {
                     NavigationLink(value: RouterDestination.servicePreferenceScreen) {
                         LabeledContent {
                             HStack {
-                                ForEach(MediaSearchService.allCases, id: \.self) { service in
+                                ForEach(MediaSearchService.supported, id: \.self) { service in
                                     if coreFeatures.enabledServices(service).wrappedValue {
                                         service.iconForMusicService
                                             .frame(width: 16, height: 16)

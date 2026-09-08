@@ -18,7 +18,6 @@ struct ServicePreferenceScreen: View {
 
     @State private var servers: [MediaServer] = []
     @State private var primaryServices: [SonosServiceType: MediaServer] = [:]
-    @AppStorage(Defaults.GroupStorageKeys.spotifyMusicTokenID, store: GroupStorageKeys.storage) private var spotifyMusicTokenID: String = ""
     @AppStorage(Defaults.GroupStorageKeys.appleMusicTokenID, store: GroupStorageKeys.storage) private var appleMusicTokenID: String = ""
 
     /// Sonos-side services discovered on the user's system.
@@ -30,12 +29,12 @@ struct ServicePreferenceScreen: View {
     /// account at all, so they get their own section instead of sitting under
     /// a header that says the opposite.
     private var selfHostedServices: [MediaSearchService] {
-        MediaSearchService.allCases.filter { $0.isConfiguredInCue != nil }
+        MediaSearchService.supported.filter { $0.isConfiguredInCue != nil }
     }
 
     /// Everything that does go through a Sonos account.
     private var sonosServices: [MediaSearchService] {
-        MediaSearchService.allCases.filter { $0.isConfiguredInCue == nil }
+        MediaSearchService.supported.filter { $0.isConfiguredInCue == nil }
     }
 
     /// Services the user can actually play from — authorized in Sonos, or
@@ -58,7 +57,7 @@ struct ServicePreferenceScreen: View {
     /// Pandora, SiriusXM, Bandcamp, etc. Shown dimmed like onboarding's
     /// ServicesStep so the list reflects everything the user has authorized.
     private var unsupportedKnownTypes: [SonosServiceType] {
-        let supported = Set(MediaSearchService.allCases.compactMap(\.sonosServiceType))
+        let supported = Set(MediaSearchService.supported.compactMap(\.sonosServiceType))
         return installedTypes.filter { type in
             guard !supported.contains(type) else { return false }
             if case .unknown = type { return false }
@@ -206,37 +205,6 @@ struct ServicePreferenceScreen: View {
             }
 #endif
 
-            if let server = servers.filter({ $0.type == .spotify }).first, servers.filter({ $0.type == .spotify }).count == 1 {
-                Section {
-                    Button {
-                        Task {
-                            await sonosService.setPrimaryServer(for: server)
-                            primaryServices[server.type] = server
-                            SpotifyBrowseService.shared.albums.removeAll()
-                            SpotifyBrowseService.shared.playlists.removeAll()
-                            SpotifyBrowseService.shared.tracks.removeAll()
-                            spotifyMusicTokenID = server.id
-                            GroupStorageKeys.storage?.synchronize()
-                        }
-                    } label: {
-                        Label {
-                            VStack(alignment: .leading) {
-                                Text("Override Spotify")
-                                Text("Enable only if you're having connection issues with Spotify")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } icon: {
-                            MediaSearchService.spotify.iconForMusicService
-                                .frame(width: 24, height: 24)
-                        }
-                        .tint(.accentColor)
-                    }
-                } header: {
-                    Text("Troubleshooting")
-                }
-            }
-
             // "Can't find the service?" lives at the very bottom as plain
             // footer text — informational, not a section of its own.
             Section {
@@ -253,7 +221,6 @@ struct ServicePreferenceScreen: View {
         }
     }
 
-    /// The label inside a connected service's toggle. Spotify and Apple Music
     /// A service that isn't set up yet. Self-hosted ones open their setup
     /// sheet in Cue; the rest send the user to the Sonos app to sign in.
     private func connectRow(for service: MediaSearchService) -> some View {
@@ -291,51 +258,14 @@ struct ServicePreferenceScreen: View {
         }
     }
 
-    /// grow an account-picker menu when the Sonos system has more than one
-    /// account for them; everyone else is a plain icon + title row.
+    /// The label inside a connected service's toggle. Apple Music grows an
+    /// account-picker menu when the Sonos system has more than one account
+    /// for it; everyone else is a plain icon + title row.
     @ViewBuilder
     private func serviceToggleLabel(for service: MediaSearchService) -> some View {
-        let spotifyServers = servers.filter { $0.type == .spotify }
         let appleServers = servers.filter { $0.type == .appleMusic }
 
-        if service == .spotify, spotifyServers.count > 1 {
-            Label {
-                Menu {
-                    ForEach(spotifyServers) { server in
-                        Button {
-                            Task {
-                                await sonosService.setPrimaryServer(for: server)
-                                primaryServices[server.type] = server
-                                SpotifyBrowseService.shared.albums.removeAll()
-                                SpotifyBrowseService.shared.playlists.removeAll()
-                                SpotifyBrowseService.shared.tracks.removeAll()
-                                spotifyMusicTokenID = server.id
-                                GroupStorageKeys.storage?.synchronize()
-                            }
-                        } label: {
-                            VStack {
-                                Text(server.name)
-                                Text(server.id)
-                            }
-                        }
-                    }
-                } label: {
-                    VStack(alignment: .leading) {
-                        Text("\(service.title) (\(spotifyServers.count))")
-                        if let primaryServer = primaryServices[.spotify] {
-                            Text(primaryServer.name.trimmingCharacters(in: .whitespacesAndNewlines))
-                                .font(.caption)
-                        } else if let defaultService = spotifyServers.first?.name {
-                            Text(defaultService)
-                                .font(.caption)
-                        }
-                    }
-                }
-            } icon: {
-                service.iconForMusicService
-                    .frame(width: 24, height: 24)
-            }
-        } else if appleServers.count > 1, service == .apple {
+        if appleServers.count > 1, service == .apple {
             Label {
                 Menu {
                     ForEach(appleServers) { server in

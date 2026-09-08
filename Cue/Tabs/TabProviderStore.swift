@@ -53,11 +53,15 @@ final class TabProviderStore {
         self.defaults = defaults
         if let data = defaults.data(forKey: AppStorageKeys.tabProviders),
            let decoded = try? JSONDecoder().decode([TabProvider].self, from: data) {
-            providers = decoded
+            // A provider an older build added that Cue no longer offers
+            // (Spotify, say) is dropped rather than shown as an empty tab.
+            providers = decoded.filter { $0.service.isSupported }
         } else if let raw = defaults.stringArray(forKey: AppStorageKeys.tabProviders) {
             // The first build stored bare service names; they become
             // providers with the default collections.
-            providers = raw.compactMap(MediaSearchService.init(rawValue:)).map(TabProvider.init(service:))
+            providers = raw.compactMap(MediaSearchService.init(rawValue:))
+                .filter(\.isSupported)
+                .map(TabProvider.init(service:))
         } else {
             providers = []
         }
@@ -103,7 +107,7 @@ final class TabProviderStore {
     /// The providers that could be added: switched on in Services, with
     /// collections to browse, and not in the tab view yet.
     func availableProviders(enabledIn coreFeatures: CoreFeatures) -> [MediaSearchService] {
-        MediaSearchService.allCases.filter { service in
+        MediaSearchService.supported.filter { service in
             service.canBeTab && coreFeatures.isEnabled(service) && !contains(service)
         }
     }

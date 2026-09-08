@@ -54,9 +54,17 @@ struct PlaybackRouteButton: View {
                 }
             }
         } label: {
-            Image(systemName: destination == .device ? "airplayaudio" : "hifispeaker.fill")
-                .contentTransition(.symbolEffect(.replace))
-                .accessibilityLabel("Play On")
+            // Cue's own speaker-with-arrow symbol for "this device" rather
+            // than the AirPlay glyph: the route is Cue's, not AirPlay's.
+            Group {
+                if destination == .device {
+                    Image("hifispeaker.arrow.forward.fill")
+                } else {
+                    Image(systemName: "hifispeaker.fill")
+                }
+            }
+            .contentTransition(.symbolEffect(.replace))
+            .accessibilityLabel("Play On")
         }
         .menuIndicator(.hidden)
         // Re-read on every appearance: the share extension writes this too, so

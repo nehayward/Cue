@@ -75,7 +75,7 @@ struct SearchScreen: View {
     /// Services enabled in Settings, in case order. Observed so disabling a
     /// service while it's selected deselects it (see validateSelectedServices).
     private var settingsEnabledServices: [MediaSearchService] {
-        MediaSearchService.allCases.filter { coreFeatures.isEnabled($0) }
+        MediaSearchService.supported.filter { coreFeatures.isEnabled($0) }
     }
 
     /// The services actually searched: the stored selection minus anything
@@ -676,7 +676,7 @@ private struct MediaServiceMenu: View {
     @State private var coreFeatures = CoreFeatures.shared
 
     private var enabledServices: [MediaSearchService] {
-        MediaSearchService.allCases.filter { coreFeatures.isEnabled($0) }
+        MediaSearchService.supported.filter { coreFeatures.isEnabled($0) }
     }
 
     /// Icons for the toolbar button: the stored selection minus disabled

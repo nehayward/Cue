@@ -18,7 +18,7 @@ struct HomeScreen: View {
 
     /// Providers that can be tabs, in the order the app lists services.
     private var providers: [MediaSearchService] {
-        MediaSearchService.allCases.filter(\.canBeTab)
+        MediaSearchService.supported.filter(\.canBeTab)
     }
 
     var body: some View {

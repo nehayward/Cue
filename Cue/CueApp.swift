@@ -398,7 +398,7 @@ struct CueApp: App {
                 // it never took the selected appearance. `SearchScreen` draws
                 // its own field in the navigation bar again, so the role has
                 // nothing left to hoist.
-                Tab("Home", systemImage: "house", value: AppTab.home) {
+                Tab("Home", image: "home.fill", value: AppTab.home) {
                     Screens.home
                 }
 

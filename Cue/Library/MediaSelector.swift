@@ -21,7 +21,7 @@ struct MediaSelector: View {
     
     var body: some View {
         Menu {
-            ForEach(MediaSearchService.allCases, id: \.self) { service in
+            ForEach(MediaSearchService.supported, id: \.self) { service in
                 if coreFeatures.enabledServices(service).wrappedValue, service.isBrowseSupported {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
@@ -77,7 +77,7 @@ struct MediaSelector: View {
             if coreFeatures.isEnabled(browseMediaService) {
                 return
             }
-            guard let service = MediaSearchService.allCases.first(where: { coreFeatures.isEnabled($0) }) else { return }
+            guard let service = MediaSearchService.supported.first(where: { coreFeatures.isEnabled($0) }) else { return }
             browseMediaService = service
         }
     }

@@ -74,12 +74,10 @@ struct BrowseScreen: View {
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onChange(of: coreFeatures.features) {
-            if coreFeatures.isEnabled(browseMediaService) {
-                return
-            }
-            guard let service = MediaSearchService.allCases.first(where: { coreFeatures.isEnabled($0) }) else { return }
-            browseMediaService = service
+            fallBackFromDisabledService()
         }
+        // The stored choice can be a service this build no longer offers.
+        .onAppear(perform: fallBackFromDisabledService)
         .overlay(
             Button {
                 closeInspector?()
@@ -90,6 +88,18 @@ struct BrowseScreen: View {
             .frame(width: 0, height: 0)
             .hidden()
         )
+    }
+}
+
+private extension BrowseScreen {
+    /// Moves off a browse service that is disabled — or gone — to the first
+    /// one still on, so the screen never sits on a provider it can't show.
+    func fallBackFromDisabledService() {
+        if coreFeatures.isEnabled(browseMediaService) {
+            return
+        }
+        guard let service = MediaSearchService.supported.first(where: { coreFeatures.isEnabled($0) }) else { return }
+        browseMediaService = service
     }
 }
 
