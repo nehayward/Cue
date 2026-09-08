@@ -751,6 +751,18 @@ final class LocalPlaybackService {
         try await arm(at: index, from: seconds > 2 ? seconds : nil)
     }
 
+    /// The length the catalog gave the queue row, or zero when it gave none.
+    /// Every service that streams here — Plex, Subsonic, Files — parses one
+    /// into `metadata.duration`; it fills in for what the player hasn't
+    /// reported yet, or can't. A station stays at zero: a live stream has
+    /// no length, and the scrubber hides on zero.
+    private func catalogDuration(at index: Int) -> TimeInterval {
+        guard let item = queue[safe: index], !isStation(item),
+              let duration = item.metadata?.duration else { return 0 }
+        return TimeInterval(duration.components.seconds)
+            + TimeInterval(duration.components.attoseconds) / 1e18
+    }
+
     // MARK: - Arming runs
 
     /// The last index of the contiguous same-backend run starting at `index`.
@@ -785,7 +797,9 @@ final class LocalPlaybackService {
         resumePosition = nil
         currentIndex = index
         progress = 0
-        duration = 0
+        // The catalog's length while the player loads: the scrubber keeps
+        // its shape instead of dropping out until the first poll.
+        duration = catalogDuration(at: index)
         // A restored queue arms from Play rather than `play(_:)`, which is
         // where the poll used to start.
         startPolling()
@@ -849,7 +863,9 @@ final class LocalPlaybackService {
             }
             isPlaying = false
             progress = 0
-            duration = 0
+            // Parked at the start of the next track: show its length, as a
+            // paused speaker would, rather than no scrubber at all.
+            duration = catalogDuration(at: currentIndex)
             return
         }
         if repeatMode == .one {
@@ -1033,7 +1049,7 @@ final class LocalPlaybackService {
         backend = .appleMusic
         runEnd = end
         currentIndex = first.queueIndex
-        duration = first.song.duration ?? 0
+        duration = first.song.duration ?? catalogDuration(at: first.queueIndex)
     }
 
     /// Hands an Apple Music station to the Apple player. Stations are
@@ -1360,7 +1376,7 @@ final class LocalPlaybackService {
                 let offset = entries.distance(from: entries.startIndex, to: entryIndex)
                 if let row = appleRun[safe: offset] {
                     if currentIndex != row.queueIndex { currentIndex = row.queueIndex }
-                    let songDuration = row.song.duration ?? 0
+                    let songDuration = row.song.duration ?? catalogDuration(at: row.queueIndex)
                     if duration != songDuration { duration = songDuration }
                 }
                 // What the player is actually decoding, not what the catalog
@@ -1398,18 +1414,33 @@ final class LocalPlaybackService {
                 advancePastRun(endingAt: end)
                 return
             }
+            // An item that couldn't load parks the queue player on it:
+            // paused, no length, and Play does nothing. Say so and move on
+            // to the next item — with nothing after it, `currentItem` goes
+            // nil and the next poll ends the run.
+            if current.status == .failed {
+                if let queueIndex = streamRun[ObjectIdentifier(current)],
+                   let item = queue[safe: queueIndex] {
+                    AlertService.shared.showAlert(with: "Couldn't play “\(item.title)”", imageName: "exclamationmark.triangle")
+                }
+                streamPlayer.advanceToNextItem()
+                return
+            }
             // Only what changed, as above.
             let playing = streamPlayer.timeControlStatus != .paused
             let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
             progress = Self.finite(current.currentTime().seconds, else: progress)
             savePositionIfDue(paused: paused)
-            let total = current.duration.seconds
-            let itemDuration = total.isFinite ? total : 0
-            if duration != itemDuration { duration = itemDuration }
             if let queueIndex = streamRun[ObjectIdentifier(current)], currentIndex != queueIndex {
                 currentIndex = queueIndex
             }
+            // `AVPlayerItem.duration` is indefinite until the item is ready
+            // to play — and for good if it never gets there. The catalog's
+            // length stands in until then so the scrubber doesn't vanish.
+            let total = current.duration.seconds
+            let itemDuration = total.isFinite && total > 0 ? total : catalogDuration(at: currentIndex)
+            if duration != itemDuration { duration = itemDuration }
             if audioQualityItem != ObjectIdentifier(current) {
                 audioQualityItem = ObjectIdentifier(current)
                 readAudioQuality(of: current)
