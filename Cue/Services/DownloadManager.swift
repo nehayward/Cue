@@ -58,8 +58,37 @@ final class DownloadManager {
         }
     }
 
+    /// An album, playlist or artist the user downloaded whole: which tracks
+    /// it stood for at the time, so the album can be badged, removed and
+    /// listed as one thing rather than as its songs.
+    struct Container: Codable, Identifiable, Hashable, Sendable {
+        let key: String
+        let service: MusicService
+        let contentID: String
+        let type: ContentType
+        let title: String
+        let subtitle: String
+        let artwork: URL?
+        let createdAt: Date
+        var trackKeys: [String]
+
+        var id: String { key }
+    }
+
+    /// How far along a container is, read off its tracks.
+    enum ContainerState: Equatable {
+        /// Every track is on the device.
+        case downloaded
+        /// Some track is still coming (or paused, or failed), with the
+        /// fraction of the whole that has landed.
+        case downloading(Double)
+    }
+
     /// Every download, complete or not, by key.
     private(set) var items: [String: Item] = [:]
+
+    /// Albums, playlists and artists downloaded whole, by container key.
+    private(set) var containers: [String: Container] = [:]
 
     /// Whether transfers may use cellular data. Read when each task is
     /// made, so flipping it applies to what's queued next.
@@ -94,9 +123,11 @@ final class DownloadManager {
         allowsCellular = UserDefaults.standard.bool(forKey: AppStorageKeys.downloadsOverCellular)
         Self.prepareDirectory()
         items = Self.loadManifest()
+        containers = Self.loadContainerManifest()
         relay.manager = self
         adoptLegacyPlexDownloads()
         reconcileWithDisk()
+        pruneContainers()
         reattachSessionTasks()
     }
 
@@ -173,6 +204,66 @@ final class DownloadManager {
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
+    /// Whether the manager can download this whole: a Plex or Subsonic
+    /// album, playlist or artist whose tracks the local queue knows how to
+    /// fetch (the same fetch feeds the download).
+    func canDownload(contentsOf container: PlayableContent) -> Bool {
+        [.plex, .subsonic].contains(container.content.service)
+            && [.album, .playlist, .artist].contains(container.content.type)
+            && LocalPlaybackService.shared.canPlayContainerLocally(container)
+    }
+
+    /// Containers with every track on the device, newest first.
+    var completedContainers: [Container] {
+        containers.values.filter { containerState(key: $0.key) == .downloaded }.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// Containers still coming down, oldest first.
+    var activeContainers: [Container] {
+        containers.values.filter {
+            if case .downloading = containerState(key: $0.key) { return true }
+            return false
+        }.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    /// Where a container downloaded whole stands, or nil if it never was
+    /// (or one of its songs has since been removed on its own, which
+    /// forgets the container — see `pruneContainers`).
+    func containerState(for container: PlayableContent) -> ContainerState? {
+        containerState(key: Self.containerKey(for: container))
+    }
+
+    func containerState(key: String) -> ContainerState? {
+        guard let container = containers[key], !container.trackKeys.isEmpty else { return nil }
+        let entries = container.trackKeys.compactMap { items[$0] }
+        guard entries.count == container.trackKeys.count else { return nil }
+        if entries.allSatisfy({ $0.state == .completed }) { return .downloaded }
+        let landed = entries.reduce(0.0) { $0 + ($1.state == .completed ? 1 : $1.progress) }
+        return .downloading(landed / Double(entries.count))
+    }
+
+    func isDownloaded(contentsOf container: PlayableContent) -> Bool {
+        containerState(for: container) == .downloaded
+    }
+
+    func isDownloading(contentsOf container: PlayableContent) -> Bool {
+        if case .downloading = containerState(for: container) { return true }
+        return false
+    }
+
+    /// The fraction of a container that has landed, while it's coming down.
+    func progress(forContentsOf container: PlayableContent) -> Double? {
+        if case let .downloading(fraction) = containerState(for: container) { return fraction }
+        return nil
+    }
+
+    /// How many of a container's tracks are on the device, and how many it has.
+    func trackCounts(forContainer key: String) -> (downloaded: Int, total: Int) {
+        guard let container = containers[key] else { return (0, 0) }
+        let downloaded = container.trackKeys.filter { items[$0]?.state == .completed }.count
+        return (downloaded, container.trackKeys.count)
+    }
+
     // MARK: - Downloading
 
     /// Queues a track as a batch of one — the system card still shows it
@@ -189,17 +280,32 @@ final class DownloadManager {
     }
 
     /// Queues everything inside an album, playlist or artist, fetched the
-    /// way the local queue fetches it, as one batch the system shows and
-    /// keeps running. Without Super the batch fills the free slots that are
-    /// left, in the container's order, and reports what it couldn't take.
+    /// way the local queue fetches it — every page, so a long playlist
+    /// comes whole — as one batch the system shows and keeps running.
+    /// Without Super the batch fills the free slots that are left, in the
+    /// container's order, and reports what it couldn't take. When every
+    /// track is here or on its way, the container is remembered with its
+    /// tracks, so it can be badged and removed as one; a batch the limit
+    /// cut short isn't, since it doesn't stand for the whole set.
     @discardableResult
     func download(contentsOf container: PlayableContent) async -> BatchResult {
-        let tracks = await LocalPlaybackService.shared.containerTracks(for: container)
-        let downloadable = tracks.filter { canDownload($0) && !isDownloaded($0) }
+        guard canDownload(contentsOf: container) else { return BatchResult() }
+        var tracks: [PlayableContent] = []
+        var offset = 0
+        // Bounded: a source that quietly ignored `offset` would otherwise
+        // hand back its first page forever.
+        for _ in 0 ..< 200 {
+            let page = await LocalPlaybackService.shared.containerTracks(for: container, offset: offset)
+            guard !page.isEmpty else { break }
+            tracks.append(contentsOf: page)
+            offset += page.count
+        }
+        let downloadable = tracks.filter { canDownload($0) }
         guard !downloadable.isEmpty else { return BatchResult() }
+
         var result = BatchResult()
         var keys: [String] = []
-        for track in downloadable {
+        for track in downloadable where !isDownloaded(track) {
             if takesNewSlot(track), isAtFreeLimit {
                 result.heldBack += 1
                 continue
@@ -208,6 +314,21 @@ final class DownloadManager {
             keys.append(Self.key(for: track))
             result.queued += 1
         }
+        if result.heldBack == 0 {
+            let key = Self.containerKey(for: container)
+            containers[key] = Container(
+                key: key,
+                service: container.content.service,
+                contentID: container.content.id,
+                type: container.content.type,
+                title: container.title,
+                subtitle: container.metadata?.artist ?? container.subtitle,
+                artwork: container.thumbnail ?? container.artwork,
+                createdAt: containers[key]?.createdAt ?? .now,
+                trackKeys: downloadable.map { Self.key(for: $0) }
+            )
+        }
+        scheduleSave()
         if !keys.isEmpty {
             ContinuedDownloadTask.shared.track(downloadKeys: keys, title: "Downloading \(container.title)")
         }
@@ -218,6 +339,31 @@ final class DownloadManager {
     /// one that already counts against the limit.
     private func takesNewSlot(_ item: PlayableContent) -> Bool {
         items[Self.key(for: item)] == nil
+    }
+
+    /// Removes every track of a container downloaded whole — cancelling
+    /// what's still coming — and forgets the container.
+    func removeDownload(contentsOf container: PlayableContent) {
+        removeContainer(key: Self.containerKey(for: container))
+    }
+
+    func removeContainer(key: String) {
+        guard let container = containers[key] else { return }
+        containers[key] = nil
+        for trackKey in container.trackKeys {
+            remove(key: trackKey)
+        }
+        scheduleSave()
+    }
+
+    /// Forgets a container once any of its tracks is gone — removed on its
+    /// own from a row or the Downloads list, cancelled, or missing from
+    /// disk. A container stands for the whole set; with a track out, it's
+    /// back to being songs, and can be downloaded whole again.
+    private func pruneContainers() {
+        for container in containers.values where container.trackKeys.contains(where: { items[$0] == nil }) {
+            containers[container.key] = nil
+        }
     }
 
     /// `download(_:)` without the batch bookkeeping, for callers that batch
@@ -286,6 +432,7 @@ final class DownloadManager {
             }
         }
         try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
+        pruneContainers()
         scheduleSave()
     }
 
@@ -302,6 +449,7 @@ final class DownloadManager {
         }
         try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
         items[key] = nil
+        pruneContainers()
         scheduleSave()
     }
 
@@ -310,6 +458,7 @@ final class DownloadManager {
             try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
             items[entry.key] = nil
         }
+        pruneContainers()
         scheduleSave()
     }
 
@@ -486,6 +635,13 @@ final class DownloadManager {
         DownloadNaming.key(for: item)
     }
 
+    /// Key for a container downloaded whole: its type in front of the same
+    /// safe id its tracks use, so an album and a playlist that happen to
+    /// share an id on the server stay apart.
+    static func containerKey(for container: PlayableContent) -> String {
+        "\(container.content.type.id.lowercased())-\(key(for: container))"
+    }
+
     private static func fileExtension(for item: PlayableContent, url: URL) -> String {
         DownloadNaming.fileExtension(for: item, url: url)
     }
@@ -502,6 +658,10 @@ final class DownloadManager {
 
     nonisolated private static var manifestURL: URL {
         directory.appendingPathComponent("manifest.json")
+    }
+
+    nonisolated private static var containerManifestURL: URL {
+        directory.appendingPathComponent("containers.json")
     }
 
     /// Creates the folder, protected until first unlock and left out of
@@ -531,6 +691,12 @@ final class DownloadManager {
         return Dictionary(items.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
+    private static func loadContainerManifest() -> [String: Container] {
+        guard let data = try? Data(contentsOf: containerManifestURL),
+              let containers = try? JSONDecoder().decode([Container].self, from: data) else { return [:] }
+        return Dictionary(containers.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
     /// Coalesces saves: progress alone never writes, and bursts of state
     /// changes (an album finishing) write once.
     private func scheduleSave() {
@@ -539,9 +705,14 @@ final class DownloadManager {
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled, let self else { return }
             let snapshot = Array(self.items.values)
+            let containerSnapshot = Array(self.containers.values)
             await Task.detached(priority: .utility) {
-                guard let data = try? JSONEncoder().encode(snapshot) else { return }
-                try? data.write(to: Self.manifestURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                if let data = try? JSONEncoder().encode(snapshot) {
+                    try? data.write(to: Self.manifestURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                }
+                if let data = try? JSONEncoder().encode(containerSnapshot) {
+                    try? data.write(to: Self.containerManifestURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                }
             }.value
         }
     }

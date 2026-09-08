@@ -58,6 +58,10 @@ struct SoundCloudBrowseScreen: View {
                 }
 #endif
                 ToolbarItem {
+                    SettingsToolbarButton()
+                        .environment(router)
+                }
+                ToolbarItem {
                     MediaSelector()
                         .environment(router)
                 }

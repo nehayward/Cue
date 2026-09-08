@@ -31,20 +31,37 @@ struct LocalDownloadMenuSection: View {
                         if manager.download(item) {
                             alertService.showAlertContent(with: item, subtitle: "Downloading", symbolName: "arrow.down.circle")
                         } else {
-                            offerSuperForDownloads()
+                            Self.offerSuperForDownloads(alertService: alertService)
                         }
                     } label: {
                         Label("Download", systemImage: "arrow.down.circle")
                     }
                     freeLimitNote
                 }
-            } else if [.album, .playlist, .artist].contains(item.content.type) {
-                Button {
-                    downloadContainer()
-                } label: {
-                    Label("Download \(item.content.type.title)", systemImage: "arrow.down.circle")
+            } else if manager.canDownload(contentsOf: item) {
+                switch manager.containerState(for: item) {
+                case .downloaded:
+                    Button(role: .destructive) {
+                        manager.removeDownload(contentsOf: item)
+                        alertService.showAlertContent(with: item, subtitle: "Removed from this device", symbolName: "trash")
+                    } label: {
+                        Label("Remove Download", systemImage: "trash")
+                    }
+                case .downloading:
+                    Label("Downloading…", systemImage: "arrow.down.circle.dotted")
+                    Button(role: .destructive) {
+                        manager.removeDownload(contentsOf: item)
+                    } label: {
+                        Label("Cancel Download", systemImage: "xmark.circle")
+                    }
+                case nil:
+                    Button {
+                        downloadContainer()
+                    } label: {
+                        Label("Download \(item.content.type.title)", systemImage: "arrow.down.circle")
+                    }
+                    freeLimitNote
                 }
-                freeLimitNote
             }
         } else if item.content.service == .files {
             filesCloudSection
@@ -124,26 +141,40 @@ struct LocalDownloadMenuSection: View {
     private func downloadContainer() {
         guard FeatureGate.shared.unlock(.downloads) else { return }
         Task { @MainActor in
-            let result = await DownloadManager.shared.download(contentsOf: item)
-            switch (result.queued, result.heldBack) {
-            case (0, 0):
-                alertService.showAlert(with: "Nothing left to download", imageName: "arrow.down.circle")
-            case (0, _):
-                offerSuperForDownloads()
-            case (let queued, 0):
-                alertService.showAlertContent(with: item, subtitle: queued == 1 ? "Downloading 1 song" : "Downloading \(queued) songs", symbolName: "arrow.down.circle")
-            case (let queued, let heldBack):
-                // Part of the album made it in before the limit; say how much
-                // didn't, and where the rest is.
-                offerSuperForDownloads(text: "Downloading \(queued) of \(queued + heldBack) songs")
+            await Self.download(item, alertService: alertService)
+        }
+    }
+
+    /// Queues a whole album, playlist or artist and says what happened.
+    /// Shared with the detail screen's header button; callers check the
+    /// feature gate first, so the paywall comes up on the tap itself.
+    @MainActor
+    static func download(_ item: PlayableContent, alertService: AlertService) async {
+        let manager = DownloadManager.shared
+        let result = await manager.download(contentsOf: item)
+        switch (result.queued, result.heldBack) {
+        case (0, 0):
+            if manager.isDownloaded(contentsOf: item) {
+                alertService.showAlertContent(with: item, subtitle: "Already on this device", symbolName: "arrow.down.circle.fill")
+            } else {
+                alertService.showAlert(with: "Nothing to download", imageName: "arrow.down.circle")
             }
+        case (0, _):
+            offerSuperForDownloads(alertService: alertService)
+        case (let queued, 0):
+            alertService.showAlertContent(with: item, subtitle: queued == 1 ? "Downloading 1 song" : "Downloading \(queued) songs", symbolName: "arrow.down.circle")
+        case (let queued, let heldBack):
+            // Part of the album made it in before the limit; say how much
+            // didn't, and where the rest is.
+            offerSuperForDownloads(text: "Downloading \(queued) of \(queued + heldBack) songs", alertService: alertService)
         }
     }
 
     /// The free download limit was reached. Says so in a banner that opens
     /// the paywall when tapped, so the menu's own tap isn't hijacked by a
     /// full-screen cover.
-    private func offerSuperForDownloads(text: String = "\(DownloadManager.freeSongLimit) free downloads used") {
+    @MainActor
+    static func offerSuperForDownloads(text: String = "\(DownloadManager.freeSongLimit) free downloads used", alertService: AlertService) {
         Analytics.shared.track(.downloadLimitReached)
         alertService.showActionAlert(with: text, subtitle: "Tap for unlimited with Cue Super", imageName: "arrow.down.circle") {
             HapticManager.shared.fireHaptic(.buttonPress)

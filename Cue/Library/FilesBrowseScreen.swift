@@ -131,6 +131,10 @@ struct FilesBrowseScreen: View {
 #endif
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    SettingsToolbarButton()
+                        .environment(router)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     MediaSelector()
                         .environment(router)
                 }

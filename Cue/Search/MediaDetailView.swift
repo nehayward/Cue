@@ -359,6 +359,11 @@ struct MediaDetailView: View {
                 .foregroundStyle(.primary)
                 
                 if let content {
+                    // Keep the whole album or playlist on this device — the
+                    // same action as the ellipsis menu's This Device ›
+                    // Download, one tap from the header.
+                    ContainerDownloadButton(item: content)
+
                     Menu {
                         PlayableMenuView(item: content)
                     } label: {

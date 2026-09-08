@@ -40,6 +40,10 @@ struct PandoraBrowseScreen: View {
             }
             .toolbar {
                 ToolbarItem {
+                    SettingsToolbarButton()
+                        .environment(router)
+                }
+                ToolbarItem {
                     MediaSelector()
                         .environment(router)
                 }

@@ -86,6 +86,11 @@ struct DownloadsScreen: View {
                 cloudSection
             }
 
+            let containers = manager.activeContainers + manager.completedContainers
+            if !containers.isEmpty {
+                containersSection(containers)
+            }
+
             Section {
                 Toggle(isOn: $manager.allowsCellular) {
                     Label("Use Cellular Data", systemImage: "antenna.radiowaves.left.and.right")
@@ -124,8 +129,8 @@ struct DownloadsScreen: View {
                         Label("No Downloads", systemImage: "arrow.down.circle")
                     } description: {
                         Text(manager.remainingFreeSlots == nil
-                             ? "Download a Plex or Subsonic song or album from its menu to keep it on this device."
-                             : "Download a Plex or Subsonic song or album from its menu to keep it on this device. Up to \(DownloadManager.freeSongLimit) songs are free.")
+                             ? "Download a Plex or Subsonic song, album or playlist from its menu — or an album's download button — to keep it on this device."
+                             : "Download a Plex or Subsonic song, album or playlist from its menu — or an album's download button — to keep it on this device. Up to \(DownloadManager.freeSongLimit) songs are free.")
                     }
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -203,6 +208,61 @@ struct DownloadsScreen: View {
             Text(remaining == 0
                  ? "Every free slot is taken. Remove a download to free one, or get Cue Super for unlimited downloads."
                  : "Songs on this device and on their way count; removing one frees its slot. Cue Super removes the limit.")
+        }
+    }
+
+    // MARK: - Albums & playlists
+
+    /// What was downloaded whole, still coming or all here, each removable
+    /// as one. The songs themselves stay listed under On This Device.
+    private func containersSection(_ containers: [DownloadManager.Container]) -> some View {
+        Section {
+            ForEach(containers) { container in
+                containerRow(container)
+            }
+            .onDelete { offsets in
+                for index in offsets where containers.indices.contains(index) {
+                    manager.removeContainer(key: containers[index].key)
+                }
+            }
+        } header: {
+            Text("Albums & Playlists")
+        } footer: {
+            Text("Swipe to remove every song of an album or playlist at once.")
+        }
+    }
+
+    private func containerRow(_ container: DownloadManager.Container) -> some View {
+        let counts = manager.trackCounts(forContainer: container.key)
+        let state = manager.containerState(key: container.key)
+        return HStack(spacing: 12) {
+            artwork(container.artwork)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(container.title)
+                    .lineLimit(1)
+                Text([container.type.title, container.subtitle].filter { !$0.isEmpty }.joined(separator: " • "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                if case let .downloading(fraction) = state {
+                    ProgressView(value: fraction)
+                        .progressViewStyle(.linear)
+                    Text("\(counts.downloaded) of \(counts.total) songs")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
+            Spacer(minLength: 0)
+            VStack(alignment: .trailing, spacing: 2) {
+                container.service.image
+                    .frame(width: 14, height: 14)
+                if state == .downloaded {
+                    Text(counts.total == 1 ? "1 song" : "\(counts.total) songs")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
