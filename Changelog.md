@@ -94,6 +94,14 @@ Found on the way: the Sonos player's scrubber divides the position by the track'
 - `LargePlayerView.PlaybackView` and `TVPlayerView` floor the scrubber's range at one (twin of `LocalPlaybackScrubber`), since an inverted `ClosedRange` traps before the slider can see it. `SonosTrackParser.parseTime` clamps a negative placeholder to zero for the same reason.
 - `PositionInfoParserTests` pins the three shapes: a normal duration, a stream with `NOT_IMPLEMENTED` for a duration but a counting position, and negative placeholders.
 
+### Route picker takes over the group menu
+The unified player's phone bar showed two speaker buttons side by side: the route picker (`PlaybackRouteButton`) and the group button (`GroupMenuButton`), and the group menu's section header was the group's name, so a solo group read "Spa" as a header and "Spa" as its toggle right under it.
+
+- The regroup rows move out of `GroupMenuButton` into `GroupMenuItems` — every active room as a membership toggle, then **Everywhere** and **Ungroup All** — under a plain "Speakers" header. `GroupMenuButton` (still used by `LargePlayerView` and `MediaControlsView`) wraps it unchanged otherwise.
+- `PlaybackRouteButton` shows `GroupMenuItems` for the route's group instead of the group list whenever `PlaybackRoute.shared.group` resolves, so on a speaker the menu is **This Device** and the room toggles: check several to group them, uncheck to drop one. The group list remains for the device route (and for a remembered group that has gone). The label uses `hifispeaker.2.fill` for a group of more than one.
+- `PlayerView.PlayerBottomToolbarView` drops the group button on both layouts; the room-volume button and the queue stay. `SonosService` is read off `.shared` in the items, as the route button already does, since the tab bar accessory hosts it outside `withEnvironments()`.
+- Everywhere now follows the promoted coordinator the way a toggle does: `speedGroup` may keep another group that's already playing and fold this one into it, which used to leave the route pointing at a coordinator that had become a member.
+
 ---
 
 ## 2026.7

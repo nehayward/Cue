@@ -820,12 +820,12 @@ private struct LocalVolumeControlView: View {
 
 /// The glass row under the volume, in the shape of `LargePlayerView`'s
 /// `BottomToolbarView`: the route picker where the Sonos player has its
-/// group button; on a speaker, that group button too, with its
-/// press-and-hold regroup menu, and the room volume for a group of more
-/// than one; then the queue on the trailing edge — with search and browse
-/// before it where there's room, since a phone has the tab bar a swipe
-/// away. The like button and the menu live in the header on every size, so
-/// this row is only ever about where to go next.
+/// group button — on a speaker its menu is the regroup menu too, so there is
+/// no second speaker button beside it; then the room volume for a group of
+/// more than one, and the queue on the trailing edge — with search and
+/// browse before it where there's room, since a phone has the tab bar a
+/// swipe away. The like button and the menu live in the header on every
+/// size, so this row is only ever about where to go next.
 private struct PlayerBottomToolbarView: View {
     @Environment(Router.self) private var router: Router
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -847,24 +847,12 @@ private struct PlayerBottomToolbarView: View {
                     .buttonStyle(.plain)
                     .imageScale(.large)
 
-                if let group {
+                if let group, group.rooms.count > 1 {
                     Spacer()
-                    GroupMenuButton(group: group) {
-                        router.presentedSheet = .groupScreen(group: group)
-                    } label: {
-                        GroupIconView()
-                    }
-                    .buttonStyle(.plain)
-                    .imageScale(.large)
-                    .accessibilityLabel("Group Speakers")
-
-                    if group.rooms.count > 1 {
-                        Spacer()
-                        roomVolumeButton(group)
-                            .buttonStyle(.plain)
-                            .imageScale(.large)
-                            .withPopoverDestinations(popoverDestination: $router.volumePopover)
-                    }
+                    roomVolumeButton(group)
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
+                        .withPopoverDestinations(popoverDestination: $router.volumePopover)
                 }
 
                 // No search or browse on a phone: the tab bar is a swipe
@@ -885,31 +873,12 @@ private struct PlayerBottomToolbarView: View {
                     .glassButton()
                     .help("Play On")
 
-                if let group {
-                    GroupMenuButton(group: group) {
-                        router.popover = .groupScreen(group: group)
-                    } label: {
-                        Label {
-                            Text("Group")
-                        } icon: {
-                            GroupIconView()
-                                .frame(width: 24, height: 24)
-                        }
-                        .labelStyle(.iconOnly)
-                        .fontDesign(.rounded)
-                    }
-                    .buttonBorderShape(.circle)
-                    .glassButton()
-                    .withPopoverDestinations(popoverDestination: $router.popover)
-                    .help("Group Speakers")
-
-                    if group.rooms.count > 1 {
-                        roomVolumeButton(group)
-                            .buttonBorderShape(.circle)
-                            .glassButton()
-                            .withPopoverDestinations(popoverDestination: $router.volumePopover)
-                            .help("Speaker Control")
-                    }
+                if let group, group.rooms.count > 1 {
+                    roomVolumeButton(group)
+                        .buttonBorderShape(.circle)
+                        .glassButton()
+                        .withPopoverDestinations(popoverDestination: $router.volumePopover)
+                        .help("Speaker Control")
                 }
 
                 searchButton

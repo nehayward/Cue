@@ -21,6 +21,7 @@
 - Songs now shows how many tracks your library holds under the title, and counts up while a big library is still loading
 - Starred Subsonic songs now show the heart in lists, the way Plex favorites do
 - Settings ▸ Storage now shows how much space your synced libraries take, and can clear them — they rebuild the next time you open Songs
+- One speaker button on the player: the Play On button now carries the grouping menu too — with a speaker chosen, tap it to check the rooms you want playing together, uncheck one to drop it, or pick Everywhere or Ungroup All — so the second speaker button beside it is gone, and the menu no longer lists the current room's name twice
 
 # 2026.7
 
