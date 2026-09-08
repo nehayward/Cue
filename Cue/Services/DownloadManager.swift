@@ -369,7 +369,9 @@ final class DownloadManager {
     /// `download(_:)` without the batch bookkeeping, for callers that batch
     /// themselves.
     private func queue(_ item: PlayableContent) {
-        guard canDownload(item), let url = item.previewURL else { return }
+        // The stream as the transcoding setting delivers it to this device —
+        // a download made under "MP3, 128 kbps" is that, and saved as .mp3.
+        guard canDownload(item), let url = item.playbackStreamURL else { return }
         let key = Self.key(for: item)
         if let existing = items[key] {
             if existing.state == .completed || existing.isActive { return }

@@ -1144,9 +1144,12 @@ final class LocalPlaybackService {
         if item.content.service == .tuneIn, item.content.type == .radio {
             return await MusicSearchService.shared.tuneInStreamURL(id: item.content.id)
         }
+        // A local copy beats the server URL. The server URL is built now,
+        // not read off the item, so the Streaming Quality setting in force
+        // is the one used.
         return DownloadManager.shared.localURL(for: item)
             ?? PlaybackCache.shared.localURL(for: item)
-            ?? item.previewURL
+            ?? item.playbackStreamURL
     }
 
     private func armStream(index: Int, end: Int, token: Int, resume: TimeInterval? = nil) async throws {

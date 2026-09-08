@@ -19,6 +19,10 @@ struct ServicePreferenceScreen: View {
     @State private var servers: [MediaServer] = []
     @State private var primaryServices: [SonosServiceType: MediaServer] = [:]
     @AppStorage(Defaults.GroupStorageKeys.appleMusicTokenID, store: GroupStorageKeys.storage) private var appleMusicTokenID: String = ""
+    /// How Plex and Subsonic hand audio over — see `StreamTranscoding`. The
+    /// bitrate default matches the one the package falls back to when unset.
+    @AppStorage(Defaults.AppStorageKeys.streamTranscodeFormat) private var transcodeFormat: StreamTranscoding.Format = .original
+    @AppStorage(Defaults.AppStorageKeys.streamTranscodeBitrate) private var transcodeBitrate: Int = StreamTranscoding.defaultBitrate
 
     /// Sonos-side services discovered on the user's system.
     private var installedTypes: Set<SonosServiceType> {
@@ -157,6 +161,8 @@ struct ServicePreferenceScreen: View {
                 } footer: {
                     Text("Set up here in Cue — these need no Sonos app sign-in. Your speakers stream straight from your own server; a folder of files plays on this device.")
                 }
+
+                streamingQualitySection
             }
 
             if !notConnectedServices.isEmpty {
@@ -218,6 +224,42 @@ struct ServicePreferenceScreen: View {
         }
         .task {
             await loadServers()
+        }
+    }
+
+    /// Transcoding for the self-hosted servers: the original file, or MP3 /
+    /// Opus at a bitrate cap, applied by the server as it streams. Sonos
+    /// players don't decode Opus, so a speaker gets MP3 in its place; Plex
+    /// on a speaker is Plex's own Sonos service and isn't touched here.
+    private var streamingQualitySection: some View {
+        Section {
+            Picker("Format", selection: $transcodeFormat) {
+                ForEach(StreamTranscoding.Format.allCases) { format in
+                    Text(format.displayName).tag(format)
+                }
+            }
+            if transcodeFormat != .original {
+                Picker("Bitrate", selection: $transcodeBitrate) {
+                    ForEach(StreamTranscoding.bitrates, id: \.self) { bitrate in
+                        Text("\(bitrate) kbps").tag(bitrate)
+                    }
+                }
+            }
+        } header: {
+            Text("Streaming Quality")
+        } footer: {
+            Text(streamingQualityFooter)
+        }
+    }
+
+    private var streamingQualityFooter: String {
+        switch transcodeFormat {
+        case .original:
+            "Plex and Subsonic songs stream as the original files. Choose MP3 or Opus to have your server convert them on the way out — smaller over cellular or a slow connection home. Applies to songs played and downloaded on this device, and to Subsonic songs sent to your speakers."
+        case .mp3:
+            "Songs played and downloaded on this device, and Subsonic songs sent to your speakers, arrive as MP3 at up to the bitrate above. Plex plays on speakers through its own Sonos service, at the quality set on your Plex server."
+        case .opus:
+            "Songs played and downloaded on this device arrive as Opus. Sonos players can't play Opus, so Subsonic songs sent to a speaker are converted to MP3 at the same bitrate instead. Plex plays on speakers through its own Sonos service, at the quality set on your Plex server."
         }
     }
 

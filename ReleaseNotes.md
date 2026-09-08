@@ -9,6 +9,7 @@
 - Search your library: Type in Songs to filter your entire library as you go, not just the part you've scrolled to — Subsonic albums are searchable too
 - Sort your songs: Order Plex and Subsonic songs by title, artist, album, year, play count, date added, or your favorites — and flip any of them, A–Z or Z–A, newest or oldest, most or least played. Each list remembers what you picked
 - Offline Mode: With no network — on a plane, in a tunnel — Home (Browse on iPhone) shows just what's on this device: your Plex and Subsonic downloads and the songs of your Files folder that are here, with Play and Shuffle for the lot, and everything plays on this device. Switch it on yourself from Home or Settings ▸ Storage to stay with your downloads while you still have a connection
+- Streaming Quality: Have your Plex or Subsonic server convert songs to MP3 or Opus at a bitrate you choose, under Settings ▸ Services — smaller over cellular or a slow connection home. Applies to songs played and downloaded on this device and to Subsonic songs sent to your speakers, which get MP3 in place of Opus since Sonos players can't play it
 
 –– Bug Fixes & Improvements ––
 - Fixed the Plex Albums and Artists lists stuttering as they scrolled — every page of albums that arrived was re-sorted into letter groups many times over

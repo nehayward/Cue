@@ -245,7 +245,7 @@ final class PlaybackCache {
 
     private func fetch(_ item: PlayableContent) {
         let key = DownloadManager.key(for: item)
-        guard !inFlight.contains(key), let url = item.previewURL else { return }
+        guard !inFlight.contains(key), let url = item.playbackStreamURL else { return }
         if let entry = entries[key],
            FileManager.default.fileExists(atPath: Self.fileURL(key: key, fileExtension: entry.fileExtension).path) {
             return
@@ -350,7 +350,7 @@ final class PlaybackCache {
     // MARK: - Storage
 
     private static func fileExtension(for item: PlayableContent, url: URL) -> String {
-        let fromMetadata = item.metadata?.audioCodec?.trimmingCharacters(in: .whitespaces).lowercased() ?? ""
+        let fromMetadata = item.playbackFileExtension ?? ""
         if !fromMetadata.isEmpty, fromMetadata.count <= 5 { return fromMetadata }
         let fromURL = url.pathExtension.lowercased()
         return fromURL.isEmpty ? "mp3" : fromURL

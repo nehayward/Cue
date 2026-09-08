@@ -431,9 +431,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     private var deezerServiceToken: String { "SA_RINCON519_X_#Svc519-0-Token" }
 
     /// The direct stream URL for this track, carrying the file suffix
-    /// (stored as `audioCodec`) so Sonos can classify the format.
+    /// (stored as `audioCodec`) so Sonos can classify the format — as the
+    /// user's transcoding choice delivers it to a speaker.
     private var directStreamURL: URL? {
-        content.service.directStreamProvider?.streamURL(for: id, fileExtension: metadata?.audioCodec)
+        content.service.directStreamProvider?.streamURL(for: id, fileExtension: metadata?.audioCodec, destination: .speaker)
     }
 
     /// `duration="H:MM:SS"` attribute for a direct stream's `&lt;res&gt;`
@@ -455,10 +456,12 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     }
 
     /// DLNA protocolInfo for a direct stream's `&lt;res&gt;`: the real MIME
-    /// type when the suffix (carried as `audioCodec`) identifies one,
+    /// type when the suffix the speaker will actually get (the file's own,
+    /// carried as `audioCodec`, or the transcode target) identifies one,
     /// wildcard otherwise.
     private var directStreamProtocolInfo: String {
-        "http-get:*:\(AudioMIMEType.forSuffix(metadata?.audioCodec) ?? "*"):*"
+        let suffix = StreamTranscoding.fileExtension(for: .speaker, original: metadata?.audioCodec)
+        return "http-get:*:\(AudioMIMEType.forSuffix(suffix) ?? "*"):*"
     }
 
     /// The `cdudn` service-account token for this content's service, used where

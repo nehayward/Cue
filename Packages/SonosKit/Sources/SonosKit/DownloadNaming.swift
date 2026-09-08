@@ -19,7 +19,10 @@ public enum DownloadNaming {
     /// The extension the file is saved with: the codec the catalog reports
     /// when it looks like one, else the URL's, else `mp3`.
     public static func fileExtension(for item: PlayableContent, url: URL) -> String {
-        let fromMetadata = item.metadata?.audioCodec?.trimmingCharacters(in: .whitespaces).lowercased() ?? ""
+        // The suffix the stream really arrives with — the transcode target
+        // when Streaming Quality is on, the file's own otherwise — so the
+        // player reads the saved copy as what it is.
+        let fromMetadata = item.playbackFileExtension ?? ""
         if !fromMetadata.isEmpty, fromMetadata.count <= 5 { return fromMetadata }
         let fromURL = url.pathExtension.lowercased()
         return fromURL.isEmpty ? "mp3" : fromURL

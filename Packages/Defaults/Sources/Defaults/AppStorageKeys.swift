@@ -19,6 +19,13 @@ public enum AppStorageKeys {
     /// Whether the download manager may fetch over cellular data. Off when
     /// unset: a whole album on a phone plan is a surprise nobody asked for.
     public static let downloadsOverCellular = "\(Prefix.id).downloadsOverCellular"
+    /// How Plex and Subsonic hand audio over — the original file, or
+    /// transcoded on the server to MP3 or Opus (`"original"`, `"mp3"`,
+    /// `"opus"`) — and the bitrate cap in kbit/s for a transcode. Read by
+    /// `MusicSearchKit.StreamTranscoding`, which carries the same literal
+    /// keys (it doesn't depend on this package): change one, change both.
+    public static let streamTranscodeFormat = "\(Prefix.id).streamTranscodeFormat"
+    public static let streamTranscodeBitrate = "\(Prefix.id).streamTranscodeBitrate"
     /// The playback cache: how many recently played songs to keep (0 is
     /// off), how many upcoming ones to fetch ahead, and whether to fill it
     /// over cellular.

@@ -3,20 +3,24 @@ import XCTest
 
 final class SubsonicTests: XCTestCase {
 
-    private var savedDefaults: [String: String?] = [:]
+    private var savedDefaults: [String: Any?] = [:]
     private var savedSecrets: (password: String, salt: String)?
     private let keys = [
         "com.cue.subsonic.server",
         "com.cue.subsonic.username",
         // Legacy secret locations — only touched by the migration test.
         "com.cue.subsonic.password",
-        "com.cue.subsonic.salt"
+        "com.cue.subsonic.salt",
+        // The transcoding choice, so a test that sets it can't leak into
+        // the URL tests that expect the original file.
+        StreamTranscoding.formatKey,
+        StreamTranscoding.bitrateKey
     ]
 
     override func setUp() {
         super.setUp()
         for key in keys {
-            savedDefaults[key] = UserDefaults.standard.string(forKey: key)
+            savedDefaults[key] = UserDefaults.standard.object(forKey: key)
         }
         savedSecrets = SubsonicAPI.storedSecrets()
     }
@@ -82,6 +86,62 @@ final class SubsonicTests: XCTestCase {
 
         let plain = try XCTUnwrap(SubsonicAPI.streamURL(for: "300001"))
         XCTAssertFalse(plain.absoluteString.contains("ext="))
+    }
+
+    private func queryItems(of url: URL) throws -> [String: String] {
+        let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        return Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+    }
+
+    // MARK: - Transcoding
+
+    /// With a format chosen, the server converts on the way out: `format`
+    /// and `maxBitRate` per the Subsonic API, a Content-Length estimate for
+    /// the speaker, and the extension hint becomes the *transcoded* suffix —
+    /// the speaker is handed MP3, whatever the file was.
+    func testStreamURLTranscodesForSpeakerWhenMP3Chosen() throws {
+        storeCredentials()
+        StreamTranscoding.format = .mp3
+        StreamTranscoding.bitrate = 128
+
+        let url = try XCTUnwrap(SubsonicAPI.streamURL(for: "300001", fileExtension: "flac", destination: .speaker))
+        let items = try queryItems(of: url)
+        XCTAssertEqual(items["format"], "mp3")
+        XCTAssertEqual(items["maxBitRate"], "128")
+        XCTAssertEqual(items["estimateContentLength"], "true")
+        XCTAssertEqual(items["ext"], ".mp3")
+        XCTAssertTrue(url.absoluteString.hasSuffix("ext=.mp3"))
+    }
+
+    /// Sonos players don't decode Opus: a speaker gets MP3 in its place,
+    /// while this device gets the Opus it asked for.
+    func testOpusFallsBackToMP3ForSpeakersOnly() throws {
+        storeCredentials()
+        StreamTranscoding.format = .opus
+
+        let speaker = try queryItems(of: XCTUnwrap(SubsonicAPI.streamURL(for: "1", fileExtension: "flac", destination: .speaker)))
+        XCTAssertEqual(speaker["format"], "mp3")
+        XCTAssertEqual(speaker["ext"], ".mp3")
+
+        let device = try queryItems(of: XCTUnwrap(SubsonicAPI.streamURL(for: "1", fileExtension: "flac", destination: .device)))
+        XCTAssertEqual(device["format"], "opus")
+        XCTAssertEqual(device["ext"], ".opus")
+    }
+
+    /// The original-file overload (what `previewURL` and caching key off)
+    /// ignores the setting, and "Original" leaves the URL exactly as before.
+    func testStreamURLLeavesOriginalAloneWhenNotTranscoding() throws {
+        storeCredentials()
+        StreamTranscoding.format = .mp3
+        let original = try queryItems(of: XCTUnwrap(SubsonicAPI.streamURL(for: "1", fileExtension: "flac")))
+        XCTAssertNil(original["format"])
+        XCTAssertNil(original["maxBitRate"])
+        XCTAssertEqual(original["ext"], ".flac")
+
+        StreamTranscoding.format = .original
+        let speaker = try queryItems(of: XCTUnwrap(SubsonicAPI.streamURL(for: "1", fileExtension: "flac", destination: .speaker)))
+        XCTAssertNil(speaker["format"])
+        XCTAssertEqual(speaker["ext"], ".flac")
     }
 
     // MARK: - Address parsing

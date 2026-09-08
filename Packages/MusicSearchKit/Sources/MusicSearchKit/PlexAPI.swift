@@ -1434,6 +1434,45 @@ public final class PlexAPI {
             .appending(path: partKey)
             .appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
     }
+
+    /// The URL this device streams a track from, honoring the user's
+    /// transcoding choice: the direct file URL (`streamURL`, as carried in
+    /// `previewURL`) when nothing is transcoded, otherwise the server's
+    /// universal transcoder asked for the same track as MP3 or Opus at the
+    /// chosen bitrate (`protocol=http`, the shape Plexamp's "convert" modes
+    /// use). Built from the direct URL so it needs no server lookup: the
+    /// scheme, host, port and token are taken from it, and `ratingKey` names
+    /// the track (`path=/library/metadata/<ratingKey>`). Each track gets its
+    /// own transcode `session`, so a song fetched ahead doesn't cancel the
+    /// one playing.
+    ///
+    /// Speaker playback isn't affected: Plex hands Sonos its own stream via
+    /// the Plex music service, whose quality is set on the Plex server.
+    public static func playbackStreamURL(from directURL: URL, ratingKey: String) -> URL {
+        let format = StreamTranscoding.format(for: .device)
+        guard let codec = format.codec,
+              let fileExtension = format.fileExtension,
+              var components = URLComponents(url: directURL, resolvingAgainstBaseURL: false),
+              !ratingKey.isEmpty
+        else { return directURL }
+        let token = components.queryItems?.first { $0.name == "X-Plex-Token" }?.value
+        components.path = "/music/:/transcode/universal/start.\(fileExtension)"
+        components.queryItems = [
+            URLQueryItem(name: "path", value: "/library/metadata/\(ratingKey)"),
+            URLQueryItem(name: "mediaIndex", value: "0"),
+            URLQueryItem(name: "partIndex", value: "0"),
+            URLQueryItem(name: "protocol", value: "http"),
+            URLQueryItem(name: "directPlay", value: "0"),
+            URLQueryItem(name: "directStream", value: "0"),
+            URLQueryItem(name: "audioCodec", value: codec),
+            URLQueryItem(name: "musicBitrate", value: "\(StreamTranscoding.bitrate)"),
+            URLQueryItem(name: "session", value: "cue-\(ratingKey)"),
+            URLQueryItem(name: "X-Plex-Client-Identifier", value: "Cue"),
+            URLQueryItem(name: "X-Plex-Product", value: "Cue"),
+            URLQueryItem(name: "X-Plex-Platform", value: "iOS")
+        ] + (token.map { [URLQueryItem(name: "X-Plex-Token", value: $0)] } ?? [])
+        return components.url ?? directURL
+    }
 }
 
 private extension URL {
