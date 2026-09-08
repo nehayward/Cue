@@ -77,7 +77,6 @@ struct AddToPlaylistSheet: View {
             VStack(spacing: 0) {
                 PlayableContentRowView(item: content, hideContentType: true)
                     .environment(headerGroupService)
-                    .environment(FavoriteRatingCache.shared)
                     .allowsHitTesting(false)
                     .padding(.horizontal)
                     .padding(.vertical, 8)

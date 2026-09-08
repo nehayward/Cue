@@ -75,12 +75,13 @@ enum PlayDestinationRouter {
                 askForSpeaker(contents, position: position, queue: queue)
                 return
             }
-            // Playing on the speaker replaces what this device was playing;
-            // adding to its queue doesn't. Left running, the phone kept
+            // Playing on the speaker takes over from this device; adding to
+            // the speaker's queue doesn't. Left running, the phone kept
             // going under a route that pointed at the speaker, with no
-            // control on screen for it.
-            if [.now, .replace].contains(position), LocalPlaybackService.shared.isActive {
-                LocalPlaybackService.shared.stop()
+            // control on screen for it. Parked rather than stopped: the
+            // device's queue keeps its place for the route coming back.
+            if [.now, .replace].contains(position) {
+                LocalPlaybackService.shared.park()
             }
             do {
                 try await queue(group, position)
@@ -92,16 +93,17 @@ enum PlayDestinationRouter {
         }
     }
 
-    /// The remembered group, for the Sonos-only actions — radio, grouping —
-    /// that have no local equivalent to fall back on. `nil` means the caller
+    /// The remembered group, for the Sonos-only actions — song and artist
+    /// radio, grouping — that have no local equivalent to fall back on. `nil` means the caller
     /// still has to ask.
     static var rememberedGroup: GroupRoom? {
         guard let id = PlayDestination.remembered?.groupID else { return nil }
         return SonosService.shared.groups.first { $0.coordinatorID == id }
     }
 
-    /// The remembered destination can't take this — radio and artists have no
-    /// local backend at all, and a remembered group can simply be gone. Falling
+    /// The remembered destination can't take this — artists, Spotify, and a
+    /// station from a service the device can't stream have no local backend,
+    /// and a remembered group can simply be gone. Falling
     /// back to the picker keeps those playable; an alert on its own was a dead
     /// end, since the route button is the only other way to change destination.
     /// Playing from the picker writes the new destination, so the next Play
@@ -121,8 +123,9 @@ enum PlayDestinationRouter {
     }
 
     private static func playHere(_ contents: [PlayableContent], position: QueuePosition, shuffle: Bool) async -> Bool {
-        // Radio and artists have no local backend at all, so don't even try —
-        // falling straight through to the picker is the useful answer.
+        // Artists and Spotify have no local backend at all, so don't even
+        // try — falling straight through to the picker is the useful answer.
+        // TuneIn and Apple Music stations do play here; other stations don't.
         guard contents.contains(where: { LocalPlaybackService.shared.canPlayAnywhereLocally($0) }) else {
             log.notice("no local backend for this content")
             return false

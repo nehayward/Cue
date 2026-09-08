@@ -7,12 +7,8 @@ public enum AppStorageKeys {
     /// resets once and users re-pick.
     public static let selectedSearchServices = "\(Prefix.id).selectedSearchServices"
     public static let browseMediaService = "\(Prefix.id).browseMediaService"
-    /// The music providers the user has added to the tab view, in order —
-    /// raw `MediaSearchService` values. Each gets a tab of its own (and, on
-    /// iPad and Mac, a sidebar section split into its collections).
-    public static let tabProviders = "\(Prefix.id).tabProviders"
-    /// The sidebar edits the system lets the user make to those tabs — hiding
-    /// and reordering — as a `TabViewCustomization`.
+    /// The sidebar edits the system lets the user make to the provider tabs
+    /// on iPad and Mac — hiding and reordering — as a `TabViewCustomization`.
     public static let tabViewCustomization = "\(Prefix.id).tabViewCustomization"
     /// The Files provider's folder, as a security-scoped bookmark (`Data`)
     /// of the folder the user picked — on this device or in iCloud Drive.
@@ -33,6 +29,9 @@ public enum AppStorageKeys {
     /// they come up and taken off the device again once they drop out of
     /// the playback cache. On when unset.
     public static let filesStreamFromCloud = "\(Prefix.id).filesStreamFromCloud"
+    /// Whether the tags of Files songs still in iCloud are read by fetching
+    /// just their headers, on Wi‑Fi. On when unset.
+    public static let filesReadCloudTags = "\(Prefix.id).filesReadCloudTags"
     /// The iCloud songs the cache fetched to play, oldest first, so a
     /// relaunch still knows which ones are its to evict.
     public static let playbackCacheCloudIDs = "\(Prefix.id).playbackCacheCloudIDs"
@@ -49,6 +48,10 @@ public enum AppStorageKeys {
     /// device's volume can't be driven (Mac Catalyst). On iOS the slider is
     /// the system volume and nothing is stored.
     public static let localPlaybackVolume = "\(Prefix.id).localPlaybackVolume"
+    /// Where the device queue is — track index, seconds in, duration, repeat
+    /// mode — so a relaunch picks up the track that was playing where it
+    /// was. The queue itself is a file in Application Support.
+    public static let localQueuePosition = "\(Prefix.id).localQueuePosition"
     public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"

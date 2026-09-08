@@ -63,7 +63,9 @@ struct PlayerView: View {
         VStack(alignment: .center) {
             header
 
-            if let item = playback.nowPlaying {
+            // The display item, not the queue row: a station reads as
+            // the song on air here.
+            if let item = playback.nowPlayingDisplay {
                 ContentArtworkView(content: item, showMusicSource: true, preferredSize: 600, cornerRadius: 8, isDraggable: true)
                     .shadow(radius: 2)
                     .padding(.bottom, showArtworkOnly ? 0 : 12)
@@ -76,9 +78,10 @@ struct PlayerView: View {
                     .animation(.interactiveSpring, value: isArtworkVisible)
 
                 // The album line, in the slot `LargePlayerView` gives the
-                // container. Fixed height so the layout doesn't shift between
+                // container — and the station's name when a station is
+                // playing. Fixed height so the layout doesn't shift between
                 // tracks that have one and tracks that don't.
-                LocalAlbumButton(item: item)
+                LocalAlbumButton(item: item, stationTitle: item.content.type.isRadio ? (playback.nowPlaying?.title ?? "") : nil)
                     .frame(height: 12)
                 LocalSongTitleButton(item: item)
                 LocalArtistButton(item: item, showArtworkOnly: showArtworkOnly)
@@ -127,14 +130,13 @@ struct PlayerView: View {
             QueueNextUpView()
         }
         .background {
-            PlayerBackgroundView(content: playback.nowPlaying)
+            PlayerBackgroundView(content: playback.nowPlayingDisplay)
         }
         // Anything dropped on the screen plays here, the way a drop on the
         // Sonos player plays on that group.
         .dropDestinationPlayOnDevice()
         .fontDesign(.rounded)
         .environment(router)
-        .environment(FavoriteRatingCache.shared)
         .withEnvironments()
     }
 
@@ -251,8 +253,11 @@ private struct LocalAlbumButton: View {
     @Environment(Router.self) private var router: Router
 
     let item: PlayableContent
+    /// Stands in for the album line while a station plays. A station has no
+    /// album to open, so the line is text rather than a way in.
+    var stationTitle: String?
 
-    private var isSupported: Bool { item.content.service.supportsViewArtistAlbum }
+    private var isSupported: Bool { stationTitle == nil && item.content.service.supportsViewArtistAlbum }
 
     var body: some View {
         Button {
@@ -260,7 +265,7 @@ private struct LocalAlbumButton: View {
             HapticManager.shared.fireHaptic(.buttonPress)
             router.sheet(to: .mediaDetail(content: item, group: nil))
         } label: {
-            Text(item.metadata?.album ?? "")
+            Text(stationTitle ?? item.metadata?.album ?? "")
                 .font(.caption.smallCaps())
                 .foregroundStyle(.secondary)
                 .lineLimit(1, reservesSpace: true)
@@ -360,13 +365,25 @@ private struct LocalPlaybackScrubber: View {
         playback.progress < 2 ? nil : .interactiveSpring
     }
 
-    private var duration: TimeInterval { max(playback.duration, 1) }
+    /// Both kept finite here as well as in the service: everything below
+    /// goes through `Duration.seconds(_:)`, which traps on NaN or infinity,
+    /// and `max(_:_:)` passes a NaN straight through rather than flooring it.
+    private var duration: TimeInterval {
+        playback.duration.isFinite ? max(playback.duration, 1) : 1
+    }
+
+    /// Where the scrubber sits: the finger while dragging, the player's
+    /// clock otherwise.
+    private var position: TimeInterval {
+        let value = scrubPosition ?? playback.progress
+        return value.isFinite ? min(max(0, value), duration) : 0
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             VibeSlider(
                 value: Binding(
-                    get: { min(scrubPosition ?? playback.progress, duration) },
+                    get: { position },
                     set: { scrubPosition = $0 }
                 ),
                 in: 0...duration,
@@ -384,14 +401,16 @@ private struct LocalPlaybackScrubber: View {
             .frame(maxWidth: 500)
             .frame(height: 40)
             .foregroundStyle(.primary)
+            .accessibilityLabel("Playback Position")
+            .accessibilityValue(Duration.seconds(position).formatted(.time(pattern: .minuteSecond)))
 
             HStack {
-                let position = Duration.seconds(scrubPosition ?? playback.progress)
-                let remaining = Duration.seconds(max(0, duration - (scrubPosition ?? playback.progress)))
+                let elapsed = Duration.seconds(position)
+                let remaining = Duration.seconds(max(0, duration - position))
                 let pattern: Duration.TimeFormatStyle.Pattern =
                     duration > 3600 ? .hourMinuteSecond : .minuteSecond
 
-                Text(position.formatted(.time(pattern: pattern)))
+                Text(elapsed.formatted(.time(pattern: pattern)))
                     .contentTransition(.identity)
                 Spacer()
                 // Lossless / Atmos / bit depth, as far as the backend says —
@@ -418,20 +437,26 @@ private struct LocalPlaybackScrubber: View {
 private struct LocalMediaControlsView: View {
     private var playback: LocalPlaybackService { .shared }
 
+    /// A station has nothing to skip to, so it gets play/pause alone.
+    private var isStation: Bool { playback.isPlayingStation }
+
     var body: some View {
         HStack {
-            Button {
-                HapticManager.shared.fireHaptic(.selection)
-                playback.previous()
-            } label: {
-                Image(systemName: "backward.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 32, height: 32)
-            }
-            .buttonStyle(.liveActivity)
+            if !isStation {
+                Button {
+                    HapticManager.shared.fireHaptic(.selection)
+                    playback.previous()
+                } label: {
+                    Image(systemName: "backward.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.liveActivity)
+                .accessibilityLabel("Previous")
 
-            Spacer()
+                Spacer()
+            }
 
             Button {
                 HapticManager.shared.fireHaptic(.selection)
@@ -445,22 +470,26 @@ private struct LocalMediaControlsView: View {
                     .frame(width: 32, height: 32)
             }
             .buttonStyle(.liveActivity)
+            .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
 
-            Spacer()
+            if !isStation {
+                Spacer()
 
-            Button {
-                HapticManager.shared.fireHaptic(.selection)
-                playback.next()
-            } label: {
-                Image(systemName: "forward.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 32, height: 32)
+                Button {
+                    HapticManager.shared.fireHaptic(.selection)
+                    playback.next()
+                } label: {
+                    Image(systemName: "forward.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.liveActivity)
+                .accessibilityLabel("Next")
+                .disabled(!playback.hasNext)
             }
-            .buttonStyle(.liveActivity)
-            .disabled(!playback.hasNext)
         }
-        .frame(maxWidth: 300)
+        .frame(maxWidth: isStation ? nil : 300)
         .padding(.horizontal, 60)
     }
 }
@@ -494,6 +523,7 @@ private struct LocalVolumeControlView: View {
             .tint(.primary)
             .buttonStyle(.liveActivity)
             .buttonRepeatBehavior(.enabled)
+            .accessibilityLabel("Volume Down")
 
             VibeSlider(
                 value: Binding(
@@ -524,6 +554,7 @@ private struct LocalVolumeControlView: View {
             .tint(.primary)
             .buttonStyle(.liveActivity)
             .buttonRepeatBehavior(.enabled)
+            .accessibilityLabel("Volume Up")
         }
         .font(.caption)
         .fontDesign(.rounded)

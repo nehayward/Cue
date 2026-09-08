@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="1">
+	<head>
+	<title>Local Radio</title>
+	<status>200</status>
+
+	</head>
+	<body>
+<outline text="FM">
+<outline type="audio" text="88.1 | KBCU (Jazz)" URL="http://opml.radiotime.com/Tune.ashx?id=s31656" bitrate="230" reliability="100" guide_id="s31656" subtext="All about kbcU." genre_id="g11" formats="mp3" item="station" image="http://cdn-profiles.tunein.com/s31656/images/logoq.png?t=1" now_playing_id="s31656" preset_id="s31656"/>
+<outline type="audio" text="89.1 | KMUW (Public Radio)" URL="http://opml.radiotime.com/Tune.ashx?id=s34165" bitrate="128" reliability="98" guide_id="s34165" subtext="Morning Edition" genre_id="g266" formats="mp3" show_id="p3" item="station" image="http://cdn-profiles.tunein.com/s34165/images/logoq.png" current_track="Morning Edition" now_playing_id="s34165" preset_id="s34165"/>
+<outline type="audio" text="97.5 | KFH Radio (Sports Talk &amp; News)" URL="http://opml.radiotime.com/Tune.ashx?id=s278715" bitrate="128" reliability="100" guide_id="s278715" subtext="Sports Radio KFH" genre_id="g2723" formats="mp3" item="station" image="http://cdn-profiles.tunein.com/s278715/images/logoq.jpg?t=4" now_playing_id="s278715" preset_id="s278715"/>
+<outline type="audio" text="99.7 | Hank FM (Classic Country)" URL="http://opml.radiotime.com/Tune.ashx?id=s34301" bitrate="128" reliability="96" guide_id="s34301" subtext="Plays the Legends of Country" genre_id="g2680" formats="mp3" item="station" image="http://cdn-profiles.tunein.com/s34301/images/logoq.jpg?t=1655819156000" now_playing_id="s34301" preset_id="s34301"/>
+<outline type="audio" text="99.7 | La Raza (Regional Mexican/Banda/Cumbia)" URL="http://opml.radiotime.com/Tune.ashx?id=s31451" bitrate="95" reliability="97" guide_id="s31451" subtext="La Raza" genre_id="g4154" formats="mp3" item="station" image="http://cdn-profiles.tunein.com/s31451/images/logoq.jpg?t=1" now_playing_id="s31451" preset_id="s31451"/>
+<outline type="audio" text="100.9 | KAXZ (Religion &amp; Spirituality)" URL="http://opml.radiotime.com/Tune.ashx?id=s283555" bitrate="96" reliability="88" guide_id="s283555" subtext="True fm" genre_id="g34" formats="mp3" item="station" image="http://cdn-profiles.tunein.com/s283555/images/logoq.png?t=156223" now_playing_id="s283555" preset_id="s283555"/>
+<outline type="audio" text="101.3 | 101.3 KFDI (Country)" URL="http://opml.radiotime.com/Tune.ashx?id=s32596" bitrate="64" reliability="68" guide_id="s32596" subtext="101.3 KFDI" genre_id="g26" formats="mp3" show_id="p3928422" item="station" image="http://cdn-profiles.tunein.com/s32596/images/logoq.png?t=1705727049000" current_track="101.3 KFDI" now_playing_id="s32596" preset_id="s32596"/>
+</outline>
+<outline text="AM">
+<outline type="audio" text="1330 | KNSS Radio (Conservative Talk)" URL="http://opml.radiotime.com/Tune.ashx?id=s32617" bitrate="128" reliability="100" guide_id="s32617" subtext="Wichita&apos;s #1 Talk" genre_id="g237" formats="mp3" item="station" image="http://cdn-profiles.tunein.com/s32617/images/logoq.jpg?t=3" now_playing_id="s32617" preset_id="s32617"/>
+<outline type="audio" text="1410 | KGSO (Sports Talk &amp; News)" URL="http://opml.radiotime.com/Tune.ashx?id=s34204" bitrate="41" reliability="91" guide_id="s34204" subtext="SPORTS RADIO, KGSO , WICHITA&apos;S SPORTS STATION" genre_id="g2723" formats="mp3" item="station" image="http://cdn-profiles.tunein.com/s34204/images/logoq.jpg?t=157001" now_playing_id="s34204" preset_id="s34204"/>
+<outline type="audio" text="1480 | KQAM (News)" URL="http://opml.radiotime.com/Tune.ashx?id=s34780" bitrate="56" reliability="92" guide_id="s34780" subtext="Wichita&apos;s Big Talker" genre_id="g255" formats="mp3" item="station" image="http://cdn-profiles.tunein.com/s34780/images/logoq.jpg?t=156995" now_playing_id="s34780" preset_id="s34780"/>
+</outline>
+<outline text="Internet Only">
+<outline type="audio" text="Hip Hop Muzic Hub (Hip Hop Music)" URL="http://opml.radiotime.com/Tune.ashx?id=s280125" bitrate="128" reliability="100" guide_id="s280125" subtext="Drake &amp; Future - Jumpman" genre_id="g128" formats="mp3" playing="Drake &amp; Future - Jumpman" playing_image="http://cdn-albums.tunein.com/gn/GN8XTM8L8Wq.jpg" item="station" image="http://cdn-profiles.tunein.com/s280125/images/logoq.png?t=151334" now_playing_id="s280125" preset_id="s280125"/>
+<outline type="audio" text="Jiggy Jaguar Show (Conservative Talk)" URL="http://opml.radiotime.com/Tune.ashx?id=s198757" bitrate="320" reliability="100" guide_id="s198757" subtext="English" genre_id="g237" formats="mp3" item="station" image="http://cdn-radiotime-logos.tunein.com/s198757q.png" now_playing_id="s198757" preset_id="s198757"/>
+</outline>
+	</body>
+</opml>

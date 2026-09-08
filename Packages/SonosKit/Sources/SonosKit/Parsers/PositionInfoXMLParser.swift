@@ -261,7 +261,10 @@ final class SonosTrackParser {
                        let seconds = Int(components[2])
                     {
                         let totalMilliseconds = ((hours * 60 + minutes) * 60 + seconds) * 1000
-                        return TimeInterval(totalMilliseconds)
+                        // Never negative: a stream can report a placeholder
+                        // in place of a duration, and a negative one would
+                        // invert the scrubber's range downstream.
+                        return TimeInterval(max(0, totalMilliseconds))
                     }
                 }
             }

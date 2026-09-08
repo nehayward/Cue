@@ -49,13 +49,23 @@ enum Screens {
         
     }
 
-    /// A provider's own tab — its library's front page, listing the
-    /// collections switched on for it.
+    /// The Radio tab: stations from every source, and a search over them.
     @ViewBuilder
-    static func providerRoot(_ provider: TabProvider) -> some View {
+    static var radio: some View {
         let selectedGroupService = SelectedGroupService(group: nil)
 
-        ProviderTabScreen(service: provider.service, collections: provider.collections)
+        RadioScreen()
+            .tint(Color("Accent"))
+            .environment(selectedGroupService)
+    }
+
+    /// A provider's own tab — its library's front page, listing the
+    /// collections its sidebar section is showing.
+    @ViewBuilder
+    static func providerRoot(_ service: MediaSearchService, collections: [ProviderCollection]) -> some View {
+        let selectedGroupService = SelectedGroupService(group: nil)
+
+        ProviderTabScreen(service: service, collections: collections)
             .tint(Color("Accent"))
             .environment(selectedGroupService)
             .withQueuePanel()
@@ -63,10 +73,10 @@ enum Screens {
 
     /// One collection of a provider — a tab in its sidebar section.
     @ViewBuilder
-    static func providerCollection(_ provider: TabProvider, _ collection: ProviderCollection) -> some View {
+    static func providerCollection(_ service: MediaSearchService, collections: [ProviderCollection], collection: ProviderCollection) -> some View {
         let selectedGroupService = SelectedGroupService(group: nil)
 
-        ProviderTabScreen(service: provider.service, collections: provider.collections, collection: collection)
+        ProviderTabScreen(service: service, collections: collections, collection: collection)
             .tint(Color("Accent"))
             .environment(selectedGroupService)
             .withQueuePanel()

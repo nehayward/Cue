@@ -73,6 +73,7 @@ struct AlertView: View {
                 .onTapGesture {
                     alertService.alert.handleTap?()
                 }
+                .accessibilityAddTraits(alertService.alert.handleTap == nil ? [] : .isButton)
             }
             
             Spacer() // Push the pill to the top

@@ -219,28 +219,23 @@ struct SearchScreen: View {
                         withAnimation { proxy.scrollTo(id, anchor: .center) }
                     }
                 }
+#if targetEnvironment(macCatalyst)
+                // The field and the services menu are the content column's
+                // header (`searchHeader`), not a navigation bar: hidden here
+                // on the root only, so a pushed detail still gets its bar and
+                // back button.
+                .toolbar(.hidden, for: .navigationBar)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    searchHeader
+                }
+#endif
                 .toolbar {
+#if !targetEnvironment(macCatalyst)
                     ToolbarItemGroup(placement: .principal) {
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundStyle(.secondary)
-                            TextField("Search", text: $musicSearchService.query)
-                                .focused($focusedField, equals: .search)
-                                .onSubmit {
-                                    guard let idx = keyboardSelectedIndex else { return }
-                                    activateSelectedItem(at: idx)
-                                }
-                        }
-                        .frame(idealWidth: 800)
-                        .toolbarBackground(with: true, in: .capsule)
-                        #if targetEnvironment(macCatalyst)
-                        .overlay {
-                            Capsule()
-                                .strokeBorder(Color.accentColor, lineWidth: 2)
-                                .opacity(searchBarFocused ? 1 : 0)
-                        }
-                        #endif
+                        searchField
+                            .frame(idealWidth: 800)
                     }
+#endif
                     #if !os(visionOS)
                     if #available(iOS 26.0, *) {
                         ToolbarItemGroup(placement: .keyboard) {
@@ -262,9 +257,11 @@ struct SearchScreen: View {
                     }
                     #endif
 
+#if !targetEnvironment(macCatalyst)
                     ToolbarItem(placement: .topBarTrailing) {
                         MediaServiceMenu(selection: $searchSelection, filters: $filters)
                     }
+#endif
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -430,6 +427,56 @@ struct SearchScreen: View {
             .hidden()
         )
     }
+
+    /// The search field: a glass capsule, with a ring in the accent while
+    /// it has focus on the Mac, where there is no keyboard to say so.
+    private var searchField: some View {
+        @Bindable var musicSearchService = musicSearchService
+
+        return HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField("Search", text: $musicSearchService.query)
+                .textFieldStyle(.plain)
+                .focused($focusedField, equals: .search)
+                .onSubmit {
+                    guard let idx = keyboardSelectedIndex else { return }
+                    activateSelectedItem(at: idx)
+                }
+        }
+        .toolbarBackground(with: true, in: .capsule)
+        #if targetEnvironment(macCatalyst)
+        .overlay {
+            Capsule()
+                .strokeBorder(Color.accentColor, lineWidth: 2)
+                .opacity(searchBarFocused ? 1 : 0)
+        }
+        #endif
+    }
+
+#if targetEnvironment(macCatalyst)
+    /// The Mac's search bar: the top row of the content column, in the band
+    /// the sidebar's header and the queue panel's "Next Up" occupy, rather
+    /// than a navigation bar of its own.
+    ///
+    /// It was a `.principal` toolbar item. UIKit centres that in the bar and
+    /// shrinks it symmetrically to clear the trailing item, so the field
+    /// started as far from the leading edge as the services menu sat from the
+    /// trailing one — a gap the width of the menu, with nothing in it. As a
+    /// row of its own the field starts at the same inset as the headers
+    /// beside it and runs up to the menu.
+    private var searchHeader: some View {
+        HStack(spacing: 12) {
+            searchField
+                .frame(maxWidth: .infinity)
+            MediaServiceMenu(selection: $searchSelection, filters: $filters)
+                .toolbarBackground(with: true, in: .capsule)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
+    }
+#endif
 
     @MainActor
     private func showKeyboard() {
@@ -713,6 +760,8 @@ private struct MediaServiceMenu: View {
         } label: {
             ServiceIconRow(services: displayedServices)
         }
+        .accessibilityLabel("Search Services")
+        .accessibilityValue(displayedServices.map(\.title).joined(separator: ", "))
     }
 
     private func selectionBinding(for service: MediaSearchService) -> Binding<Bool> {

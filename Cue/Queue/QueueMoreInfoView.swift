@@ -55,7 +55,8 @@ struct QueueMoreInfoView: View {
                 .frame(height: 44)
                 .contentShape(.rect)
         }
-        .help("Info")
+        .accessibilityLabel("Queue Options")
+        .help("Queue Options")
         .confirmationDialog("Clear Queue", isPresented: $clearQueueConfirmation, titleVisibility: .hidden) {
             Button {
                 upNextTracks.removeAll()

@@ -209,6 +209,8 @@ struct LargePlayerView: View {
                                 }
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Sleep Timer")
+                            .accessibilityHint("Cancels the sleep timer")
                             .modifier(RefreshOnForegroundModifier())
                             .confirmationDialog(
                                 "Cancel Sleep Timer",
@@ -245,6 +247,8 @@ struct LargePlayerView: View {
                                 }
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Sleep Timer")
+                            .accessibilityHint("Cancels the sleep timer")
                             .modifier(RefreshOnForegroundModifier())
                             .confirmationDialog(
                                 "Cancel Sleep Timer",
@@ -463,9 +467,21 @@ fileprivate struct PlaybackView: View {
         group.coordinatorRoom.playbackPosition < 2000 ? nil : .interactiveSpring
     }
 
+    /// The range the scrubber runs over. A radio source has no duration —
+    /// Sonos reports none for a stream, and the parser hands that on as zero
+    /// — while its position keeps counting up, so the raw pair is a value
+    /// past an empty range. `VibeSlider` guards its own arithmetic, but the
+    /// `ClosedRange` is built here, and one whose bounds are inverted traps
+    /// before the slider sees it. Floored at one so it is never empty; the
+    /// row is hidden for a zero duration anyway. Twin of the local player's
+    /// `LocalPlaybackScrubber`.
+    private var scrubRange: ClosedRange<Double> {
+        0...max(group.coordinatorRoom.track.duration, 1)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            VibeSlider(value: $group.coordinatorRoom.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, valueAnimation: positionAnimation) { isEditing in
+            VibeSlider(value: $group.coordinatorRoom.playbackPosition, in: scrubRange, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, valueAnimation: positionAnimation) { isEditing in
                 sonosService.isEditing = true
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
@@ -482,6 +498,8 @@ fileprivate struct PlaybackView: View {
             .frame(maxWidth: 500)
             .frame(height: 40)
             .foregroundStyle(.primary)
+            .accessibilityLabel("Playback Position")
+            .accessibilityValue(Duration.milliseconds(group.coordinatorRoom.playbackPosition).formatted(.time(pattern: .minuteSecond)))
             .disabled(!group.availableActions.contains(.scrubbable))
 
             HStack {
@@ -553,6 +571,7 @@ fileprivate struct PlayerMediaControlsView: View {
                     .frame(width: 32, height: 32)
             }
             .buttonStyle(.liveActivity)
+            .accessibilityLabel("Previous")
             .disabled(!group.availableActions.contains(.previous) && group.playbackService != .queue)
 
             Spacer()
@@ -576,6 +595,7 @@ fileprivate struct PlayerMediaControlsView: View {
 
             }
             .buttonStyle(.liveActivity)
+            .accessibilityLabel(group.coordinatorRoom.isPlaying ? "Pause" : "Play")
             #if DEBUG && !targetEnvironment(macCatalyst)
             .keyboardShortcut(.space, modifiers: [])
             .id(group.coordinatorID)
@@ -606,6 +626,7 @@ fileprivate struct PlayerMediaControlsView: View {
                     .frame(width: 32, height: 32)
             }
             .buttonStyle(.liveActivity)
+            .accessibilityLabel("Next")
             .disabled(!group.availableActions.contains(.next))
         }
         .frame(maxWidth: 300)
@@ -633,6 +654,7 @@ fileprivate struct BottomToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .imageScale(.large)
+                .accessibilityLabel("Group Speakers")
 
                 if group.rooms.count > 1 {
                     Spacer()
@@ -659,6 +681,7 @@ fileprivate struct BottomToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .imageScale(.large)
+                .accessibilityLabel("Search")
                 Spacer()
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
@@ -669,6 +692,7 @@ fileprivate struct BottomToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .imageScale(.large)
+                .accessibilityLabel("Browse")
 
                 Spacer()
                 Button {
@@ -706,6 +730,8 @@ fileprivate struct BottomToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .imageScale(.large)
+                .accessibilityLabel("Up Next")
+                .accessibilityValue(group.playMode.accessibilityDescription)
                 .overlay(alignment: .topTrailing) {
                     if group.playMode.contains(.shuffle) {
                         Image(systemName: "shuffle.circle.fill")

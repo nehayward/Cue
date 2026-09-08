@@ -59,11 +59,18 @@ struct FilesManagementView: View {
                             LabeledContent("Last Scan", value: lastScan.formatted(.relative(presentation: .named)))
                         }
 
+                        if library.isReadingCloudTags {
+                            HStack(spacing: 12) {
+                                ProgressView()
+                                Text("Reading tags from iCloud… \(library.cloudTagsRead) of \(library.cloudTagsTotal)")
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                        }
+
                         if library.pendingDownloadCount > 0 {
                             Label {
-                                Text(library.pendingDownloadCount == 1
-                                     ? "1 song is in iCloud only. It's listed by name until it's downloaded — play it, or fetch it from Downloads."
-                                     : "\(library.pendingDownloadCount.formatted()) songs are in iCloud only. They're listed by name until downloaded — play them, or fetch them from Downloads.")
+                                Text(cloudOnlyDescription)
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                             } icon: {
@@ -81,6 +88,14 @@ struct FilesManagementView: View {
                         Text("Library")
                     } footer: {
                         Text("The library refreshes itself when opened; rescan to pick up changes right away. Only files that changed are read again, and the index is kept on this device so the library is ready at launch.")
+                    }
+
+                    if library.isCloudFolder {
+                        Section {
+                            Toggle("Read Tags from iCloud", isOn: $library.readsCloudTags)
+                        } footer: {
+                            Text("Songs that aren't downloaded get their titles, artists, albums and artwork from their tags, read on Wi‑Fi from just the start of each file. Any song iCloud downloads in full to serve the read is removed again, so the folder takes no more space on this device than it did.")
+                        }
                     }
 
                     Section {
@@ -115,7 +130,17 @@ struct FilesManagementView: View {
         }
     }
 
+    private var cloudOnlyDescription: String {
+        let count = library.pendingDownloadCount
+        let songs = count == 1 ? "1 song is" : "\(count.formatted()) songs are"
+        if library.readsCloudTags {
+            return "\(songs) in iCloud only. Cue reads their tags without downloading them; play one, or fetch them from Downloads, to keep them on this device."
+        }
+        return "\(songs) in iCloud only. They're listed by name until downloaded — play them, or fetch them from Downloads."
+    }
+
     private func chooseFolder() {
+        guard FeatureGate.shared.unlock(.files) else { return }
         FolderPicker.shared.present { url in
             guard let url else { return }
             pickError = nil
@@ -128,10 +153,9 @@ struct FilesManagementView: View {
             // Discovery turns Files off while no folder is chosen (it can't
             // play from nothing); a chosen folder turns it back on so it
             // shows in search and browse straight away.
+            // Switching it on is also what gives it a sidebar section on
+            // iPad and Mac.
             CoreFeatures.shared.enabledServices(.files).wrappedValue = true
-            // And into the tab view, so the folder is one tap away rather
-            // than another trip through Customize Tabs.
-            TabProviderStore.shared.add(.files)
         }
     }
 }

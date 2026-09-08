@@ -124,19 +124,36 @@ private final class DownloadBatch: ContinuedWork {
     }
 }
 
-/// A scan of the Files folder: progress is files read against files found,
-/// and it's done when the library says so.
+/// The Files library catching up with its folder, in two phases: the scan
+/// (files read against files found), then the pass that reads the tags of
+/// songs still in iCloud (songs read against songs listed). The second
+/// phase is the long one for a big cloud library — it takes the title so
+/// the card says what's actually happening — and the job is done when
+/// neither is running.
 @MainActor
-private final class ScanBatch: ContinuedWork {
-    let title: String
+private final class LibraryBatch: ContinuedWork {
+    let folderName: String
     var expired = false
     let completionSymbol = "folder.fill"
 
-    init(title: String) {
-        self.title = title
+    init(folderName: String) {
+        self.folderName = folderName
     }
 
-    var total: Int { max(1, FilesLibraryService.shared.foundCount) }
+    var title: String {
+        let files = FilesLibraryService.shared
+        if !files.isScanning, files.isReadingCloudTags {
+            return "Reading tags from iCloud"
+        }
+        return "Scanning \(folderName)"
+    }
+
+    var total: Int {
+        let files = FilesLibraryService.shared
+        if files.isScanning { return max(1, files.foundCount) }
+        if files.isReadingCloudTags { return max(1, files.cloudTagsTotal) }
+        return max(1, files.foundCount)
+    }
 
     func expire() {
         expired = true
@@ -148,10 +165,18 @@ private final class ScanBatch: ContinuedWork {
         var reading = WorkReading()
         if files.isScanning {
             if files.foundCount > 0 {
-                reading.units = Int64(min(files.scannedCount, files.foundCount)) * 100 / Int64(files.foundCount) * Int64(total)
+                reading.units = Int64(min(files.scannedCount, files.foundCount)) * 100
                 reading.subtitle = "\(files.scannedCount.formatted()) of \(files.foundCount.formatted()) songs"
             } else {
                 reading.subtitle = "Looking for music…"
+            }
+        } else if files.isReadingCloudTags {
+            if files.cloudTagsRead > 0 {
+                reading.units = Int64(min(files.cloudTagsRead, files.cloudTagsTotal)) * 100
+                reading.subtitle = "\(files.cloudTagsRead.formatted()) of \(files.cloudTagsTotal.formatted()) songs"
+            } else {
+                // The pass checks for Wi‑Fi before its first read.
+                reading.subtitle = "\(files.cloudTagsTotal.formatted()) songs"
             }
         } else {
             reading.settled = total
@@ -224,14 +249,18 @@ final class ContinuedDownloadTask {
         add(keys: [], cloud: Set(ids), title: title)
     }
 
-    /// Follows a scan of the Files folder. Wired to
-    /// `FilesLibraryService.onScanStarted` at launch.
-    func trackScan(folderName: String) {
+    /// Follows a scan of the Files folder, and the iCloud tag pass that
+    /// follows it. Wired to `FilesLibraryService.onScanStarted` and
+    /// `onCloudTagsStarted` at launch; the second call is what puts the
+    /// pass on the card when it starts on its own, from the setting being
+    /// turned on, since a batch already following the scan carries on into
+    /// the pass by itself.
+    func trackLibrary(folderName: String) {
         if let current, !current.expired {
-            // A batch is already on the card; the scan runs regardless.
+            // A batch is already on the card; the library runs regardless.
             return
         }
-        start(ScanBatch(title: "Scanning \(folderName)"))
+        start(LibraryBatch(folderName: folderName))
     }
 
     private func add(keys: Set<String>, cloud: Set<String>, title: String) {
@@ -342,9 +371,9 @@ final class ContinuedDownloadTask {
         add(keys: [], cloud: Set(ids), title: title)
     }
 
-    func trackScan(folderName: String) {
+    func trackLibrary(folderName: String) {
         guard current == nil else { return }
-        start(ScanBatch(title: "Scanning \(folderName)"))
+        start(LibraryBatch(folderName: folderName))
     }
 
     private func add(keys: Set<String>, cloud: Set<String>, title: String) {

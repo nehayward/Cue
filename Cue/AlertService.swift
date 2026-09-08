@@ -70,6 +70,35 @@ public final class AlertService: @unchecked Sendable {
         }
     }
 
+    /// Shows a tappable banner with its own subtitle — "Tap for Cue Super",
+    /// say — that runs `action` when tapped, and auto-dismisses after `delay`.
+    @MainActor
+    func showActionAlert(with text: String, subtitle: LocalizedStringKey, imageName: String, delay: Duration = .seconds(5), action: @escaping () -> Void) {
+        alertTask?.cancel()
+        alert.isLoading = false
+        alert.content = nil
+        alert.subtitle = subtitle
+        alert.text = text
+        alert.imageName = imageName
+        showAlert(show: true)
+        alert.handleTap = { [weak self] in
+            action()
+            self?.showAlert(show: false)
+        }
+
+        alertTask = Task { [weak self] in
+            guard let self else { return }
+            try Task.checkCancellation()
+            try await Task.sleep(for: delay)
+            try Task.checkCancellation()
+            showAlert(show: false)
+            try await Task.sleep(for: .milliseconds(800))
+            alert.text = ""
+            alert.subtitle = ""
+            alert.imageName = nil
+        }
+    }
+
     /// Shows a tappable "Undo" banner that runs `action` when tapped, and auto-dismisses after a short window.
     @MainActor
     func showUndoAlert(with text: String, delay: Duration = .seconds(5), action: @escaping () -> Void) {
