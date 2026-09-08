@@ -86,6 +86,7 @@ struct MusicPlaybackView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
+                Spacer(minLength: 0)
             }
             .contentShape(.rect)
         }
