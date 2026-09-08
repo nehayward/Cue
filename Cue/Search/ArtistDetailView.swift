@@ -514,7 +514,9 @@ struct ArtistDetailView: View {
         }
 
         guard let group = selectedGroupService.group else {
-            await PlayDestinationRouter.play(tracks, position: position, queue: queueAllSongs)
+            // No one container to stand for a run of an artist's tracks —
+            // the artist is what it was played from.
+            await PlayDestinationRouter.play(tracks, position: position, from: artistContent, queue: queueAllSongs)
             return
         }
 
@@ -550,7 +552,7 @@ struct ArtistDetailView: View {
         }
 
         guard let group = selectedGroupService.group else {
-            await PlayDestinationRouter.play(albumsToPlay, position: position, queue: queueAll)
+            await PlayDestinationRouter.play(albumsToPlay, position: position, from: artistContent, queue: queueAll)
             return
         }
 

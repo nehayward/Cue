@@ -178,6 +178,21 @@ final class LocalPlaybackService {
             metadata: .init(artist: live.artist, radioStation: true)
         )
     }
+    /// What this queue was played from — the album, playlist, artist or
+    /// folder the Play came from, or the parent of the row that was tapped.
+    /// The device's answer to the container line the Sonos player reads off
+    /// the speaker, and a way back into it: the player names it above the
+    /// title and a tap opens it.
+    ///
+    /// Queue-level, like the speaker's own: it is set by the Play that
+    /// replaced the queue and survives tracks being added behind it, so a
+    /// row queued from elsewhere still shows the origin of the run it landed
+    /// in. Nil when the queue came from a bare list of tracks — a search
+    /// result, a speaker hand-off — which have no origin to name.
+    private(set) var source: PlayableContent? {
+        didSet { saveSource() }
+    }
+
     var upNext: [PlayableContent] { Array(queue.dropFirst(currentIndex + 1)) }
     var isActive: Bool { !queue.isEmpty }
     /// Whether a skip forward has somewhere to go: another track, or the top
@@ -405,6 +420,9 @@ final class LocalPlaybackService {
     func play(_ items: [PlayableContent], startingAt index: Int = 0, from position: TimeInterval? = nil) async throws {
         let playable = items.filter { canPlayLocally($0) }
         guard !playable.isEmpty else { throw LocalPlaybackError.nothingPlayable }
+        // A new queue, so the old origin is gone. `enqueue` names the new one
+        // after this returns; a bare list of tracks has none.
+        source = nil
         queue = playable
         let start = items[safe: index].flatMap { playable.firstIndex(of: $0) } ?? 0
         // A new queue, so a restored position belongs to nothing in it.
@@ -451,8 +469,8 @@ final class LocalPlaybackService {
     /// tracks first. Throws `.nothingPlayable` when the local queue can't take
     /// the content at all, which is the signal callers fall back to a Sonos
     /// group on.
-    func enqueue(_ content: PlayableContent, at position: QueuePosition, shuffle: Bool = false) async throws {
-        try await enqueue([content], at: position, shuffle: shuffle)
+    func enqueue(_ content: PlayableContent, at position: QueuePosition, shuffle: Bool = false, from origin: PlayableContent? = nil) async throws {
+        try await enqueue([content], at: position, shuffle: shuffle, from: origin)
     }
 
     /// The same, for a whole run at once — the artist screen's popular tracks
@@ -465,7 +483,12 @@ final class LocalPlaybackService {
     /// whole container: a true global shuffle needs every page in hand first,
     /// which is exactly the wait that starting on page one avoids. At Plex's
     /// 200 tracks per page that reads as shuffled.
-    func enqueue(_ contents: [PlayableContent], at position: QueuePosition, shuffle: Bool = false) async throws {
+    ///
+    /// `origin` is where the Play came from, for `source` to name — the
+    /// playlist a tapped row belongs to, say, which the row itself doesn't
+    /// carry. A single container needs none: it is its own origin.
+    func enqueue(_ contents: [PlayableContent], at position: QueuePosition, shuffle: Bool = false, from origin: PlayableContent? = nil) async throws {
+        let wasEmpty = !isActive
         var items: [PlayableContent] = []
         /// Containers whose first page is in `items`; the rest follows once
         /// playback is underway.
@@ -485,6 +508,14 @@ final class LocalPlaybackService {
         case .now, .replace: try await play(items)
         case .next, .front: try await playNext(items)
         case .end: try await addToQueue(items)
+        }
+
+        // Only the Play that made the queue names its origin: adding behind
+        // an existing queue leaves the run it joins as what it was. A lone
+        // container stands in for itself when the caller named nothing —
+        // that is the playlist or album that was tapped.
+        if [.now, .replace].contains(position) || wasEmpty {
+            source = origin ?? (contents.count == 1 ? contents.first.flatMap { canPlayContainerLocally($0) ? $0 : nil } : nil)
         }
 
         // Playing already, so the tail can arrive behind it.
@@ -670,6 +701,7 @@ final class LocalPlaybackService {
         teardownRun()
         resumePosition = nil
         queue = []
+        source = nil
         currentIndex = 0
         isPlaying = false
         isLoading = false
@@ -1414,6 +1446,7 @@ final class LocalPlaybackService {
         }
         isRestoring = true
         defer { isRestoring = false }
+        source = saved.source
         let current = saved.queue[safe: saved.position.index]
         let currentKept = current.flatMap { kept.firstIndex(of: $0) }
         queue = kept
@@ -1459,6 +1492,14 @@ final class LocalPlaybackService {
         guard !isRestoring, !queue.isEmpty else { return }
         savedProgress = progress
         LocalQueueStore.save(position: .init(index: currentIndex, progress: progress, duration: duration, repeatMode: repeatMode))
+    }
+
+    /// Writes what the queue was played from, so the player still names the
+    /// origin after a relaunch. Written only when it changes, which is once
+    /// per Play.
+    private func saveSource() {
+        guard !isRestoring else { return }
+        LocalQueueStore.save(source: source)
     }
 
     /// The poll's version: every few seconds of progress, and at the moment
@@ -1639,6 +1680,8 @@ private enum LocalQueueStore {
     struct Saved {
         var queue: [PlayableContent]
         var position: Position
+        /// What the queue was played from, when it was played from anything.
+        var source: PlayableContent?
     }
 
     private static var queueURL: URL? {
@@ -1650,6 +1693,10 @@ private enum LocalQueueStore {
     }
 
     private static var positionKey: String { AppStorageKeys.localQueuePosition }
+    /// One row, so it sits in the defaults beside the position rather than
+    /// in the queue file — which stays a bare `[PlayableContent]`, readable
+    /// by builds that predate the origin.
+    private static var sourceKey: String { AppStorageKeys.localQueueSource }
 
     static func load() -> Saved? {
         guard let queueURL, let data = try? Data(contentsOf: queueURL),
@@ -1657,7 +1704,9 @@ private enum LocalQueueStore {
         let position = UserDefaults.standard.data(forKey: positionKey)
             .flatMap { try? JSONDecoder().decode(Position.self, from: $0) }
             ?? Position(index: 0, progress: 0, duration: 0, repeatMode: .off)
-        return Saved(queue: queue, position: position)
+        let source = UserDefaults.standard.data(forKey: sourceKey)
+            .flatMap { try? JSONDecoder().decode(PlayableContent.self, from: $0) }
+        return Saved(queue: queue, position: position, source: source)
     }
 
     static func save(queue: [PlayableContent], waitUntilDone: Bool = false) {
@@ -1678,10 +1727,18 @@ private enum LocalQueueStore {
         UserDefaults.standard.set(data, forKey: positionKey)
     }
 
+    static func save(source: PlayableContent?) {
+        guard let source, let data = try? JSONEncoder().encode(source) else {
+            return UserDefaults.standard.removeObject(forKey: sourceKey)
+        }
+        UserDefaults.standard.set(data, forKey: sourceKey)
+    }
+
     static func clear() {
         if let queueURL {
             try? FileManager.default.removeItem(at: queueURL)
         }
         UserDefaults.standard.removeObject(forKey: positionKey)
+        UserDefaults.standard.removeObject(forKey: sourceKey)
     }
 }

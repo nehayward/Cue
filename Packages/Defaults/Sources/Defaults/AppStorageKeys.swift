@@ -52,6 +52,10 @@ public enum AppStorageKeys {
     /// mode — so a relaunch picks up the track that was playing where it
     /// was. The queue itself is a file in Application Support.
     public static let localQueuePosition = "\(Prefix.id).localQueuePosition"
+    /// What the device queue was played from — the album, playlist or folder
+    /// the Play came from — so the player can name its origin the way the
+    /// Sonos player names the speaker's container, across a relaunch.
+    public static let localQueueSource = "\(Prefix.id).localQueueSource"
     public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"

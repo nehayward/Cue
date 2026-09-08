@@ -11,7 +11,7 @@ extension MediaSearchService {
     /// Sonos account (Spotify, Tidal, Deezer, …) keep their cases in the
     /// package so stored settings still decode, but they are never listed
     /// or enabled here.
-    static let supported: [MediaSearchService] = [.apple, .plex, .tuneIn, .sonosRadio, .subsonic, .files]
+    static let supported: [MediaSearchService] = [.apple, .plex, .tuneIn, .subsonic, .files]
 
     /// Whether this is one of the services Cue offers (see `supported`).
     var isSupported: Bool {

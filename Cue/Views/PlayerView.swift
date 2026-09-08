@@ -77,12 +77,17 @@ struct PlayerView: View {
                     .opacity(isArtworkVisible ? 1 : 0)
                     .animation(.interactiveSpring, value: isArtworkVisible)
 
-                // The album line, in the slot `LargePlayerView` gives the
-                // container — and the station's name when a station is
-                // playing. Fixed height so the layout doesn't shift between
-                // tracks that have one and tracks that don't.
-                LocalAlbumButton(item: item, stationTitle: item.content.type.isRadio ? (playback.nowPlaying?.title ?? "") : nil)
-                    .frame(height: 12)
+                // Where the queue was played from, in the slot
+                // `LargePlayerView` gives the speaker's container — the album
+                // when there is no origin, and the station's name when a
+                // station is playing. Fixed height so the layout doesn't
+                // shift between tracks that have one and tracks that don't.
+                LocalAlbumButton(
+                    item: item,
+                    source: playback.source,
+                    stationTitle: item.content.type.isRadio ? (playback.nowPlaying?.title ?? "") : nil
+                )
+                .frame(height: 12)
                 LocalSongTitleButton(item: item)
                 LocalArtistButton(item: item, showArtworkOnly: showArtworkOnly)
 
@@ -246,26 +251,60 @@ struct PlayerView: View {
 
 // MARK: - Album, title, artist
 
-/// The album line: a tap opens the album, as the container line on the
-/// Sonos player does. Services with no album screen keep the text but not
-/// the tap.
+/// The origin line: where this queue was played from, and a tap back into
+/// it — the same slot, and the same job, as the container line the Sonos
+/// player reads off the speaker.
+///
+/// The queue's `source` when there is one: the Plex playlist the row was
+/// tapped in, the album that was played, the artist a run of tracks came
+/// from. Only the album is on the track itself, so without the source a
+/// track played out of a playlist named its album, which is where it lives
+/// rather than where it was played from. Falls back to the album for a
+/// queue with no origin — a search result, a hand-off from a speaker.
 private struct LocalAlbumButton: View {
     @Environment(Router.self) private var router: Router
 
     let item: PlayableContent
-    /// Stands in for the album line while a station plays. A station has no
-    /// album to open, so the line is text rather than a way in.
+    /// What the queue was played from, when it was played from anything.
+    var source: PlayableContent?
+    /// Stands in for the line while a station plays. A station has no album
+    /// and no origin to open, so the line is text rather than a way in.
     var stationTitle: String?
 
-    private var isSupported: Bool { stationTitle == nil && item.content.service.supportsViewArtistAlbum }
+    /// What the line names, and what a tap opens. The source before the
+    /// album: it is the more specific answer, and the album is what's left
+    /// when there is no source.
+    private var origin: PlayableContent? {
+        guard stationTitle == nil else { return nil }
+        return source
+    }
+
+    private var title: String {
+        stationTitle ?? origin?.title ?? item.metadata?.album ?? ""
+    }
+
+    /// Whichever of the two the tap would open has to have a screen to open
+    /// — a source from a service with none leaves the line as plain text.
+    private var isSupported: Bool {
+        stationTitle == nil && (origin ?? item).content.service.supportsViewArtistAlbum
+    }
 
     var body: some View {
         Button {
             guard isSupported else { return }
             HapticManager.shared.fireHaptic(.buttonPress)
-            router.sheet(to: .mediaDetail(content: item, group: nil))
+            // An artist has its own screen; everything else — playlist,
+            // album, folder — is a media detail.
+            guard let origin else {
+                return router.sheet(to: .mediaDetail(content: item, group: nil))
+            }
+            if origin.content.type.isArtist {
+                router.sheet(to: .artistDetail(content: origin, group: nil))
+            } else {
+                router.sheet(to: .mediaDetail(content: origin, group: nil))
+            }
         } label: {
-            Text(stationTitle ?? item.metadata?.album ?? "")
+            Text(title)
                 .font(.caption.smallCaps())
                 .foregroundStyle(.secondary)
                 .lineLimit(1, reservesSpace: true)
