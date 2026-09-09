@@ -33,6 +33,14 @@ struct PlayableContentRowView: View {
     var index: Int? = nil
     var dismissOnComplete: Bool = false
     var total: Int = 1
+
+    /// Width of the track-number column. Sized from the wider of `total` and
+    /// the row's own index so every row in a list shares one width; 30pt is
+    /// the floor so lists under 1000 tracks are unchanged.
+    private func indexColumnWidth(for index: Int) -> CGFloat {
+        let digits = String(max(total, index)).count
+        return max(30, CGFloat(digits) * 8 + 8)
+    }
     
     private var isCurrentlyPlaying: Bool {
         guard let trackID = selectedGroupService?.group?.coordinatorRoom.track.trackID else { return false }
@@ -80,9 +88,13 @@ struct PlayableContentRowView: View {
         } label: {
             HStack {
                 if let index {
-                    Text(index, format: .number)
+                    // Positions are ordinals, so no grouping separator: "1005"
+                    // not "1,005". Column width follows the digit count of the
+                    // longest index in the list so rows stay aligned past 999.
+                    Text(index, format: .number.grouping(.never))
                         .font(.caption.monospacedDigit())
-                        .frame(width: 30, alignment: .center)
+                        .lineLimit(1)
+                        .frame(width: indexColumnWidth(for: index), alignment: .center)
                         .foregroundStyle(.secondary)
                 }
                 
