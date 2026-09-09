@@ -410,26 +410,28 @@ struct PlayableListView: View {
 
     // MARK: - Grid
 
-    private static let gridColumns = [GridItem(.adaptive(minimum: 110, maximum: 180), spacing: 12)]
+    private static let gridColumns = [GridItem(.adaptive(minimum: 110, maximum: 200), spacing: 0)]
 
-    /// The same rows as artwork tiles — `PlayableCardView`, as on the
-    /// playlist grids — paging in the same way. No A–Z sections: a grid
-    /// has no index to jump by, and the sort menu still orders it.
+    /// The same rows as a wall of covers: square tiles that touch, edge to
+    /// edge, with nothing written under them — the art is what you scan
+    /// for, and the title is a tap away. Pages in the same way as the
+    /// list. No A–Z sections: a grid has no index to jump by, and the sort
+    /// menu still orders it.
     private var gridContent: some View {
         ScrollView {
-            LazyVStack(spacing: 16) {
+            LazyVStack(spacing: 0) {
                 if playAllItem != nil {
                     PlayAllButtonView(item: playAllItem)
+                        .padding(16)
                 }
-                LazyVGrid(columns: Self.gridColumns, spacing: 16) {
+                LazyVGrid(columns: Self.gridColumns, spacing: 0) {
                     ForEach(items) { item in
-                        PlayableCardView(item: item)
+                        PlayableCardView(item: item, artworkOnly: true)
                             .onAppear { loadMoreIfNeeded(after: item) }
                     }
                 }
             }
         }
-        .contentMargins(.horizontal, 16, for: .scrollContent)
     }
 
     /// Fetches the next page once `item` — one of the last ten rows — has

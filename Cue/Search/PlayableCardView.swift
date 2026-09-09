@@ -19,6 +19,10 @@ struct PlayableCardView: View {
     var item: PlayableContent
     var hideArtwork: Bool = false
     var hideAction: Bool = false
+    /// Just the cover, square and edge to edge — no title, no corners, no
+    /// menu button — for a wall of artwork where the tiles touch. Tap and
+    /// long-press keep working on the tile itself.
+    var artworkOnly: Bool = false
 
     var body: some View {
         VStack {
@@ -37,7 +41,7 @@ struct PlayableCardView: View {
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden, edges: .all)
         .overlay(alignment: .topTrailing) {
-            if adding == nil && !hideAction {
+            if adding == nil && !hideAction && !artworkOnly {
                 Menu {
                     PlayableMenuView(item: item)
                 } label: {
@@ -53,7 +57,23 @@ struct PlayableCardView: View {
         }
     }
     
+    @ViewBuilder
     private var content: some View {
+        if artworkOnly {
+            Color.clear
+                .aspectRatio(1, contentMode: .fit)
+                .overlay {
+                    ContentArtworkView(content: item, showMusicSource: false, preferredSize: 500)
+                        .scaledToFill()
+                }
+                .clipped()
+                .contentShape(.rect)
+        } else {
+            card
+        }
+    }
+
+    private var card: some View {
         VStack {
             if item.content.type == .folder {
                 PlaylistFolderCollageView(folderID: item.content.id)
