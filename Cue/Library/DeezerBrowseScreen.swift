@@ -33,6 +33,7 @@ struct DeezerBrowseScreen: View {
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Favorite Albums",
                         showSectionIndex: false,
+                        allowsGrid: true,
                         action: { offset in await musicSearchService.deezerUserFavoriteAlbums(offset: offset) }
                     )) {
                         Label("Favorite Albums", systemImage: "smallcircle.circle.fill")

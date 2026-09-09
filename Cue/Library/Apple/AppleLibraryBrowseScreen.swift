@@ -103,9 +103,15 @@ struct AppleLibraryBrowseScreen: View {
                     .foregroundStyle(.primary)
             }
         case .albums:
-            NavigationLink(value: RouterDestination.playableLibraryList(title: "Albums", items: $appleMusicBrowseService.userAlbums, action: { offset in
-                await appleMusicBrowseService.updateUsersAppleAlbums()
-            })) {
+            NavigationLink(value: RouterDestination.playableList(
+                title: "Albums",
+                // Off, as on the other paged libraries: the index would
+                // only reach the pages already loaded.
+                showSectionIndex: false,
+                allowsGrid: true,
+                sortOptions: AppleLibraryLists.albumSortOptions(browseService: appleMusicBrowseService),
+                sortKey: AppleLibraryLists.albumSortKey
+            )) {
                 Label("Albums", systemImage: "smallcircle.circle.fill")
             }
             

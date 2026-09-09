@@ -45,6 +45,15 @@ public final class AppleMusicBrowseService {
         }
     }
     
+    /// A page of the user's library albums in the requested order. Unlike
+    /// `updateUsersAppleAlbums` this returns the rows rather than merging
+    /// them into `userAlbums`: a sorted list pages by offset and owns its
+    /// own rows, so a change of order replaces them.
+    public func libraryAlbums(offset: Int = 0, sort: AppleLibraryAlbumSort = .title, descending: Bool = false) async -> [PlayableContent] {
+        guard let albums = try? await apple.libraryAlbums(sort: sort, descending: descending, offset: offset) else { return [] }
+        return albums.map(\.toPlayableLibraryAlbum)
+    }
+
     public func updateUsersAppleSongs() async {
         guard let container = try? await apple.getUserSongs(offset: offsets["updateUsersAppleSongs", default: 0]) else { return }
         let offset = Int(container.next?.components(separatedBy: "=").last ?? "0") ?? 0

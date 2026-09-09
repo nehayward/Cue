@@ -25,18 +25,25 @@ public struct PlayableListSort: Identifiable, Equatable {
     /// first for a date, longest first for a length. A remembered direction
     /// still wins.
     public let defaultsToDescending: Bool
+    /// What a row is filed under in the A–Z index while this order is
+    /// chosen — its title, its artist — or `nil` for an order that has no
+    /// index: one by date, or a server order that pages in, where jumping
+    /// to a letter can only reach the pages already loaded.
+    public let sectionKey: ((PlayableContent) -> String)?
 
     public init(
         name: String,
         ascendingLabel: String? = nil,
         descendingLabel: String? = nil,
         defaultsToDescending: Bool = false,
+        sectionKey: ((PlayableContent) -> String)? = nil,
         action: @escaping (Int, Bool) async -> [PlayableContent]
     ) {
         self.name = name
         self.ascendingLabel = ascendingLabel
         self.descendingLabel = descendingLabel
         self.defaultsToDescending = defaultsToDescending
+        self.sectionKey = sectionKey
         self.action = action
     }
 
@@ -49,7 +56,33 @@ public struct PlayableListSort: Identifiable, Equatable {
     }
 }
 
+/// How a list lays its rows out: as rows, or as a grid of artwork tiles.
+/// Stored under one key for every album list, so the choice follows the
+/// user from one provider's Albums to the next.
+enum PlayableListLayout: String, CaseIterable, Identifiable {
+    case list
+    case grid
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .list: "List"
+        case .grid: "Grid"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .list: "list.bullet"
+        case .grid: "square.grid.2x2"
+        }
+    }
+}
+
 struct PlayableListView: View {
+    @AppStorage(Defaults.AppStorageKeys.albumsLayout) private var layout: PlayableListLayout = .list
+
     @State private var isLoading: Bool = false
     @State private var hasReachedEnd: Bool = false
     @State var items: OrderedSet<PlayableContent> = []
@@ -70,7 +103,13 @@ struct PlayableListView: View {
 
     var title: String = ""
     var playAllItem: PlayableContent? = nil
+    /// Whether a list with no sort menu buckets its rows A–Z by title. A list
+    /// with a sort menu leaves that to each order's `sectionKey` instead.
     var showSectionIndex: Bool = true
+    /// Whether the list can also be shown as a grid of artwork tiles — the
+    /// album lists, where the art is what you scan for. Adds a View toggle
+    /// to the toolbar; the choice is shared across every list that offers it.
+    var allowsGrid: Bool = false
     /// Empty for lists with a single fixed order — no menu is shown then.
     var sortOptions: [PlayableListSort] = []
     /// Where to remember the chosen sort, so it survives leaving the screen.
@@ -170,9 +209,15 @@ struct PlayableListView: View {
         let status = loadingStatus?()
         let token = changeToken?() ?? 0
 
-        return List {
-            PlayAllButtonView(item: playAllItem)
-            contentSection
+        return Group {
+            if isGrid {
+                gridContent
+            } else {
+                List {
+                    PlayAllButtonView(item: playAllItem)
+                    contentSection
+                }
+            }
         }
         .overlay {
             // Only while there is nothing to show yet — later pages load
@@ -223,6 +268,21 @@ struct PlayableListView: View {
                             .contentTransition(.numericText())
                             .animation(.default, value: status)
                             .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if allowsGrid {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Picker("View", selection: $layout) {
+                            ForEach(PlayableListLayout.allCases) { option in
+                                Label(option.label, systemImage: option.systemImage).tag(option)
+                            }
+                        }
+                        .pickerStyle(.inline)
+                    } label: {
+                        Label("View", systemImage: layout.systemImage)
                     }
                 }
             }
@@ -306,15 +366,29 @@ struct PlayableListView: View {
         await initialLoad()
     }
 
+    private var isGrid: Bool { allowsGrid && layout == .grid }
+
+    /// What the A–Z index files each row under, or nil for no index: the
+    /// chosen order's own key when there is a sort menu, the title when the
+    /// list asked for one and has no menu.
+    private var sectionKey: ((PlayableContent) -> String)? {
+        if let selectedSort { return selectedSort.sectionKey }
+        return showSectionIndex ? { $0.title } : nil
+    }
+
     @ViewBuilder
     private var contentSection: some View {
-        if showSectionIndex {
+        if let sectionKey {
             // Grouped once per render: `groupedItems` is computed, and
             // reading it again inside every section regrouped the whole
             // list once per letter — ~27 full passes each time a row
             // appeared and nudged the load-more check.
-            let grouped = groupedItems
-            ForEach(grouped.keys.sorted(), id: \.self) { letter in
+            let grouped = groupedItems(by: sectionKey)
+            // The letters run the way the rows do, so a Z – A order keeps
+            // its Z at the top rather than being re-bucketed A – Z.
+            let reversed = selectedSort?.isReversible == true && isDescending
+            let letters = reversed ? grouped.keys.sorted(by: >) : grouped.keys.sorted()
+            ForEach(letters, id: \.self) { letter in
                 Section(header: Text(letter)) {
                     ForEach(grouped[letter] ?? []) { item in
                         playableRow(item: item)
@@ -331,27 +405,55 @@ struct PlayableListView: View {
 
     private func playableRow(item: PlayableContent) -> some View {
         PlayableContentView(item: item)
-            .onAppear {
-                guard !isLoading, !hasReachedEnd,
-                      let index = items.firstIndex(of: item),
-                      index >= items.count - 10
-                else { return }
-                Task {
-                    await loadMore()
+            .onAppear { loadMoreIfNeeded(after: item) }
+    }
+
+    // MARK: - Grid
+
+    private static let gridColumns = [GridItem(.adaptive(minimum: 110, maximum: 180), spacing: 12)]
+
+    /// The same rows as artwork tiles — `PlayableCardView`, as on the
+    /// playlist grids — paging in the same way. No A–Z sections: a grid
+    /// has no index to jump by, and the sort menu still orders it.
+    private var gridContent: some View {
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                if playAllItem != nil {
+                    PlayAllButtonView(item: playAllItem)
+                }
+                LazyVGrid(columns: Self.gridColumns, spacing: 16) {
+                    ForEach(items) { item in
+                        PlayableCardView(item: item)
+                            .onAppear { loadMoreIfNeeded(after: item) }
+                    }
                 }
             }
+        }
+        .contentMargins(.horizontal, 16, for: .scrollContent)
+    }
+
+    /// Fetches the next page once `item` — one of the last ten rows — has
+    /// come on screen.
+    private func loadMoreIfNeeded(after item: PlayableContent) {
+        guard !isLoading, !hasReachedEnd,
+              let index = items.firstIndex(of: item),
+              index >= items.count - 10
+        else { return }
+        Task {
+            await loadMore()
+        }
     }
 
     // MARK: - Alphabetical Grouping
 
-    /// Rows are bucketed by their first letter or digit, skipping any leading
-    /// punctuation or whitespace. Services sort the same way — Plex's
-    /// `titleSort` drops a leading "[" — so "[Unknown Album]" arrives with the
-    /// U albums; filing it under "#" by its bracket would jump it to the top
-    /// of the list the moment that page loads.
-    private var groupedItems: [String: [PlayableContent]] {
+    /// Rows are bucketed by the first letter or digit of `key`, skipping any
+    /// leading punctuation or whitespace. Services sort the same way —
+    /// Plex's `titleSort` drops a leading "[" — so "[Unknown Album]" arrives
+    /// with the U albums; filing it under "#" by its bracket would jump it
+    /// to the top of the list the moment that page loads.
+    private func groupedItems(by key: (PlayableContent) -> String) -> [String: [PlayableContent]] {
         Dictionary(grouping: items) { item in
-            guard let scalar = item.title
+            guard let scalar = key(item)
                 .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
                 .unicodeScalars
                 .first(where: { CharacterSet.alphanumerics.contains($0) }),

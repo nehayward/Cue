@@ -203,6 +203,58 @@ public final class LibraryBrowseService {
         return newAlbums.count >= pageSize
     }
 
+    /// One page of albums starting at `offset`, in the speaker's own order
+    /// (by title), returned as well as merged into `albums`. For a list
+    /// that pages by offset and owns its rows.
+    @MainActor
+    public func albumPage(offset: Int = 0) async -> [PlayableContent] {
+        guard let ip = sonosService.prioritizedIP() else { return [] }
+        let page = await sonosAPI.getLibraryItems(IP: ip, type: .album, offset: max(offset, 0), requestedCount: pageSize)
+        for album in page {
+            albums.updateOrAppend(album)
+        }
+        if !page.isEmpty {
+            albumSections = Self.groupedSections(from: albums)
+        }
+        return page
+    }
+
+    /// Every album in the library, by artist. The speaker's ContentDirectory
+    /// only lists albums by title, so an order by artist means having the
+    /// whole list first: the pages not yet fetched are pulled in, then the
+    /// lot is sorted here. Pages already fetched are kept — they are the
+    /// same title order, from the same index.
+    @MainActor
+    public func albumsByArtist(descending: Bool = false) async -> [PlayableContent] {
+        guard sonosService.prioritizedIP() != nil else { return [] }
+        var offset = albums.count
+        while true {
+            let page = await albumPage(offset: offset)
+            guard page.count >= pageSize else { break }
+            offset += page.count
+        }
+        return Self.sortedByArtist(Array(albums), descending: descending)
+    }
+
+    /// Albums by artist, then title, the way Finder would order the names —
+    /// case and accents ignored, numbers by value. An album with no artist
+    /// files at the end.
+    public static func sortedByArtist(_ albums: [PlayableContent], descending: Bool = false) -> [PlayableContent] {
+        let keyed = albums.map { album -> (artist: String, title: String, album: PlayableContent) in
+            let artist = album.metadata?.artist?.trimmingCharacters(in: .whitespaces) ?? ""
+            return (
+                artist.isEmpty ? "\u{10FFFF}" : NaturalSortKey.key(for: artist),
+                NaturalSortKey.key(for: album.title),
+                album
+            )
+        }
+        let ordered = keyed.sorted { lhs, rhs in
+            if lhs.artist != rhs.artist { return lhs.artist < rhs.artist }
+            return lhs.title < rhs.title
+        }.map(\.album)
+        return descending ? ordered.reversed() : ordered
+    }
+
     /// Fetches one page of artists starting at `offset`. Returns `true` when a
     /// full page was returned, indicating more items may be available.
     @MainActor

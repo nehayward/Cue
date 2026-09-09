@@ -71,7 +71,7 @@ struct SpotifySearchScreen: View {
         }
         
         Section {
-            NavigationLink(value: RouterDestination.playableList(title: "Spotify Albums", showSectionIndex: false, action: { offset in
+            NavigationLink(value: RouterDestination.playableList(title: "Spotify Albums", showSectionIndex: false, allowsGrid: true, action: { offset in
                 await spotifyBrowseService.userAlbums(offset: offset, limit: 25)
                 return Array(spotifyBrowseService.albums)
             })) {

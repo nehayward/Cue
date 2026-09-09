@@ -49,6 +49,10 @@ public enum AppStorageKeys {
     /// Whether the Radio tab shows at all. On when unset; the tab also
     /// needs a radio provider switched on, and hides itself offline.
     public static let showRadioTab = "\(Prefix.id).showRadioTab"
+    /// How the library's album lists are laid out — `"list"` (rows) or
+    /// `"grid"` (artwork tiles). One setting for every provider's Albums
+    /// page, so a choice made on Plex holds on Subsonic. Rows when unset.
+    public static let albumsLayout = "\(Prefix.id).albumsLayout"
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"
     public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"

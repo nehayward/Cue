@@ -450,8 +450,11 @@ public final class PlexAPI {
     }
 
     
+    /// A page of the library's albums in the requested order. Plex sorts on
+    /// the server, so the order (reversed included) holds across every page.
     public func albums(
-        sortOrder: AlbumSortOrder = .titleAscending,
+        sort: PlexAlbumSort = .title,
+        reversed: Bool = false,
         offset: Int = 0,
         limit: Int = 100
     ) async -> [PlexAlbumItem] {
@@ -476,7 +479,7 @@ public final class PlexAPI {
         
         let queryItems: [URLQueryItem] = [
             URLQueryItem(name: "type", value: "9"),
-            URLQueryItem(name: "sort", value: sortOrder.queryValue),
+            URLQueryItem(name: "sort", value: sort.queryValue(reversed: reversed)),
             URLQueryItem(name: "X-Plex-Container-Size", value: "\(limit)"),
             URLQueryItem(name: "X-Plex-Container-Start", value: "\(offset)")
         ]

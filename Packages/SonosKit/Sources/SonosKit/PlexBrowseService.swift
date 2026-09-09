@@ -28,8 +28,10 @@ public final class PlexBrowseService {
         return artists.compactMap(\.toPlayable)
     }
     
-    public func updateUserAlbums(offset: Int? = 0) async -> [PlayableContent]  {
-        let albums = await plexAPI.albums(offset: offset ?? 0)
+    /// A page of albums in the requested order. As with songs, Plex sorts on
+    /// the server, so the order (reversed included) holds across every page.
+    public func updateUserAlbums(offset: Int? = 0, sort: PlexAlbumSort = .title, reversed: Bool = false) async -> [PlayableContent]  {
+        let albums = await plexAPI.albums(sort: sort, reversed: reversed, offset: offset ?? 0)
         let newUserAlbums = albums.compactMap(\.toPlayable)
         return newUserAlbums
     }

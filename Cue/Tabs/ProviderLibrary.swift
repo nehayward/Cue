@@ -85,9 +85,15 @@ struct ProviderLibrary {
                 await apple.updateUsersAppleArtists(offset: offset)
             })
         case .albums:
-            return .playableLibraryList(title: "Albums", items: items.userAlbums, action: { _ in
-                await apple.updateUsersAppleAlbums()
-            })
+            return .playableList(
+                title: "Albums",
+                // Off, as on the other paged libraries: the index would only
+                // reach the pages already loaded.
+                showSectionIndex: false,
+                allowsGrid: true,
+                sortOptions: AppleLibraryLists.albumSortOptions(browseService: apple),
+                sortKey: AppleLibraryLists.albumSortKey
+            )
         case .songs:
             return .playableLibraryList(title: "Songs", items: items.userSongs, action: { _ in
                 await apple.updateUsersAppleSongs()
@@ -133,7 +139,7 @@ struct ProviderLibrary {
                 return Array(spotify.tracks)
             })
         case .albums:
-            return .playableList(title: "Spotify Albums", showSectionIndex: false, action: { offset in
+            return .playableList(title: "Spotify Albums", showSectionIndex: false, allowsGrid: true, action: { offset in
                 await spotify.userAlbums(offset: offset, limit: 25)
                 return Array(spotify.albums)
             })
@@ -183,7 +189,7 @@ struct ProviderLibrary {
                 await musicSearchService.deezerUserFavoriteTracks(offset: offset)
             })
         case .favoriteAlbums:
-            return .playableList(title: "Favorite Albums", showSectionIndex: false, action: { offset in
+            return .playableList(title: "Favorite Albums", showSectionIndex: false, allowsGrid: true, action: { offset in
                 await musicSearchService.deezerUserFavoriteAlbums(offset: offset)
             })
         case .favoriteArtists:
@@ -215,6 +221,7 @@ struct ProviderLibrary {
             return .playableList(
                 title: "Albums",
                 showSectionIndex: false,
+                allowsGrid: true,
                 // Each option carries its own loader, so the list needs
                 // no separate default action.
                 sortOptions: SubsonicLibraryLists.albumSortOptions(musicSearchService: musicSearchService),
@@ -236,7 +243,7 @@ struct ProviderLibrary {
                 loadingStatus: SubsonicLibraryLists.songSyncStatus(musicSearchService: musicSearchService)
             )
         case .recentlyAdded:
-            return .playableList(title: "Recently Added", showSectionIndex: false, action: { offset in
+            return .playableList(title: "Recently Added", showSectionIndex: false, allowsGrid: true, action: { offset in
                 await musicSearchService.subsonicRecentAlbums(offset: offset)
             })
         case .playlists:
@@ -256,7 +263,12 @@ struct ProviderLibrary {
         case .artists:
             return .playableContentList(group: group, contentType: .artist)
         case .albums:
-            return .playableContentList(group: group, contentType: .album)
+            return .playableList(
+                title: "Albums",
+                allowsGrid: true,
+                sortOptions: LocalLibraryLists.albumSortOptions(browseService: library),
+                sortKey: LocalLibraryLists.albumSortKey
+            )
         case .songs:
             return .playableList(
                 title: "Songs",
@@ -306,6 +318,7 @@ struct ProviderLibrary {
             return .playableList(
                 title: "Albums",
                 showSectionIndex: false,
+                allowsGrid: true,
                 sortOptions: FilesLibraryService.AlbumSort.allCases.map { sort in
                     PlayableListSort(
                         name: sort.label,
@@ -358,7 +371,7 @@ struct ProviderLibrary {
                 return offset == 0 ? files.playlists : []
             })
         case .recentlyAdded:
-            return .playableList(title: "Recently Added", showSectionIndex: false, refreshAction: { await files.scan() }, changeToken: { files.indexVersion }, action: { offset in
+            return .playableList(title: "Recently Added", showSectionIndex: false, allowsGrid: true, refreshAction: { await files.scan() }, changeToken: { files.indexVersion }, action: { offset in
                 await files.scanIfNeeded()
                 return offset == 0 ? files.recentlyAddedAlbums() : []
             })
@@ -379,9 +392,15 @@ struct ProviderLibrary {
                 await plex.artists(offset: offset)
             })
         case .albums:
-            return .playableList(title: "Albums", action: { offset in
-                await plex.updateUserAlbums(offset: offset)
-            })
+            return .playableList(
+                title: "Albums",
+                // Off, as for Songs: the index re-buckets the list A–Z by
+                // title, which silently undoes every sort but Title.
+                showSectionIndex: false,
+                allowsGrid: true,
+                sortOptions: PlexLibraryLists.albumSortOptions(plexBrowseService: plex),
+                sortKey: PlexLibraryLists.albumSortKey
+            )
         case .songs:
             return .playableList(
                 title: "Songs",
