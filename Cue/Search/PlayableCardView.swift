@@ -63,8 +63,14 @@ struct PlayableCardView: View {
             Color.clear
                 .aspectRatio(1, contentMode: .fit)
                 .overlay {
-                    ContentArtworkView(content: item, showMusicSource: false, preferredSize: 500)
-                        .scaledToFill()
+                    ContentArtworkView(
+                        content: item,
+                        showMusicSource: false,
+                        preferredSize: 500,
+                        cornerRadius: 0,
+                        placeholderStyle: AnyShapeStyle(.quaternary)
+                    )
+                    .scaledToFill()
                 }
                 .clipped()
                 .contentShape(.rect)
