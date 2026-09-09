@@ -50,10 +50,14 @@ final class AppBootstrapper {
 
             $0.dataLoader = DataLoader(configuration: config)
 
-            // Reduce memory footprint
-            $0.makeImageDecoder = { _ in
-                return ImageDecoders.Default()
-            }
+            // No decoder override. One was here, `ImageDecoders.Default()`,
+            // meant to "reduce memory footprint" — and it did the opposite:
+            // built without the request's context it never saw the
+            // `thumbnail` options the artwork views ask for, so every cover
+            // was decoded at its original size (a 3000px Plex or Subsonic
+            // cover is 36 MB) and downsampling was silently a no-op app-wide.
+            // The registry's default decoder is the same class, built with
+            // the context, so the thumbnail path works.
         }
 
         ImagePipeline.shared = pipeline
