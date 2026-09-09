@@ -31,6 +31,7 @@ struct DownloadsScreen: View {
     @State private var files = FilesLibraryService.shared
     @State private var cloudSummary: (local: Int, remote: Int)?
     @State private var tab: Tab = .songs
+    @State private var isConfirmingClearCache = false
 
     var body: some View {
         // Each is a filter and sort over every download; once per render,
@@ -231,39 +232,59 @@ struct DownloadsScreen: View {
         @Bindable var cache = cache
 
         Section {
-            Picker("Keep Recent Songs", selection: $cache.songLimit) {
+            Picker(selection: $cache.songLimit) {
                 Text("Off").tag(0)
                 Text("25 songs").tag(25)
                 Text("50 songs").tag(50)
                 Text("100 songs").tag(100)
                 Text("250 songs").tag(250)
                 Text("500 songs").tag(500)
+            } label: {
+                Label("Keep Recent Songs", systemImage: "clock.arrow.circlepath")
             }
             if cache.isEnabled {
-                Picker("Fetch Ahead", selection: $cache.prefetchCount) {
+                Picker(selection: $cache.prefetchCount) {
                     Text("Next song").tag(1)
                     Text("Next 3 songs").tag(3)
                     Text("Next 5 songs").tag(5)
                     Text("Next 10 songs").tag(10)
+                } label: {
+                    Label("Fetch Ahead", systemImage: "arrow.down.circle.dotted")
                 }
                 Toggle(isOn: $cache.allowsCellular) {
                     Label("Fill Over Cellular", systemImage: "antenna.radiowaves.left.and.right")
                 }
-                LabeledContent("Cached", value: cache.entries.isEmpty
-                    ? "Nothing yet"
-                    : "\(cache.entries.count == 1 ? "1 song" : "\(cache.entries.count) songs") • \(ByteCountFormatter.string(fromByteCount: cache.totalBytes, countStyle: .file))")
+                LabeledContent {
+                    Text(cache.entries.isEmpty
+                         ? "Nothing yet"
+                         : "\(cache.entries.count == 1 ? "1 song" : "\(cache.entries.count) songs") • \(ByteCountFormatter.string(fromByteCount: cache.totalBytes, countStyle: .file))")
+                } label: {
+                    Label("Cached", systemImage: "internaldrive")
+                }
                 if !cache.inFlight.isEmpty {
-                    HStack(spacing: 12) {
-                        ProgressView()
+                    Label {
                         Text(cache.inFlight.count == 1 ? "Fetching 1 song ahead…" : "Fetching \(cache.inFlight.count) songs ahead…")
                             .foregroundStyle(.secondary)
+                    } icon: {
+                        ProgressView()
                     }
                 }
                 if !cache.entries.isEmpty {
-                    Button(role: .destructive) {
-                        cache.clear()
+                    // Not a red row: clearing is safe (everything comes back
+                    // when played), so it asks once instead of shouting.
+                    Button {
+                        isConfirmingClearCache = true
                     } label: {
                         Label("Clear Cache", systemImage: "trash")
+                    }
+                    .confirmationDialog("Clear the playback cache?", isPresented: $isConfirmingClearCache, titleVisibility: .visible) {
+                        Button(role: .destructive) {
+                            cache.clear()
+                        } label: {
+                            Text(cache.entries.count == 1 ? "Clear 1 Song" : "Clear \(cache.entries.count) Songs")
+                        }
+                    } message: {
+                        Text("Songs kept for playback are taken off this device and fetched again when they come up. Downloads you chose yourself stay.")
                     }
                 }
             }
@@ -461,15 +482,24 @@ struct DownloadsScreen: View {
                 Label("Stream from iCloud", systemImage: "icloud.and.arrow.down")
             }
             if cache.streamsFromCloud, !cache.streamedCloudIDs.isEmpty {
-                LabeledContent("Fetched to Play", value: cache.streamedCloudIDs.count == 1 ? "1 song" : "\(cache.streamedCloudIDs.count.formatted()) songs")
+                LabeledContent {
+                    Text(cache.streamedCloudIDs.count == 1 ? "1 song" : "\(cache.streamedCloudIDs.count.formatted()) songs")
+                } label: {
+                    Label("Fetched to Play", systemImage: "play.circle")
+                }
             }
             if let cloudSummary {
-                LabeledContent("On This Device", value: "\(cloudSummary.local.formatted()) of \((cloudSummary.local + cloudSummary.remote).formatted()) songs")
+                LabeledContent {
+                    Text("\(cloudSummary.local.formatted()) of \((cloudSummary.local + cloudSummary.remote).formatted()) songs")
+                } label: {
+                    Label("On This Device", systemImage: "internaldrive")
+                }
             } else {
-                HStack(spacing: 12) {
-                    ProgressView()
+                Label {
                     Text("Checking the folder…")
                         .foregroundStyle(.secondary)
+                } icon: {
+                    ProgressView()
                 }
             }
 
