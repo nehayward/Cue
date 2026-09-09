@@ -244,11 +244,6 @@ struct CueApp: App {
     }
 #endif
     
-    /// `@AppStorage`, not `@State`: `PlayerView` reads the same key, so the
-    /// queue panel is shown or hidden in both places at once instead of each
-    /// keeping its own idea. Persisting across launches comes along with it,
-    /// which is the behaviour a panel toggle wants anyway.
-    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showInspector: Bool = false
     /// Shared by the zoom's two halves: the source in the tab bar accessory and
     /// the `fullScreenCover` on the `TabView` below.
     @Namespace private var zoomNamespace
@@ -521,36 +516,21 @@ struct CueApp: App {
                 }
                 .padding(.vertical, 4)
             }
-            .tabViewSidebarFooter {
-                let count = sonosService.sorted.count
-                Label(
-                    count == 1 ? "1 Speaker Group" : "\(count) Speaker Groups",
-                    systemImage: count == 0 ? "hifispeaker.slash" : "hifispeaker.2"
-                )
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .padding(.vertical, 4)
-                .background(.red)
-            }
-            .tabViewSidebarBottomBar {
-                // The toggle was in the top safe-area inset, where the sidebar
-                // and tab bar draw over it and swallow the click. This slot is
-                // system-managed, so nothing overlaps it.
-                Button {
-                    withAnimation {
-                        showInspector.toggle()
-                    }
-                } label: {
-                    Label(
-                        showInspector ? "Hide Queue" : "Show Queue",
-                        systemImage: "sidebar.trailing"
-                    )
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .tint(Color("Accent"))
-            }
+            // The speaker-group count footer is off for now; the slot is
+            // still the place for it when it comes back.
+//            .tabViewSidebarFooter {
+//                let count = sonosService.sorted.count
+//                Label(
+//                    count == 1 ? "1 Speaker Group" : "\(count) Speaker Groups",
+//                    systemImage: count == 0 ? "hifispeaker.slash" : "hifispeaker.2"
+//                )
+//                .font(.footnote)
+//                .foregroundStyle(.secondary)
+//                .padding(.vertical, 4)
+//            }
+            // No bottom bar: the queue toggle is the rail on the trailing
+            // edge of each tab (`withQueuePanel()`), where it stays put
+            // whether the sidebar is open, collapsed, or overlaying.
             // The sidebar's selection highlight is drawn in the tint, so this
             // is what takes it off accent-teal. A TabView sidebar has no way to
             // colour the row's label separately from its fill, so this gets the

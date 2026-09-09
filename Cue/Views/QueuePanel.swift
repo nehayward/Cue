@@ -26,6 +26,11 @@ struct QueuePanel<Panel: View>: ViewModifier {
 
     @Binding var isPresented: Bool
     var compactBehavior: CompactBehavior = .sheet
+    /// A rail on the trailing edge holding the show/hide toggle, there
+    /// whether or not the panel is — Xcode's inspector button, in the
+    /// corner it always occupies. The main window wants it; the player
+    /// has its own button in its bar.
+    var showsToggle: Bool = false
     @ViewBuilder var panel: () -> Panel
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -86,7 +91,8 @@ struct QueuePanel<Panel: View>: ViewModifier {
     /// past that point the window itself is at its minimum size.
     private var widthCeiling: CGFloat {
         guard let availableWidth else { return Self.maxWidth }
-        return max(Self.minWidth, availableWidth - Self.minContentWidth)
+        let rail = showsToggle ? Self.railWidth : 0
+        return max(Self.minWidth, availableWidth - rail - Self.minContentWidth)
     }
 
     private func clamped(_ value: CGFloat) -> CGFloat {
@@ -130,6 +136,10 @@ struct QueuePanel<Panel: View>: ViewModifier {
                 // rather than overhanging the window during the move.
                 .clipped()
                 .transition(.move(edge: .trailing))
+            }
+
+            if showsToggle, !isCompact {
+                toggleRail
             }
         }
         .onGeometryChange(for: CGFloat.self) { proxy in
@@ -177,6 +187,35 @@ struct QueuePanel<Panel: View>: ViewModifier {
                 // queue is something you glance at while the music plays.
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
+    }
+
+    static var railWidth: CGFloat { 44 }
+
+    /// The trailing rail: the toggle at the top, in line with the
+    /// navigation bar's buttons, and nothing under it. Outside the
+    /// panel's transition, so the button stays put while the panel
+    /// slides in and out beside it.
+    private var toggleRail: some View {
+        VStack {
+            Button {
+                withAnimation(.snappy) {
+                    isPresented.toggle()
+                }
+            } label: {
+                Label(isPresented ? "Hide Queue" : "Show Queue", systemImage: "sidebar.trailing")
+                    .labelStyle(.iconOnly)
+                    .frame(width: 32, height: 32)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.borderless)
+            .tint(isPresented ? Color("Accent") : .secondary)
+            .help(isPresented ? "Hide Queue" : "Show Queue")
+            .keyboardShortcut("0", modifiers: [.command, .option])
+            .padding(.top, 8)
+
+            Spacer(minLength: 0)
+        }
+        .frame(width: Self.railWidth)
     }
 
     /// A hairline with a much wider invisible hit area — a 1pt drag target is
@@ -256,11 +295,15 @@ extension View {
     /// Shows `panel` alongside this view in a regular width — sliding in from
     /// the trailing edge, resizable by dragging the divider between the two —
     /// and as a sheet in a compact one, unless `compact` says to leave it out.
+    ///
+    /// `showsToggle` adds a rail on the trailing edge with the show/hide
+    /// button, present whether the panel is or not.
     func queuePanel<Panel: View>(
         isPresented: Binding<Bool>,
         compact: QueuePanel<Panel>.CompactBehavior = .sheet,
+        showsToggle: Bool = false,
         @ViewBuilder panel: @escaping () -> Panel
     ) -> some View {
-        modifier(QueuePanel(isPresented: isPresented, compactBehavior: compact, panel: panel))
+        modifier(QueuePanel(isPresented: isPresented, compactBehavior: compact, showsToggle: showsToggle, panel: panel))
     }
 }
