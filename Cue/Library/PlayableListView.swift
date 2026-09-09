@@ -454,6 +454,10 @@ struct PlayableListView: View {
                     }
                 }
             }
+            // Full width even while empty: the stack is what gets measured,
+            // and with the grid waiting on that measurement it would
+            // otherwise be zero wide and never trigger it.
+            .frame(maxWidth: .infinity)
             .onGeometryChange(for: CGFloat.self) { proxy in
                 proxy.size.width
             } action: { width in
