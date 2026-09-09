@@ -573,6 +573,17 @@ struct CueApp: App {
             .onOpenURL(perform: handle)
             .onAppear {
                 SonosService.shared.monitor()
+                
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                // One call for the lifetime of the process: the service watches
+                // the model itself from here on and puts the playing Sonos
+                // group on the Lock Screen / Control Center card. Deliberately
+                // not a view modifier — SwiftUI stops evaluating bodies in the
+                // background, which is exactly when the card matters. This
+                // was lost with the rest of the old launch block below, and
+                // without it the card never appeared for speaker playback.
+                NowPlayingSessionService.shared.activate()
+#endif
             }
             //            .withAlert()
         }
