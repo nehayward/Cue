@@ -137,11 +137,20 @@ struct PlexBrowseScreen: View {
                 }
             }
             .overlay {
+                // Signed out: the list above renders nothing, so show the
+                // same empty state the Plex tab uses instead of a bare button.
                 if plexAuthenticator.authToken == nil {
-                    Button {
-                        plexAuthenticator.authenticate()
-                    } label: {
-                        Text("Here")
+                    ContentUnavailableView {
+                        Label("Plex Isn't Set Up", systemImage: "person.crop.circle.badge.exclamationmark")
+                    } description: {
+                        Text("Sign in to Plex to browse its library here.")
+                    } actions: {
+                        Button {
+                            router.presentedSheet = .plexManagement
+                        } label: {
+                            Text("Set Up Plex")
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
                 }
             }
