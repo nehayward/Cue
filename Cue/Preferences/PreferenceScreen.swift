@@ -33,6 +33,7 @@ struct PreferenceScreen: View {
     @AppStorage("CueMiniEnabled") private var isMenuBarAppEnabled: Bool = true
 
     @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
+    @AppStorage(Defaults.AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
     @AppStorage(Defaults.AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
@@ -1290,6 +1291,29 @@ struct PreferenceScreen: View {
 
     var colorSchemeSection: some View {
         Section {
+            Toggle(isOn: $showRadioTab) {
+                Label {
+                    VStack(alignment: .leading) {
+                        Text("Show Radio Tab")
+                        Text("TuneIn and Apple Music stations in a tab of their own. Hidden on its own while offline.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "radio")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white)
+                        .bold()
+                        .padding(8)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.35, blue: 0.45), Color(red: 0.8, green: 0.2, blue: 0.35)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        )
+                        .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                }
+            }
             Label {
                 Picker("Theme", selection: $colorScheme) {
                     ForEach(ColorSchemePreference.allCases, id: \.hashValue) { scheme in

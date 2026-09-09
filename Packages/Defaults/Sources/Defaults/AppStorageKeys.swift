@@ -46,6 +46,9 @@ public enum AppStorageKeys {
     /// Home, and everything plays here. Off when unset; no network at all
     /// puts the app in the same state on its own.
     public static let offlineMode = "\(Prefix.id).offlineMode"
+    /// Whether the Radio tab shows at all. On when unset; the tab also
+    /// needs a radio provider switched on, and hides itself offline.
+    public static let showRadioTab = "\(Prefix.id).showRadioTab"
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"
     public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"

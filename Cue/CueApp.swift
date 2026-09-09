@@ -254,6 +254,9 @@ struct CueApp: App {
     @Namespace private var zoomNamespace
 
     @State private var coreFeatures = CoreFeatures.shared
+    @State private var offline = OfflineMode.shared
+    /// Settings › Appearance › Show Radio Tab.
+    @AppStorage(AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
     /// The sidebar's edits — which of the provider tabs show, and the order
     /// of their sections — kept across launches. This is the whole of tab
     /// customization: the sidebar's own edit mode writes it, and the
@@ -289,9 +292,13 @@ struct CueApp: App {
     /// switched on in Services. Those are the two whose stations play on
     /// this device as well as on a speaker, which is the tab's rule — Sonos
     /// Radio and Sonos favorites are speaker-only and stay on Browse and
-    /// Search.
+    /// Search. The user can hide it in Settings › Appearance, and it goes
+    /// on its own while Offline Mode is active: every station streams, so
+    /// there is nothing there to play.
     private var showsRadioTab: Bool {
-        [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
+        showRadioTab
+            && !offline.isActive
+            && [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
     }
 
     /// Search. The search role only on the phone, where it draws the tab as
