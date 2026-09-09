@@ -25,8 +25,8 @@ struct OnDeviceCollectionScreen: View {
 
         return List {
             ForEach(groups) { group in
-                NavigationLink(value: destination(for: group)) {
-                    row(group)
+                NavigationLink(value: OnDeviceLibrary.destination(for: group)) {
+                    OnDeviceGroupRow(group: group, collection: collection)
                 }
             }
         }
@@ -86,10 +86,16 @@ struct OnDeviceCollectionScreen: View {
             isDescending = newValue == .added
         }
     }
+}
 
-    // MARK: - Rows
+/// One album or artist on the device: art, name, the line under it, and
+/// for an album its song count. Shared by the grouped pages and the Search
+/// tab's offline results.
+struct OnDeviceGroupRow: View {
+    let group: OnDeviceLibrary.Group
+    let collection: OnDeviceCollection
 
-    private func row(_ group: OnDeviceLibrary.Group) -> some View {
+    var body: some View {
         HStack(spacing: 12) {
             LazyImage(url: group.artwork) { phase in
                 if let image = phase.image {
@@ -123,25 +129,6 @@ struct OnDeviceCollectionScreen: View {
                     .monospacedDigit()
             }
         }
-    }
-
-    /// The songs of one album or artist that are here. Read live, so a
-    /// download removed inside the list leaves the screen too.
-    private func destination(for group: OnDeviceLibrary.Group) -> RouterDestination {
-        let container = group.container
-        return .playableList(
-            title: group.title,
-            playAllItem: container,
-            showSectionIndex: false,
-            loadingStatus: {
-                let count = OnDeviceLibrary.tracks(inContainer: container)?.count ?? 0
-                return count == 0 ? nil : (count == 1 ? "1 song" : "\(count) songs")
-            },
-            changeToken: { OnDeviceLibrary.changeToken },
-            action: { offset in
-                offset == 0 ? (OnDeviceLibrary.tracks(inContainer: container) ?? []) : []
-            }
-        )
     }
 }
 

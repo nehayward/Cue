@@ -33,6 +33,9 @@ struct SearchScreen: View {
     var isAlarmSearch: Bool = false
     @State private var coreFeatures = CoreFeatures.shared
     @State private var alertService = AlertService.shared
+    /// Offline, the field searches what's on this device instead of the
+    /// services (`OfflineSearchView`); the services menu and filters go.
+    @State private var offline = OfflineMode.shared
     @State private var searchCompletionTapped: Bool = false
     @State private var suggestion: String? = nil
     @State private var searchFieldIsPresented: Bool = true
@@ -115,7 +118,7 @@ struct SearchScreen: View {
     /// picks the single-service results view. Separators prevent key
     /// collisions between adjacent components.
     private var searchTaskKey: String {
-        ([musicSearchService.query, searchSelection.primary.rawValue]
+        ([offline.isActive ? "offline" : "online", musicSearchService.query, searchSelection.primary.rawValue]
             + selectedSearchServices.map(\.rawValue).sorted())
             .joined(separator: "|")
     }
@@ -141,53 +144,57 @@ struct SearchScreen: View {
         NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in
                 List(selection: .constant(selectedItemID)) {
-                    SearchFilterRow(
-                        primary: searchSelection.primary,
-                        selectedServices: selectedSearchServices,
-                        filters: $filters,
-                        plexLibrariesFilters: $plexLibrariesFilters
-                    )
-
-#if targetEnvironment(macCatalyst)
-                    if !searchCompletionTapped {
-                        MacCatalystSuggestionsList(
-                            searchCompletionTapped: $searchCompletionTapped,
-                            suggestion: $suggestion,
-                            keyboardSelectedIndex: $keyboardSelectedIndex
-                        )
-                    }
-#endif
-
-                    if musicSearchService.query.isEmpty {
-                        SearchEmptyStateView(
-                            isAlarmSearch: isAlarmSearch,
-                            services: selectedSearchServices,
-                            filters: $filters
-                        )
+                    if offline.isActive {
+                        OfflineSearchView(query: musicSearchService.query)
                     } else {
-                        SearchResultsView(
-                            service: searchSelection.primary,
+                        SearchFilterRow(
+                            primary: searchSelection.primary,
                             selectedServices: selectedSearchServices,
-                            query: $musicSearchService.query,
                             filters: $filters,
                             plexLibrariesFilters: $plexLibrariesFilters
                         )
 
-                        if !isLoading, currentFilteredResults.isEmpty, !showsApplePermissionsPrompt {
-                            ContentUnavailableView.search(text: musicSearchService.query)
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
+#if targetEnvironment(macCatalyst)
+                        if !searchCompletionTapped {
+                            MacCatalystSuggestionsList(
+                                searchCompletionTapped: $searchCompletionTapped,
+                                suggestion: $suggestion,
+                                keyboardSelectedIndex: $keyboardSelectedIndex
+                            )
                         }
-                    }
+#endif
 
-                    if isLoading {
-                        // maxWidth only: an unbounded-height row inside a
-                        // self-sizing List cell gives UIKit an ambiguous size
-                        // to resolve on every pass — loop-trap bait.
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 24)
-                            .listRowSeparator(.hidden)
+                        if musicSearchService.query.isEmpty {
+                            SearchEmptyStateView(
+                                isAlarmSearch: isAlarmSearch,
+                                services: selectedSearchServices,
+                                filters: $filters
+                            )
+                        } else {
+                            SearchResultsView(
+                                service: searchSelection.primary,
+                                selectedServices: selectedSearchServices,
+                                query: $musicSearchService.query,
+                                filters: $filters,
+                                plexLibrariesFilters: $plexLibrariesFilters
+                            )
+
+                            if !isLoading, currentFilteredResults.isEmpty, !showsApplePermissionsPrompt {
+                                ContentUnavailableView.search(text: musicSearchService.query)
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
+                            }
+                        }
+
+                        if isLoading {
+                            // maxWidth only: an unbounded-height row inside a
+                            // self-sizing List cell gives UIKit an ambiguous size
+                            // to resolve on every pass — loop-trap bait.
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 24)
+                                .listRowSeparator(.hidden)
+                        }
                     }
                 }
                 .onAppear {
@@ -258,8 +265,10 @@ struct SearchScreen: View {
                     #endif
 
 #if !targetEnvironment(macCatalyst)
-                    ToolbarItem(placement: .topBarTrailing) {
-                        MediaServiceMenu(selection: $searchSelection, filters: $filters)
+                    if !offline.isActive {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            MediaServiceMenu(selection: $searchSelection, filters: $filters)
+                        }
                     }
 #endif
                 }
@@ -273,6 +282,12 @@ struct SearchScreen: View {
                 // If nothing changed since the last COMPLETE search, keep
                 // what's on screen — but still refresh the Sonos playlists,
                 // which a detail screen may have changed.
+                // Offline, the rows come from the on-device library as the
+                // query changes; there's no service to ask.
+                guard !offline.isActive else {
+                    isLoading = false
+                    return
+                }
                 let searchedKey = searchTaskKey
                 if searchedKey == lastCompletedSearchKey, !musicSearchService.results.isEmpty {
                     isLoading = false
@@ -469,8 +484,10 @@ struct SearchScreen: View {
         HStack(spacing: 12) {
             searchField
                 .frame(maxWidth: .infinity)
-            MediaServiceMenu(selection: $searchSelection, filters: $filters)
-                .toolbarBackground(with: true, in: .capsule)
+            if !offline.isActive {
+                MediaServiceMenu(selection: $searchSelection, filters: $filters)
+                    .toolbarBackground(with: true, in: .capsule)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 10)

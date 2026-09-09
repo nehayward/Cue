@@ -264,6 +264,41 @@ enum OnDeviceLibrary {
         }
     }
 
+    /// Everything on the device that matches a query, for the Search tab
+    /// while offline: artists and albums by name, songs by title, artist or
+    /// album. An empty query matches nothing.
+    static func search(_ query: String) -> (artists: [Group], albums: [Group], songs: [PlayableContent]) {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return ([], [], []) }
+        let artists = groups(.artists, sortedBy: .title, descending: false).filter {
+            $0.title.localizedCaseInsensitiveContains(query)
+        }
+        let albums = groups(.albums, sortedBy: .title, descending: false).filter {
+            $0.title.localizedCaseInsensitiveContains(query) || $0.subtitle.localizedCaseInsensitiveContains(query)
+        }
+        return (artists, albums, searchSongs(query))
+    }
+
+    /// The songs of one album or artist that are here, as a list with a
+    /// Play All. Read live, so a download removed inside the list leaves
+    /// the screen too.
+    static func destination(for group: Group) -> RouterDestination {
+        let container = group.container
+        return .playableList(
+            title: group.title,
+            playAllItem: container,
+            showSectionIndex: false,
+            loadingStatus: {
+                let count = tracks(inContainer: container)?.count ?? 0
+                return count == 0 ? nil : (count == 1 ? "1 song" : "\(count) songs")
+            },
+            changeToken: { changeToken },
+            action: { offset in
+                offset == 0 ? (tracks(inContainer: container) ?? []) : []
+            }
+        )
+    }
+
     // MARK: - Containers
 
     /// The id prefix of the containers minted here. Anything the players
