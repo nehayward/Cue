@@ -111,6 +111,11 @@ final class SubsonicTests: XCTestCase {
         XCTAssertEqual(items["estimateContentLength"], "true")
         XCTAssertEqual(items["ext"], ".mp3")
         XCTAssertTrue(url.absoluteString.hasSuffix("ext=.mp3"))
+
+        // The device downloads the stream: no length estimate to fall short of.
+        let device = try queryItems(of: XCTUnwrap(SubsonicAPI.streamURL(for: "300001", fileExtension: "flac", destination: .device)))
+        XCTAssertEqual(device["format"], "mp3")
+        XCTAssertNil(device["estimateContentLength"])
     }
 
     /// Sonos players don't decode Opus: a speaker gets MP3 in its place,

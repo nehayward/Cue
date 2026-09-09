@@ -85,13 +85,25 @@ final class StreamTranscodingTests: XCTestCase {
         XCTAssertEqual(items["session"], "cue-9876")
         XCTAssertEqual(items["X-Plex-Token"], "abc123")
         XCTAssertEqual(items["X-Plex-Client-Identifier"], "Cue")
+        XCTAssertEqual(
+            items["X-Plex-Client-Profile-Extra"],
+            "add-transcode-target(type=musicProfile&context=streaming&protocol=http&container=mp3&audioCodec=mp3)"
+        )
     }
 
-    func testPlexPlaybackURLOpusTargetsOpusContainer() {
+    /// Opus travels in Ogg on Plex — the container the target and the path
+    /// name — and the request declares the target the stock profiles lack.
+    func testPlexPlaybackURLOpusTargetsOggContainer() throws {
         StreamTranscoding.format = .opus
         let url = PlexAPI.playbackStreamURL(from: directURL, ratingKey: "9876")
-        XCTAssertEqual(url.path, "/music/:/transcode/universal/start.opus")
-        XCTAssertTrue(url.query?.contains("audioCodec=opus") == true)
+        XCTAssertEqual(url.path, "/music/:/transcode/universal/start.ogg")
+        let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        let items = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+        XCTAssertEqual(items["audioCodec"], "opus")
+        XCTAssertEqual(
+            items["X-Plex-Client-Profile-Extra"],
+            "add-transcode-target(type=musicProfile&context=streaming&protocol=http&container=ogg&audioCodec=opus)"
+        )
     }
 
     /// No rating key, no transcode: the direct file still plays.

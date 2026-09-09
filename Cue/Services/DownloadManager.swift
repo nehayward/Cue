@@ -37,8 +37,12 @@ final class DownloadManager {
         let title: String
         let subtitle: String
         let artwork: URL?
-        let url: URL
-        let fileExtension: String
+        /// What the transfer fetches. For Plex and Subsonic this is the
+        /// stream as Streaming Quality delivered it when the download was
+        /// made — rebuilt from `sourceURL` on a retry, so a format the
+        /// server refused can be changed and tried again.
+        var url: URL
+        var fileExtension: String
         let createdAt: Date
         var state: State
         var bytesReceived: Int64 = 0
@@ -46,6 +50,22 @@ final class DownloadManager {
         var fileSize: Int64?
         var resumeData: Data?
         var error: String?
+        /// The original file (`previewURL`) and its suffix, kept so `url`
+        /// can be rebuilt under the setting in force. Absent on manifests
+        /// from before Streaming Quality; those retry as they were.
+        var sourceURL: URL?
+        var audioCodec: String?
+
+        /// Points `url` and `fileExtension` at the stream the current
+        /// Streaming Quality setting delivers. A transfer part-way through
+        /// keeps its URL: its resume data belongs to that request.
+        mutating func applyStreamingQuality() {
+            guard resumeData == nil, let sourceURL, DeviceStream.isTranscodable(service) else { return }
+            let refreshed = DeviceStream.url(service: service, contentID: contentID, sourceURL: sourceURL, audioCodec: audioCodec)
+            guard refreshed != url else { return }
+            url = refreshed
+            fileExtension = DeviceStream.fileExtension(service: service, audioCodec: audioCodec) ?? fileExtension
+        }
 
         var id: String { key }
 
@@ -388,7 +408,9 @@ final class DownloadManager {
             url: url,
             fileExtension: Self.fileExtension(for: item, url: url),
             createdAt: .now,
-            state: .queued
+            state: .queued,
+            sourceURL: item.previewURL,
+            audioCodec: item.metadata?.audioCodec
         )
         items[key] = entry
         start(entry)
@@ -417,6 +439,7 @@ final class DownloadManager {
         guard var entry = items[key], entry.state == .paused || entry.state == .failed else { return }
         entry.state = .queued
         entry.error = nil
+        entry.applyStreamingQuality()
         items[key] = entry
         start(entry)
         scheduleSave()
@@ -740,6 +763,15 @@ private final class DownloadSessionRelay: NSObject, URLSessionDownloadDelegate, 
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         guard let (key, fileExtension) = key(of: downloadTask) else { return }
+        // A refused request (Plex answering a transcode it can't do with a
+        // 400 page) still lands here as a finished file. Fail it instead of
+        // keeping the page as a song; nothing to resume from.
+        if let refused = StreamResponseCheck.refusal(in: downloadTask.response) {
+            Task { @MainActor in
+                self.manager?.didFail(key: key, error: refused, resumeData: nil)
+            }
+            return
+        }
         let destination = DownloadManager.fileURL(key: key, fileExtension: fileExtension)
         try? FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? FileManager.default.removeItem(at: destination)

@@ -1446,17 +1446,24 @@ public final class PlexAPI {
     /// own transcode `session`, so a song fetched ahead doesn't cancel the
     /// one playing.
     ///
+    /// The server only transcodes to a target its client profile lists, and
+    /// the built-in profiles carry MP3 over HTTP but not Opus — asking for
+    /// Opus on one gets a 400 page. So the request declares its own target
+    /// (`X-Plex-Client-Profile-Extra`, the way Plexamp does) on the generic
+    /// profile, in Plex's container names (Ogg for Opus).
+    ///
     /// Speaker playback isn't affected: Plex hands Sonos its own stream via
     /// the Plex music service, whose quality is set on the Plex server.
     public static func playbackStreamURL(from directURL: URL, ratingKey: String) -> URL {
         let format = StreamTranscoding.format(for: .device)
         guard let codec = format.codec,
-              let fileExtension = format.fileExtension,
+              let container = plexContainer(for: format),
               var components = URLComponents(url: directURL, resolvingAgainstBaseURL: false),
               !ratingKey.isEmpty
         else { return directURL }
         let token = components.queryItems?.first { $0.name == "X-Plex-Token" }?.value
-        components.path = "/music/:/transcode/universal/start.\(fileExtension)"
+        let target = "add-transcode-target(type=musicProfile&context=streaming&protocol=http&container=\(container)&audioCodec=\(codec))"
+        components.path = "/music/:/transcode/universal/start.\(container)"
         components.queryItems = [
             URLQueryItem(name: "path", value: "/library/metadata/\(ratingKey)"),
             URLQueryItem(name: "mediaIndex", value: "0"),
@@ -1469,9 +1476,19 @@ public final class PlexAPI {
             URLQueryItem(name: "session", value: "cue-\(ratingKey)"),
             URLQueryItem(name: "X-Plex-Client-Identifier", value: "Cue"),
             URLQueryItem(name: "X-Plex-Product", value: "Cue"),
-            URLQueryItem(name: "X-Plex-Platform", value: "iOS")
+            URLQueryItem(name: "X-Plex-Platform", value: "Generic"),
+            URLQueryItem(name: "X-Plex-Client-Profile-Extra", value: target)
         ] + (token.map { [URLQueryItem(name: "X-Plex-Token", value: $0)] } ?? [])
         return components.url ?? directURL
+    }
+
+    /// Plex's container name for a transcode format: Opus travels in Ogg.
+    private static func plexContainer(for format: StreamTranscoding.Format) -> String? {
+        switch format {
+        case .original: nil
+        case .mp3: "mp3"
+        case .opus: "ogg"
+        }
     }
 }
 

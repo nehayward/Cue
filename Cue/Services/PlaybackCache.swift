@@ -261,10 +261,11 @@ final class PlaybackCache {
         inFlight.insert(key)
         pending[key] = item
 
-        let task = session.downloadTask(with: request) { [weak self] temporary, _, error in
+        let task = session.downloadTask(with: request) { [weak self] temporary, response, error in
             // The temporary file is gone once this returns: move it now, on
-            // the session's queue, then report on the main actor.
-            guard let temporary, error == nil else {
+            // the session's queue, then report on the main actor. A refused
+            // request (a 4xx page) is not a song to keep.
+            guard let temporary, error == nil, StreamResponseCheck.refusal(in: response) == nil else {
                 Task { @MainActor in self?.fetchFailed(key: key) }
                 return
             }

@@ -13,25 +13,16 @@ public extension PlayableContent {
     /// `StreamTranscoding` delivers it to the device, or `previewURL`
     /// itself for services that aren't transcoded (Files, Apple previews).
     var playbackStreamURL: URL? {
-        guard content.type == .track else { return previewURL }
-        switch content.service {
-        case .subsonic:
-            return SubsonicAPI.streamURL(for: id, fileExtension: metadata?.audioCodec, destination: .device) ?? previewURL
-        case .plex:
-            guard let previewURL, let ratingKey = plexRatingKey else { return previewURL }
-            return PlexAPI.playbackStreamURL(from: previewURL, ratingKey: ratingKey)
-        default:
-            return previewURL
-        }
+        guard content.type == .track, let previewURL else { return previewURL }
+        return DeviceStream.url(service: content.service, contentID: content.id, sourceURL: previewURL, audioCodec: metadata?.audioCodec)
     }
 
     /// The suffix that stream arrives with — the transcode target, or the
     /// file's own (`audioCodec`) — for the extension a download or cached
     /// copy is saved under, so the player reads it as what it is.
     var playbackFileExtension: String? {
-        let original = metadata?.audioCodec?.trimmingCharacters(in: .whitespaces).lowercased()
-        guard content.type == .track, [.plex, .subsonic].contains(content.service) else { return original }
-        return StreamTranscoding.fileExtension(for: .device, original: original)
+        guard content.type == .track else { return metadata?.audioCodec?.trimmingCharacters(in: .whitespaces).lowercased() }
+        return DeviceStream.fileExtension(service: content.service, audioCodec: metadata?.audioCodec)
     }
 
     /// A Plex track's `ratingKey`, the last segment of its Sonos-style id
@@ -39,7 +30,39 @@ public extension PlayableContent {
     /// to look a queue row back up.
     var plexRatingKey: String? {
         guard content.service == .plex else { return nil }
-        let key = (content.id.removingPercentEncoding ?? content.id).components(separatedBy: ":").last ?? ""
+        return DeviceStream.plexRatingKey(contentID: content.id)
+    }
+}
+
+/// The same answers from the parts a download manifest keeps (service, id,
+/// the original file URL, the file's suffix), so a download retried after
+/// the Streaming Quality setting changed is made under the new setting
+/// rather than the URL that failed.
+public enum DeviceStream {
+    /// Services whose device stream follows `StreamTranscoding`.
+    public static func isTranscodable(_ service: MusicService) -> Bool {
+        [.plex, .subsonic].contains(service)
+    }
+
+    public static func url(service: MusicService, contentID: String, sourceURL: URL, audioCodec: String?) -> URL {
+        switch service {
+        case .subsonic:
+            SubsonicAPI.streamURL(for: contentID, fileExtension: audioCodec, destination: .device) ?? sourceURL
+        case .plex:
+            plexRatingKey(contentID: contentID).map { PlexAPI.playbackStreamURL(from: sourceURL, ratingKey: $0) } ?? sourceURL
+        default:
+            sourceURL
+        }
+    }
+
+    public static func fileExtension(service: MusicService, audioCodec: String?) -> String? {
+        let original = audioCodec?.trimmingCharacters(in: .whitespaces).lowercased()
+        guard isTranscodable(service) else { return original }
+        return StreamTranscoding.fileExtension(for: .device, original: original)
+    }
+
+    public static func plexRatingKey(contentID: String) -> String? {
+        let key = (contentID.removingPercentEncoding ?? contentID).components(separatedBy: ":").last ?? ""
         return key.isEmpty ? nil : key
     }
 }
