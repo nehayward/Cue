@@ -78,6 +78,11 @@ enum PlayableListLayout: String, CaseIterable, Identifiable {
         case .grid: "square.grid.2x2"
         }
     }
+
+    /// The layout a toggle switches to.
+    var other: PlayableListLayout {
+        self == .list ? .grid : .list
+    }
 }
 
 struct PlayableListView: View {
@@ -273,16 +278,13 @@ struct PlayableListView: View {
             }
 
             if allowsGrid {
+                // One tap flips the layout. The icon is the layout a tap
+                // gives you, the way a button names what it does.
                 ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Picker("View", selection: $layout) {
-                            ForEach(PlayableListLayout.allCases) { option in
-                                Label(option.label, systemImage: option.systemImage).tag(option)
-                            }
-                        }
-                        .pickerStyle(.inline)
+                    Button {
+                        layout = layout.other
                     } label: {
-                        Label("View", systemImage: layout.systemImage)
+                        Label("Show as \(layout.other.label)", systemImage: layout.other.systemImage)
                     }
                 }
             }
