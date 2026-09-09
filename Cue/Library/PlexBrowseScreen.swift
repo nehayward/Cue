@@ -62,7 +62,10 @@ struct PlexBrowseScreen: View {
                         showSectionIndex: false,
                         allowsGrid: true,
                         sortOptions: albumSortOptions,
-                        sortKey: PlexLibraryLists.albumSortKey
+                        sortKey: PlexLibraryLists.albumSortKey,
+                        searchAction: { query, offset in
+                            await musicSearchService.searchPlexAlbums(query: query, offset: offset)
+                        }
                     )) {
                         Label("Albums", systemImage: "smallcircle.circle.fill")
                     }

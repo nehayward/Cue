@@ -399,7 +399,10 @@ struct ProviderLibrary {
                 showSectionIndex: false,
                 allowsGrid: true,
                 sortOptions: PlexLibraryLists.albumSortOptions(plexBrowseService: plex),
-                sortKey: PlexLibraryLists.albumSortKey
+                sortKey: PlexLibraryLists.albumSortKey,
+                searchAction: { query, offset in
+                    await musicSearchService.searchPlexAlbums(query: query, offset: offset)
+                }
             )
         case .songs:
             return .playableList(
