@@ -8,6 +8,8 @@ import SwiftUI
 struct RouterDestinationView: View {
     let destination: RouterDestination
 
+    @Environment(\.zoomNamespace) private var zoomNamespace
+
     var body: some View {
         let sonosService = SonosService.shared
 
@@ -23,8 +25,16 @@ struct RouterDestinationView: View {
                 PlayerSelectionView(playableContent: content, position: position)
             case .manageScenes:
                 ManageSceneScreen()
-            case let .mediaDetail(content, _):
-                MediaDetailView(playableContent: content)
+            case let .mediaDetail(content, _, zoomSource):
+                // Only a push that names its tile zooms: the same screen
+                // opens from rows, search and sheets, where there is no
+                // source on screen to grow out of.
+                if let zoomSource, let zoomNamespace {
+                    MediaDetailView(playableContent: content)
+                        .zoomTransition(from: zoomSource, in: zoomNamespace)
+                } else {
+                    MediaDetailView(playableContent: content)
+                }
             case let .artistDetail(content, _):
                 ArtistDetailView(playableContent: content)
             case let .createScene(content):

@@ -27,6 +27,10 @@ struct PlayableCardView: View {
     /// is decoded no bigger than this needs, so a wall of 130pt tiles
     /// doesn't hold a 1200px bitmap for every one of them.
     var artworkSize: Double = 200
+    /// Set by a grid that has marked this card as a zoom source, so the
+    /// album screen it opens grows out of the card. The grid applies the
+    /// `matchedTransitionSource` itself; this only tells the push about it.
+    var zoomSource: ZoomTransitionSource? = nil
 
     var body: some View {
         VStack {
@@ -129,7 +133,7 @@ struct PlayableCardView: View {
         if !hideAction {
             switch item.content.type {
             case .playlist, .album, .libraryPlaylist, .libraryAlbum, .libraryImportedPlaylists:
-                router.navigate(to: .mediaDetail(content: item, group: selectedGroupService.group))
+                router.navigate(to: .mediaDetail(content: item, group: selectedGroupService.group, zoomSource: zoomSource))
             case .artist, .libraryArtist:
                 router.navigate(to: .artistDetail(content: item, group: selectedGroupService.group))
             case .track, .favorite, .radio, .artistRadio, .songRadio, .liveRadio, .unique:

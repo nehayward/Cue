@@ -87,6 +87,7 @@ enum PlayableListLayout: String, CaseIterable, Identifiable {
 
 struct PlayableListView: View {
     @AppStorage(Defaults.AppStorageKeys.albumsLayout) private var layout: PlayableListLayout = .list
+    @Environment(\.zoomNamespace) private var zoomNamespace
 
     @State private var isLoading: Bool = false
     @State private var hasReachedEnd: Bool = false
@@ -448,7 +449,7 @@ struct PlayableListView: View {
                     let tileWidth = gridTileWidth
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: gridColumnCount), spacing: 0) {
                         ForEach(items) { item in
-                            PlayableCardView(item: item, artworkOnly: true, artworkSize: tileWidth)
+                            gridTile(item, width: tileWidth)
                                 .onAppear { loadMoreIfNeeded(after: item) }
                         }
                     }
@@ -463,6 +464,18 @@ struct PlayableListView: View {
             } action: { width in
                 gridWidth = width
             }
+        }
+    }
+
+    /// One cover. With a zoom namespace from the root, the tile is what the
+    /// album screen zooms out of; without one it pushes plainly.
+    @ViewBuilder
+    private func gridTile(_ item: PlayableContent, width: CGFloat) -> some View {
+        if let zoomNamespace {
+            PlayableCardView(item: item, artworkOnly: true, artworkSize: width, zoomSource: .album(item.id))
+                .zoomSource(.album(item.id), in: zoomNamespace)
+        } else {
+            PlayableCardView(item: item, artworkOnly: true, artworkSize: width)
         }
     }
 

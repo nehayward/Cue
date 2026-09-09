@@ -9,7 +9,9 @@ public enum RouterDestination: Hashable, Identifiable {
     case groupDestination(content: PlayableContent, position: QueuePosition = .now)
     case manageScenes
     case createScene(content: PlayableContent?)
-    case mediaDetail(content: PlayableContent, group: GroupRoom?)
+    /// `zoomSource` names the tile the push came from, when it came from
+    /// one: the screen then zooms out of it instead of sliding in.
+    case mediaDetail(content: PlayableContent, group: GroupRoom?, zoomSource: ZoomTransitionSource? = nil)
     case artistDetail(content: PlayableContent, group: GroupRoom?)
     case alarms
     case addAlarm(group: GroupRoom? = nil)
@@ -46,7 +48,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return content.content.id
         case .manageScenes:
             return "manageScenes"
-        case let .mediaDetail(content, _):
+        case let .mediaDetail(content, _, _):
             return content.id
         case let .artistDetail(content, _):
             return content.id
@@ -103,7 +105,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return true
         case (.createScene, .createScene):
             return true
-        case let (.mediaDetail(content1, group1), .mediaDetail(content2, group2)):
+        case let (.mediaDetail(content1, group1, _), .mediaDetail(content2, group2, _)):
             return content1 == content2 && group1 == group2
         case let (.artistDetail(content1, group1), .artistDetail(content2, group2)):
             return content1 == content2 && group1 == group2
@@ -153,7 +155,7 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine(position)
         case .manageScenes:
             hasher.combine("manageScenes")
-        case let .mediaDetail(content, group):
+        case let .mediaDetail(content, group, _):
             hasher.combine(content)
             hasher.combine(group)
         case let .artistDetail(content, group):
