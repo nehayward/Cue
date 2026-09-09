@@ -1067,7 +1067,7 @@ extension SubsonicSong {
             title: title ?? "",
             subtitle: [artist ?? "", suffix?.uppercased() ?? ""].filter { !$0.isEmpty }.joined(separator: " • "),
             thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
-            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt, size: SubsonicAPI.artworkSize),
             content: .init(
                 service: .subsonic,
                 id: id,
@@ -1104,7 +1104,7 @@ extension SubsonicAlbum {
                 songCount.flatMap(\.songCountLabel) ?? ""
             ].filter { !$0.isEmpty }.joined(separator: " • "),
             thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
-            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt, size: SubsonicAPI.artworkSize),
             content: .init(
                 service: .subsonic,
                 id: id,
@@ -1131,7 +1131,7 @@ extension SubsonicArtist {
             title: name ?? "",
             subtitle: "",
             thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
-            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt, size: SubsonicAPI.artworkSize),
             content: .init(
                 service: .subsonic,
                 id: id,
@@ -1152,7 +1152,7 @@ extension SubsonicPlaylist {
                 songCount.flatMap(\.songCountLabel) ?? ""
             ].filter { !$0.isEmpty }.joined(separator: " • "),
             thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
-            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt, size: SubsonicAPI.artworkSize),
             content: .init(
                 service: .subsonic,
                 id: id,

@@ -36,6 +36,21 @@ struct PlayableCardView: View {
         VStack {
             if let add = adding?.add, add {
                 content
+            } else if artworkOnly {
+                // A button with a context menu, not a `Menu` with a primary
+                // action: a grid lays out dozens of tiles at once, and the
+                // menu's content — nested menus, a download index refresh —
+                // is not free per tile. A context menu is built only when
+                // it is opened, and on a Mac it is the right-click anyway.
+                Button {
+                    actions()
+                } label: {
+                    content
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    PlayableMenuView(item: item)
+                }
             } else {
                 Menu {
                     PlayableMenuView(item: item)
