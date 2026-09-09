@@ -88,6 +88,7 @@ enum PlayableListLayout: String, CaseIterable, Identifiable {
 struct PlayableListView: View {
     @AppStorage(Defaults.AppStorageKeys.albumsLayout) private var layout: PlayableListLayout = .list
     @Environment(\.zoomNamespace) private var zoomNamespace
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var isLoading: Bool = false
     @State private var hasReachedEnd: Bool = false
@@ -106,9 +107,6 @@ struct PlayableListView: View {
     /// Bumped on every reload so a load still running for the previous sort
     /// can tell that its rows are no longer wanted.
     @State private var loadGeneration = 0
-    /// The grid's width on screen, measured, so the tiles can be sized and
-    /// their covers decoded to fit.
-    @State private var gridWidth: CGFloat = 0
 
     var title: String = ""
     var playAllItem: PlayableContent? = nil
@@ -416,61 +414,44 @@ struct PlayableListView: View {
 
     // MARK: - Grid
 
-    /// Three columns on a phone, more as the width allows — a tile lands
-    /// between 130pt and 150pt wide.
-    private var gridColumnCount: Int {
-        max(3, Int(gridWidth / 150))
-    }
+    /// As many tiles as fit, each at least this wide: three across a phone,
+    /// more as the width grows, stretching to fill the row. The layout
+    /// adapts to the window on its own — nothing is measured.
+    private static let gridColumns = [GridItem(.adaptive(minimum: 128, maximum: 220), spacing: 0)]
 
-    private var gridTileWidth: CGFloat {
-        gridWidth / CGFloat(gridColumnCount)
-    }
-
-    /// The size a tile asks its cover for: the tile's width, rounded up to
-    /// the next 50pt. A Mac window resizes continuously, and a request
-    /// keyed on the exact width re-decoded every cover on screen at each
-    /// new pixel size; a tier only changes when the tiles really have.
+    /// The size every tile asks its cover for — one tier per device class,
+    /// not the tile's measured width. A phone's tiles are never wider than
+    /// about 145pt, an iPad's or a Mac's never wider than the column
+    /// maximum, so a cover decoded at the tier is sharp in any tile the
+    /// layout produces, while a window resize only re-lays out: the same
+    /// decoded bitmaps, scaled by the GPU, never fetched or decoded again.
+    /// One request per album per class also means the cache is hit on the
+    /// way back, and by any other grid showing the same album.
     private var gridArtworkSize: Double {
-        (gridTileWidth / 50).rounded(.up) * 50
+        sizeClass == .compact ? 150 : 220
     }
 
     /// The same rows as a wall of covers: square tiles that touch, edge to
     /// edge, with nothing written under them — the art is what you scan
     /// for, and the title is a tap away. Pages in the same way as the
     /// list. No A–Z sections: a grid has no index to jump by, and the sort
-    /// menu still orders it.
-    ///
-    /// Sized from a measurement rather than an adaptive column: knowing the
-    /// tile's width is what lets each cover be decoded to fit it. A plain
-    /// `VStack` around the grid, not a lazy one — a lazy container nested
-    /// in another can cost the inner one its laziness. The grid waits for
-    /// the first measurement, so no tile fetches at a guessed size and then
-    /// again at the right one.
+    /// menu still orders it. A plain `VStack` around the grid, not a lazy
+    /// one — a lazy container nested in another can cost the inner one
+    /// its laziness.
     private var gridContent: some View {
-        ScrollView {
+        let artworkSize = gridArtworkSize
+        return ScrollView {
             VStack(spacing: 0) {
                 if playAllItem != nil {
                     PlayAllButtonView(item: playAllItem)
                         .padding(16)
                 }
-                if gridWidth > 0 {
-                    let artworkSize = gridArtworkSize
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: gridColumnCount), spacing: 0) {
-                        ForEach(items) { item in
-                            gridTile(item, artworkSize: artworkSize)
-                                .onAppear { loadMoreIfNeeded(after: item) }
-                        }
+                LazyVGrid(columns: Self.gridColumns, spacing: 0) {
+                    ForEach(items) { item in
+                        gridTile(item, artworkSize: artworkSize)
+                            .onAppear { loadMoreIfNeeded(after: item) }
                     }
                 }
-            }
-            // Full width even while empty: the stack is what gets measured,
-            // and with the grid waiting on that measurement it would
-            // otherwise be zero wide and never trigger it.
-            .frame(maxWidth: .infinity)
-            .onGeometryChange(for: CGFloat.self) { proxy in
-                proxy.size.width
-            } action: { width in
-                gridWidth = width
             }
         }
     }
