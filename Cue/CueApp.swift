@@ -445,8 +445,8 @@ struct CueApp: App {
         }
     }
 
-    /// The sidebar header's show/hide for the queue panel. ⌥⌘0, as Xcode
-    /// toggles its inspector.
+    /// The sidebar header's show/hide for the queue panel. ⌥⌘0 is the View
+    /// menu's command, so it isn't repeated here.
     private var queueToggle: some View {
         Button {
             withAnimation(.snappy) {
@@ -458,7 +458,6 @@ struct CueApp: App {
         }
         .tint(showInspector ? Color("Accent") : .secondary)
         .help(showInspector ? "Hide Queue" : "Show Queue")
-        .keyboardShortcut("0", modifiers: [.command, .option])
         .accessibilityLabel(showInspector ? "Hide Queue" : "Show Queue")
     }
 
@@ -539,8 +538,11 @@ struct CueApp: App {
                     // The queue toggle, in the header's top-right corner
                     // like Xcode's inspector button. Up here rather than in
                     // the bottom bar so it is in view without scrolling the
-                    // sidebar, and stays put as the tab list grows.
+                    // sidebar, and stays put as the tab list grows. The Mac
+                    // has it in the window toolbar instead.
+#if !targetEnvironment(macCatalyst)
                     queueToggle
+#endif
                 }
                 .padding(.vertical, 4)
             }
@@ -1526,6 +1528,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             builder.remove(menu: .openRecent)
             builder.remove(menu: .document)
 
+            // View › Show/Hide Queue, ⌥⌘0 as Xcode toggles its inspector.
+            // The toolbar item does the same; this is the keyboard's way in.
+            let toggleQueueCommand = UIKeyCommand(
+                title: QueuePanelVisibility.isShown ? "Hide Queue" : "Show Queue",
+                image: UIImage(systemName: "sidebar.trailing"),
+                action: #selector(toggleQueue),
+                input: "0",
+                modifierFlags: [.command, .alternate]
+            )
+            builder.insertChild(
+                UIMenu(title: "", options: .displayInline, children: [toggleQueueCommand]),
+                atStartOfMenu: .view
+            )
+
             // Add New Playlist to File menu
             let newPlaylistCommand = UIKeyCommand(
                 title: "New Playlist",
@@ -1660,6 +1676,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
+    @objc func toggleQueue() {
+        QueuePanelVisibility.toggle()
+        // The command's title names what it will do next.
+        UIMenuSystem.main.setNeedsRebuild()
+    }
+
     @objc func newPlaylist() {
         Router.main.presentedSheet = .newPlaylist()
     }
@@ -1717,8 +1739,16 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
         
 #if targetEnvironment(macCatalyst)
         if let titlebar = windowScene.titlebar {
+            // A unified toolbar across the top of the window, the way Xcode
+            // and Music have one, holding the queue toggle in its trailing
+            // corner. No title: the sidebar header names the app.
+            let toolbar = NSToolbar(identifier: "com.cue.main")
+            toolbar.delegate = toolbarDelegate
+            toolbar.displayMode = .iconOnly
+            toolbar.allowsUserCustomization = false
             titlebar.titleVisibility = .hidden
-            titlebar.toolbar = nil
+            titlebar.toolbarStyle = .unified
+            titlebar.toolbar = toolbar
         }
         
         // Floor only. The old 2000x1500 ceiling stopped the window growing
@@ -1777,13 +1807,34 @@ final class ToolbarDelegate: NSObject {
             print("HERE")
         }
     }
-    
+
+    @objc func toggleQueue(_ sender: Any) {
+        Task { @MainActor in
+            QueuePanelVisibility.toggle()
+        }
+    }
+}
+
+/// The queue panel's stored show/hide flag, for the places outside SwiftUI
+/// that flip it: the Mac's toolbar item and its View menu command. The
+/// `@AppStorage` readers (`PlayerView`, each tab's panel) pick the change
+/// up from `UserDefaults` like any other.
+@MainActor
+enum QueuePanelVisibility {
+    static var isShown: Bool {
+        UserDefaults.standard.bool(forKey: AppStorageKeys.queueInspectorVisible)
+    }
+
+    static func toggle() {
+        UserDefaults.standard.set(!isShown, forKey: AppStorageKeys.queueInspectorVisible)
+    }
 }
 
 #if targetEnvironment(macCatalyst)
 extension NSToolbarItem.Identifier {
     static let preferences = NSToolbarItem.Identifier("com.cue.preferences")
     static let sorting = NSToolbarItem.Identifier("com.cue.sorting")
+    static let toggleQueue = NSToolbarItem.Identifier("com.cue.toggleQueue")
 //    static let newFolder = NSToolbarItem.Identifier("com.highcaffeinecontent.catalystexample.newfolder")
 //    static let search = NSToolbarItem.Identifier("com.cue.search")
 }
@@ -1792,7 +1843,10 @@ extension NSToolbarItem.Identifier {
 extension ToolbarDelegate: NSToolbarDelegate {
 
     func toolbarIdentifiers() -> [NSToolbarItem.Identifier] {
-        return [.sorting, .flexibleSpace, .preferences, .toggleSidebar, .primarySidebarTrackingSeparatorItemIdentifier, .flexibleSpace]
+        // Just the queue toggle, pushed to the trailing edge — Xcode's
+        // inspector button. No sidebar toggle or tracking separator: the
+        // SwiftUI tab sidebar isn't a split-view column AppKit can drive.
+        return [.flexibleSpace, .toggleQueue]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -1804,6 +1858,14 @@ extension ToolbarDelegate: NSToolbarDelegate {
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        if itemIdentifier == .toggleQueue {
+            let barItem = UIBarButtonItem(image: UIImage(systemName: "sidebar.trailing"), style: .plain, target: self, action: #selector(toggleQueue(_:)))
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
+            item.label = NSLocalizedString("Queue", comment: "")
+            item.accessibilityLabel = NSLocalizedString("Show or Hide Queue", comment: "")
+            item.toolTip = NSLocalizedString("Show or Hide Queue (⌥⌘0)", comment: "")
+            return item
+        }
         if itemIdentifier == .preferences {
             let barItem = UIBarButtonItem(image: UIImage(systemName: "switch.2"), style: .plain, target: self, action: #selector(prefs(_:)))
             let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
