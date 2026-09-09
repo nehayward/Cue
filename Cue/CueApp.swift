@@ -248,6 +248,12 @@ struct CueApp: App {
     /// the `fullScreenCover` on the `TabView` below.
     @Namespace private var zoomNamespace
 
+    /// `@AppStorage`, not `@State`: `PlayerView` and each tab's queue panel
+    /// read the same key, so the queue is shown or hidden everywhere at once
+    /// instead of each keeping its own idea. Persisting across launches
+    /// comes along with it, which is the behaviour a panel toggle wants.
+    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showInspector: Bool = false
+
     @State private var coreFeatures = CoreFeatures.shared
     @State private var offline = OfflineMode.shared
     /// Settings › Appearance › Show Radio Tab.
@@ -439,6 +445,23 @@ struct CueApp: App {
         }
     }
 
+    /// The sidebar header's show/hide for the queue panel. ⌥⌘0, as Xcode
+    /// toggles its inspector.
+    private var queueToggle: some View {
+        Button {
+            withAnimation(.snappy) {
+                showInspector.toggle()
+            }
+        } label: {
+            Label(showInspector ? "Hide Queue" : "Show Queue", systemImage: "sidebar.trailing")
+                .labelStyle(.iconOnly)
+        }
+        .tint(showInspector ? Color("Accent") : .secondary)
+        .help(showInspector ? "Hide Queue" : "Show Queue")
+        .keyboardShortcut("0", modifiers: [.command, .option])
+        .accessibilityLabel(showInspector ? "Hide Queue" : "Show Queue")
+    }
+
     var body: some Scene {
         WindowGroup {
             @Bindable var router = router
@@ -513,6 +536,11 @@ struct CueApp: App {
                     Text("Cue")
                         .font(.title3.bold())
                     Spacer(minLength: 0)
+                    // The queue toggle, in the header's top-right corner
+                    // like Xcode's inspector button. Up here rather than in
+                    // the bottom bar so it is in view without scrolling the
+                    // sidebar, and stays put as the tab list grows.
+                    queueToggle
                 }
                 .padding(.vertical, 4)
             }
@@ -528,9 +556,7 @@ struct CueApp: App {
 //                .foregroundStyle(.secondary)
 //                .padding(.vertical, 4)
 //            }
-            // No bottom bar: the queue toggle is the rail on the trailing
-            // edge of each tab (`withQueuePanel()`), where it stays put
-            // whether the sidebar is open, collapsed, or overlaying.
+            // No bottom bar: the queue toggle is in the sidebar header.
             // The sidebar's selection highlight is drawn in the tint, so this
             // is what takes it off accent-teal. A TabView sidebar has no way to
             // colour the row's label separately from its fill, so this gets the

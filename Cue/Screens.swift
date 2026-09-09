@@ -95,7 +95,7 @@ private struct TabQueuePanel: ViewModifier {
     @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
 
     func body(content: Content) -> some View {
-        content.queuePanel(isPresented: $showQueue, compact: .hidden, showsToggle: true) { QueueNextUpView() }
+        content.queuePanel(isPresented: $showQueue, compact: .hidden) { QueueNextUpView() }
     }
 }
 
