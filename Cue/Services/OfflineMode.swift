@@ -20,12 +20,17 @@ final class OfflineMode {
 
     /// The user's switch, kept across launches.
     var isOn: Bool {
-        didSet { UserDefaults.standard.set(isOn, forKey: AppStorageKeys.offlineMode) }
+        didSet {
+            UserDefaults.standard.set(isOn, forKey: AppStorageKeys.offlineMode)
+            routeToDeviceIfOffline()
+        }
     }
 
     /// Whether any network path is up. `NWPathMonitor` reports the current
     /// path as soon as it starts, so this is right from the first read.
-    private(set) var hasNetwork = true
+    private(set) var hasNetwork = true {
+        didSet { routeToDeviceIfOffline() }
+    }
 
     /// Offline for either reason.
     var isActive: Bool { isOn || !hasNetwork }
@@ -36,8 +41,25 @@ final class OfflineMode {
         isOn = UserDefaults.standard.bool(forKey: AppStorageKeys.offlineMode)
         monitor.pathUpdateHandler = { [weak self] path in
             let satisfied = path.status == .satisfied
-            Task { @MainActor in self?.hasNetwork = satisfied }
+            Task { @MainActor in
+                guard let self, self.hasNetwork != satisfied else { return }
+                self.hasNetwork = satisfied
+            }
         }
         monitor.start(queue: DispatchQueue(label: "dance.cue.offline.path", qos: .utility))
+        routeToDeviceIfOffline()
+    }
+
+    /// Offline, the only place to play is here: the route moves to this
+    /// device the moment the mode comes on — at launch, at the switch, or
+    /// when the network drops — so the player, the accessory and the next
+    /// Play all agree. Through `PlaybackRoute`, so a song playing on a
+    /// speaker is carried across while the network is still up to fetch
+    /// it; with no network there is nothing to carry and the route just
+    /// moves. The speaker isn't restored when the mode ends: the user
+    /// picks one again when there is one to pick.
+    private func routeToDeviceIfOffline() {
+        guard isActive, PlaybackRoute.shared.destination != .device else { return }
+        PlaybackRoute.shared.switchTo(.device)
     }
 }
