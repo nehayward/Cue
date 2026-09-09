@@ -33,6 +33,8 @@ struct PlexLibraryFilterView: View {
         }
         .buttonBorderShape(.circle)
         .accentGlassButton(active: hasActiveFilters)
+        .accessibilityLabel("Filter Libraries")
+        .accessibilityValue(hasActiveFilters ? "Filtered" : "All libraries")
         .id(plexLibrariesFilters.count)
     }
 }

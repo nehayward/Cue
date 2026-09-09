@@ -245,7 +245,7 @@ final class PlaybackCache {
 
     private func fetch(_ item: PlayableContent) {
         let key = DownloadManager.key(for: item)
-        guard !inFlight.contains(key), let url = item.previewURL else { return }
+        guard !inFlight.contains(key), let url = item.playbackStreamURL else { return }
         if let entry = entries[key],
            FileManager.default.fileExists(atPath: Self.fileURL(key: key, fileExtension: entry.fileExtension).path) {
             return
@@ -261,10 +261,11 @@ final class PlaybackCache {
         inFlight.insert(key)
         pending[key] = item
 
-        let task = session.downloadTask(with: request) { [weak self] temporary, _, error in
+        let task = session.downloadTask(with: request) { [weak self] temporary, response, error in
             // The temporary file is gone once this returns: move it now, on
-            // the session's queue, then report on the main actor.
-            guard let temporary, error == nil else {
+            // the session's queue, then report on the main actor. A refused
+            // request (a 4xx page) is not a song to keep.
+            guard let temporary, error == nil, StreamResponseCheck.refusal(in: response) == nil else {
                 Task { @MainActor in self?.fetchFailed(key: key) }
                 return
             }
@@ -350,7 +351,7 @@ final class PlaybackCache {
     // MARK: - Storage
 
     private static func fileExtension(for item: PlayableContent, url: URL) -> String {
-        let fromMetadata = item.metadata?.audioCodec?.trimmingCharacters(in: .whitespaces).lowercased() ?? ""
+        let fromMetadata = item.playbackFileExtension ?? ""
         if !fromMetadata.isEmpty, fromMetadata.count <= 5 { return fromMetadata }
         let fromURL = url.pathExtension.lowercased()
         return fromURL.isEmpty ? "mp3" : fromURL

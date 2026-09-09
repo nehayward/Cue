@@ -12,6 +12,13 @@ import SwiftUI
 ///
 /// Choosing while something is playing moves it: `PlaybackRoute` carries the
 /// queue across, picks up at the same spot, and stops the source.
+///
+/// On a speaker it is the group button too. The menu then lists every room
+/// as a toggle on the group's membership — check several to play there
+/// together, uncheck one to drop it — with Everywhere and Ungroup All under
+/// them, the same rows the press-and-hold group menu shows. Switching to a
+/// different room outright is a check and an uncheck; leaving the speakers
+/// altogether is This Device.
 struct PlaybackRouteButton: View {
     /// Read off the singleton rather than the environment: this sits in the tab
     /// bar accessory, which is hosted outside the tab content and so isn't
@@ -33,30 +40,43 @@ struct PlaybackRouteButton: View {
                 }
             }
 
-            let groups = sonosService.sorted
-            if groups.isEmpty {
-                Text("No speakers found")
+            if let group = route.group {
+                // On a speaker the rooms are toggles on this group, so the
+                // list reads once: no group list above a room list.
+                GroupMenuItems(group: group)
             } else {
-                Section("Speakers") {
-                    ForEach(groups) { group in
-                        Button {
-                            select(.group(group.coordinatorID))
-                        } label: {
-                            Label(
-                                group.nameWithCount,
-                                systemImage: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"
-                            )
-                            if destination == .group(group.coordinatorID) {
-                                Image(systemName: "checkmark")
+                let groups = sonosService.sorted
+                if groups.isEmpty {
+                    Text("No speakers found")
+                } else {
+                    Section("Speakers") {
+                        ForEach(groups) { group in
+                            Button {
+                                select(.group(group.coordinatorID))
+                            } label: {
+                                Label(
+                                    group.nameWithCount,
+                                    systemImage: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"
+                                )
                             }
                         }
                     }
                 }
             }
         } label: {
-            Image(systemName: destination == .device ? "airplayaudio" : "hifispeaker.fill")
-                .contentTransition(.symbolEffect(.replace))
-                .accessibilityLabel("Play On")
+            // Cue's own speaker-with-arrow symbol for "this device" rather
+            // than the AirPlay glyph: the route is Cue's, not AirPlay's.
+            Group {
+                if destination == .device {
+                    Image("hifispeaker.arrow.forward.fill")
+                } else if (route.group?.rooms.count ?? 1) > 1 {
+                    Image(systemName: "hifispeaker.2.fill")
+                } else {
+                    Image(systemName: "hifispeaker.fill")
+                }
+            }
+            .contentTransition(.symbolEffect(.replace))
+            .accessibilityLabel("Play On")
         }
         .menuIndicator(.hidden)
         // Re-read on every appearance: the share extension writes this too, so
@@ -65,6 +85,7 @@ struct PlaybackRouteButton: View {
     }
 
     private func select(_ target: PlayDestination) {
+        if target == .device, !FeatureGate.shared.unlock(.onDevicePlayback) { return }
         HapticManager.shared.fireHaptic(.selection)
         PlaybackRoute.shared.switchTo(target)
     }

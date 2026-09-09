@@ -112,6 +112,10 @@ struct LibraryBrowseScreen: View {
             }
             .withAppRouter()
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    SettingsToolbarButton()
+                        .environment(router)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     MediaSelector()
                         .environment(router)

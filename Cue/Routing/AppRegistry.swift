@@ -198,9 +198,6 @@ extension View {
                         ReorderSoundCloudLibrarySectionsView()
                     case .shareToWatch:
                         ShareToWatchView()
-                    case .customizeTabs:
-                        CustomizeTabsView()
-                            .withEnvironments()
                     case .paywall, .onboard:
                         // Routed via `withFullScreenCoverDestinations` —
                         // listed here to keep the switch exhaustive but never
@@ -393,6 +390,7 @@ extension View {
             .environment(SoundCloudBrowseService.shared)
             .environment(DeezerBrowseService.shared)
             .environment(SonosRadioBrowseService.shared)
+            .environment(TuneInBrowseService.shared)
             .environment(PandoraBrowseService.shared)
             .environment(PlexBrowseService.shared)
             .environment(SubsonicBrowseService.shared)
@@ -400,6 +398,11 @@ extension View {
             .environment(MiniPlayerManger.shared)
             .environment(CoreFeatures.shared)
             .environment(RemoteFeatureFlags.shared)
+            // Read by `PlayableContentView`, `LikeButtonView` and
+            // `FavoriteMenuButton`, which are hosted from every root that
+            // installs these environments — not only the tab view.
+            .environment(FavoriteRatingCache.shared)
+            .environment(FeatureGate.shared)
     }
     
     @ViewBuilder

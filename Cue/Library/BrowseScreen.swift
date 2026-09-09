@@ -26,37 +26,19 @@ struct BrowseScreen: View {
     @State private var router = Router.browse
     @State private var isLoaded: Bool = false
     @State private var coreFeatures = CoreFeatures.shared
+    @State private var offline = OfflineMode.shared
 
     private var showAlert: Bool { UIDevice.current.userInterfaceIdiom == .phone }
     
     var body: some View {
         VStack {
-            switch browseMediaService {
-            case .apple:
-                AppleLibraryBrowseScreen()
-            case .plex:
-                PlexBrowseScreen()
-            case .spotify:
-                SpotifyLibraryScreen()
-            case .library:
-                LibraryBrowseScreen()
-            case .soundcloud:
-                SoundCloudBrowseScreen()
-            case .deezer:
-                DeezerBrowseScreen()
-            case .sonosRadio:
-                SonosRadioBrowseScreen()
-            case .pandora:
-                PandoraBrowseScreen()
-            case .subsonic:
-                SubsonicBrowseScreen()
-            case .files:
-                FilesBrowseScreen()
-            default:
-                NavigationStack {
-                    EmptyView()
-                        .addDismiss(action: dismiss.callAsFunction)
-                }
+            // Browse is the phone's home, so it is where offline shows what's
+            // on this device; the provider screens below have nothing to
+            // show with no network.
+            if offline.isActive {
+                OfflineBrowseScreen()
+            } else {
+                browseScreen
             }
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
@@ -74,12 +56,10 @@ struct BrowseScreen: View {
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onChange(of: coreFeatures.features) {
-            if coreFeatures.isEnabled(browseMediaService) {
-                return
-            }
-            guard let service = MediaSearchService.allCases.first(where: { coreFeatures.isEnabled($0) }) else { return }
-            browseMediaService = service
+            fallBackFromDisabledService()
         }
+        // The stored choice can be a service this build no longer offers.
+        .onAppear(perform: fallBackFromDisabledService)
         .overlay(
             Button {
                 closeInspector?()
@@ -90,6 +70,52 @@ struct BrowseScreen: View {
             .frame(width: 0, height: 0)
             .hidden()
         )
+    }
+}
+
+private extension BrowseScreen {
+    /// The chosen provider's browse screen.
+    @ViewBuilder
+    var browseScreen: some View {
+        switch browseMediaService {
+        case .apple:
+            AppleLibraryBrowseScreen()
+        case .plex:
+            PlexBrowseScreen()
+        case .spotify:
+            SpotifyLibraryScreen()
+        case .library:
+            LibraryBrowseScreen()
+        case .soundcloud:
+            SoundCloudBrowseScreen()
+        case .deezer:
+            DeezerBrowseScreen()
+        case .sonosRadio:
+            SonosRadioBrowseScreen()
+        case .pandora:
+            PandoraBrowseScreen()
+        case .subsonic:
+            SubsonicBrowseScreen()
+        case .files:
+            FilesBrowseScreen()
+        default:
+            NavigationStack {
+                EmptyView()
+                    .addDismiss(action: dismiss.callAsFunction)
+            }
+        }
+    }
+}
+
+private extension BrowseScreen {
+    /// Moves off a browse service that is disabled — or gone — to the first
+    /// one still on, so the screen never sits on a provider it can't show.
+    func fallBackFromDisabledService() {
+        if coreFeatures.isEnabled(browseMediaService) {
+            return
+        }
+        guard let service = MediaSearchService.supported.first(where: { coreFeatures.isEnabled($0) }) else { return }
+        browseMediaService = service
     }
 }
 

@@ -18,8 +18,11 @@ struct ServicePreferenceScreen: View {
 
     @State private var servers: [MediaServer] = []
     @State private var primaryServices: [SonosServiceType: MediaServer] = [:]
-    @AppStorage(Defaults.GroupStorageKeys.spotifyMusicTokenID, store: GroupStorageKeys.storage) private var spotifyMusicTokenID: String = ""
     @AppStorage(Defaults.GroupStorageKeys.appleMusicTokenID, store: GroupStorageKeys.storage) private var appleMusicTokenID: String = ""
+    /// How Plex and Subsonic hand audio over — see `StreamTranscoding`. The
+    /// bitrate default matches the one the package falls back to when unset.
+    @AppStorage(Defaults.AppStorageKeys.streamTranscodeFormat) private var transcodeFormat: StreamTranscoding.Format = .original
+    @AppStorage(Defaults.AppStorageKeys.streamTranscodeBitrate) private var transcodeBitrate: Int = StreamTranscoding.defaultBitrate
 
     /// Sonos-side services discovered on the user's system.
     private var installedTypes: Set<SonosServiceType> {
@@ -30,12 +33,12 @@ struct ServicePreferenceScreen: View {
     /// account at all, so they get their own section instead of sitting under
     /// a header that says the opposite.
     private var selfHostedServices: [MediaSearchService] {
-        MediaSearchService.allCases.filter { $0.isConfiguredInCue != nil }
+        MediaSearchService.supported.filter { $0.isConfiguredInCue != nil }
     }
 
     /// Everything that does go through a Sonos account.
     private var sonosServices: [MediaSearchService] {
-        MediaSearchService.allCases.filter { $0.isConfiguredInCue == nil }
+        MediaSearchService.supported.filter { $0.isConfiguredInCue == nil }
     }
 
     /// Services the user can actually play from — authorized in Sonos, or
@@ -58,7 +61,7 @@ struct ServicePreferenceScreen: View {
     /// Pandora, SiriusXM, Bandcamp, etc. Shown dimmed like onboarding's
     /// ServicesStep so the list reflects everything the user has authorized.
     private var unsupportedKnownTypes: [SonosServiceType] {
-        let supported = Set(MediaSearchService.allCases.compactMap(\.sonosServiceType))
+        let supported = Set(MediaSearchService.supported.compactMap(\.sonosServiceType))
         return installedTypes.filter { type in
             guard !supported.contains(type) else { return false }
             if case .unknown = type { return false }
@@ -158,6 +161,8 @@ struct ServicePreferenceScreen: View {
                 } footer: {
                     Text("Set up here in Cue — these need no Sonos app sign-in. Your speakers stream straight from your own server; a folder of files plays on this device.")
                 }
+
+                streamingQualitySection
             }
 
             if !notConnectedServices.isEmpty {
@@ -206,37 +211,6 @@ struct ServicePreferenceScreen: View {
             }
 #endif
 
-            if let server = servers.filter({ $0.type == .spotify }).first, servers.filter({ $0.type == .spotify }).count == 1 {
-                Section {
-                    Button {
-                        Task {
-                            await sonosService.setPrimaryServer(for: server)
-                            primaryServices[server.type] = server
-                            SpotifyBrowseService.shared.albums.removeAll()
-                            SpotifyBrowseService.shared.playlists.removeAll()
-                            SpotifyBrowseService.shared.tracks.removeAll()
-                            spotifyMusicTokenID = server.id
-                            GroupStorageKeys.storage?.synchronize()
-                        }
-                    } label: {
-                        Label {
-                            VStack(alignment: .leading) {
-                                Text("Override Spotify")
-                                Text("Enable only if you're having connection issues with Spotify")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } icon: {
-                            MediaSearchService.spotify.iconForMusicService
-                                .frame(width: 24, height: 24)
-                        }
-                        .tint(.accentColor)
-                    }
-                } header: {
-                    Text("Troubleshooting")
-                }
-            }
-
             // "Can't find the service?" lives at the very bottom as plain
             // footer text — informational, not a section of its own.
             Section {
@@ -253,7 +227,42 @@ struct ServicePreferenceScreen: View {
         }
     }
 
-    /// The label inside a connected service's toggle. Spotify and Apple Music
+    /// Transcoding for the self-hosted servers: the original file, or MP3 /
+    /// Opus at a bitrate cap, applied by the server as it streams. Sonos
+    /// players don't decode Opus, so a speaker gets MP3 in its place; Plex
+    /// on a speaker is Plex's own Sonos service and isn't touched here.
+    private var streamingQualitySection: some View {
+        Section {
+            Picker("Format", selection: $transcodeFormat) {
+                ForEach(StreamTranscoding.Format.allCases) { format in
+                    Text(format.displayName).tag(format)
+                }
+            }
+            if transcodeFormat != .original {
+                Picker("Bitrate", selection: $transcodeBitrate) {
+                    ForEach(StreamTranscoding.bitrates, id: \.self) { bitrate in
+                        Text("\(bitrate) kbps").tag(bitrate)
+                    }
+                }
+            }
+        } header: {
+            Text("Streaming Quality")
+        } footer: {
+            Text(streamingQualityFooter)
+        }
+    }
+
+    private var streamingQualityFooter: String {
+        switch transcodeFormat {
+        case .original:
+            "Plex and Subsonic songs stream as the original files. Choose MP3 or Opus to have your server convert them on the way out — smaller over cellular or a slow connection home. Applies to songs played and downloaded on this device, and to Subsonic songs sent to your speakers."
+        case .mp3:
+            "Songs played and downloaded on this device, and Subsonic songs sent to your speakers, arrive as MP3 at up to the bitrate above. Plex plays on speakers through its own Sonos service, at the quality set on your Plex server."
+        case .opus:
+            "Songs played and downloaded on this device arrive as Opus. Sonos players can't play Opus, so Subsonic songs sent to a speaker are converted to MP3 at the same bitrate instead. Plex plays on speakers through its own Sonos service, at the quality set on your Plex server."
+        }
+    }
+
     /// A service that isn't set up yet. Self-hosted ones open their setup
     /// sheet in Cue; the rest send the user to the Sonos app to sign in.
     private func connectRow(for service: MediaSearchService) -> some View {
@@ -291,51 +300,14 @@ struct ServicePreferenceScreen: View {
         }
     }
 
-    /// grow an account-picker menu when the Sonos system has more than one
-    /// account for them; everyone else is a plain icon + title row.
+    /// The label inside a connected service's toggle. Apple Music grows an
+    /// account-picker menu when the Sonos system has more than one account
+    /// for it; everyone else is a plain icon + title row.
     @ViewBuilder
     private func serviceToggleLabel(for service: MediaSearchService) -> some View {
-        let spotifyServers = servers.filter { $0.type == .spotify }
         let appleServers = servers.filter { $0.type == .appleMusic }
 
-        if service == .spotify, spotifyServers.count > 1 {
-            Label {
-                Menu {
-                    ForEach(spotifyServers) { server in
-                        Button {
-                            Task {
-                                await sonosService.setPrimaryServer(for: server)
-                                primaryServices[server.type] = server
-                                SpotifyBrowseService.shared.albums.removeAll()
-                                SpotifyBrowseService.shared.playlists.removeAll()
-                                SpotifyBrowseService.shared.tracks.removeAll()
-                                spotifyMusicTokenID = server.id
-                                GroupStorageKeys.storage?.synchronize()
-                            }
-                        } label: {
-                            VStack {
-                                Text(server.name)
-                                Text(server.id)
-                            }
-                        }
-                    }
-                } label: {
-                    VStack(alignment: .leading) {
-                        Text("\(service.title) (\(spotifyServers.count))")
-                        if let primaryServer = primaryServices[.spotify] {
-                            Text(primaryServer.name.trimmingCharacters(in: .whitespacesAndNewlines))
-                                .font(.caption)
-                        } else if let defaultService = spotifyServers.first?.name {
-                            Text(defaultService)
-                                .font(.caption)
-                        }
-                    }
-                }
-            } icon: {
-                service.iconForMusicService
-                    .frame(width: 24, height: 24)
-            }
-        } else if appleServers.count > 1, service == .apple {
+        if appleServers.count > 1, service == .apple {
             Label {
                 Menu {
                     ForEach(appleServers) { server in

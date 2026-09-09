@@ -8,8 +8,11 @@
 - Faster music libraries: Songs opens with your whole library ready instead of loading more as you scroll — for your Sonos music library, Plex and Subsonic alike. Cue syncs it once, keeps a copy on your device so it's there again next time you open the app, and picks up music you've added when you come back to the library
 - Search your library: Type in Songs to filter your entire library as you go, not just the part you've scrolled to — Subsonic albums are searchable too
 - Sort your songs: Order Plex and Subsonic songs by title, artist, album, year, play count, date added, or your favorites — and flip any of them, A–Z or Z–A, newest or oldest, most or least played. Each list remembers what you picked
+- Offline Mode: With no network — on a plane, in a tunnel — Home (Browse on iPhone) shows just what's on this device: your Plex and Subsonic downloads and the songs of your Files folder that are here, with Play and Shuffle for the lot, and everything plays on this device. Switch it on yourself from Home or Settings ▸ Storage to stay with your downloads while you still have a connection
+- Streaming Quality: Have your Plex or Subsonic server convert songs to MP3 or Opus at a bitrate you choose, under Settings ▸ Services — smaller over cellular or a slow connection home. Applies to songs played and downloaded on this device and to Subsonic songs sent to your speakers, which get MP3 in place of Opus since Sonos players can't play it
 
 –– Bug Fixes & Improvements ––
+- Fixed the Plex Albums and Artists lists stuttering as they scrolled — every page of albums that arrived was re-sorted into letter groups many times over
 - Discography on artist pages now starts fresh — it clears the queue and plays every album in order, oldest first, starting as soon as the first song is ready. Play Next and Play Last are still in the ••• menu
 - Restored the Favorite option in Deezer song menus — it had quietly gone missing from the ••• menu
 - Fixed the volume buttons moving a speaker several steps per press while Lock Screen Now Playing is on — each press is one step again, and the Lock Screen slider still sets the level directly
@@ -19,6 +22,7 @@
 - Songs now shows how many tracks your library holds under the title, and counts up while a big library is still loading
 - Starred Subsonic songs now show the heart in lists, the way Plex favorites do
 - Settings ▸ Storage now shows how much space your synced libraries take, and can clear them — they rebuild the next time you open Songs
+- One speaker button on the player: the Play On button now carries the grouping menu too — with a speaker chosen, tap it to check the rooms you want playing together, uncheck one to drop it, or pick Everywhere or Ungroup All — so the second speaker button beside it is gone, and the menu no longer lists the current room's name twice
 
 # 2026.7
 

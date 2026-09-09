@@ -33,6 +33,12 @@ struct FileTrack: Codable, Sendable, Hashable {
     /// only when one of these moved, so a big library rescans in seconds.
     var modificationDate: Date?
     var fileSize: Int?
+    /// Whether the file's own tags have been read — for a song still in
+    /// iCloud, by reading just its header. Nil in an index from before this
+    /// existed, when only downloaded files had been read.
+    var tagsRead: Bool?
+
+    var hasReadTags: Bool { tagsRead ?? isDownloaded }
 
     /// The credited artist for grouping: the album artist where the tags
     /// have one, so a compilation stays one album.
@@ -146,10 +152,10 @@ public final class FilesLibraryService {
         }
     }
 
-    public private(set) var songs: [PlayableContent] = []
-    public private(set) var albums: [PlayableContent] = []
-    public private(set) var artists: [PlayableContent] = []
-    public private(set) var playlists: [PlayableContent] = []
+    public var songs: [PlayableContent] { catalog.songs }
+    public var albums: [PlayableContent] { catalog.albums }
+    public var artists: [PlayableContent] { catalog.artists }
+    public var playlists: [PlayableContent] { catalog.playlists }
     /// Bumped every time the index is rebuilt — a scan publishing, a
     /// playlist edit — so a list that took a snapshot knows to take another.
     public private(set) var indexVersion = 0
@@ -161,6 +167,27 @@ public final class FilesLibraryService {
     public private(set) var foundCount = 0
     /// iCloud placeholders the last scan asked the system to download.
     public private(set) var pendingDownloadCount = 0
+    /// Progress of the pass that reads the tags of songs still in iCloud,
+    /// once a scan has listed them. The total is set the moment the pass
+    /// is queued, so nothing following it sees a gap between the scan
+    /// ending and the first read.
+    public private(set) var cloudTagsRead = 0
+    public private(set) var cloudTagsTotal = 0
+    public var isReadingCloudTags: Bool { cloudTagsTotal > 0 }
+
+    /// Whether songs still in iCloud have their tags read without being
+    /// downloaded: on Wi‑Fi, a read of just each file's header. Off, they
+    /// list by name and folder until they come down.
+    public var readsCloudTags = true {
+        didSet {
+            defaults.set(readsCloudTags, forKey: AppStorageKeys.filesReadCloudTags)
+            if readsCloudTags {
+                readCloudTagsIfNeeded()
+            } else {
+                cloudTagTask?.cancel()
+            }
+        }
+    }
     public private(set) var lastScan: Date?
     public private(set) var lastError: String?
     /// The picked folder's name, for the rows that describe the provider.
@@ -170,11 +197,10 @@ public final class FilesLibraryService {
     public var isConfigured: Bool { folderName != nil }
 
     /// Whether the folder is in iCloud Drive, for the copy that explains
-    /// placeholders.
-    public var isCloudFolder: Bool {
-        guard let folderURL else { return false }
-        return (try? folderURL.resourceValues(forKeys: [.isUbiquitousItemKey]).isUbiquitousItem) ?? false
-    }
+    /// placeholders. Read off the folder once, when it's resolved: rows,
+    /// the player and the playback cache ask constantly, and each ask used
+    /// to be a trip to the filesystem.
+    public private(set) var isCloudFolder = false
 
     /// A container standing for every song in the folder, for the Songs
     /// list's Play All: a playlist with a well-known id that the local queue
@@ -191,23 +217,14 @@ public final class FilesLibraryService {
         )
     }
 
-    @ObservationIgnored private var folderURL: URL?
+    @ObservationIgnored private var folderURL: URL? {
+        didSet { isCloudFolder = Self.isUbiquitous(folderURL) }
+    }
     @ObservationIgnored private var isAccessingFolder = false
     @ObservationIgnored private var tracks: [FileTrack] = []
     @ObservationIgnored private var filePlaylists: [FilePlaylist] = []
-    @ObservationIgnored private var tracksByID: [String: FileTrack] = [:]
-    @ObservationIgnored private var songsByID: [String: PlayableContent] = [:]
-    @ObservationIgnored private var albumsByID: [String: PlayableContent] = [:]
-    @ObservationIgnored private var artistsByID: [String: PlayableContent] = [:]
-    @ObservationIgnored private var playlistsByID: [String: PlayableContent] = [:]
-    @ObservationIgnored private var songIDsByAlbum: [String: [String]] = [:]
-    @ObservationIgnored private var albumIDsByArtist: [String: [String]] = [:]
-    @ObservationIgnored private var songIDsByPlaylist: [String: [String]] = [:]
-    @ObservationIgnored private var songIDByPath: [String: String] = [:]
-    @ObservationIgnored private var albumAdded: [String: Date] = [:]
-    @ObservationIgnored private var albumYear: [String: Int] = [:]
-    @ObservationIgnored private var sortedSongs: [String: [PlayableContent]] = [:]
     @ObservationIgnored private var scanTask: Task<Void, Never>?
+    @ObservationIgnored private var cloudTagTask: Task<Void, Never>?
     @ObservationIgnored private var rescanRequested = false
     /// Bumped when the folder changes, so a scan of the old folder that is
     /// still winding down can't publish into the new one.
@@ -218,6 +235,13 @@ public final class FilesLibraryService {
     /// continued-processing task off it, so a long scan carries on with
     /// progress on the Lock Screen after the app is backgrounded.
     @ObservationIgnored public var onScanStarted: (@MainActor () -> Void)?
+    /// Called on the main actor as the pass over songs still in iCloud
+    /// begins. It follows a scan most of the time, but also starts on its
+    /// own when the setting is turned on, so the app hangs the same
+    /// continued-processing task off it: reading a big library's tags takes
+    /// far longer than listing it, and would otherwise stop with the app
+    /// suspended.
+    @ObservationIgnored public var onCloudTagsStarted: (@MainActor () -> Void)?
 
     nonisolated private static let audioExtensions: Set<String> = [
         "mp3", "m4a", "aac", "flac", "wav", "aif", "aiff", "aifc", "caf", "m4b", "alac"
@@ -230,11 +254,22 @@ public final class FilesLibraryService {
 
     private init() {
         folderName = defaults.string(forKey: AppStorageKeys.filesFolderName)
+        readsCloudTags = defaults.object(forKey: AppStorageKeys.filesReadCloudTags) as? Bool ?? true
         resolveFolder()
         let stored = Self.loadIndex()
         tracks = stored.tracks
         filePlaylists = stored.playlists
-        rebuildIndex()
+        scheduleIndexRefresh()
+    }
+
+    /// An index over given tracks, touching neither defaults nor disk —
+    /// for tests of the index, the sorts and the lookups.
+    init(tracks: [FileTrack], playlists: [FilePlaylist] = [], folderURL: URL? = nil) {
+        self.folderURL = folderURL
+        self.folderName = folderURL?.lastPathComponent
+        self.tracks = tracks
+        self.filePlaylists = playlists
+        catalog = FilesIndex.make(tracks: self.tracks, playlists: playlists, folderURL: folderURL, artworkDirectory: Self.artworkDirectory)
     }
 
     // MARK: - Folder
@@ -271,12 +306,14 @@ public final class FilesLibraryService {
         }
 
         scanTask?.cancel()
+        cloudTagTask?.cancel()
+        cloudTagTask = nil
         folderGeneration += 1
         stopAccessingFolder()
         tracks = []
         filePlaylists = []
         lastScan = nil
-        rebuildIndex()
+        resetIndex()
 
         let name = url.lastPathComponent.isEmpty ? "Music" : url.lastPathComponent
         if let bookmark {
@@ -309,6 +346,10 @@ public final class FilesLibraryService {
     public func removeFolder() {
         scanTask?.cancel()
         scanTask = nil
+        cloudTagTask?.cancel()
+        cloudTagTask = nil
+        cloudTagsTotal = 0
+        cloudTagsRead = 0
         isScanning = false
         stopCloudMonitor()
         stopAccessingFolder()
@@ -319,7 +360,8 @@ public final class FilesLibraryService {
         pendingDownloadCount = 0
         tracks = []
         filePlaylists = []
-        rebuildIndex()
+        folderGeneration += 1
+        resetIndex()
         defaults.removeObject(forKey: AppStorageKeys.filesFolderBookmark)
         defaults.removeObject(forKey: AppStorageKeys.filesFolderName)
         try? FileManager.default.removeItem(at: Self.indexURL)
@@ -384,6 +426,7 @@ public final class FilesLibraryService {
     /// an old one is refreshed in the background instead, so new files show
     /// up without a manual rescan.
     public func scanIfNeeded() async {
+        await indexRefresh?.value
         guard isConfigured, !isScanning else { return }
         if tracks.isEmpty {
             await scan()
@@ -406,10 +449,12 @@ public final class FilesLibraryService {
         scanTask = Task { await scan() }
     }
 
-    /// Stops the running scan. What it has read so far is kept; the next
-    /// open of the library picks up the rest.
+    /// Stops the running scan, and the iCloud tag pass with it. What they
+    /// have read so far is kept; the next open of the library picks up the
+    /// rest.
     public func cancelScan() {
         scanTask?.cancel()
+        cloudTagTask?.cancel()
     }
 
     public func scan() async {
@@ -464,7 +509,8 @@ public final class FilesLibraryService {
                 relativePath: Self.relativePath(of: url, in: root),
                 title: url.deletingPathExtension().lastPathComponent,
                 fileExtension: url.pathExtension.lowercased(),
-                isDownloaded: false
+                isDownloaded: false,
+                tagsRead: false
             )
             Self.applyFolderLayout(to: &track, url: url, root: root, titleFromFileName: true)
             return track
@@ -472,22 +518,14 @@ public final class FilesLibraryService {
 
         // Only files that changed since the last scan have their tags read
         // again; the rest keep what they had.
-        var kept: [FileTrack] = []
-        var toRead: [FolderWalk.Entry] = []
-        for entry in walk.files {
-            let path = Self.relativePath(of: entry.url, in: root)
-            if let old = previous[path], old.isDownloaded,
-               old.modificationDate == entry.modificationDate, old.fileSize == entry.fileSize {
-                kept.append(old)
-            } else {
-                toRead.append(entry)
-            }
-        }
-        scannedCount = kept.count
+        let (kept, toRead) = Self.partitionForRescan(walk.files, previous: previous, root: root)
+        let total = kept.count + toRead.count
+        var scanned = kept.count
+        scannedCount = scanned
 
         // What's known so far goes up straight away, so the library fills
         // in while the tags are read rather than appearing all at once.
-        publish(kept + placeholders, playlists: filePlaylists, generation: generation, final: false)
+        await publish(kept + placeholders, playlists: filePlaylists, generation: generation, final: false)
 
         // Tags are read a few files at a time: AVFoundation opens each file,
         // and a folder can hold thousands.
@@ -503,12 +541,15 @@ public final class FilesLibraryService {
             }
             while let result = await group.next() {
                 if let result { read.append(result) }
-                scannedCount += 1
+                // Ten at a time: a count that moves per file re-renders the
+                // progress text for every song.
+                scanned += 1
+                if scanned % 10 == 0 || scanned == total { scannedCount = scanned }
                 sincePublish += 1
                 if Task.isCancelled { group.cancelAll() }
                 if sincePublish >= 100 {
                     sincePublish = 0
-                    publish(kept + read + placeholders, playlists: filePlaylists, generation: generation, final: false)
+                    await publish(kept + read + placeholders, playlists: filePlaylists, generation: generation, final: false)
                 }
                 if next < toRead.count, !Task.isCancelled {
                     let entry = toRead[next]
@@ -527,12 +568,13 @@ public final class FilesLibraryService {
                     relativePath: Self.relativePath(of: entry.url, in: root),
                     title: entry.url.deletingPathExtension().lastPathComponent,
                     fileExtension: entry.url.pathExtension.lowercased(),
-                    isDownloaded: false
+                    isDownloaded: false,
+                    tagsRead: false
                 )
                 Self.applyFolderLayout(to: &track, url: entry.url, root: root, titleFromFileName: true)
                 return track
             }
-            publish(kept + read + Array(unread) + placeholders, playlists: filePlaylists, generation: generation, final: false)
+            await publish(kept + read + Array(unread) + placeholders, playlists: filePlaylists, generation: generation, final: false)
             Self.log.notice("scan cancelled after \(read.count) of \(toRead.count)")
             return
         }
@@ -544,24 +586,27 @@ public final class FilesLibraryService {
         }.value
         guard generation == folderGeneration else { return }
 
-        publish(all, playlists: playlists, generation: generation, final: true)
+        await publish(all, playlists: playlists, generation: generation, final: true)
         Self.log.notice("scan finished: \(all.count) tracks, \(playlists.count) playlists, \(walk.placeholders.count) in iCloud only")
+        readCloudTagsIfNeeded()
     }
 
-    /// Replaces the index with `tracks`, sorted by path. A final publish
-    /// also stamps the scan and writes the index to disk.
-    private func publish(_ tracks: [FileTrack], playlists: [FilePlaylist], generation: Int, final: Bool) {
+    /// Takes `tracks` as the library and asks for the index to follow. A
+    /// final publish waits for it, stamps the scan and writes the index to
+    /// disk; an interim one returns at once and lets the builds coalesce.
+    private func publish(_ tracks: [FileTrack], playlists: [FilePlaylist], generation: Int, final: Bool) async {
         guard generation == folderGeneration else { return }
-        self.tracks = tracks.sorted { $0.relativePath.localizedStandardCompare($1.relativePath) == .orderedAscending }
+        self.tracks = tracks
         filePlaylists = playlists
-        rebuildIndex()
         if final {
             lastScan = .now
-            Self.saveIndex(tracks: self.tracks, playlists: filePlaylists)
+            await refreshIndexNow(persist: true)
+        } else {
+            scheduleIndexRefresh()
         }
     }
 
-    private struct FolderWalk: Sendable {
+    struct FolderWalk: Sendable {
         struct Entry: Sendable {
             var url: URL
             var modificationDate: Date?
@@ -572,12 +617,34 @@ public final class FilesLibraryService {
         var playlists: [URL] = []
     }
 
+    /// Splits a walk into the files whose tags can be kept from the last
+    /// scan and the ones to read again: a file is re-read when it is new,
+    /// was only a placeholder before, or changed size or modification date.
+    nonisolated static func partitionForRescan(
+        _ files: [FolderWalk.Entry],
+        previous: [String: FileTrack],
+        root: URL
+    ) -> (kept: [FileTrack], toRead: [FolderWalk.Entry]) {
+        var kept: [FileTrack] = []
+        var toRead: [FolderWalk.Entry] = []
+        for entry in files {
+            let path = relativePath(of: entry.url, in: root)
+            if let old = previous[path], old.isDownloaded,
+               old.modificationDate == entry.modificationDate, old.fileSize == entry.fileSize {
+                kept.append(old)
+            } else {
+                toRead.append(entry)
+            }
+        }
+        return (kept, toRead)
+    }
+
     /// Every audio file and playlist under `root`. Files still in iCloud are
     /// reported separately, by the URL the real file has: the old
     /// `.name.ext.icloud` placeholders, and the dataless files newer iCloud
     /// Drive lists under their real names — which look like ordinary files
     /// but make iCloud fetch them the moment they're opened.
-    nonisolated private static func walkFolder(_ root: URL) -> FolderWalk {
+    nonisolated static func walkFolder(_ root: URL) -> FolderWalk {
         var walk = FolderWalk()
         let keys: [URLResourceKey] = [
             .isRegularFileKey, .isDirectoryKey, .contentModificationDateKey, .fileSizeKey,
@@ -640,6 +707,85 @@ public final class FilesLibraryService {
         )
         var titleFromFileName = true
 
+        // Cue's own reader first: it knows the FLAC, WAV and AIFF tags
+        // AVFoundation leaves out, and reads only the bytes the tags are in.
+        var artworkData = apply(parseTags(url: url, fileSize: entry.fileSize), to: &track, titleFromFileName: &titleFromFileName)
+        // AVFoundation fills whatever that left — a format it doesn't
+        // cover, or a file with little in its tags.
+        if titleFromFileName || track.artist == nil || track.album == nil || track.duration == nil {
+            let fromAVFoundation = await readWithAVFoundation(url: url, into: &track, titleFromFileName: &titleFromFileName)
+            artworkData = artworkData ?? fromAVFoundation
+        }
+        track.tagsRead = true
+
+        applyFolderLayout(to: &track, url: url, root: root, titleFromFileName: titleFromFileName)
+
+        if let artworkData {
+            storeArtwork(artworkData, for: &track, in: artworkDirectory)
+        }
+        return track
+    }
+
+    nonisolated static func parseTags(url: URL, fileSize: Int?) -> AudioTags? {
+        guard let source = try? FileTagSource(url: url, length: fileSize) else { return nil }
+        defer { source.close() }
+        return try? TagReader.read(from: source)
+    }
+
+    /// Puts what the tags say onto the track. A tag's value wins over what
+    /// was there — a placeholder's folder-layout guesses, most often.
+    /// Returns the embedded cover for the caller to store.
+    @discardableResult
+    nonisolated static func apply(_ tags: AudioTags?, to track: inout FileTrack, titleFromFileName: inout Bool) -> Data? {
+        guard let tags else { return nil }
+        if let title = tags.title {
+            track.title = title
+            titleFromFileName = false
+        }
+        track.artist = tags.artist ?? track.artist
+        track.albumArtist = tags.albumArtist ?? track.albumArtist
+        track.album = tags.album ?? track.album
+        track.genre = tags.genre ?? track.genre
+        track.year = tags.year ?? track.year
+        track.trackNumber = tags.trackNumber ?? track.trackNumber
+        track.discNumber = tags.discNumber ?? track.discNumber
+        track.duration = playableDuration(tags.duration) ?? track.duration
+        // A compilation with no album artist of its own is Various Artists,
+        // so its songs stay one album rather than one per artist.
+        if tags.isCompilation, track.albumArtist == nil {
+            track.albumArtist = "Various Artists"
+        }
+        guard let artwork = tags.artwork, !artwork.isEmpty else { return nil }
+        return artwork
+    }
+
+    /// The longest a song is taken to be: a month, which is past any
+    /// audiobook. Nothing real is longer, and a corrupt tag can claim any
+    /// number at all.
+    nonisolated static let longestDuration: Double = 30 * 24 * 60 * 60
+
+    /// A length worth keeping, or nil: finite, positive and no longer than
+    /// `longestDuration`. Tags and AVFoundation both go through this, and so
+    /// does the index for what was stored before it existed, because turning
+    /// a NaN, an infinity or a number beyond what `Duration` can hold into a
+    /// `Duration` traps — and the index is built every time the library opens.
+    nonisolated static func playableDuration(_ seconds: Double?) -> Double? {
+        guard let seconds, seconds.isFinite, seconds > 0, seconds <= longestDuration else { return nil }
+        return seconds
+    }
+
+    /// One cover per album, written the first time it's seen.
+    nonisolated static func storeArtwork(_ data: Data, for track: inout FileTrack, in artworkDirectory: URL) {
+        let fileName = hash("\(track.groupingArtist)|\(track.albumTitle)") + ".img"
+        let file = artworkDirectory.appendingPathComponent(fileName)
+        if !FileManager.default.fileExists(atPath: file.path) {
+            try? data.write(to: file)
+        }
+        track.artworkFileName = fileName
+    }
+
+    /// AVFoundation's reading, filling only what is still missing.
+    nonisolated private static func readWithAVFoundation(url: URL, into track: inout FileTrack, titleFromFileName: inout Bool) async -> Data? {
         let asset = AVURLAsset(url: url)
         var artworkData: Data?
 
@@ -648,18 +794,18 @@ public final class FilesLibraryService {
                 guard let key = item.commonKey else { continue }
                 switch key {
                 case .commonKeyTitle:
-                    if let value = try? await item.load(.stringValue), !value.isEmpty {
+                    if titleFromFileName, let value = try? await item.load(.stringValue), !value.isEmpty {
                         track.title = value
                         titleFromFileName = false
                     }
                 case .commonKeyArtist:
-                    track.artist = nonEmpty(try? await item.load(.stringValue))
+                    if track.artist == nil { track.artist = nonEmpty(try? await item.load(.stringValue)) }
                 case .commonKeyAlbumName:
-                    track.album = nonEmpty(try? await item.load(.stringValue))
+                    if track.album == nil { track.album = nonEmpty(try? await item.load(.stringValue)) }
                 case .commonKeyType:
-                    track.genre = nonEmpty(try? await item.load(.stringValue))
+                    if track.genre == nil { track.genre = nonEmpty(try? await item.load(.stringValue)) }
                 case .commonKeyCreationDate:
-                    if let value = try? await item.load(.stringValue) { track.year = year(from: value) }
+                    if track.year == nil, let value = try? await item.load(.stringValue) { track.year = year(from: value) }
                 case .commonKeyArtwork:
                     if artworkData == nil { artworkData = try? await item.load(.dataValue) }
                 default:
@@ -668,8 +814,8 @@ public final class FilesLibraryService {
             }
         }
 
-        if let duration = try? await asset.load(.duration), duration.seconds.isFinite, duration.seconds > 0 {
-            track.duration = duration.seconds
+        if track.duration == nil, let duration = try? await asset.load(.duration), let seconds = playableDuration(duration.seconds) {
+            track.duration = seconds
         }
 
         // Track and disc numbers, album artist, genre and year have no
@@ -691,27 +837,14 @@ public final class FilesLibraryService {
                 track.year = year(from: dated)
             }
         }
-
-        applyFolderLayout(to: &track, url: url, root: root, titleFromFileName: titleFromFileName)
-
-        // One cover per album, written the first time it's seen.
-        if let artworkData, !artworkData.isEmpty {
-            let fileName = hash("\(track.groupingArtist)|\(track.albumTitle)") + ".img"
-            let file = artworkDirectory.appendingPathComponent(fileName)
-            if !FileManager.default.fileExists(atPath: file.path) {
-                try? artworkData.write(to: file)
-            }
-            track.artworkFileName = fileName
-        }
-
-        return track
+        return artworkData
     }
 
     /// The layout fallback. Folders above the file stand in for missing
     /// tags — `Artist/Album/Song.mp3`, or `Artist/Album/Disc 2/Song.mp3` —
     /// and a leading number on the file name is the track number, with the
     /// rest as the title when the tags had none.
-    nonisolated private static func applyFolderLayout(to track: inout FileTrack, url: URL, root: URL, titleFromFileName: Bool) {
+    nonisolated static func applyFolderLayout(to track: inout FileTrack, url: URL, root: URL, titleFromFileName: Bool) {
         var folders: [String] = []
         var parent = url.deletingLastPathComponent()
         let rootPath = root.standardizedFileURL.path
@@ -747,7 +880,7 @@ public final class FilesLibraryService {
         }
     }
 
-    nonisolated private static func discNumber(fromFolder name: String) -> Int? {
+    nonisolated static func discNumber(fromFolder name: String) -> Int? {
         guard let match = name.firstMatch(of: #/^(?:disc|disk|cd)\s*(\d{1,2})$/#.ignoresCase()) else { return nil }
         return Int(match.1)
     }
@@ -776,7 +909,7 @@ public final class FilesLibraryService {
 
     /// ID3 carries "3/12" as a string; iTunes packs the number into bytes 2–3
     /// of an 8-byte blob.
-    nonisolated private static func packedNumber(from value: any NSCopying & NSObjectProtocol) -> Int? {
+    nonisolated static func packedNumber(from value: any NSCopying & NSObjectProtocol) -> Int? {
         if let string = value as? String {
             return Int(string.split(separator: "/").first?.trimmingCharacters(in: .whitespaces) ?? "")
         }
@@ -792,14 +925,14 @@ public final class FilesLibraryService {
     }
 
     /// The first four-digit year in a date string, whatever else it holds.
-    nonisolated private static func year(from string: String) -> Int? {
+    nonisolated static func year(from string: String) -> Int? {
         // No lookbehind in Swift Regex: "start or a non-digit" does the job.
         guard let match = string.firstMatch(of: #/(?:^|\D)(\d{4})(?!\d)/#) else { return nil }
         let value = Int(match.1) ?? 0
         return (1900...2100).contains(value) ? value : nil
     }
 
-    nonisolated private static func nonEmpty(_ string: String?) -> String? {
+    nonisolated static func nonEmpty(_ string: String?) -> String? {
         guard let trimmed = string?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
         return trimmed
     }
@@ -807,7 +940,7 @@ public final class FilesLibraryService {
     /// Reads each `.m3u` as the tracks it names, resolved against the
     /// playlist's own folder (or the root for absolute paths) and kept only
     /// where the scan found the file.
-    nonisolated private static func readPlaylists(_ urls: [URL], root: URL, knownPaths: Set<String>) -> [FilePlaylist] {
+    nonisolated static func readPlaylists(_ urls: [URL], root: URL, knownPaths: Set<String>) -> [FilePlaylist] {
         let rootPath = root.standardizedFileURL.path
         return urls.compactMap { url -> FilePlaylist? in
             guard let data = try? Data(contentsOf: url),
@@ -859,178 +992,102 @@ public final class FilesLibraryService {
         }
     }
 
-    nonisolated private static func relativePath(of url: URL, in root: URL) -> String {
+    nonisolated static func relativePath(of url: URL, in root: URL) -> String {
         let rootPath = root.standardizedFileURL.path
         let path = url.standardizedFileURL.path
         guard path.hasPrefix(rootPath) else { return url.lastPathComponent }
         return String(path.dropFirst(rootPath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     }
 
-    nonisolated private static func hash(_ string: String) -> String {
+    nonisolated static func hash(_ string: String) -> String {
         let digest = SHA256.hash(data: Data(string.utf8))
         return digest.prefix(8).map { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: - Index
 
-    /// Builds the songs, albums, artists and playlists from the tracks, with
-    /// the URLs the current folder gives them.
-    private func rebuildIndex() {
-        var songs: [PlayableContent] = []
-        var tracksByID: [String: FileTrack] = [:]
-        var albumsByID: [String: PlayableContent] = [:]
-        var artistsByID: [String: PlayableContent] = [:]
-        var songIDsByAlbum: [String: [String]] = [:]
-        var albumIDsByArtist: [String: [String]] = [:]
-        var songsByID: [String: PlayableContent] = [:]
-        var songIDByPath: [String: String] = [:]
-        var albumAdded: [String: Date] = [:]
-        var albumYear: [String: Int] = [:]
-        var albumArtwork: [String: URL] = [:]
+    /// What the lists read. Built off the main actor by `FilesIndex.build`
+    /// and replaced whole; every read of it here is tracked, so a swap
+    /// re-renders whatever is showing.
+    private var catalog = FilesIndex.empty
+    @ObservationIgnored private var indexRefresh: Task<Void, Never>?
+    @ObservationIgnored private var indexDirty = false
+    @ObservationIgnored private var indexPersistPending = false
 
-        // Pass one: what each album is called, dated and pictured.
-        for track in tracks {
-            let artistName = track.groupingArtist
-            let albumID = Self.hash("album|\(artistName.lowercased())|\(track.albumTitle.lowercased())")
-            if let added = track.modificationDate, (albumAdded[albumID] ?? .distantPast) < added {
-                albumAdded[albumID] = added
+    /// Asks for the index to be rebuilt from `tracks` and `filePlaylists`.
+    /// Requests coalesce: one build runs at a time, a request during a
+    /// build queues exactly one more, and while a scan is running builds
+    /// are a second apart at most — a fast reader can't keep the main
+    /// actor busy swapping indexes.
+    private func scheduleIndexRefresh(persist: Bool = false) {
+        indexDirty = true
+        if persist { indexPersistPending = true }
+        guard indexRefresh == nil else { return }
+        indexRefresh = Task { [weak self] in
+            guard let self else { return }
+            while self.indexDirty {
+                self.indexDirty = false
+                let persist = self.indexPersistPending
+                self.indexPersistPending = false
+                let tracks = self.tracks
+                let playlists = self.filePlaylists
+                let folderURL = self.folderURL
+                let generation = self.folderGeneration
+                let built = await FilesIndex.build(tracks: tracks, playlists: playlists, folderURL: folderURL, artworkDirectory: Self.artworkDirectory)
+                guard generation == self.folderGeneration else { break }
+                self.catalog = built
+                self.indexVersion += 1
+                if persist {
+                    await Self.persistIndex(tracks: tracks, playlists: playlists)
+                }
+                if self.isScanning, self.indexDirty {
+                    try? await Task.sleep(for: .seconds(1))
+                }
             }
-            if let year = track.year, (albumYear[albumID] ?? 0) < year {
-                albumYear[albumID] = year
-            }
-            if albumArtwork[albumID] == nil, let name = track.artworkFileName {
-                albumArtwork[albumID] = Self.artworkDirectory.appendingPathComponent(name)
-            }
+            self.indexRefresh = nil
         }
+    }
 
-        for track in tracks {
-            let artistName = track.groupingArtist
-            let artistID = Self.hash("artist|\(artistName.lowercased())")
-            let albumID = Self.hash("album|\(artistName.lowercased())|\(track.albumTitle.lowercased())")
-            let songID = Self.hash("song|\(track.relativePath)")
-            let url = folderURL?.appendingPathComponent(track.relativePath)
-            let artwork = track.artworkFileName.map { Self.artworkDirectory.appendingPathComponent($0) } ?? albumArtwork[albumID]
-            let year = albumYear[albumID]
+    /// A refresh the caller waits for — a scan's last publish, a playlist
+    /// edit. Cancelling the task skips only its pacing sleep; the build
+    /// itself always runs to the swap.
+    private func refreshIndexNow(persist: Bool = false) async {
+        scheduleIndexRefresh(persist: persist)
+        indexRefresh?.cancel()
+        await indexRefresh?.value
+    }
 
-            let song = PlayableContent(
-                title: track.title,
-                subtitle: [track.artist ?? artistName, track.fileExtension.uppercased()]
-                    .filter { !$0.isEmpty }
-                    .joined(separator: " • "),
-                thumbnail: artwork,
-                artwork: artwork,
-                content: .init(service: .files, id: songID, type: .track, location: url),
-                // The file itself: the on-device player reads it, and the
-                // row's preview plays it in full like Plex and Subsonic.
-                // The file itself even when it's still in iCloud: opening
-                // it makes iCloud fetch it, and the player asks ahead.
-                previewURL: url,
-                metadata: .init(
-                    duration: track.duration.map { Duration.seconds($0) },
-                    artist: track.artist ?? artistName,
-                    artistID: artistID,
-                    album: track.albumTitle,
-                    albumID: albumID,
-                    albumYear: year.flatMap { Self.date(year: $0) },
-                    position: track.trackNumber,
-                    audioCodec: track.fileExtension,
-                    isPlayable: track.isDownloaded
-                )
-            )
-            songs.append(song)
-            songsByID[songID] = song
-            tracksByID[songID] = track
-            songIDByPath[track.relativePath] = songID
-            songIDsByAlbum[albumID, default: []].append(songID)
-
-            if albumsByID[albumID] == nil {
-                albumsByID[albumID] = PlayableContent(
-                    title: track.albumTitle,
-                    subtitle: [artistName, year.map(String.init) ?? ""]
-                        .filter { !$0.isEmpty }
-                        .joined(separator: " • "),
-                    thumbnail: artwork,
-                    artwork: artwork,
-                    content: .init(service: .files, id: albumID, type: .album, location: nil),
-                    metadata: .init(
-                        artist: artistName,
-                        artistID: artistID,
-                        album: track.albumTitle,
-                        albumID: albumID,
-                        albumYear: year.flatMap { Self.date(year: $0) }
-                    )
-                )
-                albumIDsByArtist[artistID, default: []].append(albumID)
-            }
-
-            if artistsByID[artistID] == nil {
-                artistsByID[artistID] = PlayableContent(
-                    title: artistName,
-                    subtitle: "",
-                    thumbnail: artwork,
-                    artwork: artwork,
-                    content: .init(service: .files, id: artistID, type: .artist, location: nil),
-                    metadata: .init(artist: artistName, artistID: artistID)
-                )
-            }
-        }
-
-        var playlistsByID: [String: PlayableContent] = [:]
-        var songIDsByPlaylist: [String: [String]] = [:]
-        for playlist in filePlaylists {
-            let id = Self.hash("playlist|\(playlist.relativePath)")
-            let ids = playlist.trackRelativePaths.compactMap { songIDByPath[$0] }
-            let first = ids.first.flatMap { songsByID[$0] }
-            playlistsByID[id] = PlayableContent(
-                title: playlist.title,
-                subtitle: ids.isEmpty ? "Empty" : (ids.count == 1 ? "1 song" : "\(ids.count) songs"),
-                thumbnail: first?.thumbnail,
-                artwork: first?.artwork,
-                content: .init(service: .files, id: id, type: .playlist, location: folderURL?.appendingPathComponent(playlist.relativePath))
-            )
-            songIDsByPlaylist[id] = ids
-        }
-
-        self.tracksByID = tracksByID
-        self.songsByID = songsByID
-        self.albumsByID = albumsByID
-        self.artistsByID = artistsByID
-        self.playlistsByID = playlistsByID
-        self.songIDsByAlbum = songIDsByAlbum
-        self.albumIDsByArtist = albumIDsByArtist
-        self.songIDsByPlaylist = songIDsByPlaylist
-        self.songIDByPath = songIDByPath
-        self.albumAdded = albumAdded
-        self.albumYear = albumYear
-        self.sortedSongs = [:]
-        self.songs = songs.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-        self.albums = albumsByID.values.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-        self.artists = artistsByID.values.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-        self.playlists = playlistsByID.values.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+    /// The folder is gone or changed: nothing to show, and a build still
+    /// running is for the old generation and won't land.
+    private func resetIndex() {
+        indexDirty = false
+        indexPersistPending = false
+        catalog = .empty
         indexVersion += 1
     }
 
-    private static func date(year: Int) -> Date? {
-        Calendar(identifier: .gregorian).date(from: DateComponents(year: year, month: 1, day: 1))
+    @concurrent
+    nonisolated private static func persistIndex(tracks: [FileTrack], playlists: [FilePlaylist]) async {
+        saveIndex(tracks: tracks, playlists: playlists)
     }
 
     // MARK: - Lookups
 
-    public func track(id: String) -> PlayableContent? { songsByID[id] }
-    public func album(id: String) -> PlayableContent? { albumsByID[id] }
-    public func artist(id: String) -> PlayableContent? { artistsByID[id] }
+    public func track(id: String) -> PlayableContent? { catalog.songsByID[id] }
+    public func album(id: String) -> PlayableContent? { catalog.albumsByID[id] }
+    public func artist(id: String) -> PlayableContent? { catalog.artistsByID[id] }
 
     public func playlist(id: String) -> PlayableContent? {
-        id == Self.allSongsID ? allSongsContainer : playlistsByID[id]
+        id == Self.allSongsID ? allSongsContainer : catalog.playlistsByID[id]
     }
 
     /// An album's songs in play order: disc and track number where the tags
     /// or file names have them, title otherwise.
     public func albumTracks(albumID: String) -> [PlayableContent] {
-        let ids = songIDsByAlbum[albumID] ?? []
-        return ids.compactMap { songsByID[$0] }.sorted { lhs, rhs in
-            let l = tracksByID[lhs.content.id]
-            let r = tracksByID[rhs.content.id]
+        let ids = catalog.songIDsByAlbum[albumID] ?? []
+        return ids.compactMap { catalog.songsByID[$0] }.sorted { lhs, rhs in
+            let l = catalog.tracksByID[lhs.content.id]
+            let r = catalog.tracksByID[rhs.content.id]
             let lDisc = l?.discNumber ?? 1
             let rDisc = r?.discNumber ?? 1
             if lDisc != rDisc { return lDisc < rDisc }
@@ -1038,14 +1095,16 @@ public final class FilesLibraryService {
             case let (a?, b?) where a != b: return a < b
             case (nil, .some): return false
             case (.some, nil): return true
-            default: return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
+            default: return NaturalSortKey.key(for: lhs.title) < NaturalSortKey.key(for: rhs.title)
             }
         }
     }
 
     public func artistAlbums(artistID: String) -> [PlayableContent] {
-        (albumIDsByArtist[artistID] ?? []).compactMap { albumsByID[$0] }
-            .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        (catalog.albumIDsByArtist[artistID] ?? []).compactMap { catalog.albumsByID[$0] }
+            .map { ($0, NaturalSortKey.key(for: $0.title)) }
+            .sorted { $0.1 < $1.1 }
+            .map(\.0)
     }
 
     /// Every song by an artist, album by album.
@@ -1057,76 +1116,18 @@ public final class FilesLibraryService {
     /// container is the whole library by title.
     public func playlistTracks(playlistID: String) -> [PlayableContent] {
         if playlistID == Self.allSongsID { return songs }
-        return (songIDsByPlaylist[playlistID] ?? []).compactMap { songsByID[$0] }
+        return (catalog.songIDsByPlaylist[playlistID] ?? []).compactMap { catalog.songsByID[$0] }
     }
 
-    /// A page of songs in one of the offered orders. Each order is sorted
-    /// once and kept until the index changes, so paging is a slice.
+    /// A page of songs in one of the offered orders. Every order was sorted
+    /// when the index was built, so a page is a slice.
     public func songs(sortedBy sort: SongSort = .title, descending: Bool = false, offset: Int, limit: Int = 200) -> [PlayableContent] {
-        let key = "\(sort.rawValue).\(descending)"
-        let ordered: [PlayableContent]
-        if let cached = sortedSongs[key] {
-            ordered = cached
-        } else {
-            ordered = sortSongs(songs, by: sort, descending: descending)
-            sortedSongs[key] = ordered
-        }
-        return Array(ordered.dropFirst(max(0, offset)).prefix(limit))
-    }
-
-    private func sortSongs(_ songs: [PlayableContent], by sort: SongSort, descending: Bool) -> [PlayableContent] {
-        func track(_ song: PlayableContent) -> FileTrack? { tracksByID[song.content.id] }
-        let ascending: (PlayableContent, PlayableContent) -> Bool
-        switch sort {
-        case .title:
-            ascending = { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-        case .artist:
-            ascending = { lhs, rhs in
-                let l = lhs.metadata?.artist ?? ""
-                let r = rhs.metadata?.artist ?? ""
-                if l != r { return l.localizedStandardCompare(r) == .orderedAscending }
-                return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
-            }
-        case .album:
-            ascending = { lhs, rhs in
-                let l = lhs.metadata?.album ?? ""
-                let r = rhs.metadata?.album ?? ""
-                if l != r { return l.localizedStandardCompare(r) == .orderedAscending }
-                return (lhs.metadata?.position ?? 0) < (rhs.metadata?.position ?? 0)
-            }
-        case .recentlyAdded:
-            ascending = { (track($0)?.modificationDate ?? .distantPast) < (track($1)?.modificationDate ?? .distantPast) }
-        case .duration:
-            ascending = { (track($0)?.duration ?? 0) < (track($1)?.duration ?? 0) }
-        }
-        return descending ? songs.sorted { ascending($1, $0) } : songs.sorted(by: ascending)
+        let order = catalog.songOrder(sort, descending: descending)
+        return order.dropFirst(max(0, offset)).prefix(limit).map { catalog.songs[$0] }
     }
 
     public func albums(sortedBy sort: AlbumSort = .title, descending: Bool = false) -> [PlayableContent] {
-        let ascending: (PlayableContent, PlayableContent) -> Bool
-        switch sort {
-        case .title:
-            ascending = { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-        case .artist:
-            ascending = { lhs, rhs in
-                let l = lhs.metadata?.artist ?? ""
-                let r = rhs.metadata?.artist ?? ""
-                if l != r { return l.localizedStandardCompare(r) == .orderedAscending }
-                return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
-            }
-        case .year:
-            ascending = { [albumYear] lhs, rhs in
-                let l = albumYear[lhs.content.id] ?? 0
-                let r = albumYear[rhs.content.id] ?? 0
-                if l != r { return l < r }
-                return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
-            }
-        case .recentlyAdded:
-            ascending = { [albumAdded] lhs, rhs in
-                (albumAdded[lhs.content.id] ?? .distantPast) < (albumAdded[rhs.content.id] ?? .distantPast)
-            }
-        }
-        return descending ? albums.sorted { ascending($1, $0) } : albums.sorted(by: ascending)
+        catalog.albumOrder(sort, descending: descending).map { catalog.albums[$0] }
     }
 
     /// The newest albums by when their files arrived in the folder.
@@ -1175,7 +1176,7 @@ public final class FilesLibraryService {
             counter += 1
         }
 
-        let paths = [track].compactMap { $0 }.compactMap { tracksByID[$0.content.id]?.relativePath }
+        let paths = [track].compactMap { $0 }.compactMap { catalog.tracksByID[$0.content.id]?.relativePath }
         let playlist = FilePlaylist(
             relativePath: Self.relativePath(of: url, in: folderURL),
             title: safeName,
@@ -1183,7 +1184,7 @@ public final class FilesLibraryService {
         )
         guard await write(playlist) else { return nil }
         filePlaylists.append(playlist)
-        commitPlaylists()
+        await commitPlaylists()
         return self.playlist(id: Self.hash("playlist|\(playlist.relativePath)"))
     }
 
@@ -1198,7 +1199,7 @@ public final class FilesLibraryService {
         playlist.title = trimmed
         guard await write(playlist) else { return nil }
         filePlaylists[index] = playlist
-        commitPlaylists()
+        await commitPlaylists()
         return self.playlist(id: id)
     }
 
@@ -1207,24 +1208,24 @@ public final class FilesLibraryService {
         let url = folderURL.appendingPathComponent(filePlaylists[index].relativePath)
         guard await Task.detached(priority: .userInitiated, operation: { Self.coordinatedDelete(url) }).value else { return false }
         filePlaylists.remove(at: index)
-        commitPlaylists()
+        await commitPlaylists()
         return true
     }
 
     public func addToPlaylist(trackID: String, playlistID: String) async -> Bool {
-        guard let index = playlistIndex(id: playlistID), let track = tracksByID[trackID] else { return false }
+        guard let index = playlistIndex(id: playlistID), let track = catalog.tracksByID[trackID] else { return false }
         var playlist = filePlaylists[index]
         playlist.trackRelativePaths.append(track.relativePath)
         guard await write(playlist) else { return false }
         filePlaylists[index] = playlist
-        commitPlaylists()
+        await commitPlaylists()
         return true
     }
 
     /// Removes one occurrence: the one at `position` when it is that track,
     /// otherwise the first.
     public func removeFromPlaylist(trackID: String, playlistID: String, position: Int? = nil) async -> Bool {
-        guard let index = playlistIndex(id: playlistID), let track = tracksByID[trackID] else { return false }
+        guard let index = playlistIndex(id: playlistID), let track = catalog.tracksByID[trackID] else { return false }
         var playlist = filePlaylists[index]
         let at: Int?
         if let position, playlist.trackRelativePaths.indices.contains(position),
@@ -1237,7 +1238,7 @@ public final class FilesLibraryService {
         playlist.trackRelativePaths.remove(at: at)
         guard await write(playlist) else { return false }
         filePlaylists[index] = playlist
-        commitPlaylists()
+        await commitPlaylists()
         return true
     }
 
@@ -1249,13 +1250,12 @@ public final class FilesLibraryService {
         playlist.trackRelativePaths.move(fromOffsets: IndexSet(integer: from), toOffset: to)
         guard await write(playlist) else { return false }
         filePlaylists[index] = playlist
-        commitPlaylists()
+        await commitPlaylists()
         return true
     }
 
-    private func commitPlaylists() {
-        rebuildIndex()
-        Self.saveIndex(tracks: tracks, playlists: filePlaylists)
+    private func commitPlaylists() async {
+        await refreshIndexNow(persist: true)
     }
 
     /// Writes a playlist as Extended M3U — a `#PLAYLIST:` name, an `#EXTINF`
@@ -1264,17 +1264,31 @@ public final class FilesLibraryService {
     private func write(_ playlist: FilePlaylist) async -> Bool {
         guard let folderURL else { return false }
         let url = folderURL.appendingPathComponent(playlist.relativePath)
+        var tracksByPath: [String: FileTrack] = [:]
+        for path in playlist.trackRelativePaths {
+            if let id = catalog.songIDByPath[path], let track = catalog.tracksByID[id] { tracksByPath[path] = track }
+        }
+        let data = Data(Self.m3uText(for: playlist, tracksByPath: tracksByPath).utf8)
+        return await Task.detached(priority: .userInitiated) { Self.coordinatedWrite(data, to: url) }.value
+    }
+
+    /// The Extended M3U for a playlist: a `#PLAYLIST:` name, an `#EXTINF`
+    /// line for each song the index knows, and every path relative to the
+    /// playlist's own folder. A path the index doesn't know is written
+    /// bare, so nothing the user listed is dropped.
+    nonisolated static func m3uText(for playlist: FilePlaylist, tracksByPath: [String: FileTrack]) -> String {
         let directory = (playlist.relativePath as NSString).deletingLastPathComponent
         var lines = ["#EXTM3U", "#PLAYLIST:\(playlist.title)"]
         for path in playlist.trackRelativePaths {
-            if let id = songIDByPath[path], let track = tracksByID[id] {
-                let seconds = Int((track.duration ?? -1).rounded())
+            if let track = tracksByPath[path] {
+                // Through the same check as the index: `Int(_:)` of a NaN or
+                // an infinity traps, and an old index can hold one.
+                let seconds = Int((playableDuration(track.duration) ?? -1).rounded())
                 lines.append("#EXTINF:\(seconds),\(track.artist ?? track.groupingArtist) - \(track.title)")
             }
-            lines.append(Self.relativePath(from: directory, to: path))
+            lines.append(relativePath(from: directory, to: path))
         }
-        let data = Data((lines.joined(separator: "\n") + "\n").utf8)
-        return await Task.detached(priority: .userInitiated) { Self.coordinatedWrite(data, to: url) }.value
+        return lines.joined(separator: "\n") + "\n"
     }
 
     nonisolated private static func coordinatedWrite(_ data: Data, to url: URL) -> Bool {
@@ -1298,7 +1312,7 @@ public final class FilesLibraryService {
 
     /// The path from one folder to a file, both given relative to the root:
     /// "../Artist/Album/01 Song.mp3" from a playlist in "Playlists".
-    nonisolated private static func relativePath(from directory: String, to path: String) -> String {
+    nonisolated static func relativePath(from directory: String, to path: String) -> String {
         let from = directory.split(separator: "/").map(String.init)
         let to = path.split(separator: "/").map(String.init)
         var common = 0
@@ -1331,7 +1345,7 @@ public final class FilesLibraryService {
     @ObservationIgnored private var cloudObservers: [NSObjectProtocol] = []
 
     public func cloudStatus(trackID: String) -> CloudStatus {
-        guard isCloudFolder, let track = tracksByID[trackID], let folderURL else { return .notCloud }
+        guard isCloudFolder, let track = catalog.tracksByID[trackID], let folderURL else { return .notCloud }
         if let progress = cloudProgress[track.relativePath] { return .downloading(progress) }
         let url = folderURL.appendingPathComponent(track.relativePath)
         guard FileManager.default.fileExists(atPath: url.path),
@@ -1344,22 +1358,37 @@ public final class FilesLibraryService {
     /// The song a relative path stands for, for the rows that report
     /// progress by path.
     public func song(atRelativePath path: String) -> PlayableContent? {
-        songIDByPath[path].flatMap { songsByID[$0] }
+        catalog.songIDByPath[path].flatMap { catalog.songsByID[$0] }
     }
 
-    /// How much of the folder is on this device. Touches every file, so
-    /// it's for the Downloads screen rather than a row.
-    public func cloudSummary() -> (local: Int, remote: Int) {
-        guard isCloudFolder else { return (tracks.count, 0) }
-        var local = 0
-        var remote = 0
-        for track in tracks {
-            switch cloudStatus(trackID: Self.hash("song|\(track.relativePath)")) {
-            case .local: local += 1
-            default: remote += 1
+    /// How much of the folder is on this device. Touches every file, so it
+    /// runs off the main actor — a big folder takes long enough to stall
+    /// the screen that asks — and it's for the Downloads screen rather
+    /// than a row.
+    public func cloudSummary() async -> (local: Int, remote: Int) {
+        guard isCloudFolder, let folderURL else { return (tracks.count, 0) }
+        let paths = tracks.map(\.relativePath)
+        let downloading = Set(cloudProgress.keys)
+        return await Task.detached(priority: .userInitiated) {
+            var local = 0
+            for path in paths where !downloading.contains(path) {
+                if Self.isLocal(folderURL.appendingPathComponent(path)) { local += 1 }
             }
-        }
-        return (local, remote)
+            return (local, paths.count - local)
+        }.value
+    }
+
+    nonisolated private static func isUbiquitous(_ url: URL?) -> Bool {
+        guard let url else { return false }
+        return (try? url.resourceValues(forKeys: [.isUbiquitousItemKey]).isUbiquitousItem) ?? false
+    }
+
+    /// Whether an iCloud file is here whole. Missing files, placeholders
+    /// and ones still coming down are not.
+    nonisolated private static func isLocal(_ url: URL) -> Bool {
+        guard let values = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey, .ubiquitousItemIsDownloadingKey])
+        else { return false }
+        return values.ubiquitousItemIsDownloading != true && values.ubiquitousItemDownloadingStatus == .current
     }
 
     /// Songs the user asked for by name — Download Everything, a row's
@@ -1380,7 +1409,7 @@ public final class FilesLibraryService {
     public func downloadFromCloud(trackIDs: [String], keep: Bool = true) {
         guard let folderURL else { return }
         for id in trackIDs {
-            guard let track = tracksByID[id] else { continue }
+            guard let track = catalog.tracksByID[id] else { continue }
             try? FileManager.default.startDownloadingUbiquitousItem(at: folderURL.appendingPathComponent(track.relativePath))
         }
         if keep {
@@ -1403,17 +1432,16 @@ public final class FilesLibraryService {
     /// Flips the index for files that just left the device, so rows and
     /// the player see them as in iCloud again without a full rescan.
     private func markNotDownloaded(trackIDs: [String]) {
-        let paths = Set(trackIDs.compactMap { tracksByID[$0]?.relativePath })
+        let paths = Set(trackIDs.compactMap { catalog.tracksByID[$0]?.relativePath })
         guard !paths.isEmpty else { return }
         var changed = false
-        for index in tracks.indices where paths.contains(tracks[index].relativePath) && tracks[index].isDownloaded {
-            tracks[index].isDownloaded = false
+        for position in tracks.indices where paths.contains(tracks[position].relativePath) && tracks[position].isDownloaded {
+            tracks[position].isDownloaded = false
             changed = true
         }
         guard changed else { return }
         pendingDownloadCount = tracks.filter { !$0.isDownloaded }.count
-        rebuildIndex()
-        Self.saveIndex(tracks: tracks, playlists: filePlaylists)
+        scheduleIndexRefresh(persist: true)
     }
 
     /// Every song not on this device. Returns the ids it asked for, so the
@@ -1433,7 +1461,7 @@ public final class FilesLibraryService {
     public func removeFromDevice(trackIDs: [String]) {
         guard let folderURL else { return }
         for id in trackIDs {
-            guard let track = tracksByID[id] else { continue }
+            guard let track = catalog.tracksByID[id] else { continue }
             try? FileManager.default.evictUbiquitousItem(at: folderURL.appendingPathComponent(track.relativePath))
         }
         keptTrackIDs.subtract(trackIDs)
@@ -1487,7 +1515,7 @@ public final class FilesLibraryService {
             let relative = String(path.dropFirst(rootPath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             let status = item.value(forAttribute: NSMetadataUbiquitousItemDownloadingStatusKey) as? String
             if status == NSMetadataUbiquitousItemDownloadingStatusCurrent {
-                if let id = songIDByPath[relative], tracksByID[id]?.isDownloaded == false { landed = true }
+                if let id = catalog.songIDByPath[relative], catalog.tracksByID[id]?.isDownloaded == false { landed = true }
                 continue
             }
             let isDownloading = (item.value(forAttribute: NSMetadataUbiquitousItemIsDownloadingKey) as? Bool) ?? false
@@ -1502,6 +1530,129 @@ public final class FilesLibraryService {
         #endif
     }
 
+    // MARK: - Tags of songs still in iCloud
+
+    /// Starts the pass that reads the tags of songs still in iCloud, when
+    /// the setting allows it and something is left unread. Each read asks
+    /// for the tag bytes only; on a system that fetches a cloud file in
+    /// parts, that is all that comes down. Where the whole file came down
+    /// to serve the read, it is evicted again unless the user had asked
+    /// for it — the library ends the pass no bigger than it started.
+    public func readCloudTagsIfNeeded() {
+        guard readsCloudTags, isCloudFolder, cloudTagTask == nil, let folderURL else { return }
+        let pending = tracks.filter { !$0.hasReadTags }
+        guard !pending.isEmpty else { return }
+        let generation = folderGeneration
+        // Counted from here rather than from the first read: a scan calls
+        // this as its last step, and whatever follows the scan's progress
+        // must see the pass as under way before the scan reports done.
+        cloudTagsTotal = pending.count
+        cloudTagsRead = 0
+        cloudTagTask = Task { [weak self] in
+            await self?.readCloudTags(pending, folderURL: folderURL, generation: generation)
+            self?.cloudTagTask = nil
+        }
+        onCloudTagsStarted?()
+    }
+
+    private struct CloudTagResult: Sendable {
+        var relativePath: String
+        var tags: AudioTags?
+        /// True when the read left the whole file on the device and the
+        /// user had asked for it, so it stays.
+        var isLocalNow: Bool
+    }
+
+    private func readCloudTags(_ pending: [FileTrack], folderURL: URL, generation: Int) async {
+        defer {
+            cloudTagsTotal = 0
+            cloudTagsRead = 0
+        }
+        guard await NetworkConditions.isUnmetered() else {
+            Self.log.notice("cloud tags: waiting for Wi‑Fi, \(pending.count) unread")
+            return
+        }
+        guard generation == folderGeneration, !Task.isCancelled else { return }
+        Self.log.notice("cloud tags: reading \(pending.count)")
+        let root = folderURL
+        let artworkDirectory = Self.artworkDirectory
+        let kept = keptTrackIDs
+        let positions = Dictionary(tracks.enumerated().map { ($0.element.relativePath, $0.offset) }, uniquingKeysWith: { first, _ in first })
+        var sincePublish = 0
+        var changed = false
+
+        // Two at a time: each read may block while the system fetches.
+        let jobs = pending.map { track in
+            (url: root.appendingPathComponent(track.relativePath),
+             keep: kept.contains(Self.hash("song|\(track.relativePath)")))
+        }
+        await withTaskGroup(of: CloudTagResult.self) { group in
+            var next = 0
+            while next < min(2, jobs.count) {
+                let job = jobs[next]
+                next += 1
+                group.addTask { Self.readCloudTag(url: job.url, root: root, keep: job.keep) }
+            }
+            while let result = await group.next() {
+                cloudTagsRead += 1
+                if generation != folderGeneration || Task.isCancelled {
+                    group.cancelAll()
+                    continue
+                }
+                if let position = trackPosition(ofPath: result.relativePath, hint: positions[result.relativePath]) {
+                    var track = tracks[position]
+                    var titleFromFileName = true
+                    if let artwork = Self.apply(result.tags, to: &track, titleFromFileName: &titleFromFileName) {
+                        Self.storeArtwork(artwork, for: &track, in: artworkDirectory)
+                    }
+                    track.tagsRead = true
+                    if result.isLocalNow { track.isDownloaded = true }
+                    tracks[position] = track
+                    changed = true
+                    sincePublish += 1
+                }
+                if sincePublish >= 25 {
+                    sincePublish = 0
+                    scheduleIndexRefresh()
+                }
+                if next < jobs.count, !Task.isCancelled {
+                    let job = jobs[next]
+                    next += 1
+                    group.addTask { Self.readCloudTag(url: job.url, root: root, keep: job.keep) }
+                }
+            }
+        }
+        guard generation == folderGeneration, changed else { return }
+        pendingDownloadCount = tracks.filter { !$0.isDownloaded }.count
+        await refreshIndexNow(persist: true)
+        Self.log.notice("cloud tags: done")
+    }
+
+    /// The track at a path: the position noted when the pass began where
+    /// it still holds, else a search, since a scan may have republished.
+    private func trackPosition(ofPath path: String, hint: Int?) -> Int? {
+        if let hint, tracks.indices.contains(hint), tracks[hint].relativePath == path { return hint }
+        return tracks.firstIndex { $0.relativePath == path }
+    }
+
+    nonisolated private static func readCloudTag(url: URL, root: URL, keep: Bool) -> CloudTagResult {
+        let path = relativePath(of: url, in: root)
+        var tags: AudioTags?
+        if let source = try? FileTagSource(url: url) {
+            tags = try? TagReader.read(from: source)
+            source.close()
+        }
+        // If the system brought the whole file down to serve the read, hand
+        // the space back — unless the user had asked for this song.
+        let status = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey]).ubiquitousItemDownloadingStatus
+        var isLocal = status == .current
+        if isLocal, !keep {
+            try? FileManager.default.evictUbiquitousItem(at: url)
+            isLocal = false
+        }
+        return CloudTagResult(relativePath: path, tags: tags, isLocalNow: isLocal)
+    }
+
     // MARK: - Storage
 
     private struct StoredIndex: Codable {
@@ -1509,37 +1660,37 @@ public final class FilesLibraryService {
         var playlists: [FilePlaylist]
     }
 
-    private static var supportDirectory: URL {
+    nonisolated private static var supportDirectory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         return base.appendingPathComponent("FilesLibrary", isDirectory: true)
     }
 
-    private static var indexURL: URL {
+    nonisolated private static var indexURL: URL {
         supportDirectory.appendingPathComponent("index.json")
     }
 
-    private static var artworkDirectory: URL {
+    nonisolated private static var artworkDirectory: URL {
         supportDirectory.appendingPathComponent("Artwork", isDirectory: true)
     }
 
-    private static var keptURL: URL {
+    nonisolated private static var keptURL: URL {
         supportDirectory.appendingPathComponent("kept.json")
     }
 
-    private static func loadKept() -> Set<String> {
+    nonisolated private static func loadKept() -> Set<String> {
         guard let data = try? Data(contentsOf: keptURL),
               let ids = try? JSONDecoder().decode([String].self, from: data) else { return [] }
         return Set(ids)
     }
 
-    private static func saveKept(_ ids: Set<String>) {
+    nonisolated private static func saveKept(_ ids: Set<String>) {
         try? FileManager.default.createDirectory(at: supportDirectory, withIntermediateDirectories: true)
         guard let data = try? JSONEncoder().encode(Array(ids).sorted()) else { return }
         try? data.write(to: keptURL, options: .atomic)
     }
 
-    private static func loadIndex() -> (tracks: [FileTrack], playlists: [FilePlaylist]) {
+    nonisolated private static func loadIndex() -> (tracks: [FileTrack], playlists: [FilePlaylist]) {
         guard let data = try? Data(contentsOf: indexURL) else { return ([], []) }
         if let stored = try? JSONDecoder().decode(StoredIndex.self, from: data) {
             return (stored.tracks, stored.playlists)
@@ -1551,7 +1702,7 @@ public final class FilesLibraryService {
         return ([], [])
     }
 
-    private static func saveIndex(tracks: [FileTrack], playlists: [FilePlaylist]) {
+    nonisolated private static func saveIndex(tracks: [FileTrack], playlists: [FilePlaylist]) {
         try? FileManager.default.createDirectory(at: supportDirectory, withIntermediateDirectories: true)
         guard let data = try? JSONEncoder().encode(StoredIndex(tracks: tracks, playlists: playlists)) else { return }
         try? data.write(to: indexURL, options: .atomic)

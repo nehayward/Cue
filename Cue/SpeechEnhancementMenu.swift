@@ -43,6 +43,8 @@ struct SpeechEnhancementMenu: View {
         .tint(speechLevel.isActive ? .accent : nil)
         .animation(.spring, value: speechLevel)
         .disabled(group.tvSettings == nil)
+        .accessibilityLabel("Speech Enhancement")
+        .accessibilityValue(speechLevel.title)
         .overlay(alignment: .bottom) {
             if showLabel && speechLevel.isActive {
                 Text(speechLevel.title)

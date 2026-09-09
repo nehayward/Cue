@@ -10,6 +10,7 @@ import RevenueCatUI
 struct SpeakerListScreen: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(FeatureGate.self) private var featureGate
     @Environment(AlertService.self) private var alertService
     @Environment(Router.self) private var router
 
@@ -91,6 +92,7 @@ struct SpeakerListScreen: View {
                 } label: {
                     if !scenes.isEmpty {
                         Image(systemName: "bolt.fill")
+                            .accessibilityLabel("Scenes")
                     } else {
                         HStack {
                             Image(systemName: "bolt.fill")
@@ -100,14 +102,12 @@ struct SpeakerListScreen: View {
                     }
                 } primaryAction: {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    if subscriptionService.subscription.isActive {
+                    if featureGate.unlock(.scenes, via: router) {
                         if !scenes.isEmpty {
                             router.sheet(to: .scenes)
                         } else {
                             router.sheet(to: .createScene(content: nil))
                         }
-                    } else {
-                        router.fullScreenCover(to: .paywall)
                     }
                 }
                 .tint(.primary)
@@ -170,7 +170,7 @@ struct SpeakerListScreen: View {
                     .transition(.scale)
                 }
                 
-                if !subscriptionService.subscription.isActive {
+                if !featureGate.isAvailable(.allRooms) {
                     // Free tier shows index < 1, so everything past the first
                     // group is locked — pass that count through so the card
                     // reads "Unlock 3 more speakers" instead of generic copy.
@@ -209,14 +209,12 @@ struct SpeakerListScreen: View {
                         .glassToolbarIcon()
                 } primaryAction: {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    if subscriptionService.subscription.isActive {
+                    if featureGate.unlock(.scenes, via: router) {
                         if !scenes.isEmpty {
                             router.sheet(to: .scenes)
                         } else {
                             router.sheet(to: .createScene(content: nil))
                         }
-                    } else {
-                        router.fullScreenCover(to: .paywall)
                     }
                 }
                 .tint(.primary)
@@ -284,6 +282,7 @@ struct SpeakerListScreen: View {
 fileprivate struct SpeakerGroupSection: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(FeatureGate.self) private var featureGate
     @Environment(Router.self) private var router
     @Environment(\.colorScheme) private var colorScheme
     
@@ -291,9 +290,7 @@ fileprivate struct SpeakerGroupSection: View {
     @Binding var hoveredID: String?
     
     private var paywallEnabled: Bool {
-        if subscriptionService.subscription.isActive { return true }
-        guard let index = sonosService.sorted.firstIndex(of: group) else { return false }
-        return index < 1
+        featureGate.isRoomUnlocked(group, in: sonosService.sorted)
     }
     
     private var listRowBackground: Color {

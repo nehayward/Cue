@@ -36,6 +36,10 @@ struct SpotifyLibraryScreen: View {
                 await updateSpotifyBrowseService()
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    SettingsToolbarButton()
+                        .environment(router)
+                }
 #if !os(visionOS)
                 if #available(iOS 26.0, visionOS 26.0, *) {
                     ToolbarSpacer(.fixed)

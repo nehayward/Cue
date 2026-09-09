@@ -48,6 +48,7 @@ struct QueueCellView: View {
                         .foregroundStyle(.white)
                 } label: {
                     Image(systemName: "ellipsis")
+                        .accessibilityLabel("More Options for \(track.title)")
                         .frame(maxWidth: 50, maxHeight: .infinity)
                         .background(.clear)
                         .tint(.primary)

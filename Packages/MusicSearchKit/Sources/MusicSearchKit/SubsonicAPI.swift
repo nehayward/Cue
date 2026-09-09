@@ -291,14 +291,41 @@ public final class SubsonicAPI: DirectStreamProvider {
     /// parameter; Sonos classifies plain-HTTP queue items by the extension it
     /// finds in the URL and rejects extension-less ones with UPnP error 804,
     /// since `/rest/stream?id=…` gives it nothing to sniff.
+    ///
+    /// This overload is the original file, whatever the transcoding setting
+    /// — the stable URL `previewURL` and artwork caching key off.
     public static func streamURL(for id: String, fileExtension: String? = nil) -> URL? {
-        guard let url = storedURL(endpoint: "stream", queryItems: [URLQueryItem(name: "id", value: id)]) else { return nil }
-        guard let fileExtension = fileExtension?.trimmingCharacters(in: .whitespaces).lowercased(),
-              !fileExtension.isEmpty,
+        streamURL(for: id, fileExtension: fileExtension, destination: nil)
+    }
+
+    /// The stream URL as `StreamTranscoding` delivers it to `destination`.
+    /// With a format chosen, the server transcodes on the fly
+    /// (`format=mp3&maxBitRate=192`, per the Subsonic API) and the extension
+    /// hint becomes the *transcoded* suffix, since that is what the speaker
+    /// will be handed. For a speaker, `estimateContentLength` asks for a
+    /// Content-Length on the transcoded stream, which Sonos is happier with
+    /// than a bare chunked one; a download on the device is better off
+    /// without — a stream that ends short of an estimate is a failed
+    /// transfer there. `nil` is the original file.
+    public static func streamURL(for id: String, fileExtension: String?, destination: StreamTranscoding.Destination?) -> URL? {
+        var queryItems = [URLQueryItem(name: "id", value: id)]
+        var hint = fileExtension?.trimmingCharacters(in: .whitespaces).lowercased() ?? ""
+        if let destination, let codec = StreamTranscoding.format(for: destination).codec {
+            queryItems += [
+                URLQueryItem(name: "format", value: codec),
+                URLQueryItem(name: "maxBitRate", value: "\(StreamTranscoding.bitrate)")
+            ]
+            if destination == .speaker {
+                queryItems.append(URLQueryItem(name: "estimateContentLength", value: "true"))
+            }
+            hint = StreamTranscoding.fileExtension(for: destination, original: nil) ?? hint
+        }
+        guard let url = storedURL(endpoint: "stream", queryItems: queryItems) else { return nil }
+        guard !hint.isEmpty,
               var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         else { return url }
         components.queryItems = (components.queryItems ?? []) + [
-            URLQueryItem(name: "ext", value: ".\(fileExtension)")
+            URLQueryItem(name: "ext", value: ".\(hint)")
         ]
         return components.url ?? url
     }

@@ -1,5 +1,5 @@
 
-public enum ContentType: Equatable, Codable, Hashable, Identifiable {
+public enum ContentType: Equatable, Codable, Hashable, Identifiable, Sendable {
     public var id: String { title }
 
     case track

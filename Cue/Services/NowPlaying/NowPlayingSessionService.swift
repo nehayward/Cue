@@ -274,7 +274,7 @@ final class NowPlayingSessionService {
     /// `trackCardState` reads this, so the `@Observable` subscription write on
     /// purchase or expiry re-evaluates on its own.
     private var isEnabled: Bool {
-        isPreferenceOn && SubscriptionService.shared.subscription.isActive
+        isPreferenceOn && FeatureGate.shared.isAvailable(.lockScreenNowPlaying)
     }
 
     /// Whether the device's audio is on something other than the phone's own

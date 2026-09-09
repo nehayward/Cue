@@ -3,128 +3,69 @@ import NukeUI
 import SonosKit
 import SwiftUI
 
-/// The download manager: what's coming down, what's kept on this device,
-/// and — for a Files folder in iCloud Drive — how much of it is here.
-/// Reached from Settings › Storage.
+/// The download manager: the songs kept on this device, the albums and
+/// playlists they came from, and how downloading behaves — one face each,
+/// switched by the segmented control under the title. A Files folder in
+/// iCloud Drive reports how much of it is here under Settings. Reached from
+/// Settings › Storage.
 struct DownloadsScreen: View {
+    /// The screen's three faces. Songs is home: what's on the device is what
+    /// the screen is for, and it's what the Storage row's size describes.
+    private enum Tab: String, CaseIterable, Identifiable {
+        case songs, albums, settings
+
+        var id: Self { self }
+
+        var title: LocalizedStringKey {
+            switch self {
+            case .songs: "Songs"
+            case .albums: "Albums"
+            case .settings: "Settings"
+            }
+        }
+    }
+
+    @Environment(Router.self) private var router: Router?
     @State private var manager = DownloadManager.shared
     @State private var cache = PlaybackCache.shared
     @State private var files = FilesLibraryService.shared
     @State private var cloudSummary: (local: Int, remote: Int)?
+    @State private var tab: Tab = .songs
 
     var body: some View {
-        @Bindable var manager = manager
-        @Bindable var cache = cache
+        // Each is a filter and sort over every download; once per render,
+        // not once per mention.
+        let active = manager.active
+        let completed = manager.completed
 
         List {
-            Section {
-                Picker("Keep Recent Songs", selection: $cache.songLimit) {
-                    Text("Off").tag(0)
-                    Text("25 songs").tag(25)
-                    Text("50 songs").tag(50)
-                    Text("100 songs").tag(100)
-                    Text("250 songs").tag(250)
-                    Text("500 songs").tag(500)
-                }
-                if cache.isEnabled {
-                    Picker("Fetch Ahead", selection: $cache.prefetchCount) {
-                        Text("Next song").tag(1)
-                        Text("Next 3 songs").tag(3)
-                        Text("Next 5 songs").tag(5)
-                        Text("Next 10 songs").tag(10)
-                    }
-                    Toggle(isOn: $cache.allowsCellular) {
-                        Label("Fill Over Cellular", systemImage: "antenna.radiowaves.left.and.right")
-                    }
-                    LabeledContent("Cached", value: cache.entries.isEmpty
-                        ? "Nothing yet"
-                        : "\(cache.entries.count == 1 ? "1 song" : "\(cache.entries.count) songs") • \(ByteCountFormatter.string(fromByteCount: cache.totalBytes, countStyle: .file))")
-                    if !cache.inFlight.isEmpty {
-                        HStack(spacing: 12) {
-                            ProgressView()
-                            Text(cache.inFlight.count == 1 ? "Fetching 1 song ahead…" : "Fetching \(cache.inFlight.count) songs ahead…")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    if !cache.entries.isEmpty {
-                        Button(role: .destructive) {
-                            cache.clear()
-                        } label: {
-                            Label("Clear Cache", systemImage: "trash")
-                        }
-                    }
-                }
-            } header: {
-                Text("Playback Cache")
-            } footer: {
-                Text("Songs coming up in the on-device queue are fetched before they play, and recent ones kept, so playback holds through a tunnel or a dead spot. The least recently played goes first when the cap is reached. Covers Plex and Subsonic, and a Files folder in iCloud Drive when streaming is on below. Downloads you choose yourself are kept separately.")
+            switch tab {
+            case .songs:
+                songsSections(active: active, completed: completed)
+            case .albums:
+                albumsSections
+            case .settings:
+                settingsSections
             }
-
-            if !manager.active.isEmpty {
-                Section {
-                    ForEach(manager.active) { item in
-                        activeRow(item)
-                    }
-                } header: {
-                    Text("Downloading")
-                } footer: {
-                    Text("Downloads carry on when Cue is in the background, with their progress on the Lock Screen, and pick up where they left off after a relaunch.")
+        }
+        // A fresh list per tab: switching lands at the top of the new one
+        // rather than wherever the last was scrolled to.
+        .id(tab)
+        .pinnedUnderTitle {
+            Picker("Show", selection: $tab) {
+                ForEach(Tab.allCases) { tab in
+                    Text(tab.title).tag(tab)
                 }
             }
-
-            if files.isConfigured, files.isCloudFolder {
-                cloudSection
-            }
-
-            Section {
-                Toggle(isOn: $manager.allowsCellular) {
-                    Label("Use Cellular Data", systemImage: "antenna.radiowaves.left.and.right")
-                }
-            } footer: {
-                Text("Applies to downloads queued from now on. Songs fetched ahead from iCloud Drive wait for Wi‑Fi unless the playback cache allows cellular.")
-            }
-
-            if !manager.completed.isEmpty {
-                Section {
-                    ForEach(manager.completed) { item in
-                        completedRow(item)
-                    }
-                    .onDelete { offsets in
-                        let completed = manager.completed
-                        for index in offsets where completed.indices.contains(index) {
-                            manager.remove(key: completed[index].key)
-                        }
-                    }
-                    Button(role: .destructive) {
-                        manager.removeAllCompleted()
-                    } label: {
-                        Text("Remove All Downloads")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                    .listRowBackground(Color.clear)
-                } header: {
-                    Text("On This Device")
-                } footer: {
-                    Text("\(manager.completed.count == 1 ? "1 song" : "\(manager.completed.count) songs") • \(ByteCountFormatter.string(fromByteCount: manager.completedBytes, countStyle: .file)). Kept until you remove them; not included in backups.")
-                }
-            } else if manager.active.isEmpty {
-                Section {
-                    ContentUnavailableView {
-                        Label("No Downloads", systemImage: "arrow.down.circle")
-                    } description: {
-                        Text("Download a Plex or Subsonic song or album from its menu to keep it on this device.")
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                }
-            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal)
+            .padding(.bottom, 8)
         }
         .navigationTitle("Downloads")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if !manager.active.isEmpty {
+            if !active.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button {
@@ -139,7 +80,7 @@ struct DownloadsScreen: View {
                         }
                         Divider()
                         Button(role: .destructive) {
-                            manager.active.forEach { manager.cancel(key: $0.key) }
+                            active.forEach { manager.cancel(key: $0.key) }
                         } label: {
                             Label("Cancel All", systemImage: "xmark.circle")
                         }
@@ -158,6 +99,260 @@ struct DownloadsScreen: View {
         }
         .onChange(of: files.cloudProgress.isEmpty) {
             Task { await refreshCloudSummary() }
+        }
+    }
+
+    // MARK: - Songs
+
+    /// What's coming down and what's here, song by song, under the free
+    /// meter when there is one.
+    @ViewBuilder
+    private func songsSections(active: [DownloadManager.Item], completed: [DownloadManager.Item]) -> some View {
+        if let remaining = manager.remainingFreeSlots {
+            freeLimitSection(remaining: remaining)
+        }
+
+        if !active.isEmpty {
+            Section {
+                ForEach(active) { item in
+                    activeRow(item)
+                }
+            } header: {
+                Text("Downloading")
+            } footer: {
+                Text("Downloads carry on when Cue is in the background, with their progress on the Lock Screen, and pick up where they left off after a relaunch.")
+            }
+        }
+
+        if !completed.isEmpty {
+            let completedBytes = completed.reduce(0) { $0 + ($1.fileSize ?? 0) }
+            Section {
+                ForEach(completed) { item in
+                    completedRow(item)
+                }
+                .onDelete { offsets in
+                    for index in offsets where completed.indices.contains(index) {
+                        manager.remove(key: completed[index].key)
+                    }
+                }
+                Button(role: .destructive) {
+                    manager.removeAllCompleted()
+                } label: {
+                    Text("Remove All Downloads")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(.red)
+                .listRowBackground(Color.clear)
+            } header: {
+                Text("On This Device")
+            } footer: {
+                Text("\(completed.count == 1 ? "1 song" : "\(completed.count) songs") • \(ByteCountFormatter.string(fromByteCount: completedBytes, countStyle: .file)). Kept until you remove them; not included in backups.")
+            }
+        } else if active.isEmpty {
+            Section {
+                ContentUnavailableView {
+                    Label("No Downloads", systemImage: "arrow.down.circle")
+                } description: {
+                    Text(manager.remainingFreeSlots == nil
+                         ? "Download a Plex or Subsonic song, album or playlist from its menu — or an album's download button — to keep it on this device."
+                         : "Download a Plex or Subsonic song, album or playlist from its menu — or an album's download button — to keep it on this device. Up to \(DownloadManager.freeSongLimit) songs are free.")
+                }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            }
+        }
+    }
+
+    // MARK: - Albums
+
+    /// What was downloaded whole, still coming or all here, each removable
+    /// as one. The songs themselves are listed under Songs.
+    @ViewBuilder
+    private var albumsSections: some View {
+        let downloading = manager.activeContainers
+        let downloaded = manager.completedContainers
+
+        if !downloading.isEmpty {
+            containersSection(downloading) {
+                Text("Downloading")
+            } footer: {
+                Text("Swipe to cancel an album or playlist; the songs of it already here go too.")
+            }
+        }
+
+        if !downloaded.isEmpty {
+            containersSection(downloaded) {
+                Text("On This Device")
+            } footer: {
+                Text("Swipe to remove every song of an album or playlist at once. The songs themselves are listed under Songs.")
+            }
+        } else if downloading.isEmpty {
+            Section {
+                ContentUnavailableView {
+                    Label("No Albums or Playlists", systemImage: "square.stack")
+                } description: {
+                    Text("Download a Plex or Subsonic album or playlist whole — from its menu or its download button — and it's listed here as one thing, to remove as one.")
+                }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            }
+        }
+    }
+
+    private func containersSection<Header: View, Footer: View>(
+        _ containers: [DownloadManager.Container],
+        @ViewBuilder header: () -> Header,
+        @ViewBuilder footer: () -> Footer
+    ) -> some View {
+        Section {
+            ForEach(containers) { container in
+                containerRow(container)
+            }
+            .onDelete { offsets in
+                for index in offsets where containers.indices.contains(index) {
+                    manager.removeContainer(key: containers[index].key)
+                }
+            }
+        } header: {
+            header()
+        } footer: {
+            footer()
+        }
+    }
+
+    // MARK: - Settings
+
+    /// How downloading behaves: the playback cache, cellular, and the Files
+    /// folder in iCloud Drive when there is one.
+    @ViewBuilder
+    private var settingsSections: some View {
+        @Bindable var manager = manager
+        @Bindable var cache = cache
+
+        Section {
+            Picker("Keep Recent Songs", selection: $cache.songLimit) {
+                Text("Off").tag(0)
+                Text("25 songs").tag(25)
+                Text("50 songs").tag(50)
+                Text("100 songs").tag(100)
+                Text("250 songs").tag(250)
+                Text("500 songs").tag(500)
+            }
+            if cache.isEnabled {
+                Picker("Fetch Ahead", selection: $cache.prefetchCount) {
+                    Text("Next song").tag(1)
+                    Text("Next 3 songs").tag(3)
+                    Text("Next 5 songs").tag(5)
+                    Text("Next 10 songs").tag(10)
+                }
+                Toggle(isOn: $cache.allowsCellular) {
+                    Label("Fill Over Cellular", systemImage: "antenna.radiowaves.left.and.right")
+                }
+                LabeledContent("Cached", value: cache.entries.isEmpty
+                    ? "Nothing yet"
+                    : "\(cache.entries.count == 1 ? "1 song" : "\(cache.entries.count) songs") • \(ByteCountFormatter.string(fromByteCount: cache.totalBytes, countStyle: .file))")
+                if !cache.inFlight.isEmpty {
+                    HStack(spacing: 12) {
+                        ProgressView()
+                        Text(cache.inFlight.count == 1 ? "Fetching 1 song ahead…" : "Fetching \(cache.inFlight.count) songs ahead…")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if !cache.entries.isEmpty {
+                    Button(role: .destructive) {
+                        cache.clear()
+                    } label: {
+                        Label("Clear Cache", systemImage: "trash")
+                    }
+                }
+            }
+        } header: {
+            Text("Playback Cache")
+        } footer: {
+            Text("Songs coming up in the on-device queue are fetched before they play, and recent ones kept, so playback holds through a tunnel or a dead spot. The least recently played goes first when the cap is reached. Covers Plex and Subsonic, and a Files folder in iCloud Drive when streaming is on below. Downloads you choose yourself are kept separately.")
+        }
+
+        Section {
+            Toggle(isOn: $manager.allowsCellular) {
+                Label("Use Cellular Data", systemImage: "antenna.radiowaves.left.and.right")
+            }
+        } header: {
+            Text("Downloads")
+        } footer: {
+            Text("Applies to downloads queued from now on. Songs fetched ahead from iCloud Drive wait for Wi‑Fi unless the playback cache allows cellular.")
+        }
+
+        if files.isConfigured, files.isCloudFolder {
+            cloudSection
+        }
+    }
+
+    // MARK: - Free limit
+
+    /// How much of the free allowance is used, and the way past it. The
+    /// upgrade card appears once the meter is mostly full — early enough to
+    /// read as "here's what's coming", not as a wall.
+    private func freeLimitSection(remaining: Int) -> some View {
+        let limit = DownloadManager.freeSongLimit
+        let held = manager.heldCount
+        return Section {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label("Free Downloads", systemImage: "arrow.down.circle")
+                    Spacer()
+                    Text("\(held) of \(limit) songs")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                ProgressView(value: Double(held), total: Double(limit))
+                    .progressViewStyle(.linear)
+                    .tint(remaining == 0 ? .red : .accentColor)
+            }
+            if remaining <= limit / 5 {
+                PaywallButtonView()
+                    .environment(router)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+            }
+        } footer: {
+            Text(remaining == 0
+                 ? "Every free slot is taken. Remove a download to free one, or get Cue Super for unlimited downloads."
+                 : "Songs on this device and on their way count; removing one frees its slot. Cue Super removes the limit.")
+        }
+    }
+
+    private func containerRow(_ container: DownloadManager.Container) -> some View {
+        let counts = manager.trackCounts(forContainer: container.key)
+        let state = manager.containerState(key: container.key)
+        return HStack(spacing: 12) {
+            artwork(container.artwork)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(container.title)
+                    .lineLimit(1)
+                Text([container.type.title, container.subtitle].filter { !$0.isEmpty }.joined(separator: " • "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                if case let .downloading(fraction) = state {
+                    ProgressView(value: fraction)
+                        .progressViewStyle(.linear)
+                    Text("\(counts.downloaded) of \(counts.total) songs")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
+            Spacer(minLength: 0)
+            VStack(alignment: .trailing, spacing: 2) {
+                container.service.image
+                    .frame(width: 14, height: 14)
+                if state == .downloaded {
+                    Text(counts.total == 1 ? "1 song" : "\(counts.total) songs")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -193,6 +388,7 @@ struct DownloadsScreen: View {
                     .font(.title2)
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel(item.isActive ? "Pause Download" : "Resume Download")
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
@@ -318,7 +514,24 @@ struct DownloadsScreen: View {
             cloudSummary = nil
             return
         }
-        cloudSummary = files.cloudSummary()
+        cloudSummary = await files.cloudSummary()
+    }
+}
+
+private extension View {
+    /// A bar pinned under the navigation title. On iOS 26 the system draws
+    /// the scroll edge beneath it, as it does for the bar itself; before,
+    /// a material band does the same job.
+    @ViewBuilder
+    func pinnedUnderTitle<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        if #available(iOS 26.0, macOS 26.0, visionOS 26.0, *) {
+            safeAreaBar(edge: .top, spacing: 0, content: content)
+        } else {
+            safeAreaInset(edge: .top, spacing: 0) {
+                content()
+                    .background(.bar)
+            }
+        }
     }
 }
 

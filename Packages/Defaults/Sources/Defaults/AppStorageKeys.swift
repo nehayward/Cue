@@ -7,12 +7,8 @@ public enum AppStorageKeys {
     /// resets once and users re-pick.
     public static let selectedSearchServices = "\(Prefix.id).selectedSearchServices"
     public static let browseMediaService = "\(Prefix.id).browseMediaService"
-    /// The music providers the user has added to the tab view, in order —
-    /// raw `MediaSearchService` values. Each gets a tab of its own (and, on
-    /// iPad and Mac, a sidebar section split into its collections).
-    public static let tabProviders = "\(Prefix.id).tabProviders"
-    /// The sidebar edits the system lets the user make to those tabs — hiding
-    /// and reordering — as a `TabViewCustomization`.
+    /// The sidebar edits the system lets the user make to the provider tabs
+    /// on iPad and Mac — hiding and reordering — as a `TabViewCustomization`.
     public static let tabViewCustomization = "\(Prefix.id).tabViewCustomization"
     /// The Files provider's folder, as a security-scoped bookmark (`Data`)
     /// of the folder the user picked — on this device or in iCloud Drive.
@@ -23,6 +19,13 @@ public enum AppStorageKeys {
     /// Whether the download manager may fetch over cellular data. Off when
     /// unset: a whole album on a phone plan is a surprise nobody asked for.
     public static let downloadsOverCellular = "\(Prefix.id).downloadsOverCellular"
+    /// How Plex and Subsonic hand audio over — the original file, or
+    /// transcoded on the server to MP3 or Opus (`"original"`, `"mp3"`,
+    /// `"opus"`) — and the bitrate cap in kbit/s for a transcode. Read by
+    /// `MusicSearchKit.StreamTranscoding`, which carries the same literal
+    /// keys (it doesn't depend on this package): change one, change both.
+    public static let streamTranscodeFormat = "\(Prefix.id).streamTranscodeFormat"
+    public static let streamTranscodeBitrate = "\(Prefix.id).streamTranscodeBitrate"
     /// The playback cache: how many recently played songs to keep (0 is
     /// off), how many upcoming ones to fetch ahead, and whether to fill it
     /// over cellular.
@@ -33,9 +36,16 @@ public enum AppStorageKeys {
     /// they come up and taken off the device again once they drop out of
     /// the playback cache. On when unset.
     public static let filesStreamFromCloud = "\(Prefix.id).filesStreamFromCloud"
+    /// Whether the tags of Files songs still in iCloud are read by fetching
+    /// just their headers, on Wi‑Fi. On when unset.
+    public static let filesReadCloudTags = "\(Prefix.id).filesReadCloudTags"
     /// The iCloud songs the cache fetched to play, oldest first, so a
     /// relaunch still knows which ones are its to evict.
     public static let playbackCacheCloudIDs = "\(Prefix.id).playbackCacheCloudIDs"
+    /// The user's Offline Mode switch: only what's on this device shows on
+    /// Home, and everything plays here. Off when unset; no network at all
+    /// puts the app in the same state on its own.
+    public static let offlineMode = "\(Prefix.id).offlineMode"
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"
     public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"
@@ -49,6 +59,14 @@ public enum AppStorageKeys {
     /// device's volume can't be driven (Mac Catalyst). On iOS the slider is
     /// the system volume and nothing is stored.
     public static let localPlaybackVolume = "\(Prefix.id).localPlaybackVolume"
+    /// Where the device queue is — track index, seconds in, duration, repeat
+    /// mode — so a relaunch picks up the track that was playing where it
+    /// was. The queue itself is a file in Application Support.
+    public static let localQueuePosition = "\(Prefix.id).localQueuePosition"
+    /// What the device queue was played from — the album, playlist or folder
+    /// the Play came from — so the player can name its origin the way the
+    /// Sonos player names the speaker's container, across a relaunch.
+    public static let localQueueSource = "\(Prefix.id).localQueueSource"
     public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"

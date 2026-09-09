@@ -501,6 +501,16 @@ Wiring a `directStreamProvider` arm (step 2) turns all of this on:
   extension it finds in the URL and rejects extension-less ones with UPnP
   error 804. If the endpoint has no extension in its path, append a trailing
   ignored parameter (Subsonic uses `ext=.flac`-style).
+- **Transcoding** — the protocol's `streamURL(for:fileExtension:destination:)`
+  takes a `StreamTranscoding.Destination` (`.speaker` for the Sonos URI,
+  `.device` for on-device playback, downloads and the playback cache; `nil`
+  for the original file). Honor the user's `StreamTranscoding` choice for a
+  destination and make the extension hint the *transcoded* suffix — the
+  speaker is handed what arrives, not what's on disk. `StreamTranscoding`
+  already downgrades Opus to MP3 for speakers (Sonos can't decode Opus).
+  Keep `previewURL` the original file: it's the stable URL caching keys off,
+  and the setting can change under it — `PlayableContent.playbackStreamURL`
+  rebuilds the device stream at play time.
 - Reachability caveat for users: the *speakers* dial the URL, so it must be
   reachable from the LAN — a VPN-only hostname the phone can resolve won't
   play.

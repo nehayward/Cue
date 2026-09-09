@@ -37,15 +37,28 @@ struct PlexBrowseScreen: View {
         NavigationStack(path: $router.path) {
             List {
                 if musicSearchService.isPlexAuthorized, musicSearchService.plexServerID != nil {
-                    NavigationLink(value: RouterDestination.playableList(title: "Artists", action: { offset in
-                        await plexBrowseService.artists(offset: offset)
-                    })) {
+                    // Artists and Albums still page in from the server, a
+                    // hundred rows a request, so the section index is off for
+                    // them as it is on Subsonic: it re-buckets the whole list
+                    // each time a page lands, and jumping to a letter can only
+                    // reach the pages already loaded.
+                    NavigationLink(value: RouterDestination.playableList(
+                        title: "Artists",
+                        showSectionIndex: false,
+                        action: { offset in
+                            await plexBrowseService.artists(offset: offset)
+                        }
+                    )) {
                         Label("Artists", systemImage: "music.mic")
                     }
                     
-                    NavigationLink(value: RouterDestination.playableList(title: "Albums", action: { offset in
-                        await plexBrowseService.updateUserAlbums(offset: offset)
-                    })) {
+                    NavigationLink(value: RouterDestination.playableList(
+                        title: "Albums",
+                        showSectionIndex: false,
+                        action: { offset in
+                            await plexBrowseService.updateUserAlbums(offset: offset)
+                        }
+                    )) {
                         Label("Albums", systemImage: "smallcircle.circle.fill")
                     }
                     
@@ -114,6 +127,10 @@ struct PlexBrowseScreen: View {
             }
             .withAppRouter()
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    SettingsToolbarButton()
+                        .environment(router)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     MediaSelector()
                         .environment(router)

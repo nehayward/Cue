@@ -40,6 +40,10 @@ struct SonosRadioBrowseScreen: View {
                 await sonosRadioBrowseService.load()
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    SettingsToolbarButton()
+                        .environment(router)
+                }
                 ToolbarItem {
                     MediaSelector()
                         .environment(router)

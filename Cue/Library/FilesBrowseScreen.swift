@@ -14,7 +14,47 @@ struct FilesBrowseScreen: View {
     var body: some View {
         NavigationStack(path: $router.path) {
             List {
-                if library.isConfigured {
+                if !library.isConfigured {
+                    // No folder yet: the one way in is from here.
+                    ContentUnavailableView {
+                        Label("No Folder Chosen", systemImage: "folder.badge.questionmark")
+                    } description: {
+                        Text("Pick a folder of music on this device or in iCloud Drive to browse it here.")
+                    } actions: {
+                        Button {
+                            router.presentedSheet = .filesManagement
+                        } label: {
+                            Text("Choose Folder")
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                } else if !library.isScanning, library.songs.isEmpty {
+                    // A folder with nothing in it: empty collection rows would
+                    // only send the user into five empty lists, so the page
+                    // says what to do instead — fill the folder, or pick
+                    // another.
+                    ContentUnavailableView {
+                        Label("No Music in \(library.folderName ?? "the Folder")", systemImage: "folder")
+                    } description: {
+                        Text("Add music to the folder and rescan, or choose a different folder. Files play on this device.")
+                    } actions: {
+                        Button {
+                            router.presentedSheet = .filesManagement
+                        } label: {
+                            Text("Choose Folder")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        Button {
+                            Task { await library.scan() }
+                        } label: {
+                            Text("Rescan")
+                        }
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                } else {
                     ForEach(MediaSearchService.files.tabCollections, id: \.self) { collection in
                         if let destination = ProviderLibrary.filesDestination(for: collection) {
                             NavigationLink(value: destination) {
@@ -35,9 +75,7 @@ struct FilesBrowseScreen: View {
                             .foregroundStyle(.secondary)
                         } else {
                             let count = library.songs.count
-                            Text(count == 0
-                                 ? "No music found in \(library.folderName ?? "the folder") yet."
-                                 : (count == 1 ? "1 song" : "\(count.formatted()) songs"))
+                            Text(count == 1 ? "1 song" : "\(count.formatted()) songs")
                                 .foregroundStyle(.secondary)
                         }
                         if library.pendingDownloadCount > 0 {
@@ -54,23 +92,8 @@ struct FilesBrowseScreen: View {
                     } header: {
                         Text(library.folderName ?? "Folder")
                     } footer: {
-                        Text("Pull down to rescan after adding music. Playlists you make here are saved as .m3u files in the folder. Files play on this device.")
+                        Text("Pull down to rescan after adding music. Playlists you make here are saved as .m3u files in the folder. Files play on this device. Change the folder in Settings › Services.")
                     }
-                } else {
-                    ContentUnavailableView {
-                        Label("No Folder Chosen", systemImage: "folder.badge.questionmark")
-                    } description: {
-                        Text("Pick a folder of music on this device or in iCloud Drive to browse it here.")
-                    } actions: {
-                        Button {
-                            router.presentedSheet = .filesManagement
-                        } label: {
-                            Text("Choose Folder")
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
                 }
             }
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
@@ -88,6 +111,14 @@ struct FilesBrowseScreen: View {
             }
             .withAppRouter()
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    SettingsToolbarButton()
+                        .environment(router)
+                }
+                // The plus stands on its own, apart from the provider menu:
+                // a fixed spacer splits the trailing group in two. No
+                // Manage Folder button up here — the folder is chosen from
+                // the empty state and changed in Settings › Services.
                 if library.isConfigured {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
@@ -97,14 +128,11 @@ struct FilesBrowseScreen: View {
                                 .labelStyle(.iconOnly)
                         }
                     }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        router.presentedSheet = .filesManagement
-                    } label: {
-                        Label("Manage Folder", systemImage: "folder.badge.gearshape")
-                            .labelStyle(.iconOnly)
+#if !os(visionOS)
+                    if #available(iOS 26.0, visionOS 26.0, *) {
+                        ToolbarSpacer(.fixed, placement: .topBarTrailing)
                     }
+#endif
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     MediaSelector()

@@ -17,6 +17,7 @@ struct PreferenceScreen: View {
     @Environment(MusicSearchService.self) var musicSearchService
     @Environment(AlertService.self) var alertService
     @Environment(CoreFeatures.self) var coreFeatures
+    @Environment(FeatureGate.self) var featureGate
     
     var destination: RouterDestination? = nil
     
@@ -76,6 +77,7 @@ struct PreferenceScreen: View {
     @State private var cacheSize: Int = 0
     @State private var isClearing = false
     @State private var libraryCacheSize: Int = 0
+    @State private var offline = OfflineMode.shared
 
     
 #if DEBUG
@@ -346,7 +348,7 @@ struct PreferenceScreen: View {
                     NavigationLink(value: RouterDestination.servicePreferenceScreen) {
                         LabeledContent {
                             HStack {
-                                ForEach(MediaSearchService.allCases, id: \.self) { service in
+                                ForEach(MediaSearchService.supported, id: \.self) { service in
                                     if coreFeatures.enabledServices(service).wrappedValue {
                                         service.iconForMusicService
                                             .frame(width: 16, height: 16)
@@ -377,11 +379,7 @@ struct PreferenceScreen: View {
                             HStack {
                                 Text("Scenes")
                                 Spacer()
-                                // Only while it's still something to buy — once
-                                // subscribed the badge is noise on every Super row.
-                                if !subscriptionService.subscription.isActive {
-                                    SuperBadge()
-                                }
+                                FeatureBadge(feature: .scenes)
                             }
                         } icon: {
                             Image(systemName: "bolt.fill")
@@ -397,7 +395,7 @@ struct PreferenceScreen: View {
                                 )
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
-                    }.disabled(!subscriptionService.subscription.isActive)
+                    }.gated(.scenes)
                 } header: {
                     Text("Music")
                         .headerProminence(.increased)
@@ -483,18 +481,9 @@ struct PreferenceScreen: View {
                     // Greyed out without Super, the same way the Scenes row is.
                     // Every option here needs a subscription — `CueApp` won't
                     // even start a Live Activity without one — so there is
-                    // nothing to leave enabled.
-                    .disabled(!subscriptionService.subscription.isActive)
-                    // Outside the `.disabled`, so it still takes taps: a
-                    // disabled row can't open the paywall by itself.
-                    .overlay {
-                        if !subscriptionService.subscription.isActive {
-                            Rectangle()
-                                .fill(.clear)
-                                .contentShape(Rectangle())
-                                .onTapGesture(perform: presentPaywall)
-                        }
-                    }
+                    // nothing to leave enabled. `gated` keeps the tap for the
+                    // paywall outside the `.disabled`.
+                    .gated(.liveActivities)
 
                     // Directly under the picker, and present only while Now
                     // Playing is the chosen surface — the same treatment the
@@ -556,7 +545,7 @@ struct PreferenceScreen: View {
                         // row greyed out, with the paywall overlay on the picker
                         // rather than here: the original beta complaint, plus the
                         // toggle taken away.
-                        .disabled(!subscriptionService.subscription.isActive)
+                        .disabled(!featureGate.isAvailable(.hardwareVolumeButtons))
                     }
 #endif
                     // Both of these only shape the Live Activity, so they appear
@@ -588,7 +577,7 @@ struct PreferenceScreen: View {
                                 )
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
-                        .disabled(!subscriptionService.subscription.isActive)
+                        .disabled(!featureGate.isAvailable(.liveActivities))
 
                         Label {
                             Stepper(value: $liveActivityStep, in: 1...10) {
@@ -610,7 +599,7 @@ struct PreferenceScreen: View {
                                 )
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
-                        .disabled(!subscriptionService.subscription.isActive)
+                        .disabled(!featureGate.isAvailable(.liveActivities))
                     }
                 } header: {
                     // Carries the `SuperBadge` now that the picker's row has no
@@ -620,9 +609,7 @@ struct PreferenceScreen: View {
                     HStack(spacing: 6) {
                         Text("Lock Screen")
                             .foregroundStyle(.primary)
-                        if !subscriptionService.subscription.isActive {
-                            SuperBadge()
-                        }
+                        FeatureBadge(feature: .liveActivities)
                     }
                     .headerProminence(.increased)
                 }
@@ -974,7 +961,7 @@ struct PreferenceScreen: View {
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
-                    let message = "mailto:hi@cue.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
+                    let message = "mailto:hi@cue.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(subscriptionService.userID)"
                     Label {
                         HStack {
                             Link("Support hi@cue.dance", destination: URL(string: message)!)
@@ -1026,12 +1013,23 @@ struct PreferenceScreen: View {
                 } footer: {
                     VStack(alignment: .center) {
                         Text("Version **\(OSEnvironment.versionInfo)**")
-                        Text(Purchases.shared.appUserID)
+                        Text(subscriptionService.userID)
                             .textSelection(.enabled)
                             .scaledToFit()
                     }
                     .frame(maxWidth: .infinity)
                 }
+
+#if DEBUG
+                Section("Debug") {
+                    NavigationLink {
+                        FeatureGateDebugView()
+                            .withEnvironments()
+                    } label: {
+                        Label("Feature Gates", systemImage: "lock.open")
+                    }
+                }
+#endif
             }
             .animation(.smooth(duration: 0.35), value: hasUnseenWhatsNew)
             .navigationTitle("Preferences")
@@ -1198,9 +1196,7 @@ struct PreferenceScreen: View {
     }
 
     private func presentPaywall() {
-        HapticManager.shared.fireHaptic(.buttonPress)
-        Analytics.shared.track(.viewedPaywall)
-        router.presentedFullScreenCover = .paywall
+        featureGate.presentPaywall(via: router)
     }
 
     /// Derived, never stored: two booleans already describe this, and a third
@@ -1226,8 +1222,7 @@ struct PreferenceScreen: View {
             set: { surface in
                 // Outside the animation below: this path writes nothing, so the
                 // picker snaps back and there are no rows to move.
-                if surface == .nowPlaying, !subscriptionService.subscription.isActive {
-                    presentPaywall()
+                if surface == .nowPlaying, !featureGate.unlock(.lockScreenNowPlaying, via: router) {
                     return
                 }
                 // The rows under the picker belong to one surface each and are
@@ -1325,7 +1320,37 @@ struct PreferenceScreen: View {
     }
 
     var storageCacheSection: some View {
-        Section {
+        @Bindable var offline = offline
+        return Section {
+            Toggle(isOn: $offline.isOn) {
+                Label {
+                    VStack(alignment: .leading) {
+                        Text("Offline Mode")
+                        Text(offline.hasNetwork
+                             ? "Home shows only what's on this device, and everything plays here"
+                             : "No network — on until the connection is back")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "airplane")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white)
+                        .bold()
+                        .padding(8)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(LinearGradient(colors: [Color(red: 1.0, green: 0.6, blue: 0.3), Color(red: 0.95, green: 0.45, blue: 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        )
+                        .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                }
+            }
+            // With no network the app is offline whatever the switch says;
+            // flipping it would promise a change that can't happen.
+            .disabled(!offline.hasNetwork)
+
             NavigationLink(value: RouterDestination.downloads) {
                 let downloads = DownloadManager.shared
                 Label {

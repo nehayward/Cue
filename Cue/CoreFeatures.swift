@@ -33,27 +33,31 @@ final class CoreFeatures {
     
     func enabledServices(_ service: MediaSearchService) -> Binding<Bool> {
         Binding {
-            self.feature(service.title)
+            self.isEnabled(service)
         } set: { newValue in
             self.setFeature(value: newValue, service.title)
         }
     }
 
+    /// A service that isn't in `MediaSearchService.supported` is never
+    /// enabled, whatever an older build left in defaults — so a stored
+    /// Spotify selection falls out of search, browse, and the tabs on its
+    /// own.
     func isEnabled(_ service: MediaSearchService) -> Bool {
-        feature(service.title)
+        service.isSupported && feature(service.title)
     }
 
     /// Sync Cue's per-service enabled flags to whatever the user has actually
     /// authorized in Sonos. Called from onboarding once discovery succeeds so
     /// the user doesn't see search/browse tabs for services they can't use.
     ///
-    /// `.library` always stays enabled (local files don't need authorization).
-    /// Every other service — including Apple Music — is gated on the Sonos
-    /// installed set, because plenty of users don't subscribe to Apple Music
-    /// and would otherwise see a tab that returns no playable results.
+    /// Self-hosted services answer from their in-Cue setup. Every other
+    /// service — including Apple Music — is gated on the Sonos installed
+    /// set, because plenty of users don't subscribe to Apple Music and
+    /// would otherwise see a tab that returns no playable results.
     @MainActor
     func syncEnabledServices(from installed: Set<SonosServiceType>) {
-        for service in MediaSearchService.allCases {
+        for service in MediaSearchService.supported {
             setFeature(value: service.isAuthorized(on: installed), service.title)
         }
     }
@@ -65,28 +69,22 @@ final class CoreFeatures {
     /// offering services that can't return playable results.
     @MainActor
     func disableUnauthorizedServices(from installed: Set<SonosServiceType>) {
-        for service in MediaSearchService.allCases
+        for service in MediaSearchService.supported
         where !service.isAuthorized(on: installed) && isEnabled(service) {
             setFeature(value: false, service.title)
         }
     }
 
     /// Preferred default service after discovery — Apple Music first, then
-    /// Spotify, then whatever else the user has authorized. Falls back to
-    /// `.library` when nothing is installed (e.g. no Sonos system found, or
-    /// none of the supported services are set up), since that's the one
-    /// service we can always guarantee works.
+    /// Plex, then radio. Falls back to `.files` when nothing is installed
+    /// (e.g. no Sonos system found, or none of the supported services are
+    /// set up), since a folder on this device needs no account at all.
     static func preferredDefaultService(from installed: Set<SonosServiceType>) -> MediaSearchService {
         if installed.contains(.appleMusic) { return .apple }
-        if installed.contains(.spotify) { return .spotify }
-        if installed.contains(.tidal) { return .tidal }
         if installed.contains(.plex) { return .plex }
-        if installed.contains(.soundcloud) { return .soundcloud }
-        if installed.contains(.deezer) { return .deezer }
         if installed.contains(.tunein) { return .tuneIn }
-        if installed.contains(.pandora) { return .pandora }
         if installed.contains(.sonosRadio) { return .sonosRadio }
-        return .library
+        return .files
     }
 
     private func feature(feature: FeatureKeys) -> Bool {

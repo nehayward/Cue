@@ -3,9 +3,10 @@ import SwiftUI
 
 /// The small mark at the end of a row that says where a song's file is:
 /// kept on this device, coming down (with how far), or still up in iCloud.
-/// Nothing for a song that streams and isn't being fetched. Reads the
-/// download manager and, for Files, the folder's iCloud status, so a row
-/// on screen follows a download as it runs.
+/// An album, playlist or artist downloaded whole gets the same mark for
+/// the set. Nothing for a song that streams and isn't being fetched. Reads
+/// the download manager and, for Files, the folder's iCloud status, so a
+/// row on screen follows a download as it runs.
 struct DownloadStateBadge: View {
     let item: PlayableContent
 
@@ -18,6 +19,13 @@ struct DownloadStateBadge: View {
 
     private var state: State {
         let manager = DownloadManager.shared
+        if manager.canDownload(contentsOf: item) {
+            switch manager.containerState(for: item) {
+            case .downloaded: return .downloaded
+            case let .downloading(fraction): return .downloading(fraction)
+            case nil: return .none
+            }
+        }
         if manager.isDownloaded(item) { return .downloaded }
         if manager.isDownloading(item) { return .downloading(manager.progress(for: item)) }
         if item.content.service == .files {
@@ -52,25 +60,26 @@ struct DownloadStateBadge: View {
 
 /// A thin ring that fills clockwise from the top. With no fraction yet
 /// (queued, or iCloud not reporting), a quarter arc spins instead.
-private struct ProgressRing: View {
+struct ProgressRing: View {
     let fraction: Double?
+    var lineWidth: Double = 1.6
 
     @State private var spin = false
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color.secondary.opacity(0.25), lineWidth: 1.6)
+                .stroke(Color.secondary.opacity(0.25), lineWidth: lineWidth)
             if let fraction {
                 Circle()
                     .trim(from: 0, to: max(0.02, min(1, fraction)))
-                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 0.25), value: fraction)
             } else {
                 Circle()
                     .trim(from: 0, to: 0.25)
-                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(spin ? 270 : -90))
                     .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: spin)
                     .onAppear { spin = true }

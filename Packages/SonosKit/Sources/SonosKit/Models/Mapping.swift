@@ -711,8 +711,8 @@ extension PlexAlbumItem {
             return PlayableContent(
                 title: title,
                 subtitle: "",
-                thumbnail: thumbImageURL,
-                artwork: thumbImageURL,
+                thumbnail: thumbImageURL?.plexResized(to: PlexImageSize.thumbnail),
+                artwork: thumbImageURL?.plexResized(to: PlexImageSize.artwork),
                 content: .init(service: .plex, id: id, type: .artist, location: nil),
                 metadata: .init(popularity: nil)
             )
@@ -720,8 +720,8 @@ extension PlexAlbumItem {
         return PlayableContent(
             title: title,
             subtitle: [parentTitle, year?.description].compactMap{ $0 }.joined(separator: " • "),
-            thumbnail: thumbImageURL,
-            artwork: thumbImageURL,
+            thumbnail: thumbImageURL?.plexResized(to: PlexImageSize.thumbnail),
+            artwork: thumbImageURL?.plexResized(to: PlexImageSize.artwork),
             content: .init(
                 service: .plex,
                 id: id,
@@ -745,8 +745,8 @@ extension PlexLibraryItem {
         return PlayableContent(
             title: parentTitle,
             subtitle: [grandparentTitle, parentYear?.description].compactMap{ $0 }.joined(separator: " • "),
-            thumbnail: thumbImageURL,
-            artwork: thumbImageURL,
+            thumbnail: thumbImageURL?.plexResized(to: PlexImageSize.thumbnail),
+            artwork: thumbImageURL?.plexResized(to: PlexImageSize.artwork),
             content: .init(
                 service: .plex,
                 id: sonosID!,
@@ -800,8 +800,8 @@ extension PlexMetadata {
         return PlayableContent(
             title: title,
             subtitle: [artist, parentYear?.description, audioCodec?.uppercased()].compactMap{ $0 }.joined(separator: " • "),
-            thumbnail: thumbImageURL,
-            artwork: thumbImageURL,
+            thumbnail: thumbImageURL?.plexResized(to: PlexImageSize.thumbnail),
+            artwork: thumbImageURL?.plexResized(to: PlexImageSize.artwork),
             content: .init(
                 service: .plex,
                 id: sonosID!,
@@ -832,8 +832,8 @@ extension PlexUserPlaylist {
         return PlayableContent(
             title: title,
             subtitle: "",
-            thumbnail: thumbImageURL,
-            artwork: thumbImageURL,
+            thumbnail: thumbImageURL?.plexResized(to: PlexImageSize.thumbnail),
+            artwork: thumbImageURL?.plexResized(to: PlexImageSize.artwork),
             content: .init(
                 service: .plex,
                 id: sonosID!,

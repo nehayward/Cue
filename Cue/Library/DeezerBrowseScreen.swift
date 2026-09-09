@@ -126,6 +126,10 @@ struct DeezerBrowseScreen: View {
                 await deezerBrowseService.refresh()
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    SettingsToolbarButton()
+                        .environment(router)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     MediaSelector()
                         .environment(router)

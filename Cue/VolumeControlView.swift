@@ -31,6 +31,7 @@ struct VolumeControlView: View {
             .tint(.primary)
             .buttonStyle(.liveActivity)
             .buttonRepeatBehavior(.enabled)
+            .accessibilityLabel("Volume Down")
 
             VibeSlider(value: $group.groupVolume, baseHeight: sliderHeight, delayDrag: delayDrag, showValue: true) { isEditing in
                 if group.isMuted {
@@ -49,6 +50,8 @@ struct VolumeControlView: View {
                     group.isEditingVolume = isEditing
                 }
             }
+            .accessibilityLabel("Volume")
+            .accessibilityValue(group.coordinatorRoom.isOutputFixed ? "Fixed" : "\(Int(group.groupVolume.rounded())) percent\(group.isMuted ? ", muted" : "")")
             .opacity(group.coordinatorRoom.isOutputFixed ? 0 : 1)
             .overlay {
                 if group.coordinatorRoom.isOutputFixed {
@@ -89,6 +92,7 @@ struct VolumeControlView: View {
             .tint(.primary)
             .buttonStyle(.liveActivity)
             .buttonRepeatBehavior(.enabled)
+            .accessibilityLabel("Volume Up")
         }
         .font(.caption)
         .fontDesign(.rounded)

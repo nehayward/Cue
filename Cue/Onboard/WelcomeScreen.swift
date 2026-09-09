@@ -158,13 +158,13 @@ struct WelcomeScreen: View {
                 let installedSet = Set(installed)
                 installedServices = installedSet
                 // Sync per-service enabled flags so search/browse only surface
-                // services the user has actually authorized in Sonos. Apple
-                // Music and Library stay on regardless (they don't need a
-                // Sonos service).
+                // services the user has actually authorized in Sonos. The
+                // self-hosted ones (Subsonic, Files) answer from their own
+                // setup instead.
                 coreFeatures.syncEnabledServices(from: installedSet)
-                // Default the active search service to Spotify if available,
-                // then Apple Music — matches what most users want without
-                // forcing them into Preferences.
+                // Default the active search service to Apple Music if
+                // available, then Plex, then radio — matches what most users
+                // want without forcing them into Preferences.
                 searchSelection = SelectedSearchServices([CoreFeatures.preferredDefaultService(from: installedSet)])
                 goTo(.services)
             }

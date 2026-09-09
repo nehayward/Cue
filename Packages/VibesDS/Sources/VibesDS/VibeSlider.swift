@@ -25,6 +25,8 @@ public struct VibeSlider: View {
     private var range: ClosedRange<Double>
     private let step: Double.Stride
     private let valueAnimation: Animation?
+    /// Every division by the range goes through here — see `SliderMath`.
+    private var math: SliderMath { SliderMath(range: range) }
 
     /// Initializes a new instance of `VibeSlider`.
     /// - Parameters:
@@ -100,7 +102,7 @@ public struct VibeSlider: View {
 #if !os(watchOS) && !os(macOS)
                 .contentShape(.hoverEffect, .capsule)
 #endif
-            Text("\(Int(value))")
+            Text("\(Int(math.clamped(value)))")
 #if targetEnvironment(macCatalyst)
                 .font(.subheadline)
 #endif
@@ -151,7 +153,10 @@ public struct VibeSlider: View {
         }
 #endif
         .accessibilityRepresentation {
-            Slider(value: $value, in: 0.0...range.upperBound, onEditingChanged: onEditingChanged)
+            // The value clamped as well as the range made safe: a radio
+            // position runs past its zero duration, and the system slider
+            // should not be handed a value outside its bounds either.
+            Slider(value: Binding(get: { math.clamped(value) }, set: { value = $0 }), in: math.safeRange, onEditingChanged: onEditingChanged)
         }
         .opacity(isEnabled ? 1 : 0.5)
     }
@@ -169,9 +174,8 @@ public struct VibeSlider: View {
     
     private func handleDragEnded(_ gesture: DragGesture.Value) {
 #if targetEnvironment(macCatalyst) || os(macOS)
-        if gesture.translation.width == 0.0 {
-            let newPercentage = gesture.location.x / width
-            value = newPercentage * range.upperBound
+        if gesture.translation.width == 0.0, width > 0 {
+            value = math.value(atFraction: gesture.location.x / width)
         }
 #endif
         onEditingChanged(false)
@@ -179,19 +183,16 @@ public struct VibeSlider: View {
     }
     
     private func calculateNewValue(from gesture: DragGesture.Value) {
-        let diff = max(min(gesture.translation.width, width), -width) / width * range.upperBound
-        let stepValue = (diff / step).rounded() * step
         if startingValue == nil {
             startingValue = value
         }
-        self.value = min(max(range.lowerBound, (startingValue ?? value) + stepValue), range.upperBound)
+        self.value = math.value(from: startingValue ?? value, translation: gesture.translation.width, trackWidth: width, step: step)
     }
     
     private var innerCirclePadding: CGFloat { expandedHeight * 0.15 }
     
     private func calculateProgressWidth() -> CGFloat {
-        let calculatedWidth = (value / range.upperBound) * width
-        return max(0, calculatedWidth)
+        math.fillWidth(for: value, trackWidth: width)
     }
     
     private var offsetForValue: Double {
@@ -233,6 +234,8 @@ public struct VibeSliderTV: View {
     private var onEditingChanged: (Bool) -> Void
     private var range: ClosedRange<Double>
     private let step: Double.Stride
+    /// Every division by the range goes through here — see `SliderMath`.
+    private var math: SliderMath { SliderMath(range: range) }
 
     /// Initializes a new instance of `VibeSlider`.
     /// - Parameters:
@@ -281,7 +284,7 @@ public struct VibeSliderTV: View {
                             .animation(.interactiveSpring, value: value)
                     }
                 }
-            Text("\(Int(value))")
+            Text("\(Int(math.clamped(value)))")
                 .font(.caption)
                 .monospacedDigit()
                 .fontDesign(.rounded)
@@ -304,7 +307,7 @@ public struct VibeSliderTV: View {
 #endif
         #if !os(tvOS)
         .accessibilityRepresentation {
-            Slider(value: $value, in: 0.0...range.upperBound, onEditingChanged: onEditingChanged)
+            Slider(value: Binding(get: { math.clamped(value) }, set: { value = $0 }), in: math.safeRange, onEditingChanged: onEditingChanged)
         }
         #endif
         .opacity(isEnabled ? 1 : 0.5)
@@ -327,9 +330,8 @@ public struct VibeSliderTV: View {
     @available(tvOS, unavailable)
     private func handleDragEnded(_ gesture: DragGesture.Value) {
 #if targetEnvironment(macCatalyst) || os(macOS)
-        if gesture.translation.width == 0.0 {
-            let newPercentage = gesture.location.x / width
-            value = newPercentage * range.upperBound
+        if gesture.translation.width == 0.0, width > 0 {
+            value = math.value(atFraction: gesture.location.x / width)
         }
 #endif
         isDragging = false
@@ -339,23 +341,20 @@ public struct VibeSliderTV: View {
     
     @available(tvOS, unavailable)
     private func calculateNewValue(from gesture: DragGesture.Value) {
-        let diff = max(min(gesture.translation.width, width), -width) / width * range.upperBound
-        let stepValue = (diff / step).rounded() * step
         if startingValue == nil {
             startingValue = value
         }
-        self.value = min(max(range.lowerBound, (startingValue ?? value) + stepValue), range.upperBound)
+        self.value = math.value(from: startingValue ?? value, translation: gesture.translation.width, trackWidth: width, step: step)
     }
     
     private var innerCirclePadding: CGFloat { expandedHeight * 0.15 }
     
     private func calculateProgressWidth() -> CGFloat {
-        let calculatedWidth = (value / range.upperBound) * width
-        return max(0, calculatedWidth)
+        math.fillWidth(for: value, trackWidth: width)
     }
     
     private var offsetForValue: Double {
-        min(max(0, calculateProgressWidth() - 40), width - 30)
+        min(max(0, calculateProgressWidth() - 40), max(0, width - 30))
     }
 }
 

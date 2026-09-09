@@ -179,6 +179,7 @@ struct PlayableContentView: View {
                         PlayableMenuView(item: item, onRemoveFromPlaylist: onRemoveFromPlaylist)
                     } label: {
                         Image(systemName: "ellipsis")
+                            .accessibilityLabel("More Options for \(item.title)")
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                             .opacity(isPreviewing ? 0 : 1)
@@ -291,7 +292,11 @@ struct PlayableContentView: View {
             }
 
             guard let group = selectedGroupService?.group else {
-                await PlayDestinationRouter.play(item, position: defaultPosition, queue: queueSong)
+                // `parent` is the playlist or album this row was tapped in.
+                // The speaker takes it as the queue to play; the device
+                // takes just the row, and this is what tells the player
+                // where that row came from.
+                await PlayDestinationRouter.play(item, position: defaultPosition, from: parent, queue: queueSong)
                 return
             }
 

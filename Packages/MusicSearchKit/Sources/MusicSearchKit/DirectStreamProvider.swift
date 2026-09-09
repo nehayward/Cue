@@ -14,8 +14,11 @@ import Foundation
 /// metadata with MIME/duration, and container-to-tracks queue expansion.
 public protocol DirectStreamProvider {
     /// The stream URL for a track id. `fileExtension` is the file suffix
-    /// (e.g. "flac") when known, for the extension hint.
-    static func streamURL(for id: String, fileExtension: String?) -> URL?
+    /// (e.g. "flac") when known, for the extension hint. `destination` asks
+    /// for the stream as the user's transcoding choice (`StreamTranscoding`)
+    /// delivers it to a speaker or to this device; `nil` is the original
+    /// file, whatever the setting.
+    static func streamURL(for id: String, fileExtension: String?, destination: StreamTranscoding.Destination?) -> URL?
 }
 
 /// Suffix → MIME lookups shared by direct-stream services (used for the DIDL
