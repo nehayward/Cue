@@ -105,6 +105,9 @@ struct PlayableListView: View {
     /// Bumped on every reload so a load still running for the previous sort
     /// can tell that its rows are no longer wanted.
     @State private var loadGeneration = 0
+    /// The grid's width on screen, measured, so the tiles can be sized and
+    /// their covers decoded to fit.
+    @State private var gridWidth: CGFloat = 0
 
     var title: String = ""
     var playAllItem: PlayableContent? = nil
@@ -412,26 +415,49 @@ struct PlayableListView: View {
 
     // MARK: - Grid
 
-    private static let gridColumns = [GridItem(.adaptive(minimum: 110, maximum: 200), spacing: 0)]
+    /// Three columns on a phone, more as the width allows — a tile lands
+    /// between 130pt and 150pt wide.
+    private var gridColumnCount: Int {
+        max(3, Int(gridWidth / 150))
+    }
+
+    private var gridTileWidth: CGFloat {
+        gridWidth / CGFloat(gridColumnCount)
+    }
 
     /// The same rows as a wall of covers: square tiles that touch, edge to
     /// edge, with nothing written under them — the art is what you scan
     /// for, and the title is a tap away. Pages in the same way as the
     /// list. No A–Z sections: a grid has no index to jump by, and the sort
     /// menu still orders it.
+    ///
+    /// Sized from a measurement rather than an adaptive column: knowing the
+    /// tile's width is what lets each cover be decoded to fit it. A plain
+    /// `VStack` around the grid, not a lazy one — a lazy container nested
+    /// in another can cost the inner one its laziness. The grid waits for
+    /// the first measurement, so no tile fetches at a guessed size and then
+    /// again at the right one.
     private var gridContent: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
+            VStack(spacing: 0) {
                 if playAllItem != nil {
                     PlayAllButtonView(item: playAllItem)
                         .padding(16)
                 }
-                LazyVGrid(columns: Self.gridColumns, spacing: 0) {
-                    ForEach(items) { item in
-                        PlayableCardView(item: item, artworkOnly: true)
-                            .onAppear { loadMoreIfNeeded(after: item) }
+                if gridWidth > 0 {
+                    let tileWidth = gridTileWidth
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: gridColumnCount), spacing: 0) {
+                        ForEach(items) { item in
+                            PlayableCardView(item: item, artworkOnly: true, artworkSize: tileWidth)
+                                .onAppear { loadMoreIfNeeded(after: item) }
+                        }
                     }
                 }
+            }
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.width
+            } action: { width in
+                gridWidth = width
             }
         }
     }

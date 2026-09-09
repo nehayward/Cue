@@ -23,6 +23,10 @@ struct PlayableCardView: View {
     /// menu button — for a wall of artwork where the tiles touch. Tap and
     /// long-press keep working on the tile itself.
     var artworkOnly: Bool = false
+    /// How wide the artwork-only tile is on screen, in points. The cover
+    /// is decoded no bigger than this needs, so a wall of 130pt tiles
+    /// doesn't hold a 1200px bitmap for every one of them.
+    var artworkSize: Double = 200
 
     var body: some View {
         VStack {
@@ -66,7 +70,7 @@ struct PlayableCardView: View {
                     ContentArtworkView(
                         content: item,
                         showMusicSource: false,
-                        preferredSize: 500,
+                        preferredSize: artworkSize,
                         cornerRadius: 0,
                         placeholderStyle: AnyShapeStyle(.quaternary)
                     )
