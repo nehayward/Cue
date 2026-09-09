@@ -426,6 +426,14 @@ struct PlayableListView: View {
         gridWidth / CGFloat(gridColumnCount)
     }
 
+    /// The size a tile asks its cover for: the tile's width, rounded up to
+    /// the next 50pt. A Mac window resizes continuously, and a request
+    /// keyed on the exact width re-decoded every cover on screen at each
+    /// new pixel size; a tier only changes when the tiles really have.
+    private var gridArtworkSize: Double {
+        (gridTileWidth / 50).rounded(.up) * 50
+    }
+
     /// The same rows as a wall of covers: square tiles that touch, edge to
     /// edge, with nothing written under them — the art is what you scan
     /// for, and the title is a tap away. Pages in the same way as the
@@ -446,10 +454,10 @@ struct PlayableListView: View {
                         .padding(16)
                 }
                 if gridWidth > 0 {
-                    let tileWidth = gridTileWidth
+                    let artworkSize = gridArtworkSize
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: gridColumnCount), spacing: 0) {
                         ForEach(items) { item in
-                            gridTile(item, width: tileWidth)
+                            gridTile(item, artworkSize: artworkSize)
                                 .onAppear { loadMoreIfNeeded(after: item) }
                         }
                     }
@@ -468,15 +476,21 @@ struct PlayableListView: View {
     }
 
     /// One cover. With a zoom namespace from the root, the tile is what the
-    /// album screen zooms out of; without one it pushes plainly.
+    /// album screen zooms out of; without one it pushes plainly. Not on
+    /// Catalyst, where the zoom transition doesn't animate and a matched
+    /// source on every tile would be bookkeeping for nothing.
     @ViewBuilder
-    private func gridTile(_ item: PlayableContent, width: CGFloat) -> some View {
+    private func gridTile(_ item: PlayableContent, artworkSize: Double) -> some View {
+#if targetEnvironment(macCatalyst)
+        PlayableCardView(item: item, artworkOnly: true, artworkSize: artworkSize)
+#else
         if let zoomNamespace {
-            PlayableCardView(item: item, artworkOnly: true, artworkSize: width, zoomSource: .album(item.id))
+            PlayableCardView(item: item, artworkOnly: true, artworkSize: artworkSize, zoomSource: .album(item.id))
                 .zoomSource(.album(item.id), in: zoomNamespace)
         } else {
-            PlayableCardView(item: item, artworkOnly: true, artworkSize: width)
+            PlayableCardView(item: item, artworkOnly: true, artworkSize: artworkSize)
         }
+#endif
     }
 
     /// Fetches the next page once `item` — one of the last ten rows — has
