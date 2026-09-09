@@ -66,6 +66,11 @@ final class DownloadManager {
             url = refreshed
             fileExtension = DeviceStream.fileExtension(service: service, audioCodec: audioCodec) ?? fileExtension
         }
+        /// The track as it was when queued — its album, artist and stream
+        /// URL — so the downloads library can group what's here by album
+        /// and artist and play it. Nil for downloads made before this was
+        /// kept; those are rebuilt from the title and subtitle.
+        var track: PlayableContent?
 
         var id: String { key }
 
@@ -410,7 +415,8 @@ final class DownloadManager {
             createdAt: .now,
             state: .queued,
             sourceURL: item.previewURL,
-            audioCodec: item.metadata?.audioCodec
+            audioCodec: item.metadata?.audioCodec,
+            track: item
         )
         items[key] = entry
         start(entry)

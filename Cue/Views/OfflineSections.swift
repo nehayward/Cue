@@ -4,30 +4,28 @@ import SwiftUI
 
 /// What the home screen shows while `OfflineMode` is active, as sections
 /// for a `List`: one line on why the providers aren't there, Play and
-/// Shuffle across everything on this device, and then the songs
-/// themselves — the downloads, and the Files folder's local songs —
-/// right here rather than behind a row each. Home hosts these on iPad
-/// and Mac; on the phone, whose home is Browse, `OfflineBrowseScreen`
-/// does.
+/// Shuffle across everything on this device, and then the on-device
+/// library — Artists, Albums and Songs, the way a provider's front page
+/// reads, each filtered to what's here and searchable without a network.
+/// Home hosts these on iPad and Mac; on the phone, whose home is Browse,
+/// `OfflineBrowseScreen` does.
 struct OfflineSections: View {
     @State private var offline = OfflineMode.shared
+    @State private var downloads = DownloadManager.shared
     @State private var files = FilesLibraryService.shared
 
     var body: some View {
-        let downloaded = OnDeviceLibrary.downloadedSongs
+        // Read here so a download finishing or the Files index rebuilding
+        // recounts the rows; the library itself is static.
+        let downloadedCount = downloads.completed.count
         let fileSongs = OnDeviceLibrary.fileSongs
 
         statusSection
-        if downloaded.isEmpty, fileSongs.isEmpty {
+        if downloadedCount == 0, fileSongs.isEmpty {
             emptySection
         } else {
             playSection
-            if !downloaded.isEmpty {
-                songsSection(title: "Downloads", songs: downloaded)
-            }
-            if !fileSongs.isEmpty {
-                songsSection(title: files.folderName ?? "Files", songs: fileSongs)
-            }
+            librarySection(songCount: downloadedCount + fileSongs.count, downloadedCount: downloadedCount, fileCount: fileSongs.count)
         }
     }
 
@@ -111,22 +109,80 @@ struct OfflineSections: View {
         }
     }
 
-    /// The songs themselves, with the count in the header: a row into a
-    /// list was one tap between the user and the only music there is.
-    private func songsSection(title: String, songs: [PlayableContent]) -> some View {
+    /// The library over what's here: Artists, Albums and Songs, with a
+    /// count on each, plus where it all came from in the footer.
+    private func librarySection(songCount: Int, downloadedCount: Int, fileCount: Int) -> some View {
         Section {
-            ForEach(songs) { song in
-                PlayableContentView(item: song, hideContentType: true)
+            NavigationLink(value: RouterDestination.onDeviceCollection(.artists)) {
+                libraryRow("Artists", systemImage: OnDeviceCollection.artists.systemImage, count: OnDeviceLibrary.artists.count)
+            }
+            NavigationLink(value: RouterDestination.onDeviceCollection(.albums)) {
+                libraryRow("Albums", systemImage: OnDeviceCollection.albums.systemImage, count: OnDeviceLibrary.albums.count)
+            }
+            NavigationLink(value: songsDestination) {
+                libraryRow("Songs", systemImage: "music.note", count: songCount)
             }
         } header: {
-            HStack(alignment: .firstTextBaseline) {
+            Text("On This Device")
+        } footer: {
+            Text(sourcesLine(downloadedCount: downloadedCount, fileCount: fileCount))
+        }
+    }
+
+    private func libraryRow(_ title: String, systemImage: String, count: Int) -> some View {
+        Label {
+            HStack {
                 Text(title)
                 Spacer()
-                Text(songs.count == 1 ? "1 song" : "\(songs.count.formatted()) songs")
-                    .textCase(nil)
+                Text(count.formatted())
                     .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
+        } icon: {
+            Image(systemName: systemImage)
         }
+    }
+
+    /// Where the songs came from — the downloads, the Files folder, or
+    /// both — so the counts above have a source.
+    private func sourcesLine(downloadedCount: Int, fileCount: Int) -> String {
+        var parts: [String] = []
+        if downloadedCount > 0 {
+            parts.append(downloadedCount == 1 ? "1 downloaded song" : "\(downloadedCount.formatted()) downloaded songs")
+        }
+        if fileCount > 0 {
+            parts.append("\(fileCount == 1 ? "1 song" : "\(fileCount.formatted()) songs") from \(files.folderName ?? "your Files folder")")
+        }
+        return parts.joined(separator: " and ") + ". Search any list to find a song without a network."
+    }
+
+    /// Every song here: sorted and searched on the device, with a Play All
+    /// over the lot.
+    private var songsDestination: RouterDestination {
+        .playableList(
+            title: "Songs",
+            playAllItem: OnDeviceLibrary.allSongsContainer,
+            showSectionIndex: false,
+            sortOptions: OnDeviceLibrary.SongSort.allCases.map { sort in
+                PlayableListSort(
+                    name: sort.label,
+                    ascendingLabel: sort.ascendingLabel,
+                    descendingLabel: sort.descendingLabel,
+                    defaultsToDescending: sort.prefersDescending
+                ) { offset, descending in
+                    offset == 0 ? OnDeviceLibrary.songs(sortedBy: sort, descending: descending) : []
+                }
+            },
+            sortKey: "onDevice.songs",
+            searchAction: { query, offset in
+                offset == 0 ? OnDeviceLibrary.searchSongs(query) : []
+            },
+            loadingStatus: {
+                let count = OnDeviceLibrary.allSongs.count
+                return count == 0 ? nil : (count == 1 ? "1 song" : "\(count.formatted()) songs")
+            },
+            changeToken: { OnDeviceLibrary.changeToken }
+        )
     }
 
     /// Everything on the device into the local queue. Through the router

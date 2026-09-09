@@ -88,6 +88,8 @@ struct RouterDestinationView: View {
                 ServicePreferenceScreen()
             case .downloads:
                 DownloadsScreen()
+            case let .onDeviceCollection(collection):
+                OnDeviceCollectionScreen(collection: collection)
             case .spotifyUserPlaylist:
                 List {
                     SpotifyUsersPlaylistView(playlistCountLimit: .max, hideNavigation: true)

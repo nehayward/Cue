@@ -325,7 +325,10 @@ final class LocalPlaybackService {
     /// Whether this is a container — album or playlist — whose tracks the local
     /// queue can take. They get fetched first, see `containerTracks(for:)`.
     func canPlayContainerLocally(_ item: PlayableContent) -> Bool {
-        switch (item.content.type, item.content.service) {
+        // An album or artist from the on-device library: its songs are
+        // already here, whatever the service.
+        if OnDeviceLibrary.isContainer(item) { return true }
+        return switch (item.content.type, item.content.service) {
         case (.album, .apple), (.libraryAlbum, .apple), (.album, .plex):
             true
         case (.playlist, .apple), (.libraryPlaylist, .apple), (.playlist, .plex):
@@ -346,6 +349,11 @@ final class LocalPlaybackService {
     /// screen does. Sources that answer in a single shot return everything at
     /// offset 0 and nothing after, so callers can page uniformly.
     func containerTracks(for container: PlayableContent, offset: Int = 0) async -> [PlayableContent] {
+        // The on-device library's containers expand from what's here, not
+        // a server — that's the point of them.
+        if let onDevice = OnDeviceLibrary.tracks(inContainer: container) {
+            return offset == 0 ? onDevice : []
+        }
         switch (container.content.type, container.content.service) {
         case (.album, .apple):
             guard offset == 0 else { return [] }

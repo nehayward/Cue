@@ -24,6 +24,9 @@ public enum RouterDestination: Hashable, Identifiable {
     /// The download manager: what's coming down, what's here, and the
     /// iCloud Drive side of the Files folder.
     case downloads
+    /// One grouped page of the on-device library, for Offline Mode: what's
+    /// here by album or by artist.
+    case onDeviceCollection(OnDeviceCollection)
     case houseHold
     case spotifyUserPlaylist
     case genreList
@@ -73,6 +76,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "servicePreferenceScreen"
         case .downloads:
             return "downloads"
+        case let .onDeviceCollection(collection):
+            return "onDevice.\(collection.title.lowercased())"
         case .spotifyUserPlaylist:
             return "spotifyUserPlaylist"
         case .genreList:
@@ -126,6 +131,10 @@ public enum RouterDestination: Hashable, Identifiable {
             return items1.wrappedValue == items2.wrappedValue
         case (.fullPlayHistoryList, .fullPlayHistoryList):
             return true
+        case (.downloads, .downloads):
+            return true
+        case let (.onDeviceCollection(collection1), .onDeviceCollection(collection2)):
+            return collection1 == collection2
         case (.spotifyUserPlaylist, .spotifyUserPlaylist):
             return true
         case (.genreList, .genreList):
@@ -177,6 +186,9 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("servicePreferenceScreen")
         case .downloads:
             hasher.combine("downloads")
+        case let .onDeviceCollection(collection):
+            hasher.combine("onDeviceCollection")
+            hasher.combine(collection)
         case .spotifyUserPlaylist:
             hasher.combine("spotifyUserPlaylist")
         case .genreList:

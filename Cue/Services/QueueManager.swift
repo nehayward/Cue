@@ -80,7 +80,24 @@ final class QueueManager {
         }
         defer { loadingBanner.cancel() }
 
-        try await sonosService.queue(playable: playableContent, group: group, position: queueItem.position, index: queueItem.index)
+        if let onDevice = OnDeviceLibrary.tracks(inContainer: playableContent) {
+            // An album or artist from the on-device library has no server
+            // id to browse; queue its songs themselves, the way SonosService
+            // expands a direct-stream container. Files stay behind: no
+            // speaker can reach a folder on this device.
+            let tracks = onDevice.filter { !$0.content.service.playsOnDeviceOnly }
+            guard !tracks.isEmpty else { throw SonosServiceError.cantPlayContent(upnpCode: nil) }
+            switch queueItem.position {
+            case .replace:
+                try await sonosService.queue(contents: tracks, group: group, position: .replace, startIndex: queueItem.index ?? 0)
+            case .now:
+                try await sonosService.playNext(tracks, on: group)
+            default:
+                try await sonosService.queue(contents: tracks, group: group, position: queueItem.position)
+            }
+        } else {
+            try await sonosService.queue(playable: playableContent, group: group, position: queueItem.position, index: queueItem.index)
+        }
 
         loadingBanner.cancel()
         if alertService.alert.isLoading {
