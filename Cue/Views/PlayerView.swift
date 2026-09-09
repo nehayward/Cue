@@ -822,10 +822,12 @@ private struct LocalVolumeControlView: View {
 /// `BottomToolbarView`: the route picker where the Sonos player has its
 /// group button — on a speaker its menu is the regroup menu too, so there is
 /// no second speaker button beside it; then the room volume for a group of
-/// more than one, and the queue on the trailing edge — with search and
-/// browse before it where there's room, since a phone has the tab bar a
-/// swipe away. The like button and the menu live in the header on every
-/// size, so this row is only ever about where to go next.
+/// more than one, and the queue on the trailing edge. No search or browse:
+/// the window's tabs are a dismiss away on every size, and the cover's
+/// sheets only doubled them. On the Mac the queue goes too — the window
+/// toolbar's toggle is in the top-right corner over this same view. The
+/// like button and the menu live in the header on every size, so this row
+/// is only ever about where to go next.
 private struct PlayerBottomToolbarView: View {
     @Environment(Router.self) private var router: Router
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -881,20 +883,12 @@ private struct PlayerBottomToolbarView: View {
                         .help("Speaker Control")
                 }
 
-                searchButton
-                    .buttonBorderShape(.circle)
-                    .glassButton()
-                    .help("Search")
-
-                browseButton
-                    .buttonBorderShape(.circle)
-                    .glassButton()
-                    .help("Browse")
-
+#if !targetEnvironment(macCatalyst)
                 queueButton
                     .buttonBorderShape(.circle)
                     .accentGlassButton(active: showQueue)
                     .help("Up Next")
+#endif
             }
         }
     }
@@ -906,29 +900,6 @@ private struct PlayerBottomToolbarView: View {
             Label("Room Volume", systemImage: "speaker.wave.2.fill")
                 .symbolRenderingMode(.hierarchical)
                 .frame(width: 24, height: 24)
-                .labelStyle(.iconOnly)
-                .fontDesign(.rounded)
-        }
-    }
-
-    private var searchButton: some View {
-        Button {
-            HapticManager.shared.fireHaptic(.buttonPress)
-            router.sheet(to: .search(group: group))
-        } label: {
-            Label("Search", systemImage: "magnifyingglass")
-                .symbolRenderingMode(.hierarchical)
-                .labelStyle(.iconOnly)
-                .fontDesign(.rounded)
-        }
-    }
-
-    private var browseButton: some View {
-        Button {
-            HapticManager.shared.fireHaptic(.buttonPress)
-            router.sheet(to: .browse(group: group))
-        } label: {
-            Label("Browse", image: "home.fill")
                 .labelStyle(.iconOnly)
                 .fontDesign(.rounded)
         }
