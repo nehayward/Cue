@@ -26,8 +26,14 @@ final class AppBootstrapper {
     private func configureNuke() {
         let pipeline = ImagePipeline {
             let imageCache = ImageCache.shared
-            imageCache.costLimit = 1024 * 1024 * 50 // 50 MB max memory usage
-            imageCache.countLimit = 500             // Store up to 300 images
+            // Sized to the device: a Mac window shows forty-odd album covers
+            // at once, and at a fixed 50 MB the cache held fewer than that,
+            // so scrolling back re-decoded every cover from disk and coming
+            // back to the grid reloaded the lot. A tenth of physical
+            // memory, between 50 MB and 200 MB.
+            let physicalMemory = ProcessInfo.processInfo.physicalMemory
+            imageCache.costLimit = Int(min(max(physicalMemory / 10, 50 * 1024 * 1024), 200 * 1024 * 1024))
+            imageCache.countLimit = 1000
             $0.imageCache = imageCache
             $0.dataCache = try? DataCache(name: "com.cue.imageCache")
 

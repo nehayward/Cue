@@ -89,6 +89,7 @@ struct PlayableListView: View {
     @AppStorage(Defaults.AppStorageKeys.albumsLayout) private var layout: PlayableListLayout = .list
     @Environment(\.zoomNamespace) private var zoomNamespace
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.displayScale) private var displayScale
 
     @State private var isLoading: Bool = false
     @State private var hasReachedEnd: Bool = false
@@ -427,8 +428,14 @@ struct PlayableListView: View {
     /// decoded bitmaps, scaled by the GPU, never fetched or decoded again.
     /// One request per album per class also means the cache is hit on the
     /// way back, and by any other grid showing the same album.
+    ///
+    /// The artwork view decodes at three pixels per point, a phone's
+    /// density; the tier is scaled down for the screen at hand so a 2x Mac
+    /// or iPad decodes 440px covers, not 660px, and holds half the memory
+    /// for each.
     private var gridArtworkSize: Double {
-        sizeClass == .compact ? 150 : 220
+        let points: Double = sizeClass == .compact ? 150 : 220
+        return points * min(displayScale, 3) / 3
     }
 
     /// The same rows as a wall of covers: square tiles that touch, edge to

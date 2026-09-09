@@ -120,9 +120,13 @@ struct ContentArtworkView: View {
                     .resizable()
                     .scaledToFit()
                     .onAppear {
-                        guard let color = state.imageContainer?.image.findAverageColor(cacheKey: content.imageKey) else { return }
-                        let averageColor = Color(uiColor: color)
-                        foundAverageColor?(averageColor)
+                        // Only when someone wants it: the colour is a
+                        // 40×40 redraw of the bitmap on the main thread,
+                        // and a grid of covers scrolling past was paying
+                        // for one per tile to hand the result to nobody.
+                        guard let foundAverageColor,
+                              let color = state.imageContainer?.image.findAverageColor(cacheKey: content.imageKey) else { return }
+                        foundAverageColor(Color(uiColor: color))
                     }
             } else {
                 Rectangle()
