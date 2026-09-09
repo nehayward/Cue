@@ -111,6 +111,10 @@ struct FilesBrowseScreen: View {
             }
             .withAppRouter()
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    SettingsToolbarButton()
+                        .environment(router)
+                }
                 // The plus stands on its own, apart from the provider menu:
                 // a fixed spacer splits the trailing group in two. No
                 // Manage Folder button up here — the folder is chosen from
@@ -129,10 +133,6 @@ struct FilesBrowseScreen: View {
                         ToolbarSpacer(.fixed, placement: .topBarTrailing)
                     }
 #endif
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    SettingsToolbarButton()
-                        .environment(router)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     MediaSelector()

@@ -126,7 +126,7 @@ struct DeezerBrowseScreen: View {
                 await deezerBrowseService.refresh()
             }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     SettingsToolbarButton()
                         .environment(router)
                 }

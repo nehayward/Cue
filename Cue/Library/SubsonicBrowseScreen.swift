@@ -148,7 +148,7 @@ struct SubsonicBrowseScreen: View {
                 await subsonicBrowseService.refresh()
             }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     SettingsToolbarButton()
                         .environment(router)
                 }

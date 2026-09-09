@@ -39,7 +39,7 @@ struct PandoraBrowseScreen: View {
                 await pandoraBrowseService.load()
             }
             .toolbar {
-                ToolbarItem {
+                ToolbarItem(placement: .topBarLeading) {
                     SettingsToolbarButton()
                         .environment(router)
                 }
