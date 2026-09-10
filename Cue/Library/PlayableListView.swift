@@ -101,6 +101,10 @@ struct PlayableListView: View {
     /// arrives as one batch of thousands of rows, and animating that in is
     /// both pointless and expensive.
     @State private var hasLoadedOnce = false
+    /// Set by the search debounce so the fill it triggers animates: rows
+    /// slide out as a query narrows the list, and back in as it clears. A
+    /// sort change or a first fill of thousands of rows stays instant.
+    @State private var animatesNextFill = false
     @State private var searchText = ""
     /// The query the rows on screen were loaded for, so the debounce can tell
     /// a real change from the first pass over an empty field.
@@ -256,6 +260,7 @@ struct PlayableListView: View {
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
             appliedQuery = query
+            animatesNextFill = true
             await reload()
         }
         .miniPlayerOnScrollHandler()
@@ -333,6 +338,14 @@ struct PlayableListView: View {
                 .withEnvironments()
         }
         .task {
+            // Once per screen, not once per appearance. `.task` is cancelled
+            // when a push covers the list and restarted on the way back, so
+            // every return from an album fetched a fresh first page and
+            // replaced the rows with it — and when that fetch came back
+            // empty, or the transition cancelled it halfway, the rows were
+            // gone. What was loaded stays; pull to refresh and the change
+            // token still bring in anything new.
+            guard !hasLoadedOnce else { return }
             if sortName == nil, !sortOptions.isEmpty {
                 if let sortStorageKey {
                     sortName = UserDefaults.standard.string(forKey: Self.sortDefaultsKey(sortStorageKey))
@@ -540,7 +553,12 @@ struct PlayableListView: View {
             // A first page replaces what's there rather than merging into it,
             // so a narrower result really is narrower — and an empty one is an
             // answer ("no results"), not a page that failed to arrive.
-            items = OrderedSet(newItems)
+            if animatesNextFill {
+                withAnimation(.default) { items = OrderedSet(newItems) }
+            } else {
+                items = OrderedSet(newItems)
+            }
+            animatesNextFill = false
             hasReachedEnd = newItems.isEmpty
         } else if newItems.isEmpty {
             hasReachedEnd = true
