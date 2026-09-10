@@ -330,6 +330,13 @@ public final class SubsonicAPI: DirectStreamProvider {
         return components.url ?? url
     }
 
+    /// The size the full artwork is asked for, matching Plex's
+    /// `PlexImageSize.artwork`: nothing in Cue draws bigger, and the
+    /// artwork views never decode bigger. Unsized, `getCoverArt` returns
+    /// the original file — several megabytes of 3000px cover for every
+    /// tile in a grid, downloaded, cached and decoded for nothing.
+    public static let artworkSize = 1200
+
     /// Cover art URL for a `coverArt` id. `size` asks the server to scale.
     public static func coverArtURL(for coverID: String?, size: Int? = nil) -> URL? {
         guard let coverID, !coverID.isEmpty else { return nil }

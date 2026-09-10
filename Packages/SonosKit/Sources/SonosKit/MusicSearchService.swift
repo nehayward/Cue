@@ -1332,6 +1332,15 @@ public final class MusicSearchService {
         return playableContent.first
     }
 
+    /// Albums matching a query, for the Albums list's search field. The
+    /// server's hub search, which matches on artist as well as title, so
+    /// "Adele" finds "21"; it answers in one ranked page, so there is no
+    /// second one to fetch.
+    public func searchPlexAlbums(query: String, offset: Int = 0) async -> [PlayableContent] {
+        guard offset == 0, let results = await plex.search(for: query, limit: 100) else { return [] }
+        return results.album.map(\.toPlayable)
+    }
+
     public func lookupPlexAlbum(id: String) async -> PlayableContent? {
         guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return nil }
         guard let result = await plex.lookupAlbum(key: key) else {

@@ -9,7 +9,9 @@ public enum RouterDestination: Hashable, Identifiable {
     case groupDestination(content: PlayableContent, position: QueuePosition = .now)
     case manageScenes
     case createScene(content: PlayableContent?)
-    case mediaDetail(content: PlayableContent, group: GroupRoom?)
+    /// `zoomSource` names the tile the push came from, when it came from
+    /// one: the screen then zooms out of it instead of sliding in.
+    case mediaDetail(content: PlayableContent, group: GroupRoom?, zoomSource: ZoomTransitionSource? = nil)
     case artistDetail(content: PlayableContent, group: GroupRoom?)
     case alarms
     case addAlarm(group: GroupRoom? = nil)
@@ -30,7 +32,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case houseHold
     case spotifyUserPlaylist
     case genreList
-    case playableList(title: String, playAllItem: PlayableContent? = nil, showSectionIndex: Bool = true, sortOptions: [PlayableListSort] = [], sortKey: String? = nil, refreshAction: (() async -> Void)? = nil, searchAction: ((String, Int) async -> [PlayableContent])? = nil, loadingStatus: (() -> String?)? = nil, changeToken: (() -> Int)? = nil, action: ((Int) async -> [PlayableContent])? = nil)
+    case playableList(title: String, playAllItem: PlayableContent? = nil, showSectionIndex: Bool = true, allowsGrid: Bool = false, sortOptions: [PlayableListSort] = [], sortKey: String? = nil, refreshAction: (() async -> Void)? = nil, searchAction: ((String, Int) async -> [PlayableContent])? = nil, loadingStatus: (() -> String?)? = nil, changeToken: (() -> Int)? = nil, action: ((Int) async -> [PlayableContent])? = nil)
     case folderBrowse(item: PlayableContent, title: String)
     /// A page of TuneIn's directory — a genre, a region, a curated list —
     /// reached from the Radio tab's links. Pages link on to more pages, so
@@ -46,7 +48,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return content.content.id
         case .manageScenes:
             return "manageScenes"
-        case let .mediaDetail(content, _):
+        case let .mediaDetail(content, _, _):
             return content.id
         case let .artistDetail(content, _):
             return content.id
@@ -82,7 +84,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return "spotifyUserPlaylist"
         case .genreList:
             return "genre"
-        case .playableList(let title, _, _, _, _, _, _, _, _, _):
+        case .playableList(let title, _, _, _, _, _, _, _, _, _, _):
             return title
         case .folderBrowse(let item, _):
             return item.id
@@ -103,7 +105,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return true
         case (.createScene, .createScene):
             return true
-        case let (.mediaDetail(content1, group1), .mediaDetail(content2, group2)):
+        case let (.mediaDetail(content1, group1, _), .mediaDetail(content2, group2, _)):
             return content1 == content2 && group1 == group2
         case let (.artistDetail(content1, group1), .artistDetail(content2, group2)):
             return content1 == content2 && group1 == group2
@@ -121,7 +123,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return group1 == group2 && contentType1 == contentType2
         case let (.playableLibraryList(_, items1, _), .playableLibraryList(_, items2, _)):
             return items1.wrappedValue == items2.wrappedValue
-        case let (.playableList(title, _, _, _, _, _, _, _, _, _), .playableList(title2, _, _, _, _, _, _, _, _, _)):
+        case let (.playableList(title, _, _, _, _, _, _, _, _, _, _), .playableList(title2, _, _, _, _, _, _, _, _, _, _)):
             return title == title2
         case let (.folderBrowse(folderID1, title1), .folderBrowse(folderID2, title2)):
             return folderID1 == folderID2 && title1 == title2
@@ -153,7 +155,7 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine(position)
         case .manageScenes:
             hasher.combine("manageScenes")
-        case let .mediaDetail(content, group):
+        case let .mediaDetail(content, group, _):
             hasher.combine(content)
             hasher.combine(group)
         case let .artistDetail(content, group):
@@ -193,7 +195,7 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("spotifyUserPlaylist")
         case .genreList:
             hasher.combine("genreList")
-        case .playableList(let title, playAllItem: _, showSectionIndex: _, sortOptions: _, sortKey: _, refreshAction: _, searchAction: _, loadingStatus: _, changeToken: _, action: _):
+        case .playableList(let title, playAllItem: _, showSectionIndex: _, allowsGrid: _, sortOptions: _, sortKey: _, refreshAction: _, searchAction: _, loadingStatus: _, changeToken: _, action: _):
             hasher.combine(title)
         case .folderBrowse(let folderID, let title):
             hasher.combine(folderID)

@@ -37,6 +37,7 @@ struct SubsonicBrowseScreen: View {
                         // Off for now: the index fights the paginated loads
                         // (scrolling to a letter jumps past unloaded pages).
                         showSectionIndex: false,
+                        allowsGrid: true,
                         // Each option carries its own loader, so the list needs
                         // no separate default action.
                         sortOptions: albumSortOptions,
@@ -71,6 +72,7 @@ struct SubsonicBrowseScreen: View {
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Recently Added",
                         showSectionIndex: false,
+                        allowsGrid: true,
                         action: { offset in await musicSearchService.subsonicRecentAlbums(offset: offset) }
                     )) {
                         Label("Recently Added", systemImage: "clock")

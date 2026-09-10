@@ -568,6 +568,7 @@ struct CueApp: App {
             // by name, since `.accentColor` now resolves to this tint.
 //            .tint(Color.primary.opacity(0.12))
             .withEnvironments()
+            .environment(\.zoomNamespace, zoomNamespace)
             // Presented from the `TabView`, not from inside the tab bar
             // accessory. The system re-hosts that accessory when its placement
             // changes or the scene returns to the foreground, and a

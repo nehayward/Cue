@@ -31,6 +31,11 @@ struct PlexBrowseScreen: View {
         PlexLibraryLists.songSyncStatus(musicSearchService: musicSearchService)
     }
 
+    /// The Albums list's sort menu, shared with the Albums tab.
+    private var albumSortOptions: [PlayableListSort] {
+        PlexLibraryLists.albumSortOptions(plexBrowseService: plexBrowseService)
+    }
+
     var body: some View {
         @Bindable var plexBrowseService = plexBrowseService
 
@@ -55,8 +60,11 @@ struct PlexBrowseScreen: View {
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Albums",
                         showSectionIndex: false,
-                        action: { offset in
-                            await plexBrowseService.updateUserAlbums(offset: offset)
+                        allowsGrid: true,
+                        sortOptions: albumSortOptions,
+                        sortKey: PlexLibraryLists.albumSortKey,
+                        searchAction: { query, offset in
+                            await musicSearchService.searchPlexAlbums(query: query, offset: offset)
                         }
                     )) {
                         Label("Albums", systemImage: "smallcircle.circle.fill")

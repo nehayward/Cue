@@ -35,7 +35,12 @@ struct LibraryBrowseScreen: View {
                 }
                 .listRowSeparator(.hidden, edges: .top)
 
-                NavigationLink(value: RouterDestination.playableContentList(group: selectedGroupService.group, contentType: .album)) {
+                NavigationLink(value: RouterDestination.playableList(
+                    title: "Albums",
+                    allowsGrid: true,
+                    sortOptions: LocalLibraryLists.albumSortOptions(browseService: browseService),
+                    sortKey: LocalLibraryLists.albumSortKey
+                )) {
                     Label("Albums", systemImage: "smallcircle.circle.fill")
                 }
 

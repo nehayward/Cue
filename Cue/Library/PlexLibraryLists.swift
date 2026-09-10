@@ -24,6 +24,21 @@ enum PlexLibraryLists {
         }
     }
 
+    /// The Albums list's sort menu. Plex sorts albums on the server as it
+    /// does songs, so every order pages in already sorted and every one
+    /// can be flipped.
+    static func albumSortOptions(plexBrowseService: PlexBrowseService) -> [PlayableListSort] {
+        PlexAlbumSort.allCases.map { sort in
+            PlayableListSort(
+                name: sort.label,
+                ascendingLabel: sort.ascendingLabel,
+                descendingLabel: sort.descendingLabel
+            ) { offset, reversed in
+                await plexBrowseService.updateUserAlbums(offset: offset, sort: sort, reversed: reversed)
+            }
+        }
+    }
+
     /// The line under the Songs title: how far the one-time library sync has
     /// got while it runs, and how big the library is once it is there.
     static func songSyncStatus(musicSearchService: MusicSearchService) -> () -> String? {
@@ -44,4 +59,5 @@ enum PlexLibraryLists {
     /// The Songs list's storage key for its remembered sort. Named, because
     /// Subsonic has a "Songs" too.
     static let songSortKey = "plex.songs"
+    static let albumSortKey = "plex.albums"
 }

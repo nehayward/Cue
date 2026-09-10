@@ -19,11 +19,38 @@ struct PlayableCardView: View {
     var item: PlayableContent
     var hideArtwork: Bool = false
     var hideAction: Bool = false
+    /// Just the cover, square and edge to edge — no title, no corners, no
+    /// menu button — for a wall of artwork where the tiles touch. Tap and
+    /// long-press keep working on the tile itself.
+    var artworkOnly: Bool = false
+    /// How wide the artwork-only tile is on screen, in points. The cover
+    /// is decoded no bigger than this needs, so a wall of 130pt tiles
+    /// doesn't hold a 1200px bitmap for every one of them.
+    var artworkSize: Double = 200
+    /// Set by a grid that has marked this card as a zoom source, so the
+    /// album screen it opens grows out of the card. The grid applies the
+    /// `matchedTransitionSource` itself; this only tells the push about it.
+    var zoomSource: ZoomTransitionSource? = nil
 
     var body: some View {
         VStack {
             if let add = adding?.add, add {
                 content
+            } else if artworkOnly {
+                // A button with a context menu, not a `Menu` with a primary
+                // action: a grid lays out dozens of tiles at once, and the
+                // menu's content — nested menus, a download index refresh —
+                // is not free per tile. A context menu is built only when
+                // it is opened, and on a Mac it is the right-click anyway.
+                Button {
+                    actions()
+                } label: {
+                    content
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    PlayableMenuView(item: item)
+                }
             } else {
                 Menu {
                     PlayableMenuView(item: item)
@@ -37,7 +64,7 @@ struct PlayableCardView: View {
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden, edges: .all)
         .overlay(alignment: .topTrailing) {
-            if adding == nil && !hideAction {
+            if adding == nil && !hideAction && !artworkOnly {
                 Menu {
                     PlayableMenuView(item: item)
                 } label: {
@@ -53,7 +80,29 @@ struct PlayableCardView: View {
         }
     }
     
+    @ViewBuilder
     private var content: some View {
+        if artworkOnly {
+            Color.clear
+                .aspectRatio(1, contentMode: .fit)
+                .overlay {
+                    ContentArtworkView(
+                        content: item,
+                        showMusicSource: false,
+                        preferredSize: artworkSize,
+                        cornerRadius: 0,
+                        placeholderStyle: AnyShapeStyle(.quaternary)
+                    )
+                    .scaledToFill()
+                }
+                .clipped()
+                .contentShape(.rect)
+        } else {
+            card
+        }
+    }
+
+    private var card: some View {
         VStack {
             if item.content.type == .folder {
                 PlaylistFolderCollageView(folderID: item.content.id)
@@ -99,7 +148,7 @@ struct PlayableCardView: View {
         if !hideAction {
             switch item.content.type {
             case .playlist, .album, .libraryPlaylist, .libraryAlbum, .libraryImportedPlaylists:
-                router.navigate(to: .mediaDetail(content: item, group: selectedGroupService.group))
+                router.navigate(to: .mediaDetail(content: item, group: selectedGroupService.group, zoomSource: zoomSource))
             case .artist, .libraryArtist:
                 router.navigate(to: .artistDetail(content: item, group: selectedGroupService.group))
             case .track, .favorite, .radio, .artistRadio, .songRadio, .liveRadio, .unique:

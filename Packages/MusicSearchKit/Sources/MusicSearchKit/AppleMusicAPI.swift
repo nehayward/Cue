@@ -280,6 +280,62 @@ public final class AppleMusicAPI {
         }
     }
     
+    /// A page of the user's library albums in the requested order, from
+    /// MusicKit's index of the library rather than the web API: the web
+    /// API's `/me/library/albums` takes no sort, so an order other than its
+    /// own would mean fetching the whole library first.
+    public func libraryAlbums(
+        sort: AppleLibraryAlbumSort = .title,
+        descending: Bool = false,
+        offset: Int = 0,
+        limit: Int = 100
+    ) async throws -> [Album] {
+        guard await requestMusicAuthorization() else { return [] }
+
+        var request = MusicLibraryRequest<Album>()
+        switch sort {
+        case .title:
+            request.sort(by: \.title, ascending: !descending)
+        case .artist:
+            request.sort(by: \.artistName, ascending: !descending)
+        case .recentlyAdded:
+            request.sort(by: \.libraryAddedDate, ascending: !descending)
+        }
+        request.limit = limit
+        request.offset = offset
+        let response = try await request.response()
+        return Array(response.items)
+    }
+
+    /// The web API's rows for library albums by id, in chunks. The rows
+    /// `libraryAlbums(sort:)` returns carry `musickit://` artwork that only
+    /// MusicKit's own views can draw; the web API's rows for the same
+    /// albums carry ordinary https artwork, so a sorted page is drawn from
+    /// these. Order is not preserved — callers match rows up by id.
+    public func libraryAlbums(ids: [String]) async throws -> [AppleLibraryItem] {
+        guard !ids.isEmpty, await requestMusicAuthorization() else { return [] }
+
+        // The library endpoints take fewer ids per request than the catalog's
+        // hundred; 25 is what the web API's own client sends.
+        let chunks = stride(from: 0, to: ids.count, by: 25).map { Array(ids[$0..<min($0 + 25, ids.count)]) }
+        return await withTaskGroup(of: [AppleLibraryItem].self) { group in
+            for chunk in chunks {
+                group.addTask { [decoder] in
+                    guard let url = URL(string: "https://api.music.apple.com/v1/me/library/albums?ids=\(chunk.joined(separator: ","))"),
+                          let response = try? await MusicDataRequest(urlRequest: .init(url: url)).response(),
+                          let container = try? decoder.decode(AppleLibraryContainer.self, from: response.data)
+                    else { return [] }
+                    return container.data
+                }
+            }
+            var items: [AppleLibraryItem] = []
+            for await chunk in group {
+                items.append(contentsOf: chunk)
+            }
+            return items
+        }
+    }
+
     public func getUserSongs(offset: Int = 0) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 

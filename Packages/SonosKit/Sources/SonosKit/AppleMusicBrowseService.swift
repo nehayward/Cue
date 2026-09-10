@@ -45,6 +45,25 @@ public final class AppleMusicBrowseService {
         }
     }
     
+    /// A page of the user's library albums in the requested order. Unlike
+    /// `updateUsersAppleAlbums` this returns the rows rather than merging
+    /// them into `userAlbums`: a sorted list pages by offset and owns its
+    /// own rows, so a change of order replaces them.
+    ///
+    /// MusicKit supplies the order; the rows themselves come from the web
+    /// API, looked up by id, because MusicKit's library artwork is a
+    /// `musickit://` URL nothing but its own views can draw. An album the
+    /// web API doesn't return falls back to the MusicKit row, which at
+    /// least has its name.
+    public func libraryAlbums(offset: Int = 0, sort: AppleLibraryAlbumSort = .title, descending: Bool = false) async -> [PlayableContent] {
+        guard let albums = try? await apple.libraryAlbums(sort: sort, descending: descending, offset: offset) else { return [] }
+        let rows = (try? await apple.libraryAlbums(ids: albums.map(\.id.rawValue))) ?? []
+        let rowsByID = Dictionary(rows.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return albums.map { album in
+            rowsByID[album.id.rawValue]?.toPlayable ?? album.toPlayableLibraryAlbum
+        }
+    }
+
     public func updateUsersAppleSongs() async {
         guard let container = try? await apple.getUserSongs(offset: offsets["updateUsersAppleSongs", default: 0]) else { return }
         let offset = Int(container.next?.components(separatedBy: "=").last ?? "0") ?? 0

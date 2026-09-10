@@ -1,9 +1,38 @@
 import SonosKit
 
-/// The Sonos music library's Songs list status, built by the library's front
-/// page and its Songs tab alike.
+/// The pieces of the Sonos music library's Albums and Songs lists that the
+/// library's front page and its collection tabs both build — one place for
+/// the sort menu and the sync status, so the screens can't drift.
 @MainActor
 enum LocalLibraryLists {
+    /// The Albums list's sort menu. Title is the speaker's own order, paged
+    /// in as before; Artist has to pull the whole list first, since the
+    /// speaker only lists albums by title, then sorts it here. Both carry
+    /// an A–Z index, each by the name it is ordered on.
+    static func albumSortOptions(browseService: LibraryBrowseService) -> [PlayableListSort] {
+        [
+            PlayableListSort(
+                name: "Title",
+                sectionKey: { $0.title }
+            ) { offset, _ in
+                await browseService.albumPage(offset: offset)
+            },
+            PlayableListSort(
+                name: "Artist",
+                ascendingLabel: "A – Z",
+                descendingLabel: "Z – A",
+                sectionKey: { $0.metadata?.artist ?? "" }
+            ) { offset, descending in
+                // The whole library arrives at once, so there is no second
+                // page to fetch.
+                guard offset == 0 else { return [] }
+                return await browseService.albumsByArtist(descending: descending)
+            }
+        ]
+    }
+
+    static let albumSortKey = "library.albums"
+
     /// The line under the Songs title: how far the one-time index sync has
     /// got while it runs, and how many tracks the library holds once it is
     /// there.

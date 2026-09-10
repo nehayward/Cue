@@ -8,6 +8,8 @@ import SwiftUI
 struct RouterDestinationView: View {
     let destination: RouterDestination
 
+    @Environment(\.zoomNamespace) private var zoomNamespace
+
     var body: some View {
         let sonosService = SonosService.shared
 
@@ -23,8 +25,16 @@ struct RouterDestinationView: View {
                 PlayerSelectionView(playableContent: content, position: position)
             case .manageScenes:
                 ManageSceneScreen()
-            case let .mediaDetail(content, _):
-                MediaDetailView(playableContent: content)
+            case let .mediaDetail(content, _, zoomSource):
+                // Only a push that names its tile zooms: the same screen
+                // opens from rows, search and sheets, where there is no
+                // source on screen to grow out of.
+                if let zoomSource, let zoomNamespace {
+                    MediaDetailView(playableContent: content)
+                        .zoomTransition(from: zoomSource, in: zoomNamespace)
+                } else {
+                    MediaDetailView(playableContent: content)
+                }
             case let .artistDetail(content, _):
                 ArtistDetailView(playableContent: content)
             case let .createScene(content):
@@ -62,11 +72,12 @@ struct RouterDestinationView: View {
             case let .playableLibraryList(title: title, items: items, action: action):
                 PlayableList(items: items, action: action)
                     .navigationTitle(title)
-            case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, sortOptions: sortOptions, sortKey: sortKey, refreshAction: refreshAction, searchAction: searchAction, loadingStatus: loadingStatus, changeToken: changeToken, action: action):
+            case let .playableList(title: title, playAllItem: playAllItem, showSectionIndex: showSectionIndex, allowsGrid: allowsGrid, sortOptions: sortOptions, sortKey: sortKey, refreshAction: refreshAction, searchAction: searchAction, loadingStatus: loadingStatus, changeToken: changeToken, action: action):
                 PlayableListView(
                     title: title,
                     playAllItem: playAllItem,
                     showSectionIndex: showSectionIndex,
+                    allowsGrid: allowsGrid,
                     sortOptions: sortOptions,
                     // Titles repeat across services — Plex and Subsonic
                     // both have a "Songs" — so a list with its own sort

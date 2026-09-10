@@ -291,6 +291,44 @@ extension AppleLibraryAlbum {
 }
 
 extension Album {
+    /// An album from the user's library, as `MusicLibraryRequest` hands it
+    /// over: the same row `AppleLibraryItem.toPlayable` makes from the web
+    /// API — artist and year — so a list can page from either. Library
+    /// artwork can come as a `musickit://` URL wrapping the real one, which
+    /// is unwrapped the way `toPlayableLibraryTrack` does.
+    public var toPlayableLibraryAlbum: PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: [
+                artistName,
+                releaseDate?.formatted(.dateTime.year())
+            ].compactMap { $0 }.joined(separator: " • "),
+            thumbnail: Self.unwrappingMusicKitArtwork(artwork?.url(width: 100, height: 100)),
+            artwork: Self.unwrappingMusicKitArtwork(artwork?.url(width: 600, height: 600)),
+            content: MediaContent(service: .apple, id: id.description, type: .libraryAlbum, location: nil),
+            metadata: PlayableContentMetadata(
+                popularity: 50,
+                artist: artistName,
+                album: title,
+                albumYear: releaseDate
+            )
+        )
+    }
+
+    private static func unwrappingMusicKitArtwork(_ url: URL?) -> URL? {
+        guard let url,
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
+              components.scheme?.lowercased() == "musickit",
+              let regex = try? NSRegularExpression(pattern: "https%3A%2F%2F[^&]+") else {
+            return url
+        }
+        let nsString = url.absoluteString as NSString
+        guard let match = regex.firstMatch(in: url.absoluteString, range: NSRange(location: 0, length: nsString.length)) else {
+            return url
+        }
+        return URL(string: nsString.substring(with: match.range).removingPercentEncoding ?? "")
+    }
+
    public var toPlayable: PlayableContent {
         PlayableContent(
             title: title,
@@ -1029,7 +1067,7 @@ extension SubsonicSong {
             title: title ?? "",
             subtitle: [artist ?? "", suffix?.uppercased() ?? ""].filter { !$0.isEmpty }.joined(separator: " • "),
             thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
-            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt, size: SubsonicAPI.artworkSize),
             content: .init(
                 service: .subsonic,
                 id: id,
@@ -1066,7 +1104,7 @@ extension SubsonicAlbum {
                 songCount.flatMap(\.songCountLabel) ?? ""
             ].filter { !$0.isEmpty }.joined(separator: " • "),
             thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
-            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt, size: SubsonicAPI.artworkSize),
             content: .init(
                 service: .subsonic,
                 id: id,
@@ -1093,7 +1131,7 @@ extension SubsonicArtist {
             title: name ?? "",
             subtitle: "",
             thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
-            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt, size: SubsonicAPI.artworkSize),
             content: .init(
                 service: .subsonic,
                 id: id,
@@ -1114,7 +1152,7 @@ extension SubsonicPlaylist {
                 songCount.flatMap(\.songCountLabel) ?? ""
             ].filter { !$0.isEmpty }.joined(separator: " • "),
             thumbnail: SubsonicAPI.coverArtURL(for: coverArt, size: 300),
-            artwork: SubsonicAPI.coverArtURL(for: coverArt),
+            artwork: SubsonicAPI.coverArtURL(for: coverArt, size: SubsonicAPI.artworkSize),
             content: .init(
                 service: .subsonic,
                 id: id,

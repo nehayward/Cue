@@ -12,6 +12,11 @@ struct ContentArtworkView: View {
     /// The corner rounding for anything that isn't an artist; the player
     /// asks for the same radius the Sonos artwork gets.
     var cornerRadius: CGFloat = 4
+    /// What shows while the image loads (and behind a missing one). Solid
+    /// by default, as a row's thumbnail should be; a wall of tiles asks
+    /// for something translucent so a page still loading reads as a
+    /// texture rather than a slab.
+    var placeholderStyle: AnyShapeStyle = AnyShapeStyle(.secondary)
     /// Lets the artwork itself be picked up and dropped on a speaker or a
     /// queue, the way the Sonos player's cover can. Applied to the image
     /// rather than the frame around it, so the drag preview is the cover.
@@ -115,14 +120,18 @@ struct ContentArtworkView: View {
                     .resizable()
                     .scaledToFit()
                     .onAppear {
-                        guard let color = state.imageContainer?.image.findAverageColor(cacheKey: content.imageKey) else { return }
-                        let averageColor = Color(uiColor: color)
-                        foundAverageColor?(averageColor)
+                        // Only when someone wants it: the colour is a
+                        // 40×40 redraw of the bitmap on the main thread,
+                        // and a grid of covers scrolling past was paying
+                        // for one per tile to hand the result to nobody.
+                        guard let foundAverageColor,
+                              let color = state.imageContainer?.image.findAverageColor(cacheKey: content.imageKey) else { return }
+                        foundAverageColor(Color(uiColor: color))
                     }
             } else {
                 Rectangle()
                     .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(placeholderStyle)
                     .overlay {
                         if content.thumbnail == nil || state.error != nil {
                             Image(systemName: "music.note")
