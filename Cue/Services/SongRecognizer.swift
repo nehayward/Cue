@@ -44,11 +44,17 @@ final class SongRecognizer {
 
     private(set) var state: State = .idle
     @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private var timeoutTask: Task<Void, Never>?
 
     /// How much of the stream to listen to. Shazam usually needs 3–5
     /// seconds, and turns a signature much longer than this away
     /// (`SHError.signatureDurationInvalid`, 201).
     private static let sampleSeconds: Double = 8
+
+    /// How long a listen may take in all — reaching the stream, sampling
+    /// it and hearing back from Shazam — before it gives up. A stalled
+    /// stream otherwise left the logo pulsing for good.
+    private static let timeout: Duration = .seconds(25)
 
     /// Listens to the stream `resolve` hands back and names the song on it,
     /// handing the outcome to `onFinish`. A new call replaces one still
@@ -58,10 +64,26 @@ final class SongRecognizer {
         onFinish: @escaping @MainActor (State) -> Void = { _ in }
     ) {
         task?.cancel()
+        timeoutTask?.cancel()
         state = .listening
-        task = Task { [weak self] in
+        let listen = Task { [weak self] in
             let state = await Self.recognize(resolve: resolve)
             guard !Task.isCancelled, let self else { return }
+            self.timeoutTask?.cancel()
+            self.timeoutTask = nil
+            self.state = state
+            onFinish(state)
+        }
+        task = listen
+        // Gives up without waiting on the listen to notice it was
+        // cancelled — a stalled read or Shazam call may not for a while.
+        timeoutTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.timeout)
+            guard !Task.isCancelled, let self, self.task == listen else { return }
+            listen.cancel()
+            self.task = nil
+            self.timeoutTask = nil
+            let state = State.failed("Shazam took too long to listen. Try again in a moment.")
             self.state = state
             onFinish(state)
         }
@@ -72,6 +94,8 @@ final class SongRecognizer {
     func cancel() {
         task?.cancel()
         task = nil
+        timeoutTask?.cancel()
+        timeoutTask = nil
         state = .idle
     }
 
