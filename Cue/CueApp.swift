@@ -1745,7 +1745,14 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
     #endif
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = (scene as? UIWindowScene) else { return }
-        
+
+        // A new window opens on the library, not the player. The flag is on
+        // `Router.main` and outlives the window, so a window reopened while
+        // the player was up found it set and slid the cover up again.
+        // `sceneDidDisconnect` clears it too; this covers a close that never
+        // got as far as a disconnect.
+        Router.main.isPlayerPresented = false
+
 #if targetEnvironment(macCatalyst)
         if let titlebar = windowScene.titlebar {
             // A unified toolbar across the top of the window, the way Xcode
@@ -1778,6 +1785,9 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
     }
     
     func sceneDidDisconnect(_ scene: UIScene) {
+        // The window closed (or the system discarded it): the player goes
+        // with it, so the next window doesn't open onto it.
+        Router.main.isPlayerPresented = false
 #if targetEnvironment(macCatalyst)
         windowSizeObserver = nil
 #endif
