@@ -1136,16 +1136,6 @@ private struct LocalPlayerMenuView: View {
             }
             Divider()
 
-            // The other direction from the Sonos player's "This Device":
-            // a file in the Files folder is the one thing no speaker can take.
-            if !item.content.service.playsOnDeviceOnly {
-                Button {
-                    router.sheet(to: .playContent(content: item))
-                } label: {
-                    Label("Play on Speaker…", systemImage: "hifispeaker.arrow.forward.fill")
-                }
-            }
-
             Toggle(isOn: $showArtworkOnly) {
                 Label("\(showArtworkOnly ? "Show" : "Hide") controls", systemImage: "photo")
             }
