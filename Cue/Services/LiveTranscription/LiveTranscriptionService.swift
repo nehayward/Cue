@@ -9,15 +9,24 @@ import SonosKit
 /// written out as it airs, by an on-device model (`TranscriptionEngine`,
 /// iOS 26 and later). Nothing leaves the device.
 ///
-/// It follows the station wherever the player's route points, and hears it
-/// the same way either way: the station is a public stream, so the device
-/// opens it a second time and decodes it itself (`LiveStreamDecoder`) — the
-/// URL `LocalPlaybackService` is playing, or the one a speaker is
-/// (`SonosService.radioStreamURL(for:)`). No microphone, nothing audible,
-/// and it works with headphones in and the volume down. (Tapping `AVPlayer`
-/// can't do this: a live Icecast stream has no asset track to tap.) The
-/// player buffers on its own clock, so the words can run a few seconds ahead
-/// of or behind what's heard. It stops while a speaker is paused.
+/// It follows the station wherever the player's route points. No
+/// microphone, nothing audible, and it works with headphones in and the
+/// volume down:
+///
+/// - On this device, from iOS 27, it hears the player itself: a tap on the
+///   station's whole mix (`PlayerAudioTap`). Each word comes back stamped
+///   with the player's timeline and is held until the player reaches it, so
+///   the transcript runs word by word in step with what's heard. On AirPlay,
+///   which buffers seconds ahead, the words are ready before they're heard;
+///   on the speaker or headphones they land a moment after.
+/// - On a speaker, and on this device before iOS 27, the station is a public
+///   stream, so the device opens it a second time and decodes it itself
+///   (`LiveStreamDecoder`) — the URL a speaker is playing
+///   (`SonosService.radioStreamURL(for:)`) or the one `LocalPlaybackService`
+///   is. That copy buffers on its own clock, so the words can run a few
+///   seconds ahead of or behind what's heard, and are shown as they come.
+///
+/// It stops while the station is paused.
 ///
 /// Apple Music stations play inside Apple's own player, and Sonos Radio,
 /// HLS and Ogg stations and other speaker-only services have no stream the
@@ -118,6 +127,16 @@ final class LiveTranscriptionService {
     /// Reading and decoding the station's stream.
     @ObservationIgnored private var listenTask: Task<Void, Never>?
     @ObservationIgnored private var engineTask: Task<Void, Never>?
+    /// Whether the running engine hears this device's player through its
+    /// tap, rather than a second copy of the stream.
+    @ObservationIgnored private var isTapping = false
+    /// Words heard but not yet played — held until the player reaches
+    /// them, while tapping. Finished lines, oldest first, then the one still
+    /// being heard.
+    @ObservationIgnored private var heldLines: [[TranscribedWord]] = []
+    @ObservationIgnored private var heldVolatile: [TranscribedWord] = []
+    /// Lets held words out as the player reaches them.
+    @ObservationIgnored private var revealTask: Task<Void, Never>?
     /// Bumped per engine start, so a cancelled run's late callbacks can't
     /// write over the current one's state.
     @ObservationIgnored private var generation = 0
@@ -282,9 +301,9 @@ final class LiveTranscriptionService {
                     case .downloading(let fraction): self.state = .downloading(fraction)
                     case .listening: self.state = .listening
                     }
-                } onResult: { text, isFinal in
+                } onResult: { words, isFinal in
                     guard let self, self.generation == generation else { return }
-                    self.receive(text, isFinal: isFinal)
+                    self.receive(words, isFinal: isFinal)
                 }
             } catch {
                 Logger.liveTranscription.error("Transcriber failed: \(error.localizedDescription, privacy: .public)")
@@ -293,11 +312,20 @@ final class LiveTranscriptionService {
         }
     }
 
-    /// Opens the station's stream here and decodes it into the feed — the
-    /// URL the player is playing, or the one the speaker is.
+    /// Feeds the station's audio in: this device's player through its tap
+    /// where the OS has one, otherwise the station's stream opened here and
+    /// decoded — the URL the player is playing, or the one the speaker is.
     private func listen(to source: Source, generation: Int) {
         let group = route.group
         let feed = feed
+        if case .device = source, #available(iOS 27.0, visionOS 27.0, *) {
+            isTapping = true
+            playback.tapStationAudio { buffer, start in
+                feed.send(buffer, start: start.isNumeric ? start : nil)
+            }
+            startRevealing()
+            return
+        }
         listenTask = Task { [weak self] in
             var url: URL?
             switch source {
@@ -317,7 +345,7 @@ final class LiveTranscriptionService {
                 // the stream is steady work.
                 try await Task.detached(priority: .userInitiated) {
                     try await LiveStreamDecoder.run(url) { buffer in
-                        feed.send(buffer)
+                        feed.send(buffer, start: nil)
                     }
                 }.valueCancellingOnCancel()
                 self?.listenFailed("The station's stream ended.", generation: generation)
@@ -353,17 +381,72 @@ final class LiveTranscriptionService {
     private func stopListening() {
         listenTask?.cancel()
         listenTask = nil
+        if isTapping {
+            isTapping = false
+            playback.untapStationAudio()
+        }
+        revealTask?.cancel()
+        revealTask = nil
+        // Held words belong to a timeline that's gone with the run.
+        heldLines = []
+        heldVolatile = []
     }
 
-    private func receive(_ text: String, isFinal: Bool) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard isFinal else {
-            volatileText = trimmed
-            return
+    private func receive(_ words: [TranscribedWord], isFinal: Bool) {
+        if isFinal {
+            heldLines.append(words)
+            heldVolatile = []
+        } else {
+            heldVolatile = words
         }
-        volatileText = ""
-        guard !trimmed.isEmpty else { return }
-        lines.append(Line(text: trimmed))
+        reveal()
+    }
+
+    // MARK: - Keeping time with the player
+
+    /// How far ahead of the player a word may claim to be before it's shown
+    /// anyway — past this the timings can't be trusted.
+    private static let maxLead: TimeInterval = 10
+
+    private func startRevealing() {
+        revealTask?.cancel()
+        revealTask = Task { [weak self] in
+            while !Task.isCancelled {
+                self?.reveal()
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+        }
+    }
+
+    /// Moves what the player has reached from the held words onto the
+    /// screen: whole lines into `lines`, and the rest of the first line not
+    /// yet fully played — or the volatile guess — into `volatileText`. Not
+    /// tapping, nothing is held back.
+    private func reveal() {
+        let playhead = isTapping ? playback.stationPlayhead : nil
+        func isHeard(_ word: TranscribedWord) -> Bool {
+            guard let playhead, let start = word.start else { return true }
+            return start <= playhead || start - playhead > Self.maxLead
+        }
+
+        while let line = heldLines.first, line.allSatisfy(isHeard) {
+            heldLines.removeFirst()
+            commit(Self.text(of: line))
+        }
+        let partial = heldLines.first ?? heldVolatile
+        let shown = Self.text(of: Array(partial.prefix(while: isHeard)))
+        if volatileText != shown {
+            volatileText = shown
+        }
+    }
+
+    private static func text(of words: [TranscribedWord]) -> String {
+        words.map(\.text).joined().trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func commit(_ text: String) {
+        guard !text.isEmpty else { return }
+        lines.append(Line(text: text))
         if lines.count > maxLines {
             lines.removeFirst(lines.count - maxLines)
         }
@@ -372,6 +455,8 @@ final class LiveTranscriptionService {
     private func clearTranscript() {
         lines = []
         volatileText = ""
+        heldLines = []
+        heldVolatile = []
         transcriptStationID = nil
     }
 
@@ -404,13 +489,14 @@ final class LiveTranscriptionService {
 /// runs. Called from the render thread, hence the lock.
 private final class AudioFeed: @unchecked Sendable {
     private let lock = NSLock()
-    private var continuation: AsyncStream<AVAudioPCMBuffer>.Continuation?
+    private var continuation: AsyncStream<TimedAudio>.Continuation?
 
     /// A fresh stream for a new engine run, ending the last one's.
-    func open() -> AsyncStream<AVAudioPCMBuffer> {
+    func open() -> AsyncStream<TimedAudio> {
         // Newest first if the model falls behind: live captions that lag
-        // further and further are worse than a skipped phrase.
-        let (stream, continuation) = AsyncStream.makeStream(of: AVAudioPCMBuffer.self, bufferingPolicy: .bufferingNewest(512))
+        // further and further are worse than a skipped phrase. Tapped audio
+        // carries its own times, so a dropped chunk doesn't shift the rest.
+        let (stream, continuation) = AsyncStream.makeStream(of: TimedAudio.self, bufferingPolicy: .bufferingNewest(512))
         let previous = lock.withLock {
             let previous = self.continuation
             self.continuation = continuation
@@ -429,8 +515,9 @@ private final class AudioFeed: @unchecked Sendable {
         previous?.finish()
     }
 
-    func send(_ buffer: AVAudioPCMBuffer) {
-        lock.withLock { continuation }?.yield(buffer)
+    /// `start` is where the chunk sits on the player's timeline, when known.
+    func send(_ buffer: AVAudioPCMBuffer, start: CMTime?) {
+        lock.withLock { continuation }?.yield(.init(buffer: buffer, start: start))
     }
 }
 

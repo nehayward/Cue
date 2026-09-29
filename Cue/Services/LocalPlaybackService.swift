@@ -237,6 +237,9 @@ final class LocalPlaybackService {
     @ObservationIgnored var streamVolume: Float = 1 {
         didSet { streamPlayer?.volume = streamVolume }
     }
+    /// Live Transcription's ear on the station playing here — see
+    /// `tapStationAudio(_:)`. Carried onto each new station item.
+    @ObservationIgnored private var stationAudioTap: (@Sendable (AVAudioPCMBuffer, CMTime) -> Void)?
     /// The armed stream run: player item → queue index.
     @ObservationIgnored private var streamRun: [ObjectIdentifier: Int] = [:]
     /// Resolved Apple `Song`s by catalog id, so replaying or skipping back to
@@ -1197,6 +1200,7 @@ final class LocalPlaybackService {
             let playerItem = AVPlayerItem(url: url)
             if isStation(item) {
                 listenForStreamTitles(on: playerItem, token: token)
+                applyStationAudioTap(to: playerItem)
             }
             rows.append((queueIndex, playerItem))
             lastArmed = queueIndex
@@ -1395,6 +1399,40 @@ final class LocalPlaybackService {
     func currentStationStreamURL() async -> URL? {
         guard canRecognizeSong, let station = nowPlaying else { return nil }
         return await streamURL(for: station)
+    }
+
+    /// Hands the station playing here to `onAudio` as it plays — its own
+    /// audio, straight off the player, with where each chunk sits on the
+    /// player's timeline (`stationPlayhead`). Stays on through re-arms of
+    /// the station until `untapStationAudio()`.
+    @available(iOS 27.0, visionOS 27.0, *)
+    func tapStationAudio(_ onAudio: @escaping @Sendable (AVAudioPCMBuffer, CMTime) -> Void) {
+        stationAudioTap = onAudio
+        if let item = streamPlayer?.currentItem, isPlayingStation {
+            applyStationAudioTap(to: item)
+        }
+    }
+
+    func untapStationAudio() {
+        guard stationAudioTap != nil else { return }
+        stationAudioTap = nil
+        if let item = streamPlayer?.currentItem, isPlayingStation {
+            applyStationAudioTap(to: item)
+        }
+    }
+
+    /// Where the station is on its own timeline — what's being heard, on
+    /// whichever output — in the terms `tapStationAudio(_:)` stamps its
+    /// audio with. Nil when no station is playing here.
+    var stationPlayhead: TimeInterval? {
+        guard isPlayingStation, let player = streamPlayer else { return nil }
+        let time = player.currentTime()
+        return time.isNumeric ? time.seconds : nil
+    }
+
+    private func applyStationAudioTap(to item: AVPlayerItem) {
+        guard #available(iOS 27.0, visionOS 27.0, *) else { return }
+        item.audioMix = stationAudioTap.flatMap { PlayerAudioTap.audioMix(onAudio: $0) }
     }
 
     /// Shows a song Shazam named as what's on air, as if the station had

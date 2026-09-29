@@ -1,9 +1,28 @@
 import AVFoundation
 import Speech
 
+/// A chunk of audio to transcribe, and where it starts on the player's
+/// timeline when that's known. Without it, times count from the first chunk
+/// fed in.
+struct TimedAudio: @unchecked Sendable {
+    let buffer: AVAudioPCMBuffer
+    let start: CMTime?
+}
+
+/// One word of a transcription result — with the space before it — and
+/// when it starts on the audio's timeline.
+struct TranscribedWord: Equatable, Sendable {
+    let text: String
+    let start: TimeInterval?
+}
+
 /// The on-device speech model behind Live Transcription: Apple's
 /// `SpeechAnalyzer` with a `SpeechTranscriber` for one locale, fed the
 /// player's own audio. Nothing leaves the device.
+///
+/// Every word comes back with when it was said — on the timeline of the
+/// audio fed in, when the audio says where it starts (`TimedAudio.start`) —
+/// so a transcript can be shown in step with what's heard.
 ///
 /// A language's model is downloaded the first time it's asked for and kept
 /// by the system after that, shared with every app that uses it.
@@ -43,13 +62,13 @@ enum TranscriptionEngine {
 
     /// Transcribes `audio` in `locale` until the task is cancelled or the
     /// audio ends. Fetches the language first if it isn't on the device.
-    /// `onResult` gets each result's text with whether it's final: a
+    /// `onResult` gets each result's words with whether it's final: a
     /// volatile result is a best guess the next one replaces.
     static func run(
         locale: Locale,
-        audio: AsyncStream<AVAudioPCMBuffer>,
+        audio: AsyncStream<TimedAudio>,
         onStatus: @escaping @MainActor (Status) -> Void,
-        onResult: @escaping @MainActor (String, Bool) -> Void
+        onResult: @escaping @MainActor ([TranscribedWord], Bool) -> Void
     ) async throws {
         guard let locale = await supportedLocale(equivalentTo: locale) else {
             throw EngineError.unsupportedLocale
@@ -58,7 +77,7 @@ enum TranscriptionEngine {
             locale: locale,
             transcriptionOptions: [],
             reportingOptions: [.volatileResults],
-            attributeOptions: []
+            attributeOptions: [.audioTimeRange]
         )
 
         if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
@@ -87,9 +106,9 @@ enum TranscriptionEngine {
         // steady work, and the analyzer wants its own format.
         let pump = Task.detached(priority: .userInitiated) {
             let converter = BufferConverter(to: format)
-            for await buffer in audio {
-                if let converted = converter.convert(buffer) {
-                    inputBuilder.yield(AnalyzerInput(buffer: converted))
+            for await chunk in audio {
+                if let converted = converter.convert(chunk.buffer) {
+                    inputBuilder.yield(AnalyzerInput(buffer: converted, bufferStartTime: chunk.start))
                 }
             }
             inputBuilder.finish()
@@ -98,7 +117,7 @@ enum TranscriptionEngine {
         await withTaskCancellationHandler {
             do {
                 for try await result in transcriber.results {
-                    await onResult(String(result.text.characters), result.isFinal)
+                    await onResult(words(in: result.text), result.isFinal)
                 }
             } catch {
                 print("Live Transcription:", error)
@@ -107,6 +126,21 @@ enum TranscriptionEngine {
             pump.cancel()
             inputBuilder.finish()
             Task { await analyzer.cancelAndFinishNow() }
+        }
+    }
+}
+
+@available(iOS 26.0, visionOS 26.0, *)
+extension TranscriptionEngine {
+    /// A result's text split where its timings change — a word each, with
+    /// the space before it.
+    fileprivate static func words(in text: AttributedString) -> [TranscribedWord] {
+        text.runs.map { run in
+            let start = run.audioTimeRange?.start
+            return TranscribedWord(
+                text: String(text[run.range].characters),
+                start: start.flatMap { $0.isNumeric ? $0.seconds : nil }
+            )
         }
     }
 }
