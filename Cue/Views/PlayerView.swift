@@ -1095,7 +1095,6 @@ private struct LocalQueueIconView: View {
 /// and the sleep timer.
 private struct LocalPlayerMenuView: View {
     @Environment(Router.self) private var router: Router
-    @Environment(\.dismiss) private var dismiss
 
     let item: PlayableContent
     @Binding var showArtworkOnly: Bool
@@ -1171,13 +1170,6 @@ private struct LocalPlayerMenuView: View {
                 }
             }
 
-            Divider()
-            Button {
-                playback.stop()
-                dismiss()
-            } label: {
-                Label("Stop", systemImage: "stop.fill")
-            }
         } label: {
             Label("Menu", systemImage: "ellipsis")
                 .labelStyle(.iconOnly)
