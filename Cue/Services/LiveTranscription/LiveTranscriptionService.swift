@@ -14,12 +14,16 @@ import UIKit
 /// microphone, nothing audible, and it works with headphones in and the
 /// volume down:
 ///
-/// - On this device, from iOS 27, it hears the player itself: a tap on the
-///   station's whole mix (`PlayerAudioTap`). Each word comes back stamped
-///   with the player's timeline and is held until the player reaches it, so
-///   the transcript runs word by word in step with what's heard. On AirPlay,
-///   which buffers seconds ahead, the words are ready before they're heard;
-///   on the speaker or headphones they land a moment after.
+/// - On this device, the station is played by Cue's own engine while the
+///   panel is open (`StationRelay`, through `LocalPlaybackService`): one
+///   connection, decoded once, heard by the transcriber two seconds before
+///   it's played. Each word is held until the output reaches it, so the
+///   transcript runs word by word in step with what's heard, on any output,
+///   and it's the same audio — the same ads — as what plays.
+/// - A station the relay can't read (HLS, Ogg) is heard, from iOS 27, by a
+///   tap on the player's whole mix (`PlayerAudioTap`): the same audio, but
+///   the words land a moment after they're heard, or ahead of them on
+///   AirPlay, which buffers.
 /// - On a speaker, and on this device before iOS 27, the station is a public
 ///   stream, so the device opens it a second time and decodes it itself
 ///   (`LiveStreamDecoder`) — the URL a speaker is playing
@@ -27,10 +31,10 @@ import UIKit
 ///   is. That copy buffers on its own clock, so the words can run a few
 ///   seconds ahead of or behind what's heard, and are shown as they come —
 ///   and a station that inserts ads per listener gives it ads of its own,
-///   so a break in the transcript needn't be the one playing. The tap is
-///   the only way to read exactly what's heard.
+///   so a break in the transcript needn't be the one playing.
 ///
-/// It stops while the station is paused.
+/// It stops while the station is paused — on the relay it waits, and picks
+/// up when the relay does.
 ///
 /// Apple Music stations play inside Apple's own player, and Sonos Radio,
 /// HLS and Ogg stations and other speaker-only services have no stream the
@@ -134,6 +138,12 @@ final class LiveTranscriptionService {
     /// Whether the running engine hears this device's player through its
     /// tap, rather than a second copy of the stream.
     @ObservationIgnored private var isTapping = false
+    /// Whether the station is being played by the relay for the running
+    /// engine to hear.
+    @ObservationIgnored private var isRelaying = false
+    /// The station the relay couldn't play — an HLS or Ogg stream, or one
+    /// that wouldn't open — heard another way until the station changes.
+    @ObservationIgnored private var relayUnusableStationID: String?
     /// The player renders more at a time than the tap can take — as it does
     /// while the app isn't frontmost — so the station is heard from a second
     /// copy of its stream instead, until the app is active again.
@@ -177,6 +187,10 @@ final class LiveTranscriptionService {
     func deactivate() {
         guard isActive else { return }
         isActive = false
+        // A relay or tap that gave out gets another try the next time the
+        // panel opens — a dropped connection needn't mean the station can't.
+        relayUnusableStationID = nil
+        isTapUnusable = false
         if let becameActiveObserver {
             NotificationCenter.default.removeObserver(becameActiveObserver)
             self.becameActiveObserver = nil
@@ -253,6 +267,12 @@ final class LiveTranscriptionService {
         // retrying on every metadata tick would only flash the error.
         if source == failedSource { return }
         if !isSourcePlaying {
+            if isRelaying, runningSource == source {
+                // The relay holds the station through a pause and carries
+                // on from where its timeline left off; the engine waits.
+                if state != .paused { state = .paused }
+                return
+            }
             // Live radio doesn't wait: listening on while it's paused would
             // transcribe what was never played.
             stop()
@@ -266,7 +286,10 @@ final class LiveTranscriptionService {
             clearTranscript()
             transcriptStationID = source.stationID
         }
-        guard engineTask == nil || runningSource != source || runningLocale != locale else { return }
+        guard engineTask == nil || runningSource != source || runningLocale != locale else {
+            if state == .paused { state = .listening }
+            return
+        }
         start(source, locale: locale)
     }
 
@@ -334,6 +357,17 @@ final class LiveTranscriptionService {
     private func listen(to source: Source, generation: Int) {
         let group = route.group
         let feed = feed
+        if case .device = source, relayUnusableStationID != source.stationID {
+            print("Live Transcription: Hearing \(source.stationID) through Cue's own player")
+            isRelaying = true
+            playback.relayStation({ buffer, start in
+                feed.send(buffer, start: start)
+            }, onUnavailable: { [weak self] in
+                self?.relayBecameUnavailable(generation: generation)
+            })
+            startRevealing()
+            return
+        }
         if case .device = source, !isTapUnusable, #available(iOS 27.0, visionOS 27.0, *) {
             print("Live Transcription: Hearing \(source.stationID) through the player's tap")
             isTapping = true
@@ -375,6 +409,17 @@ final class LiveTranscriptionService {
                 self?.listenFailed(error.localizedDescription, generation: generation)
             }
         }
+    }
+
+    /// The relay couldn't play the station: the player has it back, and the
+    /// station is heard another way until it changes.
+    private func relayBecameUnavailable(generation: Int) {
+        guard self.generation == generation, isRelaying,
+              let source = runningSource, let locale = runningLocale else { return }
+        print("Live Transcription: Cue's own player can't play \(source.stationID); hearing it another way")
+        relayUnusableStationID = source.stationID
+        isRelaying = false
+        start(source, locale: locale)
     }
 
     /// The tap is hearing silence: takes it off — the player goes back to
@@ -424,6 +469,10 @@ final class LiveTranscriptionService {
             isTapping = false
             playback.untapStationAudio()
         }
+        if isRelaying {
+            isRelaying = false
+            playback.endStationRelay()
+        }
         revealTask?.cancel()
         revealTask = nil
         // Held words belong to a timeline that's gone with the run.
@@ -444,8 +493,11 @@ final class LiveTranscriptionService {
     // MARK: - Keeping time with the player
 
     /// How far ahead of the player a word may claim to be before it's shown
-    /// anyway — past this the timings can't be trusted.
+    /// anyway — past this the timings can't be trusted. The relay's are
+    /// good further out: a station sends a burst of its last seconds when it
+    /// opens, and all of it is transcribed long before it's played.
     private static let maxLead: TimeInterval = 10
+    private static let maxRelayLead: TimeInterval = 60
 
     private func startRevealing() {
         revealTask?.cancel()
@@ -462,10 +514,13 @@ final class LiveTranscriptionService {
     /// yet fully played — or the volatile guess — into `volatileText`. Not
     /// tapping, nothing is held back.
     private func reveal() {
-        let playhead = isTapping ? playback.stationPlayhead : nil
+        // On the relay, nothing is heard before it starts playing: its
+        // timeline starts at zero.
+        let playhead = isRelaying ? playback.relayHeardTime ?? 0 : isTapping ? playback.stationPlayhead : nil
+        let maxLead = isRelaying ? Self.maxRelayLead : Self.maxLead
         func isHeard(_ word: TranscribedWord) -> Bool {
             guard let playhead, let start = word.start else { return true }
-            return start <= playhead || start - playhead > Self.maxLead
+            return start <= playhead || start - playhead > maxLead
         }
 
         while let line = heldLines.first, line.allSatisfy(isHeard) {
@@ -533,9 +588,10 @@ private final class AudioFeed: @unchecked Sendable {
     /// A fresh stream for a new engine run, ending the last one's.
     func open() -> AsyncStream<TimedAudio> {
         // Newest first if the model falls behind: live captions that lag
-        // further and further are worse than a skipped phrase. Tapped audio
-        // carries its own times, so a dropped chunk doesn't shift the rest.
-        let (stream, continuation) = AsyncStream.makeStream(of: TimedAudio.self, bufferingPolicy: .bufferingNewest(512))
+        // further and further are worse than a skipped phrase. Tapped and
+        // relayed audio carries its own times, so a dropped chunk doesn't
+        // shift the rest. Room for the burst a station sends as it opens.
+        let (stream, continuation) = AsyncStream.makeStream(of: TimedAudio.self, bufferingPolicy: .bufferingNewest(1024))
         let previous = lock.withLock {
             let previous = self.continuation
             self.continuation = continuation

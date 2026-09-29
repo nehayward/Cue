@@ -84,6 +84,10 @@ final class LocalPlaybackService {
         /// player as `appleMusic`, with no entries to follow through.
         case appleStation
         case stream
+        /// A station played by a `StationRelay` rather than the stream
+        /// player, while Live Transcription listens — see
+        /// `relayStation(_:onUnavailable:)`.
+        case relay
     }
 
     /// What happens when the queue runs out, or a track ends — the same three
@@ -249,6 +253,13 @@ final class LocalPlaybackService {
     /// The I/O buffer asked for before the tap went on, put back when it
     /// comes off — see `requestTapSizedRenders()`.
     @ObservationIgnored private var ioBufferBeforeTap: TimeInterval?
+    /// Plays the station while Live Transcription listens: one connection
+    /// feeding both the output and the transcript.
+    @ObservationIgnored private var stationRelay: StationRelay?
+    /// Who the relay hands the station's audio to, and who to tell when it
+    /// can't.
+    @ObservationIgnored private var relayListener: StationRelay.Listener?
+    @ObservationIgnored private var relayUnavailable: (@MainActor () -> Void)?
     /// The armed stream run: player item → queue index.
     @ObservationIgnored private var streamRun: [ObjectIdentifier: Int] = [:]
     /// Resolved Apple `Song`s by catalog id, so replaying or skipping back to
@@ -566,7 +577,7 @@ final class LocalPlaybackService {
         case .stream:
             streamPlayer?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
             nowPlayingCard.noteSeek(elapsed: seconds)
-        case .appleStation:
+        case .appleStation, .relay:
             // A station has nowhere to seek to.
             break
         case nil:
@@ -600,6 +611,18 @@ final class LocalPlaybackService {
             } else {
                 streamPlayer.pause()
             }
+        case .relay:
+            if stationRelay?.isPlaying == true {
+                // Live radio: stopping drops the connection, and Play opens
+                // the station again where it is now.
+                stationRelay?.stop()
+                isPlaying = false
+            } else if relayListener != nil {
+                startRelay()
+            } else {
+                // Live Transcription closed while paused: back to the player.
+                Task { try? await arm(at: currentIndex) }
+            }
         case nil:
             // Queue loaded but nothing armed (e.g. a failed track) — retry it.
             Task { try? await arm(at: currentIndex) }
@@ -616,6 +639,9 @@ final class LocalPlaybackService {
             musicPlayer.pause()
         case .stream:
             streamPlayer?.pause()
+        case .relay:
+            stationRelay?.stop()
+            isPlaying = false
         case nil:
             break
         }
@@ -695,7 +721,7 @@ final class LocalPlaybackService {
                 Task { try? await musicPlayer.skipToNextEntry() }
             case .stream:
                 streamPlayer?.advanceToNextItem()
-            case .appleStation:
+            case .appleStation, .relay:
                 // A station is its own run, so `target` is never inside it.
                 Task { try? await arm(at: target) }
             }
@@ -828,7 +854,7 @@ final class LocalPlaybackService {
         let end = (repeatMode == .one || sleepsAtEndOfTrack) ? index : runEnd(from: index)
 
         switch backendKind(for: queue[index]) {
-        case .stream:
+        case .stream, .relay:
             try await armStream(index: index, end: end, token: token, resume: resume)
         case .appleMusic:
             try await armApple(index: index, end: end, token: token, resume: resume)
@@ -862,7 +888,7 @@ final class LocalPlaybackService {
         case .stream:
             let seconds = streamPlayer?.currentTime().seconds ?? 0
             return seconds.isFinite ? seconds : 0
-        case nil:
+        case .relay, nil:
             return 0
         }
     }
@@ -909,7 +935,7 @@ final class LocalPlaybackService {
             musicPlayer.restartCurrentEntry()
         case .stream:
             streamPlayer?.seek(to: .zero)
-        case .appleStation:
+        case .appleStation, .relay:
             break
         case nil:
             // From the top, not from where a restored track was.
@@ -941,7 +967,13 @@ final class LocalPlaybackService {
         if previous == .appleMusic || previous == .appleStation {
             musicPlayer.stop()
         }
-        if streamPlayer != nil {
+        // A relay warming up behind the stream player goes too; whoever
+        // asked for it asks again for whatever plays next.
+        stationRelay?.stop()
+        stationRelay = nil
+        relayListener = nil
+        relayUnavailable = nil
+        if streamPlayer != nil || previous == .relay {
             streamPlayer?.pause()
             streamPlayer?.removeAllItems()
             streamPlayer = nil
@@ -960,7 +992,7 @@ final class LocalPlaybackService {
     /// run ends there and queue order changes take effect (see `playNext`).
     private func truncateArmedRunAfterCurrent() {
         switch backend {
-        case .appleStation:
+        case .appleStation, .relay:
             break
         case .appleMusic:
             var entries = musicPlayer.queue.entries
@@ -1486,9 +1518,115 @@ final class LocalPlaybackService {
     /// in the tap, with the player held at full level for it to hear.
     private func applyStreamVolume() {
         stationTapGain.value = streamVolume
+        stationRelay?.volume = streamVolume
         guard let player = streamPlayer else { return }
         let isTapped = tappedItem != nil && player.currentItem === tappedItem
         player.volume = isTapped ? 1 : streamVolume
+    }
+
+    // MARK: - Station relay
+
+    /// Plays the station on this device through a `StationRelay`, handing
+    /// `listener` every chunk of it two seconds before it's heard — the same
+    /// audio, from the same connection, so a transcript of it matches what
+    /// plays, ads and all. The stream player keeps playing until the relay
+    /// has its head start, then hands over.
+    ///
+    /// Stays on through a pause until `endStationRelay()`. `onUnavailable`
+    /// is called if the station can't be relayed — an HLS or Ogg stream, a
+    /// connection that fails — once the stream player has it back.
+    func relayStation(_ listener: @escaping StationRelay.Listener, onUnavailable: @escaping @MainActor () -> Void) {
+        relayListener = listener
+        relayUnavailable = onUnavailable
+        switch backend {
+        case .relay where stationRelay?.isPlaying != true:
+            // Paused on the relay: it opens on the next Play.
+            break
+        case .stream where isPlayingStation, .relay:
+            startRelay()
+        default:
+            break
+        }
+    }
+
+    /// Hands the station back to the stream player — playing if it was, or
+    /// paused on the relay until the next Play arms the player.
+    func endStationRelay() {
+        guard relayListener != nil else { return }
+        relayListener = nil
+        relayUnavailable = nil
+        guard backend == .relay else {
+            // Still warming up behind the stream player.
+            stationRelay?.stop()
+            stationRelay = nil
+            return
+        }
+        let wasPlaying = stationRelay?.isPlaying == true
+        stationRelay?.stop()
+        if wasPlaying {
+            Task { try? await arm(at: currentIndex) }
+        }
+    }
+
+    /// Where the relay's output is on its timeline, in the terms its
+    /// listener's chunks are stamped in. Nil until the relay has played.
+    var relayHeardTime: TimeInterval? {
+        stationRelay?.heardTime
+    }
+
+    private func startRelay() {
+        guard let station = nowPlaying, isStation(station), let listener = relayListener else { return }
+        let token = playToken
+        if backend == .relay { isLoading = true }
+        Task {
+            let url = await streamURL(for: station)
+            guard playToken == token, relayListener != nil else { return }
+            guard let url else {
+                relayEnded(token: token)
+                return
+            }
+            let relay = stationRelay ?? StationRelay()
+            stationRelay = relay
+            relay.volume = streamVolume
+            relay.start(url: url, listener: listener) { [weak self] in
+                self?.relayBecameReady(token: token) ?? false
+            } onEnd: { [weak self] _ in
+                self?.relayEnded(token: token)
+            }
+        }
+    }
+
+    /// The relay has its head start: silence the stream player and hand
+    /// over. False when the station changed meanwhile.
+    private func relayBecameReady(token: Int) -> Bool {
+        guard playToken == token, relayListener != nil else { return false }
+        isLoading = false
+        if backend != .relay {
+            streamPlayer?.pause()
+            streamPlayer?.removeAllItems()
+            streamPlayer = nil
+            streamRun = [:]
+            streamMetadataListener = nil
+            tappedItem = nil
+            backend = .relay
+        }
+        isPlaying = true
+        return true
+    }
+
+    /// The relay couldn't open the station, or lost it: the stream player
+    /// takes it back, and the listener hears why.
+    private func relayEnded(token: Int) {
+        guard playToken == token, relayListener != nil else { return }
+        let unavailable = relayUnavailable
+        relayListener = nil
+        relayUnavailable = nil
+        isLoading = false
+        stationRelay?.stop()
+        if backend == .relay {
+            Task { try? await arm(at: currentIndex) }
+        }
+        unavailable?()
     }
 
     /// Shows a song Shazam named as what's on air, as if the station had
@@ -1636,6 +1774,16 @@ final class LocalPlaybackService {
                 isPlaying: isPlaying,
                 duration: duration,
                 elapsed: progress,
+                canSkip: currentIndex + 1 < queue.count
+            )
+        case .relay:
+            let playing = stationRelay?.isPlaying ?? false
+            if isPlaying != playing { isPlaying = playing }
+            nowPlayingCard.update(
+                item: nowPlayingDisplay,
+                isPlaying: playing,
+                duration: 0,
+                elapsed: 0,
                 canSkip: currentIndex + 1 < queue.count
             )
         case nil:

@@ -101,9 +101,9 @@ enum TranscriptionEngine {
         let analyzer = SpeechAnalyzer(modules: [transcriber])
         // Capped, newest kept: an analyzer that falls behind — or stops
         // reading — would otherwise hold every chunk the station plays.
-        // About ten seconds of the player's 20 ms chunks; the times on each
+        // Room for the burst a station sends as it opens; the times on each
         // keep a dropped stretch a gap rather than a shift.
-        let (inputs, inputBuilder) = AsyncStream.makeStream(of: AnalyzerInput.self, bufferingPolicy: .bufferingNewest(500))
+        let (inputs, inputBuilder) = AsyncStream.makeStream(of: AnalyzerInput.self, bufferingPolicy: .bufferingNewest(1500))
         try await analyzer.start(inputSequence: inputs)
         await onStatus(.listening)
         Logger.liveTranscription.info("Transcribing \(locale.identifier, privacy: .public) at \(format.description, privacy: .public)")
