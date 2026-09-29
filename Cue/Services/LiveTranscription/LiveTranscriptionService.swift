@@ -335,7 +335,7 @@ final class LiveTranscriptionService {
         let group = route.group
         let feed = feed
         if case .device = source, !isTapUnusable, #available(iOS 27.0, visionOS 27.0, *) {
-            Logger.liveTranscription.info("Hearing \(source.stationID, privacy: .public) through the player's tap")
+            print("Live Transcription: Hearing \(source.stationID) through the player's tap")
             isTapping = true
             playback.tapStationAudio { buffer, start in
                 feed.send(buffer, start: start.isNumeric ? start : nil)
@@ -345,7 +345,7 @@ final class LiveTranscriptionService {
             startRevealing()
             return
         }
-        Logger.liveTranscription.info("Hearing \(source.stationID, privacy: .public) from a second copy of its stream")
+        print("Live Transcription: Hearing \(source.stationID) from a second copy of its stream")
         listenTask = Task { [weak self] in
             var url: URL?
             switch source {
@@ -382,7 +382,7 @@ final class LiveTranscriptionService {
     private func tapBecameUnusable(generation: Int) {
         guard self.generation == generation, isTapping,
               let source = runningSource, let locale = runningLocale else { return }
-        Logger.liveTranscription.info("Tap can't keep up; hearing \(source.stationID, privacy: .public) from its stream until the app is active")
+        print("Live Transcription: Tap can't keep up; hearing \(source.stationID) from its stream until the app is active")
         isTapUnusable = true
         start(source, locale: locale)
     }
