@@ -1,6 +1,7 @@
 import Accelerate
 import AVFoundation
 import MediaToolbox
+import OSLog
 
 /// Listens in on an `AVPlayerItem`'s own audio as it plays: an
 /// `MTAudioProcessingTap` on the item's whole mix, the
@@ -45,7 +46,7 @@ enum PlayerAudioTap {
             },
             prepare: { tap, maxFrames, format in
                 TapContext.from(tap).prepare(format)
-                print("Live Transcription: Tap prepared: \(TapContext.from(tap).format?.description ?? "no format"), up to \(maxFrames) frames")
+                Logger.liveTranscription.info("Tap prepared: \(TapContext.from(tap).format?.description ?? "no format", privacy: .public), up to \(maxFrames) frames")
             },
             unprepare: { tap in
                 TapContext.from(tap).unprepare()
@@ -94,14 +95,8 @@ private final class TapContext: @unchecked Sendable {
     /// The most the item's mix renders in one pull; see `PlayerAudioTap`.
     private static let maxFrames = 1024
 
-    /// For the log: chunks handed on and pulls that failed, and the audio's
-    /// length when last logged.
-    private var chunks = 0
+    /// Pulls that failed, for the log.
     private var failures = 0
-    private var framesSinceLog: Double = 0
-    /// The loudest sample since last logged, 0...1 — near zero means the
-    /// tap hears silence.
-    private var peak: Float = 0
 
     init(gain: TapGain, onAudio: @escaping @Sendable (AVAudioPCMBuffer, CMTime) -> Void, onUnusable: @escaping @Sendable () -> Void) {
         self.gain = gain
@@ -130,7 +125,7 @@ private final class TapContext: @unchecked Sendable {
     ) {
         if frames > Self.maxFrames, !isUnusable {
             isUnusable = true
-            print("Live Transcription: Tap asked for \(frames) frames at once, more than it can render")
+            Logger.liveTranscription.info("Tap asked for \(frames) frames at once, more than it can render")
             onUnusable()
         }
         var timeRange = CMTimeRange.zero
@@ -154,21 +149,6 @@ private final class TapContext: @unchecked Sendable {
             memcpy(toData, fromData, Int(min(from.mDataByteSize, to.mDataByteSize)))
         }
         onAudio(copy, start)
-
-        if let channels = copy.floatChannelData {
-            for channel in 0..<Int(copy.format.channelCount) {
-                for frame in 0..<Int(copy.frameLength) {
-                    peak = max(peak, abs(channels[channel][frame]))
-                }
-            }
-        }
-        chunks += 1
-        framesSinceLog += Double(frames)
-        if chunks == 1 || framesSinceLog >= format.sampleRate * 10 {
-            framesSinceLog = 0
-            print("Live Transcription: Tap chunk \(self.chunks): \(frames) frames at \(start.isNumeric ? start.seconds : -1)s, peak \(self.peak)")
-            peak = 0
-        }
     }
 
     /// Plays the chunk at the player's volume. The tap's format is Float32
@@ -186,7 +166,7 @@ private final class TapContext: @unchecked Sendable {
     private func noteFailure(_ status: OSStatus, frames: CMItemCount) {
         failures += 1
         if failures == 1 || failures % 100 == 0 {
-            print("Live Transcription: Tap couldn't pull \(frames) frames: \(status) (\(self.failures) so far)")
+            Logger.liveTranscription.error("Tap couldn't pull \(frames) frames: \(status) (\(self.failures) so far)")
         }
     }
 

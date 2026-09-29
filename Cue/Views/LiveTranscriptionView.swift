@@ -1,10 +1,11 @@
 import SwiftUI
 
 /// Live Transcription in the player's trailing panel, in the queue's place:
-/// what the station playing is saying, newest line at the bottom and the line
-/// still being heard under it in grey, under a header laid out like Next
-/// Up's, with the language menu where Next Up names the group. For a station
-/// on this device or on a speaker alike.
+/// what the station playing is saying, newest at the bottom. The line being
+/// said right now is bright, behind a moving waveform; lines already said
+/// are dimmed and fade out at the top. The header, laid out like Next Up's,
+/// carries the language menu where Next Up names the group and a Live badge
+/// while it's listening. For a station on this device or on a speaker alike.
 ///
 /// Being on screen is what runs it — the service starts on appear and stops,
 /// taps and all, on disappear.
@@ -13,10 +14,14 @@ struct LiveTranscriptionView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Live Transcription")
-                    .font(.title3.bold())
-                LiveTranscriptionLanguageMenu()
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Live Transcription")
+                        .font(.title3.bold())
+                    LiveTranscriptionLanguageMenu()
+                }
+                Spacer(minLength: 8)
+                LiveTranscriptionStatusBadge(state: transcription.state)
             }
             .padding(.horizontal, 16)
             .padding(.top, 14)
@@ -68,29 +73,31 @@ struct LiveTranscriptionView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
+                    // Already said: dimmed, so the live line stands out.
                     ForEach(transcription.lines) { line in
                         Text(line.text)
                             .font(.body.weight(.semibold))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    if !transcription.volatileText.isEmpty {
-                        Text(transcription.volatileText)
-                            .font(.body.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                    } else if transcription.lines.isEmpty {
-                        Text("Listening…")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.tertiary)
                     }
+                    liveLine
                     Color.clear
                         .frame(height: 1)
                         .id(Self.bottomID)
                 }
+                // Room under the top fade for the first line to be read.
+                .padding(.top, Self.fadeHeight / 2)
                 .padding(.bottom, 12)
                 .textSelection(.enabled)
             }
             .scrollIndicators(.hidden)
+            .mask {
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                        .frame(height: Self.fadeHeight)
+                    Color.black
+                }
+            }
             .onChange(of: transcription.lines.count) {
                 withAnimation(.smooth) { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
             }
@@ -101,6 +108,34 @@ struct LiveTranscriptionView: View {
     }
 
     private static let bottomID = "bottom"
+    private static let fadeHeight: CGFloat = 32
+
+    /// What's being said right now, behind a waveform that moves while the
+    /// station is heard — or, before the first words, where they'll appear.
+    @ViewBuilder
+    private var liveLine: some View {
+        let isListening = transcription.state == .listening
+        if !transcription.volatileText.isEmpty || isListening {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "waveform")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .symbolEffect(.variableColor.iterative, options: .repeating, isActive: isListening)
+                    .accessibilityHidden(true)
+                if transcription.volatileText.isEmpty {
+                    Text("Listening…")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                } else {
+                    Text(transcription.volatileText)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .accessibilityLabel("Now: \(transcription.volatileText)")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
 
     private var languageName: String {
         transcription.locale.map(LiveTranscriptionService.displayName(for:)) ?? "language"
@@ -117,6 +152,52 @@ struct LiveTranscriptionView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Where the transcript stands, beside the title: Live while the station is
+/// being heard, and a quieter word while it's tuning in or paused.
+private struct LiveTranscriptionStatusBadge: View {
+    let state: LiveTranscriptionService.State
+
+    @State private var isPulsing = false
+
+    var body: some View {
+        switch state {
+        case .listening:
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(.white)
+                    .frame(width: 6, height: 6)
+                    .opacity(isPulsing ? 0.35 : 1)
+                    .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: isPulsing)
+                    .onAppear { isPulsing = true }
+                    .onDisappear { isPulsing = false }
+                Text("LIVE")
+                    .font(.caption2.weight(.heavy))
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(.red, in: Capsule())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Live")
+        case .connecting:
+            label("Tuning in")
+        case .paused:
+            label("Paused")
+        default:
+            EmptyView()
+        }
+    }
+
+    private func label(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.caption2.weight(.heavy))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(.quaternary, in: Capsule())
     }
 }
 

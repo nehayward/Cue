@@ -1,4 +1,5 @@
 import AVFoundation
+import OSLog
 import Speech
 
 /// A chunk of audio to transcribe, and where it starts on the player's
@@ -105,32 +106,16 @@ enum TranscriptionEngine {
         let (inputs, inputBuilder) = AsyncStream.makeStream(of: AnalyzerInput.self, bufferingPolicy: .bufferingNewest(500))
         try await analyzer.start(inputSequence: inputs)
         await onStatus(.listening)
-        print("Live Transcription: Transcribing \(locale.identifier) at \(format.description)")
+        Logger.liveTranscription.info("Transcribing \(locale.identifier, privacy: .public) at \(format.description, privacy: .public)")
 
         // Off the main actor: resampling every chunk the player plays is
         // steady work, and the analyzer wants its own format.
         let clock = AnalyzerClock(sampleRate: format.sampleRate)
         let pump = Task.detached(priority: .userInitiated) {
             let converter = BufferConverter(to: format)
-            var fed = 0
-            // The loudest sample the analyzer got since last logged, 0...1.
-            var peak: Float = 0
             for await chunk in audio {
                 if let converted = converter.convert(chunk.buffer),
                    case .play(let start) = clock.place(converted, stamped: chunk.start) {
-                    fed += 1
-                    if fed == 1 {
-                        print("Live Transcription: First chunk to the analyzer: \(converted.frameLength) frames at \(start.map { $0.seconds } ?? -1)s, player time \(clock.origin)s")
-                    }
-                    if let samples = converted.int16ChannelData?[0] {
-                        for frame in 0..<Int(converted.frameLength) {
-                            peak = max(peak, Float(abs(Int32(samples[frame]))) / Float(Int16.max))
-                        }
-                    }
-                    if fed % 500 == 0 {
-                        print("Live Transcription: Analyzer chunk \(fed) at \(start.map { $0.seconds } ?? -1)s, peak \(peak)")
-                        peak = 0
-                    }
                     inputBuilder.yield(AnalyzerInput(buffer: converted, bufferStartTime: start))
                 }
             }
