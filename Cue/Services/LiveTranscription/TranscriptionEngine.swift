@@ -98,7 +98,11 @@ enum TranscriptionEngine {
             throw EngineError.noAudioFormat
         }
         let analyzer = SpeechAnalyzer(modules: [transcriber])
-        let (inputs, inputBuilder) = AsyncStream.makeStream(of: AnalyzerInput.self)
+        // Capped, newest kept: an analyzer that falls behind — or stops
+        // reading — would otherwise hold every chunk the station plays.
+        // About ten seconds of the player's 20 ms chunks; the times on each
+        // keep a dropped stretch a gap rather than a shift.
+        let (inputs, inputBuilder) = AsyncStream.makeStream(of: AnalyzerInput.self, bufferingPolicy: .bufferingNewest(500))
         try await analyzer.start(inputSequence: inputs)
         await onStatus(.listening)
         print("Live Transcription: Transcribing \(locale.identifier) at \(format.description)")
