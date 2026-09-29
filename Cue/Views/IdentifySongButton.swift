@@ -22,6 +22,13 @@ struct IdentifySongButton: View {
         return LocalPlaybackService.shared.canRecognizeSong
     }
 
+    /// Whether the station is actually playing. The stream is sampled
+    /// straight from the station, so it would match while paused too —
+    /// but a paused station isn't a song anyone is asking about.
+    private var isPlaying: Bool {
+        group?.coordinatorRoom.isPlaying ?? playback.isPlaying
+    }
+
     var body: some View {
         Button {
             HapticManager.shared.fireHaptic(.buttonPress)
@@ -46,16 +53,25 @@ struct IdentifySongButton: View {
                 .animation(.easeInOut(duration: 0.25), value: recognizer.isListening)
         }
         .accessibilityLabel(recognizer.isListening ? "Stop Identifying" : "Identify Song")
-        .help("Identify Song")
+        .help(isPlaying || recognizer.isListening ? "Identify Song" : "Play the station to identify its song")
         .keyboardShortcut("s", modifiers: [.command, .shift])
+        // Stays tappable while listening, so it can always be stopped.
+        .disabled(!isPlaying && !recognizer.isListening)
+        .onChange(of: isPlaying) { _, playing in
+            if !playing, recognizer.isListening {
+                recognizer.cancel()
+            }
+        }
     }
 
     private func identify() {
         if let group {
             // Listens to the station's stream from this device — the same
             // URL the speaker is playing.
-            let station = group.coordinatorRoom.track.metadata?.stationName
-            recognizer.identify { [group] in
+            let track = group.coordinatorRoom.track
+            let station = track.metadata?.stationName
+            let key = "\(group.coordinatorID):\(track.metadata?.stationID ?? track.trackID)"
+            recognizer.identify(stream: key) { [group] in
                 await SonosService.shared.radioStreamURL(for: group)
             } onFinish: { state in
                 if case .found(let song) = state {
@@ -68,7 +84,7 @@ struct IdentifySongButton: View {
             // changed isn't shown as the new one's song.
             let stationID = playback.nowPlaying?.content.id
             let station = playback.nowPlaying?.title
-            recognizer.identify {
+            recognizer.identify(stream: stationID.map { "device:\($0)" }) {
                 await playback.currentStationStreamURL()
             } onFinish: { state in
                 if case .found(let song) = state {

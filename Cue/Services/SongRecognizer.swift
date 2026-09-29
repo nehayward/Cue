@@ -45,23 +45,46 @@ final class SongRecognizer {
     private(set) var state: State = .idle
     @ObservationIgnored private var task: Task<Void, Never>?
 
-    /// How much of the stream to listen to. Shazam usually needs 3–5
-    /// seconds, and turns a signature much longer than this away
+    /// The song last named on each stream, and until when it's still on:
+    /// a second tap during the same song answers at once instead of
+    /// listening again.
+    @ObservationIgnored private var known: [String: (song: RecognizedSong, until: Date)] = [:]
+
+    /// Where Shazam gets a go, in seconds of stream. Most songs match on
+    /// the first; a quiet intro or a DJ over it gets the longer ones.
+    /// Shazam turns a signature much past the last away
     /// (`SHError.signatureDurationInvalid`, 201).
-    private static let sampleSeconds: Double = 8
+    private static let checkpoints: [Double] = [3, 5, 8]
+
+    /// How long a song is taken to stay on when its length isn't known.
+    private static let assumedRemaining: TimeInterval = 45
 
     /// Listens to the stream `resolve` hands back and names the song on it,
     /// handing the outcome to `onFinish`. A new call replaces one still
     /// listening, whose `onFinish` then never runs.
+    ///
+    /// `stream` names the station, so a song already named on it answers
+    /// straight away while it's still playing.
     func identify(
-        stream resolve: @escaping @MainActor () async -> URL?,
+        stream key: String?,
+        url resolve: @escaping @MainActor () async -> URL?,
         onFinish: @escaping @MainActor (State) -> Void = { _ in }
     ) {
         task?.cancel()
+        known = known.filter { $0.value.until > .now }
+        if let key, let hit = known[key] {
+            task = nil
+            state = .found(hit.song)
+            onFinish(state)
+            return
+        }
         state = .listening
         task = Task { [weak self] in
-            let state = await Self.recognize(resolve: resolve)
+            let (state, until) = await Self.recognize(resolve: resolve)
             guard !Task.isCancelled, let self else { return }
+            if let key, case .found(let song) = state {
+                self.known[key] = (song, until ?? .now.addingTimeInterval(Self.assumedRemaining))
+            }
             self.state = state
             onFinish(state)
         }
@@ -75,55 +98,77 @@ final class SongRecognizer {
         state = .idle
     }
 
-    private static func recognize(resolve: @MainActor () async -> URL?) async -> State {
+    /// Names the song, and says until when it plays when Apple Music knows
+    /// its length.
+    private static func recognize(resolve: @MainActor () async -> URL?) async -> (State, Date?) {
         guard let url = await resolve() else {
-            return .failed("This station's stream can't be reached from this device.")
+            return (.failed("This station's stream can't be reached from this device."), nil)
         }
         do {
-            let buffer = try await StreamSampler.sample(url, seconds: sampleSeconds)
-            let generator = SHSignatureGenerator()
-            try generator.append(buffer, at: nil)
-            switch await SHSession().result(from: generator.signature()) {
-            case .match(let match):
-                guard let item = match.mediaItems.first, let title = item.title else { return .notFound }
-                var song = RecognizedSong(
-                    title: title,
-                    artist: item.artist,
-                    artworkURL: item.artworkURL,
-                    appleMusicURL: item.appleMusicURL,
-                    shazamURL: item.webURL
-                )
-                song.playable = await catalogSong(id: item.appleMusicID)
-                // What Control Center's Shazam does: the song lands in the
-                // user's Shazam history, in the Shazam app and Music.
-#if !os(visionOS)
-                try? await SHLibrary.default.addItems([item])
-#endif
-                return .found(song)
-            case .noMatch:
-                return .notFound
-            case .error(let error, _):
-                // Shazam's own errors read as "The operation couldn't be
-                // completed (com.apple.ShazamCore error 102)" — no use to
-                // anyone. The detail goes to the log instead.
-                logger.error("Shazam match failed: \(String(describing: error), privacy: .public)")
-                return .failed("Shazam couldn't be reached. Try again in a moment.")
+            // Asks at each checkpoint as the stream comes in, rather than
+            // collecting all of it first.
+            let match = try await StreamSampler.listen(url, checkpoints: checkpoints) { buffer -> SHMatch? in
+                let generator = SHSignatureGenerator()
+                try generator.append(buffer, at: nil)
+                switch await SHSession().result(from: generator.signature()) {
+                case .match(let match):
+                    return match
+                case .noMatch:
+                    return nil
+                case .error(let error, _):
+                    throw ShazamFailure(underlying: error)
+                }
             }
+            guard let match, let item = match.mediaItems.first, let title = item.title else {
+                return (.notFound, nil)
+            }
+            let heardAt = Date.now
+            var song = RecognizedSong(
+                title: title,
+                artist: item.artist,
+                artworkURL: item.artworkURL,
+                appleMusicURL: item.appleMusicURL,
+                shazamURL: item.webURL
+            )
+            let catalog = await catalogSong(id: item.appleMusicID)
+            song.playable = catalog?.toPlayable
+            // What Control Center's Shazam does: the song lands in the
+            // user's Shazam history, in the Shazam app and Music. Off to
+            // the side, so the answer doesn't wait on it.
+#if !os(visionOS)
+            Task.detached { try? await SHLibrary.default.addItems([item]) }
+#endif
+            // Held a little short of the song's end, so the next one isn't
+            // answered with this one.
+            let until = catalog?.duration.map {
+                heardAt.addingTimeInterval($0 - item.predictedCurrentMatchOffset - 15)
+            }
+            return (.found(song), until)
         } catch is CancellationError {
-            return .idle
+            return (.idle, nil)
         } catch let error as StreamSampler.SampleError {
-            return .failed(error.message)
+            return (.failed(error.message), nil)
+        } catch let failure as ShazamFailure {
+            // Shazam's own errors read as "The operation couldn't be
+            // completed (com.apple.ShazamCore error 102)" — no use to
+            // anyone. The detail goes to the log instead.
+            logger.error("Shazam match failed: \(String(describing: failure.underlying), privacy: .public)")
+            return (.failed("Shazam couldn't be reached. Try again in a moment."), nil)
         } catch {
-            return .failed(error.localizedDescription)
+            return (.failed(error.localizedDescription), nil)
         }
+    }
+
+    private struct ShazamFailure: Error {
+        let underlying: Error
     }
 
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cue", category: "SongRecognizer")
 
-    private static func catalogSong(id: String?) async -> PlayableContent? {
+    private static func catalogSong(id: String?) async -> Song? {
         guard let id else { return nil }
         let request = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: MusicItemID(id))
-        return try? await request.response().items.first?.toPlayable
+        return try? await request.response().items.first
     }
 }
 
@@ -137,7 +182,19 @@ enum StreamSampler {
     /// format sidesteps the low-bitrate streams at 22.05 or 24 kHz.
     private static let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44_100, channels: 1, interleaved: false)!
 
-    static func sample(_ url: URL, seconds: Double) async throws -> AVAudioPCMBuffer {
+    /// Reads the stream and hands `attempt` its first few seconds as each
+    /// checkpoint's worth comes in, until it answers with something. Nil
+    /// when every checkpoint went by without one.
+    ///
+    /// How far along the stream is is read off the audio itself, not
+    /// guessed from a bitrate — a guess too high had it wait on bytes a
+    /// 128 kbps station takes half a minute to send.
+    static func listen<Answer>(
+        _ url: URL,
+        checkpoints: [Double],
+        attempt: (AVAudioPCMBuffer) async throws -> Answer?
+    ) async throws -> Answer? {
+        guard let longest = checkpoints.max() else { return nil }
         var request = URLRequest(url: url)
         request.timeoutInterval = 10
         let (bytes, response) = try await URLSession.shared.bytes(for: request)
@@ -146,36 +203,60 @@ enum StreamSampler {
             throw SampleError(message: "The station's stream answered with an error (\(status)).")
         }
         let fileExtension = try fileExtension(mimeType: response.mimeType, url: url)
-
-        // Enough bytes for `seconds` at the stream's bitrate, when it says;
-        // otherwise a ceiling for a high one, with the clock as the real
-        // limit. Most servers send a burst on connect, so this is usually
-        // quicker than real time.
-        let kbps = http?.value(forHTTPHeaderField: "icy-br")
-            .flatMap { Int($0.split(separator: ",").first ?? "") } ?? 320
-        let target = Int(Double(kbps) * 125 * (seconds + 2))
-        let deadline = Date.now.addingTimeInterval(seconds + 6)
-
-        var data = Data()
-        data.reserveCapacity(target)
-        var chunk = [UInt8]()
-        chunk.reserveCapacity(16_384)
-        for try await byte in bytes {
-            chunk.append(byte)
-            if chunk.count == 16_384 {
-                data.append(contentsOf: chunk)
-                chunk.removeAll(keepingCapacity: true)
-                try Task.checkCancellation()
-                if data.count >= target || Date.now > deadline { break }
-            }
-        }
-        data.append(contentsOf: chunk)
-
         let file = FileManager.default.temporaryDirectory
             .appending(path: "shazam-\(UUID().uuidString).\(fileExtension)")
-        try data.write(to: file)
         defer { try? FileManager.default.removeItem(at: file) }
-        return try decode(file, seconds: seconds)
+
+        // Most servers send a burst on connect, so the first checkpoints
+        // usually come quicker than real time.
+        let deadline = Date.now.addingTimeInterval(longest + 6)
+        var remaining = checkpoints.sorted()
+        var data = Data()
+        var chunk = [UInt8]()
+        chunk.reserveCapacity(8_192)
+
+        /// Tries every checkpoint the audio so far reaches — or, at the
+        /// end, once more with all there is.
+        func attemptReached(final: Bool) async throws -> Answer? {
+            data.append(contentsOf: chunk)
+            chunk.removeAll(keepingCapacity: true)
+            try data.write(to: file)
+            let seconds = decodedSeconds(file)
+            // Under three seconds is too little for Shazam to go on.
+            guard seconds >= 3 else { return nil }
+            if final {
+                guard let last = remaining.last else { return nil }
+                remaining.removeAll()
+                return try await attempt(decode(file, seconds: min(last, seconds)))
+            }
+            while let next = remaining.first, seconds >= next {
+                remaining.removeFirst()
+                if let answer = try await attempt(decode(file, seconds: next)) { return answer }
+            }
+            return nil
+        }
+
+        for try await byte in bytes {
+            chunk.append(byte)
+            guard chunk.count == 8_192 else { continue }
+            try Task.checkCancellation()
+            if let answer = try await attemptReached(final: false) { return answer }
+            if remaining.isEmpty { return nil }
+            if Date.now > deadline { break }
+        }
+        // The stream ended or dried up: one last go with whatever came.
+        if let answer = try await attemptReached(final: true) { return answer }
+        if decodedSeconds(file) < 3 {
+            throw SampleError(message: "Not enough of the station came through to listen to.")
+        }
+        return nil
+    }
+
+    /// How many seconds of audio the file holds so far, 0 when it can't
+    /// be read yet.
+    private static func decodedSeconds(_ file: URL) -> Double {
+        guard let audioFile = try? AVAudioFile(forReading: file) else { return 0 }
+        return Double(audioFile.length) / audioFile.processingFormat.sampleRate
     }
 
     private static func fileExtension(mimeType: String?, url: URL) throws -> String {
