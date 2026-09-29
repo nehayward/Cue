@@ -270,7 +270,7 @@ final class XMLParserSonos {
             albumArtURL = URL(string: albumArt ?? "")?.sonosRadioArtwork()
         }
         
-        return PlaybackMediaInfo(playbackService: playbackService, artwork: albumArtURL, title: radioTitle)
+        return PlaybackMediaInfo(playbackService: playbackService, artwork: albumArtURL, title: radioTitle, currentURI: currentURI.removingHTMLEntities())
     }
 
 

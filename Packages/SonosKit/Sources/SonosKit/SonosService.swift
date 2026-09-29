@@ -2334,6 +2334,41 @@ public final class SonosService {
         await api.mediaInfo(ipAddress: ip)?.playbackService
     }
 
+    /// The audio stream of the station a group is playing, for listening in
+    /// on it from this device (song recognition). A plain internet stream is
+    /// its own URL under Sonos's `x-rincon-mp3radio` scheme; a TuneIn
+    /// station is resolved from its id the same way this device plays one.
+    /// Nil for anything else, including the services only a speaker can
+    /// reach.
+    public func radioStreamURL(for group: GroupRoom) async -> URL? {
+        guard let uri = await api.mediaInfo(ipAddress: group.coordinatorRoom.ip)?.currentURI else { return nil }
+        return await Self.radioStreamURL(forTransportURI: uri)
+    }
+
+    static func radioStreamURL(forTransportURI uri: String) async -> URL? {
+        let direct = "x-rincon-mp3radio://"
+        if uri.hasPrefix(direct) {
+            let rest = String(uri.dropFirst(direct.count))
+            // Usually a bare host and path, which Sonos fetches over plain
+            // HTTP; some apps put the whole URL, scheme and all, after it.
+            if rest.hasPrefix("http://") || rest.hasPrefix("https://") {
+                return URL(string: rest)
+            }
+            return URL(string: "http://" + rest)
+        }
+        if uri.hasPrefix("x-sonosapi-stream:") {
+            // `x-sonosapi-stream:s24861?sid=254&flags=…` — TuneIn's ids are
+            // an `s` and digits, whichever service id the speaker uses.
+            let id = uri.dropFirst("x-sonosapi-stream:".count).prefix { $0 != "?" }
+            guard id.hasPrefix("s"), id.dropFirst().allSatisfy(\.isNumber) else { return nil }
+            return await MusicSearchService.shared.tuneInStreamURL(id: String(id))
+        }
+        if uri.hasPrefix("http://") || uri.hasPrefix("https://") {
+            return URL(string: uri)
+        }
+        return nil
+    }
+
     // MARK: TV
     public func getTVSettings(group: GroupRoom) async throws -> TVSettings {
         try await getTVSettings(ip: group.coordinatorRoom.ip, isArcUltra: group.isArcUltraIfKnown)

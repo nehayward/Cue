@@ -1341,6 +1341,28 @@ final class LocalPlaybackService {
         liveMetadata?.artworkURL = artwork
     }
 
+    // MARK: - Song recognition
+
+    /// The stream of the station playing here, for `SongRecognizer` to
+    /// listen to. Nil for a track, and for an Apple Music station, which
+    /// already names every song it plays.
+    var canRecognizeSong: Bool {
+        backend == .stream && nowPlaying.map(isStation) == true
+    }
+
+    func currentStationStreamURL() async -> URL? {
+        guard canRecognizeSong, let station = nowPlaying else { return nil }
+        return await streamURL(for: station)
+    }
+
+    /// Shows a song Shazam named as what's on air, as if the station had
+    /// said so itself. Ignored when `stationID` is no longer the station
+    /// playing.
+    func noteRecognized(_ song: RecognizedSong, stationID: String?) {
+        guard canRecognizeSong, nowPlaying?.content.id == stationID else { return }
+        liveMetadata = LiveStationMetadata(song: song.title, artist: song.artist, artworkURL: song.artworkURL)
+    }
+
     // MARK: - State polling
 
     /// One slow poll drives all the observable state for both backends —
