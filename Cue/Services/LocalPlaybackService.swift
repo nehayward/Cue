@@ -246,6 +246,9 @@ final class LocalPlaybackService {
     /// the player's volume and would otherwise go deaf with it turned down.
     @ObservationIgnored private weak var tappedItem: AVPlayerItem?
     @ObservationIgnored private let stationTapGain = TapGain()
+    /// The I/O buffer asked for before the tap went on, put back when it
+    /// comes off — see `requestTapSizedRenders()`.
+    @ObservationIgnored private var ioBufferBeforeTap: TimeInterval?
     /// The armed stream run: player item → queue index.
     @ObservationIgnored private var streamRun: [ObjectIdentifier: Int] = [:]
     /// Resolved Apple `Song`s by catalog id, so replaying or skipping back to
@@ -1417,6 +1420,7 @@ final class LocalPlaybackService {
     func tapStationAudio(_ onAudio: @escaping @Sendable (AVAudioPCMBuffer, CMTime) -> Void, onUnusable: @escaping @Sendable () -> Void) {
         stationAudioTap = onAudio
         stationAudioTapUnusable = onUnusable
+        requestTapSizedRenders()
         if let item = streamPlayer?.currentItem, isPlayingStation {
             applyStationAudioTap(to: item)
         }
@@ -1426,9 +1430,31 @@ final class LocalPlaybackService {
         guard stationAudioTap != nil else { return }
         stationAudioTap = nil
         stationAudioTapUnusable = nil
+        if let previous = ioBufferBeforeTap {
+            ioBufferBeforeTap = nil
+            if previous > 0 {
+                try? AVAudioSession.sharedInstance().setPreferredIOBufferDuration(previous)
+            }
+        }
         if let item = streamPlayer?.currentItem, isPlayingStation {
             applyStationAudioTap(to: item)
         }
+    }
+
+    /// The tap can only take renders of about 1024 frames (see
+    /// `PlayerAudioTap`), and the player renders in blocks the size of the
+    /// session's I/O buffer — up to 4096 frames when something has asked for
+    /// a long one, as the Now Playing claim's silent loop does, or when the
+    /// system picks one for an app in the background. So while the tap is
+    /// on, ask for about 20 ms: 960 frames at 48 kHz, the size it's heard
+    /// working at. A request, not a promise; the tap still steps aside if a
+    /// longer render comes anyway.
+    private func requestTapSizedRenders() {
+        let session = AVAudioSession.sharedInstance()
+        if ioBufferBeforeTap == nil {
+            ioBufferBeforeTap = session.preferredIOBufferDuration
+        }
+        try? session.setPreferredIOBufferDuration(0.02)
     }
 
     /// Where the station is on its own timeline — what's being heard, on

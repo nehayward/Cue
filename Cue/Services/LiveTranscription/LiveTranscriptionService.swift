@@ -25,7 +25,10 @@ import UIKit
 ///   (`LiveStreamDecoder`) — the URL a speaker is playing
 ///   (`SonosService.radioStreamURL(for:)`) or the one `LocalPlaybackService`
 ///   is. That copy buffers on its own clock, so the words can run a few
-///   seconds ahead of or behind what's heard, and are shown as they come.
+///   seconds ahead of or behind what's heard, and are shown as they come —
+///   and a station that inserts ads per listener gives it ads of its own,
+///   so a break in the transcript needn't be the one playing. The tap is
+///   the only way to read exactly what's heard.
 ///
 /// It stops while the station is paused.
 ///
