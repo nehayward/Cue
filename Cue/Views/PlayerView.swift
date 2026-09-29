@@ -131,13 +131,21 @@ struct PlayerView: View {
     }
 
     /// The blurred artwork behind the whole cover, queue panel included.
-    @ViewBuilder
+    ///
+    /// Clipped to the cover: both backdrops are scaled up and blurred past
+    /// their edges, and the Mac's plain slide-down cover doesn't clip its
+    /// content the way the zoom does. Unclipped, the overhang above the
+    /// cover's top edge was left sitting over the bottom of the window —
+    /// covering the mini player — until the dismiss finished.
     private var backdrop: some View {
-        if let group {
-            GroupPlayerBackgroundView(group: group, shouldFade: artworkShouldFade)
-        } else {
-            PlayerBackgroundView(content: playback.nowPlayingDisplay)
+        Group {
+            if let group {
+                GroupPlayerBackgroundView(group: group, shouldFade: artworkShouldFade)
+            } else {
+                PlayerBackgroundView(content: playback.nowPlayingDisplay)
+            }
         }
+        .clipped()
     }
 
     // MARK: - This device
