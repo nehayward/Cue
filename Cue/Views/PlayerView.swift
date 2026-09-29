@@ -137,6 +137,10 @@ struct PlayerView: View {
     /// content the way the zoom does. Unclipped, the overhang above the
     /// cover's top edge was left sitting over the bottom of the window —
     /// covering the mini player — until the dismiss finished.
+    ///
+    /// `ignoresSafeArea` goes outside the clip so the clip is laid out at the
+    /// full cover, title bar included; clipped at the safe area instead, the
+    /// backdrop stopped short of the window's top edge.
     private var backdrop: some View {
         Group {
             if let group {
@@ -146,6 +150,7 @@ struct PlayerView: View {
             }
         }
         .clipped()
+        .ignoresSafeArea()
     }
 
     // MARK: - This device
