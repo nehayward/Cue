@@ -106,22 +106,24 @@ enum TranscriptionEngine {
         // steady work, and the analyzer wants its own format.
         let pump = Task.detached(priority: .userInitiated) {
             let converter = BufferConverter(to: format)
+            let clock = AnalyzerClock(sampleRate: format.sampleRate)
             for await chunk in audio {
-                if let converted = converter.convert(chunk.buffer) {
-                    inputBuilder.yield(AnalyzerInput(buffer: converted, bufferStartTime: chunk.start))
+                if let converted = converter.convert(chunk.buffer),
+                   case .play(let start) = clock.place(converted, stamped: chunk.start) {
+                    inputBuilder.yield(AnalyzerInput(buffer: converted, bufferStartTime: start))
                 }
             }
             inputBuilder.finish()
         }
 
-        await withTaskCancellationHandler {
+        try await withTaskCancellationHandler {
             do {
                 for try await result in transcriber.results {
                     await onResult(words(in: result.text), result.isFinal)
                 }
-            } catch {
-                print("Live Transcription:", error)
-            }
+            } catch where !Task.isCancelled {
+                throw error
+            } catch {}
         } onCancel: {
             pump.cancel()
             inputBuilder.finish()
@@ -142,6 +144,57 @@ extension TranscriptionEngine {
                 start: start.flatMap { $0.isNumeric ? $0.seconds : nil }
             )
         }
+    }
+}
+
+/// Keeps the times handed to the analyzer moving forward — it turns away
+/// a chunk that starts before the last one ended.
+///
+/// Resampling stretches or shrinks each chunk by a fraction of a sample, so
+/// back-to-back chunks can overlap by a hair; those are placed where the
+/// last one ended. A chunk that goes further back is audio the analyzer has
+/// already heard — the tap handing a stretch back again — and is skipped
+/// until the player's times pass where it left off. Seconds back means the
+/// timeline itself started over, so the chunk carries on from the last one
+/// untimed. A gap, from chunks dropped while the model caught up, is kept.
+private final class AnalyzerClock {
+    enum Placement {
+        /// Hand the chunk on at this time — nil to carry on from the last.
+        case play(CMTime?)
+        case skip
+    }
+
+    /// The most a chunk may overlap the last and still be moved up to meet it.
+    private static let slack = CMTime(value: 1, timescale: 20)
+    /// How far back a chunk may start and still be a stretch heard again,
+    /// rather than a timeline that started over.
+    private static let replay = CMTime(value: 2, timescale: 1)
+
+    private let sampleRate: Double
+    /// Where the last chunk handed on ended.
+    private var end: CMTime?
+
+    init(sampleRate: Double) {
+        self.sampleRate = sampleRate
+    }
+
+    func place(_ buffer: AVAudioPCMBuffer, stamped: CMTime?) -> Placement {
+        var start = stamped
+        if let stamped, let end, CMTimeCompare(stamped, end) < 0 {
+            let overlap = CMTimeSubtract(end, stamped)
+            if CMTimeCompare(overlap, Self.slack) <= 0 {
+                start = end
+            } else if CMTimeCompare(overlap, Self.replay) <= 0 {
+                return .skip
+            } else {
+                start = nil
+            }
+        }
+        if let begin = start ?? end {
+            let length = CMTime(value: CMTimeValue(buffer.frameLength), timescale: CMTimeScale(sampleRate))
+            end = CMTimeAdd(begin, length)
+        }
+        return .play(start)
     }
 }
 
