@@ -11,4 +11,7 @@ public struct PlaybackMediaInfo {
     let playbackService: PlaybackService?
     let artwork: URL?
     let title: String?
+    /// What the transport is playing (`CurrentURI`) — for a radio station,
+    /// the stream itself or the service's reference to it.
+    var currentURI: String? = nil
 }

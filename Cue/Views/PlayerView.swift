@@ -1034,10 +1034,18 @@ private struct LocalPlayerMenuView: View {
     @Binding var showArtworkOnly: Bool
 
     private var playback: LocalPlaybackService { .shared }
+    @State private var showSongRecognition = false
 
     var body: some View {
         Menu {
             OpenInServiceView(item: item)
+            if playback.canRecognizeSong {
+                Button {
+                    showSongRecognition = true
+                } label: {
+                    Label("Identify Song", systemImage: "shazam.logo")
+                }
+            }
             if item.content.service.supportsViewArtistAlbum {
                 Button {
                     router.sheet(to: .mediaDetail(content: item, group: nil))
@@ -1122,6 +1130,16 @@ private struct LocalPlayerMenuView: View {
         .help("Menu")
         .onAppear {
             AppleDownloadsIndex.shared.refreshIfNeeded()
+        }
+        .sheet(isPresented: $showSongRecognition) {
+            // Captured now, so a match that lands after the station has
+            // changed isn't shown as the new one's song.
+            let stationID = playback.nowPlaying?.content.id
+            SongRecognitionSheet(stationName: playback.nowPlaying?.title) {
+                await playback.currentStationStreamURL()
+            } onFound: { song in
+                playback.noteRecognized(song, stationID: stationID)
+            }
         }
 #if os(visionOS)
         .tint(.clear)
