@@ -105,16 +105,16 @@ enum TranscriptionEngine {
 
         // Off the main actor: resampling every chunk the player plays is
         // steady work, and the analyzer wants its own format.
+        let clock = AnalyzerClock(sampleRate: format.sampleRate)
         let pump = Task.detached(priority: .userInitiated) {
             let converter = BufferConverter(to: format)
-            let clock = AnalyzerClock(sampleRate: format.sampleRate)
             var fed = 0
             for await chunk in audio {
                 if let converted = converter.convert(chunk.buffer),
                    case .play(let start) = clock.place(converted, stamped: chunk.start) {
                     fed += 1
                     if fed == 1 {
-                        print("Live Transcription: First chunk to the analyzer: \(converted.frameLength) frames at \(start.map { $0.seconds } ?? -1)s")
+                        print("Live Transcription: First chunk to the analyzer: \(converted.frameLength) frames at \(start.map { $0.seconds } ?? -1)s, player time \(clock.origin)s")
                     }
                     inputBuilder.yield(AnalyzerInput(buffer: converted, bufferStartTime: start))
                 }
@@ -125,7 +125,7 @@ enum TranscriptionEngine {
         try await withTaskCancellationHandler {
             do {
                 for try await result in transcriber.results {
-                    await onResult(words(in: result.text), result.isFinal)
+                    await onResult(words(in: result.text, from: clock.origin), result.isFinal)
                 }
             } catch where !Task.isCancelled {
                 throw error
@@ -142,12 +142,14 @@ enum TranscriptionEngine {
 extension TranscriptionEngine {
     /// A result's text split where its timings change — a word each, with
     /// the space before it.
-    fileprivate static func words(in text: AttributedString) -> [TranscribedWord] {
+    /// `origin` is where the analyzer's timeline begins on the player's, so
+    /// each word's time comes back in the player's terms.
+    fileprivate static func words(in text: AttributedString, from origin: TimeInterval) -> [TranscribedWord] {
         text.runs.map { run in
             let start = run.audioTimeRange?.start
             return TranscribedWord(
                 text: String(text[run.range].characters),
-                start: start.flatMap { $0.isNumeric ? $0.seconds : nil }
+                start: start.flatMap { $0.isNumeric ? origin + $0.seconds : nil }
             )
         }
     }
@@ -163,7 +165,11 @@ extension TranscriptionEngine {
 /// until the player's times pass where it left off. Seconds back means the
 /// timeline itself started over, so the chunk carries on from the last one
 /// untimed. A gap, from chunks dropped while the model caught up, is kept.
-private final class AnalyzerClock {
+///
+/// The analyzer's own timeline starts at zero with the first chunk — rather
+/// than minutes in, where the player is — and `origin` says where that zero
+/// sits on the player's.
+private final class AnalyzerClock: @unchecked Sendable {
     enum Placement {
         /// Hand the chunk on at this time — nil to carry on from the last.
         case play(CMTime?)
@@ -177,8 +183,15 @@ private final class AnalyzerClock {
     private static let replay = CMTime(value: 2, timescale: 1)
 
     private let sampleRate: Double
-    /// Where the last chunk handed on ended.
+    /// Where the last chunk handed on ended, on the player's timeline.
     private var end: CMTime?
+    private let lock = NSLock()
+    private var firstStamp: CMTime?
+
+    /// Where the analyzer's zero is on the player's timeline, in seconds.
+    var origin: TimeInterval {
+        lock.withLock { firstStamp?.seconds ?? 0 }
+    }
 
     init(sampleRate: Double) {
         self.sampleRate = sampleRate
@@ -200,7 +213,12 @@ private final class AnalyzerClock {
             let length = CMTime(value: CMTimeValue(buffer.frameLength), timescale: CMTimeScale(sampleRate))
             end = CMTimeAdd(begin, length)
         }
-        return .play(start)
+        guard let start else { return .play(nil) }
+        let zero = lock.withLock {
+            if firstStamp == nil { firstStamp = start }
+            return firstStamp!
+        }
+        return .play(CMTimeSubtract(start, zero))
     }
 }
 

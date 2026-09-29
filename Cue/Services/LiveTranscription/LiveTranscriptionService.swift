@@ -395,11 +395,9 @@ final class LiveTranscriptionService {
     }
 
     private func receive(_ words: [TranscribedWord], isFinal: Bool) {
-        if isFinal {
-            let first = words.first?.start ?? -1
-            let playhead = isTapping ? playback.stationPlayhead ?? -1 : -1
-            print("Live Transcription: Heard \(words.count) words from \(first)s, player at \(playhead)s: \(Self.text(of: words))")
-        }
+        let first = words.first?.start ?? -1
+        let playhead = isTapping ? playback.stationPlayhead ?? -1 : -1
+        print("Live Transcription: \(isFinal ? "Heard" : "Guessing") \(words.count) words from \(first)s, player at \(playhead)s: \(Self.text(of: words))")
         if isFinal {
             heldLines.append(words)
             heldVolatile = []
