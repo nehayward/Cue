@@ -1328,7 +1328,11 @@ final class LocalPlaybackService {
         // The song Shazam already named, in the station's own words ("Just
         // Dance" for "Just Dance (feat. Colby O'Donis)") — keep the match
         // and its cover rather than blanking the art for a lookup.
-        if let live = liveMetadata, live.artworkURL != nil, Self.isSameSong(live.song, song) { return }
+        if let live = liveMetadata, live.artworkURL != nil, Self.isSameSong(live.song, song) {
+            // The station names it now, so it no longer needs identifying.
+            if live.isRecognized { liveMetadata?.isRecognized = false }
+            return
+        }
 
         let live = LiveStationMetadata(song: song, artist: artist, artworkURL: nil)
         liveMetadata = live
@@ -1388,6 +1392,14 @@ final class LocalPlaybackService {
     var canRecognizeSong: Bool {
         guard let item = nowPlaying else { return false }
         return item.content.service == .tuneIn && item.content.type == .radio
+            && !stationNamesSong
+    }
+
+    /// Whether the station itself says what's on air — its title line or
+    /// TuneIn's now-playing. There's nothing left for Shazam to find then.
+    var stationNamesSong: Bool {
+        guard let liveMetadata else { return false }
+        return !liveMetadata.isRecognized
     }
 
     /// The stream of the station playing here, for `SongRecognizer` to
@@ -1408,7 +1420,8 @@ final class LocalPlaybackService {
             song: song.title,
             artist: song.artist,
             artworkURL: song.artworkURL ?? song.playable?.artwork ?? song.playable?.thumbnail,
-            match: song.playable
+            match: song.playable,
+            isRecognized: true
         )
         liveMetadata = live
         if live.artworkURL == nil || live.match == nil {
@@ -1735,6 +1748,8 @@ struct LiveStationMetadata: Equatable {
     /// The song in Apple Music's catalog, once found — what the player's
     /// title, artist, like button and menu act on while a station plays.
     var match: PlayableContent?
+    /// Named by Shazam rather than by the station itself.
+    var isRecognized = false
 }
 
 /// Hands ICY stream titles (`StreamTitle`) to a closure as they arrive.

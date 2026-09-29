@@ -16,7 +16,10 @@ struct IdentifySongButton: View {
 
     static func isAvailable(for group: GroupRoom?) -> Bool {
         if let group {
-            return !group.TVMode && group.playbackService == .radio
+            // A station that names its songs has nothing for Shazam to find.
+            let track = group.coordinatorRoom.track
+            let stationNamesSong = !track.name.isEmpty && !track.artist.isEmpty
+            return !group.TVMode && group.playbackService == .radio && !stationNamesSong
         }
         return LocalPlaybackService.shared.canRecognizeSong
     }
