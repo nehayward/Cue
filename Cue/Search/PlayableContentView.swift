@@ -85,11 +85,11 @@ struct PlayableContentView: View {
                 switch item.content.type {
                 case .playlist, .album, .libraryPlaylist, .libraryAlbum, .libraryImportedPlaylists:
                     NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService?.group)) {
-                        content
+                        row(playsOnTap: false)
                     }
                 case .artist, .libraryArtist:
                     NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService?.group)) {
-                        content
+                        row(playsOnTap: false)
                     }
                 case .folder:
                     NavigationLink(value: RouterDestination.folderBrowse(item: item, title: item.title)) {
@@ -108,111 +108,80 @@ struct PlayableContentView: View {
     }
     
     private var content: some View {
-        Button {
-            if isPreviewing {
-                HapticManager.shared.fireHaptic(.buttonPress)
-                AudioPlaybackService.shared.stopPreview()
+        row(playsOnTap: true)
+    }
+
+    /// The row. `playsOnTap` is off inside a `NavigationLink`, whose own tap
+    /// opens the album, playlist or artist — a Button there would take the
+    /// tap and play it instead.
+    private func row(playsOnTap: Bool) -> some View {
+        // The row's tap and the ellipsis Menu sit side by side rather than
+        // the Menu inside the Button's label. A List row holding two
+        // controls stops routing a plain tap on the row to the outer
+        // Button (iOS 27 dropped it outright: tapping a song did nothing),
+        // so the Button is styled `.plain` to take its own taps instead of
+        // leaning on the cell's.
+        HStack(spacing: 0) {
+            if playsOnTap {
+                Button {
+                    rowTapped()
+                } label: {
+                    rowLabel
+                }
+                .buttonStyle(.plain)
             } else {
-                play()
+                rowLabel
             }
-        } label: {
-            HStack {
-                if let index {
-                    // Positions are ordinals, so no grouping separator: "1005"
-                    // not "1,005". Column width follows the digit count of the
-                    // longest index in the list so rows stay aligned past 999.
-                    Text(index, format: .number.grouping(.never))
-                        .font(.caption.monospacedDigit())
-                        .lineLimit(1)
-                        .frame(width: indexColumnWidth(for: index), alignment: .center)
-                        .foregroundStyle(.secondary)
+
+            if adding == nil, !hideDetails, [.track, .favorite, .libraryTrack].contains(item.content.type) {
+                // Keep the Menu in the tree at all times — swapping it out for the
+                // stop icon via if/else churns the Menu's identity and underlying
+                // gesture recognizers, which left taps landing mid-rebuild. Instead
+                // disable it while previewing and overlay a stop button on top.
+                Menu {
+                    PlayableMenuView(item: item, onRemoveFromPlaylist: onRemoveFromPlaylist)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .accessibilityLabel("More Options for \(item.title)")
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                        .opacity(isPreviewing ? 0 : 1)
                 }
-
-                if !hideArtwork {
-                    ContentArtworkView(content: item)
-                        .frame(width: 50.scaled(by: UIDevice.current.userInterfaceIdiom.isCatalyst ? 1.4 : 1), height: 50.scaled(by: UIDevice.current.userInterfaceIdiom.isCatalyst ? 1.4 : 1))
-                        .allowsHitTesting(!hideArtwork)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(item.title)
-                            .lineLimit(1)
-                            .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : Color.primary)
-                            .fontWeight(isCurrentlyPlaying ? .semibold : .regular)
-
-                        Spacer(minLength: 0)
-
-                        // Both self-hosted services carry favorite state on
-                        // the row itself — Plex as a rating, Subsonic as the
-                        // starred date — so neither needs a fetch to know.
-                        if item.content.service == .plex || item.content.service == .subsonic,
-                           (favoriteRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0 {
-                            Image(systemName: "heart.fill")
-                                .foregroundStyle(item.content.service.brandColor)
-                                .font(.caption2)
-                        }
-
-                        // Kept on this device, coming down, or still in iCloud.
-                        DownloadStateBadge(item: item)
-
-                        if item.metadata?.isExplicit == true {
-                            Image(systemName: "e.square.fill")
-                        }
-                    }
-
-                    Text(subtitleText)
-                        .lineLimit(1)
-                        .opacity(0.7)
-                        .font(.footnote)
-                }
-
-                Spacer(minLength: 0)
-
-                if adding == nil, !hideDetails, [.track, .favorite, .libraryTrack].contains(item.content.type) {
-                    // Keep the Menu in the tree at all times — swapping it out for the
-                    // stop icon via if/else churns the Menu's identity and underlying
-                    // gesture recognizers, which left taps landing mid-rebuild. Instead
-                    // disable it while previewing (so taps fall through to the cell's
-                    // stop handler) and overlay the stop icon on top.
-                    Menu {
-                        PlayableMenuView(item: item, onRemoveFromPlaylist: onRemoveFromPlaylist)
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .accessibilityLabel("More Options for \(item.title)")
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                            .opacity(isPreviewing ? 0 : 1)
-                    }
-                    .tint(.primary)
-                    .disabled(isPreviewing)
-                    .overlay {
-                        if isPreviewing {
+                .tint(.primary)
+                .disabled(isPreviewing)
+                .overlay {
+                    if isPreviewing {
+                        Button {
+                            rowTapped()
+                        } label: {
                             Image(systemName: "stop.circle.fill")
                                 .font(.title2)
                                 .foregroundStyle(Color.accentColor)
-                                .allowsHitTesting(false)
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Stop Preview")
                     }
                 }
             }
-            .fontDesign(.rounded)
-            .contentShape(.rect)
-            .overlay(alignment: .bottom) {
-                // Gated on isPreviewing so stopping removes the bar instantly,
-                // instead of animating its width back down to zero.
-                // No ignoresSafeArea: the bar lives inside a self-sizing List
-                // cell, where safe-area-ignoring content can trigger UIKit's
-                // layout feedback-loop trap (EXC_BREAKPOINT in
-                // _UICollectionViewFeedbackLoopDebugger on iOS 26) — and the
-                // 2pt row-bottom bar never meets a safe-area edge anyway.
-                if isPreviewing {
-                    Rectangle()
-                        .foregroundStyle(.accent.gradient)
-                        .frame(height: 2)
-                        .scaleEffect(x: previewProgress, anchor: .leading)
-                        .animation(.linear(duration: 0.3), value: previewProgress)
-                }
+        }
+        .fontDesign(.rounded)
+        .contentShape(.rect)
+        .overlay(alignment: .bottom) {
+            // Gated on isPreviewing so stopping removes the bar instantly,
+            // instead of animating its width back down to zero.
+            // No ignoresSafeArea: the bar lives inside a self-sizing List
+            // cell, where safe-area-ignoring content can trigger UIKit's
+            // layout feedback-loop trap (EXC_BREAKPOINT in
+            // _UICollectionViewFeedbackLoopDebugger on iOS 26) — and the
+            // 2pt row-bottom bar never meets a safe-area edge anyway.
+            if isPreviewing {
+                Rectangle()
+                    .foregroundStyle(.accent.gradient)
+                    .frame(height: 2)
+                    .scaleEffect(x: previewProgress, anchor: .leading)
+                    .animation(.linear(duration: 0.3), value: previewProgress)
             }
         }
         .swipeActions(edge: .trailing) {
@@ -271,6 +240,74 @@ struct PlayableContentView: View {
         }
     }
     
+    /// Number, artwork, title and subtitle: everything but the Menu.
+    private var rowLabel: some View {
+        HStack {
+            if let index {
+                // Positions are ordinals, so no grouping separator: "1005"
+                // not "1,005". Column width follows the digit count of the
+                // longest index in the list so rows stay aligned past 999.
+                Text(index, format: .number.grouping(.never))
+                    .font(.caption.monospacedDigit())
+                    .lineLimit(1)
+                    .frame(width: indexColumnWidth(for: index), alignment: .center)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !hideArtwork {
+                ContentArtworkView(content: item)
+                    .frame(width: 50.scaled(by: UIDevice.current.userInterfaceIdiom.isCatalyst ? 1.4 : 1), height: 50.scaled(by: UIDevice.current.userInterfaceIdiom.isCatalyst ? 1.4 : 1))
+                    .allowsHitTesting(!hideArtwork)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(item.title)
+                        .lineLimit(1)
+                        .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : Color.primary)
+                        .fontWeight(isCurrentlyPlaying ? .semibold : .regular)
+
+                    Spacer(minLength: 0)
+
+                    // Both self-hosted services carry favorite state on
+                    // the row itself — Plex as a rating, Subsonic as the
+                    // starred date — so neither needs a fetch to know.
+                    if item.content.service == .plex || item.content.service == .subsonic,
+                       (favoriteRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0 {
+                        Image(systemName: "heart.fill")
+                            .foregroundStyle(item.content.service.brandColor)
+                            .font(.caption2)
+                    }
+
+                    // Kept on this device, coming down, or still in iCloud.
+                    DownloadStateBadge(item: item)
+
+                    if item.metadata?.isExplicit == true {
+                        Image(systemName: "e.square.fill")
+                    }
+                }
+
+                Text(subtitleText)
+                    .lineLimit(1)
+                    .opacity(0.7)
+                    .font(.footnote)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .contentShape(.rect)
+    }
+
+    /// A tap on the row: stops the song auditioning here, otherwise plays it.
+    private func rowTapped() {
+        if isPreviewing {
+            HapticManager.shared.fireHaptic(.buttonPress)
+            AudioPlaybackService.shared.stopPreview()
+        } else {
+            play()
+        }
+    }
+
     private func play(position: QueuePosition? = nil) {
         if let add = adding?.add, add {
             adding?.content = item

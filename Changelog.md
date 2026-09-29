@@ -6,6 +6,15 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ## 2026.8
 
+### Tapping a song in an album or the Songs list did nothing
+On iOS 27, a tap on a song row in an album, playlist or library list (Plex, Subsonic, Files, Apple) did nothing: no playback, no banner, no picker. The album's Play button and search rows still worked. `PlayableContentView` made the whole row one default-style `Button` and put the ellipsis `Menu` inside its label. That gave the List cell two controls, and the cell stopped passing a plain tap to the outer Button.
+
+- The Menu now sits beside the Button, not inside its label. The Button (`rowLabel`: number, artwork, title, subtitle) is `.plain`, so it takes its own taps rather than relying on the cell.
+- Album, playlist and artist rows inside a `NavigationLink` get the label with no Button (`row(playsOnTap: false)`), so the link still opens them rather than playing them.
+- While a song previews, the stop icon over the disabled Menu is now a button of its own. Before, a tap there fell through to the row's Button.
+
+Not verified on a device from this change; no Swift toolchain was available where it was written.
+
 ### Settings crashed on open: RevenueCat was never configured
 Opening Preferences took the app down with RevenueCat's `Purchases has not been configured` fatal error. `AppBootstrapper.bootstrap()` — which configures `Purchases`, analytics, the remote flags and the Nuke pipeline — was only ever called from the root view's `onAppear`, and that block has been commented out since the TabView rewrite, so nothing ran it. Debug builds survive launch because `checkSubscription()` returns before touching the SDK; Preferences is the first screen that reads `Purchases.shared` directly (the app user ID in the About footer and the support `mailto:`), so that's where it surfaced.
 
