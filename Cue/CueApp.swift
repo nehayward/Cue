@@ -581,14 +581,23 @@ struct CueApp: App {
             // only happens when the cover presents, and the cover no longer
             // re-presents behind the user's back.
             .fullScreenCover(isPresented: $router.isPlayerPresented) {
+#if targetEnvironment(macCatalyst)
+                // Plain slide-up on the Mac: the zoom out of the tab bar
+                // accessory misbehaves under Catalyst, and the cover's
+                // default transition is the one Mac users expect anyway.
+                PlayerView()
+                    .presentationBackgroundInteraction(.enabled)
+#else
                 PlayerView()
                     .presentationBackgroundInteraction(.enabled)
                     .zoomTransition(from: .miniPlayer, in: zoomNamespace)
+#endif
             }
             .modifier(AdaptiveTabViewStyle())
             .onOpenURL(perform: handle)
             .onAppear {
                 SonosService.shared.monitor()
+                coreFeatures.restoreDeviceServicesOnce()
                 
 #if os(iOS) && !targetEnvironment(macCatalyst)
                 // One call for the lifetime of the process: the service watches

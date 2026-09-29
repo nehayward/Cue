@@ -28,12 +28,21 @@ final class DeviceVolume {
 
     @ObservationIgnored private var volumeView: MPVolumeView?
     @ObservationIgnored private var observation: NSKeyValueObservation?
+    /// The level a drag last asked for, not yet handed to the system.
+    @ObservationIgnored private var pendingSystemLevel: Float?
+    @ObservationIgnored private var lastSystemLevel: Float?
+    /// The one write loop to the hidden slider, while it runs.
+    @ObservationIgnored private var systemWriteTask: Task<Void, Never>?
+    /// The most the system volume is written per second during a drag.
+    private static let systemWriteInterval: Duration = .milliseconds(33)
 
     private init() {
         observation = AVAudioSession.sharedInstance().observe(\.outputVolume, options: [.new]) { [weak self] _, change in
             guard let new = change.newValue else { return }
             Task { @MainActor [weak self] in
-                self?.level = Double(new)
+                // `@Observable` notifies on every write, equal or not.
+                guard let self, self.level != Double(new) else { return }
+                self.level = Double(new)
             }
         }
     }
@@ -43,10 +52,35 @@ final class DeviceVolume {
         let clamped = Float(max(0, min(1, value)))
         // Shown immediately; the session's own change comes back through
         // the observation a moment later at the nearest system step.
-        level = Double(clamped)
+        if level != Double(clamped) { level = Double(clamped) }
+
+        // A drag calls this for every pointer move, and each write to the
+        // hidden slider is a synchronous round trip to the media server that
+        // also redraws the system volume HUD — done per tick, it held up the
+        // main thread and the slider stuttered behind the finger. Write at
+        // most ~30 times a second, always the latest level, never a repeat.
+        pendingSystemLevel = clamped
+        guard systemWriteTask == nil else { return }
+        systemWriteTask = Task { [weak self] in
+            while true {
+                guard let self, let next = self.pendingSystemLevel else { break }
+                self.pendingSystemLevel = nil
+                guard next != self.lastSystemLevel else { continue }
+                self.lastSystemLevel = next
+                self.writeSystem(next)
+                try? await Task.sleep(for: Self.systemWriteInterval)
+            }
+            // Forget the last level once idle: the hardware buttons may have
+            // moved the volume since, and the next drag must not skip it.
+            self?.lastSystemLevel = nil
+            self?.systemWriteTask = nil
+        }
+    }
+
+    private func writeSystem(_ value: Float) {
         attach()
         guard let slider = volumeView?.subviews.compactMap({ $0 as? UISlider }).first else { return }
-        slider.setValue(clamped, animated: false)
+        slider.setValue(value, animated: false)
         slider.sendActions(for: .touchUpInside)
     }
 
@@ -80,7 +114,11 @@ final class DeviceVolume {
     }
 
     func set(_ value: Double) {
-        level = max(0, min(1, value))
+        let clamped = max(0, min(1, value))
+        // A drag calls this for every pointer move, most of them at the same
+        // level; an `@Observable` write notifies even when nothing changed.
+        guard clamped != level else { return }
+        level = clamped
         UserDefaults.standard.set(level, forKey: AppStorageKeys.localPlaybackVolume)
         LocalPlaybackService.shared.streamVolume = Float(level)
     }

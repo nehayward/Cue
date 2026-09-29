@@ -1,3 +1,4 @@
+import MusicKit
 import MusicSearchKit
 import SonosKit
 
@@ -50,8 +51,26 @@ extension MediaSearchService {
     @MainActor
     func isAuthorized(on installed: Set<SonosServiceType>) -> Bool {
         if let isConfiguredInCue { return isConfiguredInCue }
+        // Device-first: a service the phone can play on its own is never
+        // switched off because the Sonos system in reach doesn't have it —
+        // switching households used to turn Apple Music, Plex and TuneIn
+        // off, and the Radio tab went with them.
+        if isAuthorizedOnDevice { return true }
         guard let sonosServiceType else { return true }
         return installed.contains(sonosServiceType)
+    }
+
+    /// Whether this device can play the service without any speaker: TuneIn
+    /// needs no account, Apple Music needs MusicKit access, Plex needs Cue's
+    /// own sign-in.
+    @MainActor
+    private var isAuthorizedOnDevice: Bool {
+        switch self {
+        case .tuneIn: true
+        case .apple: MusicAuthorization.currentStatus == .authorized
+        case .plex: PlexAuthenticator.shared.authToken != nil
+        default: false
+        }
     }
 
     /// The in-app management sheet for services configured (at least partly)

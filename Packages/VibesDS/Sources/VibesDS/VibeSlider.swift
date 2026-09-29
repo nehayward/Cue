@@ -95,7 +95,7 @@ public struct VibeSlider: View {
                             }
 #endif
                             .frame(width: calculateProgressWidth(), height: baseHeight)
-                            .animation(valueAnimation, value: value)
+                            .animation(fillAnimation, value: value)
                     }
                 }
                 .clipShape(.capsule) // Best attempt at fixing a bug https://twitter.com/ChristianSelig/status/1757139789457829902
@@ -118,7 +118,7 @@ public struct VibeSlider: View {
                 .offset(x: offsetForValue, y: isDragging ? -24 : 0)
                 .opacity(showValue ? 1 : 0)
                 .animation(.interactiveSpring, value: isDragging)
-                .animation(valueAnimation, value: value)
+                .animation(fillAnimation, value: value)
         }
         .padding(.vertical, baseHeight/2)
         .gesture(dragGesture)
@@ -189,6 +189,14 @@ public struct VibeSlider: View {
         self.value = math.value(from: startingValue ?? value, translation: gesture.translation.width, trackWidth: width, step: step)
     }
     
+    /// No animation while the pointer is on the slider: a spring re-targeted
+    /// on every drag tick trails the finger, which reads as lag. Values that
+    /// arrive from outside (a speaker event, a button) still animate.
+    /// `startingValue` rather than `isDragging`, which Mac Catalyst never sets.
+    private var fillAnimation: Animation? {
+        startingValue == nil ? valueAnimation : nil
+    }
+
     private var innerCirclePadding: CGFloat { expandedHeight * 0.15 }
     
     private func calculateProgressWidth() -> CGFloat {

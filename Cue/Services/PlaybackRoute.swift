@@ -92,7 +92,11 @@ final class PlaybackRoute {
     /// Nothing playing at the source means there is nothing to carry: the
     /// next Play goes to the new destination, which is all the route button
     /// used to do.
-    func switchTo(_ target: PlayDestination) {
+    ///
+    /// `carrying: false` moves only the route. The device's queue is parked
+    /// rather than left playing under a speaker the player now shows; a
+    /// speaker being left is left alone, playing its own queue.
+    func switchTo(_ target: PlayDestination, carrying: Bool = true) {
         guard target != destination else { return }
 
         let source = group
@@ -115,6 +119,17 @@ final class PlaybackRoute {
         }
         remember(target)
 
+        guard carrying else {
+            handoffTask?.cancel()
+            switchToken += 1
+            isSwitching = false
+            if fromDevice {
+                LocalPlaybackService.shared.park()
+            }
+            Self.log.notice("route → \(targetGroup?.nameWithCount ?? "device", privacy: .public): switched without carrying")
+            return
+        }
+
         handoffTask?.cancel()
         switchToken += 1
         let token = switchToken
@@ -132,6 +147,20 @@ final class PlaybackRoute {
                 await self.handOffToDevice(from: source)
             }
         }
+    }
+
+    /// Whether switching to `target` would have something to carry, read
+    /// off cached state so it can decide at once whether to ask. Only a
+    /// queue carries: a speaker on radio, TV or a line-in doesn't count.
+    func hasSomethingToCarry(to target: PlayDestination) -> Bool {
+        guard target != destination else { return false }
+        if destination == .device {
+            return localSnapshot() != nil
+        }
+        guard let source = group, source.coordinatorID != target.groupID else { return false }
+        // `.unknown` is a cache not yet filled in, not a radio: ask, and
+        // let the hand-off's fetch settle it.
+        return [.queue, .unknown].contains(source.playbackService) && !source.coordinatorRoom.track.isEmpty
     }
 
     /// Re-points a speaker route at another coordinator with no hand-off.
@@ -551,5 +580,36 @@ final class PlaybackRoute {
             id = id.removingPercentEncoding?.components(separatedBy: ":").last ?? id
         }
         return "\(item.content.service):\(id)"
+    }
+}
+
+/// What a route switch does with what's playing. Set in Settings › Playback
+/// and by "Don't ask again" on the switch's prompt.
+enum QueueTransferPreference: String, CaseIterable, Identifiable {
+    case ask
+    case always
+    case never
+
+    var id: String { rawValue }
+
+    static var current: QueueTransferPreference {
+        UserDefaults.standard.string(forKey: AppStorageKeys.routeQueueTransfer)
+            .flatMap(QueueTransferPreference.init(rawValue:)) ?? .ask
+    }
+
+    var title: String {
+        switch self {
+        case .ask: "Ask"
+        case .always: "Move"
+        case .never: "Don't Move"
+        }
+    }
+
+    var footnote: String {
+        switch self {
+        case .ask: "Asks each time whether to bring what's playing along."
+        case .always: "What's playing always moves to where you switch."
+        case .never: "Switching only changes where the next Play goes."
+        }
     }
 }
