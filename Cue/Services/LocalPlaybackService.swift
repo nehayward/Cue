@@ -1330,15 +1330,36 @@ final class LocalPlaybackService {
         // TuneIn sometimes hands the station's own name back as the song.
         guard song != nowPlaying?.title else { return }
         guard liveMetadata?.song != song || liveMetadata?.artist != artist else { return }
+        // The song Shazam already named, in the station's own words ("Just
+        // Dance" for "Just Dance (feat. Colby O'Donis)") — keep the match
+        // and its cover rather than blanking the art for a lookup.
+        if let live = liveMetadata, live.artworkURL != nil, Self.isSameSong(live.song, song) { return }
 
         let live = LiveStationMetadata(song: song, artist: artist, artworkURL: nil)
         liveMetadata = live
+        await lookUpArtwork(for: live, token: token)
+    }
 
-        let results = await MusicSearchService.shared.search(song: song, artist: live.artist ?? "", album: "")
+    /// Finds a cover for what's on air the way the Sonos player does, and
+    /// puts it up if nothing else has come on air meanwhile.
+    private func lookUpArtwork(for live: LiveStationMetadata, token: Int) async {
+        let results = await MusicSearchService.shared.search(song: live.song, artist: live.artist ?? "", album: "")
         guard playToken == token, liveMetadata == live,
               let match = results.first,
               let artwork = URL(string: match.artworkURL(with: "600")) else { return }
         liveMetadata?.artworkURL = artwork
+    }
+
+    /// Whether two titles name the same song, ignoring case and anything in
+    /// brackets (features, remix and edit tags).
+    private static func isSameSong(_ lhs: String, _ rhs: String) -> Bool {
+        func core(_ title: String) -> String {
+            title.replacingOccurrences(of: #"\s*[\(\[][^\)\]]*[\)\]]"#, with: "", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+        }
+        let (a, b) = (core(lhs), core(rhs))
+        return !a.isEmpty && a == b
     }
 
     // MARK: - Song recognition
@@ -1364,7 +1385,18 @@ final class LocalPlaybackService {
     /// playing.
     func noteRecognized(_ song: RecognizedSong, stationID: String?) {
         guard canRecognizeSong, nowPlaying?.content.id == stationID else { return }
-        liveMetadata = LiveStationMetadata(song: song.title, artist: song.artist, artworkURL: song.artworkURL)
+        // Shazam's cover first, then the Apple Music song's; failing both,
+        // the same lookup a station's own title gets.
+        let live = LiveStationMetadata(
+            song: song.title,
+            artist: song.artist,
+            artworkURL: song.artworkURL ?? song.playable?.artwork ?? song.playable?.thumbnail
+        )
+        liveMetadata = live
+        if live.artworkURL == nil {
+            let token = playToken
+            Task { await lookUpArtwork(for: live, token: token) }
+        }
     }
 
     // MARK: - State polling
