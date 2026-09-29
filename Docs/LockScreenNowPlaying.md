@@ -839,10 +839,11 @@ Deployment target is **iOS 17**, so nothing here uses an 18+ API.
   measurements below record what that costs. `MarqueeText` was doing exactly
   this in shipped code: an unpaused `TimelineView(.animation)` on the player
   screen *and* in `MiniPlayerView`, which is mounted nearly everywhere, so it was
-  effectively always live. It now pauses on `scenePhase != .active`, and derives
-  its paused-state preference instead of writing `@State` every frame — that
-  write invalidated the modifier, which re-measured the `ViewThatFits` above it
-  on every frame.
+  effectively always live. It first paused on `scenePhase != .active`; it has
+  since dropped the timeline altogether for a `.task` loop that animates an
+  `.offset` (keyed on the scene phase, so it is cancelled off screen), which
+  renders nothing while resting and doesn't re-evaluate `body` per frame while
+  scrolling.
 - Also: the silent WAV is cached per rate rather than rebuilt per activation; the
   `UISlider` is resolved once per attach instead of walking `subviews` on every
   read; artwork is held locally rather than read back out of `nowPlayingInfo`
