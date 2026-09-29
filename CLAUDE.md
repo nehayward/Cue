@@ -171,6 +171,20 @@ Key findings for whoever picks this up:
 - Scope decided: Apple Music only first (Spotify/Deezer would each need their
   own preview-URL lookup path).
 
+### Per-window routing (deferred)
+The player cover's open/closed flag (`Router.main.isPlayerPresented`) is
+shared by every window, because `Router.main` is a static that the ⌘ menu
+commands, the mini player and deep links reach directly. A reopened Mac window
+used to find the flag already set and slide the player up again.
+`PlayerCoverPresentation` (in `CueApp.swift`) works around it: each window
+keeps its own copy of the flag, synced both ways with the router, and catches
+up to an already-open player without animating.
+
+The real fix is per-window routing: a `Router` per scene (or `@SceneStorage`
+for presentation state), with the menu commands acting on the key window's
+router. Do it when Cue gets real multi-window support on Mac or iPad (e.g. two
+windows showing different players), and delete `PlayerCoverPresentation` then.
+
 ### Monetization notes
 - Downloads (Plex/Subsonic, `DownloadManager`) are free up to
   `DownloadManager.freeSongLimit` songs held at a time; Cue Super lifts the
