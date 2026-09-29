@@ -48,8 +48,17 @@ final class StationRelay: @unchecked Sendable {
     /// nothing — the node calls them all back when it stops.
     private var generation = 0
     private var isStarted = false
+    private var currentListener: Listener?
     private var decodeTask: Task<Void, Never>?
     private var configurationObserver: NSObjectProtocol?
+
+    /// Who hears each chunk as it's decoded. Can be swapped while the relay
+    /// plays — a new transcription run on the same station — without
+    /// reopening the stream.
+    var listener: Listener? {
+        get { lock.withLock { currentListener } }
+        set { lock.withLock { currentListener = newValue } }
+    }
 
     /// The output level, 0...1. The listener hears the station at full
     /// level whatever this is.
@@ -115,12 +124,13 @@ final class StationRelay: @unchecked Sendable {
         stop()
         let generation = lock.withLock {
             runStart = scheduledEnd
+            currentListener = listener
             return self.generation
         }
         decodeTask = Task.detached(priority: .userInitiated) { [weak self] in
             do {
                 try await LiveStreamDecoder.run(url) { buffer in
-                    self?.receive(buffer, generation: generation, listener: listener, onReady: onReady)
+                    self?.receive(buffer, generation: generation, onReady: onReady)
                 }
                 guard !Task.isCancelled else { return }
                 await onEnd(nil)
@@ -151,7 +161,6 @@ final class StationRelay: @unchecked Sendable {
     private func receive(
         _ buffer: AVAudioPCMBuffer,
         generation: Int,
-        listener: Listener,
         onReady: @escaping @MainActor () -> Bool
     ) {
         guard prepare(for: buffer.format) else { return }
@@ -164,7 +173,7 @@ final class StationRelay: @unchecked Sendable {
             if begins { isStarted = true }
             return (start, scheduledEnd, begins)
         }
-        guard lock.withLock({ generation == self.generation }) else { return }
+        guard let listener = lock.withLock({ generation == self.generation ? currentListener : nil }) else { return }
 
         listener(buffer, CMTime(value: start, timescale: CMTimeScale(buffer.format.sampleRate)))
 

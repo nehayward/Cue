@@ -319,8 +319,11 @@ final class LiveTranscriptionService {
     private func start(_ source: Source, locale: Locale) {
         guard #available(iOS 26.0, visionOS 26.0, *) else { return }
         // Both halves restart together — a language change reconnects to
-        // the station too — so a stream can never outlive its run.
-        stop()
+        // the station too — so a stream can never outlive its run. The
+        // relay is the exception: it's what's playing, so a restart on the
+        // same station keeps it and only swaps who it hands the audio to.
+        let keepsRelay = isRelaying && runningSource == source && relayUnusableStationID != source.stationID
+        stop(keepingRelay: keepsRelay)
         generation += 1
         let generation = generation
         runningSource = source
@@ -449,9 +452,9 @@ final class LiveTranscriptionService {
         state = .failed(reason)
     }
 
-    private func stop() {
+    private func stop(keepingRelay: Bool = false) {
         stopEngine()
-        stopListening()
+        stopListening(keepingRelay: keepingRelay)
         runningSource = nil
     }
 
@@ -462,7 +465,7 @@ final class LiveTranscriptionService {
         runningLocale = nil
     }
 
-    private func stopListening() {
+    private func stopListening(keepingRelay: Bool = false) {
         listenTask?.cancel()
         listenTask = nil
         if isTapping {
@@ -471,7 +474,9 @@ final class LiveTranscriptionService {
         }
         if isRelaying {
             isRelaying = false
-            playback.endStationRelay()
+            if !keepingRelay {
+                playback.endStationRelay()
+            }
         }
         revealTask?.cancel()
         revealTask = nil

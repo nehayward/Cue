@@ -1538,14 +1538,16 @@ final class LocalPlaybackService {
     func relayStation(_ listener: @escaping StationRelay.Listener, onUnavailable: @escaping @MainActor () -> Void) {
         relayListener = listener
         relayUnavailable = onUnavailable
-        switch backend {
-        case .relay where stationRelay?.isPlaying != true:
-            // Paused on the relay: it opens on the next Play.
-            break
-        case .stream where isPlayingStation, .relay:
+        if let stationRelay {
+            // Already relaying — playing, paused, or warming up behind the
+            // stream player: the running relay hands its audio to the new
+            // listener from its next chunk, and a paused one opens on the
+            // next Play.
+            stationRelay.listener = listener
+            return
+        }
+        if backend == .stream, isPlayingStation {
             startRelay()
-        default:
-            break
         }
     }
 
@@ -1625,6 +1627,9 @@ final class LocalPlaybackService {
         stationRelay?.stop()
         if backend == .relay {
             Task { try? await arm(at: currentIndex) }
+        } else {
+            // Failed while warming up: the stream player never let go.
+            stationRelay = nil
         }
         unavailable?()
     }
