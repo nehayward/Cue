@@ -700,6 +700,13 @@ fileprivate struct BottomToolbarView: View {
                 .imageScale(.large)
                 .accessibilityLabel("Browse")
 
+                if IdentifySongButton.isAvailable(for: group) {
+                    Spacer()
+                    IdentifySongButton(group: group)
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
+                }
+
                 Spacer()
                 Button {
                     router.presentedSheet = .queue(group: group)
@@ -803,6 +810,12 @@ fileprivate struct BottomToolbarView: View {
                 .glassButton()
                 .withPopoverDestinations(popoverDestination: $router.popover)
                 .help("Group Speakers")
+
+                if IdentifySongButton.isAvailable(for: group) {
+                    IdentifySongButton(group: group)
+                        .buttonBorderShape(.circle)
+                        .glassButton()
+                }
             }
         }
     }

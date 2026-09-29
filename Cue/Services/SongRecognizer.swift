@@ -45,8 +45,9 @@ final class SongRecognizer {
     @ObservationIgnored private var task: Task<Void, Never>?
 
     /// How much of the stream to listen to. Shazam usually needs 3–5
-    /// seconds; a little more rides out a DJ talking over an intro.
-    private static let sampleSeconds: Double = 10
+    /// seconds, and turns a signature much longer than this away
+    /// (`SHError.signatureDurationInvalid`, 201).
+    private static let sampleSeconds: Double = 8
 
     /// Listens to the stream `resolve` hands back and names the song on it,
     /// handing a match to `onFound` too. A new call replaces one still
@@ -167,7 +168,7 @@ enum StreamSampler {
             .appending(path: "shazam-\(UUID().uuidString).\(fileExtension)")
         try data.write(to: file)
         defer { try? FileManager.default.removeItem(at: file) }
-        return try decode(file)
+        return try decode(file, seconds: seconds)
     }
 
     private static func fileExtension(mimeType: String?, url: URL) throws -> String {
@@ -185,9 +186,11 @@ enum StreamSampler {
         return "mp3"
     }
 
-    /// Decodes the stream's head into one mono buffer. A cut-off last frame
-    /// fails its read, so it reads in slices and keeps what came before.
-    private static func decode(_ file: URL) throws -> AVAudioPCMBuffer {
+    /// Decodes the stream's head into one mono buffer of at most `seconds`
+    /// — a server's burst on connect can hand over far more, and too long a
+    /// signature is refused outright. A cut-off last frame fails its read,
+    /// so it reads in slices and keeps what came before.
+    private static func decode(_ file: URL, seconds: Double) throws -> AVAudioPCMBuffer {
         let audioFile: AVAudioFile
         do {
             audioFile = try AVAudioFile(forReading: file)
@@ -196,13 +199,13 @@ enum StreamSampler {
         }
         let sourceFormat = audioFile.processingFormat
         let slice: AVAudioFrameCount = 8_192
-        guard let whole = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: AVAudioFrameCount(sourceFormat.sampleRate * 20)),
+        guard let whole = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: AVAudioFrameCount(sourceFormat.sampleRate * seconds)),
               let piece = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: slice) else {
             throw SampleError(message: "The station's audio couldn't be decoded.")
         }
-        while whole.frameLength + slice <= whole.frameCapacity {
+        while whole.frameLength < whole.frameCapacity {
             do {
-                try audioFile.read(into: piece, frameCount: slice)
+                try audioFile.read(into: piece, frameCount: min(slice, whole.frameCapacity - whole.frameLength))
             } catch {
                 break
             }

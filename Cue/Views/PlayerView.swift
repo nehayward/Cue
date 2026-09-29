@@ -897,6 +897,15 @@ private struct PlayerBottomToolbarView: View {
                         .withPopoverDestinations(popoverDestination: $router.volumePopover)
                 }
 
+                // A station's song, a tap away on the bar rather than
+                // down in the menu.
+                if IdentifySongButton.isAvailable(for: group) {
+                    Spacer()
+                    IdentifySongButton(group: group)
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
+                }
+
                 // No search or browse on a phone: the tab bar is a swipe
                 // down away, and the cover's search sheet only doubled it.
                 Spacer()
@@ -921,6 +930,12 @@ private struct PlayerBottomToolbarView: View {
                         .glassButton()
                         .withPopoverDestinations(popoverDestination: $router.volumePopover)
                         .help("Speaker Control")
+                }
+
+                if IdentifySongButton.isAvailable(for: group) {
+                    IdentifySongButton(group: group)
+                        .buttonBorderShape(.circle)
+                        .glassButton()
                 }
 
 #if !targetEnvironment(macCatalyst)
@@ -1074,18 +1089,10 @@ private struct LocalPlayerMenuView: View {
     @Binding var showArtworkOnly: Bool
 
     private var playback: LocalPlaybackService { .shared }
-    @State private var showSongRecognition = false
 
     var body: some View {
         Menu {
             OpenInServiceView(item: item)
-            if playback.canRecognizeSong {
-                Button {
-                    showSongRecognition = true
-                } label: {
-                    Label("Identify Song", systemImage: "shazam.logo")
-                }
-            }
             if item.content.service.supportsViewArtistAlbum {
                 Button {
                     router.sheet(to: .mediaDetail(content: item, group: nil))
@@ -1170,16 +1177,6 @@ private struct LocalPlayerMenuView: View {
         .help("Menu")
         .onAppear {
             AppleDownloadsIndex.shared.refreshIfNeeded()
-        }
-        .sheet(isPresented: $showSongRecognition) {
-            // Captured now, so a match that lands after the station has
-            // changed isn't shown as the new one's song.
-            let stationID = playback.nowPlaying?.content.id
-            SongRecognitionSheet(stationName: playback.nowPlaying?.title) {
-                await playback.currentStationStreamURL()
-            } onFound: { song in
-                playback.noteRecognized(song, stationID: stationID)
-            }
         }
 #if os(visionOS)
         .tint(.clear)

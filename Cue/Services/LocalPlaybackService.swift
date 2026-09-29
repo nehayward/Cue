@@ -1343,13 +1343,17 @@ final class LocalPlaybackService {
 
     // MARK: - Song recognition
 
-    /// The stream of the station playing here, for `SongRecognizer` to
-    /// listen to. Nil for a track, and for an Apple Music station, which
-    /// already names every song it plays.
+    /// A TuneIn station: the one kind that plays as a stream here (see
+    /// `backendKind(for:)`). An Apple Music station already names every
+    /// song it plays. Read off the queue row rather than `backend` so a
+    /// view showing the button follows it.
     var canRecognizeSong: Bool {
-        backend == .stream && nowPlaying.map(isStation) == true
+        guard let item = nowPlaying else { return false }
+        return item.content.service == .tuneIn && item.content.type == .radio
     }
 
+    /// The stream of the station playing here, for `SongRecognizer` to
+    /// listen to.
     func currentStationStreamURL() async -> URL? {
         guard canRecognizeSong, let station = nowPlaying else { return nil }
         return await streamURL(for: station)
