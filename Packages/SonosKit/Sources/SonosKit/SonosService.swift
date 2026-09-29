@@ -1213,8 +1213,8 @@ public final class SonosService {
     @MainActor
     func updateGroupCheckTVMode(from roomGroups: [GroupRoom]) async {
         await withDiscardingTaskGroup { group in
-            for roomGroup in roomGroups {
-                if roomGroup.coordinatorRoom.state != .active { return }
+            // Skip inactive coordinators without abandoning the rest of the loop.
+            for roomGroup in roomGroups where roomGroup.coordinatorRoom.state == .active {
 
                 group.addTask { @MainActor [weak self] in
                     guard let self else { return }
