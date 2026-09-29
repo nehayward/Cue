@@ -100,12 +100,20 @@ private final class TapContext: @unchecked Sendable {
         guard frames > 0, let format,
               let copy = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames)) else { return }
         copy.frameLength = AVAudioFrameCount(frames)
-        let source = UnsafeMutableAudioBufferListPointer(bufferList)
-        let destination = UnsafeMutableAudioBufferListPointer(copy.mutableAudioBufferList)
-        for (from, to) in zip(source, destination) {
+        for (from, to) in zip(Self.buffers(of: bufferList), Self.buffers(of: copy.mutableAudioBufferList)) {
             guard let fromData = from.mData, let toData = to.mData else { continue }
             memcpy(toData, fromData, Int(min(from.mDataByteSize, to.mDataByteSize)))
         }
         onBuffer(copy)
+    }
+
+    /// The list's buffers — one per channel, or one for interleaved audio.
+    /// Walked by hand: `UnsafeMutableAudioBufferListPointer` lives in Core
+    /// Audio's Swift overlay, which isn't imported on every platform (Mac
+    /// Catalyst), while the C structs are.
+    private static func buffers(of list: UnsafeMutablePointer<AudioBufferList>) -> UnsafeMutableBufferPointer<AudioBuffer> {
+        let offset = MemoryLayout<AudioBufferList>.offset(of: \.mBuffers) ?? 0
+        let first = UnsafeMutableRawPointer(list).advanced(by: offset).assumingMemoryBound(to: AudioBuffer.self)
+        return UnsafeMutableBufferPointer(start: first, count: Int(list.pointee.mNumberBuffers))
     }
 }
