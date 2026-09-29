@@ -183,6 +183,15 @@ final class PlaybackRoute {
         }
     }
 
+    /// Puts the route back on the source after a hand-off that failed, so
+    /// the player follows what is actually playing. Only while the route is
+    /// still the failed target: a choice made since is left alone.
+    private func revert(from target: PlayDestination, to source: PlayDestination?) {
+        guard let source, destination == target, !Task.isCancelled else { return }
+        Self.log.notice("route: hand-off failed, back to \(source.groupID ?? "device", privacy: .public)")
+        remember(source)
+    }
+
     // MARK: - Snapshots
 
     /// What's playing at a source, enough to pick it up somewhere else: the
@@ -271,6 +280,8 @@ final class PlaybackRoute {
         let items = snapshot.items.filter { !$0.content.service.playsOnDeviceOnly }
         guard let first = items.first else {
             Self.log.notice("route → \(target.nameWithCount, privacy: .public): only device-only content queued")
+            // Nothing moved, so the route doesn't either: the source plays on.
+            revert(from: .group(target.coordinatorID), to: fromDevice ? .device : source.map { PlayDestination.group($0.coordinatorID) })
             AlertService.shared.showAlert(with: "Files on this device can't play on \(target.nameWithCount)", imageName: "exclamationmark.triangle")
             return
         }
@@ -299,6 +310,11 @@ final class PlaybackRoute {
             if fromDevice {
                 await restoreLocal(snapshot)
             }
+            guard !Task.isCancelled else { return }
+            // The source is playing again (or never stopped), so the route
+            // goes back to it — left on the speaker, the player showed a
+            // speaker that wasn't playing over a phone that was.
+            revert(from: .group(target.coordinatorID), to: fromDevice ? .device : source.map { PlayDestination.group($0.coordinatorID) })
             AlertService.shared.showAlert(with: "Couldn't move playback to \(target.nameWithCount)", imageName: "exclamationmark.triangle")
             return
         }
@@ -401,6 +417,7 @@ final class PlaybackRoute {
                 if snapshot.isPlaying {
                     await sonos.play(ip: source.ip)
                 }
+                revert(from: .device, to: .group(source.coordinatorID))
                 AlertService.shared.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
                 return
             }
@@ -454,6 +471,7 @@ final class PlaybackRoute {
             if snapshot.isPlaying {
                 await sonos.play(ip: source.ip)
             }
+            revert(from: .device, to: .group(source.coordinatorID))
             AlertService.shared.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
             return
         }
