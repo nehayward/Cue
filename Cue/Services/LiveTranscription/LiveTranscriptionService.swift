@@ -4,6 +4,7 @@ import Foundation
 import Observation
 import OSLog
 import SonosKit
+import UIKit
 
 /// Live Transcription: what's being said on the radio station playing,
 /// written out as it airs, by an on-device model (`TranscriptionEngine`,
@@ -130,6 +131,11 @@ final class LiveTranscriptionService {
     /// Whether the running engine hears this device's player through its
     /// tap, rather than a second copy of the stream.
     @ObservationIgnored private var isTapping = false
+    /// The player renders more at a time than the tap can take — as it does
+    /// while the app isn't frontmost — so the station is heard from a second
+    /// copy of its stream instead, until the app is active again.
+    @ObservationIgnored private var isTapUnusable = false
+    @ObservationIgnored private var becameActiveObserver: NSObjectProtocol?
     /// Words heard but not yet played — held until the player reaches
     /// them, while tapping. Finished lines, oldest first, then the one still
     /// being heard.
@@ -159,12 +165,19 @@ final class LiveTranscriptionService {
             Task { await loadSupportedLocales() }
         }
         observePlayback()
+        becameActiveObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.retryTap() }
+        }
         refresh()
     }
 
     func deactivate() {
         guard isActive else { return }
         isActive = false
+        if let becameActiveObserver {
+            NotificationCenter.default.removeObserver(becameActiveObserver)
+            self.becameActiveObserver = nil
+        }
         failedSource = nil
         stop()
         state = .idle
@@ -318,11 +331,13 @@ final class LiveTranscriptionService {
     private func listen(to source: Source, generation: Int) {
         let group = route.group
         let feed = feed
-        if case .device = source, #available(iOS 27.0, visionOS 27.0, *) {
+        if case .device = source, !isTapUnusable, #available(iOS 27.0, visionOS 27.0, *) {
             print("Live Transcription: Hearing \(source.stationID) through the player's tap")
             isTapping = true
             playback.tapStationAudio { buffer, start in
                 feed.send(buffer, start: start.isNumeric ? start : nil)
+            } onUnusable: { [weak self] in
+                Task { @MainActor in self?.tapBecameUnusable(generation: generation) }
             }
             startRevealing()
             return
@@ -356,6 +371,25 @@ final class LiveTranscriptionService {
                 Logger.liveTranscription.error("Stream failed: \(error.localizedDescription, privacy: .public)")
                 self?.listenFailed(error.localizedDescription, generation: generation)
             }
+        }
+    }
+
+    /// The tap is hearing silence: takes it off — the player goes back to
+    /// its own volume — and listens to a second copy of the stream instead.
+    private func tapBecameUnusable(generation: Int) {
+        guard self.generation == generation, isTapping,
+              let source = runningSource, let locale = runningLocale else { return }
+        print("Live Transcription: Tap can't keep up; hearing \(source.stationID) from its stream until the app is active")
+        isTapUnusable = true
+        start(source, locale: locale)
+    }
+
+    /// Back in front: the player renders small enough for the tap again.
+    private func retryTap() {
+        guard isTapUnusable else { return }
+        isTapUnusable = false
+        if let source = runningSource, case .device = source, let locale = runningLocale {
+            start(source, locale: locale)
         }
     }
 

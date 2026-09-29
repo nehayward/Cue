@@ -17,16 +17,23 @@ import MediaToolbox
 /// and the tap applies the volume itself (`TapGain`) after taking its copy:
 /// what's heard is unchanged, and the transcript keeps going with the volume
 /// down. FairPlay-protected audio never reaches it.
+///
+/// The mix behind the tap renders at most 1024 frames at a time. Once the
+/// system asks for more — 4096 at a time, when the app isn't frontmost — it
+/// fails every render ("MESubmixGraph err -10874") and hands back silence,
+/// and it can't be asked in slices: a second pull in one render crashes.
+/// The tap says so once (`onUnusable`) so its owner can take it off.
 @available(iOS 27.0, visionOS 27.0, *)
 enum PlayerAudioTap {
     /// A chunk of the item's audio and where it starts on the item's timeline.
     typealias Handler = @Sendable (AVAudioPCMBuffer, CMTime) -> Void
 
     /// An audio mix that hands every chunk the item plays to `onAudio`, on
-    /// the render thread, then plays it at `gain`. Nil if the tap couldn't be
-    /// made.
-    static func audioMix(gain: TapGain, onAudio: @escaping Handler) -> AVAudioMix? {
-        let context = Unmanaged.passRetained(TapContext(gain: gain, onAudio: onAudio)).toOpaque()
+    /// the render thread, then plays it at `gain`. `onUnusable` is called
+    /// once, on the render thread, if the item's renders outgrow the tap.
+    /// Nil if the tap couldn't be made.
+    static func audioMix(gain: TapGain, onAudio: @escaping Handler, onUnusable: @escaping @Sendable () -> Void) -> AVAudioMix? {
+        let context = Unmanaged.passRetained(TapContext(gain: gain, onAudio: onAudio, onUnusable: onUnusable)).toOpaque()
         var callbacks = MTAudioProcessingTapCallbacks(
             version: kMTAudioProcessingTapCallbacksVersion_0,
             clientInfo: context,
@@ -79,18 +86,13 @@ final class TapGain: @unchecked Sendable {
 private final class TapContext: @unchecked Sendable {
     let gain: TapGain
     let onAudio: @Sendable (AVAudioPCMBuffer, CMTime) -> Void
+    let onUnusable: @Sendable () -> Void
     private(set) var format: AVAudioFormat?
-    /// Bytes per frame in each of the item's buffers.
-    private var bytesPerFrame = 0
-    /// A buffer list pointing into part of the one being filled, for pulling
-    /// a long render in slices. Made in prepare, off the render thread.
-    private var slice: UnsafeMutableRawPointer?
+    /// Whether `onUnusable` has been called.
+    private var isUnusable = false
 
-    /// The most the item's mix will render in one pull. It fails anything
-    /// longer ("MESubmixGraph err -10874") and hands back silence — and the
-    /// system asks for 4096 at a time once the app is in the background — so
-    /// longer renders are pulled a slice at a time.
-    private static let maxSlice = 1024
+    /// The most the item's mix renders in one pull; see `PlayerAudioTap`.
+    private static let maxFrames = 1024
 
     /// For the log: chunks handed on and pulls that failed, and the audio's
     /// length when last logged.
@@ -101,13 +103,10 @@ private final class TapContext: @unchecked Sendable {
     /// tap hears silence.
     private var peak: Float = 0
 
-    init(gain: TapGain, onAudio: @escaping @Sendable (AVAudioPCMBuffer, CMTime) -> Void) {
+    init(gain: TapGain, onAudio: @escaping @Sendable (AVAudioPCMBuffer, CMTime) -> Void, onUnusable: @escaping @Sendable () -> Void) {
         self.gain = gain
         self.onAudio = onAudio
-    }
-
-    deinit {
-        slice?.deallocate()
+        self.onUnusable = onUnusable
     }
 
     static func from(_ tap: MTAudioProcessingTap) -> TapContext {
@@ -116,20 +115,10 @@ private final class TapContext: @unchecked Sendable {
 
     func prepare(_ description: UnsafePointer<AudioStreamBasicDescription>) {
         format = AVAudioFormat(streamDescription: description)
-        bytesPerFrame = Int(description.pointee.mBytesPerFrame)
-        let isInterleaved = description.pointee.mFormatFlags & kAudioFormatFlagIsNonInterleaved == 0
-        let bufferCount = isInterleaved ? 1 : Int(description.pointee.mChannelsPerFrame)
-        slice?.deallocate()
-        slice = UnsafeMutableRawPointer.allocate(
-            byteCount: Self.bufferListOffset + MemoryLayout<AudioBuffer>.stride * max(bufferCount, 1),
-            alignment: MemoryLayout<AudioBufferList>.alignment
-        )
     }
 
     func unprepare() {
         format = nil
-        slice?.deallocate()
-        slice = nil
     }
 
     func process(
@@ -139,63 +128,19 @@ private final class TapContext: @unchecked Sendable {
         framesOut: UnsafeMutablePointer<CMItemCount>,
         flagsOut: UnsafeMutablePointer<MTAudioProcessingTapFlags>
     ) {
-        var start = CMTime.invalid
-        let status = pull(tap, frames: frames, into: bufferList, framesOut: framesOut, flagsOut: flagsOut, start: &start)
+        if frames > Self.maxFrames, !isUnusable {
+            isUnusable = true
+            print("Live Transcription: Tap asked for \(frames) frames at once, more than it can render")
+            onUnusable()
+        }
+        var timeRange = CMTimeRange.zero
+        let status = MTAudioProcessingTapGetSourceAudio(tap, frames, bufferList, flagsOut, &timeRange, framesOut)
         guard status == noErr else {
             noteFailure(status, frames: frames)
             return
         }
-        deliver(bufferList, frames: framesOut.pointee, start: start)
+        deliver(bufferList, frames: framesOut.pointee, start: timeRange.start)
         applyGain(to: bufferList, frames: framesOut.pointee)
-    }
-
-    /// Fills `bufferList` from the item's mix, `maxSlice` frames at a time.
-    /// `start` is where the first frame sits on the item's timeline.
-    private func pull(
-        _ tap: MTAudioProcessingTap,
-        frames: CMItemCount,
-        into bufferList: UnsafeMutablePointer<AudioBufferList>,
-        framesOut: UnsafeMutablePointer<CMItemCount>,
-        flagsOut: UnsafeMutablePointer<MTAudioProcessingTapFlags>,
-        start: inout CMTime
-    ) -> OSStatus {
-        var timeRange = CMTimeRange.zero
-        guard frames > Self.maxSlice, let slice, bytesPerFrame > 0 else {
-            let status = MTAudioProcessingTapGetSourceAudio(tap, frames, bufferList, flagsOut, &timeRange, framesOut)
-            start = timeRange.start
-            return status
-        }
-
-        let whole = Self.buffers(in: bufferList)
-        let part = slice.bindMemory(to: AudioBufferList.self, capacity: 1)
-        part.pointee.mNumberBuffers = UInt32(whole.count)
-        let parts = Self.buffers(in: part)
-        var done = 0
-        var flags = MTAudioProcessingTapFlags()
-        while done < Int(frames) {
-            let wanted = min(Self.maxSlice, Int(frames) - done)
-            for index in whole.indices {
-                parts[index] = AudioBuffer(
-                    mNumberChannels: whole[index].mNumberChannels,
-                    mDataByteSize: UInt32(wanted * bytesPerFrame),
-                    mData: whole[index].mData.map { $0 + done * bytesPerFrame }
-                )
-            }
-            var got: CMItemCount = 0
-            let status = MTAudioProcessingTapGetSourceAudio(tap, wanted, part, &flags, &timeRange, &got)
-            guard status == noErr else { return status }
-            if done == 0 {
-                start = timeRange.start
-                flagsOut.pointee = flags
-            }
-            done += got
-            if got < wanted { break }
-        }
-        framesOut.pointee = done
-        for index in whole.indices {
-            whole[index].mDataByteSize = UInt32(done * bytesPerFrame)
-        }
-        return noErr
     }
 
     /// Copies the chunk out — the tap's buffers are only lent for the
@@ -245,12 +190,11 @@ private final class TapContext: @unchecked Sendable {
         }
     }
 
-    private static let bufferListOffset = MemoryLayout<AudioBufferList>.offset(of: \.mBuffers)!
-
     /// The list's buffers — `mBuffers` is declared as one, but the list holds
     /// `mNumberBuffers` of them back to back.
     private static func buffers(in list: UnsafeMutablePointer<AudioBufferList>) -> UnsafeMutableBufferPointer<AudioBuffer> {
-        let first = (UnsafeMutableRawPointer(list) + bufferListOffset).assumingMemoryBound(to: AudioBuffer.self)
+        let offset = MemoryLayout<AudioBufferList>.offset(of: \.mBuffers)!
+        let first = (UnsafeMutableRawPointer(list) + offset).assumingMemoryBound(to: AudioBuffer.self)
         return UnsafeMutableBufferPointer(start: first, count: Int(list.pointee.mNumberBuffers))
     }
 }

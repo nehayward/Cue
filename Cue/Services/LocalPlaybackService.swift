@@ -240,6 +240,7 @@ final class LocalPlaybackService {
     /// Live Transcription's ear on the station playing here — see
     /// `tapStationAudio(_:)`. Carried onto each new station item.
     @ObservationIgnored private var stationAudioTap: (@Sendable (AVAudioPCMBuffer, CMTime) -> Void)?
+    @ObservationIgnored private var stationAudioTapUnusable: (@Sendable () -> Void)?
     /// The station item carrying the tap. It plays with the player at full
     /// level and `streamVolume` applied by the tap, which hears the mix after
     /// the player's volume and would otherwise go deaf with it turned down.
@@ -1409,10 +1410,13 @@ final class LocalPlaybackService {
     /// Hands the station playing here to `onAudio` as it plays — its own
     /// audio, straight off the player, with where each chunk sits on the
     /// player's timeline (`stationPlayhead`). Stays on through re-arms of
-    /// the station until `untapStationAudio()`.
+    /// the station until `untapStationAudio()`. `onUnusable` is called, off
+    /// the main thread, if the player starts rendering more at a time than
+    /// the tap can take — it hears only silence then, and should come off.
     @available(iOS 27.0, visionOS 27.0, *)
-    func tapStationAudio(_ onAudio: @escaping @Sendable (AVAudioPCMBuffer, CMTime) -> Void) {
+    func tapStationAudio(_ onAudio: @escaping @Sendable (AVAudioPCMBuffer, CMTime) -> Void, onUnusable: @escaping @Sendable () -> Void) {
         stationAudioTap = onAudio
+        stationAudioTapUnusable = onUnusable
         if let item = streamPlayer?.currentItem, isPlayingStation {
             applyStationAudioTap(to: item)
         }
@@ -1421,6 +1425,7 @@ final class LocalPlaybackService {
     func untapStationAudio() {
         guard stationAudioTap != nil else { return }
         stationAudioTap = nil
+        stationAudioTapUnusable = nil
         if let item = streamPlayer?.currentItem, isPlayingStation {
             applyStationAudioTap(to: item)
         }
@@ -1438,7 +1443,11 @@ final class LocalPlaybackService {
     private func applyStationAudioTap(to item: AVPlayerItem) {
         guard #available(iOS 27.0, visionOS 27.0, *) else { return }
         let gain = stationTapGain
-        item.audioMix = stationAudioTap.flatMap { PlayerAudioTap.audioMix(gain: gain, onAudio: $0) }
+        if let onAudio = stationAudioTap, let onUnusable = stationAudioTapUnusable {
+            item.audioMix = PlayerAudioTap.audioMix(gain: gain, onAudio: onAudio, onUnusable: onUnusable)
+        } else {
+            item.audioMix = nil
+        }
         if item.audioMix != nil {
             tappedItem = item
         } else if tappedItem === item {
