@@ -1,6 +1,5 @@
 import AVFoundation
 import MediaToolbox
-import OSLog
 
 /// Listens in on an `AVPlayerItem`'s own audio as it plays: an
 /// `MTAudioProcessingTap` on the item's whole mix, the
@@ -35,7 +34,7 @@ enum PlayerAudioTap {
             prepare: { tap, maxFrames, format in
                 let format = AVAudioFormat(streamDescription: format)
                 TapContext.from(tap).format = format
-                Logger.liveTranscription.info("Tap prepared: \(format?.description ?? "no format", privacy: .public), up to \(maxFrames) frames")
+                print("Live Transcription: Tap prepared: \(format?.description ?? "no format"), up to \(maxFrames) frames")
             },
             unprepare: { tap in
                 TapContext.from(tap).format = nil
@@ -104,14 +103,14 @@ private final class TapContext: @unchecked Sendable {
         framesSinceLog += Double(frames)
         if chunks == 1 || framesSinceLog >= format.sampleRate * 10 {
             framesSinceLog = 0
-            Logger.liveTranscription.info("Tap chunk \(self.chunks): \(frames) frames at \(start.isNumeric ? start.seconds : -1, privacy: .public)s")
+            print("Live Transcription: Tap chunk \(self.chunks): \(frames) frames at \(start.isNumeric ? start.seconds : -1)s")
         }
     }
 
     func noteFailure(_ status: OSStatus, frames: CMItemCount) {
         failures += 1
         if failures == 1 || failures % 100 == 0 {
-            Logger.liveTranscription.error("Tap couldn't pull \(frames) frames: \(status) (\(self.failures) so far)")
+            print("Live Transcription: Tap couldn't pull \(frames) frames: \(status) (\(self.failures) so far)")
         }
     }
 

@@ -69,9 +69,24 @@ struct PlayerView: View {
         LiveTranscriptionService.isSupported && LiveTranscriptionService.isStationPlaying
     }
 
-    /// Live Transcription is on, in the artwork's place.
+    /// Live Transcription is on, in the trailing panel in the queue's place.
     private var showsTranscription: Bool {
         LiveTranscriptionService.shared.isEnabled && canTranscribe
+    }
+
+    /// The trailing panel is up: for the queue, or for Live Transcription.
+    /// Closing it — a swipe on the phone's sheet — puts both away.
+    private var showsPanel: Binding<Bool> {
+        Binding {
+            showQueue || showsTranscription
+        } set: { shown in
+            if shown {
+                if !showsTranscription { showQueue = true }
+            } else {
+                showQueue = false
+                LiveTranscriptionService.shared.isEnabled = false
+            }
+        }
     }
 
     /// The bar's title: this device, or the group's name.
@@ -117,8 +132,20 @@ struct PlayerView: View {
         // it shows and hides in place, and the artwork reflows around it —
         // and a half-height sheet on a phone, where a side panel would only
         // squeeze both halves. `QueueNextUpView` follows the route too.
-        .queuePanel(isPresented: $showQueue) {
-            QueueNextUpView()
+        // Live Transcription takes the same panel, one or the other: turning
+        // it on puts the queue away, and opening the queue turns it off.
+        .queuePanel(isPresented: showsPanel) {
+            if showsTranscription {
+                LiveTranscriptionView()
+            } else {
+                QueueNextUpView()
+            }
+        }
+        .onChange(of: LiveTranscriptionService.shared.isEnabled) { _, isEnabled in
+            if isEnabled { showQueue = false }
+        }
+        .onChange(of: showQueue) { _, shown in
+            if shown { LiveTranscriptionService.shared.isEnabled = false }
         }
         .background { backdrop }
         // The speaker's socket, sleep timer, play mode and hardware volume
@@ -144,18 +171,8 @@ struct PlayerView: View {
 
     @ViewBuilder
     private func deviceContent(_ item: PlayableContent) -> some View {
-        // Live Transcription takes the artwork's place, in the same frame,
-        // so the controls below don't move when it's switched.
-        Group {
-            if showsTranscription {
-                LiveTranscriptionView()
-                    .transition(.opacity)
-            } else {
-                ContentArtworkView(content: item, showMusicSource: true, preferredSize: 600, cornerRadius: 8, isDraggable: true)
-                    .shadow(radius: 2)
-                    .transition(.opacity)
-            }
-        }
+        ContentArtworkView(content: item, showMusicSource: true, preferredSize: 600, cornerRadius: 8, isDraggable: true)
+            .shadow(radius: 2)
             .padding(.bottom, showArtworkOnly ? 0 : 12)
             .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
             .padding(.top, showArtworkOnly ? 100 : nil)
@@ -241,16 +258,7 @@ struct PlayerView: View {
             }
             .transition(.opacity)
         } else {
-            // Live Transcription takes the artwork's place here too.
-            Group {
-                if showsTranscription {
-                    LiveTranscriptionView()
-                        .transition(.opacity)
-                } else {
-                    ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: artworkShouldFade)
-                        .transition(.opacity)
-                }
-            }
+            ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: artworkShouldFade)
                 .padding(.bottom, showArtworkOnly ? 0 : 12)
                 .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
                 .padding(.top, showArtworkOnly ? 100 : nil)

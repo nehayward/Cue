@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Live Transcription in the player: what the station playing is saying,
-/// newest line at the bottom and the line still being heard under it in
-/// grey, with the language menu above. Takes the artwork's place while it's
-/// on — for a station on this device or on a speaker alike.
+/// Live Transcription in the player's trailing panel, in the queue's place:
+/// what the station playing is saying, newest line at the bottom and the line
+/// still being heard under it in grey, under a header laid out like Next
+/// Up's, with the language menu where Next Up names the group. For a station
+/// on this device or on a speaker alike.
 ///
 /// Being on screen is what runs it — the service starts on appear and stops,
 /// taps and all, on disappear.
@@ -11,20 +12,21 @@ struct LiveTranscriptionView: View {
     private var transcription: LiveTranscriptionService { .shared }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Label("Live Transcription", systemImage: "captions.bubble.fill")
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
-                Spacer()
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Live Transcription")
+                    .font(.title3.bold())
                 LiveTranscriptionLanguageMenu()
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 10)
 
             content
+                .padding(.horizontal, 16)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .onAppear { transcription.activate() }
         .onDisappear { transcription.deactivate() }
     }
@@ -68,23 +70,24 @@ struct LiveTranscriptionView: View {
                 LazyVStack(alignment: .leading, spacing: 10) {
                     ForEach(transcription.lines) { line in
                         Text(line.text)
-                            .font(.title3.bold())
+                            .font(.body.weight(.semibold))
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     if !transcription.volatileText.isEmpty {
                         Text(transcription.volatileText)
-                            .font(.title3.bold())
+                            .font(.body.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } else if transcription.lines.isEmpty {
                         Text("Listening…")
-                            .font(.title3.bold())
+                            .font(.body.weight(.semibold))
                             .foregroundStyle(.tertiary)
                     }
                     Color.clear
                         .frame(height: 1)
                         .id(Self.bottomID)
                 }
+                .padding(.bottom, 12)
                 .textSelection(.enabled)
             }
             .scrollIndicators(.hidden)
@@ -137,7 +140,7 @@ private struct LiveTranscriptionLanguageMenu: View {
                 Image(systemName: "chevron.up.chevron.down")
                     .imageScale(.small)
             }
-            .font(.caption.bold())
+            .font(.caption)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
