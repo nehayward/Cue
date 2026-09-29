@@ -303,12 +303,15 @@ struct PlayerView: View {
 
     // MARK: - Toolbar
 
-    /// The close chevron leading, the device or the group in the middle with
-    /// its service or battery under it, and trailing the sleep timer, the
+    /// The device or the group in the middle with its service or battery
+    /// under it (and a close chevron leading on the Mac), and trailing the sleep timer, the
     /// like button and the menu — up here on every size, so the bar below
     /// is only ever about where to go.
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
+#if targetEnvironment(macCatalyst)
+        // Only on the Mac: elsewhere the zoom dismisses on a downward drag,
+        // but the Mac's plain cover has no gesture to close it.
         ToolbarItem(placement: .topBarLeading) {
             Button {
                 dismiss()
@@ -319,6 +322,7 @@ struct PlayerView: View {
             .tint(.primary)
             .help("Close")
         }
+#endif
 
         ToolbarItem(placement: .principal) {
             title
