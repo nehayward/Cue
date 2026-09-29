@@ -22,6 +22,8 @@ public enum RouterDestination: Hashable, Identifiable {
     case playableLibraryList(title: String, items: Binding<OrderedSet<PlayableContent>>, action: ((Int) async -> Void))
     case playableGridScreen(title: String, items: Binding<OrderedSet<PlayableContent>>, action: ((Int) async -> Void))
     case fullPlayHistoryList
+    /// The songs the Shazam button has named.
+    case recognizedSongs
     case servicePreferenceScreen
     /// The download manager: what's coming down, what's here, and the
     /// iCloud Drive side of the Files folder.
@@ -68,6 +70,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "playableContentList"
         case .fullPlayHistoryList:
             return "fullPlayHistoryList"
+        case .recognizedSongs:
+            return "recognizedSongs"
         case .playableLibraryList(title: _, items: _, action: _):
             return "playableLibraryList"
         case .playableGridScreen(title: _, items: _, action: _):
@@ -133,6 +137,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return items1.wrappedValue == items2.wrappedValue
         case (.fullPlayHistoryList, .fullPlayHistoryList):
             return true
+        case (.recognizedSongs, .recognizedSongs):
+            return true
         case (.downloads, .downloads):
             return true
         case let (.onDeviceCollection(collection1), .onDeviceCollection(collection2)):
@@ -182,6 +188,8 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine(items.wrappedValue)
         case .fullPlayHistoryList:
             hasher.combine("fullPlayHistoryList")
+        case .recognizedSongs:
+            hasher.combine("recognizedSongs")
         case .houseHold:
             hasher.combine("houseHolds")
         case .servicePreferenceScreen:

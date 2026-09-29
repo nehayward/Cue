@@ -1150,6 +1150,8 @@ private struct LocalPlayerMenuView: View {
                 Label("\(showArtworkOnly ? "Show" : "Hide") controls", systemImage: "photo")
             }
 
+            ShazamHistoryMenuButton(router: router, group: nil)
+
             LocalDownloadMenuSection(item: item)
 
             ControlGroup {

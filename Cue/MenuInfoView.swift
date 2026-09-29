@@ -98,6 +98,7 @@ struct MenuInfoView: View {
                         Label("\(showArtworkOnly ? "Show" : "Hide") controls", systemImage: "photo")
                     }
                 }
+                ShazamHistoryMenuButton(router: router, group: group)
                 BatteryInfoMenuView(group: group)
                 SpeakerSettingsMenuView(group: group)
                 ControlGroup {

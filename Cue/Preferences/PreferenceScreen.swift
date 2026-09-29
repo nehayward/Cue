@@ -398,6 +398,31 @@ struct PreferenceScreen: View {
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }.gated(.scenes)
+                    NavigationLink(value: RouterDestination.recognizedSongs) {
+                        LabeledContent {
+                            let count = RecognitionHistory.shared.entries.count
+                            if count > 0 {
+                                Text(count, format: .number)
+                            }
+                        } label: {
+                            Label {
+                                Text("Shazam History")
+                            } icon: {
+                                Image(systemName: "shazam.logo.fill")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .foregroundStyle(.white)
+                                    .bold()
+                                    .padding(7)
+                                    .frame(width: 32, height: 32)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(LinearGradient(colors: [Color(red: 0.1, green: 0.55, blue: 1.0), Color(red: 0.05, green: 0.4, blue: 0.9)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    )
+                                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                            }
+                        }
+                    }
                 } header: {
                     Text("Music")
                         .headerProminence(.increased)

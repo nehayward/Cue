@@ -4,9 +4,10 @@ import SwiftUI
 /// The player bar's Shazam button, shown while a station plays — on this
 /// device (`group` nil) or on a speaker. ⌘⇧S from a keyboard.
 ///
-/// Identifies in place: the logo pulses while it listens, the song comes
-/// up in the banner, and on this device it also becomes what's on air in
-/// the player. A second tap while listening stops.
+/// Identifies in place: the logo pulses and ripples while it listens, the
+/// song comes up in the banner and in Shazam History, and on this device it
+/// also becomes what's on air in the player. A second tap while listening
+/// stops.
 struct IdentifySongButton: View {
     /// The speaker group on screen, or nil for this device.
     let group: GroupRoom?
@@ -36,6 +37,13 @@ struct IdentifySongButton: View {
                 .fontDesign(.rounded)
                 .foregroundStyle(recognizer.isListening ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
                 .symbolEffect(.pulse, options: .repeating, isActive: recognizer.isListening)
+                .background {
+                    if recognizer.isListening {
+                        ListeningRipple()
+                            .transition(.opacity)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.25), value: recognizer.isListening)
         }
         .accessibilityLabel(recognizer.isListening ? "Stop Identifying" : "Identify Song")
         .help("Identify Song")
@@ -46,20 +54,26 @@ struct IdentifySongButton: View {
         if let group {
             // Listens to the station's stream from this device — the same
             // URL the speaker is playing.
+            let station = group.coordinatorRoom.track.metadata?.stationName
             recognizer.identify { [group] in
                 await SonosService.shared.radioStreamURL(for: group)
             } onFinish: { state in
+                if case .found(let song) = state {
+                    RecognitionHistory.shared.record(song, station: station)
+                }
                 Self.announce(state)
             }
         } else {
             // Captured now, so a match that lands after the station has
             // changed isn't shown as the new one's song.
             let stationID = playback.nowPlaying?.content.id
+            let station = playback.nowPlaying?.title
             recognizer.identify {
                 await playback.currentStationStreamURL()
             } onFinish: { state in
                 if case .found(let song) = state {
                     playback.noteRecognized(song, stationID: stationID)
+                    RecognitionHistory.shared.record(song, station: station)
                 }
                 Self.announce(state)
             }
@@ -89,6 +103,62 @@ struct IdentifySongButton: View {
             alerts.showAlert(with: message, imageName: "exclamationmark.triangle")
         case .idle, .listening:
             break
+        }
+    }
+}
+
+/// Rings that spread out from the Shazam logo while it listens — the
+/// "hearing something" cue from Shazam's own button, so the wait for a
+/// match reads as work in progress rather than a stuck tap.
+private struct ListeningRipple: View {
+    private static let period: Double = 1.8
+    private static let rings = 3
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                Circle()
+                    .fill(Color.accentColor.opacity(0.18))
+                    .scaleEffect(1.5)
+            } else {
+                TimelineView(.animation) { context in
+                    let time = context.date.timeIntervalSinceReferenceDate
+                    ZStack {
+                        ForEach(0..<Self.rings, id: \.self) { ring in
+                            let phase = (time / Self.period + Double(ring) / Double(Self.rings))
+                                .truncatingRemainder(dividingBy: 1)
+                            Circle()
+                                .fill(Color.accentColor.opacity(0.22 * (1 - phase)))
+                                .overlay {
+                                    Circle().strokeBorder(Color.accentColor.opacity(0.6 * (1 - phase)), lineWidth: 1.5)
+                                }
+                                .scaleEffect(0.9 + phase * 0.9)
+                        }
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// "Shazam History…" in a player's menu, while a station plays or once
+/// there's something to look back on. Opens the list in Settings.
+struct ShazamHistoryMenuButton: View {
+    let router: Router
+    /// The speaker group on screen, or nil for this device.
+    let group: GroupRoom?
+
+    var body: some View {
+        if IdentifySongButton.isAvailable(for: group) || !RecognitionHistory.shared.entries.isEmpty {
+            Button {
+                router.sheet(to: .settings(destination: .recognizedSongs))
+            } label: {
+                Label("Shazam History…", systemImage: "shazam.logo")
+            }
         }
     }
 }

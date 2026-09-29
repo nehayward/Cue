@@ -69,6 +69,8 @@ struct RouterDestinationView: View {
                     .environment(group)
             case .fullPlayHistoryList:
                 PlayHistoryFullView()
+            case .recognizedSongs:
+                RecognizedSongsScreen()
             case let .playableLibraryList(title: title, items: items, action: action):
                 PlayableList(items: items, action: action)
                     .navigationTitle(title)
