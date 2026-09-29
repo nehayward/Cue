@@ -172,12 +172,20 @@ fileprivate struct OverlayIcons: View {
     let isRadio: Bool
     let size: Double
     
-    private var showsServiceIcon: Bool { !isRadio || service.hasBrandedRadioBadge }
+    /// Every station keeps its service's logo, as the Sonos player's cover
+    /// does — a Plex or Apple Music station read as "some radio" with the
+    /// generic glyph. That glyph is only for a station with no known service.
+    private var showsServiceIcon: Bool { !isRadio || service != .unknown }
+
+    /// Large covers (the player's) get the badge the Sonos player's cover
+    /// has — 24pt, inset 8 — rather than a row thumbnail's 18pt, which read
+    /// as a speck on a cover that size.
+    private var isLarge: Bool { size > 100 }
 
     var body: some View {
         service.icon
             .opacity(showsServiceIcon ? 1 : 0)
-            .frame(width: 18, height: 18, alignment: .bottomLeading)
+            .frame(width: isLarge ? 24 : 18, height: isLarge ? 24 : 18, alignment: .bottomLeading)
             .padding(2)
             .overlay {
                 Image(systemName: "radio.fill")
@@ -187,6 +195,7 @@ fileprivate struct OverlayIcons: View {
                     .padding(2)
                     .opacity(showsServiceIcon ? 0 : 1)
             }
+            .padding(isLarge ? 6 : 0)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             .foregroundStyle(content.content.type.isArtist ? AnyShapeStyle(.primary) : AnyShapeStyle(.white))
     }

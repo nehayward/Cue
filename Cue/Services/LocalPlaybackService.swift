@@ -254,6 +254,9 @@ final class LocalPlaybackService {
     /// True while the stream backend is armed — the Sonos Lock Screen mirror
     /// stands down for it, since iOS has one Now Playing app at a time.
     private(set) var isPlayingLocalStream = false
+    /// The stream player's items, current first — what Live Transcription
+    /// taps when it opens partway through a run.
+    var streamItems: [AVPlayerItem] { streamPlayer?.items() ?? [] }
     /// Debounces the playback cache's look at the queue: page appends and
     /// polled index changes come in bursts.
     @ObservationIgnored private var cacheRefreshTask: Task<Void, Never>?
@@ -1138,6 +1141,7 @@ final class LocalPlaybackService {
             streamPlayer.remove(playerItem)
             streamRun[ObjectIdentifier(playerItem)] = nil
             streamRun[ObjectIdentifier(replacement)] = queueIndex
+            LiveTranscriptionService.shared.playerItemArmed(replacement)
             return
         }
     }
@@ -1198,6 +1202,7 @@ final class LocalPlaybackService {
             if isStation(item) {
                 listenForStreamTitles(on: playerItem, token: token)
             }
+            LiveTranscriptionService.shared.playerItemArmed(playerItem)
             rows.append((queueIndex, playerItem))
             lastArmed = queueIndex
         }

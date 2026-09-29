@@ -112,6 +112,17 @@ A Settings ▸ Services section under Self-Hosted: Format (Original / MP3 / Opus
 - Tests: `SubsonicTests` (speaker/device transcode params, Opus→MP3 for speakers, original-file overload ignores the setting) and `StreamTranscodingTests` (defaults, bitrate validation, Plex transcoder URL shape).
 - First device run: Plex answered an Opus transcode with its 89-byte "400 Bad Request" page, and the download manager kept the page as a completed `.opus` song. Two fixes. `StreamResponseCheck` (SonosKit) fails a finished download or cache fetch whose response is a non-2xx or a text/XML/JSON body, with the status in the row's error. And the Plex request declares its own transcode target (`X-Plex-Client-Profile-Extra=add-transcode-target(…protocol=http&container=ogg&audioCodec=opus)`, on the Generic platform profile) — the stock profiles list MP3 over HTTP but not Opus, which is the 400. Opus travels in Ogg on Plex, so the container and the `start.ogg` path name say so; the saved file is still `.opus`. Subsonic's `estimateContentLength` is now speaker-only: a device download that ends short of an estimated length is a failed transfer. `DownloadManager.Item` keeps `sourceURL`/`audioCodec` and rebuilds `url`/`fileExtension` on `resume` (`DeviceStream`, SonosKit), so a refused format can be changed in Settings and the download retried.
 
+
+### Live Transcription in the device player
+
+A header button in `PlayerView` (⇧⌘T) swaps the artwork for a live transcript of what the device is playing, from Apple's on-device `SpeechAnalyzer` / `SpeechTranscriber` (iOS 26, Catalyst and visionOS 26). Device playback only: Apple Music plays in the system music service and a speaker's audio never reaches the device, so the panel says so instead.
+
+- `TranscriptionAudioTap` puts a pre-effects `MTAudioProcessingTap` on an `AVPlayerItem`'s audio track (waiting for `.readyToPlay`, since a stream only knows its tracks then) and copies each chunk out; the audio passes through untouched and the player's volume doesn't change what's heard. HLS stations have no tappable track.
+- `TranscriptionEngine` fetches the locale's model through `AssetInventory` on first use (progress shown), resamples with `AVAudioConverter` to `SpeechAnalyzer.bestAvailableAudioFormat`, and streams volatile + final results back.
+- `LiveTranscriptionService` only runs while `LiveTranscriptionView` is on screen: it taps `LocalPlaybackService.streamItems` on activate, is handed newly armed items via `playerItemArmed(_:)` (from `armStream` and `cachedCopyLanded`), and takes every tap off on deactivate, so playback with the panel closed is unchanged. It follows `nowPlaying` / `isPlayingLocalStream` with `withObservationTracking`, restarting the engine on a new song, station or language. Tap-to-engine buffers go through a lock-guarded `AsyncStream` (newest 512 kept).
+- On/off persists in `AppStorageKeys.liveTranscriptionEnabled`; the language is kept per station id in `liveTranscriptionLocales`, with `"*"` as the fallback for tracks and anything new.
+- `NSSpeechRecognitionUsageDescription` added to the Cue, Mac and Vision targets.
+
 ---
 
 ## 2026.7

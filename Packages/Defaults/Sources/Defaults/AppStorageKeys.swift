@@ -74,8 +74,19 @@ public enum AppStorageKeys {
     /// the Play came from — so the player can name its origin the way the
     /// Sonos player names the speaker's container, across a relaunch.
     public static let localQueueSource = "\(Prefix.id).localQueueSource"
+    /// Whether the player shows Live Transcription, so the toggle holds
+    /// across launches.
+    public static let liveTranscriptionEnabled = "\(Prefix.id).liveTranscriptionEnabled"
+    /// The transcription language picked per station — `[station id:
+    /// locale identifier]` — with `LiveTranscriptionService.anyContentKey`
+    /// holding the last pick for anything that isn't a station.
+    public static let liveTranscriptionLocales = "\(Prefix.id).liveTranscriptionLocales"
     public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
+    /// What switching the route (This Device ↔ a speaker) does with what's
+    /// playing: `"ask"`, `"always"` (carry the queue across) or `"never"`
+    /// (only change where the next Play goes). Asks when unset.
+    public static let routeQueueTransfer = "\(Prefix.id).routeQueueTransfer"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
     public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
     public static let lastPlaylistService = "\(Prefix.id).lastPlaylistService"
