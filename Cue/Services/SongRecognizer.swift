@@ -51,11 +51,11 @@ final class SongRecognizer {
     private static let sampleSeconds: Double = 8
 
     /// Listens to the stream `resolve` hands back and names the song on it,
-    /// handing a match to `onFound` too. A new call replaces one still
-    /// listening.
+    /// handing the outcome to `onFinish`. A new call replaces one still
+    /// listening, whose `onFinish` then never runs.
     func identify(
         stream resolve: @escaping @MainActor () async -> URL?,
-        onFound: @escaping @MainActor (RecognizedSong) -> Void = { _ in }
+        onFinish: @escaping @MainActor (State) -> Void = { _ in }
     ) {
         task?.cancel()
         state = .listening
@@ -63,11 +63,11 @@ final class SongRecognizer {
             let state = await Self.recognize(resolve: resolve)
             guard !Task.isCancelled, let self else { return }
             self.state = state
-            if case .found(let song) = state {
-                onFound(song)
-            }
+            onFinish(state)
         }
     }
+
+    var isListening: Bool { state == .listening }
 
     func cancel() {
         task?.cancel()
