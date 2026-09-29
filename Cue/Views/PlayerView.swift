@@ -10,8 +10,8 @@ import VibesDS
 /// swaps the player out from under the user; the sections just read from
 /// `LocalPlaybackService` or from the group.
 ///
-/// A header names the device or the group, with the sleep timer, the like
-/// button and the menu beside it; below it the artwork, the album line,
+/// The navigation bar names the device or the group, with the sleep timer,
+/// the like button and the menu beside it; below it the artwork, the album line,
 /// the title and the artist (each opening its detail), the scrubber with
 /// the audio-quality badge, the transport, the volume row with its
 /// steppers, and the glass bar: the route picker, on a speaker the group
@@ -74,34 +74,39 @@ struct PlayerView: View {
         LiveTranscriptionService.shared.isEnabled && canTranscribe
     }
 
-    /// The header's title: this device, or the group's name.
+    /// The bar's title: this device, or the group's name.
     private var deviceName: String { UIDevice.current.name }
 
     var body: some View {
-        // No `NavigationStack`: the cover's root stays the view the zoom
-        // transition morphs out of the mini player — wrapping it in a stack
-        // lost the zoom. The bar is drawn as `header` instead.
-        VStack(alignment: .center) {
-            header
-
-            if let group {
-                groupContent(group)
-            } else if let item = playback.nowPlayingDisplay {
-                // The display item, not the queue row: a station reads as
-                // the song on air here.
-                deviceContent(item)
-            } else {
-                Spacer()
-                ContentUnavailableView("Nothing Playing", systemImage: "iphone.radiowaves.left.and.right")
-                Spacer()
+        // The stack sits inside the queue panel, so its bar spans the player
+        // column only, and the backdrop is drawn behind both from outside.
+        // An earlier stack here lost the zoom out of the mini player; if it
+        // goes again, that's where to look.
+        NavigationStack {
+            VStack(alignment: .center) {
+                if let group {
+                    groupContent(group)
+                } else if let item = playback.nowPlayingDisplay {
+                    // The display item, not the queue row: a station reads as
+                    // the song on air here.
+                    deviceContent(item)
+                } else {
+                    Spacer()
+                    ContentUnavailableView("Nothing Playing", systemImage: "iphone.radiowaves.left.and.right")
+                    Spacer()
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.interactiveSpring, value: showArtworkOnly)
+            .padding(.horizontal, 32)
+            .padding(.top, 8)
+            .safeAreaPadding(.bottom)
+            .ignoresSafeArea(.keyboard)
+            .toolbar { toolbarContent }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .modifier(ClearNavigationBackground { backdrop })
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.interactiveSpring, value: showArtworkOnly)
-        .padding(.horizontal, 32)
-        .padding(.top, 8)
-        .safeAreaPadding(.bottom)
-        .ignoresSafeArea(.keyboard)
         // Presented from in here rather than the main window: its sheets
         // hang off the tab content underneath this cover and would come up
         // behind it.
@@ -115,13 +120,7 @@ struct PlayerView: View {
         .queuePanel(isPresented: $showQueue) {
             QueueNextUpView()
         }
-        .background {
-            if let group {
-                GroupPlayerBackgroundView(group: group, shouldFade: artworkShouldFade)
-            } else {
-                PlayerBackgroundView(content: playback.nowPlayingDisplay)
-            }
-        }
+        .background { backdrop }
         // The speaker's socket, sleep timer, play mode and hardware volume
         // while a group is on screen; a drop on the screen plays wherever
         // the route points.
@@ -129,6 +128,16 @@ struct PlayerView: View {
         .fontDesign(.rounded)
         .environment(router)
         .withEnvironments()
+    }
+
+    /// The blurred artwork behind the whole cover, queue panel included.
+    @ViewBuilder
+    private var backdrop: some View {
+        if let group {
+            GroupPlayerBackgroundView(group: group, shouldFade: artworkShouldFade)
+        } else {
+            PlayerBackgroundView(content: playback.nowPlayingDisplay)
+        }
     }
 
     // MARK: - This device
@@ -292,122 +301,135 @@ struct PlayerView: View {
         }
     }
 
-    // MARK: - Header
+    // MARK: - Toolbar
 
-    /// Stands in for a navigation bar: the close chevron leading, the
-    /// device or the group in the middle with its service or battery under
-    /// it, and trailing the sleep timer, the like button and the menu — up
-    /// here on every size, so the bar below is only ever about where to go.
-    private var header: some View {
-        ZStack {
-            VStack(spacing: 0) {
-                Text(group?.nameWithCount ?? deviceName)
-                    .bold()
-                    .fontDesign(.rounded)
-                    .foregroundStyle(.primary)
-                    .multilineTextAlignment(.center)
-                    .contentTransition(.identity)
-                if let group {
-                    // The lowest battery in the group, for a Roam or Move:
-                    // the one at risk first.
-                    if let battery = group.lowestBattery {
-                        Text("\(Int(battery.percentage.rounded()))%")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                } else if let item = playback.nowPlaying {
-                    // Where a speaker shows a battery, this shows the
-                    // service the track is coming from.
-                    Text(item.content.service.title)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .contentTransition(.identity)
-                }
+    /// The close chevron leading, the device or the group in the middle with
+    /// its service or battery under it, and trailing the sleep timer, the
+    /// like button and the menu — up here on every size, so the bar below
+    /// is only ever about where to go.
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button {
+                dismiss()
+            } label: {
+                Label("Close", systemImage: "chevron.down")
+                    .labelStyle(.iconOnly)
             }
+            .tint(.primary)
+            .help("Close")
+        }
 
-            HStack(spacing: 12) {
-                Button {
-                    dismiss()
-                } label: {
-                    Label("Close", systemImage: "chevron.down")
-                        .labelStyle(.iconOnly)
-                        .frame(width: 24, height: 24)
+        ToolbarItem(placement: .principal) {
+            title
+        }
+
+        if let chip = sleepTimerChip {
+#if !os(visionOS)
+            if #available(iOS 26.0, *) {
+                // Its own capsule, apart from the buttons beside it.
+                ToolbarItem(placement: .topBarTrailing) { chip }
+                    .sharedBackgroundVisibility(.hidden)
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+            } else {
+                ToolbarItem(placement: .topBarTrailing) { chip }
+            }
+#else
+            ToolbarItem(placement: .topBarTrailing) { chip }
+#endif
+        }
+
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            if canTranscribe {
+                LiveTranscriptionButton()
+                    .tint(.primary)
+            }
+            if let group {
+                LikeButtonView(group: group)
+                MenuInfoView(group: group, showArtworkOnly: $showArtworkOnly)
+                    .tint(.primary)
+                    .modifier(GroupRefreshOnForegroundModifier())
+            } else if let item = playback.nowPlaying {
+                // The song on air, while a station plays and Apple
+                // Music has it.
+                if let song = playback.onAirMatch {
+                    LikeButtonView(content: song)
+                        .id(song.content.id)
+                } else if item.content.service.supportsFavoriteTrack {
+                    LikeButtonView(content: item)
                 }
-                .buttonBorderShape(.circle)
-                .glassButton()
-                .help("Close")
-
-                Spacer()
-
-                if let group {
-                    if let date = group.coordinatorRoom.sleepTimer, date > Date.now {
-                        sleepTimerChip(on: group.coordinatorRoom.name) {
-                            Text(date, style: .timer)
-                                .contentTransition(.numericText(countsDown: true))
-                                .animation(.spring, value: date)
-                                .monospacedDigit()
-                                .bold()
-                        } cancel: {
-                            Task { await sonosService.stopSleepTimer(group: group) }
-                        }
-                    }
-
-                    if canTranscribe {
-                        LiveTranscriptionButton()
-                            .glassButton()
-                            .tint(.primary)
-                    }
-                    LikeButtonView(group: group)
-                        .glassButton()
-                    MenuInfoView(group: group, showArtworkOnly: $showArtworkOnly)
-                        .buttonBorderShape(.circle)
-                        .glassButton()
-                        .tint(.primary)
-                        .modifier(GroupRefreshOnForegroundModifier())
-                } else if let item = playback.nowPlaying {
-                    if let date = playback.sleepTimerEndDate, date > Date.now {
-                        sleepTimerChip(on: deviceName) {
-                            Text(date, style: .timer)
-                                .contentTransition(.numericText(countsDown: true))
-                                .animation(.spring, value: date)
-                                .monospacedDigit()
-                                .bold()
-                        } cancel: {
-                            playback.cancelSleepTimer()
-                        }
-                    } else if playback.sleepsAtEndOfTrack {
-                        sleepTimerChip(on: deviceName) {
-                            Text("End of Song")
-                                .bold()
-                        } cancel: {
-                            playback.cancelSleepTimer()
-                        }
-                    }
-
-                    if canTranscribe {
-                        LiveTranscriptionButton()
-                            .glassButton()
-                            .tint(.primary)
-                    }
-                    // The song on air, while a station plays and Apple
-                    // Music has it.
-                    if let song = playback.onAirMatch {
-                        LikeButtonView(content: song)
-                            .glassButton()
-                            .id(song.content.id)
-                    } else if item.content.service.supportsFavoriteTrack {
-                        LikeButtonView(content: item)
-                            .glassButton()
-                    }
-                    LocalPlayerMenuView(item: item, showArtworkOnly: $showArtworkOnly)
-                        .buttonBorderShape(.circle)
-                        .glassButton()
-                        .tint(.primary)
-                }
+                LocalPlayerMenuView(item: item, showArtworkOnly: $showArtworkOnly)
+                    .tint(.primary)
             }
         }
-        .frame(minHeight: 44)
+    }
+
+    /// The device or the group, with its lowest battery or the service the
+    /// track is coming from under it.
+    private var title: some View {
+        VStack(spacing: 0) {
+            Text(group?.nameWithCount ?? deviceName)
+                .bold()
+                .fontDesign(.rounded)
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
+                .contentTransition(.identity)
+            if let group {
+                // The lowest battery in the group, for a Roam or Move:
+                // the one at risk first.
+                if let battery = group.lowestBattery {
+                    Text("\(Int(battery.percentage.rounded()))%")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            } else if let item = playback.nowPlaying {
+                // Where a speaker shows a battery, this shows the
+                // service the track is coming from.
+                Text(item.content.service.title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .contentTransition(.identity)
+            }
+        }
+    }
+
+    /// The sleep timer chip for whatever is on screen, or `nil` while no
+    /// timer is set.
+    private var sleepTimerChip: AnyView? {
+        if let group {
+            guard let date = group.coordinatorRoom.sleepTimer, date > Date.now else { return nil }
+            return AnyView(sleepTimerChip(on: group.coordinatorRoom.name) {
+                Text(date, style: .timer)
+                    .contentTransition(.numericText(countsDown: true))
+                    .animation(.spring, value: date)
+                    .monospacedDigit()
+                    .bold()
+            } cancel: {
+                Task { await sonosService.stopSleepTimer(group: group) }
+            })
+        }
+        guard playback.nowPlaying != nil else { return nil }
+        if let date = playback.sleepTimerEndDate, date > Date.now {
+            return AnyView(sleepTimerChip(on: deviceName) {
+                Text(date, style: .timer)
+                    .contentTransition(.numericText(countsDown: true))
+                    .animation(.spring, value: date)
+                    .monospacedDigit()
+                    .bold()
+            } cancel: {
+                playback.cancelSleepTimer()
+            })
+        }
+        if playback.sleepsAtEndOfTrack {
+            return AnyView(sleepTimerChip(on: deviceName) {
+                Text("End of Song")
+                    .bold()
+            } cancel: {
+                playback.cancelSleepTimer()
+            })
+        }
+        return nil
     }
 
     /// The sleep timer chip: the moon, whatever `detail` says about when,
@@ -437,6 +459,25 @@ struct PlayerView: View {
             Button("Keep Timer", role: .cancel) { }
         } message: {
             Text("Stop the sleep timer on \(target)?")
+        }
+    }
+}
+
+// MARK: - Navigation background
+
+/// Lets the backdrop drawn behind the whole cover show through the
+/// navigation stack. Before iOS 18 the stack's background can't be cleared,
+/// so the backdrop is drawn again inside it.
+private struct ClearNavigationBackground<Backdrop: View>: ViewModifier {
+    @ViewBuilder var backdrop: () -> Backdrop
+
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, visionOS 2.0, *) {
+            content
+                .containerBackground(.clear, for: .navigation)
+        } else {
+            content
+                .background { backdrop() }
         }
     }
 }
@@ -878,7 +919,7 @@ private struct LocalVolumeControlView: View {
 /// the window's tabs are a dismiss away on every size, and the cover's
 /// sheets only doubled them. On the Mac the queue goes too — the window
 /// toolbar's toggle is in the top-right corner over this same view. The
-/// like button and the menu live in the header on every size, so this row
+/// like button and the menu live in the navigation bar on every size, so this row
 /// is only ever about where to go next.
 private struct PlayerBottomToolbarView: View {
     @Environment(Router.self) private var router: Router
