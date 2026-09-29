@@ -122,7 +122,14 @@ final class MediaServerHandler {
                 let servers = MediaServerParser.parse(xmlString: services)
                 // Cache the media servers
                 KeychainManager.shared.saveMediaServers(householdId: zoneGroupState.houseHoldID, servers: servers)
-                if let plex = servers.first(where: { $0.type == .plex }) {
+                // Plex belongs to Cue, not to a Sonos household: only borrow
+                // the household's Plex sign-in when Cue has none of its own.
+                // Overwriting it meant switching Sonos systems swapped in
+                // another account's token (or one plex.tv rejects, which
+                // resets the sign-in and the chosen server).
+                if let plex = servers.first(where: { $0.type == .plex }),
+                   !plex.token.isEmpty,
+                   UserDefaults.standard.string(forKey: "com.cue.plexToken") == nil {
                     UserDefaults.standard.setValue(plex.token, forKey: "com.cue.plexToken")
                 }
                 print("📦 Cached \(servers.count) media servers for household: \(zoneGroupState.houseHoldID)")
