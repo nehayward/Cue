@@ -63,6 +63,12 @@ struct PlayerView: View {
         shouldFade && !Router.main.isSkippingTrack
     }
 
+    /// Live Transcription is on, and this device can run it. The artwork's
+    /// place, not a speaker's: it hears only this device's player.
+    private var showsTranscription: Bool {
+        LiveTranscriptionService.shared.isEnabled && LiveTranscriptionService.isSupported
+    }
+
     /// The header's title: this device, or the group's name.
     private var deviceName: String { UIDevice.current.name }
 
@@ -124,8 +130,18 @@ struct PlayerView: View {
 
     @ViewBuilder
     private func deviceContent(_ item: PlayableContent) -> some View {
-        ContentArtworkView(content: item, showMusicSource: true, preferredSize: 600, cornerRadius: 8, isDraggable: true)
-            .shadow(radius: 2)
+        // Live Transcription takes the artwork's place, in the same frame,
+        // so the controls below don't move when it's switched.
+        Group {
+            if showsTranscription {
+                LiveTranscriptionView()
+                    .transition(.opacity)
+            } else {
+                ContentArtworkView(content: item, showMusicSource: true, preferredSize: 600, cornerRadius: 8, isDraggable: true)
+                    .shadow(radius: 2)
+                    .transition(.opacity)
+            }
+        }
             .padding(.bottom, showArtworkOnly ? 0 : 12)
             .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
             .padding(.top, showArtworkOnly ? 100 : nil)
@@ -348,6 +364,11 @@ struct PlayerView: View {
                         }
                     }
 
+                    if LiveTranscriptionService.isSupported {
+                        LiveTranscriptionButton()
+                            .glassButton()
+                            .tint(.primary)
+                    }
                     if item.content.service.supportsFavoriteTrack {
                         LikeButtonView(content: item)
                             .glassButton()
