@@ -183,7 +183,11 @@ struct PlayerView: View {
 
         if !showArtworkOnly {
             VStack {
-                LocalPlaybackScrubber()
+                if playback.canTimeShift {
+                    LocalLiveScrubber()
+                } else {
+                    LocalPlaybackScrubber()
+                }
                 LocalMediaControlsView()
             }
             .geometryGroup()
@@ -777,16 +781,107 @@ private struct LocalPlaybackScrubber: View {
     }
 }
 
+/// A station's scrubber: the stretch of it the device has recorded, from
+/// the oldest moment held to the air, with how far behind live it is and a
+/// way back to live.
+private struct LocalLiveScrubber: View {
+    private var playback: LocalPlaybackService { .shared }
+
+    /// Held only while dragging, as in `LocalPlaybackScrubber`.
+    @State private var scrubPosition: TimeInterval?
+
+    var body: some View {
+        let shift = playback.timeShift ?? .init(start: 0, live: 0, position: 0)
+        let lower = shift.start
+        let upper = max(shift.live, lower + 1)
+        let position = min(max(scrubPosition ?? shift.position, lower), upper)
+        let behind = Duration.seconds(max(0, upper - position))
+        let isLive = scrubPosition == nil && shift.isLive
+        let behindLabel: String = isLive ? "" : "-\(behind.formatted(.time(pattern: .minuteSecond)))"
+        let spokenPosition: String = isLive ? "Live" : "\(behind.formatted(.units(allowed: [.minutes, .seconds], width: .wide))) behind live"
+
+        VStack(spacing: 0) {
+            VibeSlider(
+                value: Binding(
+                    get: { position },
+                    set: { scrubPosition = $0 }
+                ),
+                in: lower...upper,
+                step: 1,
+                baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24,
+                delayDrag: false
+            ) { isEditing in
+                guard !isEditing else { return }
+                if let scrubPosition {
+                    playback.seekLive(to: scrubPosition)
+                }
+                scrubPosition = nil
+            }
+            .frame(maxWidth: 500)
+            .frame(height: 40)
+            .foregroundStyle(.primary)
+            .accessibilityLabel("Position in Live Radio")
+            .accessibilityValue(spokenPosition)
+
+            HStack {
+                Text(verbatim: behindLabel)
+                    .contentTransition(.identity)
+                Spacer()
+                Button {
+                    HapticManager.shared.fireHaptic(.selection)
+                    playback.goLive()
+                } label: {
+                    Label("Live", systemImage: "dot.radiowaves.left.and.right")
+                        .labelStyle(.titleAndIcon)
+                        .font(.caption.bold())
+                        .textCase(.uppercase)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .foregroundStyle(isLive ? Color.white : Color.primary)
+                        .background(isLive ? Color.red : Color.primary.opacity(0.15), in: .capsule)
+                }
+                .buttonStyle(.plain)
+                // Live already: the badge says so, and there's nowhere to go.
+                .allowsHitTesting(!isLive)
+                .accessibilityLabel(isLive ? "Live" : "Go Live")
+                .animation(.spring, value: isLive)
+            }
+            .frame(maxWidth: 500)
+            .monospacedDigit()
+            .font(.caption)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 60)
+    }
+}
+
 /// Transport, mirroring `LargePlayerView.PlayerMediaControlsView`.
 private struct LocalMediaControlsView: View {
     private var playback: LocalPlaybackService { .shared }
 
-    /// A station has nothing to skip to, so it gets play/pause alone.
+    /// A station has nothing to skip to: it gets play/pause, and a minute
+    /// back and forward when the device is recording it.
     private var isStation: Bool { playback.isPlayingStation }
+    private var timeShift: LocalPlaybackService.TimeShift? { playback.timeShift }
 
     var body: some View {
         HStack {
-            if !isStation {
+            if let timeShift {
+                Button {
+                    HapticManager.shared.fireHaptic(.selection)
+                    playback.skipLive(by: -60)
+                } label: {
+                    Image(systemName: "gobackward.60")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.liveActivity)
+                .accessibilityLabel("Back 1 Minute")
+                .disabled(!timeShift.canGoBack)
+
+                Spacer()
+            } else if !isStation {
                 Button {
                     HapticManager.shared.fireHaptic(.selection)
                     playback.previous()
@@ -816,7 +911,22 @@ private struct LocalMediaControlsView: View {
             .buttonStyle(.liveActivity)
             .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
 
-            if !isStation {
+            if let timeShift {
+                Spacer()
+
+                Button {
+                    HapticManager.shared.fireHaptic(.selection)
+                    playback.skipLive(by: 60)
+                } label: {
+                    Image(systemName: "goforward.60")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.liveActivity)
+                .accessibilityLabel("Forward 1 Minute")
+                .disabled(timeShift.isLive)
+            } else if !isStation {
                 Spacer()
 
                 Button {
@@ -833,7 +943,7 @@ private struct LocalMediaControlsView: View {
                 .disabled(!playback.hasNext)
             }
         }
-        .frame(maxWidth: isStation ? nil : 300)
+        .frame(maxWidth: isStation && timeShift == nil ? nil : 300)
         .padding(.horizontal, 60)
     }
 }

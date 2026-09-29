@@ -28,7 +28,13 @@ final class LocalNowPlayingPresenter {
         var isPlaying: Bool
         var artworkURL: URL?
         var canSkip: Bool
+        /// A station that can be taken back: skip-interval buttons in place
+        /// of previous.
+        var canTimeShift: Bool
     }
+
+    /// The Lock Screen's skip interval for a station, both ways.
+    private static let timeShiftInterval: TimeInterval = 60
 
     private var published: Snapshot?
     private var publishedElapsed: TimeInterval = 0
@@ -82,7 +88,8 @@ final class LocalNowPlayingPresenter {
             duration: duration.isFinite ? duration : 0,
             isPlaying: isPlaying,
             artworkURL: item.artwork ?? item.thumbnail,
-            canSkip: canSkip
+            canSkip: canSkip,
+            canTimeShift: player?.timeShift != nil
         )
         let cardIsOurs = isOurs(MPNowPlayingInfoCenter.default().nowPlayingInfo)
         // A stall or a hiccup can leave the system's clock well off; a
@@ -125,7 +132,10 @@ final class LocalNowPlayingPresenter {
         MPNowPlayingInfoCenter.default().playbackState = snapshot.isPlaying ? .playing : .paused
 
         let center = MPRemoteCommandCenter.shared()
-        center.nextTrackCommand.isEnabled = snapshot.canSkip
+        center.nextTrackCommand.isEnabled = snapshot.canSkip && !snapshot.canTimeShift
+        center.previousTrackCommand.isEnabled = !snapshot.canTimeShift
+        center.skipBackwardCommand.isEnabled = snapshot.canTimeShift
+        center.skipForwardCommand.isEnabled = snapshot.canTimeShift
         center.changePlaybackPositionCommand.isEnabled = snapshot.duration > 0
 
         published = snapshot
@@ -188,6 +198,8 @@ final class LocalNowPlayingPresenter {
         center.nextTrackCommand.isEnabled = true
         center.previousTrackCommand.isEnabled = true
         center.changePlaybackPositionCommand.isEnabled = true
+        center.skipBackwardCommand.preferredIntervals = [NSNumber(value: Self.timeShiftInterval)]
+        center.skipForwardCommand.preferredIntervals = [NSNumber(value: Self.timeShiftInterval)]
 
         func add(_ command: MPRemoteCommand, _ action: @escaping @MainActor (LocalPlaybackService, MPRemoteCommandEvent) -> MPRemoteCommandHandlerStatus) {
             let token = command.addTarget { [weak self] event in
@@ -219,6 +231,16 @@ final class LocalNowPlayingPresenter {
             player.previous()
             return .success
         }
+        add(center.skipBackwardCommand) { player, event in
+            let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? Self.timeShiftInterval
+            player.skipLive(by: -interval)
+            return .success
+        }
+        add(center.skipForwardCommand) { player, event in
+            let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? Self.timeShiftInterval
+            player.skipLive(by: interval)
+            return .success
+        }
         add(center.changePlaybackPositionCommand) { player, event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             player.seek(to: event.positionTime)
@@ -231,5 +253,8 @@ final class LocalNowPlayingPresenter {
             command.removeTarget(token)
         }
         commandTokens = []
+        let center = MPRemoteCommandCenter.shared()
+        center.skipBackwardCommand.isEnabled = false
+        center.skipForwardCommand.isEnabled = false
     }
 }

@@ -154,6 +154,16 @@ final class LocalPlaybackService {
     /// station that hasn't said yet.
     private(set) var liveMetadata: LiveStationMetadata?
 
+    /// Where a station stands in what the device has recorded of it — how
+    /// far back it can go and how far behind live it is. Nil when the
+    /// station can't be taken back: an Apple Music station, a stream the
+    /// buffer can't follow (HLS, Ogg), and anything that isn't a station.
+    private(set) var timeShift: TimeShift?
+    /// Whether `timeShift` is there, for views that only need to know that:
+    /// `timeShift` changes every tick, and the whole player screen redrawing
+    /// with it would stutter the way `refreshState` warns about.
+    private(set) var canTimeShift = false
+
     /// The item the player draws. A track is itself; a station becomes the
     /// song on air, with the station's name where an album's would go — the
     /// same shape `LargePlayerView` gives a Sonos radio stream.
@@ -239,6 +249,15 @@ final class LocalPlaybackService {
     }
     /// The armed stream run: player item → queue index.
     @ObservationIgnored private var streamRun: [ObjectIdentifier: Int] = [:]
+    /// The recording of the station playing, which the player hears through
+    /// (see `LiveRadioBuffer`).
+    @ObservationIgnored private var radioBuffer: LiveRadioBuffer?
+    /// The stream time the current player item starts at; the player's own
+    /// clock counts from there.
+    @ObservationIgnored private var radioItemStart: TimeInterval = 0
+    /// The ICY title last put on air from the buffer, so the poll only
+    /// passes a change on.
+    @ObservationIgnored private var radioTitle: String?
     /// Resolved Apple `Song`s by catalog id, so replaying or skipping back to
     /// a track doesn't re-fetch it. Loaded from (and saved to) disk, which is
     /// what lets a previously seen track arm with no network — so songs the
@@ -545,6 +564,9 @@ final class LocalPlaybackService {
     /// takes it — the two backends share no seek API, and neither is armed
     /// when nothing is playing.
     func seek(to seconds: TimeInterval) {
+        // A station's player has no timeline of its own to scrub; it moves
+        // through the recording instead (`seekLive(to:)`).
+        guard !(backend == .stream && isPlayingStation) else { return }
         let seconds = Self.finite(seconds, else: 0)
         progress = seconds
         savePosition()
@@ -584,7 +606,11 @@ final class LocalPlaybackService {
         case .stream:
             guard let streamPlayer else { return }
             if streamPlayer.timeControlStatus == .paused {
-                streamPlayer.play()
+                if radioBuffer != nil {
+                    resumeStation()
+                } else {
+                    streamPlayer.play()
+                }
             } else {
                 streamPlayer.pause()
             }
@@ -801,7 +827,8 @@ final class LocalPlaybackService {
             stop()
             return
         }
-        let resume = position ?? (index == currentIndex ? resumePosition : nil)
+        // A station has no position to go back to: it starts live.
+        let resume = isStation(queue[index]) ? nil : position ?? (index == currentIndex ? resumePosition : nil)
         resumePosition = nil
         currentIndex = index
         progress = 0
@@ -925,6 +952,15 @@ final class LocalPlaybackService {
         stationMetadataTask = nil
         streamMetadataListener = nil
         liveMetadata = nil
+        radioBuffer?.stop()
+        radioBuffer = nil
+        radioTitle = nil
+        if timeShift != nil {
+            timeShift = nil
+        }
+        if canTimeShift {
+            canTimeShift = false
+        }
 
         if previous == .appleMusic || previous == .appleStation {
             musicPlayer.stop()
@@ -1188,22 +1224,42 @@ final class LocalPlaybackService {
 
         var rows: [(queueIndex: Int, item: AVPlayerItem)] = []
         var lastArmed = index
+        var buffer: LiveRadioBuffer?
+        var bufferStart: TimeInterval = 0
         for queueIndex in index...end {
             let item = queue[queueIndex]
             // A later song still in iCloud ends the run here; the next arm
             // fetches it.
             if queueIndex > index, cloudPendingURL(for: item) != nil { break }
             guard let url = await streamURL(for: item) else { continue }
-            let playerItem = AVPlayerItem(url: url)
+            let playerItem: AVPlayerItem
             if isStation(item) {
-                listenForStreamTitles(on: playerItem, token: token)
+                // Heard through the device's own recording, so it can be
+                // taken back; straight from the station when the recording
+                // can't follow its format.
+                if let opened = await LiveRadioBuffer.open(url) {
+                    let source = opened.source(at: nil)
+                    buffer = opened
+                    bufferStart = source.start
+                    playerItem = AVPlayerItem(url: source.url)
+                } else {
+                    playerItem = AVPlayerItem(url: url)
+                    listenForStreamTitles(on: playerItem, token: token)
+                }
+            } else {
+                playerItem = AVPlayerItem(url: url)
             }
             rows.append((queueIndex, playerItem))
             lastArmed = queueIndex
         }
         // The user skipped elsewhere while a station resolved — that call
         // owns playback now.
-        guard playToken == token else { return }
+        guard playToken == token else {
+            buffer?.stop()
+            return
+        }
+        radioBuffer = buffer
+        radioItemStart = bufferStart
         guard !rows.isEmpty else {
             advancePastRun(endingAt: lastArmed)
             return
@@ -1286,7 +1342,10 @@ final class LocalPlaybackService {
         stationMetadataTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self, self.playToken == token else { return }
-                if let info = await MusicSearchService.shared.lookupTuneInStation(id: station.content.id)?.stationInfo {
+                // TuneIn says what's on air now, which isn't what plays
+                // while the station is taken back.
+                if let info = await MusicSearchService.shared.lookupTuneInStation(id: station.content.id)?.stationInfo,
+                   self.timeShift?.isLive ?? true {
                     await self.noteOnAir(song: info.song, artist: info.artist, token: token)
                 }
                 try? await Task.sleep(for: .seconds(30))
@@ -1298,19 +1357,24 @@ final class LocalPlaybackService {
     /// moment a song changes, well ahead of TuneIn's next poll.
     private func listenForStreamTitles(on playerItem: AVPlayerItem, token: Int) {
         let listener = StreamMetadataListener { [weak self] title in
-            guard let self, self.playToken == token else { return }
-            // The convention is "Artist - Title"; a bare line is the song.
-            let parts = title.components(separatedBy: " - ")
-            if parts.count >= 2 {
-                await self.noteOnAir(song: parts.dropFirst().joined(separator: " - "), artist: parts[0], token: token)
-            } else {
-                await self.noteOnAir(song: title, artist: nil, token: token)
-            }
+            await self?.noteStreamTitle(title, token: token)
         }
         let output = AVPlayerItemMetadataOutput(identifiers: nil)
         output.setDelegate(listener, queue: .main)
         playerItem.add(output)
         streamMetadataListener = listener
+    }
+
+    /// An ICY title, from the player or from the recording.
+    private func noteStreamTitle(_ title: String, token: Int) async {
+        guard playToken == token else { return }
+        // The convention is "Artist - Title"; a bare line is the song.
+        let parts = title.components(separatedBy: " - ")
+        if parts.count >= 2 {
+            await noteOnAir(song: parts.dropFirst().joined(separator: " - "), artist: parts[0], token: token)
+        } else {
+            await noteOnAir(song: title, artist: nil, token: token)
+        }
     }
 
     /// Takes a new song on air and looks its artwork up the way the Sonos
@@ -1379,6 +1443,104 @@ final class LocalPlaybackService {
         return !a.isEmpty && a == b
     }
 
+    // MARK: - Taking a station back
+
+    /// A station's place in its recording, in stream seconds: `start` is the
+    /// oldest moment still held, `live` the newest, `position` what's heard.
+    struct TimeShift: Equatable {
+        var start: TimeInterval
+        var live: TimeInterval
+        var position: TimeInterval
+
+        /// Close enough to the air to call live. The player buffers a few
+        /// seconds ahead of what it plays, and "live" starts it a few back
+        /// so it can begin at once, so a live station always reads a little
+        /// behind.
+        static let liveTolerance: TimeInterval = 12
+
+        var behind: TimeInterval { max(0, live - position) }
+        var isLive: Bool { behind < Self.liveTolerance }
+        var canGoBack: Bool { position - start > 1 }
+    }
+
+    /// Moves `seconds` through the station — negative back, positive toward
+    /// live. Past the live point is live.
+    func skipLive(by seconds: TimeInterval) {
+        guard let timeShift else { return }
+        seekLive(to: timeShift.position + seconds)
+    }
+
+    /// Plays the station from `time` in its recording, clamped to what's
+    /// held; near enough the air is live.
+    func seekLive(to time: TimeInterval) {
+        guard let timeShift, time.isFinite else { return }
+        if time >= timeShift.live - TimeShift.liveTolerance {
+            goLive()
+        } else {
+            playRecording(from: max(timeShift.start, time))
+        }
+    }
+
+    /// Back to what's on air now.
+    func goLive() {
+        playRecording(from: nil)
+    }
+
+    /// Play after a pause picks up where it stopped: the recording carried on
+    /// meanwhile, so a pause on a station is a pause, not a jump to live.
+    /// If the recording was lost meanwhile (a long suspension takes the
+    /// connection and the relay with it), the station starts again live.
+    private func resumeStation() {
+        guard let radioBuffer, radioBuffer.isHealthy, let timeShift else {
+            Task { try? await arm(at: currentIndex) }
+            return
+        }
+        playRecording(from: timeShift.position, play: true)
+    }
+
+    /// Points the player at the recording from `time` (nil for live). A new
+    /// item rather than a seek: to the player each one is a live stream
+    /// that starts where it was asked to. A paused station stays paused
+    /// unless `play` says otherwise, as a paused track does when scrubbed.
+    private func playRecording(from time: TimeInterval?, play: Bool? = nil) {
+        guard backend == .stream, let radioBuffer, let streamPlayer else { return }
+        let play = play ?? (streamPlayer.timeControlStatus != .paused)
+        guard radioBuffer.isHealthy else {
+            Task { try? await arm(at: currentIndex) }
+            return
+        }
+        let source = radioBuffer.source(at: time)
+        let item = AVPlayerItem(url: source.url)
+        streamRun = [ObjectIdentifier(item): currentIndex]
+        radioItemStart = source.start
+        streamPlayer.replaceCurrentItem(with: item)
+        if play {
+            streamPlayer.play()
+        }
+        progress = 0
+        followRecording(radioBuffer)
+    }
+
+    /// Reads the recording's window and what's heard in it, and puts the
+    /// title that was on air at that moment up — so a station taken back
+    /// names the song playing, not the one on air now.
+    private func followRecording(_ buffer: LiveRadioBuffer) {
+        let window = buffer.window
+        let heard = min(max(radioItemStart + progress, window.start), window.live)
+        let shift = TimeShift(start: window.start, live: window.live, position: heard)
+        if shift != timeShift {
+            timeShift = shift
+        }
+        if !canTimeShift {
+            canTimeShift = true
+        }
+        if let title = buffer.title(at: heard), title != radioTitle {
+            radioTitle = title
+            let token = playToken
+            Task { await noteStreamTitle(title, token: token) }
+        }
+    }
+
     // MARK: - Song recognition
 
     /// A TuneIn station: the one kind that plays as a stream here (see
@@ -1390,10 +1552,16 @@ final class LocalPlaybackService {
         return item.content.service == .tuneIn && item.content.type == .radio
     }
 
-    /// The stream of the station playing here, for `SongRecognizer` to
-    /// listen to.
-    func currentStationStreamURL() async -> URL? {
+    /// The stream of the station playing here, for `SongRecognizer` and
+    /// live captions to listen to. `heard` asks for the recording from what's
+    /// playing, so a station taken back is recognized for the song heard,
+    /// not the one on air; captions follow the air, which they keep pace
+    /// with.
+    func currentStationStreamURL(heard: Bool = false) async -> URL? {
         guard canRecognizeSong, let station = nowPlaying else { return nil }
+        if heard, let radioBuffer, radioBuffer.isHealthy, let timeShift, !timeShift.isLive {
+            return radioBuffer.source(at: timeShift.position).url
+        }
         return await streamURL(for: station)
     }
 
@@ -1524,6 +1692,9 @@ final class LocalPlaybackService {
             if isPlaying != playing { isPlaying = playing }
             progress = Self.finite(current.currentTime().seconds, else: progress)
             savePositionIfDue(paused: paused)
+            if let radioBuffer {
+                followRecording(radioBuffer)
+            }
             if let queueIndex = streamRun[ObjectIdentifier(current)], currentIndex != queueIndex {
                 currentIndex = queueIndex
             }

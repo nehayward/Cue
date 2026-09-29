@@ -56,7 +56,7 @@ struct IdentifySongButton: View {
             // changed isn't shown as the new one's song.
             let stationID = playback.nowPlaying?.content.id
             recognizer.identify {
-                await playback.currentStationStreamURL()
+                await playback.currentStationStreamURL(heard: true)
             } onFinish: { state in
                 if case .found(let song) = state {
                     playback.noteRecognized(song, stationID: stationID)
