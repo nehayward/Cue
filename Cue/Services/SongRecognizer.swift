@@ -2,6 +2,7 @@ import AVFoundation
 import Foundation
 import MusicKit
 import Observation
+import os
 import ShazamKit
 import SonosKit
 
@@ -102,7 +103,11 @@ final class SongRecognizer {
             case .noMatch:
                 return .notFound
             case .error(let error, _):
-                return .failed(error.localizedDescription)
+                // Shazam's own errors read as "The operation couldn't be
+                // completed (com.apple.ShazamCore error 102)" — no use to
+                // anyone. The detail goes to the log instead.
+                logger.error("Shazam match failed: \(String(describing: error), privacy: .public)")
+                return .failed("Shazam couldn't be reached. Try again in a moment.")
             }
         } catch is CancellationError {
             return .idle
@@ -112,6 +117,8 @@ final class SongRecognizer {
             return .failed(error.localizedDescription)
         }
     }
+
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cue", category: "SongRecognizer")
 
     private static func catalogSong(id: String?) async -> PlayableContent? {
         guard let id else { return nil }
