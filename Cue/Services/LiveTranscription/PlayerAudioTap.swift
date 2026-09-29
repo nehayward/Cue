@@ -94,6 +94,13 @@ private final class TapContext: @unchecked Sendable {
 
     /// The most the item's mix renders in one pull; see `PlayerAudioTap`.
     private static let maxFrames = 1024
+    /// How long renders may run oversized before the tap gives up. A single
+    /// long render comes as a tap attaches to a playing item and the ones
+    /// after it are small again; it's a run of them — the app gone to the
+    /// background — that means silence from here on.
+    private static let oversizedGrace: Double = 2
+    /// Seconds of oversized renders in a row.
+    private var oversizedRun: Double = 0
 
     /// Pulls that failed, for the log.
     private var failures = 0
@@ -123,10 +130,15 @@ private final class TapContext: @unchecked Sendable {
         framesOut: UnsafeMutablePointer<CMItemCount>,
         flagsOut: UnsafeMutablePointer<MTAudioProcessingTapFlags>
     ) {
-        if frames > Self.maxFrames, !isUnusable {
-            isUnusable = true
-            Logger.liveTranscription.info("Tap asked for \(frames) frames at once, more than it can render")
-            onUnusable()
+        if frames > Self.maxFrames {
+            oversizedRun += Double(frames) / (format?.sampleRate ?? 48_000)
+            if oversizedRun > Self.oversizedGrace, !isUnusable {
+                isUnusable = true
+                print("Live Transcription: Tap asked for \(frames) frames at a time for \(oversizedRun)s, more than it can render")
+                onUnusable()
+            }
+        } else {
+            oversizedRun = 0
         }
         var timeRange = CMTimeRange.zero
         let status = MTAudioProcessingTapGetSourceAudio(tap, frames, bufferList, flagsOut, &timeRange, framesOut)
