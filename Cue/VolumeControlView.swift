@@ -6,7 +6,12 @@ struct VolumeControlView: View {
     @Bindable var group: GroupRoom
     var delayDrag: Bool = false
     @State private var isEditing: Bool = false
-    @State private var volumeTask: Task<Void, Error>?
+    /// The level the drag most recently asked for, not yet sent.
+    @State private var pendingVolume: Int?
+    /// The one `SetGroupVolume` send loop, while it runs.
+    @State private var volumeTask: Task<Void, Never>?
+    /// The last level sent during this drag; cleared when the drag ends so a
+    /// button press in between can't make the next drag skip a level.
     @State private var lastSentVolume: Int?
 
     @ScaledMetric(relativeTo: .caption) private var sliderHeight: CGFloat = UIDevice.current.userInterfaceIdiom == .phone ? 20 : 24
@@ -33,6 +38,7 @@ struct VolumeControlView: View {
             .buttonRepeatBehavior(.enabled)
             .accessibilityLabel("Volume Down")
 
+            // Called on every drag tick, not only at the start and end.
             VibeSlider(value: $group.groupVolume, baseHeight: sliderHeight, delayDrag: delayDrag, showValue: true) { isEditing in
                 if group.isMuted {
                     Task {
@@ -42,9 +48,15 @@ struct VolumeControlView: View {
                         group.isMuted = false
                     }
                 }
-                
-                self.isEditing = isEditing
+
                 updateVolume(volume: group.groupVolume)
+
+                // Only on a change: an `@Observable` write notifies even when
+                // the value is the same, so a write per tick re-rendered every
+                // view reading `isEditingVolume` as the pointer moved.
+                guard self.isEditing != isEditing else { return }
+                self.isEditing = isEditing
+                if !isEditing, volumeTask == nil { lastSentVolume = nil }
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
                     group.isEditingVolume = isEditing
@@ -103,22 +115,36 @@ struct VolumeControlView: View {
         .disabled(group.coordinatorRoom.isOutputFixed)
     }
 
+    /// Sends the drag's level to the speaker, at most one request at a time.
+    ///
+    /// A drag moves a point per tick. Each used to get its own SOAP request —
+    /// the cancel meant to coalesce them was a no-op (`try?` swallowed the
+    /// `CancellationError`), so dozens queued up on the speaker, which works
+    /// through them one by one and fell seconds behind the slider. Now a
+    /// request waits for the one before it and then sends whatever level is
+    /// latest, skipping everything in between.
     private func updateVolume(volume: Double) {
         let intVolume = Int(volume)
-        
-        guard lastSentVolume != intVolume else { return }
-        lastSentVolume = intVolume
-        
-        volumeTask?.cancel()
+        guard volumeTask != nil || intVolume != lastSentVolume else { return }
+        pendingVolume = intVolume
+        guard volumeTask == nil else { return }
+
+        let ip = group.coordinatorRoom.ip
         volumeTask = Task {
-            try? await Task.sleep(for: .milliseconds(50))
-            try? Task.checkCancellation()
-            await SonosService.shared.setGroupVolume(ip: group.coordinatorRoom.ip, volume: intVolume)
-            
-            if volume.isZero {
+            while let next = pendingVolume {
+                pendingVolume = nil
+                guard next != lastSentVolume else { continue }
+                lastSentVolume = next
+                await SonosService.shared.setGroupVolume(ip: ip, volume: next)
+            }
+            volumeTask = nil
+            let sent = lastSentVolume
+            if !isEditing { lastSentVolume = nil }
+
+            if sent == 0 {
                 try? await Task.sleep(for: .milliseconds(200))
-                try Task.checkCancellation()
-                await SonosService.shared.snapShotGroup(ip: group.coordinatorRoom.ip)
+                guard volumeTask == nil, pendingVolume == nil else { return }
+                await SonosService.shared.snapShotGroup(ip: ip)
             }
         }
     }
