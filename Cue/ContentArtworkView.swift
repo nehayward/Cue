@@ -172,7 +172,10 @@ fileprivate struct OverlayIcons: View {
     let isRadio: Bool
     let size: Double
     
-    private var showsServiceIcon: Bool { !isRadio || service.hasBrandedRadioBadge }
+    /// Every station keeps its service's logo, as the Sonos player's cover
+    /// does — a Plex or Apple Music station read as "some radio" with the
+    /// generic glyph. That glyph is only for a station with no known service.
+    private var showsServiceIcon: Bool { !isRadio || service != .unknown }
 
     /// Large covers (the player's) get the badge the Sonos player's cover
     /// has — 24pt, inset 8 — rather than a row thumbnail's 18pt, which read
