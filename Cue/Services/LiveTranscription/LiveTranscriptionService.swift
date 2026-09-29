@@ -2,30 +2,30 @@ import AVFoundation
 import Defaults
 import Foundation
 import Observation
+import OSLog
 import SonosKit
 
 /// Live Transcription: what's being said on the radio station playing,
 /// written out as it airs, by an on-device model (`TranscriptionEngine`,
 /// iOS 26 and later). Nothing leaves the device.
 ///
-/// It follows the station wherever the player's route points:
-/// - **On this device** it hears the player itself — a tap on
-///   `LocalPlaybackService`'s stream item (`TranscriptionAudioTap`) — so it
-///   works with headphones in and the volume down, and costs no extra data.
-/// - **On a speaker** the audio never reaches the device, but the station is
-///   a public stream (`SonosService.radioStreamURL(for:)` — a plain internet
-///   station or TuneIn): `RadioStreamListener` opens the same station here,
-///   silently, and taps that. The speaker buffers on its own clock, so the
-///   words can run a few seconds ahead of or behind the room. It stops while
-///   the speaker is paused.
+/// It follows the station wherever the player's route points, and hears it
+/// the same way either way: the station is a public stream, so the device
+/// opens it a second time and decodes it itself (`LiveStreamDecoder`) — the
+/// URL `LocalPlaybackService` is playing, or the one a speaker is
+/// (`SonosService.radioStreamURL(for:)`). No microphone, nothing audible,
+/// and it works with headphones in and the volume down. (Tapping `AVPlayer`
+/// can't do this: a live Icecast stream has no asset track to tap.) The
+/// player buffers on its own clock, so the words can run a few seconds ahead
+/// of or behind what's heard. It stops while a speaker is paused.
 ///
 /// Apple Music stations play inside Apple's own player, and Sonos Radio,
-/// HLS-only stations and other speaker-only services have no stream the
-/// device can tap; for those the panel says why there's nothing to show.
+/// HLS and Ogg stations and other speaker-only services have no stream the
+/// device can decode; for those the panel says why there's nothing to show.
 ///
 /// It only runs while the player shows it: the panel `activate()`s on appear
-/// and `deactivate()`s on disappear, which takes the taps off and closes the
-/// silent stream, so nothing about playback changes while it's closed.
+/// and `deactivate()`s on disappear, which closes the stream, so nothing
+/// runs while it's closed.
 /// Whether the panel shows is `isEnabled`, kept across launches.
 ///
 /// The language is remembered per station — a French station stays French —
@@ -62,9 +62,9 @@ final class LiveTranscriptionService {
 
     /// Where the station is heard from.
     private enum Source: Equatable {
-        /// Playing on this device: tap the player's own item.
+        /// Playing on this device.
         case device(stationID: String)
-        /// Playing on a speaker: open the stream here and tap that.
+        /// Playing on a speaker.
         case speaker(stationID: String)
 
         var stationID: String {
@@ -112,7 +112,11 @@ final class LiveTranscriptionService {
 
     @ObservationIgnored private var isActive = false
     @ObservationIgnored private let feed = AudioFeed()
-    @ObservationIgnored private let listener = RadioStreamListener()
+    /// The station whose stream couldn't be opened, not retried until
+    /// something changes.
+    @ObservationIgnored private var failedSource: Source?
+    /// Reading and decoding the station's stream.
+    @ObservationIgnored private var listenTask: Task<Void, Never>?
     @ObservationIgnored private var engineTask: Task<Void, Never>?
     /// Bumped per engine start, so a cancelled run's late callbacks can't
     /// write over the current one's state.
@@ -122,8 +126,6 @@ final class LiveTranscriptionService {
     @ObservationIgnored private var runningLocale: Locale?
     /// The station the transcript on screen belongs to.
     @ObservationIgnored private var transcriptStationID: String?
-    /// Player items with a tap on, weakly — the queue player owns them.
-    @ObservationIgnored private var tappedItems: [WeakItem] = []
     /// A cap on the transcript kept on screen.
     @ObservationIgnored private let maxLines = 200
 
@@ -144,15 +146,9 @@ final class LiveTranscriptionService {
     func deactivate() {
         guard isActive else { return }
         isActive = false
+        failedSource = nil
         stop()
         state = .idle
-    }
-
-    /// `LocalPlaybackService` armed a new player item. Tapped while a station
-    /// on this device is being transcribed; left alone otherwise.
-    func playerItemArmed(_ item: AVPlayerItem) {
-        guard isActive, case .device = runningSource else { return }
-        tap(item)
     }
 
     /// Transcribes in `locale` from now on, and remembers it for the station
@@ -164,6 +160,7 @@ final class LiveTranscriptionService {
         }
         saved[Self.anyStationKey] = locale.identifier
         UserDefaults.standard.set(saved, forKey: AppStorageKeys.liveTranscriptionLocales)
+        failedSource = nil
         refresh()
     }
 
@@ -176,7 +173,7 @@ final class LiveTranscriptionService {
         guard isActive else { return }
         withObservationTracking {
             _ = currentSource()
-            _ = route.group?.coordinatorRoom.isPlaying
+            _ = isSourcePlaying
         } onChange: {
             Task { @MainActor [weak self] in
                 self?.refresh()
@@ -217,9 +214,12 @@ final class LiveTranscriptionService {
             state = .unavailable(unavailableReason)
             return
         }
-        if case .speaker = source, route.group?.coordinatorRoom.isPlaying != true {
-            // Live radio doesn't wait: listening on while the room is quiet
-            // would transcribe what the room never played.
+        // A station that failed stays failed until something changes —
+        // retrying on every metadata tick would only flash the error.
+        if source == failedSource { return }
+        if !isSourcePlaying {
+            // Live radio doesn't wait: listening on while it's paused would
+            // transcribe what was never played.
             stop()
             state = .paused
             return
@@ -233,6 +233,14 @@ final class LiveTranscriptionService {
         }
         guard engineTask == nil || runningSource != source || runningLocale != locale else { return }
         start(source, locale: locale)
+    }
+
+    /// Whether the station is playing, rather than paused, where it plays.
+    private var isSourcePlaying: Bool {
+        if let group = route.group {
+            return group.coordinatorRoom.isPlaying
+        }
+        return playback.isPlaying
     }
 
     /// Why nothing can be shown for what's playing.
@@ -252,11 +260,9 @@ final class LiveTranscriptionService {
 
     private func start(_ source: Source, locale: Locale) {
         guard #available(iOS 26.0, visionOS 26.0, *) else { return }
-        let sourceChanged = runningSource != source
-        stopEngine()
-        if sourceChanged {
-            stopListening()
-        }
+        // Both halves restart together — a language change reconnects to
+        // the station too — so a stream can never outlive its run.
+        stop()
         generation += 1
         let generation = generation
         runningSource = source
@@ -265,9 +271,7 @@ final class LiveTranscriptionService {
         // The engine's stream is opened before any audio is, so the first
         // words aren't dropped on the floor.
         let audio = feed.open()
-        if sourceChanged {
-            listen(to: source, generation: generation)
-        }
+        listen(to: source, generation: generation)
         state = .connecting
 
         engineTask = Task { [weak self] in
@@ -283,31 +287,54 @@ final class LiveTranscriptionService {
                     self.receive(text, isFinal: isFinal)
                 }
             } catch {
-                guard let self, self.generation == generation, !Task.isCancelled else { return }
-                self.state = .failed(error.localizedDescription)
+                Logger.liveTranscription.error("Transcriber failed: \(error.localizedDescription, privacy: .public)")
+                self?.listenFailed(error.localizedDescription, generation: generation)
             }
         }
     }
 
-    /// Starts audio flowing into the feed from `source`.
+    /// Opens the station's stream here and decodes it into the feed — the
+    /// URL the player is playing, or the one the speaker is.
     private func listen(to source: Source, generation: Int) {
-        switch source {
-        case .device:
-            for item in playback.streamItems {
-                tap(item)
-            }
-        case .speaker:
-            guard let group = route.group else { return }
-            let feed = feed
-            Task {
-                let opened = await listener.open(stationOn: group) { buffer in
-                    feed.send(buffer)
+        let group = route.group
+        let feed = feed
+        listenTask = Task { [weak self] in
+            var url: URL?
+            switch source {
+            case .device:
+                url = await LocalPlaybackService.shared.currentStationStreamURL()
+            case .speaker:
+                if let group {
+                    url = await SonosService.shared.radioStreamURL(for: group)
                 }
-                guard !opened, self.generation == generation else { return }
-                stop()
-                state = .unavailable("This station can't be opened on this device — Sonos Radio and some stations only a speaker can reach have no stream Cue can listen to.")
+            }
+            guard let url else {
+                self?.listenFailed("This station has no stream Cue can open on this device — Sonos Radio and some speaker-only stations can't be transcribed.", generation: generation)
+                return
+            }
+            do {
+                // Off the main actor: parsing and decoding every packet of
+                // the stream is steady work.
+                try await Task.detached(priority: .userInitiated) {
+                    try await LiveStreamDecoder.run(url) { buffer in
+                        feed.send(buffer)
+                    }
+                }.valueCancellingOnCancel()
+                self?.listenFailed("The station's stream ended.", generation: generation)
+            } catch is CancellationError {
+            } catch {
+                Logger.liveTranscription.error("Stream failed: \(error.localizedDescription, privacy: .public)")
+                self?.listenFailed(error.localizedDescription, generation: generation)
             }
         }
+    }
+
+    private func listenFailed(_ reason: String, generation: Int) {
+        guard self.generation == generation, !Task.isCancelled else { return }
+        let source = runningSource
+        stop()
+        failedSource = source
+        state = .failed(reason)
     }
 
     private func stop() {
@@ -324,11 +351,8 @@ final class LiveTranscriptionService {
     }
 
     private func stopListening() {
-        listener.close()
-        for item in tappedItems.compactMap(\.item) {
-            TranscriptionAudioTap.remove(from: item)
-        }
-        tappedItems = []
+        listenTask?.cancel()
+        listenTask = nil
     }
 
     private func receive(_ text: String, isFinal: Bool) {
@@ -349,22 +373,6 @@ final class LiveTranscriptionService {
         lines = []
         volatileText = ""
         transcriptStationID = nil
-    }
-
-    private func tap(_ item: AVPlayerItem) {
-        guard !tappedItems.contains(where: { $0.item === item }) else { return }
-        tappedItems.removeAll { $0.item == nil }
-        tappedItems.append(WeakItem(item: item))
-        let feed = feed
-        Task {
-            let installed = await TranscriptionAudioTap.install(on: item) { buffer in
-                feed.send(buffer)
-            }
-            // Stopped while the item was still getting ready.
-            if installed, !tappedItems.contains(where: { $0.item === item }) {
-                TranscriptionAudioTap.remove(from: item)
-            }
-        }
     }
 
     // MARK: - Languages
@@ -392,53 +400,7 @@ final class LiveTranscriptionService {
     }
 }
 
-/// Opens a station's stream on this device with the sound off, for hearing a
-/// station that's playing on a speaker. Its own `AVPlayer`, kept apart from
-/// `LocalPlaybackService`'s: this one is never heard, never takes the Lock
-/// Screen and never goes to AirPlay.
-@MainActor
-private final class RadioStreamListener {
-    private var player: AVPlayer?
-    /// Bumped per open, so an open still resolving when it's closed or
-    /// replaced doesn't start a player behind the newer one.
-    private var token = 0
-
-    /// Starts the stream of the station `group` is playing, silently, and
-    /// taps it. Returns whether audio is now flowing to `onBuffer`.
-    func open(stationOn group: GroupRoom, onBuffer: @escaping @Sendable (AVAudioPCMBuffer) -> Void) async -> Bool {
-        close()
-        token += 1
-        let token = token
-        // A plain internet station is its own URL; TuneIn gets the same
-        // non-HLS pick the device player makes — an HLS stream has no track
-        // to tap.
-        guard let url = await SonosService.shared.radioStreamURL(for: group),
-              self.token == token else { return false }
-
-        let item = AVPlayerItem(url: url)
-        let player = AVPlayer(playerItem: item)
-        // Silent, not muted: the tap sits before the volume stage, so it
-        // still hears the stream at full level.
-        player.volume = 0
-        player.allowsExternalPlayback = false
-        self.player = player
-        player.play()
-
-        let installed = await TranscriptionAudioTap.install(on: item, onBuffer: onBuffer)
-        guard self.token == token else { return false }
-        if !installed { close() }
-        return installed
-    }
-
-    func close() {
-        token += 1
-        player?.pause()
-        player?.replaceCurrentItem(with: nil)
-        player = nil
-    }
-}
-
-/// Where tapped audio goes: the running engine's stream, or nowhere between
+/// Where decoded audio goes: the running engine's stream, or nowhere between
 /// runs. Called from the render thread, hence the lock.
 private final class AudioFeed: @unchecked Sendable {
     private let lock = NSLock()
@@ -472,8 +434,16 @@ private final class AudioFeed: @unchecked Sendable {
     }
 }
 
-private struct WeakItem {
-    weak var item: AVPlayerItem?
+private extension Task where Failure == Error {
+    /// The task's value, cancelling the task if the one awaiting it is
+    /// cancelled — a detached task doesn't inherit cancellation.
+    func valueCancellingOnCancel() async throws -> Success {
+        try await withTaskCancellationHandler {
+            try await value
+        } onCancel: {
+            cancel()
+        }
+    }
 }
 
 private extension Room {
