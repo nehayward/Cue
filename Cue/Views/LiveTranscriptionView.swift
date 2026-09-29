@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Live Transcription in the player: the transcript, newest line at the
-/// bottom and the line still being heard under it in grey, with the language
-/// menu above. Takes the artwork's place while it's on.
+/// Live Transcription in the player: what the station playing is saying,
+/// newest line at the bottom and the line still being heard under it in
+/// grey, with the language menu above. Takes the artwork's place while it's
+/// on — for a station on this device or on a speaker alike.
 ///
 /// Being on screen is what runs it — the service starts on appear and stops,
 /// taps and all, on disappear.
@@ -46,7 +47,17 @@ struct LiveTranscriptionView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-        case .idle, .listening:
+        case .paused where transcription.lines.isEmpty:
+            message("Paused — transcription picks up when the station plays again.", systemImage: "pause.circle")
+        case .connecting where transcription.lines.isEmpty:
+            VStack(spacing: 8) {
+                ProgressView()
+                Text("Tuning in…")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .idle, .listening, .paused, .connecting:
             transcript
         }
     }
@@ -107,8 +118,8 @@ struct LiveTranscriptionView: View {
 }
 
 /// Picks the transcription language — remembered for the station playing,
-/// or for everything else when it isn't one. A language not yet on the
-/// device downloads once picked.
+/// and the first guess for stations not heard before. A language not yet on
+/// the device downloads once picked.
 private struct LiveTranscriptionLanguageMenu: View {
     private var transcription: LiveTranscriptionService { .shared }
 

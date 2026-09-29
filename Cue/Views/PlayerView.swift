@@ -63,10 +63,15 @@ struct PlayerView: View {
         shouldFade && !Router.main.isSkippingTrack
     }
 
-    /// Live Transcription is on, and this device can run it. The artwork's
-    /// place, not a speaker's: it hears only this device's player.
+    /// Live Transcription can run here: a station is playing, on this device
+    /// or the speaker the route points at.
+    private var canTranscribe: Bool {
+        LiveTranscriptionService.isSupported && LiveTranscriptionService.isStationPlaying
+    }
+
+    /// Live Transcription is on, in the artwork's place.
     private var showsTranscription: Bool {
-        LiveTranscriptionService.shared.isEnabled && LiveTranscriptionService.isSupported
+        LiveTranscriptionService.shared.isEnabled && canTranscribe
     }
 
     /// The header's title: this device, or the group's name.
@@ -225,7 +230,16 @@ struct PlayerView: View {
             }
             .transition(.opacity)
         } else {
-            ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: artworkShouldFade)
+            // Live Transcription takes the artwork's place here too.
+            Group {
+                if showsTranscription {
+                    LiveTranscriptionView()
+                        .transition(.opacity)
+                } else {
+                    ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: artworkShouldFade)
+                        .transition(.opacity)
+                }
+            }
                 .padding(.bottom, showArtworkOnly ? 0 : 12)
                 .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
                 .padding(.top, showArtworkOnly ? 100 : nil)
@@ -337,6 +351,11 @@ struct PlayerView: View {
                         }
                     }
 
+                    if canTranscribe {
+                        LiveTranscriptionButton()
+                            .glassButton()
+                            .tint(.primary)
+                    }
                     LikeButtonView(group: group)
                         .glassButton()
                     MenuInfoView(group: group, showArtworkOnly: $showArtworkOnly)
@@ -364,7 +383,7 @@ struct PlayerView: View {
                         }
                     }
 
-                    if LiveTranscriptionService.isSupported {
+                    if canTranscribe {
                         LiveTranscriptionButton()
                             .glassButton()
                             .tint(.primary)

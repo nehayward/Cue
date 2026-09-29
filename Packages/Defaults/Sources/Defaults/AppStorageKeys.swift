@@ -77,9 +77,9 @@ public enum AppStorageKeys {
     /// Whether the player shows Live Transcription, so the toggle holds
     /// across launches.
     public static let liveTranscriptionEnabled = "\(Prefix.id).liveTranscriptionEnabled"
-    /// The transcription language picked per station — `[station id:
-    /// locale identifier]` — with `LiveTranscriptionService.anyContentKey`
-    /// holding the last pick for anything that isn't a station.
+    /// The transcription language picked per station — `[TuneIn station id:
+    /// locale identifier]` — with `LiveTranscriptionService.anyStationKey`
+    /// holding the last pick, the guess for a station not heard before.
     public static let liveTranscriptionLocales = "\(Prefix.id).liveTranscriptionLocales"
     public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
