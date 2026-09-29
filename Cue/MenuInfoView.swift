@@ -10,19 +10,11 @@ struct MenuInfoView: View {
 
     var group: GroupRoom
     @Binding var showArtworkOnly: Bool
-    @State private var showSongRecognition = false
     
     var body: some View {
         Menu {
             VStack {
                 OpenInServiceView(item:  group.coordinatorRoom.track.toPlayable)
-                if group.playbackService == .radio {
-                    Button {
-                        showSongRecognition = true
-                    } label: {
-                        Label("Identify Song", systemImage: "shazam.logo")
-                    }
-                }
                 if coreFeatures.nowPlaying, !group.TVMode, let nowPlayingURL = group.coordinatorRoom.track.nowPlayingURL {
                     Link(destination: nowPlayingURL) {
                         Label("Open in NowPlaying…", image: .nowPlayingAppIcon)
@@ -163,13 +155,6 @@ struct MenuInfoView: View {
         .id(group.coordinatorID)
         .accessibilityLabel("Menu")
         .help("Menu")
-        .sheet(isPresented: $showSongRecognition) {
-            // Listens to the station's stream from this device — the same
-            // URL the speaker is playing.
-            SongRecognitionSheet(stationName: group.coordinatorRoom.radioStation) { [group] in
-                await SonosService.shared.radioStreamURL(for: group)
-            }
-        }
 #if os(visionOS)
         .tint(.clear)
 #endif

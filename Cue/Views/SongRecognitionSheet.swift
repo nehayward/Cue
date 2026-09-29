@@ -128,3 +128,59 @@ struct SongRecognitionSheet: View {
         }
     }
 }
+
+/// The player bar's Shazam button, shown while a station plays — on this
+/// device (`group` nil) or on a speaker. ⌘⇧S from a keyboard.
+struct IdentifySongButton: View {
+    /// The speaker group on screen, or nil for this device.
+    let group: GroupRoom?
+
+    @State private var isPresented = false
+
+    private var playback: LocalPlaybackService { .shared }
+
+    static func isAvailable(for group: GroupRoom?) -> Bool {
+        if let group {
+            return !group.TVMode && group.playbackService == .radio
+        }
+        return LocalPlaybackService.shared.canRecognizeSong
+    }
+
+    var body: some View {
+        Button {
+            HapticManager.shared.fireHaptic(.buttonPress)
+            isPresented = true
+        } label: {
+            Label("Identify Song", systemImage: "shazam.logo.fill")
+                .labelStyle(.iconOnly)
+                .frame(width: 24, height: 24)
+                .fontDesign(.rounded)
+        }
+        .accessibilityLabel("Identify Song")
+        .help("Identify Song")
+        .keyboardShortcut("s", modifiers: [.command, .shift])
+        .sheet(isPresented: $isPresented) {
+            sheet
+        }
+    }
+
+    @ViewBuilder
+    private var sheet: some View {
+        if let group {
+            // Listens to the station's stream from this device — the same
+            // URL the speaker is playing.
+            SongRecognitionSheet(stationName: group.coordinatorRoom.radioStation) { [group] in
+                await SonosService.shared.radioStreamURL(for: group)
+            }
+        } else {
+            // Captured now, so a match that lands after the station has
+            // changed isn't shown as the new one's song.
+            let stationID = playback.nowPlaying?.content.id
+            SongRecognitionSheet(stationName: playback.nowPlaying?.title) {
+                await playback.currentStationStreamURL()
+            } onFound: { song in
+                playback.noteRecognized(song, stationID: stationID)
+            }
+        }
+    }
+}
