@@ -76,6 +76,10 @@ public enum AppStorageKeys {
     public static let localQueueSource = "\(Prefix.id).localQueueSource"
     public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
+    /// What switching the route (This Device ↔ a speaker) does with what's
+    /// playing: `"ask"`, `"always"` (carry the queue across) or `"never"`
+    /// (only change where the next Play goes). Asks when unset.
+    public static let routeQueueTransfer = "\(Prefix.id).routeQueueTransfer"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
     public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
     public static let lastPlaylistService = "\(Prefix.id).lastPlaylistService"

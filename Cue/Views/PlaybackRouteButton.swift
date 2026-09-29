@@ -10,8 +10,11 @@ import SwiftUI
 /// the mini player instead of being tied to one piece of media. `Play` then
 /// reads the saved choice through `PlayDestinationRouter` and never prompts.
 ///
-/// Choosing while something is playing moves it: `PlaybackRoute` carries the
-/// queue across, picks up at the same spot, and stops the source.
+/// Choosing while something is playing can move it: `PlaybackRoute` carries
+/// the queue across, picks up at the same spot, and stops the source. Whether
+/// it does is the user's call (`QueueTransferPreference`) — by default a
+/// small prompt asks, since sometimes the point of switching is to leave the
+/// speaker's own queue alone.
 ///
 /// On a speaker it is the group button too. The menu then lists every room
 /// as a toggle on the group's membership — check several to play there
@@ -26,6 +29,9 @@ struct PlaybackRouteButton: View {
     /// still tracks the `sorted` access below, so the list stays live.
     private var sonosService: SonosService { .shared }
     private var route: PlaybackRoute { .shared }
+
+    /// A switch waiting on the prompt's answer.
+    @State private var pending: PendingSwitch?
 
     var body: some View {
         let destination = route.destination
@@ -79,6 +85,12 @@ struct PlaybackRouteButton: View {
             .accessibilityLabel("Play On")
         }
         .menuIndicator(.hidden)
+        .sheet(item: $pending) { pending in
+            RouteTransferPrompt(target: pending.target) { carrying in
+                self.pending = nil
+                PlaybackRoute.shared.switchTo(pending.target, carrying: carrying)
+            }
+        }
         // Re-read on every appearance: the share extension writes this too, so
         // the app can come back to a destination it didn't pick itself.
         .onAppear { route.refresh() }
@@ -87,7 +99,103 @@ struct PlaybackRouteButton: View {
     private func select(_ target: PlayDestination) {
         if target == .device, !FeatureGate.shared.unlock(.onDevicePlayback) { return }
         HapticManager.shared.fireHaptic(.selection)
-        PlaybackRoute.shared.switchTo(target)
+        let preference = QueueTransferPreference.current
+        if preference == .ask, route.hasSomethingToCarry(to: target) {
+            pending = PendingSwitch(target: target)
+        } else {
+            route.switchTo(target, carrying: preference != .never)
+        }
+    }
+}
+
+private struct PendingSwitch: Identifiable {
+    let target: PlayDestination
+    var id: String { target.groupID ?? "device" }
+}
+
+/// The small sheet a route switch asks from: move what's playing along, or
+/// only change where playback goes. "Don't ask again" writes the answer to
+/// the setting (Settings › Playback), so the prompt is one tap to retire.
+private struct RouteTransferPrompt: View {
+    let target: PlayDestination
+    let onChoose: (_ carrying: Bool) -> Void
+
+    @State private var dontAskAgain = false
+
+    private var route: PlaybackRoute { .shared }
+
+    private var sourceName: String {
+        route.group?.nameWithCount ?? UIDevice.current.name
+    }
+
+    private var targetName: String {
+        guard let id = target.groupID else { return UIDevice.current.name }
+        return SonosService.shared.groups.first { $0.coordinatorID == id }?.nameWithCount ?? "Speaker"
+    }
+
+    private func symbol(for destination: PlayDestination) -> String {
+        destination == .device ? "iphone" : "hifispeaker.fill"
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 14) {
+                Image(systemName: symbol(for: route.destination))
+                Image(systemName: "arrow.right")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Image(systemName: symbol(for: target))
+            }
+            .font(.title)
+            .symbolRenderingMode(.hierarchical)
+            .padding(.top, 8)
+
+            VStack(spacing: 4) {
+                Text("Move What's Playing?")
+                    .font(.headline)
+                Text("Bring the queue from \(sourceName) to \(targetName), or switch and leave it where it is.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            VStack(spacing: 8) {
+                Button {
+                    choose(carrying: true)
+                } label: {
+                    Text("Move to \(targetName)")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    choose(carrying: false)
+                } label: {
+                    Text("Just Switch")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+            .controlSize(.large)
+
+            Toggle("Don't ask again", isOn: $dontAskAgain)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .tint(.accent)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 20)
+        .presentationDetents([.height(340)])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func choose(carrying: Bool) {
+        HapticManager.shared.fireHaptic(.selection)
+        if dontAskAgain {
+            let preference: QueueTransferPreference = carrying ? .always : .never
+            UserDefaults.standard.set(preference.rawValue, forKey: AppStorageKeys.routeQueueTransfer)
+        }
+        onChoose(carrying)
     }
 }
 

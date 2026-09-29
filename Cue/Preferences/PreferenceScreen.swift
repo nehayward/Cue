@@ -36,6 +36,7 @@ struct PreferenceScreen: View {
     @AppStorage(Defaults.AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
     @AppStorage(Defaults.AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
+    @AppStorage(Defaults.AppStorageKeys.routeQueueTransfer) private var routeQueueTransfer: QueueTransferPreference = .ask
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
@@ -424,6 +425,36 @@ struct PreferenceScreen: View {
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
                                     .fill(LinearGradient(colors: [Color(red: 0.7, green: 0.5, blue: 0.95), Color(red: 0.55, green: 0.35, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+                    // Same shape as the Lock Screen picker: three choices that
+                    // exclude each other, so segments rather than toggles.
+                    Label {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("When Switching Speakers")
+                            Picker("When Switching Speakers", selection: $routeQueueTransfer) {
+                                ForEach(QueueTransferPreference.allCases) { preference in
+                                    Text(preference.title).tag(preference)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            Text(routeQueueTransfer.footnote)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image("hifispeaker.arrow.forward.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(7)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.3, green: 0.8, blue: 0.55), Color(red: 0.1, green: 0.6, blue: 0.4)], startPoint: .topLeading, endPoint: .bottomTrailing))
                             )
                             .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
