@@ -83,12 +83,18 @@ private final class TapContext: @unchecked Sendable {
         guard let format, frames > 0,
               let copy = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames)) else { return }
         copy.frameLength = AVAudioFrameCount(frames)
-        let source = UnsafeMutableAudioBufferListPointer(bufferList)
-        let destination = UnsafeMutableAudioBufferListPointer(copy.mutableAudioBufferList)
-        for (from, to) in zip(source, destination) {
+        for (from, to) in zip(Self.buffers(in: bufferList), Self.buffers(in: copy.mutableAudioBufferList)) {
             guard let fromData = from.mData, let toData = to.mData else { continue }
             memcpy(toData, fromData, Int(min(from.mDataByteSize, to.mDataByteSize)))
         }
         onAudio(copy, start)
+    }
+
+    /// The list's buffers — `mBuffers` is declared as one, but the list holds
+    /// `mNumberBuffers` of them back to back.
+    private static func buffers(in list: UnsafeMutablePointer<AudioBufferList>) -> UnsafeMutableBufferPointer<AudioBuffer> {
+        let offset = MemoryLayout<AudioBufferList>.offset(of: \.mBuffers)!
+        let first = (UnsafeMutableRawPointer(list) + offset).assumingMemoryBound(to: AudioBuffer.self)
+        return UnsafeMutableBufferPointer(start: first, count: Int(list.pointee.mNumberBuffers))
     }
 }
