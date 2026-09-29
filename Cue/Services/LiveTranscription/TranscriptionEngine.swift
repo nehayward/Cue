@@ -1,4 +1,5 @@
 import AVFoundation
+import OSLog
 import Speech
 
 /// A chunk of audio to transcribe, and where it starts on the player's
@@ -101,15 +102,21 @@ enum TranscriptionEngine {
         let (inputs, inputBuilder) = AsyncStream.makeStream(of: AnalyzerInput.self)
         try await analyzer.start(inputSequence: inputs)
         await onStatus(.listening)
+        Logger.liveTranscription.info("Transcribing \(locale.identifier, privacy: .public) at \(format.description, privacy: .public)")
 
         // Off the main actor: resampling every chunk the player plays is
         // steady work, and the analyzer wants its own format.
         let pump = Task.detached(priority: .userInitiated) {
             let converter = BufferConverter(to: format)
             let clock = AnalyzerClock(sampleRate: format.sampleRate)
+            var fed = 0
             for await chunk in audio {
                 if let converted = converter.convert(chunk.buffer),
                    case .play(let start) = clock.place(converted, stamped: chunk.start) {
+                    fed += 1
+                    if fed == 1 {
+                        Logger.liveTranscription.info("First chunk to the analyzer: \(converted.frameLength) frames at \(start.map { $0.seconds } ?? -1, privacy: .public)s")
+                    }
                     inputBuilder.yield(AnalyzerInput(buffer: converted, bufferStartTime: start))
                 }
             }

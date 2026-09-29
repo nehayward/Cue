@@ -1,5 +1,6 @@
 import AVFoundation
 import MediaToolbox
+import OSLog
 
 /// Listens in on an `AVPlayerItem`'s own audio as it plays: an
 /// `MTAudioProcessingTap` on the item's whole mix, the
@@ -31,8 +32,10 @@ enum PlayerAudioTap {
             finalize: { tap in
                 Unmanaged<TapContext>.fromOpaque(MTAudioProcessingTapGetStorage(tap)).release()
             },
-            prepare: { tap, _, format in
-                TapContext.from(tap).format = AVAudioFormat(streamDescription: format)
+            prepare: { tap, maxFrames, format in
+                let format = AVAudioFormat(streamDescription: format)
+                TapContext.from(tap).format = format
+                Logger.liveTranscription.info("Tap prepared: \(format?.description ?? "no format", privacy: .public), up to \(maxFrames) frames")
             },
             unprepare: { tap in
                 TapContext.from(tap).format = nil
@@ -40,7 +43,10 @@ enum PlayerAudioTap {
             process: { tap, frames, _, bufferList, framesOut, flagsOut in
                 var timeRange = CMTimeRange.zero
                 let status = MTAudioProcessingTapGetSourceAudio(tap, frames, bufferList, flagsOut, &timeRange, framesOut)
-                guard status == noErr else { return }
+                guard status == noErr else {
+                    TapContext.from(tap).noteFailure(status, frames: frames)
+                    return
+                }
                 TapContext.from(tap).deliver(bufferList, frames: framesOut.pointee, start: timeRange.start)
             }
         )
@@ -68,6 +74,11 @@ enum PlayerAudioTap {
 private final class TapContext: @unchecked Sendable {
     let onAudio: @Sendable (AVAudioPCMBuffer, CMTime) -> Void
     var format: AVAudioFormat?
+    /// For the log: chunks handed on and pulls that failed, and the audio's
+    /// length when last logged.
+    private var chunks = 0
+    private var failures = 0
+    private var framesSinceLog: Double = 0
 
     init(onAudio: @escaping @Sendable (AVAudioPCMBuffer, CMTime) -> Void) {
         self.onAudio = onAudio
@@ -88,6 +99,20 @@ private final class TapContext: @unchecked Sendable {
             memcpy(toData, fromData, Int(min(from.mDataByteSize, to.mDataByteSize)))
         }
         onAudio(copy, start)
+
+        chunks += 1
+        framesSinceLog += Double(frames)
+        if chunks == 1 || framesSinceLog >= format.sampleRate * 10 {
+            framesSinceLog = 0
+            Logger.liveTranscription.info("Tap chunk \(self.chunks): \(frames) frames at \(start.isNumeric ? start.seconds : -1, privacy: .public)s")
+        }
+    }
+
+    func noteFailure(_ status: OSStatus, frames: CMItemCount) {
+        failures += 1
+        if failures == 1 || failures % 100 == 0 {
+            Logger.liveTranscription.error("Tap couldn't pull \(frames) frames: \(status) (\(self.failures) so far)")
+        }
     }
 
     /// The list's buffers — `mBuffers` is declared as one, but the list holds

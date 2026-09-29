@@ -319,6 +319,7 @@ final class LiveTranscriptionService {
         let group = route.group
         let feed = feed
         if case .device = source, #available(iOS 27.0, visionOS 27.0, *) {
+            Logger.liveTranscription.info("Hearing \(source.stationID, privacy: .public) through the player's tap")
             isTapping = true
             playback.tapStationAudio { buffer, start in
                 feed.send(buffer, start: start.isNumeric ? start : nil)
@@ -326,6 +327,7 @@ final class LiveTranscriptionService {
             startRevealing()
             return
         }
+        Logger.liveTranscription.info("Hearing \(source.stationID, privacy: .public) from a second copy of its stream")
         listenTask = Task { [weak self] in
             var url: URL?
             switch source {
@@ -393,6 +395,11 @@ final class LiveTranscriptionService {
     }
 
     private func receive(_ words: [TranscribedWord], isFinal: Bool) {
+        if isFinal {
+            let first = words.first?.start ?? -1
+            let playhead = isTapping ? playback.stationPlayhead ?? -1 : -1
+            Logger.liveTranscription.info("Heard \(words.count) words from \(first, privacy: .public)s, player at \(playhead, privacy: .public)s: \(Self.text(of: words), privacy: .public)")
+        }
         if isFinal {
             heldLines.append(words)
             heldVolatile = []
