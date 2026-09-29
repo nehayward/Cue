@@ -44,6 +44,7 @@ final class SongRecognizer {
 
     private(set) var state: State = .idle
     @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private var timeoutTask: Task<Void, Never>?
 
     /// The song last named on each stream, and until when it's still on:
     /// a second tap during the same song answers at once instead of
@@ -59,6 +60,11 @@ final class SongRecognizer {
     /// How long a song is taken to stay on when its length isn't known.
     private static let assumedRemaining: TimeInterval = 45
 
+    /// How long a listen may take in all — reaching the stream, sampling
+    /// it and hearing back from Shazam — before it gives up. A stalled
+    /// stream otherwise left the logo pulsing for good.
+    private static let timeout: Duration = .seconds(25)
+
     /// Listens to the stream `resolve` hands back and names the song on it,
     /// handing the outcome to `onFinish`. A new call replaces one still
     /// listening, whose `onFinish` then never runs.
@@ -71,20 +77,37 @@ final class SongRecognizer {
         onFinish: @escaping @MainActor (State) -> Void = { _ in }
     ) {
         task?.cancel()
+        timeoutTask?.cancel()
         known = known.filter { $0.value.until > .now }
         if let key, let hit = known[key] {
             task = nil
+            timeoutTask = nil
             state = .found(hit.song)
             onFinish(state)
             return
         }
         state = .listening
-        task = Task { [weak self] in
+        let listen = Task { [weak self] in
             let (state, until) = await Self.recognize(resolve: resolve)
             guard !Task.isCancelled, let self else { return }
+            self.timeoutTask?.cancel()
+            self.timeoutTask = nil
             if let key, case .found(let song) = state {
                 self.known[key] = (song, until ?? .now.addingTimeInterval(Self.assumedRemaining))
             }
+            self.state = state
+            onFinish(state)
+        }
+        task = listen
+        // Gives up without waiting on the listen to notice it was
+        // cancelled — a stalled read or Shazam call may not for a while.
+        timeoutTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.timeout)
+            guard !Task.isCancelled, let self, self.task == listen else { return }
+            listen.cancel()
+            self.task = nil
+            self.timeoutTask = nil
+            let state = State.failed("Shazam took too long to listen. Try again in a moment.")
             self.state = state
             onFinish(state)
         }
@@ -95,6 +118,8 @@ final class SongRecognizer {
     func cancel() {
         task?.cancel()
         task = nil
+        timeoutTask?.cancel()
+        timeoutTask = nil
         state = .idle
     }
 
