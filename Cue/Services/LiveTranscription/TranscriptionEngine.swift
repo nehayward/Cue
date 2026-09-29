@@ -109,7 +109,7 @@ enum TranscriptionEngine {
         let pump = Task.detached(priority: .userInitiated) {
             let converter = BufferConverter(to: format)
             var fed = 0
-            /// The loudest sample the analyzer got since last logged, 0...1.
+            // The loudest sample the analyzer got since last logged, 0...1.
             var peak: Float = 0
             for await chunk in audio {
                 if let converted = converter.convert(chunk.buffer),
