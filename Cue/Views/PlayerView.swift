@@ -142,7 +142,7 @@ struct PlayerView: View {
     /// full cover, title bar included; clipped at the safe area instead, the
     /// backdrop stopped short of the window's top edge.
     private var backdrop: some View {
-        Group {
+        VStack(spacing: 0) {
             if let group {
                 GroupPlayerBackgroundView(group: group, shouldFade: artworkShouldFade)
             } else {

@@ -580,7 +580,7 @@ struct CueApp: App {
             // It also removes the reason the zoom needed guarding: the morph
             // only happens when the cover presents, and the cover no longer
             // re-presents behind the user's back.
-            .modifier(PlayerCoverPresentation(isPresented: $router.isPlayerPresented) {
+            .fullScreenCover(isPresented: $router.isPlayerPresented) {
 #if targetEnvironment(macCatalyst)
                 // Plain slide-up on the Mac: the zoom out of the tab bar
                 // accessory misbehaves under Catalyst, and the cover's
@@ -592,7 +592,7 @@ struct CueApp: App {
                     .presentationBackgroundInteraction(.enabled)
                     .zoomTransition(from: .miniPlayer, in: zoomNamespace)
 #endif
-            })
+            }
             .modifier(AdaptiveTabViewStyle())
             .onOpenURL(perform: handle)
             .onAppear {
@@ -1363,40 +1363,6 @@ private struct AdaptiveTabViewStyle: ViewModifier {
     }
 }
 
-/// The player's `fullScreenCover`, driven by `Router.main.isPlayerPresented`
-/// through a copy the window's content owns. Closing the Mac window doesn't
-/// tear the scene down — it's hidden and shown again, and none of the scene
-/// delegate's connect or disconnect callbacks run — but the window's content
-/// does appear afresh, and bound straight to the router the cover slid up
-/// again as if it had just been asked for. The copy starts closed and, when
-/// the player was already up, catches up without an animation; changes made
-/// after that animate as usual.
-private struct PlayerCoverPresentation<Cover: View>: ViewModifier {
-    @Binding var isPresented: Bool
-    @ViewBuilder var cover: () -> Cover
-
-    @State private var isShown = false
-
-    func body(content: Content) -> some View {
-        content
-            .fullScreenCover(isPresented: Binding(
-                get: { isShown },
-                set: { newValue in
-                    isShown = newValue
-                    isPresented = newValue
-                }
-            ), content: cover)
-            .onAppear {
-                guard isPresented, !isShown else { return }
-                var transaction = Transaction()
-                transaction.disablesAnimations = true
-                withTransaction(transaction) { isShown = true }
-            }
-            .onChange(of: isPresented) { _, newValue in
-                isShown = newValue
-            }
-    }
-}
 
 /// Transport buttons for the "Playback" command menu. Extracted into its own
 /// View because inlining all five buttons (each with conditional labels and

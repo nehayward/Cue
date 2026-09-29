@@ -171,16 +171,6 @@ Key findings for whoever picks this up:
 - Scope decided: Apple Music only first (Spotify/Deezer would each need their
   own preview-URL lookup path).
 
-### Single window
-Cue runs in one window (`UIApplicationSupportsMultipleScenes` is `false` in
-`Cue/Info.plist`). App-wide state such as `Router.main` — including the player
-cover's `isPlayerPresented` — assumes that. Closing the Mac window hides the
-scene rather than disconnecting it, so the scene delegate's callbacks don't
-run on a close and reopen; `PlayerCoverPresentation` (in `CueApp.swift`) is
-what stops the player sliding up again when the window comes back. If multiple windows come back,
-presentation state has to move per window (a `Router` per scene, or
-`@SceneStorage`), with the menu commands acting on the key window.
-
 ### Monetization notes
 - Downloads (Plex/Subsonic, `DownloadManager`) are free up to
   `DownloadManager.freeSongLimit` songs held at a time; Cue Super lifts the
