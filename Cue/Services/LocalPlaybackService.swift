@@ -235,11 +235,16 @@ final class LocalPlaybackService {
     /// The stream player's own output level, 0...1 — `DeviceVolume` drives
     /// it where the device volume can't be set. Carried onto each new run.
     @ObservationIgnored var streamVolume: Float = 1 {
-        didSet { streamPlayer?.volume = streamVolume }
+        didSet { applyStreamVolume() }
     }
     /// Live Transcription's ear on the station playing here — see
     /// `tapStationAudio(_:)`. Carried onto each new station item.
     @ObservationIgnored private var stationAudioTap: (@Sendable (AVAudioPCMBuffer, CMTime) -> Void)?
+    /// The station item carrying the tap. It plays with the player at full
+    /// level and `streamVolume` applied by the tap, which hears the mix after
+    /// the player's volume and would otherwise go deaf with it turned down.
+    @ObservationIgnored private weak var tappedItem: AVPlayerItem?
+    @ObservationIgnored private let stationTapGain = TapGain()
     /// The armed stream run: player item → queue index.
     @ObservationIgnored private var streamRun: [ObjectIdentifier: Int] = [:]
     /// Resolved Apple `Song`s by catalog id, so replaying or skipping back to
@@ -1223,7 +1228,7 @@ final class LocalPlaybackService {
         streamRun = Dictionary(uniqueKeysWithValues: rows.map { (ObjectIdentifier($0.item), $0.queueIndex) })
         let player = AVQueuePlayer(items: rows.map(\.item))
         streamPlayer = player
-        player.volume = streamVolume
+        applyStreamVolume()
         if let resume, resume > 0 {
             // Partway in before the first note, so nothing from the top of
             // the track is heard first. Pending until the item is ready, so
@@ -1432,7 +1437,23 @@ final class LocalPlaybackService {
 
     private func applyStationAudioTap(to item: AVPlayerItem) {
         guard #available(iOS 27.0, visionOS 27.0, *) else { return }
-        item.audioMix = stationAudioTap.flatMap { PlayerAudioTap.audioMix(onAudio: $0) }
+        let gain = stationTapGain
+        item.audioMix = stationAudioTap.flatMap { PlayerAudioTap.audioMix(gain: gain, onAudio: $0) }
+        if item.audioMix != nil {
+            tappedItem = item
+        } else if tappedItem === item {
+            tappedItem = nil
+        }
+        applyStreamVolume()
+    }
+
+    /// Sets the stream's level: on the player, or — for the tapped station —
+    /// in the tap, with the player held at full level for it to hear.
+    private func applyStreamVolume() {
+        stationTapGain.value = streamVolume
+        guard let player = streamPlayer else { return }
+        let isTapped = tappedItem != nil && player.currentItem === tappedItem
+        player.volume = isTapped ? 1 : streamVolume
     }
 
     /// Shows a song Shazam named as what's on air, as if the station had
