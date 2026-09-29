@@ -75,6 +75,22 @@ final class CoreFeatures {
         }
     }
 
+    /// Undoes, once, what `disableUnauthorizedServices` did before a service
+    /// the device plays on its own counted as authorized: switching Sonos
+    /// households switched Apple Music, Plex and TuneIn off, and the Radio
+    /// tab with them. Turns each back on if this device can play it. Runs a
+    /// single time, so a service switched off by hand afterwards stays off.
+    @MainActor
+    func restoreDeviceServicesOnce() {
+        let key = "dance.cue.restoredDeviceServices"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        for service in [MediaSearchService.apple, .plex, .tuneIn]
+        where !isEnabled(service) && service.isAuthorized(on: []) {
+            setFeature(value: true, service.title)
+        }
+    }
+
     /// Preferred default service after discovery — Apple Music first, then
     /// Plex, then radio. Falls back to `.files` when nothing is installed
     /// (e.g. no Sonos system found, or none of the supported services are

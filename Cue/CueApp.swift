@@ -589,6 +589,7 @@ struct CueApp: App {
             .onOpenURL(perform: handle)
             .onAppear {
                 SonosService.shared.monitor()
+                coreFeatures.restoreDeviceServicesOnce()
                 
 #if os(iOS) && !targetEnvironment(macCatalyst)
                 // One call for the lifetime of the process: the service watches
