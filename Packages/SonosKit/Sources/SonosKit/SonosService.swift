@@ -1129,7 +1129,9 @@ public final class SonosService {
     public func updateGroupsRooms(from roomGroups: [GroupRoom]) async {
         await withDiscardingTaskGroup { group in
             for roomGroup in roomGroups {
-                for room in roomGroup.rooms {
+                // Skip sleeping/offline rooms before spawning: this runs on every
+                // poll, and each active room fans out into three child tasks.
+                for room in roomGroup.rooms where room.state == .active {
                     group.addTask { @MainActor [weak self] in
                         if room.state != .active { return }
                         guard let self else { return }
@@ -1234,14 +1236,16 @@ public final class SonosService {
                     }
 
                     // TODO: Move into playback
-                    Task { @MainActor [weak self] in
-                        if roomGroup.playbackService == .tv {
+                    // Only spawn the unstructured task when there is a network
+                    // fetch to do; clearing stale settings is synchronous.
+                    if roomGroup.playbackService == .tv {
+                        Task { @MainActor [weak self] in
                             if let settings = try? await self?.getTVSettings(group: roomGroup), roomGroup.tvSettings != settings {
                                 roomGroup.tvSettings = settings
                             }
-                        } else if roomGroup.tvSettings != nil {
-                            roomGroup.tvSettings = nil
                         }
+                    } else if roomGroup.tvSettings != nil {
+                        roomGroup.tvSettings = nil
                     }
                 }
             }
@@ -1266,9 +1270,13 @@ public final class SonosService {
 
     @MainActor
     public func wakeSleepingRooms(rooms: [Room]) {
+        // Called on every load; filter up front so the common case (nothing
+        // asleep) spawns no tasks at all.
+        let sleeping = rooms.filter { $0.macAddress != nil && $0.state == .sleeping }
+        guard !sleeping.isEmpty else { return }
         Task {
             await withDiscardingTaskGroup { taskGroup in
-                for room in rooms {
+                for room in sleeping {
                     taskGroup.addTask { [weak self] in
                         if let macAddress = room.macAddress, room.state == .sleeping {
                             self?.sonosSystemDiscoverService.sendWakeOnLANPacket(macAddress: macAddress)
