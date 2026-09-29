@@ -110,7 +110,12 @@ struct RadioScreen: View {
                 title: "Local Radio",
                 caption: "TuneIn",
                 items: local,
-                seeAll: .playableList(title: "Local Radio", showSectionIndex: false, action: { offset in offset == 0 ? local : [] })
+                seeAll: .playableList(
+                    title: "Local Radio",
+                    showSectionIndex: false,
+                    searchAction: { query, offset in offset == 0 ? Self.filter(local, by: query) : [] },
+                    action: { offset in offset == 0 ? local : [] }
+                )
             )
         }
         if !trending.isEmpty {
@@ -118,7 +123,12 @@ struct RadioScreen: View {
                 title: "Trending",
                 caption: "TuneIn",
                 items: trending,
-                seeAll: .playableList(title: "Trending", showSectionIndex: false, action: { offset in offset == 0 ? trending : [] })
+                seeAll: .playableList(
+                    title: "Trending",
+                    showSectionIndex: false,
+                    searchAction: { query, offset in offset == 0 ? Self.filter(trending, by: query) : [] },
+                    action: { offset in offset == 0 ? trending : [] }
+                )
             )
         }
         if let error = tuneInBrowseService.error {
@@ -214,6 +224,15 @@ struct RadioScreen: View {
         }
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
+    }
+
+    /// The stations whose name matches the query. TuneIn puts the
+    /// frequency, call sign and genre in the title ("88.5 | KNKX (Jazz)"),
+    /// so matching on it covers all three.
+    private static func filter(_ stations: [PlayableContent], by query: String) -> [PlayableContent] {
+        stations.filter { station in
+            [station.title, station.subtitle].contains { $0.localizedCaseInsensitiveContains(query) }
+        }
     }
 
     /// A refresh failed but the rows on screen are still good: say so
