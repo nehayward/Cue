@@ -167,8 +167,10 @@ struct PlayerView: View {
             stationTitle: item.content.type.isRadio ? (playback.nowPlaying?.title ?? "") : nil
         )
         .frame(height: 12)
-        LocalSongTitleButton(item: item)
-        LocalArtistButton(item: item, showArtworkOnly: showArtworkOnly)
+        // While a station plays, a tap opens the song on air once Apple
+        // Music has it — named by the station or by Shazam.
+        LocalSongTitleButton(item: item, target: playback.onAirMatch)
+        LocalArtistButton(item: item, target: playback.onAirMatch, showArtworkOnly: showArtworkOnly)
 
         if !showArtworkOnly {
             VStack {
@@ -388,7 +390,13 @@ struct PlayerView: View {
                             .glassButton()
                             .tint(.primary)
                     }
-                    if item.content.service.supportsFavoriteTrack {
+                    // The song on air, while a station plays and Apple
+                    // Music has it.
+                    if let song = playback.onAirMatch {
+                        LikeButtonView(content: song)
+                            .glassButton()
+                            .id(song.content.id)
+                    } else if item.content.service.supportsFavoriteTrack {
                         LikeButtonView(content: item)
                             .glassButton()
                     }
@@ -568,16 +576,18 @@ private struct LocalSongTitleButton: View {
     @Environment(Router.self) private var router: Router
 
     let item: PlayableContent
+    /// What a tap opens in place of `item` — the song on a station.
+    var target: PlayableContent? = nil
 
     @State private var isHovering: Bool = false
 
-    private var isSupported: Bool { item.content.service.supportsViewArtistAlbum }
+    private var isSupported: Bool { (target ?? item).content.service.supportsViewArtistAlbum }
 
     var body: some View {
         Button {
             guard isSupported else { return }
             HapticManager.shared.fireHaptic(.buttonPress)
-            router.sheet(to: .mediaDetail(content: item, group: nil))
+            router.sheet(to: .mediaDetail(content: target ?? item, group: nil))
         } label: {
             MarqueeText(item.title)
                 .bold()
@@ -602,17 +612,19 @@ private struct LocalArtistButton: View {
     @Environment(Router.self) private var router: Router
 
     let item: PlayableContent
+    /// What a tap opens in place of `item` — the song on a station.
+    var target: PlayableContent? = nil
     let showArtworkOnly: Bool
 
     @State private var isHovering: Bool = false
 
-    private var isSupported: Bool { item.content.service.supportsViewArtistAlbum }
+    private var isSupported: Bool { (target ?? item).content.service.supportsViewArtistAlbum }
 
     var body: some View {
         Button {
             guard isSupported else { return }
             HapticManager.shared.fireHaptic(.buttonPress)
-            router.sheet(to: .artistDetail(content: item, group: nil))
+            router.sheet(to: .artistDetail(content: target ?? item, group: nil))
         } label: {
             Text(item.metadata?.artist ?? item.subtitle)
                 .multilineTextAlignment(.center)
@@ -1090,29 +1102,37 @@ private struct LocalPlayerMenuView: View {
 
     private var playback: LocalPlaybackService { .shared }
 
+    /// What the song actions act on: the song on air while a station plays
+    /// and Apple Music has it, else the row itself. Playing elsewhere and
+    /// downloads stay with the row.
+    private var song: PlayableContent { playback.onAirMatch ?? item }
+
     var body: some View {
         Menu {
-            OpenInServiceView(item: item)
-            if item.content.service.supportsViewArtistAlbum {
+            OpenInServiceView(item: song)
+            if song.content.service.supportsViewArtistAlbum {
                 Button {
-                    router.sheet(to: .mediaDetail(content: item, group: nil))
+                    router.sheet(to: .mediaDetail(content: song, group: nil))
                 } label: {
                     Label("View Album", systemImage: "smallcircle.circle.fill")
                 }
 
                 Button {
-                    router.sheet(to: .artistDetail(content: item, group: nil))
+                    router.sheet(to: .artistDetail(content: song, group: nil))
                 } label: {
                     Label("View Artist", systemImage: "music.mic")
                 }
             }
 
-            Divider()
-            AddToLastPlaylistButton(itemToAdd: item)
-            Button {
-                router.sheet(to: .addToPlaylist(content: item))
-            } label: {
-                Label("Add to Playlist…", systemImage: "text.badge.plus")
+            // A station itself can't go in a playlist; the song on it can.
+            if !song.content.type.isRadio {
+                Divider()
+                AddToLastPlaylistButton(itemToAdd: song)
+                Button {
+                    router.sheet(to: .addToPlaylist(content: song))
+                } label: {
+                    Label("Add to Playlist…", systemImage: "text.badge.plus")
+                }
             }
             Divider()
 

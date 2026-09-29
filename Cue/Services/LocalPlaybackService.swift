@@ -1344,10 +1344,32 @@ final class LocalPlaybackService {
     /// puts it up if nothing else has come on air meanwhile.
     private func lookUpArtwork(for live: LiveStationMetadata, token: Int) async {
         let results = await MusicSearchService.shared.search(song: live.song, artist: live.artist ?? "", album: "")
-        guard playToken == token, liveMetadata == live,
-              let match = results.first,
-              let artwork = URL(string: match.artworkURL(with: "600")) else { return }
-        liveMetadata?.artworkURL = artwork
+        guard playToken == token, liveMetadata == live, let result = results.first else { return }
+        let match = PlayableContent(
+            title: result.trackName,
+            subtitle: result.artistName,
+            thumbnail: URL(string: result.artworkURL(with: "100")),
+            artwork: URL(string: result.artworkURL(with: "600")),
+            content: MediaContent(service: .apple, id: result.trackID.description, type: .track, location: URL(string: result.trackViewURL)),
+            metadata: PlayableContentMetadata(
+                artist: result.artistName,
+                artistID: result.artistID.description,
+                album: result.album,
+                albumID: result.collectionID?.description
+            )
+        )
+        if liveMetadata?.artworkURL == nil {
+            liveMetadata?.artworkURL = match.artwork
+        }
+        if liveMetadata?.match == nil {
+            liveMetadata?.match = match
+        }
+    }
+
+    /// The Apple Music song on air, while a station plays and one was found.
+    var onAirMatch: PlayableContent? {
+        guard let item = nowPlaying, isStation(item) else { return nil }
+        return liveMetadata?.match
     }
 
     /// Whether two titles name the same song, ignoring case and anything in
@@ -1385,15 +1407,16 @@ final class LocalPlaybackService {
     /// playing.
     func noteRecognized(_ song: RecognizedSong, stationID: String?) {
         guard canRecognizeSong, nowPlaying?.content.id == stationID else { return }
-        // Shazam's cover first, then the Apple Music song's; failing both,
-        // the same lookup a station's own title gets.
+        // Shazam's cover first, then the Apple Music song's; failing either
+        // the cover or the song, the same lookup a station's own title gets.
         let live = LiveStationMetadata(
             song: song.title,
             artist: song.artist,
-            artworkURL: song.artworkURL ?? song.playable?.artwork ?? song.playable?.thumbnail
+            artworkURL: song.artworkURL ?? song.playable?.artwork ?? song.playable?.thumbnail,
+            match: song.playable
         )
         liveMetadata = live
-        if live.artworkURL == nil {
+        if live.artworkURL == nil || live.match == nil {
             let token = playToken
             Task { await lookUpArtwork(for: live, token: token) }
         }
@@ -1714,6 +1737,9 @@ struct LiveStationMetadata: Equatable {
     var song: String
     var artist: String?
     var artworkURL: URL?
+    /// The song in Apple Music's catalog, once found — what the player's
+    /// title, artist, like button and menu act on while a station plays.
+    var match: PlayableContent?
 }
 
 /// Hands ICY stream titles (`StreamTitle`) to a closure as they arrive.
