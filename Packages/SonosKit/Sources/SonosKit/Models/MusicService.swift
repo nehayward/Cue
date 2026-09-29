@@ -365,10 +365,12 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     /// Service ships a recognisable badge, so its stations keep the service
     /// icon on artwork instead of falling back to the generic `radio.fill`
     /// glyph other radio sources use. Independent of how `icon` renders it —
-    /// Sonos Radio keeps its original colours, Pandora is tinted like the rest.
+    /// Sonos Radio keeps its original colours; Pandora and TuneIn are tinted
+    /// like the rest. TuneIn is almost all radio, so a generic glyph there hid
+    /// the source entirely (the Sonos player shows its logo).
     public var hasBrandedRadioBadge: Bool {
         switch self {
-        case .sonosRadio, .pandora: true
+        case .sonosRadio, .pandora, .tuneIn: true
         default: false
         }
     }
