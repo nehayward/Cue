@@ -78,6 +78,9 @@ private final class TapContext: @unchecked Sendable {
     private var chunks = 0
     private var failures = 0
     private var framesSinceLog: Double = 0
+    /// The loudest sample since last logged, 0...1 — near zero means the
+    /// tap hears silence.
+    private var peak: Float = 0
 
     init(onAudio: @escaping @Sendable (AVAudioPCMBuffer, CMTime) -> Void) {
         self.onAudio = onAudio
@@ -99,11 +102,19 @@ private final class TapContext: @unchecked Sendable {
         }
         onAudio(copy, start)
 
+        if let channels = copy.floatChannelData {
+            for channel in 0..<Int(copy.format.channelCount) {
+                for frame in 0..<Int(copy.frameLength) {
+                    peak = max(peak, abs(channels[channel][frame]))
+                }
+            }
+        }
         chunks += 1
         framesSinceLog += Double(frames)
         if chunks == 1 || framesSinceLog >= format.sampleRate * 10 {
             framesSinceLog = 0
-            print("Live Transcription: Tap chunk \(self.chunks): \(frames) frames at \(start.isNumeric ? start.seconds : -1)s")
+            print("Live Transcription: Tap chunk \(self.chunks): \(frames) frames at \(start.isNumeric ? start.seconds : -1)s, peak \(self.peak)")
+            peak = 0
         }
     }
 

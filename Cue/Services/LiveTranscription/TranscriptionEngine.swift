@@ -109,12 +109,23 @@ enum TranscriptionEngine {
         let pump = Task.detached(priority: .userInitiated) {
             let converter = BufferConverter(to: format)
             var fed = 0
+            /// The loudest sample the analyzer got since last logged, 0...1.
+            var peak: Float = 0
             for await chunk in audio {
                 if let converted = converter.convert(chunk.buffer),
                    case .play(let start) = clock.place(converted, stamped: chunk.start) {
                     fed += 1
                     if fed == 1 {
                         print("Live Transcription: First chunk to the analyzer: \(converted.frameLength) frames at \(start.map { $0.seconds } ?? -1)s, player time \(clock.origin)s")
+                    }
+                    if let samples = converted.int16ChannelData?[0] {
+                        for frame in 0..<Int(converted.frameLength) {
+                            peak = max(peak, Float(abs(Int32(samples[frame]))) / Float(Int16.max))
+                        }
+                    }
+                    if fed % 500 == 0 {
+                        print("Live Transcription: Analyzer chunk \(fed) at \(start.map { $0.seconds } ?? -1)s, peak \(peak)")
+                        peak = 0
                     }
                     inputBuilder.yield(AnalyzerInput(buffer: converted, bufferStartTime: start))
                 }
