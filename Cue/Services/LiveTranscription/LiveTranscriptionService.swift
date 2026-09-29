@@ -8,19 +8,20 @@ import SonosKit
 /// written out as it airs, by an on-device model (`TranscriptionEngine`,
 /// iOS 26 and later). Nothing leaves the device.
 ///
-/// It follows a TuneIn station wherever the player's route points:
+/// It follows the station wherever the player's route points:
 /// - **On this device** it hears the player itself — a tap on
 ///   `LocalPlaybackService`'s stream item (`TranscriptionAudioTap`) — so it
 ///   works with headphones in and the volume down, and costs no extra data.
 /// - **On a speaker** the audio never reaches the device, but the station is
-///   a public stream: `RadioStreamListener` opens the same station here,
+///   a public stream (`SonosService.radioStreamURL(for:)` — a plain internet
+///   station or TuneIn): `RadioStreamListener` opens the same station here,
 ///   silently, and taps that. The speaker buffers on its own clock, so the
 ///   words can run a few seconds ahead of or behind the room. It stops while
 ///   the speaker is paused.
 ///
-/// Apple Music stations play inside Apple's own player, and Sonos Radio and
-/// other speaker-only stations have no stream the device can open; for those
-/// the panel says why there's nothing to show.
+/// Apple Music stations play inside Apple's own player, and Sonos Radio,
+/// HLS-only stations and other speaker-only services have no stream the
+/// device can tap; for those the panel says why there's nothing to show.
 ///
 /// It only runs while the player shows it: the panel `activate()`s on appear
 /// and `deactivate()`s on disappear, which takes the taps off and closes the
@@ -187,8 +188,12 @@ final class LiveTranscriptionService {
     /// The station playing where the route points, if it's one Cue can hear.
     private func currentSource() -> Source? {
         if let group = route.group {
-            let track = group.coordinatorRoom.track
-            guard track.musicService == .tuneIn, let stationID = track.metadata?.stationID else { return nil }
+            let room = group.coordinatorRoom
+            guard room.isPlayingRadio else { return nil }
+            // TuneIn's id where the speaker gives one, so a station keeps its
+            // language between this device and a speaker; the station's name
+            // otherwise.
+            guard let stationID = room.track.metadata?.stationID ?? room.radioStation ?? room.track.trackID.nilIfEmpty else { return nil }
             return .speaker(stationID: stationID)
         }
         guard playback.isPlayingStation, playback.isPlayingLocalStream,
@@ -234,10 +239,7 @@ final class LiveTranscriptionService {
     private var unavailableReason: String {
         if let group = route.group {
             let room = group.coordinatorRoom
-            guard room.isPlayingRadio else {
-                return "Play a radio station on \(room.name) to see what's being said."
-            }
-            return "Only TuneIn stations can be transcribed while they play on a speaker — this one has no stream Cue can open."
+            return "Play a radio station on \(room.name) to see what's being said."
         }
         guard let item = playback.nowPlaying, playback.isPlayingStation else {
             return "Play a radio station to see what's being said."
@@ -294,15 +296,16 @@ final class LiveTranscriptionService {
             for item in playback.streamItems {
                 tap(item)
             }
-        case .speaker(let stationID):
+        case .speaker:
+            guard let group = route.group else { return }
             let feed = feed
             Task {
-                let opened = await listener.open(stationID: stationID) { buffer in
+                let opened = await listener.open(stationOn: group) { buffer in
                     feed.send(buffer)
                 }
                 guard !opened, self.generation == generation else { return }
                 stop()
-                state = .failed("Couldn't open this station's stream on this device.")
+                state = .unavailable("This station can't be opened on this device — Sonos Radio and some stations only a speaker can reach have no stream Cue can listen to.")
             }
         }
     }
@@ -400,15 +403,16 @@ private final class RadioStreamListener {
     /// replaced doesn't start a player behind the newer one.
     private var token = 0
 
-    /// Starts the station's stream silently and taps it. Returns whether
-    /// audio is now flowing to `onBuffer`.
-    func open(stationID: String, onBuffer: @escaping @Sendable (AVAudioPCMBuffer) -> Void) async -> Bool {
+    /// Starts the stream of the station `group` is playing, silently, and
+    /// taps it. Returns whether audio is now flowing to `onBuffer`.
+    func open(stationOn group: GroupRoom, onBuffer: @escaping @Sendable (AVAudioPCMBuffer) -> Void) async -> Bool {
         close()
         token += 1
         let token = token
-        // The same non-HLS pick the device player makes: an HLS stream has
-        // no track to tap.
-        guard let url = await MusicSearchService.shared.tuneInStreamURL(id: stationID),
+        // A plain internet station is its own URL; TuneIn gets the same
+        // non-HLS pick the device player makes — an HLS stream has no track
+        // to tap.
+        guard let url = await SonosService.shared.radioStreamURL(for: group),
               self.token == token else { return false }
 
         let item = AVPlayerItem(url: url)
@@ -477,4 +481,8 @@ private extension Room {
     var isPlayingRadio: Bool {
         radioStation != nil || track.metadata?.contentType == .radio
     }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }
