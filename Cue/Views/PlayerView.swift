@@ -66,6 +66,18 @@ struct PlayerView: View {
 #endif
     }
 
+    /// Only on the Mac, where the player slides up instead of zooming. On
+    /// iPhone and iPad the artwork fills most of the screen, and the drag
+    /// interaction behind `.draggable` claims the touch before the zoom's
+    /// swipe-down-to-dismiss can, so pulling down on the cover did nothing.
+    private var isArtworkDraggable: Bool {
+#if targetEnvironment(macCatalyst)
+        true
+#else
+        false
+#endif
+    }
+
     /// `shouldFade` covers skips made from this screen's own transport; the
     /// ⌘← / ⌘→ commands can't reach that state, so they open an equivalent
     /// window on the main router.
@@ -174,7 +186,7 @@ struct PlayerView: View {
                 LiveTranscriptionView()
                     .transition(.opacity)
             } else {
-                ContentArtworkView(content: item, showMusicSource: true, preferredSize: 600, cornerRadius: 8, isDraggable: true)
+                ContentArtworkView(content: item, showMusicSource: true, preferredSize: 600, cornerRadius: 8, isDraggable: isArtworkDraggable)
                     .shadow(radius: 2)
                     .transition(.opacity)
             }
@@ -270,7 +282,7 @@ struct PlayerView: View {
                     LiveTranscriptionView()
                         .transition(.opacity)
                 } else {
-                    ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: artworkShouldFade)
+                    ArtworkView(group: group, isDraggable: isArtworkDraggable, showBadge: true, shouldFade: artworkShouldFade)
                         .transition(.opacity)
                 }
             }
