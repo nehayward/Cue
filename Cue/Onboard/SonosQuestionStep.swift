@@ -1,3 +1,4 @@
+import MusicSearchKit
 import SwiftUI
 
 /// Asks whether there are Sonos speakers to set up. Cue is a player first, so
@@ -27,18 +28,26 @@ struct SonosQuestionStep: View {
 
             Spacer(minLength: 24)
 
-            Image(systemName: "hifispeaker.2.fill")
-                .font(.system(size: 96, weight: .regular))
-                .foregroundStyle(.white.opacity(0.9))
-                .shadow(color: .white.opacity(0.2), radius: 24)
+            // The Sonos mark, the same asset the Sonos Radio service uses.
+            // A black disc, so a faint ring and glow lift it off the
+            // background.
+            Image("Sonos Radio", bundle: .musicSearchKitBundle)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 168, height: 168)
+                .overlay {
+                    Circle().strokeBorder(.white.opacity(0.25), lineWidth: 1.5)
+                }
+                .shadow(color: .white.opacity(0.18), radius: 28)
+                .shadow(color: .black.opacity(0.5), radius: 20, y: 14)
                 .scaleEffect(contentIn ? 1 : 0.8)
                 .opacity(contentIn ? 1 : 0)
-                .accessibilityHidden(true)
+                .accessibilityLabel("Sonos")
 
             Spacer(minLength: 24)
 
             VStack(spacing: 10) {
-                PrimaryPillButton(title: "Yes, Set Up My Speakers", icon: "hifispeaker.fill") {
+                PrimaryPillButton(title: "Yes, Set Up My Speakers") {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     answer(true)
                 }
