@@ -18,7 +18,6 @@ enum Screens {
         HomeScreen()
             .tint(Color("Accent"))
             .environment(selectedGroupService)
-            .withQueuePanel()
     }
     
     @ViewBuilder
@@ -35,7 +34,6 @@ enum Screens {
                 Router.search.path.removeAll()
                 Router.search.presentedSheet = nil
             }
-            .withQueuePanel()
     }
     
     @ViewBuilder
@@ -45,7 +43,6 @@ enum Screens {
         BrowseScreen()
             .tint(Color("Accent"))
             .environment(selectedGroupService)
-            .withQueuePanel()
         
     }
 
@@ -68,7 +65,6 @@ enum Screens {
         ProviderTabScreen(service: service, collections: collections)
             .tint(Color("Accent"))
             .environment(selectedGroupService)
-            .withQueuePanel()
     }
 
     /// One collection of a provider — a tab in its sidebar section.
@@ -79,33 +75,15 @@ enum Screens {
         ProviderTabScreen(service: service, collections: collections, collection: collection)
             .tint(Color("Accent"))
             .environment(selectedGroupService)
-            .withQueuePanel()
     }
 }
 
-/// The trailing Next Up panel on the Mac, applied to each tab's content
-/// rather than around the `TabView`: the sidebar then keeps the window's
-/// full width to decide whether it sits beside the content or overlays it,
-/// and only the content column gives way to the panel.
-///
-/// Elsewhere this does nothing — iPad has no sidebar, and takes the panel
-/// beside the whole `TabView` instead (`WindowQueuePanel`).
-private struct TabQueuePanel: ViewModifier {
-    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
-
-    func body(content: Content) -> some View {
-#if targetEnvironment(macCatalyst)
-        content.queuePanel(isPresented: $showQueue, compact: .hidden) { QueueNextUpView() }
-#else
-        content
-#endif
-    }
-}
-
-/// The Next Up panel on iPad, beside the whole `TabView`. Inside a tab it
-/// stopped above the tab bar accessory, whose inset the tab's content area
-/// ends at; out here it runs the window's full height, and the tab bar and
-/// the mini player centre on the content column beside it.
+/// The Next Up panel, beside the whole `TabView`. Inside a tab it stopped
+/// above the tab bar accessory, whose inset the tab's content area ends at;
+/// out here it runs the window's full height, and the tab bar and the mini
+/// player centre on the content column beside it. On the Mac the sidebar
+/// is inside the `TabView`, so it sits at the leading edge and the panel
+/// at the trailing one.
 ///
 /// Hidden at compact widths rather than a sheet: on iPhone the queue is the
 /// player's, and a sheet here would fight the one it presents (they share
@@ -114,16 +92,7 @@ struct WindowQueuePanel: ViewModifier {
     @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
 
     func body(content: Content) -> some View {
-#if targetEnvironment(macCatalyst)
-        content
-#else
         content.queuePanel(isPresented: $showQueue, compact: .hidden) { QueueNextUpView() }
-#endif
     }
 }
 
-extension View {
-    func withQueuePanel() -> some View {
-        modifier(TabQueuePanel())
-    }
-}

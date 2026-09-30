@@ -436,24 +436,20 @@ struct CueApp: App {
         UIDevice.current.userInterfaceIdiom == .phone
     }
 
-    /// The sidebar, with Home, its provider sections and Edit, is the
-    /// Mac's only. iPad mirrors the phone's tab bar for now — Browse,
-    /// Search and Radio — with providers reached from Browse's menu. The
-    /// adaptable sidebar's rebuild on a resize (a size-class change folds
-    /// the sidebar's tabs into a tab bar) was also crashing UIKit with a
-    /// nil tab bar item.
-    private var usesSidebar: Bool {
-#if targetEnvironment(macCatalyst)
-        true
-#else
-        false
-#endif
-    }
+    /// Home, the provider sections and the sidebar's Edit — off everywhere
+    /// for now. Every device has the phone's three tabs, Browse, Search and
+    /// Radio, with providers reached from Browse's menu; the Mac shows them
+    /// in its sidebar (`AdaptiveTabViewStyle`), iPhone and iPad in the tab
+    /// bar. The adaptable sidebar's rebuild on an iPad resize (a
+    /// size-class change folds the sidebar's tabs into a tab bar) was also
+    /// crashing UIKit with a nil tab bar item. Kept as a switch for when
+    /// the sections come back.
+    private var showsLibrarySections: Bool { false }
 
     /// The tab the selection falls back to: Home where the sidebar has
     /// one, Browse on the tab bar, which has none.
     private var fallbackTab: AppTab {
-        usesSidebar ? .home : .browse
+        showsLibrarySections ? .home : .browse
     }
 
     /// Every tab the view builds right now. The selection is checked
@@ -468,7 +464,7 @@ struct CueApp: App {
         if showsRadioTab {
             tabs.insert(.radio)
         }
-        if usesSidebar {
+        if showsLibrarySections {
             tabs.insert(.home)
             for service in tabProviders {
                 tabs.insert(.provider(service))
@@ -506,15 +502,12 @@ struct CueApp: App {
         WindowGroup {
             @Bindable var router = router
             TabView(selection: tabSelection) {
-                if !usesSidebar {
-                    // The phone's three, on iPad too, Browse first in Home's
-                    // place. Home is the sidebar's companion — setting
-                    // providers up and reaching their sections — and the tab
-                    // bar has neither:
-                    // providers are browsed from Browse's menu and set up in
-                    // Settings › Services. No provider tabs here either, so
+                if !showsLibrarySections {
+                    // The phone's three on every device, Browse first in
+                    // Home's place: providers are browsed from Browse's menu
+                    // and set up in Settings › Services. No provider tabs, so
                     // the bar never overflows into More. The house is
-                    // Browse's here, since it is the phone's home.
+                    // Browse's here, since it is the home.
                     Tab("Browse", image: "home.fill", value: AppTab.browse) {
                         Screens.browse
                     }
@@ -542,9 +535,9 @@ struct CueApp: App {
                     }
                 }
             }
-            // Customization only where the sidebar is: it holds the
-            // sidebar's edits, and the tab bar has no Edit to make them in.
-            .tabViewCustomization(usesSidebar ? $tabCustomization : nil)
+            // Customization only with the library sections: it holds the
+            // sidebar's edits, and with three fixed tabs there's no Edit.
+            .tabViewCustomization(showsLibrarySections ? $tabCustomization : nil)
             .onChange(of: availableTabs) { _, tabs in
                 // A tab that left takes its selection with it. The binding
                 // already shows the fallback in that case; this keeps the
@@ -601,9 +594,8 @@ struct CueApp: App {
             // and the bottom bar put the real accent back — `Color("Accent")`
             // by name, since `.accentColor` now resolves to this tint.
 //            .tint(Color.primary.opacity(0.12))
-            // iPad's queue panel, beside the whole `TabView` (the Mac's is
-            // inside each tab — `Screens`). Inside `withEnvironments()`,
-            // which the panel's view reads from.
+            // The queue panel, beside the whole `TabView`. Inside
+            // `withEnvironments()`, which the panel's view reads from.
             .modifier(WindowQueuePanel())
             .withEnvironments()
             .environment(\.zoomNamespace, zoomNamespace)
