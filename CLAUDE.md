@@ -105,7 +105,7 @@ The app is built around several Swift packages in `/Packages`:
 - Artwork is cached and managed through `ImageCacheService`
 
 ### Sonos Integration
-- Sonos is opt-in in the iOS/Mac app: `SonosService.isEnabled` (Settings ▸ Sonos ▸ Use Sonos Speakers, or Find Sonos Speakers in the Play On menu). While it is off, monitoring and group loads never touch the network, so no Local Network prompt appears. Hide speaker-only UI behind `sonosService.isEnabled`, and make sure a play action never ends in the speaker picker while it is off
+- Sonos is opt-in in the iOS/Mac app: `SonosService.isEnabled` (asked in onboarding by `SonosQuestionStep`; changed later in Settings ▸ Sonos ▸ Use Sonos Speakers, or Find Sonos Speakers in the Play On menu). While it is off, monitoring and group loads never touch the network, so no Local Network prompt appears. Hide speaker-only UI behind `sonosService.isEnabled`, and make sure a play action never ends in the speaker picker while it is off
 - Real-time device discovery and monitoring
 - XML parsing for Sonos API responses
 - Group management and speaker coordination

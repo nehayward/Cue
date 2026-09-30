@@ -219,6 +219,17 @@ struct CueApp: App {
     @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
     
     @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
+    /// Onboarding, shown once on first launch. Presented from the `TabView`
+    /// with its own flag, like the player: the shared router's full-screen
+    /// cover is only attached inside some tabs.
+    @State private var isOnboardingPresented = false
+
+    /// Onboarding hasn't finished. It runs the speaker search itself, after
+    /// explaining the Local Network prompt, so the launch and scene-phase
+    /// paths keep out of the way until then.
+    private var isOnboarding: Bool {
+        !hasOnboarded || OnboardingDebug.forceShow
+    }
     @AppStorage("CueMiniEnabled") private var isMenuBarAppEnabled: Bool = true
     @AppStorage(AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
@@ -593,11 +604,23 @@ struct CueApp: App {
                     .zoomTransition(from: .miniPlayer, in: zoomNamespace)
 #endif
             }
+            .fullScreenCover(isPresented: $isOnboardingPresented) {
+                WelcomeScreen()
+                    .withEnvironments()
+            }
             .modifier(AdaptiveTabViewStyle())
             .onOpenURL(perform: handle)
             .onAppear {
-                SonosService.shared.monitor()
                 coreFeatures.restoreDeviceServicesOnce()
+                // Asks whether there are speakers before anything looks for
+                // them. Onboarding writes `hasOnboarded` however it ends,
+                // so this is once per install, and starts monitoring itself
+                // when it closes.
+                if isOnboarding {
+                    isOnboardingPresented = true
+                } else {
+                    SonosService.shared.monitor()
+                }
                 
 #if os(iOS) && !targetEnvironment(macCatalyst)
                 // One call for the lifetime of the process: the service watches
@@ -989,9 +1012,9 @@ struct CueApp: App {
             // Speakers are only looked for when Sonos is switched on: looking
             // is what puts up the Local Network permission prompt. Everything
             // after this block runs either way — it used to sit behind an
-            // onboarding guard, and onboarding no longer runs, so a new
-            // install skipped the subscription check too.
-            if sonosService.isEnabled {
+            // onboarding guard, which also held back the subscription check
+            // until onboarding had finished.
+            if sonosService.isEnabled, !isOnboarding {
                 // The network may have changed while backgrounded (e.g. home →
                 // friend's house). Re-race known IPs + discovery on the next poll
                 // instead of blocking on a now-stale cached IP. Cheap: an unchanged
@@ -1093,12 +1116,13 @@ struct CueApp: App {
     /// the old `.background`-only behaviour until there's a signal that
     /// separates "not focused" from "not on screen".
     ///
-    /// Nothing to stop while Sonos is switched off. When it is on, the Local
-    /// Network prompt makes the scene `.inactive` while it's up; `.active`
-    /// restarts monitoring once the prompt is answered.
+    /// Nothing to stop while Sonos is switched off. Nor during onboarding: its
+    /// discovery page puts up the Local Network prompt, which makes the scene
+    /// `.inactive`, and `.active` leaves monitoring to onboarding — so a
+    /// teardown here would stop the search with nothing to start it again.
     @MainActor
     private func stopMonitoringOffScreen(_ phase: ScenePhase) {
-        guard sonosService.isEnabled else { return }
+        guard sonosService.isEnabled, !isOnboarding else { return }
         if phase == .inactive, UIDevice.current.userInterfaceIdiom == .pad { return }
 
         // Shut the gate before cancelling, not after: cancelling only stops the

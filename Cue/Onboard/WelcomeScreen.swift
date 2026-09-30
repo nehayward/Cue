@@ -10,8 +10,10 @@ import SwiftUI
 /// `didBailOut`, `monitor()` on dismiss). Each step page lives in its own file:
 ///
 ///  - `WelcomeStep.swift` — splash + Get Started
+///  - `SonosQuestionStep.swift` — do you have Sonos? Yes → discovery, No → device services
 ///  - `DiscoveryStep.swift` — Local Network permission, searching, found/denied/notFound
-///  - `ServicesStep.swift` — list of music services with checkmarks
+///  - `ServicesStep.swift` — the Sonos system's music services, with checkmarks
+///  - `DeviceServicesStep.swift` — the services this device plays, without speakers
 ///  - `PlexStep.swift` — Plex sign-in + default library pick (only when Plex found)
 ///  - `PaywallStep.swift` — CuePaywall wrapper (skipped when already subscribed)
 ///  - `EmailStep.swift` — optional newsletter capture (final step)
@@ -22,7 +24,7 @@ import SwiftUI
 /// launch-arg helpers are in `OnboardingDebug.swift`.
 struct WelcomeScreen: View {
     enum Step: Int, CaseIterable {
-        case welcome, discovery, services, plex, paywall, email
+        case welcome, sonos, discovery, services, deviceServices, plex, paywall, email
     }
 
     @Environment(SonosService.self) private var sonosService
@@ -56,7 +58,7 @@ struct WelcomeScreen: View {
                             // onboarding complete — users found the repeat
                             // re-presentation annoying and can restart
                             // setup from Preferences if they need to.
-                            if step == .welcome || step == .discovery {
+                            if [.welcome, .sonos, .discovery].contains(step) {
                                 didBailOut = true
                             }
                             dismiss()
@@ -98,7 +100,8 @@ struct WelcomeScreen: View {
             hasOnboarded = true
             // Kick discovery off — even if the user bailed before granting
             // Local Network, monitor() is harmless without permission and
-            // will start finding speakers if they granted it later.
+            // will start finding speakers if they granted it later. It does
+            // nothing when the user said they have no Sonos.
             sonosService.monitor()
         }
     }
@@ -113,16 +116,24 @@ struct WelcomeScreen: View {
     private var stepContent: some View {
         switch step {
         case .welcome:
-            WelcomeStep(advance: { goTo(.discovery) })
+            WelcomeStep(advance: { goTo(.sonos) })
                 .id(Step.welcome)
                 .transition(slideTransition)
+        case .sonos:
+            SonosQuestionStep(answer: answerSonosQuestion)
+                .id(Step.sonos)
+                .transition(slideTransition)
         case .discovery:
-            DiscoveryStep(advance: advanceFromDiscovery)
+            DiscoveryStep(advance: advanceFromDiscovery, skip: { goToDeviceServices() })
                 .id(Step.discovery)
                 .transition(slideTransition)
         case .services:
             ServicesStep(installed: installedServices, advance: advanceFromServices)
                 .id(Step.services)
+                .transition(slideTransition)
+        case .deviceServices:
+            DeviceServicesStep(advance: advanceFromDeviceServices)
+                .id(Step.deviceServices)
                 .transition(slideTransition)
         case .plex:
             PlexStep(advance: advanceFromPlex)
@@ -144,6 +155,49 @@ struct WelcomeScreen: View {
             insertion: .move(edge: .trailing),
             removal: .move(edge: .leading)
         )
+    }
+
+    /// Yes turns Sonos on without starting the search: the discovery page
+    /// explains the Local Network prompt before it appears. No leaves Sonos
+    /// off, so nothing touches the network, and goes straight to the
+    /// services this device plays.
+    private func answerSonosQuestion(_ hasSonos: Bool) {
+        Analytics.shared.track(hasSonos ? OnboardingEvent.answeredHasSonos : OnboardingEvent.answeredNoSonos)
+        sonosService.setEnabled(hasSonos, startMonitoring: false)
+        if hasSonos {
+            goTo(.discovery)
+        } else {
+            goToDeviceServices()
+        }
+    }
+
+    /// The device path: service flags and the default search service come
+    /// from what this device can play, not from a Sonos system. Also where a
+    /// speaker search that found nothing ends up, with Sonos left on so the
+    /// speakers turn up once they are reachable.
+    private func goToDeviceServices() {
+        syncDeviceServices()
+        goTo(.deviceServices)
+    }
+
+    private func syncDeviceServices() {
+        coreFeatures.syncEnabledServices(from: [])
+        searchSelection = SelectedSearchServices([Self.preferredDeviceService])
+    }
+
+    /// Apple Music when this device has access to it, then Plex, then radio,
+    /// which needs no account.
+    private static var preferredDeviceService: MediaSearchService {
+        if MediaSearchService.apple.isAuthorized(on: []) { return .apple }
+        if MediaSearchService.plex.isAuthorized(on: []) { return .plex }
+        return .tuneIn
+    }
+
+    /// Re-synced on the way out: Apple Music may have been connected on the
+    /// page.
+    private func advanceFromDeviceServices() {
+        syncDeviceServices()
+        advanceToPostServices()
     }
 
     private func advanceFromDiscovery() {

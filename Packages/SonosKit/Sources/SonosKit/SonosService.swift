@@ -64,18 +64,20 @@ public final class SonosService {
     }
 
     /// Turns speaker support on or off and remembers the choice. Turning it on
-    /// starts looking for speakers straight away. Turning it off stops
-    /// monitoring and forgets the groups on screen; the speakers themselves
-    /// keep playing whatever they were playing.
+    /// starts looking for speakers straight away, unless `startMonitoring` is
+    /// false: onboarding explains the Local Network prompt first and starts
+    /// the search itself. Turning it off stops monitoring and forgets the
+    /// groups on screen; the speakers themselves keep playing whatever they
+    /// were playing.
     @MainActor
-    public func setEnabled(_ enabled: Bool) {
+    public func setEnabled(_ enabled: Bool, startMonitoring: Bool = true) {
         UserDefaults.standard.set(enabled, forKey: AppStorageKeys.sonosEnabled)
         guard enabled != isEnabled else { return }
         isEnabled = enabled
         if enabled {
             allowsMonitoring = true
             invalidateVerifiedConnection()
-            monitor()
+            if startMonitoring { monitor() }
         } else {
             clearDevices()
         }
