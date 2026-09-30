@@ -417,6 +417,7 @@ public final class SonosService {
             room.isTransitioning = currentRoom.isTransitioning
             room.radioStation = currentRoom.radioStation
             room.container = currentRoom.container
+            room.queueTotal = currentRoom.queueTotal
         }
         groups = newGroups
         rooms = newGroups.flatMap(\.rooms)
@@ -614,6 +615,15 @@ public final class SonosService {
 
             if let awaitedActions = await availableActions, await roomGroup.availableActions != availableActions {
                 roomGroup.availableActions = awaitedActions
+            }
+
+            // The queue gauge's total. The monitor loop only refreshes the
+            // other groups, so without this the selected group's count only
+            // moved when a local queue call finished — a hand-off from the
+            // device sat at 1 while its tail filled in, and a queue changed
+            // from another controller never showed at all.
+            if let queueTotal = await mediaInfo?.queueTotal, roomGroup.coordinatorRoom.queueTotal != queueTotal {
+                roomGroup.coordinatorRoom.queueTotal = queueTotal
             }
 
             await updateGroupsRooms(from: [roomGroup])
