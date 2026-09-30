@@ -227,6 +227,13 @@ final class LocalPlaybackService {
     /// Set once the Apple player has actually played, so a `.stopped` read
     /// means "run ended", not "still warming up".
     @ObservationIgnored private var appleWasPlaying = false
+    /// When the run's last entry will finish, by the wall clock, as of the
+    /// last poll that saw it playing. Nil until the last entry plays. The
+    /// Apple player can finish its queue by pausing and rewinding to zero
+    /// rather than reading `.stopped`, which looks just like a pause — this
+    /// is what tells the two apart, including after the app slept through
+    /// the end in the background and no poll saw the last seconds.
+    @ObservationIgnored private var appleRunExpectedEnd: Date?
     @ObservationIgnored private var streamPlayer: AVQueuePlayer?
     /// Reads ICY stream titles off a station's player item.
     @ObservationIgnored private var streamMetadataListener: StreamMetadataListener?
@@ -952,6 +959,7 @@ final class LocalPlaybackService {
         runEnd = -1
         appleRun = []
         appleWasPlaying = false
+        appleRunExpectedEnd = nil
         requestedPlaying = nil
         audioQualityTask?.cancel()
         audioQualityTask = nil
@@ -1528,8 +1536,24 @@ final class LocalPlaybackService {
             // is the clean signal; the paused-at-the-end read covers OS
             // versions that park at `.paused` on the last entry instead.
             let onLastEntry = currentIndex >= (appleRun.last?.queueIndex ?? currentIndex)
+            if backend == .appleMusic {
+                if status == .playing, progress >= 1 {
+                    appleRunExpectedEnd = onLastEntry && duration > 0
+                        ? Date.now.addingTimeInterval(max(0, duration - progress))
+                        : nil
+                } else if status == .paused, progress >= 1, progress < duration - 0.75 {
+                    // Paused partway through: the clock stops with it.
+                    appleRunExpectedEnd = nil
+                }
+            }
+            // Past the end of the last entry by the clock, and parked either
+            // at its end or back at the top — some OS versions rewind the
+            // finished queue (to zero, or to its first entry) and read
+            // `.paused`. A pause partway through a track is neither.
+            let pastRunEnd = appleRunExpectedEnd.map { Date.now >= $0.addingTimeInterval(-1.5) } ?? false
             let ended = status == .stopped
                 || (status == .paused && onLastEntry && duration > 0 && progress >= duration - 0.75)
+                || (status == .paused && pastRunEnd && (progress < 1 || progress >= duration - 0.75))
             if appleWasPlaying, ended {
                 appleWasPlaying = false
                 let end = runEnd
