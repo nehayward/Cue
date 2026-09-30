@@ -64,13 +64,20 @@ struct MusicPlaybackView: View {
                         showQueue.toggle()
                     }
                 } label: {
-                    Label(showQueue ? "Hide Queue" : "Show Queue", systemImage: "list.bullet")
-                        .labelStyle(.iconOnly)
+                    // The player's queue gauge: how far through the queue
+                    // playback is, where the route points.
+                    Group {
+                        if let group = route.group {
+                            QueueIconView(group: group)
+                        } else {
+                            LocalQueueIconView()
+                        }
+                    }
+                    .font(.title3)
                 }
                 .buttonStyle(.plain)
-                .font(.title3)
-                .foregroundStyle(showQueue ? Color("Accent") : .primary)
                 .accessibilityLabel(showQueue ? "Hide Queue" : "Show Queue")
+                .accessibilityAddTraits(showQueue ? .isSelected : [])
             }
 #endif
         }

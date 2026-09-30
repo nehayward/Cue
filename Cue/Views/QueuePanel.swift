@@ -120,9 +120,6 @@ struct QueuePanel<Panel: View>: ViewModifier {
                         .padding(.trailing, 10)
                         .padding(.vertical, 10)
                 }
-                // Down to the window's bottom edge rather than stopping at
-                // the home indicator's inset.
-                .ignoresSafeArea(.container, edges: .bottom)
                 // Following the finger past the minimum width: the pair moves
                 // off the edge, dimming as it goes, so a drag to dismiss reads
                 // as one before it lands.

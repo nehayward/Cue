@@ -1141,8 +1141,9 @@ private struct PlayerBottomToolbarView: View {
 }
 
 /// The queue gauge, mirroring `QueueIconView`: how far through the device's
-/// queue playback is, with the position in the middle.
-private struct LocalQueueIconView: View {
+/// queue playback is, with the position in the middle. Also the mini
+/// player's queue toggle on iPad.
+struct LocalQueueIconView: View {
     private var playback: LocalPlaybackService { .shared }
 
     @ScaledMetric(relativeTo: .caption2) private var iconSize: CGFloat = 24
