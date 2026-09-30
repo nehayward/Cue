@@ -74,8 +74,15 @@ struct MusicPlaybackView: View {
                         }
                     }
                     .font(.title3)
+                    // Shown: a soft accent disc behind the gauge rather
+                    // than the gauge itself in accent, so its number stays
+                    // easy to read.
+                    .padding(5)
+                    .background(Color("Accent").opacity(showQueue ? 0.25 : 0), in: .circle)
+                    .contentShape(.circle)
                 }
                 .buttonStyle(.plain)
+                .animation(.snappy, value: showQueue)
                 .accessibilityLabel(showQueue ? "Hide Queue" : "Show Queue")
                 .accessibilityAddTraits(showQueue ? .isSelected : [])
             }
