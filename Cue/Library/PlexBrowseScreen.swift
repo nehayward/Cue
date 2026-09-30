@@ -86,7 +86,11 @@ struct PlexBrowseScreen: View {
                     )) {
                         Label("Songs", systemImage: "music.note")
                     }
-                    
+
+                    NavigationLink(value: RouterDestination.downloaded(service: .plex)) {
+                        Label(ProviderCollection.downloaded.title, systemImage: ProviderCollection.downloaded.systemImage)
+                    }
+
                     NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $plexBrowseService.userPlaylists, action: { offset in
                         await plexBrowseService.updateUserPlaylists(offset: offset)
                     })) {

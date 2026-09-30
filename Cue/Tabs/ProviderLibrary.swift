@@ -98,6 +98,8 @@ struct ProviderLibrary {
             return .playableLibraryList(title: "Songs", items: items.userSongs, action: { _ in
                 await apple.updateUsersAppleSongs()
             })
+        case .downloaded:
+            return .downloaded(service: .apple)
         case .playlists:
             return .playableGridScreen(title: "Playlists", items: items.userPlaylists, action: { offset in
                 await apple.updateUsersApplePlaylists(offset: offset)
@@ -242,6 +244,8 @@ struct ProviderLibrary {
                 },
                 loadingStatus: SubsonicLibraryLists.songSyncStatus(musicSearchService: musicSearchService)
             )
+        case .downloaded:
+            return .downloaded(service: .subsonic)
         case .recentlyAdded:
             return .playableList(title: "Recently Added", showSectionIndex: false, allowsGrid: true, action: { offset in
                 await musicSearchService.subsonicRecentAlbums(offset: offset)
@@ -419,6 +423,8 @@ struct ProviderLibrary {
                 },
                 loadingStatus: PlexLibraryLists.songSyncStatus(musicSearchService: musicSearchService)
             )
+        case .downloaded:
+            return .downloaded(service: .plex)
         case .playlists:
             return .playableGridScreen(title: "Playlists", items: Bindable(plex).userPlaylists, action: { offset in
                 await plex.updateUserPlaylists(offset: offset)

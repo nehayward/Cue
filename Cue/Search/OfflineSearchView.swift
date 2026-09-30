@@ -10,12 +10,14 @@ struct OfflineSearchView: View {
 
     @State private var offline = OfflineMode.shared
     @State private var downloads = DownloadManager.shared
+    @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
 
     var body: some View {
-        // Read here so a download finishing or the Files index rebuilding
-        // re-runs the search; the library itself is static.
+        // Read here so a download finishing or an index rebuilding re-runs
+        // the search; the library itself is static.
         let _ = downloads.completed.count
+        let _ = apple.version
         let _ = files.indexVersion
         let results = OnDeviceLibrary.search(query)
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -87,6 +89,9 @@ struct OfflineSearchView: View {
         }
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
+        .onAppear {
+            apple.refreshIfNeeded()
+        }
     }
 
     /// With nothing typed yet, the library's grouped pages, so the tab is
@@ -110,7 +115,7 @@ struct OfflineSearchView: View {
         ContentUnavailableView {
             Label("Nothing on This Device", systemImage: "arrow.down.circle")
         } description: {
-            Text("Download Plex or Subsonic songs from their menus, or keep a Files folder on this device, and you can search them here when you're offline.")
+            Text("Download Plex or Subsonic songs from their menus, download Apple Music songs in the Music app, or keep a Files folder on this device, and you can search them here when you're offline.")
         }
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)

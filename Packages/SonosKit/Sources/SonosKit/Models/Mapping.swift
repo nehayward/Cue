@@ -39,7 +39,49 @@ extension Track {
 }
 
 // MARK: - Apple Music Mapping
+
+/// MusicKit hands library artwork out as a `musickit://` URL with the real
+/// `https` one percent-encoded inside it; the image loaders want the inner
+/// one. Anything else passes through.
+private func unwrappingMusicKitArtwork(_ url: URL?) -> URL? {
+    guard let url,
+          let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
+          components.scheme?.lowercased() == "musickit",
+          let regex = try? NSRegularExpression(pattern: "https%3A%2F%2F[^&]+") else {
+        return url
+    }
+    let nsString = url.absoluteString as NSString
+    guard let match = regex.firstMatch(in: url.absoluteString, range: NSRange(location: 0, length: nsString.length)) else {
+        return url
+    }
+    return URL(string: nsString.substring(with: match.range).removingPercentEncoding ?? "")
+}
+
 extension Song {
+    /// A song fetched from the user's library (`MusicLibraryRequest`) rather
+    /// than the catalog: its id is the library's (`i.…`), so it queues as a
+    /// library track — the path that also plays a downloaded copy offline.
+    /// The album and track number are what the on-device library groups
+    /// and orders by.
+    public var toPlayableLibraryTrack: PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: [artistName, albumTitle ?? ""].filter { !$0.isEmpty }.joined(separator: " • "),
+            thumbnail: unwrappingMusicKitArtwork(artwork?.url(width: 100, height: 100)),
+            artwork: unwrappingMusicKitArtwork(artwork?.url(width: 600, height: 600)),
+            content: MediaContent(service: .apple, id: id.description, type: .libraryTrack, location: url),
+            metadata: PlayableContentMetadata(
+                duration: duration.map { Duration.seconds($0) },
+                artist: artistName,
+                album: albumTitle,
+                isrc: isrc,
+                position: trackNumber,
+                isPlayable: playParameters != nil,
+                isExplicit: contentRating == .explicit
+            )
+        )
+    }
+
     public var toPlayable: PlayableContent {
         PlayableContent(
             title: title,
@@ -303,8 +345,8 @@ extension Album {
                 artistName,
                 releaseDate?.formatted(.dateTime.year())
             ].compactMap { $0 }.joined(separator: " • "),
-            thumbnail: Self.unwrappingMusicKitArtwork(artwork?.url(width: 100, height: 100)),
-            artwork: Self.unwrappingMusicKitArtwork(artwork?.url(width: 600, height: 600)),
+            thumbnail: unwrappingMusicKitArtwork(artwork?.url(width: 100, height: 100)),
+            artwork: unwrappingMusicKitArtwork(artwork?.url(width: 600, height: 600)),
             content: MediaContent(service: .apple, id: id.description, type: .libraryAlbum, location: nil),
             metadata: PlayableContentMetadata(
                 popularity: 50,
@@ -313,20 +355,6 @@ extension Album {
                 albumYear: releaseDate
             )
         )
-    }
-
-    private static func unwrappingMusicKitArtwork(_ url: URL?) -> URL? {
-        guard let url,
-              let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
-              components.scheme?.lowercased() == "musickit",
-              let regex = try? NSRegularExpression(pattern: "https%3A%2F%2F[^&]+") else {
-            return url
-        }
-        let nsString = url.absoluteString as NSString
-        guard let match = regex.firstMatch(in: url.absoluteString, range: NSRange(location: 0, length: nsString.length)) else {
-            return url
-        }
-        return URL(string: nsString.substring(with: match.range).removingPercentEncoding ?? "")
     }
 
    public var toPlayable: PlayableContent {
