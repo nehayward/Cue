@@ -89,7 +89,49 @@ struct MusicPlaybackView: View {
 #endif
         }
         .padding(.horizontal, 12)
+        // Lifts the row a little so the line below has room of its own
+        // rather than crowding the subtitle.
+        .padding(.bottom, showsBottomProgressLine ? 6 : 0)
         .frame(maxWidth: 500, maxHeight: 120)
+        // On iPhone the line runs the whole width of the accessory, along
+        // its bottom edge; the wider iPad and Mac bars keep it under the
+        // track text. Inset by the row's own 12pt, so it starts under the
+        // artwork's edge and ends under the last button's.
+        .overlay(alignment: .bottom) {
+            if showsBottomProgressLine {
+                progressLine
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 4)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    private var progressSpansFullWidth: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone
+    }
+
+    private var showsBottomProgressLine: Bool {
+        progressSpansFullWidth && placement != .inline
+    }
+
+    /// The progress line for whatever is playing: the speaker's track when a
+    /// group holds the route, this device's otherwise.
+    @ViewBuilder
+    private var progressLine: some View {
+        if let group = route.group {
+            let room = group.coordinatorRoom
+            if !room.track.isEmpty {
+                MiniPlayerProgressLine(
+                    position: room.playbackPosition,
+                    duration: room.track.duration,
+                    isPlaying: room.isPlaying,
+                    unitsPerSecond: 1000
+                )
+            }
+        } else if playback.nowPlayingDisplay != nil {
+            MiniPlayerProgressLine(position: playback.progress, duration: playback.duration, isPlaying: playback.isPlaying)
+        }
     }
 
     // MARK: - This device
@@ -115,6 +157,9 @@ struct MusicPlaybackView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
+                            if !progressSpansFullWidth {
+                                progressLine
+                            }
                         }
                     }
                 } else {
@@ -190,6 +235,9 @@ struct MusicPlaybackView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                        if !progressSpansFullWidth {
+                            progressLine
+                        }
                     }
                 }
                 Spacer(minLength: 0)
@@ -1417,6 +1465,81 @@ private struct AdaptiveTabViewStyle: ViewModifier {
     }
 }
 
+
+/// The thin elapsed-time line under the mini player's track text. Units are
+/// the caller's (seconds on the device, milliseconds from a speaker) — only
+/// the ratio is drawn. A live stream reports no duration, so the line keeps
+/// its height but stays hidden rather than showing an empty track.
+///
+/// The reported position only moves about once a second (the device poller,
+/// a speaker's poll or event), which stepped the fill visibly. So while
+/// playing, the line runs its own clock off the last reported value, redrawn
+/// every frame by a `TimelineView`, and re-anchors whenever a new report
+/// lands.
+private struct MiniPlayerProgressLine: View {
+    let position: TimeInterval
+    let duration: TimeInterval
+    let isPlaying: Bool
+    /// How many of the caller's units pass per second of playback: `1` for
+    /// seconds, `1000` for milliseconds.
+    var unitsPerSecond: Double = 1
+
+    @State private var anchorPosition: TimeInterval = 0
+    @State private var anchorDate: Date = .now
+
+    private var hasDuration: Bool {
+        duration.isFinite && duration > 0
+    }
+
+    private func fraction(at date: Date) -> CGFloat {
+        guard hasDuration, anchorPosition.isFinite else { return 0 }
+        let elapsed = isPlaying ? max(0, date.timeIntervalSince(anchorDate)) * unitsPerSecond : 0
+        return CGFloat(min(max((anchorPosition + elapsed) / duration, 0), 1))
+    }
+
+    var body: some View {
+        TimelineView(.animation(paused: !isPlaying || !hasDuration)) { context in
+            let fraction = fraction(at: context.date)
+            GeometryReader { proxy in
+                Capsule()
+                    .fill(.secondary.opacity(0.3))
+                    .overlay(alignment: .leading) {
+                        Capsule()
+                            .fill(.primary)
+                            .frame(width: proxy.size.width * fraction)
+                    }
+            }
+        }
+        .frame(height: 3)
+        .padding(.top, 2)
+        .opacity(hasDuration ? 1 : 0)
+        .onAppear { anchor(at: position) }
+        .onChange(of: position) { reanchor(wasPlaying: isPlaying) }
+        .onChange(of: isPlaying) { wasPlaying, _ in reanchor(wasPlaying: wasPlaying) }
+        .accessibilityHidden(true)
+    }
+
+    /// `wasPlaying` is the state the clock was running under up to now, so
+    /// a pause freezes the line where it was drawn rather than on the last
+    /// report, which is up to a second old.
+    private func reanchor(wasPlaying: Bool) {
+        guard wasPlaying, hasDuration else {
+            anchor(at: position)
+            return
+        }
+        let estimate = anchorPosition + max(0, Date.now.timeIntervalSince(anchorDate)) * unitsPerSecond
+        // A report landing a little behind the running estimate is poll
+        // latency, not a rewind — taking it would tick the fill backwards.
+        // A real jump (a seek, a new track) is far bigger than this.
+        let lag = estimate - position
+        anchor(at: lag > 0 && lag < 1.5 * unitsPerSecond ? estimate : position)
+    }
+
+    private func anchor(at value: TimeInterval) {
+        anchorPosition = value
+        anchorDate = .now
+    }
+}
 
 /// Transport buttons for the "Playback" command menu. Extracted into its own
 /// View because inlining all five buttons (each with conditional labels and
