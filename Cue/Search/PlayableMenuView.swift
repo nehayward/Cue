@@ -107,44 +107,8 @@ struct PlayableMenuView: View {
                 }
                 
                 if LocalPlaybackService.shared.canPlayAnywhereLocally(item) {
-                    Menu {
-                        Button {
-                            playOnDevice { try await LocalPlaybackService.shared.play(localItems()) }
-                        } label: {
-                            Label("Play", systemImage: "play.fill")
-                        }
-
-                        // A station is live: it replaces what's playing and
-                        // has no place in a queue behind it.
-                        if !item.content.type.isRadio {
-                            Button {
-                                playOnDevice(subtitle: "Playing next on this device") {
-                                    try await LocalPlaybackService.shared.playNext(localItems())
-                                }
-                            } label: {
-                                Label("Play Next", systemImage: "text.insert")
-                            }
-
-                            Button {
-                                playOnDevice(subtitle: "Added to device queue") {
-                                    try await LocalPlaybackService.shared.addToQueue(localItems())
-                                }
-                            } label: {
-                                Label("Add to Queue", systemImage: "text.append")
-                            }
-                        }
-
-                        if LocalPlaybackService.shared.nowPlaying == item {
-                            Button {
-                                LocalPlaybackService.shared.stop()
-                            } label: {
-                                Label("Stop", systemImage: "stop.fill")
-                            }
-                        }
-
+                    Section {
                         LocalDownloadMenuSection(item: item)
-                    } label: {
-                        Label("This Device", systemImage: "iphone.radiowaves.left.and.right")
                     }
                     .onAppear {
                         AppleDownloadsIndex.shared.refreshIfNeeded()
@@ -220,14 +184,6 @@ struct PlayableMenuView: View {
             }
         }
         
-        if item.content.type != .folder {
-            Button {
-                router.sheet(to: .createScene(content: item))
-            } label: {
-                Label("Create Scene", systemImage: "bolt.fill")
-            }
-        }
-        
         if [.spotify, .apple].contains(item.content.service),
            [.album, .libraryAlbum].contains(item.content.type) {
             FavoriteMenuButton(item: item)
@@ -235,15 +191,6 @@ struct PlayableMenuView: View {
         
         OpenInServiceView(item: item)
 
-        if item.content.type != .folder {
-            Button {
-                selectedGroupService.group = nil
-                play()
-            } label: {
-                Label("Play in Room…", systemImage: "hifispeaker.arrow.forward.fill")
-            }
-        }
-        
         if item.content.service == .library, item.content.type == .playlist {
             Button(role: .destructive) {
                 router.sheet(to: .confirmDeletePlaylist(content: item))
@@ -307,33 +254,6 @@ struct PlayableMenuView: View {
                 return
             }
             try await enqueueFolder(group, .replace)
-        }
-    }
-
-    /// The items a local-queue action should operate on: the track itself, or
-    /// an album's fetched tracks.
-    private func localItems() async throws -> [PlayableContent] {
-        if LocalPlaybackService.shared.canPlayLocally(item) { return [item] }
-        let tracks = await LocalPlaybackService.shared.containerTracks(for: item)
-        guard !tracks.isEmpty else { throw LocalPlaybackService.LocalPlaybackError.nothingPlayable }
-        return tracks
-    }
-
-    /// Runs a local-playback queue action (play / play next / add to queue) on
-    /// this device instead of a Sonos group. Apple tracks need an Apple Music
-    /// subscription — failures surface as alerts.
-    private func playOnDevice(
-        subtitle: LocalizedStringKey = "Playing on this device",
-        action: @escaping () async throws -> Void
-    ) {
-        Task { @MainActor in
-            hideKeyboard()
-            do {
-                try await action()
-                alertService.showAlertContent(with: item, subtitle: subtitle, symbolName: "iphone.radiowaves.left.and.right")
-            } catch {
-                alertService.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
-            }
         }
     }
 
