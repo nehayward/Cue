@@ -22,8 +22,9 @@ struct DiscoveryStep: View {
     /// "Sonos Move 2" mid-cascade.
     @State private var revealReady = false
     var advance: () -> Void
-    /// Carries on without speakers when none were found or the network is
-    /// blocked. Sonos stays on, so speakers show up once they are reachable.
+    /// Carries on to the rest of onboarding when no speakers were found or
+    /// the network is blocked. Sonos stays on, so speakers show up once they
+    /// are reachable.
     var skip: (() -> Void)? = nil
 
     private enum DiscoveryStatus: Hashable {

@@ -10,10 +10,9 @@ import SwiftUI
 /// `didBailOut`, `monitor()` on dismiss). Each step page lives in its own file:
 ///
 ///  - `WelcomeStep.swift` — splash + Get Started
-///  - `SonosQuestionStep.swift` — do you have Sonos? Yes → discovery, No → device services
+///  - `SonosQuestionStep.swift` — do you have Sonos? Sets the Sonos preference
 ///  - `DiscoveryStep.swift` — Local Network permission, searching, found/denied/notFound
-///  - `ServicesStep.swift` — the Sonos system's music services, with checkmarks
-///  - `DeviceServicesStep.swift` — the services this device plays, without speakers
+///  - `ServicesStep.swift` — list of music services with checkmarks
 ///  - `PlexStep.swift` — Plex sign-in + default library pick (only when Plex found)
 ///  - `PaywallStep.swift` — CuePaywall wrapper (skipped when already subscribed)
 ///  - `EmailStep.swift` — optional newsletter capture (final step)
@@ -24,7 +23,7 @@ import SwiftUI
 /// launch-arg helpers are in `OnboardingDebug.swift`.
 struct WelcomeScreen: View {
     enum Step: Int, CaseIterable {
-        case welcome, sonos, discovery, services, deviceServices, plex, paywall, email
+        case welcome, sonos, discovery, services, plex, paywall, email
     }
 
     @Environment(SonosService.self) private var sonosService
@@ -124,16 +123,12 @@ struct WelcomeScreen: View {
                 .id(Step.sonos)
                 .transition(slideTransition)
         case .discovery:
-            DiscoveryStep(advance: advanceFromDiscovery, skip: { goToDeviceServices() })
+            DiscoveryStep(advance: advanceFromDiscovery, skip: advanceToPostServices)
                 .id(Step.discovery)
                 .transition(slideTransition)
         case .services:
             ServicesStep(installed: installedServices, advance: advanceFromServices)
                 .id(Step.services)
-                .transition(slideTransition)
-        case .deviceServices:
-            DeviceServicesStep(advance: advanceFromDeviceServices)
-                .id(Step.deviceServices)
                 .transition(slideTransition)
         case .plex:
             PlexStep(advance: advanceFromPlex)
@@ -157,47 +152,18 @@ struct WelcomeScreen: View {
         )
     }
 
-    /// Yes turns Sonos on without starting the search: the discovery page
-    /// explains the Local Network prompt before it appears. No leaves Sonos
-    /// off, so nothing touches the network, and goes straight to the
-    /// services this device plays.
+    /// The answer is the Sonos preference. Yes turns it on without starting
+    /// the search: the discovery page explains the Local Network prompt
+    /// before it appears. No leaves it off, so nothing touches the network,
+    /// and skips the speaker pages.
     private func answerSonosQuestion(_ hasSonos: Bool) {
         Analytics.shared.track(hasSonos ? OnboardingEvent.answeredHasSonos : OnboardingEvent.answeredNoSonos)
         sonosService.setEnabled(hasSonos, startMonitoring: false)
         if hasSonos {
             goTo(.discovery)
         } else {
-            goToDeviceServices()
+            advanceToPostServices()
         }
-    }
-
-    /// The device path: service flags and the default search service come
-    /// from what this device can play, not from a Sonos system. Also where a
-    /// speaker search that found nothing ends up, with Sonos left on so the
-    /// speakers turn up once they are reachable.
-    private func goToDeviceServices() {
-        syncDeviceServices()
-        goTo(.deviceServices)
-    }
-
-    private func syncDeviceServices() {
-        coreFeatures.syncEnabledServices(from: [])
-        searchSelection = SelectedSearchServices([Self.preferredDeviceService])
-    }
-
-    /// Apple Music when this device has access to it, then Plex, then radio,
-    /// which needs no account.
-    private static var preferredDeviceService: MediaSearchService {
-        if MediaSearchService.apple.isAuthorized(on: []) { return .apple }
-        if MediaSearchService.plex.isAuthorized(on: []) { return .plex }
-        return .tuneIn
-    }
-
-    /// Re-synced on the way out: Apple Music may have been connected on the
-    /// page.
-    private func advanceFromDeviceServices() {
-        syncDeviceServices()
-        advanceToPostServices()
     }
 
     private func advanceFromDiscovery() {
