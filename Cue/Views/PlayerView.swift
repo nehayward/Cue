@@ -24,6 +24,7 @@ struct PlayerView: View {
     /// shows it there too rather than the two disagreeing.
     @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     /// The cover's own router. The main window's sheets hang off the tab
     /// content underneath this cover, so anything routed there would come
@@ -42,6 +43,15 @@ struct PlayerView: View {
     /// The group the route points at, resolved on every read: a topology
     /// refresh replaces every `GroupRoom`, so nothing here holds one.
     private var group: GroupRoom? { route.group }
+
+    /// iPad at a regular width: the queue toggle is in the navigation bar.
+    private var showsQueueToolbarButton: Bool {
+#if targetEnvironment(macCatalyst)
+        false
+#else
+        UIDevice.current.userInterfaceIdiom == .pad && horizontalSizeClass == .regular
+#endif
+    }
 
     /// Matches `LargePlayerView`: the wide layout is for anything that isn't a
     /// phone, Catalyst included.
@@ -377,6 +387,24 @@ struct PlayerView: View {
                 }
                 LocalPlayerMenuView(item: item, showArtworkOnly: $showArtworkOnly)
                     .tint(.primary)
+            }
+            // iPad's queue toggle, up here with the other controls rather
+            // than in the glass row under the volume, where it reflowed with
+            // the artwork as the panel slid in. The phone keeps it in its
+            // bar (the queue is a sheet there); the Mac has the window
+            // toolbar's.
+            if showsQueueToolbarButton {
+                Button {
+                    HapticManager.shared.fireHaptic(.selection)
+                    withAnimation(.snappy) {
+                        showQueue.toggle()
+                    }
+                } label: {
+                    Label(showQueue ? "Hide Up Next" : "Show Up Next", systemImage: "list.bullet")
+                        .labelStyle(.iconOnly)
+                }
+                .tint(showQueue ? Color("Accent") : .primary)
+                .accessibilityAddTraits(showQueue ? .isSelected : [])
             }
         }
     }
@@ -932,10 +960,10 @@ private struct LocalVolumeControlView: View {
 /// `BottomToolbarView`: the route picker where the Sonos player has its
 /// group button — on a speaker its menu is the regroup menu too, so there is
 /// no second speaker button beside it; then the room volume for a group of
-/// more than one, and the queue on the trailing edge. No search or browse:
-/// the window's tabs are a dismiss away on every size, and the cover's
-/// sheets only doubled them. On the Mac the queue goes too — the window
-/// toolbar's toggle is in the top-right corner over this same view. The
+/// more than one, and the queue on the trailing edge on a phone. No search
+/// or browse: the window's tabs are a dismiss away on every size, and the
+/// cover's sheets only doubled them. The wide row has no queue: iPad's is
+/// in the navigation bar, the Mac's in the window toolbar. The
 /// like button and the menu live in the navigation bar on every size, so this row
 /// is only ever about where to go next.
 private struct PlayerBottomToolbarView: View {
@@ -988,15 +1016,17 @@ private struct PlayerBottomToolbarView: View {
             .frame(maxWidth: 500)
             .glassToolbar()
         } else {
+            // No queue button: at this width it's in the navigation bar on
+            // iPad, and the window toolbar's on the Mac.
             HStack {
                 PlaybackRouteButton()
-                    .buttonBorderShape(.circle)
+                    .buttonBorderShape(.roundedRectangle)
                     .glassButton()
                     .help("Play On")
 
                 if let group, group.rooms.count > 1 {
                     roomVolumeButton(group)
-                        .buttonBorderShape(.circle)
+                        .buttonBorderShape(.roundedRectangle)
                         .glassButton()
                         .withPopoverDestinations(popoverDestination: $router.volumePopover)
                         .help("Speaker Control")
@@ -1004,16 +1034,9 @@ private struct PlayerBottomToolbarView: View {
 
                 if IdentifySongButton.isAvailable(for: group) {
                     IdentifySongButton(group: group)
-                        .buttonBorderShape(.circle)
+                        .buttonBorderShape(.roundedRectangle)
                         .glassButton()
                 }
-
-#if !targetEnvironment(macCatalyst)
-                queueButton
-                    .buttonBorderShape(.circle)
-                    .accentGlassButton(active: showQueue)
-                    .help("Up Next")
-#endif
             }
         }
     }

@@ -57,23 +57,12 @@ private struct LocalNextUpView: View {
                     .padding(.bottom, 12)
                 }
             }
-
-            // This device's volume, where the panel is the only local
-            // control on screen (the main window, beside the tab content).
-            if playback.isActive {
-                Divider()
-                LocalVolumeSlider()
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }
 
-/// A Sonos group's queue, with the group's volume at the foot — the same
-/// slot the device's panel gives its own volume, so switching the route swaps
-/// what the slider moves rather than where it is.
+/// A Sonos group's queue. No volume: that's the player's.
 private struct GroupNextUpView: View {
     let group: GroupRoom
 
@@ -133,11 +122,6 @@ private struct GroupNextUpView: View {
                 }
                 .opacity(isQueueActive ? 1 : 0.6)
             }
-
-            Divider()
-            VolumeControlView(group: group)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .task(id: group.coordinatorID) {
