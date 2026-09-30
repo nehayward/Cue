@@ -75,15 +75,19 @@ struct MusicPlaybackView: View {
 #endif
         }
         .padding(.horizontal, 12)
+        // Lifts the row a little so the line below has room of its own
+        // rather than crowding the subtitle.
+        .padding(.bottom, showsBottomProgressLine ? 6 : 0)
         .frame(maxWidth: 500, maxHeight: 120)
         // On iPhone the line runs the whole width of the accessory, along
         // its bottom edge; the wider iPad and Mac bars keep it under the
-        // track text.
+        // track text. Inset by the row's own 12pt, so it starts under the
+        // artwork's edge and ends under the last button's.
         .overlay(alignment: .bottom) {
-            if progressSpansFullWidth, placement != .inline {
+            if showsBottomProgressLine {
                 progressLine
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 2)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 4)
                     .allowsHitTesting(false)
             }
         }
@@ -91,6 +95,10 @@ struct MusicPlaybackView: View {
 
     private var progressSpansFullWidth: Bool {
         UIDevice.current.userInterfaceIdiom == .phone
+    }
+
+    private var showsBottomProgressLine: Bool {
+        progressSpansFullWidth && placement != .inline
     }
 
     /// The progress line for whatever is playing: the speaker's track when a
