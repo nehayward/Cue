@@ -576,6 +576,10 @@ struct CueApp: App {
             // and the bottom bar put the real accent back — `Color("Accent")`
             // by name, since `.accentColor` now resolves to this tint.
 //            .tint(Color.primary.opacity(0.12))
+            // iPad's queue panel, beside the whole `TabView` (the Mac's is
+            // inside each tab — `Screens`). Inside `withEnvironments()`,
+            // which the panel's view reads from.
+            .modifier(WindowQueuePanel())
             .withEnvironments()
             .environment(\.zoomNamespace, zoomNamespace)
             // Presented from the `TabView`, not from inside the tab bar
