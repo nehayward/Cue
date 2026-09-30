@@ -1,3 +1,4 @@
+import AVKit
 import Defaults
 import SonosKit
 import SwiftUI
@@ -34,9 +35,33 @@ struct PlaybackRouteButton: View {
     @State private var pending: PendingSwitch?
 
     var body: some View {
+        Group {
+            if sonosService.isEnabled {
+                routeMenu
+            } else {
+                // With Sonos off the only routes are the system's, so the
+                // button is the system's AirPlay picker itself. Speakers are
+                // switched on in Settings ▸ Sonos.
+                AirPlayRoutePicker()
+                    .frame(width: 30, height: 30)
+                    .accessibilityLabel("AirPlay")
+            }
+        }
+        .sheet(item: $pending) { pending in
+            RouteTransferPrompt(target: pending.target) { carrying in
+                self.pending = nil
+                PlaybackRoute.shared.switchTo(pending.target, carrying: carrying)
+            }
+        }
+        // Re-read on every appearance: the share extension writes this too, so
+        // the app can come back to a destination it didn't pick itself.
+        .onAppear { route.refresh() }
+    }
+
+    private var routeMenu: some View {
         let destination = route.destination
 
-        Menu {
+        return Menu {
             Button {
                 select(.device)
             } label: {
@@ -52,17 +77,7 @@ struct PlaybackRouteButton: View {
                 GroupMenuItems(group: group)
             } else {
                 let groups = sonosService.sorted
-                if !sonosService.isEnabled {
-                    // The way in for someone who has never used speakers.
-                    // Looking only starts from here or Settings, since it is
-                    // what puts up the Local Network prompt.
-                    Button {
-                        HapticManager.shared.fireHaptic(.selection)
-                        sonosService.setEnabled(true)
-                    } label: {
-                        Label("Find Sonos Speakers", systemImage: "hifispeaker.2")
-                    }
-                } else if groups.isEmpty {
+                if groups.isEmpty {
                     Text(sonosService.isSearching ? "Looking for speakers…" : "No speakers found")
                 } else {
                     Section("Speakers") {
@@ -80,31 +95,14 @@ struct PlaybackRouteButton: View {
                 }
             }
         } label: {
-            // With Sonos off the only routes are the system's, so it reads as
-            // AirPlay. With it on, Cue's own speaker-with-arrow symbol: the
-            // route is Cue's, not AirPlay's.
-            Group {
-                if sonosService.isEnabled {
-                    Image("hifispeaker.arrow.forward.fill")
-                } else {
-                    Image(systemName: "airplayaudio")
-                }
-            }
-            .contentTransition(.symbolEffect(.replace))
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Play On")
-            .accessibilityValue(route.group?.nameWithCount ?? "This Device")
+            // Cue's own speaker-with-arrow symbol rather than the AirPlay
+            // glyph: the route is Cue's, not AirPlay's.
+            Image("hifispeaker.arrow.forward.fill")
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Play On")
+                .accessibilityValue(route.group?.nameWithCount ?? "This Device")
         }
         .menuIndicator(.hidden)
-        .sheet(item: $pending) { pending in
-            RouteTransferPrompt(target: pending.target) { carrying in
-                self.pending = nil
-                PlaybackRoute.shared.switchTo(pending.target, carrying: carrying)
-            }
-        }
-        // Re-read on every appearance: the share extension writes this too, so
-        // the app can come back to a destination it didn't pick itself.
-        .onAppear { route.refresh() }
     }
 
     private func select(_ target: PlayDestination) {
@@ -117,6 +115,21 @@ struct PlaybackRouteButton: View {
             route.switchTo(target, carrying: preference != .never)
         }
     }
+}
+
+/// The system AirPlay button: a tap puts up the system route sheet, the
+/// same one Control Center shows, and the device's audio follows it.
+private struct AirPlayRoutePicker: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let picker = AVRoutePickerView()
+        picker.prioritizesVideoDevices = false
+        picker.tintColor = .label
+        picker.activeTintColor = .tintColor
+        picker.backgroundColor = .clear
+        return picker
+    }
+
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }
 
 private struct PendingSwitch: Identifiable {
