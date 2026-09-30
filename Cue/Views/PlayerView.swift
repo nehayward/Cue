@@ -834,8 +834,11 @@ private struct LocalPlaybackScrubber: View {
 private struct LocalMediaControlsView: View {
     private var playback: LocalPlaybackService { .shared }
 
-    /// A station has nothing to skip to, so it gets play/pause alone.
+    /// A station has nothing to go back to, and a live stream nothing to
+    /// skip to either, so it gets play/pause alone. An Apple Music station
+    /// is a stream of songs, so it keeps Next.
     private var isStation: Bool { playback.isPlayingStation }
+    private var canSkip: Bool { !isStation || playback.isPlayingAppleStation }
 
     var body: some View {
         HStack {
@@ -851,6 +854,13 @@ private struct LocalMediaControlsView: View {
                 }
                 .buttonStyle(.liveActivity)
                 .accessibilityLabel("Previous")
+
+                Spacer()
+            } else if canSkip {
+                // Holds Previous's place so Play stays centred.
+                Color.clear
+                    .frame(width: 32, height: 32)
+                    .accessibilityHidden(true)
 
                 Spacer()
             }
@@ -869,7 +879,7 @@ private struct LocalMediaControlsView: View {
             .buttonStyle(.liveActivity)
             .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
 
-            if !isStation {
+            if canSkip {
                 Spacer()
 
                 Button {
@@ -886,7 +896,7 @@ private struct LocalMediaControlsView: View {
                 .disabled(!playback.hasNext)
             }
         }
-        .frame(maxWidth: isStation ? nil : 300)
+        .frame(maxWidth: canSkip ? 300 : nil)
         .padding(.horizontal, 60)
     }
 }

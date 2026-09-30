@@ -149,6 +149,15 @@ final class LocalPlaybackService {
         nowPlaying.map(isStation) ?? false
     }
 
+    /// Whether the station playing is an Apple Music one. Unlike a live
+    /// stream, the Apple player runs it as a stream of songs, so Next skips
+    /// to its next song. Read off the queue row rather than `backend` so a
+    /// view showing the button follows it.
+    var isPlayingAppleStation: Bool {
+        guard let item = nowPlaying, isStation(item) else { return false }
+        return item.content.service == .apple
+    }
+
     /// What's on air on the current station: the song, who's playing it, and
     /// its artwork when a lookup found some. Nil for a track, and for a
     /// station that hasn't said yet.
@@ -197,7 +206,7 @@ final class LocalPlaybackService {
     var isActive: Bool { !queue.isEmpty }
     /// Whether a skip forward has somewhere to go: another track, or the top
     /// of the queue again when it repeats.
-    var hasNext: Bool { currentIndex + 1 < queue.count || (repeatMode == .all && !queue.isEmpty) }
+    var hasNext: Bool { currentIndex + 1 < queue.count || (repeatMode == .all && !queue.isEmpty) || isPlayingAppleStation }
 
     /// How the queue loops. Repeat One shortens the armed run to the current
     /// track, so the native player hands back at the end of each one instead
@@ -704,6 +713,17 @@ final class LocalPlaybackService {
     }
 
     func next() {
+        // An Apple station skips to its own next song, not past itself.
+        if backend == .appleStation {
+            Task {
+                do {
+                    try await musicPlayer.skipToNextEntry()
+                } catch {
+                    AlertService.shared.showAlert(with: "Couldn't skip this song", imageName: "exclamationmark.triangle")
+                }
+            }
+            return
+        }
         let target = currentIndex + 1
         guard target < queue.count else {
             if repeatMode == .all, !queue.isEmpty {
@@ -722,8 +742,8 @@ final class LocalPlaybackService {
             case .stream:
                 streamPlayer?.advanceToNextItem()
             case .appleStation:
-                // A station is its own run, so `target` is never inside it.
-                Task { try? await arm(at: target) }
+                // Skipped within the station above.
+                break
             }
         } else {
             Task { try? await arm(at: target) }
@@ -1400,6 +1420,58 @@ final class LocalPlaybackService {
         }
     }
 
+    /// Takes the Apple station's current entry as what's on air. The player
+    /// hands its entries' artwork over as a `musickit://` URL that only
+    /// MusicKit's own views can draw, so the real image is unwrapped from it
+    /// — and when there's none to unwrap, looked up the way a TuneIn song's
+    /// is. Compared by song rather than as a whole, so the cover and match a
+    /// lookup filled in aren't wiped on the next poll.
+    private func noteStationEntry(_ entry: ApplicationMusicPlayer.Queue.Entry) {
+        // A transient entry has no title yet; the next poll will.
+        guard !entry.title.isEmpty else { return }
+        let artwork = Self.drawableArtworkURL(entry.artwork?.url(width: 600, height: 600))
+        var match: PlayableContent?
+        if case .song(let song) = entry.item {
+            let base = song.toPlayable
+            let songArtwork = artwork ?? Self.drawableArtworkURL(base.artwork)
+            match = PlayableContent(
+                title: base.title,
+                subtitle: base.subtitle,
+                thumbnail: Self.drawableArtworkURL(base.thumbnail) ?? songArtwork,
+                artwork: songArtwork,
+                content: base.content,
+                previewURL: base.previewURL,
+                metadata: base.metadata
+            )
+        }
+        let artworkURL = artwork ?? match?.artwork
+
+        if let live = liveMetadata, live.song == entry.title, live.artist == entry.subtitle {
+            // The same song: fill in what arrived late, if anything did.
+            if live.artworkURL == nil, let artworkURL { liveMetadata?.artworkURL = artworkURL }
+            if live.match == nil, let match { liveMetadata?.match = match }
+            return
+        }
+
+        let live = LiveStationMetadata(song: entry.title, artist: entry.subtitle, artworkURL: artworkURL, match: match)
+        liveMetadata = live
+        if artworkURL == nil || match == nil {
+            let token = playToken
+            Task { await lookUpArtwork(for: live, token: token) }
+        }
+    }
+
+    /// An artwork URL the image pipeline can load: an `http(s)` one as is, or
+    /// the `https` one a `musickit://` URL wraps. Nil for anything else.
+    private static func drawableArtworkURL(_ url: URL?) -> URL? {
+        guard let url, let scheme = url.scheme?.lowercased() else { return nil }
+        if scheme == "http" || scheme == "https" { return url }
+        guard scheme == "musickit",
+              let range = url.absoluteString.range(of: #"https%3A%2F%2F[^&]+"#, options: .regularExpression),
+              let unwrapped = String(url.absoluteString[range]).removingPercentEncoding else { return nil }
+        return URL(string: unwrapped)
+    }
+
     /// The Apple Music song on air, while a station plays and one was found.
     var onAirMatch: PlayableContent? {
         guard let item = nowPlaying, isStation(item) else { return nil }
@@ -1492,12 +1564,7 @@ final class LocalPlaybackService {
             // A station's entries are the songs it streams; the current one
             // is what's on air.
             if backend == .appleStation, let entry = musicPlayer.queue.currentEntry {
-                let live = LiveStationMetadata(
-                    song: entry.title,
-                    artist: entry.subtitle,
-                    artworkURL: entry.artwork?.url(width: 600, height: 600)
-                )
-                if live != liveMetadata { liveMetadata = live }
+                noteStationEntry(entry)
             }
 
             // Follow the player's own advance through the run.
