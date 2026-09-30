@@ -101,6 +101,7 @@ struct MusicPlaybackView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
+                            MiniPlayerProgressLine(position: playback.progress, duration: playback.duration)
                         }
                     }
                 } else {
@@ -176,6 +177,9 @@ struct MusicPlaybackView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                        if !track.isEmpty {
+                            MiniPlayerProgressLine(position: room.playbackPosition, duration: track.duration)
+                        }
                     }
                 }
                 Spacer(minLength: 0)
@@ -1403,6 +1407,43 @@ private struct AdaptiveTabViewStyle: ViewModifier {
     }
 }
 
+
+/// The thin elapsed-time line under the mini player's track text. Units are
+/// the caller's (seconds on the device, milliseconds from a speaker) — only
+/// the ratio is drawn. A live stream reports no duration, so the line keeps
+/// its height but stays hidden rather than showing an empty track.
+private struct MiniPlayerProgressLine: View {
+    let position: TimeInterval
+    let duration: TimeInterval
+
+    private var hasDuration: Bool {
+        duration.isFinite && duration > 0
+    }
+
+    private var fraction: CGFloat {
+        guard hasDuration, position.isFinite else { return 0 }
+        return CGFloat(min(max(position / duration, 0), 1))
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            Capsule()
+                .fill(.secondary.opacity(0.3))
+                .overlay(alignment: .leading) {
+                    Capsule()
+                        .fill(.primary)
+                        .frame(width: proxy.size.width * fraction)
+                }
+        }
+        .frame(height: 3)
+        .padding(.top, 2)
+        .opacity(hasDuration ? 1 : 0)
+        // A track change drops the fraction to zero; animating that would
+        // sweep the fill backwards like a rewind.
+        .animation(fraction < 0.01 ? nil : .linear, value: fraction)
+        .accessibilityHidden(true)
+    }
+}
 
 /// Transport buttons for the "Playback" command menu. Extracted into its own
 /// View because inlining all five buttons (each with conditional labels and
