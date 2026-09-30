@@ -184,13 +184,28 @@ final class LocalPlaybackService {
     /// the speaker, and a way back into it: the player names it above the
     /// title and a tap opens it.
     ///
-    /// Queue-level, like the speaker's own: it is set by the Play that
-    /// replaced the queue and survives tracks being added behind it, so a
-    /// row queued from elsewhere still shows the origin of the run it landed
-    /// in. Nil when the queue came from a bare list of tracks — a search
-    /// result, a speaker hand-off — which have no origin to name.
-    private(set) var source: PlayableContent? {
+    /// Per run, not per queue: an album played next inside an artist's run
+    /// names its album, not the artist, and the artist's tracks after it
+    /// still name the artist. Nil for a track that came as a bare track — a
+    /// search result, a speaker hand-off — which has no origin to name.
+    var source: PlayableContent? {
+        queue[safe: currentIndex].flatMap { origins[$0.id] }
+    }
+
+    /// Each queued track's origin, by track ID. A track queued twice from
+    /// two places keeps the later one.
+    private var origins: [String: PlayableContent] = [:] {
         didSet { saveSource() }
+    }
+
+    /// Names `origin` as where `items` came from; nil forgets it.
+    private func setOrigin(_ origin: PlayableContent?, for items: [PlayableContent]) {
+        guard !items.isEmpty else { return }
+        var updated = origins
+        for item in items {
+            updated[item.id] = origin
+        }
+        origins = updated
     }
 
     var upNext: [PlayableContent] { Array(queue.dropFirst(currentIndex + 1)) }
@@ -409,7 +424,7 @@ final class LocalPlaybackService {
     /// caller so playback starts on the first page — draining a 1600-track
     /// playlist up front meant nine sequential requests before the first note,
     /// which read as the Play button doing nothing.
-    private func appendRemainder(of container: PlayableContent, from start: Int, shuffle: Bool = false) async {
+    private func appendRemainder(of container: PlayableContent, from start: Int, shuffle: Bool = false, origin: PlayableContent? = nil) async {
         guard start > 0 else { return }
         var offset = start
         // Bounded: a source that quietly ignored `offset` would otherwise
@@ -419,6 +434,7 @@ final class LocalPlaybackService {
             guard !page.isEmpty else { return }
             offset += page.count
             try? await addToQueue(shuffle ? page.shuffled() : page)
+            setOrigin(origin ?? container, for: page)
         }
     }
 
@@ -433,9 +449,9 @@ final class LocalPlaybackService {
     func play(_ items: [PlayableContent], startingAt index: Int = 0, from position: TimeInterval? = nil) async throws {
         let playable = items.filter { canPlayLocally($0) }
         guard !playable.isEmpty else { throw LocalPlaybackError.nothingPlayable }
-        // A new queue, so the old origin is gone. `enqueue` names the new one
-        // after this returns; a bare list of tracks has none.
-        source = nil
+        // A new queue, so the old origins are gone. `enqueue` names the new
+        // one after this returns; a bare list of tracks has none.
+        origins = [:]
         queue = playable
         let start = items[safe: index].flatMap { playable.firstIndex(of: $0) } ?? 0
         // A new queue, so a restored position belongs to nothing in it.
@@ -501,17 +517,22 @@ final class LocalPlaybackService {
     /// playlist a tapped row belongs to, say, which the row itself doesn't
     /// carry. A single container needs none: it is its own origin.
     func enqueue(_ contents: [PlayableContent], at position: QueuePosition, shuffle: Bool = false, from origin: PlayableContent? = nil) async throws {
-        let wasEmpty = !isActive
         var items: [PlayableContent] = []
+        /// Where each run of `items` came from: the caller's origin, else a
+        /// container stands in for its own tracks.
+        var runs: [(origin: PlayableContent?, items: [PlayableContent])] = []
         /// Containers whose first page is in `items`; the rest follows once
         /// playback is underway.
         var containers: [(content: PlayableContent, loaded: Int)] = []
         for content in contents {
             if canPlayLocally(content) {
                 items.append(content)
+                runs.append((origin, [content]))
             } else if canPlayContainerLocally(content) {
-                let page = await containerTracks(for: content, offset: 0)
-                items += shuffle ? page.shuffled() : page
+                var page = await containerTracks(for: content, offset: 0)
+                if shuffle { page.shuffle() }
+                items += page
+                runs.append((origin ?? content, page))
                 containers.append((content, page.count))
             }
         }
@@ -523,19 +544,18 @@ final class LocalPlaybackService {
         case .end: try await addToQueue(items)
         }
 
-        // Only the Play that made the queue names its origin: adding behind
-        // an existing queue leaves the run it joins as what it was. A lone
-        // container stands in for itself when the caller named nothing —
-        // that is the playlist or album that was tapped.
-        if [.now, .replace].contains(position) || wasEmpty {
-            source = origin ?? (contents.count == 1 ? contents.first.flatMap { canPlayContainerLocally($0) ? $0 : nil } : nil)
+        // Every run names its own origin, whether it made the queue or was
+        // added to one: an album played next inside an artist's run is still
+        // that album. `play` cleared the old ones when this replaced them.
+        for run in runs {
+            setOrigin(run.origin, for: run.items)
         }
 
         // Playing already, so the tail can arrive behind it.
         guard !containers.isEmpty else { return }
         Task {
             for container in containers {
-                await appendRemainder(of: container.content, from: container.loaded, shuffle: shuffle)
+                await appendRemainder(of: container.content, from: container.loaded, shuffle: shuffle, origin: origin)
             }
         }
     }
@@ -747,7 +767,7 @@ final class LocalPlaybackService {
         teardownRun()
         resumePosition = nil
         queue = []
-        source = nil
+        origins = [:]
         currentIndex = 0
         isPlaying = false
         isLoading = false
@@ -1608,7 +1628,7 @@ final class LocalPlaybackService {
         }
         isRestoring = true
         defer { isRestoring = false }
-        source = saved.source
+        origins = saved.origins
         let current = saved.queue[safe: saved.position.index]
         let currentKept = current.flatMap { kept.firstIndex(of: $0) }
         queue = kept
@@ -1656,12 +1676,12 @@ final class LocalPlaybackService {
         LocalQueueStore.save(position: .init(index: currentIndex, progress: progress, duration: duration, repeatMode: repeatMode))
     }
 
-    /// Writes what the queue was played from, so the player still names the
-    /// origin after a relaunch. Written only when it changes, which is once
-    /// per Play.
+    /// Writes where the queued tracks were played from, so the player still
+    /// names the origin after a relaunch. Written only when it changes: once
+    /// per Play, and once per page a long container adds behind it.
     private func saveSource() {
         guard !isRestoring else { return }
-        LocalQueueStore.save(source: source)
+        LocalQueueStore.save(origins: origins)
     }
 
     /// The poll's version: every few seconds of progress, and at the moment
@@ -1845,8 +1865,8 @@ private enum LocalQueueStore {
     struct Saved {
         var queue: [PlayableContent]
         var position: Position
-        /// What the queue was played from, when it was played from anything.
-        var source: PlayableContent?
+        /// Where each queued track was played from, by track ID.
+        var origins: [String: PlayableContent]
     }
 
     private static var queueURL: URL? {
@@ -1869,9 +1889,9 @@ private enum LocalQueueStore {
         let position = UserDefaults.standard.data(forKey: positionKey)
             .flatMap { try? JSONDecoder().decode(Position.self, from: $0) }
             ?? Position(index: 0, progress: 0, duration: 0, repeatMode: .off)
-        let source = UserDefaults.standard.data(forKey: sourceKey)
-            .flatMap { try? JSONDecoder().decode(PlayableContent.self, from: $0) }
-        return Saved(queue: queue, position: position, source: source)
+        let origins = UserDefaults.standard.data(forKey: sourceKey)
+            .flatMap { Origins.decode($0, queue: queue) } ?? [:]
+        return Saved(queue: queue, position: position, origins: origins)
     }
 
     static func save(queue: [PlayableContent], waitUntilDone: Bool = false) {
@@ -1892,11 +1912,47 @@ private enum LocalQueueStore {
         UserDefaults.standard.set(data, forKey: positionKey)
     }
 
-    static func save(source: PlayableContent?) {
-        guard let source, let data = try? JSONEncoder().encode(source) else {
+    static func save(origins: [String: PlayableContent]) {
+        guard !origins.isEmpty, let data = try? JSONEncoder().encode(Origins(origins)) else {
             return UserDefaults.standard.removeObject(forKey: sourceKey)
         }
         UserDefaults.standard.set(data, forKey: sourceKey)
+    }
+
+    /// The origins as saved: each distinct one once, and each track ID
+    /// pointing at its index — a 1,000-track playlist is one origin, not a
+    /// thousand copies of it.
+    private struct Origins: Codable {
+        var sources: [PlayableContent]
+        var tracks: [String: Int]
+
+        init(_ origins: [String: PlayableContent]) {
+            var sources: [PlayableContent] = []
+            var indices: [PlayableContent: Int] = [:]
+            var tracks: [String: Int] = [:]
+            for (id, origin) in origins {
+                if let index = indices[origin] {
+                    tracks[id] = index
+                } else {
+                    indices[origin] = sources.count
+                    tracks[id] = sources.count
+                    sources.append(origin)
+                }
+            }
+            self.sources = sources
+            self.tracks = tracks
+        }
+
+        /// Earlier builds saved one origin for the whole queue; it reads
+        /// back as the origin of every track in it.
+        static func decode(_ data: Data, queue: [PlayableContent]) -> [String: PlayableContent]? {
+            let decoder = JSONDecoder()
+            if let saved = try? decoder.decode(Origins.self, from: data) {
+                return saved.tracks.compactMapValues { saved.sources[safe: $0] }
+            }
+            guard let single = try? decoder.decode(PlayableContent.self, from: data) else { return nil }
+            return Dictionary(queue.map { ($0.id, single) }, uniquingKeysWith: { first, _ in first })
+        }
     }
 
     static func clear() {

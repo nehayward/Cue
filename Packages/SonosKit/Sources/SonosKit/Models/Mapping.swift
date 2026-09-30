@@ -49,6 +49,7 @@ extension Song {
             content: MediaContent(service: .apple, id: id.description, type: .track, location: url),
             previewURL: previewAssets?.first?.url,
             metadata: PlayableContentMetadata(
+                duration: duration.map { Duration.seconds($0) },
                 artist: artistName,
                 album: albumTitle,
                 isrc: isrc,
