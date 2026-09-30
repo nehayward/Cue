@@ -13,7 +13,7 @@ extension Track {
     }
 
     var nowPlayingURLs: [URL] {
-        var urls = [URL(string: "https://apps.apple.com/app/apple-store/id1596487035?pt=670995&ct=click-for-sonos&mt=8")!]
+        var urls = [URL(string: "https://apps.apple.com/app/apple-store/id1596487035?pt=670995&ct=cue&mt=8")!]
         switch musicService {
         case .apple:
             if let url = URL(string:"nowplaying://musicSong?i=\(trackID)") {
