@@ -180,10 +180,12 @@ struct PlayableMenuView: View {
 
                 Divider()
                 AddToLastPlaylistButton(itemToAdd: item)
-                Button {
-                    router.sheet(to: .addToPlaylist(content: item))
-                } label: {
-                    Label("Add to Playlist…", systemImage: "text.badge.plus")
+                if AddToPlaylistSheet.canAdd(item) {
+                    Button {
+                        router.sheet(to: .addToPlaylist(content: item))
+                    } label: {
+                        Label("Add to Playlist…", systemImage: "text.badge.plus")
+                    }
                 }
                 Divider()
               
@@ -342,8 +344,11 @@ struct PlayableMenuView: View {
                 guard let radioItem = await resolveRadioSeed(for: item) else { return }
                 QueueManager.shared.addToQueue(item: QueueItem(playableContent: radioItem, group: group, position: .now, title: "Starting radio", showBanner: true))
             }
+            // A speaker in context plays Sonos' radio. Otherwise the
+            // remembered destination decides: a speaker, or Apple Music's
+            // station for the song or artist on this device.
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: startRadio, content: item))
+                await PlayDestinationRouter.playRadio(from: item, onGroup: startRadio)
                 return
             }
             try await startRadio(group)

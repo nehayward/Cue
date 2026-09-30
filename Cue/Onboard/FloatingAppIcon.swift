@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Renders the `CueIconGlass` asset (the production app-icon artwork) with
+/// Renders the `CueIconGlass` asset (a render of the app icon, `Icon.icon`,
+/// since an Icon Composer icon can't be drawn with `Image`) with
 /// a soft drop shadow, a teal halo, and a slow ~3.4s vertical drift so it
 /// feels like it's floating above the mesh background. The asset already
 /// carries the rounded square + sheen + glyph baked in — no need to compose

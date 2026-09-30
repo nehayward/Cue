@@ -243,6 +243,17 @@ struct CueApp: App {
     @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
     
     @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
+    /// Onboarding, shown once on first launch. Presented from the `TabView`
+    /// with its own flag, like the player: the shared router's full-screen
+    /// cover is only attached inside some tabs.
+    @State private var isOnboardingPresented = false
+
+    /// Onboarding hasn't finished. It runs the speaker search itself, after
+    /// explaining the Local Network prompt, so the launch and scene-phase
+    /// paths keep out of the way until then.
+    private var isOnboarding: Bool {
+        !hasOnboarded || OnboardingDebug.forceShow
+    }
     @AppStorage("CueMiniEnabled") private var isMenuBarAppEnabled: Bool = true
     @AppStorage(AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
@@ -598,11 +609,28 @@ struct CueApp: App {
                     .zoomTransition(from: .miniPlayer, in: zoomNamespace)
 #endif
             }
+            .fullScreenCover(isPresented: $isOnboardingPresented) {
+                WelcomeScreen()
+                    .withEnvironments()
+            }
             .modifier(AdaptiveTabViewStyle())
+            // Settings ▸ Appearance. Applied to the windows, so everything
+            // presented from them follows it too.
+            .onChange(of: colorScheme, initial: true) { _, preference in
+                preference.apply()
+            }
             .onOpenURL(perform: handle)
             .onAppear {
-                SonosService.shared.monitor()
                 coreFeatures.restoreDeviceServicesOnce()
+                // Asks whether there are speakers before anything looks for
+                // them. Onboarding writes `hasOnboarded` however it ends,
+                // so this is once per install, and starts monitoring itself
+                // when it closes.
+                if isOnboarding {
+                    isOnboardingPresented = true
+                } else {
+                    SonosService.shared.monitor()
+                }
                 
 #if os(iOS) && !targetEnvironment(macCatalyst)
                 // One call for the lifetime of the process: the service watches
@@ -991,53 +1019,53 @@ struct CueApp: App {
             // back or something else restarted the pulse. That ambiguity is what
             // hid `stopMonitoringOffScreen`'s bug.
             print("Active")
-            // Don't poke the network (which triggers the Local Network
-            // permission prompt) until onboarding has surfaced the explanation
-            // screen and the user has tapped Continue. WelcomeScreen kicks off
-            // `monitor()` on dismiss.
-            guard hasOnboarded, !OnboardingDebug.forceShow else { return }
-            // The network may have changed while backgrounded (e.g. home →
-            // friend's house). Re-race known IPs + discovery on the next poll
-            // instead of blocking on a now-stale cached IP. Cheap: an unchanged
-            // network still wins in ms, and the flag re-verifies after one load.
-            sonosService.invalidateVerifiedConnection()
-            // Re-opened before `monitor()`, and before any view `.task` that
-            // fires as the app comes back can call it — this runs first on the
-            // activation.
-            sonosService.allowsMonitoring = true
-            sonosService.monitor()
+            // Speakers are only looked for when Sonos is switched on: looking
+            // is what puts up the Local Network permission prompt. Everything
+            // after this block runs either way — it used to sit behind an
+            // onboarding guard, which also held back the subscription check
+            // until onboarding had finished.
+            if sonosService.isEnabled, !isOnboarding {
+                // The network may have changed while backgrounded (e.g. home →
+                // friend's house). Re-race known IPs + discovery on the next poll
+                // instead of blocking on a now-stale cached IP. Cheap: an unchanged
+                // network still wins in ms, and the flag re-verifies after one load.
+                sonosService.invalidateVerifiedConnection()
+                // Re-opened before `monitor()`, and before any view `.task` that
+                // fires as the app comes back can call it — this runs first on the
+                // activation.
+                sonosService.allowsMonitoring = true
+                sonosService.monitor()
 #if targetEnvironment(macCatalyst)
-            // Window is open — live monitoring + `.task(id:)` keep the dock
-            // menu fresh, so the background poll isn't needed.
-            DockMenuCoordinator.shared.stopBackgroundRefresh()
+                // Window is open — live monitoring + `.task(id:)` keep the dock
+                // menu fresh, so the background poll isn't needed.
+                DockMenuCoordinator.shared.stopBackgroundRefresh()
 #endif
-            Task {
-                let startTime = Date.now
-                while sonosService.sorted.isEmpty && Date.now.timeIntervalSince(startTime) < 10 {
-                    try? await Task.sleep(for: .milliseconds(100))
-                }
-                guard !sonosService.sorted.isEmpty else { return }
-                sonosService.onServerListening()
-            }
-            
-            if speedLaunchNowPlaying {
                 Task {
-                    try? await Task.sleep(for: .milliseconds(200))
-                    if sonosService.groups.isEmpty {
-                        try? await sonosService.updateGroups()
+                    let startTime = Date.now
+                    while sonosService.sorted.isEmpty && Date.now.timeIntervalSince(startTime) < 10 {
+                        try? await Task.sleep(for: .milliseconds(100))
                     }
-                    handle(URL(string: "cue://playing")!)
+                    guard !sonosService.sorted.isEmpty else { return }
+                    sonosService.onServerListening()
                 }
-            }
             
-            if !FeatureGate.shared.isAvailable(.liveActivities) {
-                return
-            }
+                if speedLaunchNowPlaying {
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(200))
+                        if sonosService.groups.isEmpty {
+                            try? await sonosService.updateGroups()
+                        }
+                        handle(URL(string: "cue://playing")!)
+                    }
+                }
             
-            Task {
-                for group in sonosService.groups {
-                    if !group.coordinatorRoom.isPlaying {
-                        await liveActivityManager.stop(id: group.coordinatorRoom.id)
+                if FeatureGate.shared.isAvailable(.liveActivities) {
+                    Task {
+                        for group in sonosService.groups {
+                            if !group.coordinatorRoom.isPlaying {
+                                await liveActivityManager.stop(id: group.coordinatorRoom.id)
+                            }
+                        }
                     }
                 }
             }
@@ -1098,13 +1126,13 @@ struct CueApp: App {
     /// the old `.background`-only behaviour until there's a signal that
     /// separates "not focused" from "not on screen".
     ///
-    /// Guarded on onboarding for the same reason `.active` is: the Local Network
-    /// permission prompt makes the scene `.inactive` while it's up, and `.active`
-    /// deliberately doesn't restart monitoring before onboarding is done — so
-    /// tearing down here would stop discovery with nothing to start it again.
+    /// Nothing to stop while Sonos is switched off. Nor during onboarding: its
+    /// discovery page puts up the Local Network prompt, which makes the scene
+    /// `.inactive`, and `.active` leaves monitoring to onboarding — so a
+    /// teardown here would stop the search with nothing to start it again.
     @MainActor
     private func stopMonitoringOffScreen(_ phase: ScenePhase) {
-        guard hasOnboarded, !OnboardingDebug.forceShow else { return }
+        guard sonosService.isEnabled, !isOnboarding else { return }
         if phase == .inactive, UIDevice.current.userInterfaceIdiom == .pad { return }
 
         // Shut the gate before cancelling, not after: cancelling only stops the
@@ -1123,6 +1151,7 @@ struct CueApp: App {
         Task {
             guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
             
+            // `updateGroups` returns at once while Sonos is switched off.
             if sonosService.groups.isEmpty {
                 try? await sonosService.updateGroups()
             }
@@ -1471,6 +1500,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
         UserDefaults.standard.set(true, forKey: "NSDisabledCharacterPaletteMenuItem")
         #endif
+        // Sonos is opt-in here. This runs before any view body or `.task` can
+        // call `monitor()`, which is what would put up the Local Network
+        // prompt on a device that has never seen a speaker.
+        SonosService.shared.loadEnabledPreference()
         // RevenueCat, analytics, remote flags and the image pipeline. Before
         // any view body: `Purchases.shared` is a fatal error until
         // `Purchases.configure` has run, and Preferences reads it for the

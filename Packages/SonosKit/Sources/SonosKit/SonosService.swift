@@ -4,6 +4,7 @@ import MusicSearchKit
 import Observation
 import SwiftUI
 import MusicKit
+import Defaults
 
 @Observable
 public class SonosSystemState {
@@ -37,6 +38,50 @@ public final class SonosService {
 
     public var rooms: [Room] = []
     public var selectedGroup: GroupRoom? = nil
+
+    /// Whether this service may look for speakers or talk to them. When it is
+    /// off, `monitor()` and every group load return without touching the
+    /// network, so the Local Network prompt never appears.
+    ///
+    /// On by default, so the hosts that are Sonos clients and nothing else —
+    /// widgets, tvOS, watchOS, Cue Mini — behave exactly as before. The iOS
+    /// and Mac app make it opt-in by calling `loadEnabledPreference()` at
+    /// launch, before any view can start monitoring.
+    public private(set) var isEnabled = true
+
+    /// Reads the user's choice from `AppStorageKeys.sonosEnabled`. Unset means
+    /// off, unless this install already knows a household. That covers
+    /// someone who used speakers before the setting existed. It is worked out
+    /// again on each launch until the user chooses, and not written back,
+    /// because the synced household list can arrive after the first launch.
+    @MainActor
+    public func loadEnabledPreference() {
+        if let stored = UserDefaults.standard.object(forKey: AppStorageKeys.sonosEnabled) as? Bool {
+            isEnabled = stored
+        } else {
+            isEnabled = !sonosSystemDiscoverService.knownHouseholds.isEmpty
+        }
+    }
+
+    /// Turns speaker support on or off and remembers the choice. Turning it on
+    /// starts looking for speakers straight away, unless `startMonitoring` is
+    /// false: onboarding explains the Local Network prompt first and starts
+    /// the search itself. Turning it off stops monitoring and forgets the
+    /// groups on screen; the speakers themselves keep playing whatever they
+    /// were playing.
+    @MainActor
+    public func setEnabled(_ enabled: Bool, startMonitoring: Bool = true) {
+        UserDefaults.standard.set(enabled, forKey: AppStorageKeys.sonosEnabled)
+        guard enabled != isEnabled else { return }
+        isEnabled = enabled
+        if enabled {
+            allowsMonitoring = true
+            invalidateVerifiedConnection()
+            if startMonitoring { monitor() }
+        } else {
+            clearDevices()
+        }
+    }
 
     @ObservationIgnored private lazy var sonosSystemDiscoverService = SonosSystemDiscoverService()
     @ObservationIgnored private lazy var api = SonosAPI()
@@ -265,6 +310,7 @@ public final class SonosService {
     }
 
     public func updateGroups() async throws {
+        guard isEnabled else { return }
         let newGroup = try await getGroups(useCache: true)
         system = try await findSystem(useCache: true)
 
@@ -378,7 +424,7 @@ public final class SonosService {
 
     @MainActor
     public func monitor(retry: Bool = true, useCache: Bool = true) {
-        guard allowsMonitoring else { return }
+        guard isEnabled, allowsMonitoring else { return }
         if isRunning { return }
         print("Monitoring!")
 
@@ -1304,6 +1350,7 @@ public final class SonosService {
 
     @MainActor
     public func getGroups(useCache: Bool) async throws -> [GroupRoom] {
+        guard isEnabled else { throw SonosServiceError.sonosSystemNotFound }
         // Candidate IPs to probe = union of every known household's IPs, as a
         // Set. An IP is just an address to try, not a household claim: the same
         // 192.168.x.x commonly appears in two different homes, so a map keyed by
@@ -1458,6 +1505,7 @@ public final class SonosService {
 
     @MainActor
     public func getGroupsFast() async throws -> [GroupRoom] {
+        guard isEnabled else { return [] }
         let ips = try await sonosSystemDiscoverService.getAllIPs()
 
         return try await withThrowingTaskGroup(of: [GroupRoom].self, returning: [GroupRoom].self) { taskGroup in
@@ -1480,6 +1528,7 @@ public final class SonosService {
 
     @MainActor
     public func findSystem(useCache: Bool) async throws -> System? {
+        guard isEnabled else { return nil }
         let IP = try await sonosSystemDiscoverService.getFirstIP(useCache: useCache)
         let system = try await api.system(for: IP)
         return system

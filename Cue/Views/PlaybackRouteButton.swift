@@ -52,8 +52,18 @@ struct PlaybackRouteButton: View {
                 GroupMenuItems(group: group)
             } else {
                 let groups = sonosService.sorted
-                if groups.isEmpty {
-                    Text("No speakers found")
+                if !sonosService.isEnabled {
+                    // The way in for someone who has never used speakers.
+                    // Looking only starts from here or Settings, since it is
+                    // what puts up the Local Network prompt.
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        sonosService.setEnabled(true)
+                    } label: {
+                        Label("Find Sonos Speakers", systemImage: "hifispeaker.2")
+                    }
+                } else if groups.isEmpty {
+                    Text(sonosService.isSearching ? "Looking for speakers…" : "No speakers found")
                 } else {
                     Section("Speakers") {
                         ForEach(groups) { group in

@@ -300,7 +300,10 @@ struct ArtistDetailView: View {
                         Label("Replace Queue", systemImage: "play.fill")
                     }
 
-                    AddTracksToPlaylistMenu(tracks: tracks)
+                    // Sonos playlists only.
+                    if sonosService.isEnabled {
+                        AddTracksToPlaylistMenu(tracks: tracks)
+                    }
                 }
             }
 
@@ -462,30 +465,30 @@ struct ArtistDetailView: View {
     private func startRadio() async {
         guard let artistContent else { return }
 
-        // Radio is Sonos-only — there is no local backend for it — so the
-        // remembered speaker stands in for the picker, and the picker is only
-        // for when the route is this device (or that speaker is gone).
-        guard let group = selectedGroupService.group ?? PlayDestinationRouter.rememberedGroup else {
-            router?.presentedSheet = .selectGroup(
-                selectedGroupService: selectedGroupService,
-                content: artistContent
-            )
-            return
+        let radioContent = artistContent.toRadio
+        let onSpeaker: (GroupRoom) async throws -> Void = { group in
+            do {
+                alertService.showAlertContent(with: radioContent, subtitle: "Radio")
+                try await sonosService.startRadio(content: radioContent, group: group)
+                playHistoryService.history.remove(radioContent)
+                playHistoryService.history.insert(radioContent, at: 0)
+            } catch {
+                alertService.showAlert(
+                    with: "Please authorize \(artistContent.content.service.title) in Sonos",
+                    imageName: "exclamationmark.triangle.fill"
+                )
+            }
         }
 
         HapticManager.shared.fireHaptic(.buttonPress)
-        do {
-            let radioContent = artistContent.toRadio
-            alertService.showAlertContent(with: radioContent, subtitle: "Radio")
-            try await sonosService.startRadio(content: radioContent, group: group)
-            playHistoryService.history.remove(radioContent)
-            playHistoryService.history.insert(radioContent, at: 0)
-        } catch {
-            alertService.showAlert(
-                with: "Please authorize \(artistContent.content.service.title) in Sonos",
-                imageName: "exclamationmark.triangle.fill"
-            )
+        // The speaker this screen was opened for plays Sonos' radio. Otherwise
+        // the remembered destination decides: a speaker, or Apple Music's
+        // artist station on this device.
+        if let group = selectedGroupService.group {
+            try? await onSpeaker(group)
+            return
         }
+        await PlayDestinationRouter.playRadio(from: artistContent, onGroup: onSpeaker)
     }
     
     private func playAllTracks(position: QueuePosition = .next) async {

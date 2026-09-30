@@ -21,6 +21,11 @@ public enum AnalyticEvents: String {
 public enum OnboardingEvent: String {
     /// Welcome page first appears (sheet presents).
     case started
+    /// Answered "Do you have Sonos?" with Yes — the Discovery page is next.
+    case answeredHasSonos
+    /// Answered "Do you have Sonos?" with No — Sonos stays off and the
+    /// device's own services page is next.
+    case answeredNoSonos
     /// User tapped Continue on the Discovery page — Local Network prompt
     /// fires next.
     case discoveryStarted

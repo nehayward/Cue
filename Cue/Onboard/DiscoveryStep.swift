@@ -22,6 +22,10 @@ struct DiscoveryStep: View {
     /// "Sonos Move 2" mid-cascade.
     @State private var revealReady = false
     var advance: () -> Void
+    /// Carries on to the rest of onboarding when no speakers were found or
+    /// the network is blocked. Sonos stays on, so speakers show up once they
+    /// are reachable.
+    var skip: (() -> Void)? = nil
 
     private enum DiscoveryStatus: Hashable {
         case idle, denied, notFound, found, searching
@@ -90,7 +94,27 @@ struct DiscoveryStep: View {
             // Action button — per-state ZStack with cross-fades
             actionButton
                 .padding(.horizontal, 28)
-                .padding(.bottom, 36)
+                .padding(.bottom, skipButtonShown ? 8 : 36)
+
+            // A way on for someone whose speakers aren't here right now —
+            // otherwise the only way out of these two states was the X.
+            if skipButtonShown, let skip {
+                Button {
+                    HapticManager.shared.fireHaptic(.selection)
+                    skip()
+                } label: {
+                    Text("Continue Without Speakers")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white.opacity(0.85))
+                .padding(.horizontal, 28)
+                .padding(.bottom, 28)
+                .transition(.opacity)
+            }
         }
         .onChange(of: sonosService.rooms.count) { oldCount, newCount in
             // Fire the analytics event exactly once, when the first speaker
@@ -142,6 +166,10 @@ struct DiscoveryStep: View {
                 Analytics.shared.track(OnboardingEvent.discoveryDenied)
             }
         }
+    }
+
+    private var skipButtonShown: Bool {
+        skip != nil && [.notFound, .denied].contains(discoveryStatus)
     }
 
     // MARK: copy
