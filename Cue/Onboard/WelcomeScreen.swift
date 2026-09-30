@@ -251,15 +251,11 @@ struct WelcomeScreen: View {
         advanceToPostServices()
     }
 
-    /// Shared post-services routing. Subscribed users skip the paywall entirely
-    /// and land straight on the newsletter step; everyone else gets the paywall
-    /// first.
+    /// Shared post-services routing. Onboarding ends here for now: the
+    /// paywall and newsletter steps are held back. To bring them back, go to
+    /// `.email` for subscribers and `.paywall` for everyone else.
     private func advanceToPostServices() {
-        if subscriptionService.subscription.isActive {
-            goTo(.email)
-        } else {
-            goTo(.paywall)
-        }
+        dismiss()
     }
 
     private func goTo(_ next: Step) {
