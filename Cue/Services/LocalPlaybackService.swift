@@ -774,6 +774,63 @@ final class LocalPlaybackService {
         queue[start...].shuffle()
     }
 
+    /// Drops everything after the current track. The current track plays on
+    /// and playback stops when it ends (or loops it, under Repeat).
+    func clearUpNext() {
+        let start = currentIndex + 1
+        guard start < queue.count else { return }
+        if runEnd > currentIndex {
+            truncateArmedRunAfterCurrent()
+        }
+        queue.removeSubrange(start...)
+    }
+
+    /// Removes queue rows after the current track. Played rows and the
+    /// current one stay: the armed run maps player entries to queue indices
+    /// up to the current track, and moving those would point it at the
+    /// wrong rows.
+    func removeFromQueue(at indices: IndexSet) {
+        let upcoming = indices.filter { $0 > currentIndex && $0 < queue.count }
+        guard !upcoming.isEmpty else { return }
+        if runEnd > currentIndex {
+            truncateArmedRunAfterCurrent()
+        }
+        var updated = queue
+        for index in upcoming.sorted(by: >) {
+            updated.remove(at: index)
+        }
+        queue = updated
+    }
+
+    /// Reorders rows after the current track. Offsets are queue indices, in
+    /// the shape `onMove` hands them over; a move into or above the current
+    /// track lands just after it.
+    func moveInQueue(from source: IndexSet, to destination: Int) {
+        let start = currentIndex + 1
+        let upcoming = source.filter { $0 >= start && $0 < queue.count }
+        guard !upcoming.isEmpty else { return }
+        if runEnd > currentIndex {
+            truncateArmedRunAfterCurrent()
+        }
+        // `onMove`'s destination counts the moved rows still in place, so
+        // the insertion point shifts up by those taken from above it.
+        let target = min(max(destination, start), queue.count)
+        let moved = upcoming.sorted().map { queue[$0] }
+        var updated = queue
+        for index in upcoming.sorted(by: >) {
+            updated.remove(at: index)
+        }
+        let insertAt = target - upcoming.filter { $0 < target }.count
+        updated.insert(contentsOf: moved, at: insertAt)
+        queue = updated
+    }
+
+    /// Moves an upcoming row to play right after the current track.
+    func moveToNext(at index: Int) {
+        guard index > currentIndex + 1, index < queue.count else { return }
+        moveInQueue(from: [index], to: currentIndex + 1)
+    }
+
     /// Pauses `duration` from now. Replaces any timer already running,
     /// including an end-of-track one.
     func sleepTimer(_ duration: Duration) {
