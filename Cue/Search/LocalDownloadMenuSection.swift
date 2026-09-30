@@ -3,7 +3,7 @@ import SonosKit
 import SwiftUI
 
 /// Download state and actions for playing on this device — the rows inside
-/// a track's "This Device" submenu and the local player's own menu. Plex and
+/// a track's menu (next to This Device) and the local player's own menu. Plex and
 /// Subsonic tracks download into our own storage through the download
 /// manager; a Files track in iCloud Drive is fetched or evicted in place;
 /// Apple tracks can only be badged (the Music app owns those downloads —

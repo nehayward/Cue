@@ -19,6 +19,9 @@ struct PlayableMenuView: View {
     /// When set (track shown inside an editable playlist), adds a "Remove from Playlist" action.
     var onRemoveFromPlaylist: (() -> Void)? = nil
 
+    /// Create Scene and Play in Room… are hidden from this menu for now.
+    private static let showsSpeakerShortcuts = false
+
     var body: some View {
         VStack {
             switch item.content.type {
@@ -141,10 +144,14 @@ struct PlayableMenuView: View {
                                 Label("Stop", systemImage: "stop.fill")
                             }
                         }
-
-                        LocalDownloadMenuSection(item: item)
                     } label: {
                         Label("This Device", systemImage: "iphone.radiowaves.left.and.right")
+                    }
+
+                    // Downloads sit at the top level, not inside the This
+                    // Device submenu, so they're one tap away.
+                    Section {
+                        LocalDownloadMenuSection(item: item)
                     }
                     .onAppear {
                         AppleDownloadsIndex.shared.refreshIfNeeded()
@@ -220,7 +227,7 @@ struct PlayableMenuView: View {
             }
         }
         
-        if item.content.type != .folder {
+        if Self.showsSpeakerShortcuts, item.content.type != .folder {
             Button {
                 router.sheet(to: .createScene(content: item))
             } label: {
@@ -235,7 +242,7 @@ struct PlayableMenuView: View {
         
         OpenInServiceView(item: item)
 
-        if item.content.type != .folder {
+        if Self.showsSpeakerShortcuts, item.content.type != .folder {
             Button {
                 selectedGroupService.group = nil
                 play()
