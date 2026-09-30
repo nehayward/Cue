@@ -609,6 +609,11 @@ struct CueApp: App {
                     .withEnvironments()
             }
             .modifier(AdaptiveTabViewStyle())
+            // Settings ▸ Appearance. Applied to the windows, so everything
+            // presented from them follows it too.
+            .onChange(of: colorScheme, initial: true) { _, preference in
+                preference.apply()
+            }
             .onOpenURL(perform: handle)
             .onAppear {
                 coreFeatures.restoreDeviceServicesOnce()

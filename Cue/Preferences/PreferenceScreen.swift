@@ -1149,7 +1149,6 @@ struct PreferenceScreen: View {
         }
         .customizeWindowSizeForMacOS15()
         .presentationSizingiOS18()
-        .preferredColorScheme(colorScheme.scheme)
     }
 
     // Palette mirrors the website (--gradient-start: #5AADC4) so the in-app
