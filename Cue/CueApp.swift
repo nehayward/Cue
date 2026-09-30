@@ -76,6 +76,40 @@ struct MusicPlaybackView: View {
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: 500, maxHeight: 120)
+        // On iPhone the line runs the whole width of the accessory, along
+        // its bottom edge; the wider iPad and Mac bars keep it under the
+        // track text.
+        .overlay(alignment: .bottom) {
+            if progressSpansFullWidth, placement != .inline {
+                progressLine
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 2)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    private var progressSpansFullWidth: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone
+    }
+
+    /// The progress line for whatever is playing: the speaker's track when a
+    /// group holds the route, this device's otherwise.
+    @ViewBuilder
+    private var progressLine: some View {
+        if let group = route.group {
+            let room = group.coordinatorRoom
+            if !room.track.isEmpty {
+                MiniPlayerProgressLine(
+                    position: room.playbackPosition,
+                    duration: room.track.duration,
+                    isPlaying: room.isPlaying,
+                    unitsPerSecond: 1000
+                )
+            }
+        } else if playback.nowPlayingDisplay != nil {
+            MiniPlayerProgressLine(position: playback.progress, duration: playback.duration, isPlaying: playback.isPlaying)
+        }
     }
 
     // MARK: - This device
@@ -101,7 +135,9 @@ struct MusicPlaybackView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
-                            MiniPlayerProgressLine(position: playback.progress, duration: playback.duration, isPlaying: playback.isPlaying)
+                            if !progressSpansFullWidth {
+                                progressLine
+                            }
                         }
                     }
                 } else {
@@ -177,13 +213,8 @@ struct MusicPlaybackView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
-                        if !track.isEmpty {
-                            MiniPlayerProgressLine(
-                                position: room.playbackPosition,
-                                duration: track.duration,
-                                isPlaying: room.isPlaying,
-                                unitsPerSecond: 1000
-                            )
+                        if !progressSpansFullWidth {
+                            progressLine
                         }
                     }
                 }
