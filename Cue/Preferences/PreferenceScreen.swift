@@ -192,6 +192,29 @@ struct PreferenceScreen: View {
                 //                }
                 
                 Section {
+                    Label {
+                        Toggle(isOn: sonosEnabledBinding) {
+                            Text("Use Sonos Speakers")
+                            Text("Find the Sonos speakers on your network and play on them")
+                        }
+                        .tint(.accent)
+                    } icon: {
+                        Image(systemName: "hifispeaker.2.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .padding(7)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.25, green: 0.25, blue: 0.3), Color(red: 0.1, green: 0.1, blue: 0.15)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+
+                    // Everything else here needs a speaker, so it only shows
+                    // once speakers are switched on.
+                    if sonosService.isEnabled {
                     NavigationLink(value: RouterDestination.connectByIP) {
                         Label {
                             Text("Connectivity")
@@ -329,11 +352,13 @@ struct PreferenceScreen: View {
                         }
                     }
                     .tint(.primary)
+                    }
                 } header: {
                     HStack {
                         Text("Sonos")
                             .foregroundStyle(.primary)
                         Spacer()
+                        if sonosService.isEnabled {
                         HStack(spacing: 5) {
                             Image(systemName: "circle.fill")
                                 .font(.system(size: 6))
@@ -342,6 +367,7 @@ struct PreferenceScreen: View {
                             Text(!sonosService.sonosPulse.isCancelled ? "Connected" : "Offline")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                        }
                         }
                     }
                     .headerProminence(.increased)
@@ -376,6 +402,8 @@ struct PreferenceScreen: View {
                             }
                         }
                     }
+                    // Scenes set up speakers — rooms, volumes, what plays.
+                    if sonosService.isEnabled {
                     NavigationLink(value: RouterDestination.manageScenes) {
                         Label {
                             HStack {
@@ -398,6 +426,7 @@ struct PreferenceScreen: View {
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }.gated(.scenes)
+                    }
                 } header: {
                     Text("Music")
                         .headerProminence(.increased)
@@ -469,6 +498,12 @@ struct PreferenceScreen: View {
                         .headerProminence(.increased)
                 }
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
+                // Every choice here is about speakers: a card per playing
+                // speaker, the system card for a group, and the volume
+                // buttons reaching the speaker. The device player's own Lock
+                // Screen card needs no setting, so without speakers the
+                // section goes.
+                if sonosService.isEnabled {
                 Section {
 #if os(iOS) && !targetEnvironment(macCatalyst)
                     // The choice the rest of this section sits under, so it goes
@@ -645,8 +680,11 @@ struct PreferenceScreen: View {
                     }
                     .headerProminence(.increased)
                 }
+                }
 #endif
 #if targetEnvironment(macCatalyst)
+                // Cue Mini controls speakers and nothing else.
+                if sonosService.isEnabled {
                 Section {
                     // Open Cue Mini button
                     Button {
@@ -756,11 +794,14 @@ struct PreferenceScreen: View {
                 } message: {
                     Text(cueMiniErrorMessage)
                 }
+                }
                 #endif
                 colorSchemeSection
                 storageCacheSection
                 
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
+                // Opening to Now Playing means the playing speaker.
+                if sonosService.isEnabled {
                 Section {
                     if UIDevice.current.userInterfaceIdiom == .phone {
                         Label {
@@ -808,6 +849,7 @@ struct PreferenceScreen: View {
                         .headerProminence(.increased)
                 } footer: {
                     Text("Opens to Now Playing instead of the room list.")
+                }
                 }
 #endif
                 
@@ -1241,6 +1283,23 @@ struct PreferenceScreen: View {
     private var lockScreenSurface: LockScreenSurface {
         if lockScreenNowPlaying { return .nowPlaying }
         return liveActivities ? .liveActivity : .off
+    }
+
+    /// Turning speakers off moves playback back to this device first, so the
+    /// route isn't left pointing at a group that is about to disappear. The
+    /// speaker keeps playing its own queue; only Cue stops following it.
+    private var sonosEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { sonosService.isEnabled },
+            set: { enabled in
+                if !enabled, PlaybackRoute.shared.destination != .device {
+                    PlaybackRoute.shared.switchTo(.device, carrying: false)
+                }
+                withAnimation {
+                    sonosService.setEnabled(enabled)
+                }
+            }
+        )
     }
 
     /// Now Playing is Cue Super. Selecting it without a subscription presents
