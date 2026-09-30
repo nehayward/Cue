@@ -120,11 +120,13 @@ struct ServicePreferenceScreen: View {
                     .opacity(0.6)
                 }
             } header:  {
-                Text(servers.isEmpty ? "Supported Services" : "On Your Sonos")
+                Text(servers.isEmpty ? "Music Services" : "On Your Sonos")
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
+                    // No speakers read means these play on this device, so
+                    // the Sonos app has nothing to do with them.
                     Text(servers.isEmpty
-                         ? "Requires authorization in the Sonos app."
+                         ? "Toggle to show or hide in Cue's search and browse."
                          : "Authorized in the Sonos app. Toggle to show or hide in Cue's search and browse.")
                     if unknownServiceCount > 0 {
                         Text(unknownServiceCount == 1
@@ -213,9 +215,12 @@ struct ServicePreferenceScreen: View {
 
             // "Can't find the service?" lives at the very bottom as plain
             // footer text — informational, not a section of its own.
+            // About Sonos Favorites, so only with Sonos switched on.
+            if sonosService.isEnabled {
             Section {
             } footer: {
                 Text("Can't find the service here? To listen to music from providers not yet supported, like Pandora or SirusXM, make them a [favorite in the Sonos app](https://support.sonos.com/en-us/article/add-favorites-to-your-home-screen) then look for your stations in Cue search under \"[Sonos Favorites](cue://search/favorites).\"")
+            }
             }
         }
         .navigationBarTitleDisplayMode(.inline)

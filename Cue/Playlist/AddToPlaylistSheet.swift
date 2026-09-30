@@ -41,15 +41,32 @@ struct AddToPlaylistSheet: View {
     /// Whether the track's own service can take this item into one of its playlists. Tracks are
     /// always fine; Spotify also accepts albums (expanded into their tracks on add).
     private var hasServiceSegment: Bool {
+        Self.hasServicePlaylists(for: content)
+    }
+
+    /// Whether a Sonos playlist can take this item at all. A file on this
+    /// device has no URI a speaker could play, so there is nothing to offer,
+    /// and there are no Sonos playlists while Sonos is switched off.
+    private var hasSonosSegment: Bool {
+        Self.hasSonosPlaylists(for: content)
+    }
+
+    /// Whether the item's own service has playlists it can go in.
+    static func hasServicePlaylists(for content: PlayableContent) -> Bool {
+        let service = content.content.service
         guard [.apple, .spotify, .plex, .deezer, .subsonic, .files].contains(service) else { return false }
         if [.track, .libraryTrack].contains(content.content.type) { return true }
         return service == .spotify && [.album, .libraryAlbum].contains(content.content.type)
     }
 
-    /// Whether a Sonos playlist can take this item at all. A file on this
-    /// device has no URI a speaker could play, so there is nothing to offer.
-    private var hasSonosSegment: Bool {
-        !service.playsOnDeviceOnly
+    static func hasSonosPlaylists(for content: PlayableContent) -> Bool {
+        SonosService.shared.isEnabled && !content.content.service.playsOnDeviceOnly
+    }
+
+    /// Whether the sheet has anything to offer. Menus check this before
+    /// offering "Add to Playlist…", so it never opens on an empty list.
+    static func canAdd(_ content: PlayableContent) -> Bool {
+        hasServicePlaylists(for: content) || hasSonosPlaylists(for: content)
     }
 
     /// The playlists to display, split into the "Recently Added" quick-pick (top 3, hidden while
@@ -237,13 +254,18 @@ struct AddToPlaylistSheet: View {
     }
 
     private func loadPlaylists() async {
-        async let sonos = sonosService.sonosPlaylists()
+        async let sonos = loadSonosPlaylists()
         if hasServiceSegment {
             servicePlaylists = await musicService.userPlaylists(for: service)
         }
         isLoadingService = false
         sonosPlaylists = await sonos
         isLoadingSonos = false
+    }
+
+    private func loadSonosPlaylists() async -> [PlayableContent] {
+        guard hasSonosSegment else { return [] }
+        return await sonosService.sonosPlaylists()
     }
 
     private func addSelectedAndDismiss() {

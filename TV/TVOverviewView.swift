@@ -22,7 +22,7 @@ struct TVOverviewView: View {
 
     var body: some View {
         VStack(spacing: 32) {
-            Text("Welcome to the Cue for Sonos")
+            Text("Welcome to Cue")
                 .font(.largeTitle)
                 .bold()
                 .multilineTextAlignment(.center)
