@@ -21,6 +21,9 @@ import WidgetKit
 /// matching full player; the trailing controls act in place.
 struct MusicPlaybackView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    /// The same key each tab's queue panel reads.
+    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
     /// Owned by `CueApp`, not by this view. The tab bar accessory is hosted
     /// outside the tab content and gets re-created when its placement changes
     /// or the scene comes back to the foreground — `@State` here reset to
@@ -49,6 +52,27 @@ struct MusicPlaybackView: View {
             PlaybackRouteButton()
                 .buttonStyle(.plain)
                 .font(.title3)
+
+            // The queue panel's show/hide on iPad, where there is no sidebar
+            // header to hold it. Only at a regular width: a compact window
+            // has no side panel to show. The Mac has it in the window
+            // toolbar and the View menu.
+#if !targetEnvironment(macCatalyst)
+            if UIDevice.current.userInterfaceIdiom == .pad, horizontalSizeClass == .regular {
+                Button {
+                    withAnimation(.snappy) {
+                        showQueue.toggle()
+                    }
+                } label: {
+                    Label(showQueue ? "Hide Queue" : "Show Queue", systemImage: "list.bullet")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.plain)
+                .font(.title3)
+                .foregroundStyle(showQueue ? Color("Accent") : .primary)
+                .accessibilityLabel(showQueue ? "Hide Queue" : "Show Queue")
+            }
+#endif
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: 500, maxHeight: 120)
@@ -259,12 +283,6 @@ struct CueApp: App {
     /// the `fullScreenCover` on the `TabView` below.
     @Namespace private var zoomNamespace
 
-    /// `@AppStorage`, not `@State`: `PlayerView` and each tab's queue panel
-    /// read the same key, so the queue is shown or hidden everywhere at once
-    /// instead of each keeping its own idea. Persisting across launches
-    /// comes along with it, which is the behaviour a panel toggle wants.
-    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showInspector: Bool = false
-
     @State private var coreFeatures = CoreFeatures.shared
     @State private var offline = OfflineMode.shared
     /// Settings › Appearance › Show Radio Tab.
@@ -404,6 +422,20 @@ struct CueApp: App {
         UIDevice.current.userInterfaceIdiom == .phone
     }
 
+    /// The sidebar, with its provider sections and Edit, is the Mac's
+    /// only. iPad keeps the phone's plain tab bar for now — Home, Search,
+    /// Browse and Radio — with providers reached from Browse and Home. The
+    /// adaptable sidebar's rebuild on a resize (a size-class change folds
+    /// the sidebar's tabs into a tab bar) was also crashing UIKit with a
+    /// nil tab bar item.
+    private var usesSidebar: Bool {
+#if targetEnvironment(macCatalyst)
+        true
+#else
+        false
+#endif
+    }
+
     /// The tab the selection falls back to: Browse on the phone, which has
     /// no Home tab, Home everywhere else.
     private var fallbackTab: AppTab {
@@ -424,6 +456,8 @@ struct CueApp: App {
         }
         if !isPhone {
             tabs.insert(.home)
+        }
+        if usesSidebar {
             for service in tabProviders {
                 tabs.insert(.provider(service))
                 for collection in shownCollections(of: service) {
@@ -456,22 +490,6 @@ struct CueApp: App {
         }
     }
 
-    /// The sidebar header's show/hide for the queue panel. ⌥⌘0 is the View
-    /// menu's command, so it isn't repeated here.
-    private var queueToggle: some View {
-        Button {
-            withAnimation(.snappy) {
-                showInspector.toggle()
-            }
-        } label: {
-            Label(showInspector ? "Hide Queue" : "Show Queue", systemImage: "sidebar.trailing")
-                .labelStyle(.iconOnly)
-        }
-        .tint(showInspector ? Color("Accent") : .secondary)
-        .help(showInspector ? "Hide Queue" : "Show Queue")
-        .accessibilityLabel(showInspector ? "Hide Queue" : "Show Queue")
-    }
-
     var body: some Scene {
         WindowGroup {
             @Bindable var router = router
@@ -498,7 +516,8 @@ struct CueApp: App {
                         Screens.browse
                     }
                     radioTab
-
+                }
+                if usesSidebar {
                     // The providers twice over, both driven by the switched-on
                     // set: once as tabs in one section, which is how the
                     // sidebar lets them be reordered and hidden, and then a
@@ -511,9 +530,9 @@ struct CueApp: App {
                     }
                 }
             }
-            // No customization on the phone: it holds the sidebar's edits,
-            // and the phone has no sidebar to make them in.
-            .tabViewCustomization(isPhone ? nil : $tabCustomization)
+            // Customization only where the sidebar is: it holds the
+            // sidebar's edits, and the tab bar has no Edit to make them in.
+            .tabViewCustomization(usesSidebar ? $tabCustomization : nil)
             .onChange(of: availableTabs) { _, tabs in
                 // A tab that left takes its selection with it. The binding
                 // already shows the fallback in that case; this keeps the
@@ -546,14 +565,6 @@ struct CueApp: App {
                     Text("Cue")
                         .font(.title3.bold())
                     Spacer(minLength: 0)
-                    // The queue toggle, in the header's top-right corner
-                    // like Xcode's inspector button. Up here rather than in
-                    // the bottom bar so it is in view without scrolling the
-                    // sidebar, and stays put as the tab list grows. The Mac
-                    // has it in the window toolbar instead.
-#if !targetEnvironment(macCatalyst)
-                    queueToggle
-#endif
                 }
                 .padding(.vertical, 4)
             }
@@ -1378,17 +1389,23 @@ struct CueApp: App {
     }
 }
 
-/// `.sidebarAdaptable` on iPad and Mac, where the sidebar is; the plain tab
-/// bar on iPhone, which has none. The adaptable style runs the sidebar's tab
-/// model on the phone too — hidden tabs, customization — and a tab that
-/// model hides is a tab bar item with no view controller behind it.
+/// `.sidebarAdaptable` on the Mac, where the sidebar is; the plain tab bar
+/// on iPhone and iPad, which have none. The adaptable style runs the
+/// sidebar's tab model everywhere it is applied — hidden tabs,
+/// customization — and a tab that model hides is a tab bar item with no
+/// view controller behind it. `.tabBarOnly` on iPad so the bar can't be
+/// turned into a sidebar there either.
 private struct AdaptiveTabViewStyle: ViewModifier {
     func body(content: Content) -> some View {
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            content
+#if targetEnvironment(macCatalyst)
+        content.tabViewStyle(.sidebarAdaptable)
+#else
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            content.tabViewStyle(.tabBarOnly)
         } else {
-            content.tabViewStyle(.sidebarAdaptable)
+            content
         }
+#endif
     }
 }
 

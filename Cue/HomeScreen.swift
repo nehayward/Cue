@@ -1,10 +1,11 @@
+import Defaults
 import MusicSearchKit
 import SonosKit
 import SwiftUI
 
 /// The first tab on iPad and Mac: where the library is set up and reached
 /// from. A provider that isn't set up yet — Files before a folder is
-/// chosen — has no section in the sidebar to be found in, so this is the
+/// chosen — has no section in the Mac's sidebar to be found in, so this is the
 /// one place that always shows every provider with a way to set it up,
 /// switch it on, or open it. The phone has no Home tab; Browse takes its
 /// place there, and providers are set up in Settings › Services.
@@ -20,6 +21,7 @@ struct HomeScreen: View {
     @State private var files = FilesLibraryService.shared
     @State private var downloads = DownloadManager.shared
     @State private var offline = OfflineMode.shared
+    @AppStorage(AppStorageKeys.browseMediaService) private var browseMediaService: MediaSearchService = .apple
 
     /// Providers that can be tabs, in the order the app lists services.
     private var providers: [MediaSearchService] {
@@ -159,7 +161,7 @@ struct HomeScreen: View {
                 .buttonBorderShape(.capsule)
             } else if isEnabled {
                 Button {
-                    Router.main.selectedTab = .provider(service)
+                    open(service)
                 } label: {
                     Text("Open")
                 }
@@ -175,6 +177,17 @@ struct HomeScreen: View {
                 .buttonBorderShape(.capsule)
             }
         }
+    }
+
+    /// Its own tab where the sidebar has one (the Mac); on iPad, whose tab
+    /// bar has no provider tabs, Browse switched to it.
+    private func open(_ service: MediaSearchService) {
+#if targetEnvironment(macCatalyst)
+        Router.main.selectedTab = .provider(service)
+#else
+        browseMediaService = service
+        Router.main.selectedTab = .browse
+#endif
     }
 
     private func subtitle(for service: MediaSearchService, isSelfHosted: Bool, isSetUp: Bool, isEnabled: Bool) -> String {
