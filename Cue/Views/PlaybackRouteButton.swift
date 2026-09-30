@@ -30,10 +30,6 @@ struct PlaybackRouteButton: View {
     private var sonosService: SonosService { .shared }
     private var route: PlaybackRoute { .shared }
 
-    /// Whether to caption the icon with the group it plays on. The Now
-    /// Playing toolbar has the room for it; the mini player does not.
-    var showsDestinationName = false
-
     /// A switch waiting on the prompt's answer.
     @State private var pending: PendingSwitch?
 
@@ -100,25 +96,6 @@ struct PlaybackRouteButton: View {
             .accessibilityValue(route.group?.nameWithCount ?? "This Device")
         }
         .menuIndicator(.hidden)
-        // Hung under the button rather than stacked with it, so the icon
-        // stays level with its neighbours in the toolbar row. Outside the
-        // Menu's label on purpose: iOS renders that label as one flattened
-        // button image, which ignores the offset and doesn't redraw the
-        // name when the group changes.
-        .overlay(alignment: .bottom) {
-            if showsDestinationName, let group = route.group {
-                Text(group.nameWithCount)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(width: 160)
-                    .alignmentGuide(.bottom) { $0[.top] - 6 }
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-                    .id(group.nameWithCount)
-            }
-        }
         .sheet(item: $pending) { pending in
             RouteTransferPrompt(target: pending.target) { carrying in
                 self.pending = nil

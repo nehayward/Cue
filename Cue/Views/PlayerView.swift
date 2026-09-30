@@ -964,25 +964,50 @@ private struct PlayerBottomToolbarView: View {
 
     private var playback: LocalPlaybackService { .shared }
 
+    /// The group the route picker plays on, or `nil` on this device. The
+    /// group on screen first, then the route's, so a solo room reads too.
+    private var routeName: String? {
+        (group ?? PlaybackRoute.shared.group)?.nameWithCount
+    }
+
     var body: some View {
         @Bindable var router = router
 
         if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact {
             // No glass: the route picker centred and the queue trailing,
             // with the leading slot left empty for now.
-            HStack(spacing: 0) {
-                Color.clear
-                    .frame(maxWidth: .infinity, maxHeight: 1)
+            VStack(spacing: 6) {
+                HStack(spacing: 0) {
+                    Color.clear
+                        .frame(maxWidth: .infinity, maxHeight: 1)
 
-                PlaybackRouteButton(showsDestinationName: true)
-                    .buttonStyle(.plain)
-                    .imageScale(.large)
-                    .frame(maxWidth: .infinity)
+                    PlaybackRouteButton()
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
+                        .frame(maxWidth: .infinity)
 
-                queueButton
-                    .buttonStyle(.plain)
-                    .imageScale(.large)
-                    .frame(maxWidth: .infinity)
+                    queueButton
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
+                        .frame(maxWidth: .infinity)
+                }
+
+                // The speaker it plays on, on its own line under the route
+                // picker. Laid out here rather than in the picker's label:
+                // iOS flattens a Menu's label, and an overlay on the Menu
+                // gets clipped by the button behind it.
+                HStack(spacing: 0) {
+                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                    Text(routeName ?? " ")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: .infinity)
+                        .opacity(routeName == nil ? 0 : 1)
+                        .accessibilityHidden(true)
+                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                }
             }
             .padding(.vertical, 14)
             .padding(.horizontal, 28)
