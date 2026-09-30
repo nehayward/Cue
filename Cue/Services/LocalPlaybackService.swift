@@ -477,6 +477,73 @@ final class LocalPlaybackService {
         guard !playable.isEmpty else { throw LocalPlaybackError.nothingPlayable }
         guard isActive else { return try await play(playable) }
         queue.append(contentsOf: playable)
+        await extendArmedRun()
+    }
+
+    /// Hands rows appended right behind the armed run to the player that is
+    /// already playing it, when they're the same service. Otherwise the run
+    /// ends where it was armed and the next arm starts a new player for them
+    /// — a gap between tracks, and in the background a hand-off the app may
+    /// be asleep for (an Apple run) or no longer allowed to start audio for
+    /// (a stream run that has let its session go). A Plex album queued in
+    /// pages lands this way too, page by page.
+    private func extendArmedRun() async {
+        guard let backend, backend != .appleStation,
+              repeatMode != .one, !sleepsAtEndOfTrack,
+              queue.indices.contains(runEnd), !isStation(queue[runEnd]) else { return }
+        var end = runEnd
+        while end + 1 < queue.count,
+              backendKind(for: queue[end + 1]) == backend,
+              !isStation(queue[end + 1]) {
+            end += 1
+        }
+        guard end > runEnd else { return }
+        let token = playToken
+        let first = runEnd + 1
+
+        switch backend {
+        case .stream:
+            guard let player = streamPlayer, player.currentItem != nil else { return }
+            for queueIndex in first...end {
+                // A song still in iCloud waits for the next arm, which
+                // fetches it; so does everything behind it.
+                guard let row = queue[safe: queueIndex], cloudPendingURL(for: row) == nil,
+                      let url = await streamURL(for: row) else { break }
+                // The run moved on (a skip, a re-arm, or it ended) while the
+                // URL resolved — whatever arms next picks this row up.
+                guard playToken == token, streamPlayer === player, player.currentItem != nil,
+                      runEnd == queueIndex - 1 else { return }
+                let item = AVPlayerItem(url: url)
+                player.insert(item, after: nil)
+                streamRun[ObjectIdentifier(item)] = queueIndex
+                runEnd = queueIndex
+            }
+        case .appleMusic:
+            guard let resolved = try? await resolveAppleSongs(first...end), !resolved.isEmpty,
+                  playToken == token, self.backend == .appleMusic, runEnd == first - 1,
+                  // A finished or paused queue is left to the run-end
+                  // advance, which arms these rows itself.
+                  musicPlayer.state.playbackStatus == .playing else { return }
+            do {
+                try await musicPlayer.queue.insert(resolved.map(\.song), position: .tail)
+            } catch {
+                return
+            }
+            guard playToken == token, self.backend == .appleMusic else { return }
+            // Play Next or Repeat One cut the run off while the insert was in
+            // flight; cut again so what just landed goes too.
+            guard runEnd == first - 1 else {
+                truncateArmedRunAfterCurrent()
+                return
+            }
+            appleRun += resolved
+            runEnd = end
+            // The old last entry isn't the last any more; the new one sets
+            // its own end time once it plays.
+            appleRunExpectedEnd = nil
+        case .appleStation:
+            break
+        }
     }
 
     func addToQueue(_ item: PlayableContent) async throws {
@@ -1025,14 +1092,49 @@ final class LocalPlaybackService {
         isLoading = true
         defer { if playToken == token { isLoading = false } }
 
-        // Resolve the whole run in one catalog request (cache-first), keeping
-        // track of which queue rows made it — a failed row is skipped, not
-        // fatal to the run.
+        let resolved = try await resolveAppleSongs(index...end)
+
+        // The user skipped elsewhere while we were resolving — that call owns
+        // playback now.
+        guard playToken == token else { return }
+        guard let first = resolved.first else {
+            // Nothing in this run resolved (e.g. region-unavailable tracks) —
+            // a lone track is an error worth surfacing, otherwise skip on.
+            if end + 1 < queue.count {
+                advancePastRun(endingAt: end)
+                return
+            }
+            throw LocalPlaybackError.songNotFound
+        }
+
+        musicPlayer.queue = ApplicationMusicPlayer.Queue(for: resolved.map(\.song), startingAt: first.song)
+        if let resume, resume > 0 {
+            // Point the player partway in before it starts. A seek issued
+            // after `play()` returns is dropped while the entry is still
+            // preparing, which started a hand-off's track from the top.
+            try await musicPlayer.prepareToPlay()
+            guard playToken == token else { return }
+            musicPlayer.playbackTime = resume
+        }
+        try await musicPlayer.play()
+        guard playToken == token else { return }
+
+        appleRun = resolved
+        backend = .appleMusic
+        runEnd = end
+        currentIndex = first.queueIndex
+        duration = first.song.duration ?? catalogDuration(at: first.queueIndex)
+    }
+
+    /// Resolves the Apple rows in `rows` into `Song`s in one catalog request
+    /// (cache-first), keeping track of which queue rows made it — a failed
+    /// row is skipped, not fatal to the run.
+    private func resolveAppleSongs(_ rows: ClosedRange<Int>) async throws -> [(queueIndex: Int, song: Song)] {
         var resolved: [(queueIndex: Int, song: Song)] = []
         var missing: [(queueIndex: Int, catalogID: String)] = []
         var cacheChanged = false
-        for queueIndex in index...end {
-            let item = queue[queueIndex]
+        for queueIndex in rows {
+            guard let item = queue[safe: queueIndex] else { continue }
             // Library tracks resolve from the library itself. Going through the
             // catalog first was why playing one sometimes did nothing: a
             // library-only track — a matched upload, or a purchase Apple Music
@@ -1073,38 +1175,7 @@ final class LocalPlaybackService {
         if cacheChanged {
             SongDiskCache.save(songCache)
         }
-        resolved.sort { $0.queueIndex < $1.queueIndex }
-
-        // The user skipped elsewhere while we were resolving — that call owns
-        // playback now.
-        guard playToken == token else { return }
-        guard let first = resolved.first else {
-            // Nothing in this run resolved (e.g. region-unavailable tracks) —
-            // a lone track is an error worth surfacing, otherwise skip on.
-            if end + 1 < queue.count {
-                advancePastRun(endingAt: end)
-                return
-            }
-            throw LocalPlaybackError.songNotFound
-        }
-
-        musicPlayer.queue = ApplicationMusicPlayer.Queue(for: resolved.map(\.song), startingAt: first.song)
-        if let resume, resume > 0 {
-            // Point the player partway in before it starts. A seek issued
-            // after `play()` returns is dropped while the entry is still
-            // preparing, which started a hand-off's track from the top.
-            try await musicPlayer.prepareToPlay()
-            guard playToken == token else { return }
-            musicPlayer.playbackTime = resume
-        }
-        try await musicPlayer.play()
-        guard playToken == token else { return }
-
-        appleRun = resolved
-        backend = .appleMusic
-        runEnd = end
-        currentIndex = first.queueIndex
-        duration = first.song.duration ?? catalogDuration(at: first.queueIndex)
+        return resolved.sorted { $0.queueIndex < $1.queueIndex }
     }
 
     /// Hands an Apple Music station to the Apple player. Stations are
