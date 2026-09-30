@@ -974,7 +974,7 @@ private struct PlayerBottomToolbarView: View {
                 Color.clear
                     .frame(maxWidth: .infinity, maxHeight: 1)
 
-                PlaybackRouteButton()
+                PlaybackRouteButton(showsDestinationName: true)
                     .buttonStyle(.plain)
                     .imageScale(.large)
                     .frame(maxWidth: .infinity)

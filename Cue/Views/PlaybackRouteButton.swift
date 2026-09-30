@@ -30,6 +30,10 @@ struct PlaybackRouteButton: View {
     private var sonosService: SonosService { .shared }
     private var route: PlaybackRoute { .shared }
 
+    /// Whether to caption the icon with the group it plays on. The Now
+    /// Playing toolbar has the room for it; the mini player does not.
+    var showsDestinationName = false
+
     /// A switch waiting on the prompt's answer.
     @State private var pending: PendingSwitch?
 
@@ -80,19 +84,32 @@ struct PlaybackRouteButton: View {
                 }
             }
         } label: {
-            // Cue's own speaker-with-arrow symbol for "this device" rather
-            // than the AirPlay glyph: the route is Cue's, not AirPlay's.
+            // With Sonos off the only routes are the system's, so it reads as
+            // AirPlay. With it on, Cue's own speaker-with-arrow symbol: the
+            // route is Cue's, not AirPlay's.
             Group {
-                if destination == .device {
+                if sonosService.isEnabled {
                     Image("hifispeaker.arrow.forward.fill")
-                } else if (route.group?.rooms.count ?? 1) > 1 {
-                    Image(systemName: "hifispeaker.2.fill")
                 } else {
-                    Image(systemName: "hifispeaker.fill")
+                    Image(systemName: "airplayaudio")
                 }
             }
             .contentTransition(.symbolEffect(.replace))
+            // Hung under the icon rather than stacked with it, so the icon
+            // stays level with its neighbours in the toolbar row.
+            .overlay(alignment: .bottom) {
+                if showsDestinationName, let group = route.group {
+                    Text(group.nameWithCount)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .frame(width: 160)
+                        .alignmentGuide(.bottom) { $0[.top] - 6 }
+                }
+            }
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel("Play On")
+            .accessibilityValue(route.group?.nameWithCount ?? "This Device")
         }
         .menuIndicator(.hidden)
         .sheet(item: $pending) { pending in
