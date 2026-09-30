@@ -23,21 +23,18 @@ import SwiftUI
 /// them, the same rows the press-and-hold group menu shows. Switching to a
 /// different room outright is a check and an uncheck; leaving the speakers
 /// altogether is This Device.
+///
+/// With Sonos off it is the system AirPlay button instead.
 struct PlaybackRouteButton: View {
     /// Read off the singleton rather than the environment: this sits in the tab
     /// bar accessory, which is hosted outside the tab content and so isn't
-    /// guaranteed to inherit what `withEnvironments()` installs. `@Observable`
-    /// still tracks the `sorted` access below, so the list stays live.
+    /// guaranteed to inherit what `withEnvironments()` installs.
     private var sonosService: SonosService { .shared }
-    private var route: PlaybackRoute { .shared }
-
-    /// A switch waiting on the prompt's answer.
-    @State private var pending: PendingSwitch?
 
     var body: some View {
-        Group {
+        VStack {
             if sonosService.isEnabled {
-                routeMenu
+                SonosRouteMenu()
             } else {
                 // With Sonos off the only routes are the system's, so the
                 // button is the system's AirPlay picker itself. Speakers are
@@ -47,26 +44,28 @@ struct PlaybackRouteButton: View {
                     .accessibilityLabel("AirPlay")
             }
         }
-        .sheet(item: $pending) { pending in
-            RouteTransferPrompt(target: pending.target) { carrying in
-                self.pending = nil
-                PlaybackRoute.shared.switchTo(pending.target, carrying: carrying)
-            }
-        }
         // Re-read on every appearance: the share extension writes this too, so
         // the app can come back to a destination it didn't pick itself.
-        .onAppear { route.refresh() }
+        .onAppear { PlaybackRoute.shared.refresh() }
     }
+}
 
-    private var routeMenu: some View {
-        let destination = route.destination
+/// The Play On menu while Sonos is on: This Device, then the speakers — or,
+/// on a speaker, that group's rooms as toggles.
+private struct SonosRouteMenu: View {
+    private var sonosService: SonosService { .shared }
+    private var route: PlaybackRoute { .shared }
 
-        return Menu {
+    /// A switch waiting on the prompt's answer.
+    @State private var pending: PendingSwitch?
+
+    var body: some View {
+        Menu {
             Button {
                 select(.device)
             } label: {
                 Label("This Device", systemImage: "iphone.radiowaves.left.and.right")
-                if destination == .device {
+                if route.destination == .device {
                     Image(systemName: "checkmark")
                 }
             }
@@ -76,33 +75,22 @@ struct PlaybackRouteButton: View {
                 // list reads once: no group list above a room list.
                 GroupMenuItems(group: group)
             } else {
-                let groups = sonosService.sorted
-                if groups.isEmpty {
-                    Text(sonosService.isSearching ? "Looking for speakers…" : "No speakers found")
-                } else {
-                    Section("Speakers") {
-                        ForEach(groups) { group in
-                            Button {
-                                select(.group(group.coordinatorID))
-                            } label: {
-                                Label(
-                                    group.nameWithCount,
-                                    systemImage: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"
-                                )
-                            }
-                        }
-                    }
-                }
+                SpeakerMenuItems(onSelect: select)
             }
         } label: {
             // Cue's own speaker-with-arrow symbol rather than the AirPlay
             // glyph: the route is Cue's, not AirPlay's.
             Image("hifispeaker.arrow.forward.fill")
-                .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Play On")
                 .accessibilityValue(route.group?.nameWithCount ?? "This Device")
         }
         .menuIndicator(.hidden)
+        .sheet(item: $pending) { pending in
+            RouteTransferPrompt(target: pending.target) { carrying in
+                self.pending = nil
+                route.switchTo(pending.target, carrying: carrying)
+            }
+        }
     }
 
     private func select(_ target: PlayDestination) {
@@ -113,6 +101,34 @@ struct PlaybackRouteButton: View {
             pending = PendingSwitch(target: target)
         } else {
             route.switchTo(target, carrying: preference != .never)
+        }
+    }
+}
+
+/// Every speaker group to switch to, for when playback is on this device.
+/// `@Observable` tracks the `sorted` access, so the list stays live.
+private struct SpeakerMenuItems: View {
+    let onSelect: (PlayDestination) -> Void
+
+    private var sonosService: SonosService { .shared }
+
+    var body: some View {
+        let groups = sonosService.sorted
+        if groups.isEmpty {
+            Text(sonosService.isSearching ? "Looking for speakers…" : "No speakers found")
+        } else {
+            Section("Speakers") {
+                ForEach(groups) { group in
+                    Button {
+                        onSelect(.group(group.coordinatorID))
+                    } label: {
+                        Label(
+                            group.nameWithCount,
+                            systemImage: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"
+                        )
+                    }
+                }
+            }
         }
     }
 }
