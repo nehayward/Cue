@@ -1469,7 +1469,9 @@ struct PreferenceScreen: View {
                 Label {
                     VStack(alignment: .leading) {
                         Text("Downloads")
-                        Text(downloads.hasActiveDownloads
+                        Text(downloads.stoppedCount > 0
+                             ? "\(downloads.stoppedCount) stopped • \(formattedSize(Int(downloads.completedBytes)))"
+                             : downloads.hasActiveDownloads
                              ? "\(downloads.active.count) downloading • \(formattedSize(Int(downloads.completedBytes)))"
                              : formattedSize(Int(downloads.completedBytes)))
                             .font(.subheadline)

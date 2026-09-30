@@ -23,8 +23,29 @@ struct LocalDownloadMenuSection: View {
                     } label: {
                         Label("Remove Download", systemImage: "trash")
                     }
+                } else if let stopped = manager.stoppedDownload(for: item) {
+                    // Paused or failed: say so, and offer the way back.
+                    Button {
+                        manager.resume(key: stopped.key)
+                        alertService.showAlertContent(with: item, subtitle: "Downloading", symbolName: "arrow.down.circle")
+                    } label: {
+                        Label(stopped.state == .failed ? "Retry Download" : "Resume Download", systemImage: "arrow.clockwise.circle")
+                    }
+                    if stopped.state == .failed {
+                        Text(stopped.error.map { "Download failed: \($0)" } ?? "Download failed")
+                    }
+                    Button(role: .destructive) {
+                        manager.cancel(key: stopped.key)
+                    } label: {
+                        Label("Cancel Download", systemImage: "xmark.circle")
+                    }
                 } else if manager.isDownloading(item) {
                     Label("Downloading…", systemImage: "arrow.down.circle.dotted")
+                    Button(role: .destructive) {
+                        manager.removeDownload(item)
+                    } label: {
+                        Label("Cancel Download", systemImage: "xmark.circle")
+                    }
                 } else if manager.canDownload(item) {
                     Button {
                         guard FeatureGate.shared.unlock(.downloads) else { return }
@@ -48,7 +69,16 @@ struct LocalDownloadMenuSection: View {
                         Label("Remove Download", systemImage: "trash")
                     }
                 case .downloading:
-                    Label("Downloading…", systemImage: "arrow.down.circle.dotted")
+                    let stopped = manager.stoppedTrackCount(forContentsOf: item)
+                    if stopped > 0 {
+                        Button {
+                            manager.resumeDownload(contentsOf: item)
+                        } label: {
+                            Label(stopped == 1 ? "Retry 1 Song" : "Retry \(stopped) Songs", systemImage: "arrow.clockwise.circle")
+                        }
+                    } else {
+                        Label("Downloading…", systemImage: "arrow.down.circle.dotted")
+                    }
                     Button(role: .destructive) {
                         manager.removeDownload(contentsOf: item)
                     } label: {

@@ -39,6 +39,14 @@ struct ContainerDownloadButton: View {
                 Menu {
                     let counts = manager.trackCounts(forContainer: DownloadManager.containerKey(for: item))
                     Label("Downloading \(counts.downloaded) of \(counts.total)…", systemImage: "arrow.down.circle.dotted")
+                    let stopped = manager.stoppedTrackCount(forContentsOf: item)
+                    if stopped > 0 {
+                        Button {
+                            manager.resumeDownload(contentsOf: item)
+                        } label: {
+                            Label(stopped == 1 ? "Retry 1 Song" : "Retry \(stopped) Songs", systemImage: "arrow.clockwise.circle")
+                        }
+                    }
                     Button(role: .destructive) {
                         manager.removeDownload(contentsOf: item)
                     } label: {

@@ -211,13 +211,26 @@ final class DownloadManager {
         items[Self.key(for: item)]?.state == .completed
     }
 
+    /// Queued or coming down now. A paused or failed download isn't: it
+    /// won't move again until it's resumed (see `stoppedDownload(for:)`).
     func isDownloading(_ item: PlayableContent) -> Bool {
-        guard let entry = items[Self.key(for: item)] else { return false }
-        return entry.state != .completed
+        items[Self.key(for: item)]?.isActive == true
+    }
+
+    /// The entry for a download that paused or failed part-way, so a menu
+    /// can offer to resume or retry it rather than claim it's still running.
+    func stoppedDownload(for item: PlayableContent) -> Item? {
+        guard let entry = items[Self.key(for: item)], entry.state == .paused || entry.state == .failed else { return nil }
+        return entry
+    }
+
+    /// Downloads that paused or failed and wait on the person to resume them.
+    var stoppedCount: Int {
+        items.values.filter { $0.state == .paused || $0.state == .failed }.count
     }
 
     func progress(for item: PlayableContent) -> Double? {
-        guard let entry = items[Self.key(for: item)], entry.state != .completed else { return nil }
+        guard let entry = items[Self.key(for: item)], entry.isActive else { return nil }
         return entry.progress
     }
 
@@ -265,6 +278,25 @@ final class DownloadManager {
         if entries.allSatisfy({ $0.state == .completed }) { return .downloaded }
         let landed = entries.reduce(0.0) { $0 + ($1.state == .completed ? 1 : $1.progress) }
         return .downloading(landed / Double(entries.count))
+    }
+
+    /// How many of a container's tracks paused or failed, and so won't
+    /// finish without being resumed.
+    func stoppedTrackCount(forContainer key: String) -> Int {
+        guard let container = containers[key] else { return 0 }
+        return container.trackKeys.filter { items[$0]?.state == .paused || items[$0]?.state == .failed }.count
+    }
+
+    func stoppedTrackCount(forContentsOf container: PlayableContent) -> Int {
+        stoppedTrackCount(forContainer: Self.containerKey(for: container))
+    }
+
+    /// Resumes or retries every track of a container that paused or failed.
+    func resumeDownload(contentsOf container: PlayableContent) {
+        guard let entry = containers[Self.containerKey(for: container)] else { return }
+        for key in entry.trackKeys where items[key]?.state == .paused || items[key]?.state == .failed {
+            resume(key: key)
+        }
     }
 
     func isDownloaded(contentsOf container: PlayableContent) -> Bool {
