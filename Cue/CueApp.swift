@@ -320,14 +320,14 @@ struct CueApp: App {
             && [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
     }
 
-    /// Search. The search role only on the phone, where it draws the tab as
-    /// the bar's separate search bubble. On iPad and Mac the role takes the
-    /// tab out of the sidebar's list too — it exists to hoist a `.searchable`
+    /// Search. The search role only on the tab bar (iPhone and iPad), where
+    /// it draws the tab as the bar's separate search bubble. On the Mac the
+    /// role takes the tab out of the sidebar's list too — it exists to hoist a `.searchable`
     /// out of the tab, and `SearchScreen` draws its own field, so there is
     /// nothing to hoist and Search went missing. A plain tab there.
     @TabContentBuilder<AppTab>
     private var searchTab: some TabContent<AppTab> {
-        Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: isPhone ? TabRole.search : nil) {
+        Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: usesSidebar ? nil : TabRole.search) {
             Screens.search
         }
     }
@@ -407,13 +407,9 @@ struct CueApp: App {
         }
     }
 
-    private var isPhone: Bool {
-        UIDevice.current.userInterfaceIdiom == .phone
-    }
-
-    /// The sidebar, with its provider sections and Edit, is the Mac's
-    /// only. iPad keeps the phone's plain tab bar for now — Home, Search,
-    /// Browse and Radio — with providers reached from Browse and Home. The
+    /// The sidebar, with Home, its provider sections and Edit, is the
+    /// Mac's only. iPad mirrors the phone's tab bar for now — Browse,
+    /// Search and Radio — with providers reached from Browse's menu. The
     /// adaptable sidebar's rebuild on a resize (a size-class change folds
     /// the sidebar's tabs into a tab bar) was also crashing UIKit with a
     /// nil tab bar item.
@@ -425,10 +421,10 @@ struct CueApp: App {
 #endif
     }
 
-    /// The tab the selection falls back to: Browse on the phone, which has
-    /// no Home tab, Home everywhere else.
+    /// The tab the selection falls back to: Home where the sidebar has
+    /// one, Browse on the tab bar, which has none.
     private var fallbackTab: AppTab {
-        isPhone ? .browse : .home
+        usesSidebar ? .home : .browse
     }
 
     /// Every tab the view builds right now. The selection is checked
@@ -443,10 +439,8 @@ struct CueApp: App {
         if showsRadioTab {
             tabs.insert(.radio)
         }
-        if !isPhone {
-            tabs.insert(.home)
-        }
         if usesSidebar {
+            tabs.insert(.home)
             for service in tabProviders {
                 tabs.insert(.provider(service))
                 for collection in shownCollections(of: service) {
@@ -483,10 +477,11 @@ struct CueApp: App {
         WindowGroup {
             @Bindable var router = router
             TabView(selection: tabSelection) {
-                if isPhone {
-                    // The phone's three, Browse first in Home's place. Home
-                    // is the sidebar's companion — setting providers up and
-                    // reaching their sections — and the phone has neither:
+                if !usesSidebar {
+                    // The phone's three, on iPad too, Browse first in Home's
+                    // place. Home is the sidebar's companion — setting
+                    // providers up and reaching their sections — and the tab
+                    // bar has neither:
                     // providers are browsed from Browse's menu and set up in
                     // Settings › Services. No provider tabs here either, so
                     // the bar never overflows into More. The house is
@@ -505,8 +500,7 @@ struct CueApp: App {
                         Screens.browse
                     }
                     radioTab
-                }
-                if usesSidebar {
+
                     // The providers twice over, both driven by the switched-on
                     // set: once as tabs in one section, which is how the
                     // sidebar lets them be reordered and hidden, and then a
