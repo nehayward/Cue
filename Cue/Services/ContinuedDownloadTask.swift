@@ -20,6 +20,8 @@ private struct WorkReading {
     var settled = 0
     var completed = 0
     var failed = 0
+    /// Waiting for a network it may use; the session starts them itself.
+    var waiting = 0
     var units: Int64 = 0
     var subtitle = ""
 }
@@ -43,19 +45,24 @@ private final class DownloadBatch: ContinuedWork {
     var total: Int { keys.count + cloudTrackIDs.count }
 
     /// In-flight server downloads pause — resume data kept, one tap in
-    /// Downloads to continue — rather than run on invisibly. iCloud
-    /// transfers can't be stopped from here; they simply finish on their own.
+    /// Downloads to continue — rather than run on invisibly. One waiting
+    /// for Wi‑Fi is left waiting: it isn't running, and pausing it would
+    /// keep it from starting when Wi‑Fi comes back. iCloud transfers can't
+    /// be stopped from here; they simply finish on their own.
     func expire() {
         expired = true
-        for key in keys {
-            DownloadManager.shared.pause(key: key)
+        let manager = DownloadManager.shared
+        for key in keys where manager.items[key]?.state != .waiting {
+            manager.pause(key: key)
         }
     }
 
     /// Where the batch stands, from the manager's entries and the folder's
     /// iCloud status. A download that was cancelled or removed counts as
     /// settled; a paused or failed one does too, since it won't move again
-    /// without the person's say-so.
+    /// without the person's say-so, and so does one waiting for Wi‑Fi —
+    /// the session starts that by itself, and a task left showing no
+    /// progress is only one the system ends (pausing everything with it).
     func measure() -> WorkReading {
         let manager = DownloadManager.shared
         let files = FilesLibraryService.shared
@@ -79,6 +86,10 @@ private final class DownloadBatch: ContinuedWork {
             case .failed, .paused:
                 reading.settled += 1
                 reading.failed += 1
+                reading.units += 100
+            case .waiting:
+                reading.settled += 1
+                reading.waiting += 1
                 reading.units += 100
             case .queued, .downloading:
                 reading.units += Int64(item.progress * 100)
@@ -109,6 +120,9 @@ private final class DownloadBatch: ContinuedWork {
         if reading.failed > 0 {
             parts.append(reading.failed == 1 ? "1 stopped" : "\(reading.failed) stopped")
         }
+        if reading.waiting > 0 {
+            parts.append("\(reading.waiting) waiting for Wi‑Fi")
+        }
         reading.subtitle = parts.joined(separator: " • ")
         return reading
     }
@@ -119,6 +133,9 @@ private final class DownloadBatch: ContinuedWork {
         var message = reading.completed == 1 ? "Downloaded 1 song" : "Downloaded \(reading.completed) songs"
         if reading.failed > 0 {
             message += reading.failed == 1 ? ", 1 stopped" : ", \(reading.failed) stopped"
+        }
+        if reading.waiting > 0 {
+            message += ", \(reading.waiting) waiting for Wi‑Fi"
         }
         return message
     }
@@ -399,7 +416,8 @@ final class ContinuedDownloadTask {
                 try? await Task.sleep(for: .seconds(1))
             }
             guard !Task.isCancelled, let self else { return }
-            if work.total > 1 || work.measure().failed > 0 {
+            let reading = work.measure()
+            if work.total > 1 || reading.failed > 0 || reading.waiting > 0 {
                 AlertService.shared.showAlert(with: work.completionMessage, imageName: work.completionSymbol)
             }
             if self.current === work {
