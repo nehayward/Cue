@@ -53,11 +53,12 @@ struct MusicPlaybackView: View {
                 .buttonStyle(.plain)
                 .font(.title3)
 
-            // The queue panel's show/hide on iPad and the Mac, beside the
-            // route. Only at a regular width: a compact window has no side
-            // panel to show. The Mac also has it in the window toolbar and
-            // the View menu.
-            if UIDevice.current.userInterfaceIdiom != .phone, horizontalSizeClass == .regular {
+            // The queue panel's show/hide on iPad, where there is no sidebar
+            // header to hold it. Only at a regular width: a compact window
+            // has no side panel to show. The Mac has it in the window
+            // toolbar and the View menu.
+#if !targetEnvironment(macCatalyst)
+            if UIDevice.current.userInterfaceIdiom == .pad, horizontalSizeClass == .regular {
                 Button {
                     withAnimation(.snappy) {
                         showQueue.toggle()
@@ -85,6 +86,7 @@ struct MusicPlaybackView: View {
                 .accessibilityLabel(showQueue ? "Hide Queue" : "Show Queue")
                 .accessibilityAddTraits(showQueue ? .isSelected : [])
             }
+#endif
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: 500, maxHeight: 120)
@@ -434,14 +436,19 @@ struct CueApp: App {
         UIDevice.current.userInterfaceIdiom == .phone
     }
 
-    /// The sidebar, with Home, its provider sections and Edit — off
-    /// everywhere for now. iPad and the Mac mirror the phone's tab bar —
-    /// Browse, Search and Radio — with providers reached from Browse's
-    /// menu. The adaptable sidebar's rebuild on a resize (a size-class
-    /// change folds the sidebar's tabs into a tab bar) was also crashing
-    /// UIKit with a nil tab bar item. Kept as a switch for when it comes
-    /// back.
-    private var usesSidebar: Bool { false }
+    /// The sidebar, with Home, its provider sections and Edit, is the
+    /// Mac's only. iPad mirrors the phone's tab bar for now — Browse,
+    /// Search and Radio — with providers reached from Browse's menu. The
+    /// adaptable sidebar's rebuild on a resize (a size-class change folds
+    /// the sidebar's tabs into a tab bar) was also crashing UIKit with a
+    /// nil tab bar item.
+    private var usesSidebar: Bool {
+#if targetEnvironment(macCatalyst)
+        true
+#else
+        false
+#endif
+    }
 
     /// The tab the selection falls back to: Home where the sidebar has
     /// one, Browse on the tab bar, which has none.
@@ -594,8 +601,9 @@ struct CueApp: App {
             // and the bottom bar put the real accent back — `Color("Accent")`
             // by name, since `.accentColor` now resolves to this tint.
 //            .tint(Color.primary.opacity(0.12))
-            // The queue panel, beside the whole `TabView`. Inside
-            // `withEnvironments()`, which the panel's view reads from.
+            // iPad's queue panel, beside the whole `TabView` (the Mac's is
+            // inside each tab — `Screens`). Inside `withEnvironments()`,
+            // which the panel's view reads from.
             .modifier(WindowQueuePanel())
             .withEnvironments()
             .environment(\.zoomNamespace, zoomNamespace)
@@ -1397,18 +1405,23 @@ struct CueApp: App {
     }
 }
 
-/// The plain tab bar everywhere: `.tabBarOnly` on iPad and the Mac so the
-/// bar can't be turned into a sidebar, the default on iPhone. The adaptable
-/// sidebar style runs its tab model wherever it is applied — hidden tabs,
+/// `.sidebarAdaptable` on the Mac, where the sidebar is; the plain tab bar
+/// on iPhone and iPad, which have none. The adaptable style runs the
+/// sidebar's tab model everywhere it is applied — hidden tabs,
 /// customization — and a tab that model hides is a tab bar item with no
-/// view controller behind it.
+/// view controller behind it. `.tabBarOnly` on iPad so the bar can't be
+/// turned into a sidebar there either.
 private struct AdaptiveTabViewStyle: ViewModifier {
     func body(content: Content) -> some View {
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            content
-        } else {
+#if targetEnvironment(macCatalyst)
+        content.tabViewStyle(.sidebarAdaptable)
+#else
+        if UIDevice.current.userInterfaceIdiom == .pad {
             content.tabViewStyle(.tabBarOnly)
+        } else {
+            content
         }
+#endif
     }
 }
 
