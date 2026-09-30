@@ -331,14 +331,14 @@ struct CueApp: App {
             && [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
     }
 
-    /// Search. The search role only on the tab bar (iPhone and iPad), where
-    /// it draws the tab as the bar's separate search bubble. On the Mac the
-    /// role takes the tab out of the sidebar's list too — it exists to hoist a `.searchable`
-    /// out of the tab, and `SearchScreen` draws its own field, so there is
-    /// nothing to hoist and Search went missing. A plain tab there.
+    /// Search. The search role only on the phone, where it draws the tab as
+    /// the bar's separate search bubble. Elsewhere the role exists to hoist
+    /// a `.searchable` out of the tab, and `SearchScreen` draws its own
+    /// field: on iPad that broke the screen, and on the Mac it took the tab
+    /// out of the sidebar's list. A plain tab there.
     @TabContentBuilder<AppTab>
     private var searchTab: some TabContent<AppTab> {
-        Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: usesSidebar ? nil : TabRole.search) {
+        Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: isPhone ? TabRole.search : nil) {
             Screens.search
         }
     }
@@ -416,6 +416,10 @@ struct CueApp: App {
         } icon: {
             service.tabImage
         }
+    }
+
+    private var isPhone: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone
     }
 
     /// The sidebar, with Home, its provider sections and Edit, is the
