@@ -10,12 +10,11 @@ import VibesDS
 /// swaps the player out from under the user; the sections just read from
 /// `LocalPlaybackService` or from the group.
 ///
-/// The navigation bar names the device or the group, with the sleep timer,
-/// the like button and the menu beside it; below it the artwork, the album line,
+/// The navigation bar has no title, only the sleep timer, the like button
+/// and the menu; below it the artwork, the album line,
 /// the title and the artist (each opening its detail), the scrubber with
 /// the audio-quality badge, the transport, the volume row with its
-/// steppers, and the glass bar: the route picker, on a speaker the group
-/// button with its press-and-hold regroup menu, search, browse, and the
+/// steppers, and the bottom row: the route picker in the middle and the
 /// queue at the trailing edge. A speaker's sections are the same views
 /// `LargePlayerView` draws, so the two can't drift.
 struct PlayerView: View {
@@ -96,7 +95,7 @@ struct PlayerView: View {
         LiveTranscriptionService.shared.isEnabled && canTranscribe
     }
 
-    /// The bar's title: this device, or the group's name.
+    /// This device's name, for the sleep timer chip.
     private var deviceName: String { UIDevice.current.name }
 
     var body: some View {
@@ -338,9 +337,8 @@ struct PlayerView: View {
 
     // MARK: - Toolbar
 
-    /// The device or the group in the middle with its service or battery
-    /// under it (and a close chevron leading on the Mac), and trailing the sleep timer, the
-    /// like button and the menu — up here on every size, so the bar below
+    /// No title (only a close chevron leading on the Mac), and trailing
+    /// the sleep timer, the like button and the menu — up here on every size, so the bar below
     /// is only ever about where to go.
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
@@ -358,10 +356,6 @@ struct PlayerView: View {
             .help("Close")
         }
 #endif
-
-        ToolbarItem(placement: .principal) {
-            title
-        }
 
         if let chip = sleepTimerChip {
 #if !os(visionOS)
@@ -417,36 +411,6 @@ struct PlayerView: View {
                 }
                 .tint(showQueue ? Color("Accent") : .primary)
                 .accessibilityAddTraits(showQueue ? .isSelected : [])
-            }
-        }
-    }
-
-    /// The device or the group, with its lowest battery or the service the
-    /// track is coming from under it.
-    private var title: some View {
-        VStack(spacing: 0) {
-            Text(group?.nameWithCount ?? deviceName)
-                .bold()
-                .fontDesign(.rounded)
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.center)
-                .contentTransition(.identity)
-            if let group {
-                // The lowest battery in the group, for a Roam or Move:
-                // the one at risk first.
-                if let battery = group.lowestBattery {
-                    Text("\(Int(battery.percentage.rounded()))%")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-            } else if let item = playback.nowPlaying {
-                // Where a speaker shows a battery, this shows the
-                // service the track is coming from.
-                Text(item.content.service.title)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .contentTransition(.identity)
             }
         }
     }
@@ -968,11 +932,11 @@ private struct LocalVolumeControlView: View {
 
 // MARK: - Bottom toolbar
 
-/// The glass row under the volume, in the shape of `LargePlayerView`'s
-/// `BottomToolbarView`: the route picker where the Sonos player has its
-/// group button — on a speaker its menu is the regroup menu too, so there is
-/// no second speaker button beside it; then the room volume for a group of
-/// more than one, and the queue on the trailing edge on a phone. No search
+/// The row under the volume. On a phone it has no glass: the route picker
+/// in the middle — on a speaker its menu is the regroup menu too — and the
+/// queue on the trailing edge, with the leading slot empty for now. The
+/// wide row adds the room volume for a group of more than one and Identify
+/// Song. No search
 /// or browse: the window's tabs are a dismiss away on every size, and the
 /// cover's sheets only doubled them. The wide row has no queue: iPad's is
 /// in the navigation bar, the Mac's in the window toolbar. The
@@ -994,39 +958,25 @@ private struct PlayerBottomToolbarView: View {
         @Bindable var router = router
 
         if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact {
+            // No glass: the route picker centred and the queue trailing,
+            // with the leading slot left empty for now.
             HStack(spacing: 0) {
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: 1)
+
                 PlaybackRouteButton()
                     .buttonStyle(.plain)
                     .imageScale(.large)
+                    .frame(maxWidth: .infinity)
 
-                if let group, group.rooms.count > 1 {
-                    Spacer()
-                    roomVolumeButton(group)
-                        .buttonStyle(.plain)
-                        .imageScale(.large)
-                        .withPopoverDestinations(popoverDestination: $router.volumePopover)
-                }
-
-                // A station's song, a tap away on the bar rather than
-                // down in the menu.
-                if IdentifySongButton.isAvailable(for: group) {
-                    Spacer()
-                    IdentifySongButton(group: group)
-                        .buttonStyle(.plain)
-                        .imageScale(.large)
-                }
-
-                // No search or browse on a phone: the tab bar is a swipe
-                // down away, and the cover's search sheet only doubled it.
-                Spacer()
                 queueButton
                     .buttonStyle(.plain)
                     .imageScale(.large)
+                    .frame(maxWidth: .infinity)
             }
             .padding(.vertical, 14)
             .padding(.horizontal, 28)
             .frame(maxWidth: 500)
-            .glassToolbar()
         } else {
             // No queue button: at this width it's in the navigation bar on
             // iPad, and the window toolbar's on the Mac.
