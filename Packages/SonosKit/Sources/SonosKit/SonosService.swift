@@ -606,10 +606,7 @@ public final class SonosService {
 
             roomGroup.coordinatorRoom.setPlaying(isNowPlaying, source: .poll)
 
-            let isNowTransitioning = playbackStatus == .transitioning
-            if roomGroup.coordinatorRoom.isTransitioning != isNowTransitioning {
-                roomGroup.coordinatorRoom.isTransitioning = isNowTransitioning
-            }
+            roomGroup.coordinatorRoom.setTransitioning(playbackStatus == .transitioning)
 
             if let updateGroupVolume = try? await groupVolume, !roomGroup.isEditingVolume, roomGroup.groupVolume != updateGroupVolume {
                 roomGroup.groupVolume = updateGroupVolume
@@ -948,10 +945,7 @@ public final class SonosService {
 
                     roomGroup.coordinatorRoom.setPlaying(isNowPlaying, source: .poll)
 
-                    let isNowTransitioning = playbackStatus == .transitioning
-                    if roomGroup.coordinatorRoom.isTransitioning != isNowTransitioning {
-                        roomGroup.coordinatorRoom.isTransitioning = isNowTransitioning
-                    }
+                    roomGroup.coordinatorRoom.setTransitioning(playbackStatus == .transitioning)
                 }
             }
         }
@@ -1192,12 +1186,12 @@ public final class SonosService {
                     switch await playbackInfo {
                     case .playing:
                         roomGroup.coordinatorRoom.setPlaying(true, source: .poll)
-                        roomGroup.coordinatorRoom.isTransitioning = false
+                        roomGroup.coordinatorRoom.setTransitioning(false)
                     case .paused:
                         roomGroup.coordinatorRoom.setPlaying(false, source: .poll)
-                        roomGroup.coordinatorRoom.isTransitioning = false
+                        roomGroup.coordinatorRoom.setTransitioning(false)
                     default:
-                        roomGroup.coordinatorRoom.isTransitioning = true
+                        roomGroup.coordinatorRoom.setTransitioning(true)
                     }
                 }
             }
@@ -1291,12 +1285,12 @@ public final class SonosService {
                     switch await playbackInfo {
                     case .playing:
                         roomGroup.coordinatorRoom.setPlaying(true, source: .poll)
-                        roomGroup.coordinatorRoom.isTransitioning = false
+                        roomGroup.coordinatorRoom.setTransitioning(false)
                     case .paused:
                         roomGroup.coordinatorRoom.setPlaying(false, source: .poll)
-                        roomGroup.coordinatorRoom.isTransitioning = false
+                        roomGroup.coordinatorRoom.setTransitioning(false)
                     default:
-                        roomGroup.coordinatorRoom.isTransitioning = true
+                        roomGroup.coordinatorRoom.setTransitioning(true)
                     }
 
                     if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume, roomGroup.groupVolume != groupVolumeAwaited {
@@ -1583,7 +1577,7 @@ public final class SonosService {
         for group in relevantGroups {
             let playback = await getPlaybackInfo(ip: group.ip)
             group.coordinatorRoom.setPlaying(playback == .playing, source: .poll)
-            group.coordinatorRoom.isTransitioning = (playback == .transitioning)
+            group.coordinatorRoom.setTransitioning(playback == .transitioning)
         }
 
         // Pick a coordinator without ever bailing out:
@@ -2262,8 +2256,10 @@ public final class SonosService {
         if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) {
             for room in group.rooms {
                 room.setPlaying(true, source: .localCommand)
+                room.isTransitioning = false
             }
             group.coordinatorRoom.setPlaying(true, source: .localCommand)
+            group.coordinatorRoom.isTransitioning = false
         }
         isEditing = true
         await api.play(ipAddress: ip)

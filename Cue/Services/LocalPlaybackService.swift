@@ -245,6 +245,11 @@ final class LocalPlaybackService {
     /// Music app has downloaded can start in airplane mode.
     @ObservationIgnored private var songCache: [String: Song] = SongDiskCache.load()
     @ObservationIgnored private var poller: Timer?
+    /// What a tap on play/pause asked for, and until when it outranks the
+    /// poll. The button flips on the tap; the players catch up a beat later
+    /// (MusicKit's `playbackStatus` lags `pause()` noticeably), and a poll
+    /// landing in that gap would flip the icon back and then forward again.
+    @ObservationIgnored private var requestedPlaying: (playing: Bool, until: Date)?
     /// Bumped on every re-arm so a stale async resolve can't start playback
     /// for a run the user has already skipped away from.
     @ObservationIgnored private var playToken = 0
@@ -576,17 +581,23 @@ final class LocalPlaybackService {
     func togglePlayback() {
         switch backend {
         case .appleMusic, .appleStation:
-            if musicPlayer.state.playbackStatus == .playing {
+            // A tap still inside the last one's window goes by what that tap
+            // asked for; the player's own status may not have moved yet.
+            let playing = heldPlaying ?? (musicPlayer.state.playbackStatus == .playing)
+            if playing {
                 musicPlayer.pause()
             } else {
                 Task { try? await musicPlayer.play() }
             }
+            showRequested(playing: !playing)
         case .stream:
             guard let streamPlayer else { return }
             if streamPlayer.timeControlStatus == .paused {
                 streamPlayer.play()
+                showRequested(playing: true)
             } else {
                 streamPlayer.pause()
+                showRequested(playing: false)
             }
         case nil:
             // Queue loaded but nothing armed (e.g. a failed track) — retry it.
@@ -605,8 +616,35 @@ final class LocalPlaybackService {
         case .stream:
             streamPlayer?.pause()
         case nil:
-            break
+            return
         }
+        showRequested(playing: false)
+    }
+
+    /// Flips the button now rather than on the next poll, and holds it there
+    /// while the player catches up.
+    private func showRequested(playing: Bool) {
+        requestedPlaying = (playing, Date.now.addingTimeInterval(1.5))
+        if isPlaying != playing { isPlaying = playing }
+    }
+
+    /// The requested state while it still outranks the poll.
+    private var heldPlaying: Bool? {
+        guard let requestedPlaying, requestedPlaying.until > .now else { return nil }
+        return requestedPlaying.playing
+    }
+
+    /// The polled state, unless a tap's request still holds and the player
+    /// hasn't caught up to it — then the request. Clears the hold once the
+    /// player agrees, so a later change (an interruption, the other end of
+    /// AirPlay) isn't masked.
+    private func reconcilePlaying(_ polled: Bool) -> Bool {
+        guard let held = heldPlaying else {
+            requestedPlaying = nil
+            return polled
+        }
+        if held == polled { requestedPlaying = nil }
+        return held
     }
 
     func setRepeatMode(_ mode: RepeatMode) {
@@ -914,6 +952,7 @@ final class LocalPlaybackService {
         runEnd = -1
         appleRun = []
         appleWasPlaying = false
+        requestedPlaying = nil
         audioQualityTask?.cancel()
         audioQualityTask = nil
         audioQualityItem = nil
@@ -1443,11 +1482,11 @@ final class LocalPlaybackService {
             // re-rendered the whole screen twice a second, artwork and
             // blurred backdrop included, which is what made the scrubber's
             // fill stutter between polls.
-            let playing = status == .playing
+            let playing = reconcilePlaying(status == .playing)
             let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
             progress = Self.finite(musicPlayer.playbackTime, else: progress)
-            if playing { appleWasPlaying = true }
+            if status == .playing { appleWasPlaying = true }
             savePositionIfDue(paused: paused)
 
             // A station's entries are the songs it streams; the current one
@@ -1519,7 +1558,7 @@ final class LocalPlaybackService {
                 return
             }
             // Only what changed, as above.
-            let playing = streamPlayer.timeControlStatus != .paused
+            let playing = reconcilePlaying(streamPlayer.timeControlStatus != .paused)
             let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
             progress = Self.finite(current.currentTime().seconds, else: progress)
