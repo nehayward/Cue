@@ -38,3 +38,4 @@ xcuserdata/
 
 # Local iPhone picked by Scripts/claude-remote.sh
 .cue-device
+__pycache__/
