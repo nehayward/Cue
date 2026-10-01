@@ -70,7 +70,7 @@ struct SubsonicBrowseScreen: View {
                     .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.downloaded(service: .subsonic)) {
-                        Label(ProviderCollection.downloaded.title, systemImage: ProviderCollection.downloaded.systemImage)
+                        Label("Downloaded", systemImage: "arrow.down.circle")
                     }
                     .listRowInsets(.default)
                     .listRowSeparator(.hidden)

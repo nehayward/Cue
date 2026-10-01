@@ -7,8 +7,6 @@ enum ProviderCollection: String, CaseIterable, Hashable, Codable {
     case artists
     case albums
     case songs
-    /// What's on this device from the provider, as its own small library.
-    case downloaded
     case playlists
     case playlistFolders
     case recentlyPlayed
@@ -29,7 +27,6 @@ enum ProviderCollection: String, CaseIterable, Hashable, Codable {
         case .artists: "Artists"
         case .albums: "Albums"
         case .songs: "Songs"
-        case .downloaded: "Downloaded"
         case .playlists: "Playlists"
         case .playlistFolders: "Playlist Folders"
         case .recentlyPlayed: "Recently Played"
@@ -52,7 +49,6 @@ enum ProviderCollection: String, CaseIterable, Hashable, Codable {
         case .artists, .favoriteArtists: "music.mic"
         case .albums, .favoriteAlbums, .recommendedAlbums: "square.stack"
         case .songs, .likedSongs, .favoriteTracks: "music.note"
-        case .downloaded: "arrow.down.circle"
         case .playlists, .importedPlaylists, .savedPlaylists: "rectangle.stack.badge.play"
         case .playlistFolders, .folders: "folder"
         case .recentlyPlayed: "clock.arrow.circlepath"
@@ -72,7 +68,7 @@ extension MediaSearchService {
     var tabCollections: [ProviderCollection] {
         switch self {
         case .apple:
-            [.artists, .albums, .songs, .downloaded, .playlists, .playlistFolders, .recentlyPlayed, .recentlyAdded, .recommendedAlbums, .personalStations]
+            [.artists, .albums, .songs, .playlists, .playlistFolders, .recentlyPlayed, .recentlyAdded, .recommendedAlbums, .personalStations]
         case .spotify:
             [.likedSongs, .albums, .playlists]
         case .soundcloud:
@@ -80,11 +76,11 @@ extension MediaSearchService {
         case .deezer:
             [.favoriteTracks, .favoriteAlbums, .favoriteArtists, .playlists]
         case .subsonic:
-            [.artists, .albums, .songs, .downloaded, .recentlyAdded, .playlists]
+            [.artists, .albums, .songs, .recentlyAdded, .playlists]
         case .library:
             [.artists, .albums, .songs, .genres, .folders, .importedPlaylists, .savedPlaylists]
         case .plex:
-            [.artists, .albums, .songs, .downloaded, .playlists]
+            [.artists, .albums, .songs, .playlists]
         case .files:
             [.artists, .albums, .songs, .playlists, .recentlyAdded]
         case .tidal, .tuneIn, .sonosRadio, .pandora:
