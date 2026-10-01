@@ -13,4 +13,5 @@ Feature ideas and design notes for future development.
 - [User Playlists](user-playlists.md) — Cue-native playlists with sharing via export/import link
 - [Super Day](super-day.md) — Free 24-hour pass to Cue Super, once a month, granted as a RevenueCat promotional entitlement
 - [Radio: Local Stations & More Sources](radio-local-stations.md) — Live-stream playback, location-accurate local radio, Radio Browser as a source
+- [Port to Clic: Apple Music library fixes](clic-port-apple-library.md) — Recently Played order, library album covers and songs, library artists opening the Apple Music artist
 - [Device-First Services](device-first-services.md) — Every service must play on the device and on Sonos; audit and removal plan for the ones that don't (Spotify, Tidal, Deezer, SoundCloud, Pandora, Sonos Radio)
