@@ -27,8 +27,6 @@ struct PreferenceScreen: View {
     @State private var libraryShare: String?
     
     @AppStorage("AppIcon") private var selectedAppIcon = "Default"
-    @AppStorage("isCompact", store: UserDefaults(suiteName: "group.dance.cue")) private var isCompact: Bool = false
-    @AppStorage("LiveActivityStep", store: UserDefaults(suiteName: "group.dance.cue")) private var liveActivityStep: Int = 5
     
     @AppStorage("CueMiniEnabled") private var isMenuBarAppEnabled: Bool = true
 
@@ -45,17 +43,6 @@ struct PreferenceScreen: View {
     // for someone who has never touched it, or the screen contradicts the
     // behaviour.
     @AppStorage(Defaults.AppStorageKeys.useHardwareVolumeButtons) private var useHardwareVolumeButtons: Bool = true
-    // Defaults to true: Now Playing is the default Lock Screen surface for Cue
-    // Super. `NowPlayingSessionService.isEnabled` still requires the
-    // subscription, so this being on doesn't start anything on its own.
-    @AppStorage(Defaults.AppStorageKeys.lockScreenNowPlaying) private var lockScreenNowPlaying: Bool = true
-    // Defaults to true: this switch arrived after Live Activities shipped, so an
-    // absent value has to mean the behaviour every existing install already has.
-    // Shared suite — the widget intents start activities from another process.
-    @AppStorage(Defaults.GroupStorageKeys.liveActivities, store: Defaults.GroupStorageKeys.storage)
-    private var liveActivities: Bool = true
-    @AppStorage(Defaults.GroupStorageKeys.liveActivitiesSuspendedByLockScreen, store: Defaults.GroupStorageKeys.storage)
-    private var liveActivitiesSuspendedByLockScreen: Bool = false
 
     private var hasUnseenWhatsNew: Bool {
         // Strict: the worker must have returned 200 for this bundle's
@@ -66,7 +53,6 @@ struct PreferenceScreen: View {
     }
 
     @State private var presentWhatsNew = false
-    @CloudStorage("com.cue.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
     
 #if targetEnvironment(macCatalyst)
     @State private var menuAppLaunchAtLoginManager = MenuAppLaunchAtLoginManager.shared
@@ -326,32 +312,45 @@ struct PreferenceScreen: View {
                     }
                     .tint(.primary)
 
-                    Button {
-                        router.sheet(to: .shareToWatch)
-                    } label: {
-                        Label {
+
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                    Label {
+                        Toggle(isOn: $useHardwareVolumeButtons) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Share to Watch")
-                                Text("Connect Watch without network discovery")
+                                Text("Use iPhone Volume Buttons")
+                                // Names the slider as well as the buttons —
+                                // they're the same system volume, so the
+                                // switch could never honour one and not the
+                                // other. Names the exception too: it's a
+                                // safety property, not a limitation. On
+                                // Bluetooth or headphones that volume is the
+                                // other device's.
+                                Text("Volume buttons and the Lock Screen slider control the speaker instead of this device. Not while connected to Bluetooth or headphones.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
-                        } icon: {
-                            Image(systemName: "qrcode")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .bold()
-                                .padding(8)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(LinearGradient(colors: [Color(red: 1.0, green: 0.6, blue: 0.2), Color(red: 0.95, green: 0.4, blue: 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                )
-                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
+                        .tint(.accent)
+                    } icon: {
+                        Image(systemName: "button.vertical.left.press.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.5, blue: 0.3), Color(red: 0.85, green: 0.35, blue: 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
-                    .tint(.primary)
+                    // Super, like Lock Screen Now Playing it drives —
+                    // `HardwareVolumeControlModifier` and the Lock Screen
+                    // path both require it, so the row is editable in exactly
+                    // the cases where it changes anything.
+                    .gated(.hardwareVolumeButtons)
+#endif
                     }
                 } header: {
                     HStack {
@@ -497,191 +496,6 @@ struct PreferenceScreen: View {
                         .foregroundStyle(.primary)
                         .headerProminence(.increased)
                 }
-#if !targetEnvironment(macCatalyst) && !os(visionOS)
-                // Every choice here is about speakers: a card per playing
-                // speaker, the system card for a group, and the volume
-                // buttons reaching the speaker. The device player's own Lock
-                // Screen card needs no setting, so without speakers the
-                // section goes.
-                if sonosService.isEnabled {
-                Section {
-#if os(iOS) && !targetEnvironment(macCatalyst)
-                    // The choice the rest of this section sits under, so it goes
-                    // first. One control rather than two toggles: the surfaces
-                    // are mutually exclusive, and a pair of switches that
-                    // silently move each other reads as a bug — a picker says
-                    // "pick one" on its face.
-                    Label {
-                        // No title of its own. It said "Lock Screen", directly
-                        // under a section header saying "Lock Screen" — and the
-                        // picker's own segments name the three choices, so the
-                        // label was the one line here carrying no information.
-                        // The `SuperBadge` moved up to the header, which is the
-                        // honest place for it: the whole section needs Super, not
-                        // this row.
-                        VStack(alignment: .leading, spacing: 6) {
-                            Picker("Lock Screen", selection: lockScreenSurfaceBinding) {
-                                ForEach(LockScreenSurface.allCases) { surface in
-                                    Text(surface.title).tag(surface)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            .labelsHidden()
-                            Text(lockScreenSurface.footnote)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    } icon: {
-                        Image(systemName: "lock.iphone")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(.white)
-                            .bold()
-                            .padding(8)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.65, blue: 0.95), Color(red: 0.2, green: 0.45, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            )
-                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                    }
-                    // Greyed out without Super, the same way the Scenes row is.
-                    // Every option here needs a subscription — `CueApp` won't
-                    // even start a Live Activity without one — so there is
-                    // nothing to leave enabled. `gated` keeps the tap for the
-                    // paywall outside the `.disabled`.
-                    .gated(.liveActivities)
-
-                    // Directly under the picker, and present only while Now
-                    // Playing is the chosen surface — the same treatment the
-                    // rows below get, on the opposite condition. The section
-                    // shows what the current choice can be configured with and
-                    // nothing else.
-                    //
-                    // It lived in **Playback** until this moved. The switch now
-                    // decides whether the Lock Screen and Control Center sliders
-                    // reach the speaker, not just the buttons, so leaving it a
-                    // section away from the surface it gates meant two volume
-                    // controls with an invisible dependency between them.
-                    //
-                    // The switch drives the player screen's hardware buttons too,
-                    // and `HardwareVolumeControlModifier` requires the same three
-                    // conditions this row does — the switch, Now Playing, Super —
-                    // so the row is present and editable in exactly the cases
-                    // where it changes anything. Scoping the behaviour rather
-                    // than only the control is what makes hiding the row safe:
-                    // there is no state this leaves someone stuck in.
-                    if lockScreenSurface == .nowPlaying {
-                        Label {
-                            Toggle(isOn: $useHardwareVolumeButtons) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Use iPhone Volume Buttons")
-                                    // Names the slider as well as the buttons —
-                                    // they're the same system volume, so the
-                                    // switch could never honour one and not the
-                                    // other. Names the exception too: it's a
-                                    // safety property, not a limitation. On
-                                    // Bluetooth or headphones that volume is the
-                                    // other device's.
-                                    Text("Volume buttons and the Lock Screen slider control the speaker instead of this device. Not while connected to Bluetooth or headphones.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .tint(.accent)
-                        } icon: {
-                            Image(systemName: "button.vertical.left.press.fill")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .bold()
-                                .padding(8)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.5, blue: 0.3), Color(red: 0.85, green: 0.35, blue: 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                )
-                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                        }
-                        // Super-gated like everything else here, which is only
-                        // safe because `HardwareVolumeControlModifier` now
-                        // requires the same three conditions this row does — the
-                        // switch, Now Playing, and Super. Gate the row without
-                        // gating the behaviour and a non-subscriber ends up with
-                        // their volume buttons pointed at a Sonos group and this
-                        // row greyed out, with the paywall overlay on the picker
-                        // rather than here: the original beta complaint, plus the
-                        // toggle taken away.
-                        .disabled(!featureGate.isAvailable(.hardwareVolumeButtons))
-                    }
-#endif
-                    // Both of these only shape the Live Activity, so they appear
-                    // only when it's the chosen surface. They used to be dimmed
-                    // in place instead, on the theory that a section which
-                    // doesn't resize is easier to follow — in practice a list of
-                    // permanently greyed controls reads as broken, and the two
-                    // states have nothing in common to keep aligned. Insertion
-                    // and removal are animated from the picker's binding.
-                    if lockScreenSurface == .liveActivity,
-                       UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
-                        Label {
-                            Toggle(isOn: $isCompact) {
-                                Text("Compact Live Activities")
-                                Text("Removes volumes controls and reduces size of Live Activities")
-                            }
-                            .tint(.accent)
-                        } icon: {
-                            Image(systemName: "inset.filled.capsule")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .bold()
-                                .padding(8)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(LinearGradient(colors: [Color(red: 0.55, green: 0.45, blue: 0.95), Color(red: 0.4, green: 0.3, blue: 0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                )
-                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                        }
-                        .disabled(!featureGate.isAvailable(.liveActivities))
-
-                        Label {
-                            Stepper(value: $liveActivityStep, in: 1...10) {
-                                Text("Volume Steps: ") +  Text(liveActivityStep, format: .number).bold()
-                                Text("Adjust how much the volume changes with each step in Live Activities.")
-                            }
-                            .sensoryFeedback(.levelChange, trigger: liveActivityStep)
-                        } icon: {
-                            Image(systemName: "plus.minus.capsule")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .bold()
-                                .padding(8)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(LinearGradient(colors: [Color(red: 0.6, green: 0.5, blue: 0.98), Color(red: 0.45, green: 0.35, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                )
-                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                        }
-                        .disabled(!featureGate.isAvailable(.liveActivities))
-                    }
-                } header: {
-                    // Carries the `SuperBadge` now that the picker's row has no
-                    // title to hang it on. It belongs here anyway: every option
-                    // in this section needs Super, so marking the section says
-                    // what marking one row only implied.
-                    HStack(spacing: 6) {
-                        Text("Lock Screen")
-                            .foregroundStyle(.primary)
-                        FeatureBadge(feature: .liveActivities)
-                    }
-                    .headerProminence(.increased)
-                }
-                }
-#endif
 #if targetEnvironment(macCatalyst)
                 // Cue Mini controls speakers and nothing else.
                 if sonosService.isEnabled {
@@ -803,27 +617,6 @@ struct PreferenceScreen: View {
                 // Opening to Now Playing means the playing speaker.
                 if sonosService.isEnabled {
                 Section {
-                    if UIDevice.current.userInterfaceIdiom == .phone {
-                        Label {
-                            Toggle(isOn: $autoLaunchNowPlaying) {
-                                Text("Apple Watch")
-                            }
-                            .tint(.accent)
-                        } icon: {
-                            Image(systemName: "applewatch")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .bold()
-                                .padding(8)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(LinearGradient(colors: [Color(red: 0.4, green: 0.65, blue: 0.95), Color(red: 0.25, green: 0.5, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                )
-                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                        }
-                    }
                     Label {
                         Toggle(isOn: $speedLaunchNowPlaying) {
                             Text("iPhone & iPad")
@@ -1224,64 +1017,8 @@ struct PreferenceScreen: View {
             : latestReleaseHeadline
     }
 
-    /// What the Lock Screen shows while a speaker is playing. The three states
-    /// are exclusive by construction — one picker instead of two switches that
-    /// silently moved each other, which is what the pair looked like from the
-    /// outside.
-    private enum LockScreenSurface: String, CaseIterable, Identifiable {
-        /// A Cue card, per playing speaker. What everyone gets without Super.
-        case liveActivity
-        /// The system Now Playing card, driven by the silent audio session. The
-        /// default with Cue Super — the preference is on unless turned off.
-        case nowPlaying
-        case off
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .liveActivity: return "Live Activity"
-            case .nowPlaying: return "Now Playing"
-            case .off: return "Off"
-            }
-        }
-
-        var footnote: String {
-            switch self {
-            case .liveActivity:
-                return "A Cue card on the Lock Screen and Dynamic Island for each playing speaker."
-            case .nowPlaying:
-                // No promises about a volume slider: what the system player
-                // draws is the system's call and differs by device — an iPad
-                // reported artwork and buttons but no slider.
-                //
-                // Volume is named separately from audio because it's a separate
-                // opt-in now: the bridge runs only with *Use iPhone Volume
-                // Buttons* on, and never while this device's audio is on
-                // Bluetooth, CarPlay or headphones. It used to run
-                // unconditionally, which is how a car-connect automation set a
-                // Sonos group to 100%.
-                return "The system player on the Lock Screen and in Control Center. Cue takes over this device's audio while a speaker is playing."
-            case .off:
-                return "Nothing on the Lock Screen while a speaker is playing."
-            }
-        }
-    }
-
     private func presentPaywall() {
         featureGate.presentPaywall(via: router)
-    }
-
-    /// Derived, never stored: two booleans already describe this, and a third
-    /// copy would be one more thing to keep in step.
-    ///
-    /// No subscription check here, deliberately. Nothing in this section runs
-    /// without Super — `CueApp` won't start a Live Activity either — so the
-    /// whole row is disabled rather than partly usable, and what it shows while
-    /// greyed is an honest preview of what a subscriber would get.
-    private var lockScreenSurface: LockScreenSurface {
-        if lockScreenNowPlaying { return .nowPlaying }
-        return liveActivities ? .liveActivity : .off
     }
 
     /// Turning speakers off moves playback back to this device first, so the
@@ -1296,54 +1033,6 @@ struct PreferenceScreen: View {
                 }
                 withAnimation {
                     sonosService.setEnabled(enabled)
-                }
-            }
-        )
-    }
-
-    /// Now Playing is Cue Super. Selecting it without a subscription presents
-    /// the paywall and writes nothing, so the picker snaps back on its own and
-    /// `NowPlayingSessionService` never sees a value it would have to undo.
-    /// Moving *away* from it always goes through, so a lapsed subscriber isn't
-    /// stuck on a setting they can't change.
-    private var lockScreenSurfaceBinding: Binding<LockScreenSurface> {
-        Binding(
-            get: { lockScreenSurface },
-            set: { surface in
-                // Outside the animation below: this path writes nothing, so the
-                // picker snaps back and there are no rows to move.
-                if surface == .nowPlaying, !featureGate.unlock(.lockScreenNowPlaying, via: router) {
-                    return
-                }
-                // The rows under the picker belong to one surface each and are
-                // present only for it, so every selection change inserts and
-                // removes rows. Animated from the write rather than by putting
-                // `.animation` on the section, so it covers the one transition
-                // the user caused — a defaults change from anywhere else
-                // (another window, the service reconciling Live Activities)
-                // shouldn't slide rows around under them.
-                withAnimation {
-                    switch surface {
-                    case .nowPlaying:
-                        // Only this one write. `NowPlayingSessionService
-                        // .reconcileLiveActivities()` turns Live Activities off
-                        // and records that it was the cause, so moving back
-                        // restores them — duplicating that here would give the
-                        // invariant two owners.
-                        lockScreenNowPlaying = true
-                    case .liveActivity:
-                        // Clear Lock Screen Controls *first*: the defaults change
-                        // each write posts is what wakes the service, and it
-                        // would otherwise read "still on" and turn these straight
-                        // back off.
-                        lockScreenNowPlaying = false
-                        liveActivitiesSuspendedByLockScreen = false
-                        liveActivities = true
-                    case .off:
-                        lockScreenNowPlaying = false
-                        liveActivitiesSuspendedByLockScreen = false
-                        liveActivities = false
-                    }
                 }
             }
         )
