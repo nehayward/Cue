@@ -3026,6 +3026,47 @@ public final class SonosService {
         try? await updateGroups(from: [group])
     }
 
+    /// Replaces the group's queue with one track and picks it up `offset`
+    /// seconds in — for carrying a song across mid-play.
+    ///
+    /// Seeks before Play, so the speaker opens the stream once, at the
+    /// offset. Starting it and seeking after opened it twice: the first
+    /// second of the song, then a second buffering at the offset, and the
+    /// seek had to wait out TRANSITIONING or be dropped. A speaker that
+    /// refuses the seek while stopped gets that older order as a fallback.
+    public func replaceQueue(
+        with track: PlayableContent,
+        group: GroupRoom,
+        startingAt offset: TimeInterval,
+        playing: Bool
+    ) async throws {
+        if group.playbackService != .queue {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+            await markSwitchedToQueue(group: group)
+        }
+        await api.removeAllTrackFromQueue(IP: group.ip)
+        try await api.queuePlayable(playableContent: track, IP: group.ip, position: .end, shuffling: group.playMode.isShuffleEnabled)
+
+        // The seek needs a current track; after a clear there may be none.
+        await api.seek(trackNumber: 1, IP: group.ip)
+        let landed = await api.seek(to: offset * 1000, IP: group.ip)
+        guard !Task.isCancelled else { return }
+
+        if playing || !landed {
+            // The wrapper, not `api.play`: it writes the optimistic state the
+            // player draws from.
+            await play(ip: group.ip)
+        }
+        if !landed {
+            _ = await waitUntilSettled(ip: group.ip)
+            guard !Task.isCancelled else { return }
+            await api.seek(to: offset * 1000, IP: group.ip)
+            if !playing {
+                await pause(ip: group.ip)
+            }
+        }
+    }
+
     public func getQueue(ip: String, with startingIndex: Int? = nil, total: Int = 50) async -> [PlayableContent] {
         if let startingIndex = startingIndex {
             return await api.getQueue(IP: ip, startingIndex: startingIndex, total: total, priorityIP: prioritizedIP())

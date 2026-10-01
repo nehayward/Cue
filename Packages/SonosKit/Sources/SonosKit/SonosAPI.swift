@@ -730,18 +730,24 @@ final class SonosAPI: NSObject {
         }
     }
 
-    func seek(to time: TimeInterval, IP: String) async {
+    /// False when the speaker refused the seek (a UPnP fault comes back as
+    /// a 500) or didn't answer.
+    @discardableResult
+    func seek(to time: TimeInterval, IP: String) async -> Bool {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),
             ("Unit", "REL_TIME"),
             ("Target", convertMillisecondsToHoursMinutesSeconds(Int(time)))
         ]
 
-        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "Seek", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
-            if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
-            }
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "Seek", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return false
         }
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+            return false
+        }
+        return true
     }
 
     private func convertMillisecondsToHoursMinutesSeconds(_ milliseconds: Int) -> String {

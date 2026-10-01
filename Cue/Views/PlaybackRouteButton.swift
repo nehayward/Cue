@@ -77,6 +77,9 @@ struct PlaybackRouteButton: View {
                             }
                         }
                     }
+                    // Menu content appears as the menu opens, which is the
+                    // head start: the pick's hand-off can skip a read.
+                    .onAppear { route.prefetchTargets() }
                 }
             }
         } label: {

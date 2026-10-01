@@ -50,6 +50,16 @@ final class PlaybackRoute {
 
     @ObservationIgnored private var observers: [Task<Void, Never>] = []
 
+    /// Each speaker's transport source, read when the Play On menu opened,
+    /// keyed by coordinator. Lets a hand-off picked from that menu skip the
+    /// read it would otherwise make before the first note.
+    @ObservationIgnored private var prefetched: [String: (service: PlaybackService, at: Date)] = [:]
+    @ObservationIgnored private var prefetchTask: Task<Void, Never>?
+    /// Long enough to cover reading the menu and tapping; short enough that
+    /// a speaker someone has since put on the radio isn't taken as still on
+    /// its queue.
+    private static let prefetchLifetime: TimeInterval = 10
+
     private init() {
         destination = Self.storedDestination
         // Anything else that writes the destination shows up here: the group
@@ -154,6 +164,41 @@ final class PlaybackRoute {
                 await self.handOffToDevice(from: source)
             }
         }
+    }
+
+    /// Reads every other speaker's transport source ahead of a pick, so the
+    /// hand-off to whichever is chosen starts with its first real call. Run
+    /// when the Play On menu opens; nothing waits on it, and a hand-off that
+    /// finds no fresh read makes its own.
+    func prefetchTargets() {
+        let sonos = SonosService.shared
+        guard sonos.isEnabled else { return }
+        let targets = sonos.groups
+            .filter { $0.coordinatorID != destination.groupID }
+            .map { (id: $0.coordinatorID, ip: $0.ip) }
+        guard !targets.isEmpty else { return }
+        prefetchTask?.cancel()
+        prefetchTask = Task { [weak self] in
+            await withTaskGroup(of: (String, PlaybackService?).self) { taskGroup in
+                for target in targets {
+                    taskGroup.addTask {
+                        (target.id, await sonos.playbackService(ip: target.ip))
+                    }
+                }
+                for await (id, service) in taskGroup {
+                    guard let service, !Task.isCancelled else { continue }
+                    self?.prefetched[id] = (service, .now)
+                }
+            }
+        }
+    }
+
+    /// The menu-time read for `group` if it's still fresh, used once: the
+    /// hand-off is about to change the speaker's source itself.
+    private func takePrefetched(_ group: GroupRoom) -> PlaybackService? {
+        guard let entry = prefetched.removeValue(forKey: group.coordinatorID),
+              Date.now.timeIntervalSince(entry.at) < Self.prefetchLifetime else { return nil }
+        return entry.service
     }
 
     /// Whether switching to `target` would have something to carry, read
@@ -302,15 +347,30 @@ final class PlaybackRoute {
         }
 
         // The cached transport can be stale in the same way as above, and a
-        // stale `.queue` would skip pointing the speaker at its queue.
-        target.playbackService = await sonos.playbackService(ip: target.ip) ?? .unknown
+        // stale `.queue` would skip pointing the speaker at its queue. A read
+        // taken as the menu opened is recent enough to stand in.
+        if let service = takePrefetched(target) {
+            target.playbackService = service
+        } else {
+            target.playbackService = await sonos.playbackService(ip: target.ip) ?? .unknown
+        }
         guard !Task.isCancelled else { return }
+
+        // Mid-song, the track is loaded at the offset before it starts (see
+        // `replaceQueue`), so the speaker buffers once. Anything else that
+        // can't seek, or a song barely begun, just starts.
+        let resumeAt = snapshot.position > 2 && first.content.type.isTrack ? snapshot.position : nil
 
         do {
             // The first track alone, so it starts now; the rest fill in
             // behind it while it plays. One call for the lot meant the first
             // note waited on every AddURIToQueue round trip.
-            try await sonos.queue(contents: [first], group: target, position: .replace, startIndex: 0)
+            if let resumeAt {
+                try await sonos.replaceQueue(with: first, group: target, startingAt: resumeAt, playing: snapshot.isPlaying)
+                target.coordinatorRoom.playbackPosition = resumeAt * 1000
+            } else {
+                try await sonos.queue(contents: [first], group: target, position: .replace, startIndex: 0)
+            }
         } catch {
             guard !Task.isCancelled else { return }
             Self.log.error("route → \(target.nameWithCount, privacy: .public): replace failed: \(error.localizedDescription, privacy: .public)")
@@ -327,15 +387,7 @@ final class PlaybackRoute {
         }
         guard !Task.isCancelled else { return }
 
-        if snapshot.position > 2 {
-            // A seek landing while the transport is still TRANSITIONING is
-            // dropped, so it waits for the speaker to say it has the stream.
-            _ = await sonos.waitUntilSettled(ip: target.ip)
-            guard !Task.isCancelled else { return }
-            await sonos.seek(to: snapshot.position * 1000, on: target)
-            target.coordinatorRoom.playbackPosition = snapshot.position * 1000
-        }
-        if !snapshot.isPlaying {
+        if resumeAt == nil, !snapshot.isPlaying {
             await sonos.pause(ip: target.ip)
         }
         if !fromDevice, let source {
