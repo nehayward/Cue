@@ -102,6 +102,16 @@ public final class AppleMusicBrowseService {
     public func updateUsersRecentPlayed(offset: Int = 0, limit: Int? = nil) async {
         guard let container = try? await apple.lookupUsersRecentPlayed(offset: offset) else { return }
         let newUsersRecents = container.data.compactMap(\.toPlayable)
+        // The first page is the newest: it goes in front, so something just
+        // played moves to the top. Merged in place, an album already in the
+        // list kept its old position and anything new went to the end, so
+        // the row never looked like it changed.
+        guard offset > 0 else {
+            var fresh = OrderedSet(newUsersRecents)
+            fresh.append(contentsOf: usersRecents)
+            usersRecents = fresh
+            return
+        }
         for newUsersRecent in newUsersRecents {
             usersRecents.updateOrAppend(newUsersRecent)
         }
@@ -110,6 +120,13 @@ public final class AppleMusicBrowseService {
     public func updateUsersRecentAddedTracks(offset: Int = 0, limit: Int? = nil) async {
         guard let container = try? await apple.lookupUsersRecentAddedTracks(offset: offset, limit: limit) else { return }
         let newUsersRecentsTracks = container.data.compactMap(\.toPlayable)
+        // Newest first, for the same reason as Recently Played.
+        guard offset > 0 else {
+            var fresh = OrderedSet(newUsersRecentsTracks)
+            fresh.append(contentsOf: usersRecentsAdded)
+            usersRecentsAdded = fresh
+            return
+        }
         for newUsersRecentsTrack in newUsersRecentsTracks {
             usersRecentsAdded.updateOrAppend(newUsersRecentsTrack)
         }
