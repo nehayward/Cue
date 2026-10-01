@@ -19,17 +19,29 @@ struct QueueNextUpView: View {
     }
 }
 
-/// The device's queue, from `LocalPlaybackService`.
+/// The device's queue, from `LocalPlaybackService`: shuffle, repeat and a
+/// clear in the header, and the rows after the current track can be
+/// removed (swipe, or the context menu), moved to play next, or dragged into
+/// a new order. Played rows and the current one stay put.
 private struct LocalNextUpView: View {
     private var playback: LocalPlaybackService { .shared }
 
+    @State private var editMode: EditMode = .inactive
+    @State private var clearConfirmation = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Next Up")
-                .font(.title3.bold())
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
-                .padding(.bottom, 10)
+            HStack(spacing: 14) {
+                Text("Next Up")
+                    .font(.title3.bold())
+                Spacer(minLength: 8)
+                if !playback.isPlayingStation {
+                    controls
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 10)
 
             // A station is live: nothing follows it, so the panel reads as
             // empty rather than listing the station as a one-row queue.
@@ -41,45 +53,154 @@ private struct LocalNextUpView: View {
                     .frame(maxWidth: .infinity)
                 Spacer()
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 2) {
-                        ForEach(Array(playback.queue.enumerated()), id: \.offset) { index, item in
-                            QueueNextUpRow(
-                                item: item,
-                                isCurrent: index == playback.currentIndex
-                            )
-                            .onTapGesture { playback.play(at: index) }
-                            .accessibilityAddTraits(.isButton)
-                            .accessibilityHint("Plays this song")
-                        }
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 12)
-                }
-            }
-
-            // This device's volume, where the panel is the only local
-            // control on screen (the main window, beside the tab content).
-            if playback.isActive {
-                Divider()
-                LocalVolumeSlider()
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                list
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .confirmationDialog("Clear Up Next", isPresented: $clearConfirmation, titleVisibility: .hidden) {
+            Button("Clear Up Next", role: .destructive) {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                withAnimation {
+                    playback.clearUpNext()
+                    editMode = .inactive
+                }
+            }
+        } message: {
+            Text("The current song keeps playing.")
+        }
+    }
+
+    @ViewBuilder
+    private var controls: some View {
+        Button {
+            HapticManager.shared.fireHaptic(.buttonPress)
+            withAnimation(.easeInOut(duration: 0.35)) {
+                playback.shuffleUpNext()
+            }
+        } label: {
+            Label("Shuffle Up Next", systemImage: "shuffle")
+                .labelStyle(.iconOnly)
+        }
+        .disabled(playback.upNext.count < 2)
+        .help("Shuffle Up Next")
+
+        Button {
+            HapticManager.shared.fireHaptic(.selection)
+            playback.setRepeatMode(playback.repeatMode.next)
+        } label: {
+            Label("Repeat", systemImage: playback.repeatMode.systemImage)
+                .labelStyle(.iconOnly)
+                .contentTransition(.symbolEffect(.automatic))
+        }
+        .tint(playback.repeatMode == .off ? Color.secondary : Color.accentColor)
+        .foregroundStyle(playback.repeatMode == .off ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.accentColor))
+        .accessibilityValue(playback.repeatMode.title)
+        .help(playback.repeatMode.title)
+
+        Menu {
+            Button {
+                withAnimation {
+                    editMode = editMode.isEditing ? .inactive : .active
+                }
+            } label: {
+                Label(editMode.isEditing ? "Done" : "Edit",
+                      systemImage: editMode.isEditing ? "checkmark" : "pencil")
+            }
+            .disabled(playback.upNext.isEmpty && !editMode.isEditing)
+
+            Button(role: .destructive) {
+                clearConfirmation = true
+            } label: {
+                Label("Clear Up Next", systemImage: "trash")
+            }
+            .disabled(playback.upNext.isEmpty)
+        } label: {
+            Image(systemName: "ellipsis")
+                .frame(width: 24, height: 24)
+                .contentShape(.rect)
+        }
+        .menuIndicator(.hidden)
+        .accessibilityLabel("Queue Options")
+        .help("Queue Options")
+    }
+
+    private var list: some View {
+        List {
+            ForEach(Array(playback.queue.enumerated()), id: \.offset) { index, item in
+                let isUpcoming = index > playback.currentIndex
+                QueueNextUpRow(
+                    item: item,
+                    isCurrent: index == playback.currentIndex
+                )
+                .opacity(index < playback.currentIndex ? 0.5 : 1)
+                .onTapGesture { playback.play(at: index) }
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Plays this song")
+                .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .moveDisabled(!isUpcoming)
+                .deleteDisabled(!isUpcoming)
+                .swipeActions(edge: .leading) {
+                    if index > playback.currentIndex + 1 {
+                        Button {
+                            withAnimation { playback.moveToNext(at: index) }
+                        } label: {
+                            Label("Play Next", systemImage: "text.insert")
+                        }
+                        .tint(.accentColor)
+                    }
+                }
+                // Any `swipeActions` turns off the Delete swipe `onDelete`
+                // would synthesize, so the trailing one is spelled out.
+                .swipeActions(edge: .trailing) {
+                    if isUpcoming {
+                        Button(role: .destructive) {
+                            withAnimation { playback.removeFromQueue(at: [index]) }
+                        } label: {
+                            Label("Remove", systemImage: "xmark")
+                        }
+                    }
+                }
+                .contextMenu {
+                    if isUpcoming {
+                        if index > playback.currentIndex + 1 {
+                            Button {
+                                withAnimation { playback.moveToNext(at: index) }
+                            } label: {
+                                Label("Play Next", systemImage: "text.insert")
+                            }
+                        }
+                        Button(role: .destructive) {
+                            withAnimation { playback.removeFromQueue(at: [index]) }
+                        } label: {
+                            Label("Remove", systemImage: "xmark")
+                        }
+                    }
+                }
+            }
+            .onDelete { offsets in
+                withAnimation { playback.removeFromQueue(at: offsets) }
+            }
+            .onMove { source, destination in
+                playback.moveInQueue(from: source, to: destination)
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .contentMargins(.bottom, 12, for: .scrollContent)
+        .environment(\.editMode, $editMode)
     }
 }
 
-/// A Sonos group's queue, with the group's volume at the foot — the same
-/// slot the device's panel gives its own volume, so switching the route swaps
-/// what the slider moves rather than where it is.
+/// A Sonos group's queue. No volume: that's the player's.
 private struct GroupNextUpView: View {
     let group: GroupRoom
 
     private var sonosService: SonosService { .shared }
 
     @State private var isLoading = false
+    @State private var clearConfirmation = false
 
     /// The current row is only meaningful while the speaker plays from its
     /// queue; on radio or TV the list is what would play if it went back.
@@ -89,13 +210,17 @@ private struct GroupNextUpView: View {
         let queue = group.coordinatorRoom.queue
 
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Next Up")
-                    .font(.title3.bold())
-                Text(group.nameWithCount)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Next Up")
+                        .font(.title3.bold())
+                    Text(group.nameWithCount)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                controls
             }
             .padding(.horizontal, 16)
             .padding(.top, 14)
@@ -133,11 +258,6 @@ private struct GroupNextUpView: View {
                 }
                 .opacity(isQueueActive ? 1 : 0.6)
             }
-
-            Divider()
-            VolumeControlView(group: group)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .task(id: group.coordinatorID) {
@@ -154,6 +274,84 @@ private struct GroupNextUpView: View {
         }
     }
 
+    @ViewBuilder
+    private var controls: some View {
+        let shuffleOn = group.playMode.contains(.shuffle)
+        Button {
+            HapticManager.shared.fireHaptic(.buttonPress)
+            var mode = group.playMode
+            if shuffleOn { mode.remove(.shuffle) } else { mode.insert(.shuffle) }
+            setPlayMode(mode)
+        } label: {
+            Label("Shuffle", systemImage: "shuffle")
+                .labelStyle(.iconOnly)
+        }
+        .tint(shuffleOn ? Color.accentColor : Color.secondary)
+        .foregroundStyle(shuffleOn ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+        .accessibilityValue(shuffleOn ? "On" : "Off")
+        .help("Shuffle")
+
+        Button {
+            HapticManager.shared.fireHaptic(.selection)
+            // Off → Repeat All → Repeat One → Off, as the queue screen does.
+            var mode = group.playMode
+            if mode.contains(.normal) && !mode.isRepeatEnabled {
+                mode.remove(.normal)
+                mode.insert(.repeatAll)
+            } else if mode.isRepeatAllEnabled {
+                mode.remove(.normal)
+                mode.remove(.repeatAll)
+                mode.insert(.repeatOne)
+            } else {
+                mode.remove(.repeatOne)
+                mode.remove(.repeatAll)
+            }
+            setPlayMode(mode)
+        } label: {
+            Label("Repeat", systemImage: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
+                .labelStyle(.iconOnly)
+                .contentTransition(.symbolEffect(.automatic))
+        }
+        .tint(group.playMode.isRepeatEnabled ? Color.accentColor : Color.secondary)
+        .foregroundStyle(group.playMode.isRepeatEnabled ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+        .accessibilityValue(group.playMode.repeatAccessibilityValue)
+        .help("Repeat")
+
+        Button {
+            clearConfirmation = true
+        } label: {
+            Label("Clear Queue", systemImage: "trash")
+                .labelStyle(.iconOnly)
+        }
+        .foregroundStyle(.secondary)
+        .disabled(group.coordinatorRoom.queue.isEmpty)
+        .help("Clear Queue")
+        .confirmationDialog("Clear Queue", isPresented: $clearConfirmation, titleVisibility: .hidden) {
+            Button("Clear Queue", role: .destructive) {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                withAnimation {
+                    group.coordinatorRoom.queue.removeAll()
+                }
+                Task {
+                    try? await sonosService.clearQueue(group.coordinatorRoom.ip)
+                }
+            }
+        }
+    }
+
+    /// Sets the mode optimistically, then reloads: shuffling reorders the
+    /// speaker's queue.
+    private func setPlayMode(_ mode: PlayMode) {
+        group.playMode = mode
+        Task {
+            await sonosService.setPlayMode(group.ip, mode: mode)
+            let queue = OrderedSet(await sonosService.getQueue(ip: group.ip))
+            withAnimation(.easeInOut(duration: 0.35)) {
+                group.coordinatorRoom.queue = queue
+            }
+        }
+    }
+
     private func load() async {
         isLoading = group.coordinatorRoom.queue.isEmpty
         defer { isLoading = false }
@@ -161,6 +359,7 @@ private struct GroupNextUpView: View {
             group.playbackService = service
         }
         group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.ip))
+        group.playMode = await sonosService.playMode(ip: group.ip)
     }
 
     /// Jumps the speaker to this row. `seek(trackNumber:)` points the

@@ -1202,6 +1202,52 @@ public final class MusicSearchService {
         try await apple.songs(ids: ids)
     }
 
+    /// Apple Music's own station for an artist or a song, as a playable
+    /// station. The device plays it as a MusicKit `Station`, so artist and
+    /// song radio work without a speaker.
+    ///
+    /// Takes the artist or song, a library song (looked up in the catalog
+    /// first, since a library id has no station), or a radio item made by
+    /// `toRadio`. Nil for anything that isn't Apple Music, and when Apple has
+    /// no station for it.
+    public func appleStation(for seed: PlayableContent) async -> PlayableContent? {
+        guard seed.content.service == .apple, await requestMusicAuthorization() else { return nil }
+
+        // `toRadio` appends ".radio" to the seed's id; take it back off.
+        let id = seed.content.id.hasSuffix(".radio")
+            ? String(seed.content.id.dropLast(".radio".count))
+            : seed.content.id
+
+        let station: Station?
+        switch seed.content.type {
+        case .artist, .artistRadio:
+            var request = MusicCatalogResourceRequest<Artist>(matching: \.id, equalTo: MusicItemID(id))
+            request.properties = [.station]
+            station = try? await request.response().items.first?.station
+        case .track, .songRadio, .libraryTrack:
+            var songID = id
+            if seed.content.type == .libraryTrack {
+                guard let catalogID = await appleLibraryLookup(id: id)?.data.first?.id else { return nil }
+                songID = catalogID.description
+            }
+            var request = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: MusicItemID(songID))
+            request.properties = [.station]
+            station = try? await request.response().items.first?.station
+        default:
+            return nil
+        }
+        guard let station else { return nil }
+
+        return PlayableContent(
+            title: station.name,
+            subtitle: seed.title,
+            thumbnail: station.artwork?.url(width: 100, height: 100) ?? seed.thumbnail,
+            artwork: station.artwork?.url(width: 600, height: 600) ?? seed.artwork,
+            content: MediaContent(service: .apple, id: station.id.rawValue, type: .radio, location: station.url),
+            metadata: PlayableContentMetadata(radioStation: true)
+        )
+    }
+
     public func appleLibraryLookup(id: String) async -> AppleLibraryContainer? {
         if let container = try? await apple.librarySongCatalog(id: id) {
             return container

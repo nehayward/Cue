@@ -51,7 +51,7 @@ final class PlaybackRoute {
     @ObservationIgnored private var observers: [Task<Void, Never>] = []
 
     private init() {
-        destination = PlayDestination.remembered ?? .device
+        destination = Self.storedDestination
         // Anything else that writes the destination shows up here: the group
         // picker's Play writes it directly, and the share extension writes it
         // between launches. Same shape as `HardwareVolumeService`'s route
@@ -65,10 +65,17 @@ final class PlaybackRoute {
         }
     }
 
+    /// The remembered destination, or this device while Sonos is switched
+    /// off: a speaker remembered from before then can't be reached.
+    private static var storedDestination: PlayDestination {
+        guard SonosService.shared.isEnabled else { return .device }
+        return PlayDestination.remembered ?? .device
+    }
+
     /// Re-reads the stored destination. Only writes when it changed, so the
     /// (frequent) defaults notification doesn't churn observers.
     func refresh() {
-        let stored = PlayDestination.remembered ?? .device
+        let stored = Self.storedDestination
         if stored != destination {
             destination = stored
         }

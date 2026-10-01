@@ -238,17 +238,12 @@ struct QueuePanel<Panel: View>: ViewModifier {
     }
 }
 
-/// The side panel's card: Liquid Glass where the system has it, the
-/// material it always had elsewhere.
+/// The side panel's card: a flat material. Not Liquid Glass — the glass
+/// draws its own drop shadow, which lifted the panel off the window.
 private struct PanelBackground: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, macCatalyst 26.0, visionOS 26.0, *) {
-            content
-                .glassEffect(.regular, in: .rect(cornerRadius: 12))
-        } else {
-            content
-                .background(.regularMaterial, in: .rect(cornerRadius: 12))
-        }
+        content
+            .background(.regularMaterial, in: .rect(cornerRadius: 12))
     }
 }
 

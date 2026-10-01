@@ -23,13 +23,51 @@ struct LocalDownloadMenuSection: View {
                     } label: {
                         Label("Remove Download", systemImage: "trash")
                     }
+                } else if let stopped = manager.stoppedDownload(for: item) {
+                    // Paused or failed: say so, and offer the way back.
+                    Button {
+                        manager.resume(key: stopped.key)
+                        Self.confirmQueued(item, alertService: alertService)
+                    } label: {
+                        Label(stopped.state == .failed ? "Retry Download" : "Resume Download", systemImage: "arrow.clockwise.circle")
+                    }
+                    if stopped.state == .failed {
+                        Text(stopped.error.map { "Download failed: \($0)" } ?? "Download failed")
+                    }
+                    Button(role: .destructive) {
+                        manager.cancel(key: stopped.key)
+                    } label: {
+                        Label("Cancel Download", systemImage: "xmark.circle")
+                    }
+                } else if let waiting = manager.waitingDownload(for: item) {
+                    // Held for Wi‑Fi (or any network): say so, and let it
+                    // through now when cellular is what's holding it.
+                    Label(manager.network == .none ? "Waiting for a Connection" : "Waiting for Wi‑Fi", systemImage: "wifi")
+                    if manager.cellularHeldKeys.contains(waiting.key) {
+                        Button {
+                            manager.allowCellular(forKeys: [waiting.key])
+                            alertService.showAlertContent(with: item, subtitle: "Downloading over cellular", symbolName: "arrow.down.circle")
+                        } label: {
+                            Label("Download Now Over Cellular", systemImage: "antenna.radiowaves.left.and.right")
+                        }
+                    }
+                    Button(role: .destructive) {
+                        manager.cancel(key: waiting.key)
+                    } label: {
+                        Label("Cancel Download", systemImage: "xmark.circle")
+                    }
                 } else if manager.isDownloading(item) {
                     Label("Downloading…", systemImage: "arrow.down.circle.dotted")
+                    Button(role: .destructive) {
+                        manager.removeDownload(item)
+                    } label: {
+                        Label("Cancel Download", systemImage: "xmark.circle")
+                    }
                 } else if manager.canDownload(item) {
                     Button {
                         guard FeatureGate.shared.unlock(.downloads) else { return }
                         if manager.download(item) {
-                            alertService.showAlertContent(with: item, subtitle: "Downloading", symbolName: "arrow.down.circle")
+                            Self.confirmQueued(item, alertService: alertService)
                         } else {
                             Self.offerSuperForDownloads(alertService: alertService)
                         }
@@ -48,7 +86,25 @@ struct LocalDownloadMenuSection: View {
                         Label("Remove Download", systemImage: "trash")
                     }
                 case .downloading:
-                    Label("Downloading…", systemImage: "arrow.down.circle.dotted")
+                    let stopped = manager.stoppedTrackCount(forContentsOf: item)
+                    let held = manager.waitingTrackKeys(forContentsOf: item).filter { manager.cellularHeldKeys.contains($0) }
+                    if !held.isEmpty {
+                        Label(held.count == 1 ? "1 song waiting for Wi‑Fi" : "\(held.count) songs waiting for Wi‑Fi", systemImage: "wifi")
+                        Button {
+                            manager.allowCellular(forKeys: held)
+                        } label: {
+                            Label("Download Now Over Cellular", systemImage: "antenna.radiowaves.left.and.right")
+                        }
+                    }
+                    if stopped > 0 {
+                        Button {
+                            manager.resumeDownload(contentsOf: item)
+                        } label: {
+                            Label(stopped == 1 ? "Retry 1 Song" : "Retry \(stopped) Songs", systemImage: "arrow.clockwise.circle")
+                        }
+                    } else {
+                        Label("Downloading…", systemImage: "arrow.down.circle.dotted")
+                    }
                     Button(role: .destructive) {
                         manager.removeDownload(contentsOf: item)
                     } label: {
@@ -145,6 +201,20 @@ struct LocalDownloadMenuSection: View {
         }
     }
 
+    /// The banner for a song just queued or resumed — unless it's waiting
+    /// for Wi‑Fi, when the cellular question says so instead.
+    @MainActor
+    static func confirmQueued(_ item: PlayableContent, alertService: AlertService) {
+        let manager = DownloadManager.shared
+        if let waiting = manager.waitingDownload(for: item) {
+            if !manager.cellularHeldKeys.contains(waiting.key) {
+                alertService.showAlertContent(with: item, subtitle: "Waiting for a connection", symbolName: "wifi.slash")
+            }
+            return
+        }
+        alertService.showAlertContent(with: item, subtitle: "Downloading", symbolName: "arrow.down.circle")
+    }
+
     /// Queues a whole album, playlist or artist and says what happened.
     /// Shared with the detail screen's header button; callers check the
     /// feature gate first, so the paywall comes up on the tap itself.
@@ -162,6 +232,9 @@ struct LocalDownloadMenuSection: View {
         case (0, _):
             offerSuperForDownloads(alertService: alertService)
         case (let queued, 0):
+            // Held for Wi‑Fi, the cellular question speaks for the batch.
+            let held = Set(manager.cellularHeldKeys)
+            guard !manager.waitingTrackKeys(forContentsOf: item).contains(where: held.contains) else { return }
             alertService.showAlertContent(with: item, subtitle: queued == 1 ? "Downloading 1 song" : "Downloading \(queued) songs", symbolName: "arrow.down.circle")
         case (let queued, let heldBack):
             // Part of the album made it in before the limit; say how much

@@ -5,7 +5,7 @@ import UIKit
 
 /// The first onboarding page — pure splash. ShockwaveLogo + brand + tagline
 /// + a single `Get Started` pill. No discovery state, no Sonos integration —
-/// tapping the pill just advances to `DiscoveryStep`.
+/// tapping the pill just advances to `SonosQuestionStep`.
 struct WelcomeStep: View {
     @State private var logoIn = false
     @State private var brandIn = false
@@ -31,7 +31,7 @@ struct WelcomeStep: View {
                     .opacity(brandIn ? 1 : 0)
                     .offset(y: brandIn ? 0 : 18)
 
-                Text("A premium Sonos companion.\nNo lag. No hassle. Just music.")
+                Text("Your music, beautifully played.\nOn this device, and on Sonos too.")
                     .font(.title3)
                     .fontWeight(.medium)
                     .foregroundStyle(.white.opacity(0.85))

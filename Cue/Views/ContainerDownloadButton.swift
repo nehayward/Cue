@@ -39,6 +39,23 @@ struct ContainerDownloadButton: View {
                 Menu {
                     let counts = manager.trackCounts(forContainer: DownloadManager.containerKey(for: item))
                     Label("Downloading \(counts.downloaded) of \(counts.total)…", systemImage: "arrow.down.circle.dotted")
+                    let held = manager.waitingTrackKeys(forContentsOf: item).filter { manager.cellularHeldKeys.contains($0) }
+                    if !held.isEmpty {
+                        Label(held.count == 1 ? "1 song waiting for Wi‑Fi" : "\(held.count) songs waiting for Wi‑Fi", systemImage: "wifi")
+                        Button {
+                            manager.allowCellular(forKeys: held)
+                        } label: {
+                            Label("Download Now Over Cellular", systemImage: "antenna.radiowaves.left.and.right")
+                        }
+                    }
+                    let stopped = manager.stoppedTrackCount(forContentsOf: item)
+                    if stopped > 0 {
+                        Button {
+                            manager.resumeDownload(contentsOf: item)
+                        } label: {
+                            Label(stopped == 1 ? "Retry 1 Song" : "Retry \(stopped) Songs", systemImage: "arrow.clockwise.circle")
+                        }
+                    }
                     Button(role: .destructive) {
                         manager.removeDownload(contentsOf: item)
                     } label: {

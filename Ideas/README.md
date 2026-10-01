@@ -5,6 +5,7 @@ Feature ideas and design notes for future development.
 ## Index
 
 - [Device Player Roadmap](device-player-roadmap.md) — Everything the on-device player still needs, one item per branch
+- [Sonos Separation](sonos-separation.md) — Making Cue a complete player without Sonos: what landed in Beta 1, what's left, and the plan to put Sonos behind one playback layer
 - [SwiftData Foundation](swiftdata-foundation.md) — Local database + CloudKit sync layer (prerequisite for several features below)
 - [Listening Stats](listening-stats.md) — Wrapped-style play history insights, shareable image card
 - [Auto-DJ](auto-dj.md) — Automatically seed the queue when it runs low

@@ -21,6 +21,9 @@ import WidgetKit
 /// matching full player; the trailing controls act in place.
 struct MusicPlaybackView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    /// The same key each tab's queue panel reads.
+    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
     /// Owned by `CueApp`, not by this view. The tab bar accessory is hosted
     /// outside the tab content and gets re-created when its placement changes
     /// or the scene comes back to the foreground — `@State` here reset to
@@ -49,9 +52,86 @@ struct MusicPlaybackView: View {
             PlaybackRouteButton()
                 .buttonStyle(.plain)
                 .font(.title3)
+
+            // The queue panel's show/hide on iPad, where there is no sidebar
+            // header to hold it. Only at a regular width: a compact window
+            // has no side panel to show. The Mac has it in the window
+            // toolbar and the View menu.
+#if !targetEnvironment(macCatalyst)
+            if UIDevice.current.userInterfaceIdiom == .pad, horizontalSizeClass == .regular {
+                Button {
+                    withAnimation(.snappy) {
+                        showQueue.toggle()
+                    }
+                } label: {
+                    // The player's queue gauge: how far through the queue
+                    // playback is, where the route points.
+                    Group {
+                        if let group = route.group {
+                            QueueIconView(group: group)
+                        } else {
+                            LocalQueueIconView()
+                        }
+                    }
+                    .font(.title3)
+                    // Shown: a soft accent disc behind the gauge rather
+                    // than the gauge itself in accent, so its number stays
+                    // easy to read.
+                    .padding(5)
+                    .background(Color("Accent").opacity(showQueue ? 0.25 : 0), in: .circle)
+                    .contentShape(.circle)
+                }
+                .buttonStyle(.plain)
+                .animation(.snappy, value: showQueue)
+                .accessibilityLabel(showQueue ? "Hide Queue" : "Show Queue")
+                .accessibilityAddTraits(showQueue ? .isSelected : [])
+            }
+#endif
         }
         .padding(.horizontal, 12)
+        // Lifts the row a little so the line below has room of its own
+        // rather than crowding the subtitle.
+        .padding(.bottom, showsBottomProgressLine ? 6 : 0)
         .frame(maxWidth: 500, maxHeight: 120)
+        // On iPhone the line runs the whole width of the accessory, along
+        // its bottom edge; the wider iPad and Mac bars keep it under the
+        // track text. Inset by the row's own 12pt, so it starts under the
+        // artwork's edge and ends under the last button's.
+        .overlay(alignment: .bottom) {
+            if showsBottomProgressLine {
+                progressLine
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 4)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    private var progressSpansFullWidth: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone
+    }
+
+    private var showsBottomProgressLine: Bool {
+        progressSpansFullWidth && placement != .inline
+    }
+
+    /// The progress line for whatever is playing: the speaker's track when a
+    /// group holds the route, this device's otherwise.
+    @ViewBuilder
+    private var progressLine: some View {
+        if let group = route.group {
+            let room = group.coordinatorRoom
+            if !room.track.isEmpty {
+                MiniPlayerProgressLine(
+                    position: room.playbackPosition,
+                    duration: room.track.duration,
+                    isPlaying: room.isPlaying,
+                    unitsPerSecond: 1000
+                )
+            }
+        } else if playback.nowPlayingDisplay != nil {
+            MiniPlayerProgressLine(position: playback.progress, duration: playback.duration, isPlaying: playback.isPlaying)
+        }
     }
 
     // MARK: - This device
@@ -77,6 +157,9 @@ struct MusicPlaybackView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
+                            if !progressSpansFullWidth {
+                                progressLine
+                            }
                         }
                     }
                 } else {
@@ -152,6 +235,9 @@ struct MusicPlaybackView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                        if !progressSpansFullWidth {
+                            progressLine
+                        }
                     }
                 }
                 Spacer(minLength: 0)
@@ -219,6 +305,17 @@ struct CueApp: App {
     @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
     
     @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
+    /// Onboarding, shown once on first launch. Presented from the `TabView`
+    /// with its own flag, like the player: the shared router's full-screen
+    /// cover is only attached inside some tabs.
+    @State private var isOnboardingPresented = false
+
+    /// Onboarding hasn't finished. It runs the speaker search itself, after
+    /// explaining the Local Network prompt, so the launch and scene-phase
+    /// paths keep out of the way until then.
+    private var isOnboarding: Bool {
+        !hasOnboarded || OnboardingDebug.forceShow
+    }
     @AppStorage("CueMiniEnabled") private var isMenuBarAppEnabled: Bool = true
     @AppStorage(AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
@@ -247,12 +344,6 @@ struct CueApp: App {
     /// Shared by the zoom's two halves: the source in the tab bar accessory and
     /// the `fullScreenCover` on the `TabView` below.
     @Namespace private var zoomNamespace
-
-    /// `@AppStorage`, not `@State`: `PlayerView` and each tab's queue panel
-    /// read the same key, so the queue is shown or hidden everywhere at once
-    /// instead of each keeping its own idea. Persisting across launches
-    /// comes along with it, which is the behaviour a panel toggle wants.
-    @AppStorage(AppStorageKeys.queueInspectorVisible) private var showInspector: Bool = false
 
     @State private var coreFeatures = CoreFeatures.shared
     @State private var offline = OfflineMode.shared
@@ -303,10 +394,10 @@ struct CueApp: App {
     }
 
     /// Search. The search role only on the phone, where it draws the tab as
-    /// the bar's separate search bubble. On iPad and Mac the role takes the
-    /// tab out of the sidebar's list too — it exists to hoist a `.searchable`
-    /// out of the tab, and `SearchScreen` draws its own field, so there is
-    /// nothing to hoist and Search went missing. A plain tab there.
+    /// the bar's separate search bubble. Elsewhere the role exists to hoist
+    /// a `.searchable` out of the tab, and `SearchScreen` draws its own
+    /// field: on iPad that broke the screen, and on the Mac it took the tab
+    /// out of the sidebar's list. A plain tab there.
     @TabContentBuilder<AppTab>
     private var searchTab: some TabContent<AppTab> {
         Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: isPhone ? TabRole.search : nil) {
@@ -393,10 +484,20 @@ struct CueApp: App {
         UIDevice.current.userInterfaceIdiom == .phone
     }
 
-    /// The tab the selection falls back to: Browse on the phone, which has
-    /// no Home tab, Home everywhere else.
+    /// Home, the provider sections and the sidebar's Edit — off everywhere
+    /// for now. Every device has the phone's three tabs, Browse, Search and
+    /// Radio, with providers reached from Browse's menu; the Mac shows them
+    /// in its sidebar (`AdaptiveTabViewStyle`), iPhone and iPad in the tab
+    /// bar. The adaptable sidebar's rebuild on an iPad resize (a
+    /// size-class change folds the sidebar's tabs into a tab bar) was also
+    /// crashing UIKit with a nil tab bar item. Kept as a switch for when
+    /// the sections come back.
+    private var showsLibrarySections: Bool { false }
+
+    /// The tab the selection falls back to: Home where the sidebar has
+    /// one, Browse on the tab bar, which has none.
     private var fallbackTab: AppTab {
-        isPhone ? .browse : .home
+        showsLibrarySections ? .home : .browse
     }
 
     /// Every tab the view builds right now. The selection is checked
@@ -411,7 +512,7 @@ struct CueApp: App {
         if showsRadioTab {
             tabs.insert(.radio)
         }
-        if !isPhone {
+        if showsLibrarySections {
             tabs.insert(.home)
             for service in tabProviders {
                 tabs.insert(.provider(service))
@@ -445,34 +546,16 @@ struct CueApp: App {
         }
     }
 
-    /// The sidebar header's show/hide for the queue panel. ⌥⌘0 is the View
-    /// menu's command, so it isn't repeated here.
-    private var queueToggle: some View {
-        Button {
-            withAnimation(.snappy) {
-                showInspector.toggle()
-            }
-        } label: {
-            Label(showInspector ? "Hide Queue" : "Show Queue", systemImage: "sidebar.trailing")
-                .labelStyle(.iconOnly)
-        }
-        .tint(showInspector ? Color("Accent") : .secondary)
-        .help(showInspector ? "Hide Queue" : "Show Queue")
-        .accessibilityLabel(showInspector ? "Hide Queue" : "Show Queue")
-    }
-
     var body: some Scene {
         WindowGroup {
             @Bindable var router = router
             TabView(selection: tabSelection) {
-                if isPhone {
-                    // The phone's three, Browse first in Home's place. Home
-                    // is the sidebar's companion — setting providers up and
-                    // reaching their sections — and the phone has neither:
-                    // providers are browsed from Browse's menu and set up in
-                    // Settings › Services. No provider tabs here either, so
+                if !showsLibrarySections {
+                    // The phone's three on every device, Browse first in
+                    // Home's place: providers are browsed from Browse's menu
+                    // and set up in Settings › Services. No provider tabs, so
                     // the bar never overflows into More. The house is
-                    // Browse's here, since it is the phone's home.
+                    // Browse's here, since it is the home.
                     Tab("Browse", image: "home.fill", value: AppTab.browse) {
                         Screens.browse
                     }
@@ -500,9 +583,9 @@ struct CueApp: App {
                     }
                 }
             }
-            // No customization on the phone: it holds the sidebar's edits,
-            // and the phone has no sidebar to make them in.
-            .tabViewCustomization(isPhone ? nil : $tabCustomization)
+            // Customization only with the library sections: it holds the
+            // sidebar's edits, and with three fixed tabs there's no Edit.
+            .tabViewCustomization(showsLibrarySections ? $tabCustomization : nil)
             .onChange(of: availableTabs) { _, tabs in
                 // A tab that left takes its selection with it. The binding
                 // already shows the fallback in that case; this keeps the
@@ -535,14 +618,6 @@ struct CueApp: App {
                     Text("Cue")
                         .font(.title3.bold())
                     Spacer(minLength: 0)
-                    // The queue toggle, in the header's top-right corner
-                    // like Xcode's inspector button. Up here rather than in
-                    // the bottom bar so it is in view without scrolling the
-                    // sidebar, and stays put as the tab list grows. The Mac
-                    // has it in the window toolbar instead.
-#if !targetEnvironment(macCatalyst)
-                    queueToggle
-#endif
                 }
                 .padding(.vertical, 4)
             }
@@ -567,6 +642,9 @@ struct CueApp: App {
             // and the bottom bar put the real accent back — `Color("Accent")`
             // by name, since `.accentColor` now resolves to this tint.
 //            .tint(Color.primary.opacity(0.12))
+            // The queue panel, beside the whole `TabView`. Inside
+            // `withEnvironments()`, which the panel's view reads from.
+            .modifier(WindowQueuePanel())
             .withEnvironments()
             .environment(\.zoomNamespace, zoomNamespace)
             // Presented from the `TabView`, not from inside the tab bar
@@ -593,11 +671,28 @@ struct CueApp: App {
                     .zoomTransition(from: .miniPlayer, in: zoomNamespace)
 #endif
             }
+            .fullScreenCover(isPresented: $isOnboardingPresented) {
+                WelcomeScreen()
+                    .withEnvironments()
+            }
             .modifier(AdaptiveTabViewStyle())
+            // Settings ▸ Appearance. Applied to the windows, so everything
+            // presented from them follows it too.
+            .onChange(of: colorScheme, initial: true) { _, preference in
+                preference.apply()
+            }
             .onOpenURL(perform: handle)
             .onAppear {
-                SonosService.shared.monitor()
                 coreFeatures.restoreDeviceServicesOnce()
+                // Asks whether there are speakers before anything looks for
+                // them. Onboarding writes `hasOnboarded` however it ends,
+                // so this is once per install, and starts monitoring itself
+                // when it closes.
+                if isOnboarding {
+                    isOnboardingPresented = true
+                } else {
+                    SonosService.shared.monitor()
+                }
                 
 #if os(iOS) && !targetEnvironment(macCatalyst)
                 // One call for the lifetime of the process: the service watches
@@ -986,53 +1081,53 @@ struct CueApp: App {
             // back or something else restarted the pulse. That ambiguity is what
             // hid `stopMonitoringOffScreen`'s bug.
             print("Active")
-            // Don't poke the network (which triggers the Local Network
-            // permission prompt) until onboarding has surfaced the explanation
-            // screen and the user has tapped Continue. WelcomeScreen kicks off
-            // `monitor()` on dismiss.
-            guard hasOnboarded, !OnboardingDebug.forceShow else { return }
-            // The network may have changed while backgrounded (e.g. home →
-            // friend's house). Re-race known IPs + discovery on the next poll
-            // instead of blocking on a now-stale cached IP. Cheap: an unchanged
-            // network still wins in ms, and the flag re-verifies after one load.
-            sonosService.invalidateVerifiedConnection()
-            // Re-opened before `monitor()`, and before any view `.task` that
-            // fires as the app comes back can call it — this runs first on the
-            // activation.
-            sonosService.allowsMonitoring = true
-            sonosService.monitor()
+            // Speakers are only looked for when Sonos is switched on: looking
+            // is what puts up the Local Network permission prompt. Everything
+            // after this block runs either way — it used to sit behind an
+            // onboarding guard, which also held back the subscription check
+            // until onboarding had finished.
+            if sonosService.isEnabled, !isOnboarding {
+                // The network may have changed while backgrounded (e.g. home →
+                // friend's house). Re-race known IPs + discovery on the next poll
+                // instead of blocking on a now-stale cached IP. Cheap: an unchanged
+                // network still wins in ms, and the flag re-verifies after one load.
+                sonosService.invalidateVerifiedConnection()
+                // Re-opened before `monitor()`, and before any view `.task` that
+                // fires as the app comes back can call it — this runs first on the
+                // activation.
+                sonosService.allowsMonitoring = true
+                sonosService.monitor()
 #if targetEnvironment(macCatalyst)
-            // Window is open — live monitoring + `.task(id:)` keep the dock
-            // menu fresh, so the background poll isn't needed.
-            DockMenuCoordinator.shared.stopBackgroundRefresh()
+                // Window is open — live monitoring + `.task(id:)` keep the dock
+                // menu fresh, so the background poll isn't needed.
+                DockMenuCoordinator.shared.stopBackgroundRefresh()
 #endif
-            Task {
-                let startTime = Date.now
-                while sonosService.sorted.isEmpty && Date.now.timeIntervalSince(startTime) < 10 {
-                    try? await Task.sleep(for: .milliseconds(100))
-                }
-                guard !sonosService.sorted.isEmpty else { return }
-                sonosService.onServerListening()
-            }
-            
-            if speedLaunchNowPlaying {
                 Task {
-                    try? await Task.sleep(for: .milliseconds(200))
-                    if sonosService.groups.isEmpty {
-                        try? await sonosService.updateGroups()
+                    let startTime = Date.now
+                    while sonosService.sorted.isEmpty && Date.now.timeIntervalSince(startTime) < 10 {
+                        try? await Task.sleep(for: .milliseconds(100))
                     }
-                    handle(URL(string: "cue://playing")!)
+                    guard !sonosService.sorted.isEmpty else { return }
+                    sonosService.onServerListening()
                 }
-            }
             
-            if !FeatureGate.shared.isAvailable(.liveActivities) {
-                return
-            }
+                if speedLaunchNowPlaying {
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(200))
+                        if sonosService.groups.isEmpty {
+                            try? await sonosService.updateGroups()
+                        }
+                        handle(URL(string: "cue://playing")!)
+                    }
+                }
             
-            Task {
-                for group in sonosService.groups {
-                    if !group.coordinatorRoom.isPlaying {
-                        await liveActivityManager.stop(id: group.coordinatorRoom.id)
+                if FeatureGate.shared.isAvailable(.liveActivities) {
+                    Task {
+                        for group in sonosService.groups {
+                            if !group.coordinatorRoom.isPlaying {
+                                await liveActivityManager.stop(id: group.coordinatorRoom.id)
+                            }
+                        }
                     }
                 }
             }
@@ -1093,13 +1188,13 @@ struct CueApp: App {
     /// the old `.background`-only behaviour until there's a signal that
     /// separates "not focused" from "not on screen".
     ///
-    /// Guarded on onboarding for the same reason `.active` is: the Local Network
-    /// permission prompt makes the scene `.inactive` while it's up, and `.active`
-    /// deliberately doesn't restart monitoring before onboarding is done — so
-    /// tearing down here would stop discovery with nothing to start it again.
+    /// Nothing to stop while Sonos is switched off. Nor during onboarding: its
+    /// discovery page puts up the Local Network prompt, which makes the scene
+    /// `.inactive`, and `.active` leaves monitoring to onboarding — so a
+    /// teardown here would stop the search with nothing to start it again.
     @MainActor
     private func stopMonitoringOffScreen(_ phase: ScenePhase) {
-        guard hasOnboarded, !OnboardingDebug.forceShow else { return }
+        guard sonosService.isEnabled, !isOnboarding else { return }
         if phase == .inactive, UIDevice.current.userInterfaceIdiom == .pad { return }
 
         // Shut the gate before cancelling, not after: cancelling only stops the
@@ -1118,6 +1213,7 @@ struct CueApp: App {
         Task {
             guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
             
+            // `updateGroups` returns at once while Sonos is switched off.
             if sonosService.groups.isEmpty {
                 try? await sonosService.updateGroups()
             }
@@ -1349,20 +1445,101 @@ struct CueApp: App {
     }
 }
 
-/// `.sidebarAdaptable` on iPad and Mac, where the sidebar is; the plain tab
-/// bar on iPhone, which has none. The adaptable style runs the sidebar's tab
-/// model on the phone too — hidden tabs, customization — and a tab that
-/// model hides is a tab bar item with no view controller behind it.
+/// `.sidebarAdaptable` on the Mac, where the sidebar is; the plain tab bar
+/// on iPhone and iPad, which have none. The adaptable style runs the
+/// sidebar's tab model everywhere it is applied — hidden tabs,
+/// customization — and a tab that model hides is a tab bar item with no
+/// view controller behind it. `.tabBarOnly` on iPad so the bar can't be
+/// turned into a sidebar there either.
 private struct AdaptiveTabViewStyle: ViewModifier {
     func body(content: Content) -> some View {
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            content
+#if targetEnvironment(macCatalyst)
+        content.tabViewStyle(.sidebarAdaptable)
+#else
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            content.tabViewStyle(.tabBarOnly)
         } else {
-            content.tabViewStyle(.sidebarAdaptable)
+            content
         }
+#endif
     }
 }
 
+
+/// The thin elapsed-time line under the mini player's track text. Units are
+/// the caller's (seconds on the device, milliseconds from a speaker) — only
+/// the ratio is drawn. A live stream reports no duration, so the line keeps
+/// its height but stays hidden rather than showing an empty track.
+///
+/// The reported position only moves about once a second (the device poller,
+/// a speaker's poll or event), which stepped the fill visibly. So while
+/// playing, the line runs its own clock off the last reported value, redrawn
+/// every frame by a `TimelineView`, and re-anchors whenever a new report
+/// lands.
+private struct MiniPlayerProgressLine: View {
+    let position: TimeInterval
+    let duration: TimeInterval
+    let isPlaying: Bool
+    /// How many of the caller's units pass per second of playback: `1` for
+    /// seconds, `1000` for milliseconds.
+    var unitsPerSecond: Double = 1
+
+    @State private var anchorPosition: TimeInterval = 0
+    @State private var anchorDate: Date = .now
+
+    private var hasDuration: Bool {
+        duration.isFinite && duration > 0
+    }
+
+    private func fraction(at date: Date) -> CGFloat {
+        guard hasDuration, anchorPosition.isFinite else { return 0 }
+        let elapsed = isPlaying ? max(0, date.timeIntervalSince(anchorDate)) * unitsPerSecond : 0
+        return CGFloat(min(max((anchorPosition + elapsed) / duration, 0), 1))
+    }
+
+    var body: some View {
+        TimelineView(.animation(paused: !isPlaying || !hasDuration)) { context in
+            let fraction = fraction(at: context.date)
+            GeometryReader { proxy in
+                Capsule()
+                    .fill(.secondary.opacity(0.3))
+                    .overlay(alignment: .leading) {
+                        Capsule()
+                            .fill(.primary)
+                            .frame(width: proxy.size.width * fraction)
+                    }
+            }
+        }
+        .frame(height: 3)
+        .padding(.top, 2)
+        .opacity(hasDuration ? 1 : 0)
+        .onAppear { anchor(at: position) }
+        .onChange(of: position) { reanchor(wasPlaying: isPlaying) }
+        .onChange(of: isPlaying) { wasPlaying, _ in reanchor(wasPlaying: wasPlaying) }
+        .accessibilityHidden(true)
+    }
+
+    /// `wasPlaying` is the state the clock was running under up to now, so
+    /// a pause freezes the line where it was drawn rather than on the last
+    /// report, which is up to a second old.
+    private func reanchor(wasPlaying: Bool) {
+        guard wasPlaying, hasDuration else {
+            anchor(at: position)
+            return
+        }
+        let estimate = anchorPosition + max(0, Date.now.timeIntervalSince(anchorDate)) * unitsPerSecond
+        // A report landing a little behind the running estimate is poll
+        // latency, not a rewind — taking it would tick the fill backwards.
+        // A real jump (a seek, a new track) is far bigger than this.
+        let lag = estimate - position
+        anchor(at: lag > 0 && lag < 1.5 * unitsPerSecond ? estimate : position)
+    }
+
+    private func anchor(at value: TimeInterval) {
+        anchorPosition = value
+        anchorDate = .now
+    }
+}
 
 /// Transport buttons for the "Playback" command menu. Extracted into its own
 /// View because inlining all five buttons (each with conditional labels and
@@ -1460,6 +1637,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
         UserDefaults.standard.set(true, forKey: "NSDisabledCharacterPaletteMenuItem")
         #endif
+        // Sonos is opt-in here. This runs before any view body or `.task` can
+        // call `monitor()`, which is what would put up the Local Network
+        // prompt on a device that has never seen a speaker.
+        SonosService.shared.loadEnabledPreference()
         // RevenueCat, analytics, remote flags and the image pipeline. Before
         // any view body: `Purchases.shared` is a fatal error until
         // `Purchases.configure` has run, and Preferences reads it for the

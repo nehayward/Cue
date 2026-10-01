@@ -202,6 +202,16 @@ extension Room {
         isPlaying = playing
     }
 
+    /// Writes `isTransitioning` from a poll. A tap on play/pause answers the
+    /// button at once; the speaker then passes through TRANSITIONING on its
+    /// way there, and pulsing the button for that window made the tap read as
+    /// not having landed. Same two-second window as `setPlaying`.
+    public func setTransitioning(_ transitioning: Bool) {
+        let value = transitioning && !hasFreshPlaybackState
+        guard isTransitioning != value else { return }
+        isTransitioning = value
+    }
+
     /// Whether a pushed playback state landed recently enough that a SOAP read
     /// shouldn't overwrite it. Poll intervals here are 500–800 ms, so two
     /// seconds covers a response that was already in flight.

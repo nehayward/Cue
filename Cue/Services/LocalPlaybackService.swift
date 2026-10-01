@@ -153,6 +153,15 @@ final class LocalPlaybackService {
         nowPlaying.map(isStation) ?? false
     }
 
+    /// Whether the station playing is an Apple Music one. Unlike a live
+    /// stream, the Apple player runs it as a stream of songs, so Next skips
+    /// to its next song. Read off the queue row rather than `backend` so a
+    /// view showing the button follows it.
+    var isPlayingAppleStation: Bool {
+        guard let item = nowPlaying, isStation(item) else { return false }
+        return item.content.service == .apple
+    }
+
     /// What's on air on the current station: the song, who's playing it, and
     /// its artwork when a lookup found some. Nil for a track, and for a
     /// station that hasn't said yet.
@@ -188,20 +197,35 @@ final class LocalPlaybackService {
     /// the speaker, and a way back into it: the player names it above the
     /// title and a tap opens it.
     ///
-    /// Queue-level, like the speaker's own: it is set by the Play that
-    /// replaced the queue and survives tracks being added behind it, so a
-    /// row queued from elsewhere still shows the origin of the run it landed
-    /// in. Nil when the queue came from a bare list of tracks — a search
-    /// result, a speaker hand-off — which have no origin to name.
-    private(set) var source: PlayableContent? {
+    /// Per run, not per queue: an album played next inside an artist's run
+    /// names its album, not the artist, and the artist's tracks after it
+    /// still name the artist. Nil for a track that came as a bare track — a
+    /// search result, a speaker hand-off — which has no origin to name.
+    var source: PlayableContent? {
+        queue[safe: currentIndex].flatMap { origins[$0.id] }
+    }
+
+    /// Each queued track's origin, by track ID. A track queued twice from
+    /// two places keeps the later one.
+    private var origins: [String: PlayableContent] = [:] {
         didSet { saveSource() }
+    }
+
+    /// Names `origin` as where `items` came from; nil forgets it.
+    private func setOrigin(_ origin: PlayableContent?, for items: [PlayableContent]) {
+        guard !items.isEmpty else { return }
+        var updated = origins
+        for item in items {
+            updated[item.id] = origin
+        }
+        origins = updated
     }
 
     var upNext: [PlayableContent] { Array(queue.dropFirst(currentIndex + 1)) }
     var isActive: Bool { !queue.isEmpty }
     /// Whether a skip forward has somewhere to go: another track, or the top
     /// of the queue again when it repeats.
-    var hasNext: Bool { currentIndex + 1 < queue.count || (repeatMode == .all && !queue.isEmpty) }
+    var hasNext: Bool { currentIndex + 1 < queue.count || (repeatMode == .all && !queue.isEmpty) || isPlayingAppleStation }
 
     /// How the queue loops. Repeat One shortens the armed run to the current
     /// track, so the native player hands back at the end of each one instead
@@ -231,6 +255,13 @@ final class LocalPlaybackService {
     /// Set once the Apple player has actually played, so a `.stopped` read
     /// means "run ended", not "still warming up".
     @ObservationIgnored private var appleWasPlaying = false
+    /// When the run's last entry will finish, by the wall clock, as of the
+    /// last poll that saw it playing. Nil until the last entry plays. The
+    /// Apple player can finish its queue by pausing and rewinding to zero
+    /// rather than reading `.stopped`, which looks just like a pause — this
+    /// is what tells the two apart, including after the app slept through
+    /// the end in the background and no poll saw the last seconds.
+    @ObservationIgnored private var appleRunExpectedEnd: Date?
     @ObservationIgnored private var streamPlayer: AVQueuePlayer?
     /// Reads ICY stream titles off a station's player item.
     @ObservationIgnored private var streamMetadataListener: StreamMetadataListener?
@@ -268,6 +299,11 @@ final class LocalPlaybackService {
     /// Music app has downloaded can start in airplane mode.
     @ObservationIgnored private var songCache: [String: Song] = SongDiskCache.load()
     @ObservationIgnored private var poller: Timer?
+    /// What a tap on play/pause asked for, and until when it outranks the
+    /// poll. The button flips on the tap; the players catch up a beat later
+    /// (MusicKit's `playbackStatus` lags `pause()` noticeably), and a poll
+    /// landing in that gap would flip the icon back and then forward again.
+    @ObservationIgnored private var requestedPlaying: (playing: Bool, until: Date)?
     /// Bumped on every re-arm so a stale async resolve can't start playback
     /// for a run the user has already skipped away from.
     @ObservationIgnored private var playToken = 0
@@ -427,7 +463,7 @@ final class LocalPlaybackService {
     /// caller so playback starts on the first page — draining a 1600-track
     /// playlist up front meant nine sequential requests before the first note,
     /// which read as the Play button doing nothing.
-    private func appendRemainder(of container: PlayableContent, from start: Int, shuffle: Bool = false) async {
+    private func appendRemainder(of container: PlayableContent, from start: Int, shuffle: Bool = false, origin: PlayableContent? = nil) async {
         guard start > 0 else { return }
         var offset = start
         // Bounded: a source that quietly ignored `offset` would otherwise
@@ -437,6 +473,7 @@ final class LocalPlaybackService {
             guard !page.isEmpty else { return }
             offset += page.count
             try? await addToQueue(shuffle ? page.shuffled() : page)
+            setOrigin(origin ?? container, for: page)
         }
     }
 
@@ -451,9 +488,9 @@ final class LocalPlaybackService {
     func play(_ items: [PlayableContent], startingAt index: Int = 0, from position: TimeInterval? = nil) async throws {
         let playable = items.filter { canPlayLocally($0) }
         guard !playable.isEmpty else { throw LocalPlaybackError.nothingPlayable }
-        // A new queue, so the old origin is gone. `enqueue` names the new one
-        // after this returns; a bare list of tracks has none.
-        source = nil
+        // A new queue, so the old origins are gone. `enqueue` names the new
+        // one after this returns; a bare list of tracks has none.
+        origins = [:]
         queue = playable
         let start = items[safe: index].flatMap { playable.firstIndex(of: $0) } ?? 0
         // A new queue, so a restored position belongs to nothing in it.
@@ -488,6 +525,73 @@ final class LocalPlaybackService {
         guard !playable.isEmpty else { throw LocalPlaybackError.nothingPlayable }
         guard isActive else { return try await play(playable) }
         queue.append(contentsOf: playable)
+        await extendArmedRun()
+    }
+
+    /// Hands rows appended right behind the armed run to the player that is
+    /// already playing it, when they're the same service. Otherwise the run
+    /// ends where it was armed and the next arm starts a new player for them
+    /// — a gap between tracks, and in the background a hand-off the app may
+    /// be asleep for (an Apple run) or no longer allowed to start audio for
+    /// (a stream run that has let its session go). A Plex album queued in
+    /// pages lands this way too, page by page.
+    private func extendArmedRun() async {
+        guard let backend, backend != .appleStation,
+              repeatMode != .one, !sleepsAtEndOfTrack,
+              queue.indices.contains(runEnd), !isStation(queue[runEnd]) else { return }
+        var end = runEnd
+        while end + 1 < queue.count,
+              backendKind(for: queue[end + 1]) == backend,
+              !isStation(queue[end + 1]) {
+            end += 1
+        }
+        guard end > runEnd else { return }
+        let token = playToken
+        let first = runEnd + 1
+
+        switch backend {
+        case .stream:
+            guard let player = streamPlayer, player.currentItem != nil else { return }
+            for queueIndex in first...end {
+                // A song still in iCloud waits for the next arm, which
+                // fetches it; so does everything behind it.
+                guard let row = queue[safe: queueIndex], cloudPendingURL(for: row) == nil,
+                      let url = await streamURL(for: row) else { break }
+                // The run moved on (a skip, a re-arm, or it ended) while the
+                // URL resolved — whatever arms next picks this row up.
+                guard playToken == token, streamPlayer === player, player.currentItem != nil,
+                      runEnd == queueIndex - 1 else { return }
+                let item = AVPlayerItem(url: url)
+                player.insert(item, after: nil)
+                streamRun[ObjectIdentifier(item)] = queueIndex
+                runEnd = queueIndex
+            }
+        case .appleMusic:
+            guard let resolved = try? await resolveAppleSongs(first...end), !resolved.isEmpty,
+                  playToken == token, self.backend == .appleMusic, runEnd == first - 1,
+                  // A finished or paused queue is left to the run-end
+                  // advance, which arms these rows itself.
+                  musicPlayer.state.playbackStatus == .playing else { return }
+            do {
+                try await musicPlayer.queue.insert(resolved.map(\.song), position: .tail)
+            } catch {
+                return
+            }
+            guard playToken == token, self.backend == .appleMusic else { return }
+            // Play Next or Repeat One cut the run off while the insert was in
+            // flight; cut again so what just landed goes too.
+            guard runEnd == first - 1 else {
+                truncateArmedRunAfterCurrent()
+                return
+            }
+            appleRun += resolved
+            runEnd = end
+            // The old last entry isn't the last any more; the new one sets
+            // its own end time once it plays.
+            appleRunExpectedEnd = nil
+        case .appleStation, .relay:
+            break
+        }
     }
 
     func addToQueue(_ item: PlayableContent) async throws {
@@ -519,17 +623,22 @@ final class LocalPlaybackService {
     /// playlist a tapped row belongs to, say, which the row itself doesn't
     /// carry. A single container needs none: it is its own origin.
     func enqueue(_ contents: [PlayableContent], at position: QueuePosition, shuffle: Bool = false, from origin: PlayableContent? = nil) async throws {
-        let wasEmpty = !isActive
         var items: [PlayableContent] = []
+        /// Where each run of `items` came from: the caller's origin, else a
+        /// container stands in for its own tracks.
+        var runs: [(origin: PlayableContent?, items: [PlayableContent])] = []
         /// Containers whose first page is in `items`; the rest follows once
         /// playback is underway.
         var containers: [(content: PlayableContent, loaded: Int)] = []
         for content in contents {
             if canPlayLocally(content) {
                 items.append(content)
+                runs.append((origin, [content]))
             } else if canPlayContainerLocally(content) {
-                let page = await containerTracks(for: content, offset: 0)
-                items += shuffle ? page.shuffled() : page
+                var page = await containerTracks(for: content, offset: 0)
+                if shuffle { page.shuffle() }
+                items += page
+                runs.append((origin ?? content, page))
                 containers.append((content, page.count))
             }
         }
@@ -541,19 +650,18 @@ final class LocalPlaybackService {
         case .end: try await addToQueue(items)
         }
 
-        // Only the Play that made the queue names its origin: adding behind
-        // an existing queue leaves the run it joins as what it was. A lone
-        // container stands in for itself when the caller named nothing —
-        // that is the playlist or album that was tapped.
-        if [.now, .replace].contains(position) || wasEmpty {
-            source = origin ?? (contents.count == 1 ? contents.first.flatMap { canPlayContainerLocally($0) ? $0 : nil } : nil)
+        // Every run names its own origin, whether it made the queue or was
+        // added to one: an album played next inside an artist's run is still
+        // that album. `play` cleared the old ones when this replaced them.
+        for run in runs {
+            setOrigin(run.origin, for: run.items)
         }
 
         // Playing already, so the tail can arrive behind it.
         guard !containers.isEmpty else { return }
         Task {
             for container in containers {
-                await appendRemainder(of: container.content, from: container.loaded, shuffle: shuffle)
+                await appendRemainder(of: container.content, from: container.loaded, shuffle: shuffle, origin: origin)
             }
         }
     }
@@ -599,26 +707,33 @@ final class LocalPlaybackService {
     func togglePlayback() {
         switch backend {
         case .appleMusic, .appleStation:
-            if musicPlayer.state.playbackStatus == .playing {
+            // A tap still inside the last one's window goes by what that tap
+            // asked for; the player's own status may not have moved yet.
+            let playing = heldPlaying ?? (musicPlayer.state.playbackStatus == .playing)
+            if playing {
                 musicPlayer.pause()
             } else {
                 Task { try? await musicPlayer.play() }
             }
+            showRequested(playing: !playing)
         case .stream:
             guard let streamPlayer else { return }
             if streamPlayer.timeControlStatus == .paused {
                 streamPlayer.play()
+                showRequested(playing: true)
             } else {
                 streamPlayer.pause()
+                showRequested(playing: false)
             }
         case .relay:
             if stationRelay?.isPlaying == true {
                 // Live radio: stopping drops the connection, and Play opens
                 // the station again where it is now.
                 stationRelay?.stop()
-                isPlaying = false
+                showRequested(playing: false)
             } else if relayListener != nil {
                 startRelay()
+                showRequested(playing: true)
             } else {
                 // Live Transcription closed while paused: back to the player.
                 Task { try? await arm(at: currentIndex) }
@@ -641,10 +756,36 @@ final class LocalPlaybackService {
             streamPlayer?.pause()
         case .relay:
             stationRelay?.stop()
-            isPlaying = false
         case nil:
-            break
+            return
         }
+        showRequested(playing: false)
+    }
+
+    /// Flips the button now rather than on the next poll, and holds it there
+    /// while the player catches up.
+    private func showRequested(playing: Bool) {
+        requestedPlaying = (playing, Date.now.addingTimeInterval(1.5))
+        if isPlaying != playing { isPlaying = playing }
+    }
+
+    /// The requested state while it still outranks the poll.
+    private var heldPlaying: Bool? {
+        guard let requestedPlaying, requestedPlaying.until > .now else { return nil }
+        return requestedPlaying.playing
+    }
+
+    /// The polled state, unless a tap's request still holds and the player
+    /// hasn't caught up to it — then the request. Clears the hold once the
+    /// player agrees, so a later change (an interruption, the other end of
+    /// AirPlay) isn't masked.
+    private func reconcilePlaying(_ polled: Bool) -> Bool {
+        guard let held = heldPlaying else {
+            requestedPlaying = nil
+            return polled
+        }
+        if held == polled { requestedPlaying = nil }
+        return held
     }
 
     func setRepeatMode(_ mode: RepeatMode) {
@@ -669,6 +810,63 @@ final class LocalPlaybackService {
             truncateArmedRunAfterCurrent()
         }
         queue[start...].shuffle()
+    }
+
+    /// Drops everything after the current track. The current track plays on
+    /// and playback stops when it ends (or loops it, under Repeat).
+    func clearUpNext() {
+        let start = currentIndex + 1
+        guard start < queue.count else { return }
+        if runEnd > currentIndex {
+            truncateArmedRunAfterCurrent()
+        }
+        queue.removeSubrange(start...)
+    }
+
+    /// Removes queue rows after the current track. Played rows and the
+    /// current one stay: the armed run maps player entries to queue indices
+    /// up to the current track, and moving those would point it at the
+    /// wrong rows.
+    func removeFromQueue(at indices: IndexSet) {
+        let upcoming = indices.filter { $0 > currentIndex && $0 < queue.count }
+        guard !upcoming.isEmpty else { return }
+        if runEnd > currentIndex {
+            truncateArmedRunAfterCurrent()
+        }
+        var updated = queue
+        for index in upcoming.sorted(by: >) {
+            updated.remove(at: index)
+        }
+        queue = updated
+    }
+
+    /// Reorders rows after the current track. Offsets are queue indices, in
+    /// the shape `onMove` hands them over; a move into or above the current
+    /// track lands just after it.
+    func moveInQueue(from source: IndexSet, to destination: Int) {
+        let start = currentIndex + 1
+        let upcoming = source.filter { $0 >= start && $0 < queue.count }
+        guard !upcoming.isEmpty else { return }
+        if runEnd > currentIndex {
+            truncateArmedRunAfterCurrent()
+        }
+        // `onMove`'s destination counts the moved rows still in place, so
+        // the insertion point shifts up by those taken from above it.
+        let target = min(max(destination, start), queue.count)
+        let moved = upcoming.sorted().map { queue[$0] }
+        var updated = queue
+        for index in upcoming.sorted(by: >) {
+            updated.remove(at: index)
+        }
+        let insertAt = target - upcoming.filter { $0 < target }.count
+        updated.insert(contentsOf: moved, at: insertAt)
+        queue = updated
+    }
+
+    /// Moves an upcoming row to play right after the current track.
+    func moveToNext(at index: Int) {
+        guard index > currentIndex + 1, index < queue.count else { return }
+        moveInQueue(from: [index], to: currentIndex + 1)
     }
 
     /// Pauses `duration` from now. Replaces any timer already running,
@@ -704,6 +902,17 @@ final class LocalPlaybackService {
     }
 
     func next() {
+        // An Apple station skips to its own next song, not past itself.
+        if backend == .appleStation {
+            Task {
+                do {
+                    try await musicPlayer.skipToNextEntry()
+                } catch {
+                    AlertService.shared.showAlert(with: "Couldn't skip this song", imageName: "exclamationmark.triangle")
+                }
+            }
+            return
+        }
         let target = currentIndex + 1
         guard target < queue.count else {
             if repeatMode == .all, !queue.isEmpty {
@@ -721,7 +930,10 @@ final class LocalPlaybackService {
                 Task { try? await musicPlayer.skipToNextEntry() }
             case .stream:
                 streamPlayer?.advanceToNextItem()
-            case .appleStation, .relay:
+            case .appleStation:
+                // Skipped within the station above.
+                break
+            case .relay:
                 // A station is its own run, so `target` is never inside it.
                 Task { try? await arm(at: target) }
             }
@@ -747,7 +959,7 @@ final class LocalPlaybackService {
         teardownRun()
         resumePosition = nil
         queue = []
-        source = nil
+        origins = [:]
         currentIndex = 0
         isPlaying = false
         isLoading = false
@@ -952,6 +1164,8 @@ final class LocalPlaybackService {
         runEnd = -1
         appleRun = []
         appleWasPlaying = false
+        appleRunExpectedEnd = nil
+        requestedPlaying = nil
         audioQualityTask?.cancel()
         audioQualityTask = nil
         audioQualityItem = nil
@@ -1022,14 +1236,49 @@ final class LocalPlaybackService {
         isLoading = true
         defer { if playToken == token { isLoading = false } }
 
-        // Resolve the whole run in one catalog request (cache-first), keeping
-        // track of which queue rows made it — a failed row is skipped, not
-        // fatal to the run.
+        let resolved = try await resolveAppleSongs(index...end)
+
+        // The user skipped elsewhere while we were resolving — that call owns
+        // playback now.
+        guard playToken == token else { return }
+        guard let first = resolved.first else {
+            // Nothing in this run resolved (e.g. region-unavailable tracks) —
+            // a lone track is an error worth surfacing, otherwise skip on.
+            if end + 1 < queue.count {
+                advancePastRun(endingAt: end)
+                return
+            }
+            throw LocalPlaybackError.songNotFound
+        }
+
+        musicPlayer.queue = ApplicationMusicPlayer.Queue(for: resolved.map(\.song), startingAt: first.song)
+        if let resume, resume > 0 {
+            // Point the player partway in before it starts. A seek issued
+            // after `play()` returns is dropped while the entry is still
+            // preparing, which started a hand-off's track from the top.
+            try await musicPlayer.prepareToPlay()
+            guard playToken == token else { return }
+            musicPlayer.playbackTime = resume
+        }
+        try await musicPlayer.play()
+        guard playToken == token else { return }
+
+        appleRun = resolved
+        backend = .appleMusic
+        runEnd = end
+        currentIndex = first.queueIndex
+        duration = first.song.duration ?? catalogDuration(at: first.queueIndex)
+    }
+
+    /// Resolves the Apple rows in `rows` into `Song`s in one catalog request
+    /// (cache-first), keeping track of which queue rows made it — a failed
+    /// row is skipped, not fatal to the run.
+    private func resolveAppleSongs(_ rows: ClosedRange<Int>) async throws -> [(queueIndex: Int, song: Song)] {
         var resolved: [(queueIndex: Int, song: Song)] = []
         var missing: [(queueIndex: Int, catalogID: String)] = []
         var cacheChanged = false
-        for queueIndex in index...end {
-            let item = queue[queueIndex]
+        for queueIndex in rows {
+            guard let item = queue[safe: queueIndex] else { continue }
             // Library tracks resolve from the library itself. Going through the
             // catalog first was why playing one sometimes did nothing: a
             // library-only track — a matched upload, or a purchase Apple Music
@@ -1070,38 +1319,7 @@ final class LocalPlaybackService {
         if cacheChanged {
             SongDiskCache.save(songCache)
         }
-        resolved.sort { $0.queueIndex < $1.queueIndex }
-
-        // The user skipped elsewhere while we were resolving — that call owns
-        // playback now.
-        guard playToken == token else { return }
-        guard let first = resolved.first else {
-            // Nothing in this run resolved (e.g. region-unavailable tracks) —
-            // a lone track is an error worth surfacing, otherwise skip on.
-            if end + 1 < queue.count {
-                advancePastRun(endingAt: end)
-                return
-            }
-            throw LocalPlaybackError.songNotFound
-        }
-
-        musicPlayer.queue = ApplicationMusicPlayer.Queue(for: resolved.map(\.song), startingAt: first.song)
-        if let resume, resume > 0 {
-            // Point the player partway in before it starts. A seek issued
-            // after `play()` returns is dropped while the entry is still
-            // preparing, which started a hand-off's track from the top.
-            try await musicPlayer.prepareToPlay()
-            guard playToken == token else { return }
-            musicPlayer.playbackTime = resume
-        }
-        try await musicPlayer.play()
-        guard playToken == token else { return }
-
-        appleRun = resolved
-        backend = .appleMusic
-        runEnd = end
-        currentIndex = first.queueIndex
-        duration = first.song.duration ?? catalogDuration(at: first.queueIndex)
+        return resolved.sorted { $0.queueIndex < $1.queueIndex }
     }
 
     /// Hands an Apple Music station to the Apple player. Stations are
@@ -1406,6 +1624,58 @@ final class LocalPlaybackService {
         }
     }
 
+    /// Takes the Apple station's current entry as what's on air. The player
+    /// hands its entries' artwork over as a `musickit://` URL that only
+    /// MusicKit's own views can draw, so the real image is unwrapped from it
+    /// — and when there's none to unwrap, looked up the way a TuneIn song's
+    /// is. Compared by song rather than as a whole, so the cover and match a
+    /// lookup filled in aren't wiped on the next poll.
+    private func noteStationEntry(_ entry: ApplicationMusicPlayer.Queue.Entry) {
+        // A transient entry has no title yet; the next poll will.
+        guard !entry.title.isEmpty else { return }
+        let artwork = Self.drawableArtworkURL(entry.artwork?.url(width: 600, height: 600))
+        var match: PlayableContent?
+        if case .song(let song) = entry.item {
+            let base = song.toPlayable
+            let songArtwork = artwork ?? Self.drawableArtworkURL(base.artwork)
+            match = PlayableContent(
+                title: base.title,
+                subtitle: base.subtitle,
+                thumbnail: Self.drawableArtworkURL(base.thumbnail) ?? songArtwork,
+                artwork: songArtwork,
+                content: base.content,
+                previewURL: base.previewURL,
+                metadata: base.metadata
+            )
+        }
+        let artworkURL = artwork ?? match?.artwork
+
+        if let live = liveMetadata, live.song == entry.title, live.artist == entry.subtitle {
+            // The same song: fill in what arrived late, if anything did.
+            if live.artworkURL == nil, let artworkURL { liveMetadata?.artworkURL = artworkURL }
+            if live.match == nil, let match { liveMetadata?.match = match }
+            return
+        }
+
+        let live = LiveStationMetadata(song: entry.title, artist: entry.subtitle, artworkURL: artworkURL, match: match)
+        liveMetadata = live
+        if artworkURL == nil || match == nil {
+            let token = playToken
+            Task { await lookUpArtwork(for: live, token: token) }
+        }
+    }
+
+    /// An artwork URL the image pipeline can load: an `http(s)` one as is, or
+    /// the `https` one a `musickit://` URL wraps. Nil for anything else.
+    private static func drawableArtworkURL(_ url: URL?) -> URL? {
+        guard let url, let scheme = url.scheme?.lowercased() else { return nil }
+        if scheme == "http" || scheme == "https" { return url }
+        guard scheme == "musickit",
+              let range = url.absoluteString.range(of: #"https%3A%2F%2F[^&]+"#, options: .regularExpression),
+              let unwrapped = String(url.absoluteString[range]).removingPercentEncoding else { return nil }
+        return URL(string: unwrapped)
+    }
+
     /// The Apple Music song on air, while a station plays and one was found.
     var onAirMatch: PlayableContent? {
         guard let item = nowPlaying, isStation(item) else { return nil }
@@ -1680,22 +1950,17 @@ final class LocalPlaybackService {
             // re-rendered the whole screen twice a second, artwork and
             // blurred backdrop included, which is what made the scrubber's
             // fill stutter between polls.
-            let playing = status == .playing
+            let playing = reconcilePlaying(status == .playing)
             let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
             progress = Self.finite(musicPlayer.playbackTime, else: progress)
-            if playing { appleWasPlaying = true }
+            if status == .playing { appleWasPlaying = true }
             savePositionIfDue(paused: paused)
 
             // A station's entries are the songs it streams; the current one
             // is what's on air.
             if backend == .appleStation, let entry = musicPlayer.queue.currentEntry {
-                let live = LiveStationMetadata(
-                    song: entry.title,
-                    artist: entry.subtitle,
-                    artworkURL: entry.artwork?.url(width: 600, height: 600)
-                )
-                if live != liveMetadata { liveMetadata = live }
+                noteStationEntry(entry)
             }
 
             // Follow the player's own advance through the run.
@@ -1726,8 +1991,24 @@ final class LocalPlaybackService {
             // is the clean signal; the paused-at-the-end read covers OS
             // versions that park at `.paused` on the last entry instead.
             let onLastEntry = currentIndex >= (appleRun.last?.queueIndex ?? currentIndex)
+            if backend == .appleMusic {
+                if status == .playing, progress >= 1 {
+                    appleRunExpectedEnd = onLastEntry && duration > 0
+                        ? Date.now.addingTimeInterval(max(0, duration - progress))
+                        : nil
+                } else if status == .paused, progress >= 1, progress < duration - 0.75 {
+                    // Paused partway through: the clock stops with it.
+                    appleRunExpectedEnd = nil
+                }
+            }
+            // Past the end of the last entry by the clock, and parked either
+            // at its end or back at the top — some OS versions rewind the
+            // finished queue (to zero, or to its first entry) and read
+            // `.paused`. A pause partway through a track is neither.
+            let pastRunEnd = appleRunExpectedEnd.map { Date.now >= $0.addingTimeInterval(-1.5) } ?? false
             let ended = status == .stopped
                 || (status == .paused && onLastEntry && duration > 0 && progress >= duration - 0.75)
+                || (status == .paused && pastRunEnd && (progress < 1 || progress >= duration - 0.75))
             if appleWasPlaying, ended {
                 appleWasPlaying = false
                 let end = runEnd
@@ -1756,7 +2037,7 @@ final class LocalPlaybackService {
                 return
             }
             // Only what changed, as above.
-            let playing = streamPlayer.timeControlStatus != .paused
+            let playing = reconcilePlaying(streamPlayer.timeControlStatus != .paused)
             let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
             progress = Self.finite(current.currentTime().seconds, else: progress)
@@ -1782,7 +2063,9 @@ final class LocalPlaybackService {
                 canSkip: currentIndex + 1 < queue.count
             )
         case .relay:
-            let playing = stationRelay?.isPlaying ?? false
+            // Reopening the station after a pause takes the relay a couple
+            // of seconds — longer than a tap's hold — and counts as playing.
+            let playing = reconcilePlaying((stationRelay?.isPlaying ?? false) || isLoading)
             if isPlaying != playing { isPlaying = playing }
             nowPlayingCard.update(
                 item: nowPlayingDisplay,
@@ -1816,7 +2099,7 @@ final class LocalPlaybackService {
         }
         isRestoring = true
         defer { isRestoring = false }
-        source = saved.source
+        origins = saved.origins
         let current = saved.queue[safe: saved.position.index]
         let currentKept = current.flatMap { kept.firstIndex(of: $0) }
         queue = kept
@@ -1864,12 +2147,12 @@ final class LocalPlaybackService {
         LocalQueueStore.save(position: .init(index: currentIndex, progress: progress, duration: duration, repeatMode: repeatMode))
     }
 
-    /// Writes what the queue was played from, so the player still names the
-    /// origin after a relaunch. Written only when it changes, which is once
-    /// per Play.
+    /// Writes where the queued tracks were played from, so the player still
+    /// names the origin after a relaunch. Written only when it changes: once
+    /// per Play, and once per page a long container adds behind it.
     private func saveSource() {
         guard !isRestoring else { return }
-        LocalQueueStore.save(source: source)
+        LocalQueueStore.save(origins: origins)
     }
 
     /// The poll's version: every few seconds of progress, and at the moment
@@ -2053,8 +2336,8 @@ private enum LocalQueueStore {
     struct Saved {
         var queue: [PlayableContent]
         var position: Position
-        /// What the queue was played from, when it was played from anything.
-        var source: PlayableContent?
+        /// Where each queued track was played from, by track ID.
+        var origins: [String: PlayableContent]
     }
 
     private static var queueURL: URL? {
@@ -2077,9 +2360,9 @@ private enum LocalQueueStore {
         let position = UserDefaults.standard.data(forKey: positionKey)
             .flatMap { try? JSONDecoder().decode(Position.self, from: $0) }
             ?? Position(index: 0, progress: 0, duration: 0, repeatMode: .off)
-        let source = UserDefaults.standard.data(forKey: sourceKey)
-            .flatMap { try? JSONDecoder().decode(PlayableContent.self, from: $0) }
-        return Saved(queue: queue, position: position, source: source)
+        let origins = UserDefaults.standard.data(forKey: sourceKey)
+            .flatMap { Origins.decode($0, queue: queue) } ?? [:]
+        return Saved(queue: queue, position: position, origins: origins)
     }
 
     static func save(queue: [PlayableContent], waitUntilDone: Bool = false) {
@@ -2100,11 +2383,47 @@ private enum LocalQueueStore {
         UserDefaults.standard.set(data, forKey: positionKey)
     }
 
-    static func save(source: PlayableContent?) {
-        guard let source, let data = try? JSONEncoder().encode(source) else {
+    static func save(origins: [String: PlayableContent]) {
+        guard !origins.isEmpty, let data = try? JSONEncoder().encode(Origins(origins)) else {
             return UserDefaults.standard.removeObject(forKey: sourceKey)
         }
         UserDefaults.standard.set(data, forKey: sourceKey)
+    }
+
+    /// The origins as saved: each distinct one once, and each track ID
+    /// pointing at its index — a 1,000-track playlist is one origin, not a
+    /// thousand copies of it.
+    private struct Origins: Codable {
+        var sources: [PlayableContent]
+        var tracks: [String: Int]
+
+        init(_ origins: [String: PlayableContent]) {
+            var sources: [PlayableContent] = []
+            var indices: [PlayableContent: Int] = [:]
+            var tracks: [String: Int] = [:]
+            for (id, origin) in origins {
+                if let index = indices[origin] {
+                    tracks[id] = index
+                } else {
+                    indices[origin] = sources.count
+                    tracks[id] = sources.count
+                    sources.append(origin)
+                }
+            }
+            self.sources = sources
+            self.tracks = tracks
+        }
+
+        /// Earlier builds saved one origin for the whole queue; it reads
+        /// back as the origin of every track in it.
+        static func decode(_ data: Data, queue: [PlayableContent]) -> [String: PlayableContent]? {
+            let decoder = JSONDecoder()
+            if let saved = try? decoder.decode(Origins.self, from: data) {
+                return saved.tracks.compactMapValues { saved.sources[safe: $0] }
+            }
+            guard let single = try? decoder.decode(PlayableContent.self, from: data) else { return nil }
+            return Dictionary(queue.map { ($0.id, single) }, uniquingKeysWith: { first, _ in first })
+        }
     }
 
     static func clear() {
