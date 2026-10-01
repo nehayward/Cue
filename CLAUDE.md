@@ -27,7 +27,7 @@ These rules apply to every session on the Mac (started with `Scripts/claude-remo
 - When you build the iOS app, run `Scripts/deploy-to-iphone.sh` instead of a simulator build. It builds the `Cue` scheme (Debug) for the connected iPhone, installs it and launches it. The user tests on the phone, so a change is not finished until it has been deployed.
 - On failure, it prints the compile errors and writes the full log to `build/device-build.log`. Fix the errors and run it again.
 - If it reports that no iPhone is connected, build for the simulator instead (`xcodebuild -project Cue.xcodeproj -scheme Cue -destination 'generic/platform=iOS Simulator' build`) and tell the user the phone was not reachable.
-- Other targets (Mac, TV, Watch, Cue Mini) build with `xcodebuild` as usual; only the iOS app is deployed.
+- Other targets (Mac, TV, Cue Mini) build with `xcodebuild` as usual; only the iOS app is deployed.
 
 ## Build & Development Commands
 
