@@ -95,6 +95,7 @@ The app is built around several Swift packages in `/Packages`:
 - **TV/** - tvOS app optimized for Apple TV
 - **Widgets/** - iOS/macOS widgets, controls and Live Activities (target kept, not embedded in the apps for now)
 - **PlayAction/** - Share sheet extension for queuing music
+- **Website/** - cue.dance, a Cloudflare Worker (see `Website/README.md`). Release pages and the in-app What's New JSON come from `Website/src/content/releases.js` (starting at 2026.1), and `/help` and `/releases/<version>` are opened by the app's web views
 
 ### Key Services
 - `SonosService.shared` - Central Sonos system management
