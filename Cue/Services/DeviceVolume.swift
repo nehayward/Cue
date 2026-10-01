@@ -29,7 +29,6 @@ final class DeviceVolume {
     @ObservationIgnored private var volumeView: MPVolumeView?
     @ObservationIgnored private var observation: NSKeyValueObservation?
     @ObservationIgnored private var systemVolumeObserver: NSObjectProtocol?
-    @ObservationIgnored private var foregroundObserver: NSObjectProtocol?
     /// The level a drag last asked for, not yet handed to the system.
     @ObservationIgnored private var pendingSystemLevel: Float?
     @ObservationIgnored private var lastSystemLevel: Float?
@@ -54,18 +53,12 @@ final class DeviceVolume {
             object: nil,
             queue: .main
         ) { [weak self] note in
-            guard let volume = note.userInfo?["Volume"] as? Float else { return }
+            // Only a real change. A route change posts here too, always
+            // with a volume of 0 whatever the level is, which dropped the
+            // slider to zero.
+            guard note.userInfo?["Reason"] as? String == "ExplicitVolumeChange",
+                  let volume = note.userInfo?["Volume"] as? Float else { return }
             MainActor.assumeIsolated { self?.update(Double(volume)) }
-        }
-        // And a read on the way back in, for a change made while away.
-        foregroundObserver = NotificationCenter.default.addObserver(
-            forName: UIApplication.didBecomeActiveNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.update(Double(AVAudioSession.sharedInstance().outputVolume))
-            }
         }
     }
 

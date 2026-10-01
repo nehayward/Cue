@@ -1,4 +1,5 @@
 import Defaults
+import MediaPlayer
 import MusicSearchKit
 import SonosKit
 import SwiftUI
@@ -1017,8 +1018,34 @@ private struct LocalVolumeControlView: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Volume")
         .accessibilityValue("\(Int((volume.level * 100).rounded())) percent")
+#if os(iOS) && !targetEnvironment(macCatalyst)
+        // While this row is up, the system's volume HUD stays away: iOS
+        // hides it whenever an `MPVolumeView` is on screen, and this slider
+        // already shows the level the buttons move.
+        .background {
+            HiddenSystemVolumeView()
+                .frame(width: 1, height: 1)
+                .accessibilityHidden(true)
+        }
+#endif
     }
 }
+
+#if os(iOS) && !targetEnvironment(macCatalyst)
+/// An invisible `MPVolumeView`, there only so the system skips its HUD.
+/// Not `isHidden` or zero alpha — iOS treats those as off screen and shows
+/// the HUD anyway.
+private struct HiddenSystemVolumeView: UIViewRepresentable {
+    func makeUIView(context: Context) -> MPVolumeView {
+        let view = MPVolumeView()
+        view.alpha = 0.0001
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: MPVolumeView, context: Context) {}
+}
+#endif
 
 // MARK: - Bottom toolbar
 
