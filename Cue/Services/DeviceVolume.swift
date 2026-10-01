@@ -28,6 +28,8 @@ final class DeviceVolume {
 
     @ObservationIgnored private var volumeView: MPVolumeView?
     @ObservationIgnored private var observation: NSKeyValueObservation?
+    @ObservationIgnored private var systemVolumeObserver: NSObjectProtocol?
+    @ObservationIgnored private var foregroundObserver: NSObjectProtocol?
     /// The level a drag last asked for, not yet handed to the system.
     @ObservationIgnored private var pendingSystemLevel: Float?
     @ObservationIgnored private var lastSystemLevel: Float?
@@ -40,11 +42,41 @@ final class DeviceVolume {
         observation = AVAudioSession.sharedInstance().observe(\.outputVolume, options: [.new]) { [weak self] _, change in
             guard let new = change.newValue else { return }
             Task { @MainActor [weak self] in
-                // `@Observable` notifies on every write, equal or not.
-                guard let self, self.level != Double(new) else { return }
-                self.level = Double(new)
+                self?.update(Double(new))
             }
         }
+        // The KVO above only fires while this app's audio session is active —
+        // with nothing playing (a relaunch, a paused queue) the hardware
+        // buttons moved the volume and the slider never heard. The system
+        // posts this on every change, active session or not.
+        systemVolumeObserver = NotificationCenter.default.addObserver(
+            forName: Notification.Name("SystemVolumeDidChange"),
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let volume = note.userInfo?["Volume"] as? Float else { return }
+            MainActor.assumeIsolated { self?.update(Double(volume)) }
+        }
+        // And a read on the way back in, for a change made while away.
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.update(Double(AVAudioSession.sharedInstance().outputVolume))
+            }
+        }
+    }
+
+    /// Takes a level the system reported. Skipped while a drag is being
+    /// written, so the system's stepped echo can't pull the slider back
+    /// under the finger.
+    private func update(_ value: Double) {
+        guard systemWriteTask == nil else { return }
+        // `@Observable` notifies on every write, equal or not.
+        guard level != value else { return }
+        level = value
     }
 
     func set(_ value: Double) {
