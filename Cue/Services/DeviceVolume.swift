@@ -99,10 +99,29 @@ final class DeviceVolume {
             // moved the volume since, and the next drag must not skip it.
             self?.lastSystemLevel = nil
             self?.systemWriteTask = nil
+            self?.scheduleDetach()
+        }
+    }
+
+    @ObservationIgnored private var detachTask: Task<Void, Never>?
+
+    /// Takes the hidden slider back out of the window a moment after the
+    /// last write. Left parked, it hid the system volume HUD everywhere in
+    /// the app, long after the player that used it had closed — iOS skips
+    /// the HUD while any `MPVolumeView` is in a window. The player keeps its
+    /// own for as long as it is on screen.
+    private func scheduleDetach() {
+        detachTask?.cancel()
+        detachTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, let self, self.systemWriteTask == nil else { return }
+            self.volumeView?.removeFromSuperview()
+            self.volumeView = nil
         }
     }
 
     private func writeSystem(_ value: Float) {
+        detachTask?.cancel()
         attach()
         guard let slider = volumeView?.subviews.compactMap({ $0 as? UISlider }).first else { return }
         slider.setValue(value, animated: false)
