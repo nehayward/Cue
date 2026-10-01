@@ -331,10 +331,19 @@ final class NowPlayingSessionService {
     /// feature off and put Live Activities back.
     /// Also off while the on-device player has a stream run armed: iOS
     /// shows one Now Playing app, and that player publishes its own card.
+    /// And off while the route points at this device and it has a queue,
+    /// whichever backend plays it: Apple Music publishes its own card, and a
+    /// mirror left up held the hardware volume for the speaker, so the
+    /// buttons moved the group while the phone's own slider sat greyed out.
     /// Read inside `evaluate()`'s observation, so the mirror comes back the
     /// moment local playback ends.
     private var canMirror: Bool {
-        isEnabled && !isRouteExternal && !LocalPlaybackService.shared.isPlayingLocalStream
+        isEnabled && !isRouteExternal && !LocalPlaybackService.shared.isPlayingLocalStream && !isPlayingOnDevice
+    }
+
+    /// The route points at this device and its player has something queued.
+    private var isPlayingOnDevice: Bool {
+        PlaybackRoute.shared.destination == .device && LocalPlaybackService.shared.isActive
     }
 
     /// The group the card mirrors. iOS has exactly one Now Playing app and one
