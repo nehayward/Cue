@@ -6,6 +6,23 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ## 2026.8
 
+### Plays reported to Plex and Subsonic servers
+Songs played on this device never reached the server: nothing called Subsonic's `scrobble` or Plex's `:/timeline`, so play counts, Recently Played, the server's Now Playing and Navidrome's Last.fm / ListenBrainz forwarding never saw Cue.
+
+- `PlayReporter` (app) is fed by `LocalPlaybackService`'s poll while the stream player is armed and ends the play from `teardownRun()`. One play per player item, so Repeat One and replays count again, while a seek back to the top doesn't.
+- Subsonic: `scrobble` with `submission=false` when the song starts, then `submission=true` (with `time` = when the play began) once `ListenTracker` says it has been heard. `ListenTracker` (MusicSearchKit, unit-tested) follows Last.fm's rule: songs of 30 s or more count after half their length or 4 minutes, whichever comes first. Only ordinary playback steps add up; seeks don't.
+- Plex: `:/timeline` reports `playing` every 10 s, `paused` on a pause and `stopped` when the song is left. The server counts the play itself from those reports, the same as for its own players, so there is no separate scrobble call to double-count.
+- Best effort: a report that fails (offline, a download played away from home) is dropped, not queued. Songs sent to a Sonos speaker are still not reported. The speaker fetches the Subsonic stream itself, and Plex on Sonos goes through Sonos.
+
+### Shorter hand-offs between runs on this device
+Within a same-service run the native player joins songs itself. The gaps were at the run boundaries:
+
+- A stream run's end is now caught by `AVPlayerItem.didPlayToEndTimeNotification` for the run's last item, so the next run arms at once instead of on the next half-second poll.
+- When the last song of a run has under 15 s left and the next run is Apple Music, its songs are resolved into the song cache ahead of time (`prepareNextRun()`), so the hand-off doesn't wait on a catalog request.
+- `cachedCopyLanded` no longer swaps the next player item for its cached file in the last 15 s of the current song. By then the player is already buffering that item to join the two, and the swap threw that buffer away.
+
+This is not sample-accurate gapless. MP3s without gapless info, and songs the server transcodes to MP3, still carry the encoder's padding, and switching between Apple Music and a stream still means changing players. Both need the `AVAudioEngine` backend in `Ideas/device-player-roadmap.md`.
+
 ### Settings crashed on open: RevenueCat was never configured
 Opening Preferences took the app down with RevenueCat's `Purchases has not been configured` fatal error. `AppBootstrapper.bootstrap()` — which configures `Purchases`, analytics, the remote flags and the Nuke pipeline — was only ever called from the root view's `onAppear`, and that block has been commented out since the TabView rewrite, so nothing ran it. Debug builds survive launch because `checkSubscription()` returns before touching the SDK; Preferences is the first screen that reads `Purchases.shared` directly (the app user ID in the About footer and the support `mailto:`), so that's where it surfaced.
 
