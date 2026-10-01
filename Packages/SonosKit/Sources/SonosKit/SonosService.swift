@@ -422,9 +422,8 @@ public final class SonosService {
         // Per-room state that `updateGroupsRooms` refreshes after the swap:
         // carry it by room ID so a regroup doesn't drop every slider to 0
         // until that read lands.
-        let currentRooms = Dictionary(rooms.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         for room in newGroups.flatMap(\.rooms) {
-            guard let current = currentRooms[room.id] else { continue }
+            guard let current = rooms.first(where: { $0.id == room.id }) else { continue }
             room.volume = current.volume
             room.isMuted = current.isMuted
             room.alarmRunning = current.alarmRunning
