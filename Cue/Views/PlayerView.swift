@@ -128,7 +128,10 @@ struct PlayerView: View {
             .animation(.interactiveSpring, value: showArtworkOnly)
             .padding(.horizontal, 32)
             .padding(.top, 8)
-            .safeAreaPadding(.bottom)
+            // The stack already keeps clear of the home indicator; padding
+            // by the inset again left the phone's bottom row floating a
+            // home indicator's height too high.
+            .safeAreaPadding(.bottom, isPhoneLayout ? 0 : nil)
             .ignoresSafeArea(.keyboard)
             .toolbar { toolbarContent }
             .navigationBarTitleDisplayMode(.inline)
@@ -1086,7 +1089,8 @@ private struct PlayerBottomToolbarView: View {
                     Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
                 }
             }
-            .padding(.vertical, 14)
+            .padding(.top, 14)
+            .padding(.bottom, UIDevice.current.userInterfaceIdiom == .phone ? 0 : 14)
             .padding(.horizontal, 28)
             .frame(maxWidth: 500)
         } else {
