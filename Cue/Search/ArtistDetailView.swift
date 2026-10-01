@@ -583,6 +583,15 @@ struct ArtistDetailView: View {
             await loadAppleTrackArtist()
         case (.libraryTrack, .apple):
             await loadAppleLibraryTrackArtist()
+            // The library song's catalog link goes through the web API's
+            // library ids, which a song from MusicKit doesn't have.
+            if artistContent == nil {
+                await loadAppleArtist(named: playableContent.metadata?.artist)
+            }
+        case (.libraryAlbum, .apple):
+            // The artist line on a library album. The album carries only the
+            // artist's name, so it's found in the catalog by that.
+            await loadAppleArtist(named: playableContent.metadata?.artist)
         case (.track, .spotify):
             await loadSpotifyTrackArtist()
         case (.album, .apple):
@@ -704,11 +713,23 @@ struct ArtistDetailView: View {
         if let linked = await MusicSearchService.shared.appleLibraryArtistLookup(id: playableContent.content.id)?.data.first?.id {
             return linked
         }
-        var request = MusicCatalogSearchRequest(term: playableContent.title, types: [Artist.self])
+        return await catalogArtistID(named: playableContent.title)
+    }
+
+    /// An Apple Music artist named exactly `name`, from a catalog search.
+    private func catalogArtistID(named name: String) async -> String? {
+        var request = MusicCatalogSearchRequest(term: name, types: [Artist.self])
         request.limit = 5
         guard let results = try? await request.response() else { return nil }
-        let name = playableContent.title.lowercased()
-        return results.artists.first { $0.name.lowercased() == name }?.id.rawValue
+        let wanted = name.lowercased()
+        return results.artists.first { $0.name.lowercased() == wanted }?.id.rawValue
+    }
+
+    /// The Apple Music artist called `name`, for library items that carry
+    /// only a name.
+    private func loadAppleArtist(named name: String?) async {
+        guard let name, !name.isEmpty, let id = await catalogArtistID(named: name) else { return }
+        await loadAppleArtist(id: id)
     }
 
     private func loadAppleTrackArtist() async {
