@@ -176,26 +176,6 @@ extension View {
         self.safeAreaInset(edge: edge, content: content)
     }
     
-    @ViewBuilder
-    func glassForegroundAudio() -> some View {
-    #if !os(visionOS)
-    if #available(iOS 26.0, *) {
-        self.glassEffect(.clear, in: .capsule)
-    } else {
-        self.background {
-            Capsule()
-                .foregroundStyle(.ultraThinMaterial)
-        }
-    }
-    #else
-    // visionOS fallback (or no-op)
-    self.background {
-        Capsule()
-            .foregroundStyle(.ultraThinMaterial)
-    }
-    #endif
-    }
-
     /// The A–Z index down a list's trailing edge. Skipped on Catalyst: on
     /// macOS 27 the index sticks in its scrubbing state, which blurs and
     /// dims every row while the section headers stay sharp. iPhone and iPad

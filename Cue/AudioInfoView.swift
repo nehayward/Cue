@@ -4,7 +4,8 @@ import SonosKit
 /// The lossless / Dolby Atmos badge in the scrubber row, expanding to bit
 /// depth and sample rate on a tap. Takes the quality itself so the local
 /// player can show what this device is decoding the same way the Sonos
-/// player shows what a speaker reported.
+/// player shows what a speaker reported. Plain text on the backdrop, like
+/// the times either side of it — no capsule behind it.
 struct AudioInfoView: View {
     var quality: SonosTrackQuality?
     @State private var showDetails: Bool = false
@@ -78,7 +79,6 @@ struct AudioInfoView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 4)
-                .glassForegroundAudio()
             } else {
                 Text(qualityString)
                     .padding(.horizontal, 4)

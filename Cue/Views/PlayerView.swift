@@ -65,6 +65,13 @@ struct PlayerView: View {
 #endif
     }
 
+    /// The phone's layout, after the system's Now Playing: the artwork at
+    /// the top and the title and controls spread down the rest of the
+    /// screen, with bigger transport. iPad and the Mac keep the tight stack.
+    private var isPhoneLayout: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone
+    }
+
     /// Only on the Mac, where the player slides up instead of zooming. On
     /// iPhone and iPad the artwork fills most of the screen, and the drag
     /// interaction behind `.draggable` claims the touch before the zoom's
@@ -199,40 +206,79 @@ struct PlayerView: View {
             .opacity(isArtworkVisible ? 1 : 0)
             .animation(.interactiveSpring, value: isArtworkVisible)
 
-        // Where the queue was played from, in the slot the speaker's
-        // container line takes — the album when there is no origin, and the
-        // station's name when a station is playing. Fixed height so the
-        // layout doesn't shift between tracks that have one and tracks that
-        // don't.
+        if isPhoneLayout {
+            Spacer(minLength: 12)
+            localAlbumLine(item)
+            LocalSongTitleButton(item: item, target: playback.onAirMatch)
+            LocalArtistButton(item: item, target: playback.onAirMatch, showArtworkOnly: showArtworkOnly)
+
+            if !showArtworkOnly {
+                Group {
+                    LocalPlaybackScrubber()
+                        .padding(.top, 4)
+                    Spacer(minLength: 4)
+                    LocalMediaControlsView(isProminent: true)
+                    Spacer(minLength: 4)
+                    LocalVolumeControlView()
+                        .padding(.horizontal, -12)
+                        .frame(maxWidth: 500)
+                    PlayerBottomToolbarView(group: nil, showQueue: $showQueue)
+                }
+                .transition(.opacity.combined(with: .push(from: .bottom)))
+            }
+        } else {
+            localAlbumLine(item)
+            // While a station plays, a tap opens the song on air once Apple
+            // Music has it — named by the station or by Shazam.
+            LocalSongTitleButton(item: item, target: playback.onAirMatch)
+            LocalArtistButton(item: item, target: playback.onAirMatch, showArtworkOnly: showArtworkOnly)
+
+            if !showArtworkOnly {
+                VStack {
+                    LocalPlaybackScrubber()
+                    LocalMediaControlsView()
+                }
+                .geometryGroup()
+                .transition(.opacity.combined(with: .push(from: .bottom)))
+
+                VStack {
+                    LocalVolumeControlView()
+                        .padding(.bottom, 20)
+                        .padding(.horizontal, -12)
+                        .frame(maxWidth: 500)
+
+                    PlayerBottomToolbarView(group: nil, showQueue: $showQueue)
+                }
+                .transition(.opacity)
+            }
+        }
+    }
+
+    /// Where the queue was played from, in the slot the speaker's container
+    /// line takes — the album when there is no origin, and the station's
+    /// name when a station is playing. Fixed height so the layout doesn't
+    /// shift between tracks that have one and tracks that don't.
+    private func localAlbumLine(_ item: PlayableContent) -> some View {
         LocalAlbumButton(
             item: item,
             source: playback.source,
             stationTitle: item.content.type.isRadio ? (playback.nowPlaying?.title ?? "") : nil
         )
         .frame(height: 12)
-        // While a station plays, a tap opens the song on air once Apple
-        // Music has it — named by the station or by Shazam.
-        LocalSongTitleButton(item: item, target: playback.onAirMatch)
-        LocalArtistButton(item: item, target: playback.onAirMatch, showArtworkOnly: showArtworkOnly)
+    }
 
-        if !showArtworkOnly {
-            VStack {
-                LocalPlaybackScrubber()
-                LocalMediaControlsView()
-            }
-            .geometryGroup()
-            .transition(.opacity.combined(with: .push(from: .bottom)))
-
-            VStack {
-                LocalVolumeControlView()
-                    .padding(.bottom, 20)
-                    .padding(.horizontal, -12)
-                    .frame(maxWidth: 500)
-
-                PlayerBottomToolbarView(group: nil, showQueue: $showQueue)
-            }
-            .transition(.opacity)
+    /// The like button and the menu for this device, in the navigation bar.
+    @ViewBuilder
+    private func localNavigationButtons(_ item: PlayableContent) -> some View {
+        // The song on air, while a station plays and Apple Music has it.
+        if let song = playback.onAirMatch {
+            LikeButtonView(content: song)
+                .id(song.content.id)
+        } else if item.content.service.supportsFavoriteTrack {
+            LikeButtonView(content: item)
         }
+        LocalPlayerMenuView(item: item, showArtworkOnly: $showArtworkOnly)
+            .tint(.primary)
     }
 
     // MARK: - A speaker
@@ -294,35 +340,45 @@ struct PlayerView: View {
                 .opacity(isArtworkVisible ? 1 : 0)
                 .animation(.interactiveSpring, value: isArtworkVisible)
 
-            VStack {
-                if group.coordinatorRoom.container != nil {
-                    TrackContainerView(group: group)
-                        .transition(.opacity)
-                        .contentTransition(.identity)
-                } else {
-                    Text(group.coordinatorRoom.radioStation ?? "")
-                        .font(.caption.smallCaps())
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1, reservesSpace: true)
-                        .contentTransition(.identity)
-                }
-            }
-            .animation(.default, value: group.coordinatorRoom.container != nil)
-            .frame(height: 12)
-            GroupSongTitleButton(group: group)
-            GroupArtistButton(group: group, showArtworkOnly: showArtworkOnly)
+            if isPhoneLayout {
+                Spacer(minLength: 12)
+                groupContainerLine(group)
+                GroupSongTitleButton(group: group)
+                GroupArtistButton(group: group, showArtworkOnly: showArtworkOnly)
 
-            if !showArtworkOnly {
-                VStack {
-                    GroupPlaybackScrubber(group: group)
-                    GroupMediaControlsView(group: group, shouldFade: $shouldFade)
+                if !showArtworkOnly {
+                    Group {
+                        GroupPlaybackScrubber(group: group)
+                            .padding(.top, 4)
+                        Spacer(minLength: 4)
+                        GroupMediaControlsView(group: group, shouldFade: $shouldFade, isProminent: true)
+                        Spacer(minLength: 4)
+                        VolumeControlView(group: group)
+                            .padding(.horizontal, -12)
+                            .frame(maxWidth: 500)
+                        PlayerBottomToolbarView(group: group, showQueue: $showQueue)
+                    }
+                    .transition(.opacity.combined(with: .push(from: .bottom)))
                 }
-                .geometryGroup()
-                .transition(.opacity.combined(with: .push(from: .bottom)))
+            } else {
+                groupContainerLine(group)
+                GroupSongTitleButton(group: group)
+                GroupArtistButton(group: group, showArtworkOnly: showArtworkOnly)
+
+                if !showArtworkOnly {
+                    VStack {
+                        GroupPlaybackScrubber(group: group)
+                        GroupMediaControlsView(group: group, shouldFade: $shouldFade)
+                    }
+                    .geometryGroup()
+                    .transition(.opacity.combined(with: .push(from: .bottom)))
+                }
             }
         }
 
-        if !showArtworkOnly || group.TVMode {
+        // The phone draws the volume and the bottom row with the transport
+        // above; TV mode, which has no transport, still draws them here.
+        if (!showArtworkOnly && !isPhoneLayout) || group.TVMode {
             VStack {
                 VolumeControlView(group: group)
                     .padding(.bottom, 20)
@@ -333,6 +389,25 @@ struct PlayerView: View {
             }
             .transition(.opacity)
         }
+    }
+
+    /// The playlist or album the speaker is playing from, or the station.
+    private func groupContainerLine(_ group: GroupRoom) -> some View {
+        VStack {
+            if group.coordinatorRoom.container != nil {
+                TrackContainerView(group: group)
+                    .transition(.opacity)
+                    .contentTransition(.identity)
+            } else {
+                Text(group.coordinatorRoom.radioStation ?? "")
+                    .font(.caption.smallCaps())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1, reservesSpace: true)
+                    .contentTransition(.identity)
+            }
+        }
+        .animation(.default, value: group.coordinatorRoom.container != nil)
+        .frame(height: 12)
     }
 
     // MARK: - Toolbar
@@ -383,16 +458,7 @@ struct PlayerView: View {
                     .tint(.primary)
                     .modifier(GroupRefreshOnForegroundModifier())
             } else if let item = playback.nowPlaying {
-                // The song on air, while a station plays and Apple
-                // Music has it.
-                if let song = playback.onAirMatch {
-                    LikeButtonView(content: song)
-                        .id(song.content.id)
-                } else if item.content.service.supportsFavoriteTrack {
-                    LikeButtonView(content: item)
-                }
-                LocalPlayerMenuView(item: item, showArtworkOnly: $showArtworkOnly)
-                    .tint(.primary)
+                localNavigationButtons(item)
             }
             // iPad's queue toggle, up here with the other controls rather
             // than in the glass row under the volume, where it reflowed with
@@ -804,6 +870,12 @@ private struct LocalMediaControlsView: View {
     private var isStation: Bool { playback.isPlayingStation }
     private var canSkip: Bool { !isStation || playback.isPlayingAppleStation }
 
+    /// The phone's player — see `GroupMediaControlsView.isProminent`.
+    var isProminent: Bool = false
+
+    private var skipSize: CGFloat { isProminent ? 38 : 32 }
+    private var playSize: CGFloat { isProminent ? 40 : 32 }
+
     var body: some View {
         HStack {
             if !isStation {
@@ -814,7 +886,7 @@ private struct LocalMediaControlsView: View {
                     Image(systemName: "backward.fill")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 32, height: 32)
+                        .frame(width: skipSize, height: skipSize)
                 }
                 .buttonStyle(.liveActivity)
                 .accessibilityLabel("Previous")
@@ -823,7 +895,7 @@ private struct LocalMediaControlsView: View {
             } else if canSkip {
                 // Holds Previous's place so Play stays centred.
                 Color.clear
-                    .frame(width: 32, height: 32)
+                    .frame(width: skipSize, height: skipSize)
                     .accessibilityHidden(true)
 
                 Spacer()
@@ -838,7 +910,7 @@ private struct LocalMediaControlsView: View {
                     .scaledToFit()
                     .contentTransition(.symbolEffect(.automatic))
                     .symbolEffect(.pulse, isActive: playback.isLoading)
-                    .frame(width: 32, height: 32)
+                    .frame(width: playSize, height: playSize)
             }
             .buttonStyle(.liveActivity)
             .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
@@ -853,15 +925,15 @@ private struct LocalMediaControlsView: View {
                     Image(systemName: "forward.fill")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 32, height: 32)
+                        .frame(width: skipSize, height: skipSize)
                 }
                 .buttonStyle(.liveActivity)
                 .accessibilityLabel("Next")
                 .disabled(!playback.hasNext)
             }
         }
-        .frame(maxWidth: canSkip ? 300 : nil)
-        .padding(.horizontal, 60)
+        .frame(maxWidth: canSkip ? (isProminent ? 320 : 300) : nil)
+        .padding(.horizontal, isProminent ? 36 : 60)
     }
 }
 

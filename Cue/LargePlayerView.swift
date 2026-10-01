@@ -542,8 +542,14 @@ struct GroupMediaControlsView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Bindable var group: GroupRoom
     @Binding var shouldFade: Bool
+    /// The phone's player: bigger glyphs, the skips spread wider, as in the
+    /// system's Now Playing.
+    var isProminent: Bool = false
 
     @State private var selectionTrack: Task<Void, Never>?
+
+    private var skipSize: CGFloat { isProminent ? 38 : 32 }
+    private var playSize: CGFloat { isProminent ? 40 : 32 }
 
     var body: some View {
         HStack {
@@ -574,7 +580,7 @@ struct GroupMediaControlsView: View {
                 Image(systemName: "backward.fill")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 32, height: 32)
+                    .frame(width: skipSize, height: skipSize)
             }
             .buttonStyle(.liveActivity)
             .accessibilityLabel("Previous")
@@ -597,7 +603,7 @@ struct GroupMediaControlsView: View {
                     .scaledToFit()
                     .contentTransition(.symbolEffect(.automatic))
                     .symbolEffect(.pulse, isActive: group.coordinatorRoom.isTransitioning)
-                    .frame(width: 32, height: 32)
+                    .frame(width: playSize, height: playSize)
 
             }
             .buttonStyle(.liveActivity)
@@ -629,14 +635,14 @@ struct GroupMediaControlsView: View {
                 Image(systemName: "forward.fill")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 32, height: 32)
+                    .frame(width: skipSize, height: skipSize)
             }
             .buttonStyle(.liveActivity)
             .accessibilityLabel("Next")
             .disabled(!group.availableActions.contains(.next))
         }
-        .frame(maxWidth: 300)
-        .padding(.horizontal, 60)
+        .frame(maxWidth: isProminent ? 320 : 300)
+        .padding(.horizontal, isProminent ? 36 : 60)
     }
 }
 
