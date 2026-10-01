@@ -7,6 +7,10 @@ final class RemoteFeatureFlags {
 
     enum Flag: String, CaseIterable {
         case lastFM
+        /// Live Transcription in the player — and the station relay it
+        /// plays through. On in debug builds; in release, off until the
+        /// flags endpoint turns it on.
+        case liveTranscription
     }
 
     private let url = URL(string: "https://api.cue.dance/flags")!

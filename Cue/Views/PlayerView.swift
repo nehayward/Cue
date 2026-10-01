@@ -84,10 +84,13 @@ struct PlayerView: View {
         shouldFade && !Router.main.isSkippingTrack
     }
 
-    /// Live Transcription can run here: a station is playing, on this device
-    /// or the speaker the route points at.
+    /// Live Transcription can run here: the feature is on (see
+    /// `RemoteFeatureFlags.Flag.liveTranscription`), and a station is
+    /// playing, on this device or the speaker the route points at.
     private var canTranscribe: Bool {
-        LiveTranscriptionService.isSupported && LiveTranscriptionService.isStationPlaying
+        RemoteFeatureFlags.shared.isEnabled(.liveTranscription)
+            && LiveTranscriptionService.isSupported
+            && LiveTranscriptionService.isStationPlaying
     }
 
     /// Live Transcription is on, in the trailing panel in the queue's place.
