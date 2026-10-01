@@ -4,8 +4,6 @@
 <dict>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<!-- The continued-processing task that keeps a download batch running
-		     and visible after the app leaves the foreground (ContinuedDownloadTask). -->
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).downloads</string>
 	</array>
 	<key>CFBundleDocumentTypes</key>
@@ -105,9 +103,6 @@
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>
-		<!-- Holds the silent session behind the Lock Screen Now Playing card
-		     (NowPlayingSessionService) so its controls keep working, and the
-		     Sonos WebSocket keeps delivering track changes, while backgrounded. -->
 		<string>audio</string>
 	</array>
 	<key>UTExportedTypeDeclarations</key>
