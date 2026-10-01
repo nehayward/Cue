@@ -73,16 +73,22 @@ private struct LocalNextUpView: View {
     @ViewBuilder
     private var controls: some View {
         Button {
-            HapticManager.shared.fireHaptic(.buttonPress)
+            HapticManager.shared.fireHaptic(.selection)
             withAnimation(.easeInOut(duration: 0.35)) {
-                playback.shuffleUpNext()
+                playback.setShuffle(!playback.isShuffled)
             }
         } label: {
-            Label("Shuffle Up Next", systemImage: "shuffle")
+            Label("Shuffle", systemImage: "shuffle")
                 .labelStyle(.iconOnly)
         }
-        .disabled(playback.upNext.count < 2)
-        .help("Shuffle Up Next")
+        // On or off at a glance, the way Repeat beside it reads. Untinted,
+        // it drew in the accent colour and looked on all the time.
+        .tint(playback.isShuffled ? Color.accentColor : Color.secondary)
+        .foregroundStyle(playback.isShuffled ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+        .accessibilityValue(playback.isShuffled ? "On" : "Off")
+        // Off stays reachable with nothing left to shuffle.
+        .disabled(!playback.isShuffled && playback.upNext.count < 2)
+        .help(playback.isShuffled ? "Shuffle On" : "Shuffle Off")
 
         Button {
             HapticManager.shared.fireHaptic(.selection)
@@ -124,9 +130,26 @@ private struct LocalNextUpView: View {
         .help("Queue Options")
     }
 
+    /// The queue's rows with an identity that follows the song rather than
+    /// its position: keyed by position, a dragged row and every row between
+    /// its old and new place changed identity, so the list swapped their
+    /// contents instead of sliding the one row. The same song queued twice
+    /// tells its copies apart by which occurrence each is.
+    private var rows: [(id: String, index: Int, item: PlayableContent)] {
+        var occurrences: [String: Int] = [:]
+        return playback.queue.enumerated().map { index, item in
+            let key = "\(item.content.service)/\(item.content.id)"
+            let occurrence = occurrences[key, default: 0]
+            occurrences[key] = occurrence + 1
+            return ("\(key)#\(occurrence)", index, item)
+        }
+    }
+
     private var list: some View {
         List {
-            ForEach(Array(playback.queue.enumerated()), id: \.offset) { index, item in
+            ForEach(rows, id: \.id) { row in
+                let index = row.index
+                let item = row.item
                 let isUpcoming = index > playback.currentIndex
                 QueueNextUpRow(
                     item: item,
@@ -183,7 +206,9 @@ private struct LocalNextUpView: View {
                 withAnimation { playback.removeFromQueue(at: offsets) }
             }
             .onMove { source, destination in
-                playback.moveInQueue(from: source, to: destination)
+                withAnimation(.snappy) {
+                    playback.moveInQueue(from: source, to: destination)
+                }
             }
         }
         .listStyle(.plain)

@@ -237,6 +237,14 @@ final class LocalPlaybackService {
     /// track, so the native player hands back at the end of each one instead
     /// of sailing on to the next.
     private(set) var repeatMode: RepeatMode = .off
+    /// Whether what's after the current track is in shuffled order. A
+    /// switch, like the system player's: on shuffles Up Next, off puts it
+    /// back. It used to be a one-off shuffle, which left no way back to the
+    /// album's order.
+    private(set) var isShuffled = false
+    /// Up Next in the order it had before shuffle went on, for putting it
+    /// back. Nil while shuffle is off.
+    @ObservationIgnored private var unshuffledUpNext: [PlayableContent]?
     /// When the sleep timer will pause playback, if one is running. Nil for
     /// none and for the end-of-track kind, which has no fixed time.
     private(set) var sleepTimerEndDate: Date?
@@ -469,6 +477,7 @@ final class LocalPlaybackService {
             let page = await containerTracks(for: container, offset: offset)
             guard !page.isEmpty else { return }
             offset += page.count
+            if shuffle, isShuffled { unshuffledUpNext?.append(contentsOf: page) }
             try? await addToQueue(shuffle ? page.shuffled() : page)
             setOrigin(origin ?? container, for: page)
         }
@@ -489,6 +498,10 @@ final class LocalPlaybackService {
         // one after this returns; a bare list of tracks has none.
         origins = [:]
         queue = playable
+        // A new queue is in the order it was given; `enqueue` says otherwise
+        // for a shuffled Play.
+        isShuffled = false
+        unshuffledUpNext = nil
         let start = items[safe: index].flatMap { playable.firstIndex(of: $0) } ?? 0
         // A new queue, so a restored position belongs to nothing in it.
         resumePosition = nil
@@ -621,6 +634,8 @@ final class LocalPlaybackService {
     /// carry. A single container needs none: it is its own origin.
     func enqueue(_ contents: [PlayableContent], at position: QueuePosition, shuffle: Bool = false, from origin: PlayableContent? = nil) async throws {
         var items: [PlayableContent] = []
+        /// `items` before any page was shuffled, for turning shuffle off.
+        var unshuffled: [PlayableContent] = []
         /// Where each run of `items` came from: the caller's origin, else a
         /// container stands in for its own tracks.
         var runs: [(origin: PlayableContent?, items: [PlayableContent])] = []
@@ -630,9 +645,11 @@ final class LocalPlaybackService {
         for content in contents {
             if canPlayLocally(content) {
                 items.append(content)
+                unshuffled.append(content)
                 runs.append((origin, [content]))
             } else if canPlayContainerLocally(content) {
                 var page = await containerTracks(for: content, offset: 0)
+                unshuffled += page
                 if shuffle { page.shuffle() }
                 items += page
                 runs.append((origin ?? content, page))
@@ -642,7 +659,18 @@ final class LocalPlaybackService {
         guard !items.isEmpty else { throw LocalPlaybackError.nothingPlayable }
 
         switch position {
-        case .now, .replace: try await play(items)
+        case .now, .replace:
+            try await play(items)
+            // Shuffle Play is shuffle switched on: it can be switched off
+            // again, back to the album's order.
+            if shuffle {
+                isShuffled = true
+                var original = unshuffled
+                if let current = queue[safe: currentIndex], let index = original.firstIndex(of: current) {
+                    original.remove(at: index)
+                }
+                unshuffledUpNext = original
+            }
         case .next, .front: try await playNext(items)
         case .end: try await addToQueue(items)
         }
@@ -817,10 +845,39 @@ final class LocalPlaybackService {
         }
     }
 
+    /// Turns shuffle on — Up Next in a random order — or off, back to the
+    /// order it had before. Songs added while shuffled keep their places
+    /// after the ones that were already there.
+    func setShuffle(_ on: Bool) {
+        guard on != isShuffled else { return }
+        let start = currentIndex + 1
+        if on {
+            isShuffled = true
+            unshuffledUpNext = start < queue.count ? Array(queue[start...]) : []
+            shuffleUpNext()
+            return
+        }
+        isShuffled = false
+        let original = unshuffledUpNext ?? []
+        unshuffledUpNext = nil
+        guard start < queue.count, !original.isEmpty else { return }
+        if runEnd > currentIndex {
+            truncateArmedRunAfterCurrent()
+        }
+        var remaining = Array(queue[start...])
+        var restored: [PlayableContent] = []
+        for item in original {
+            if let index = remaining.firstIndex(of: item) {
+                restored.append(remaining.remove(at: index))
+            }
+        }
+        queue.replaceSubrange(start..., with: restored + remaining)
+    }
+
     /// Reorders what follows the current track at random. The current track
     /// keeps playing; the run is cut off after it so the new order takes
     /// effect at the next track boundary.
-    func shuffleUpNext() {
+    private func shuffleUpNext() {
         let start = currentIndex + 1
         guard start + 1 < queue.count else { return }
         if runEnd > currentIndex {

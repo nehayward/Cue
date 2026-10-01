@@ -1227,6 +1227,7 @@ private struct PlayerBottomToolbarView: View {
             if group.playMode.contains(.repeatOne) { return "repeat.1.circle.fill" }
             return nil
         }
+        if playback.isShuffled { return "shuffle.circle.fill" }
         switch playback.repeatMode {
         case .all: return "repeat.circle.fill"
         case .one: return "repeat.1.circle.fill"
@@ -1330,12 +1331,14 @@ private struct LocalPlayerMenuView: View {
 
             ControlGroup {
                 Button {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    playback.shuffleUpNext()
+                    HapticManager.shared.fireHaptic(.selection)
+                    playback.setShuffle(!playback.isShuffled)
                 } label: {
-                    Label("Shuffle", systemImage: "shuffle")
+                    Label(playback.isShuffled ? "Shuffle On" : "Shuffle Off", systemImage: "shuffle")
                 }
-                .disabled(playback.upNext.count < 2)
+                .menuActionDismissBehavior(.disabled)
+                .tint(playback.isShuffled ? .accent : .secondary)
+                .disabled(!playback.isShuffled && playback.upNext.count < 2)
 
                 Button {
                     HapticManager.shared.fireHaptic(.selection)
