@@ -70,11 +70,11 @@ extension GroupRoom {
     /// `.active` (and polled until every request timed out), and kept one that
     /// came back stuck inactive.
     public var adoptionKey: String {
-        let rooms = rooms
+        let members = rooms
             .sorted { $0.id < $1.id }
             .map { "\($0.id)@\($0.ip)=\($0.state)" }
             .joined(separator: ",")
-        return "\(coordinatorID):\(rooms)"
+        return "\(coordinatorID):\(members)"
     }
 
     public var nameWithCount: String {
