@@ -50,6 +50,26 @@ final class PlaybackRoute {
 
     @ObservationIgnored private var observers: [Task<Void, Never>] = []
 
+    /// Each speaker's transport source, read when the Play On menu opened,
+    /// keyed by coordinator. Lets a hand-off picked from that menu skip the
+    /// read it would otherwise make before the first note.
+    @ObservationIgnored private var prefetched: [String: (service: PlaybackService, at: Date)] = [:]
+    @ObservationIgnored private var prefetchTask: Task<Void, Never>?
+    /// Long enough to cover reading the menu and tapping; short enough that
+    /// a speaker someone has since put on the radio isn't taken as still on
+    /// its queue.
+    private static let prefetchLifetime: TimeInterval = 10
+
+    /// How long each speaker took from Play to PLAYING on its last
+    /// hand-offs, keyed by coordinator. The overlapped hand-off seeks this
+    /// far ahead of the source so the two line up when the source stops.
+    @ObservationIgnored private var startupEstimates: [String: TimeInterval] = [:]
+    /// A first guess for a speaker not yet measured this launch.
+    private static let defaultStartup: TimeInterval = 0.8
+    /// Within this much of the end, the source would move on to the next
+    /// song before the speaker picks this one up, so the source stops first.
+    private static let overlapTailGuard: TimeInterval = 8
+
     private init() {
         destination = Self.storedDestination
         // Anything else that writes the destination shows up here: the group
@@ -154,6 +174,41 @@ final class PlaybackRoute {
                 await self.handOffToDevice(from: source)
             }
         }
+    }
+
+    /// Reads every other speaker's transport source ahead of a pick, so the
+    /// hand-off to whichever is chosen starts with its first real call. Run
+    /// when the Play On menu opens; nothing waits on it, and a hand-off that
+    /// finds no fresh read makes its own.
+    func prefetchTargets() {
+        let sonos = SonosService.shared
+        guard sonos.isEnabled else { return }
+        let targets = sonos.groups
+            .filter { $0.coordinatorID != destination.groupID }
+            .map { (id: $0.coordinatorID, ip: $0.ip) }
+        guard !targets.isEmpty else { return }
+        prefetchTask?.cancel()
+        prefetchTask = Task { [weak self] in
+            await withTaskGroup(of: (String, PlaybackService?).self) { taskGroup in
+                for target in targets {
+                    taskGroup.addTask {
+                        (target.id, await sonos.playbackService(ip: target.ip))
+                    }
+                }
+                for await (id, service) in taskGroup {
+                    guard let service, !Task.isCancelled else { continue }
+                    self?.prefetched[id] = (service, .now)
+                }
+            }
+        }
+    }
+
+    /// The menu-time read for `group` if it's still fresh, used once: the
+    /// hand-off is about to change the speaker's source itself.
+    private func takePrefetched(_ group: GroupRoom) -> PlaybackService? {
+        guard let entry = prefetched.removeValue(forKey: group.coordinatorID),
+              Date.now.timeIntervalSince(entry.at) < Self.prefetchLifetime else { return nil }
+        return entry.service
     }
 
     /// Whether switching to `target` would have something to carry, read
@@ -269,6 +324,7 @@ final class PlaybackRoute {
     /// speaker's is, when there is one and it isn't the target.
     private func handOffToGroup(_ target: GroupRoom, from source: GroupRoom?, fromDevice: Bool) async {
         let sonos = SonosService.shared
+        let began = ContinuousClock.now
         let snapshot: Snapshot?
         if fromDevice {
             snapshot = localSnapshot()
@@ -282,6 +338,13 @@ final class PlaybackRoute {
             Self.log.notice("route → \(target.nameWithCount, privacy: .public): nothing playing to carry over")
             return
         }
+        // When `snapshot.position` was true; a source still playing has
+        // moved on from it by however long has passed since.
+        let snapshotAt = ContinuousClock.now
+        func step(_ what: String) {
+            print("[handoff] \(Int(Self.seconds(ContinuousClock.now - began) * 1000))ms \(what)")
+        }
+        step("snapshot at \(String(format: "%.1f", snapshot.position))s, playing: \(snapshot.isPlaying)")
 
         // Files live in a folder on this device; no speaker can fetch them.
         let items = snapshot.items.filter { !$0.content.service.playsOnDeviceOnly }
@@ -294,27 +357,121 @@ final class PlaybackRoute {
         }
         Self.log.notice("route → \(target.nameWithCount, privacy: .public): carrying \(items.count) items from \(fromDevice ? "device" : "speaker", privacy: .public) at \(Int(snapshot.position))s")
 
-        // Take the phone down first so the two don't overlap — parked, not
-        // stopped: its queue stays, paused where it was, for the route
-        // coming back. Resumed below if the speaker refuses the content.
-        if fromDevice {
-            LocalPlaybackService.shared.park()
+        // How the source comes down. The phone is parked, not stopped: its
+        // queue stays, paused where it was, for the route coming back.
+        var sourceStopped = false
+        func stopSource() async {
+            guard !sourceStopped else { return }
+            sourceStopped = true
+            if fromDevice {
+                LocalPlaybackService.shared.park()
+            } else if let source {
+                await sonos.pause(ip: source.ip)
+            }
+            step("source stopped")
+        }
+
+        // Overlapped: the source plays on until the speaker is heard, so the
+        // switch has no silent gap, and the speaker starts far enough ahead
+        // to meet it. Not near the end of the song (the source would move on
+        // to the next one first) and not for anything that can't seek.
+        let canSeek = first.content.type.isTrack
+        // The item's own length when it carries one, else the source's.
+        let length = first.metadata?.duration.map(Self.seconds)
+            ?? (fromDevice ? LocalPlaybackService.shared.duration : (source?.coordinatorRoom.track.duration ?? 0) / 1000)
+        let remaining: TimeInterval? = length > 0 ? length - snapshot.position : nil
+        let overlap = canSeek && snapshot.isPlaying && (remaining ?? .infinity) > Self.overlapTailGuard
+        let estimate = startupEstimates[target.coordinatorID] ?? Self.defaultStartup
+        step("overlap: \(overlap), remaining: \(remaining.map { "\(Int($0))s" } ?? "unknown"), estimate: \(Int(estimate * 1000))ms")
+
+        // Not overlapping, the phone comes down first as it always has; a
+        // speaker source keeps playing until the target has started.
+        if !overlap, fromDevice {
+            await stopSource()
         }
 
         // The cached transport can be stale in the same way as above, and a
-        // stale `.queue` would skip pointing the speaker at its queue.
-        target.playbackService = await sonos.playbackService(ip: target.ip) ?? .unknown
+        // stale `.queue` would skip pointing the speaker at its queue. A read
+        // taken as the menu opened is recent enough to stand in.
+        if let service = takePrefetched(target) {
+            target.playbackService = service
+        } else {
+            target.playbackService = await sonos.playbackService(ip: target.ip) ?? .unknown
+        }
+        step("transport read: \(target.playbackService)")
         guard !Task.isCancelled else { return }
 
+        // Mid-song, the track is loaded at the offset before it starts (see
+        // `SonosService.cue`), so the speaker buffers once. Anything that
+        // can't seek, or a song barely begun and not overlapping, just starts.
+        let cueing = canSeek && (overlap || snapshot.position > 2)
+        var offset = snapshot.position
+        var path = "from start"
+        var startup: TimeInterval?
+
         do {
-            // The first track alone, so it starts now; the rest fill in
-            // behind it while it plays. One call for the lot meant the first
-            // note waited on every AddURIToQueue round trip.
-            try await sonos.queue(contents: [first], group: target, position: .replace, startIndex: 0)
+            if cueing {
+                if overlap {
+                    offset += Self.seconds(ContinuousClock.now - snapshotAt) + estimate
+                }
+                let landed = try await sonos.cue(first, on: target, at: offset)
+                step("cued at \(String(format: "%.1f", offset))s, seek accepted: \(landed)")
+                guard !Task.isCancelled else { return }
+                if landed {
+                    path = overlap ? "overlapped" : "seek first"
+                    if snapshot.isPlaying {
+                        // Unstructured, so it isn't cancelled under the wait:
+                        // the wrapper holds its optimistic state for a beat
+                        // after the command, and the wait shouldn't.
+                        let playSent = ContinuousClock.now
+                        let play = Task { await sonos.play(ip: target.ip) }
+                        step("play sent")
+                        if await sonos.waitUntilPlaying(ip: target.ip) {
+                            startup = Self.seconds(ContinuousClock.now - playSent)
+                            step("speaker playing")
+                        } else {
+                            step("speaker not playing after 4s")
+                        }
+                        // Speaker heard (or given up on): the source goes, even
+                        // if a newer switch is on its way — leaving both
+                        // playing would be the worse outcome.
+                        await stopSource()
+                        await play.value
+                    }
+                } else {
+                    // Refused while stopped: start it and seek once it has
+                    // the stream. The source stops first, so the speaker
+                    // picks up where it actually stopped.
+                    path = "fallback"
+                    if overlap {
+                        offset = snapshot.position + Self.seconds(ContinuousClock.now - snapshotAt)
+                    }
+                    await stopSource()
+                    await sonos.play(ip: target.ip)
+                    let settled = await sonos.waitUntilSettled(ip: target.ip)
+                    step("fallback: settled as \(settled)")
+                    guard !Task.isCancelled else { return }
+                    await sonos.seek(to: offset * 1000, on: target)
+                    step("fallback: seeked to \(String(format: "%.1f", offset))s")
+                    if !snapshot.isPlaying {
+                        await sonos.pause(ip: target.ip)
+                    }
+                }
+                target.coordinatorRoom.playbackPosition = offset * 1000
+            } else {
+                // The first track alone, so it starts now; the rest fill in
+                // behind it while it plays. One call for the lot meant the
+                // first note waited on every AddURIToQueue round trip.
+                try await sonos.queue(contents: [first], group: target, position: .replace, startIndex: 0)
+                step("queued and started from the top")
+                if !snapshot.isPlaying {
+                    await sonos.pause(ip: target.ip)
+                }
+            }
         } catch {
             guard !Task.isCancelled else { return }
             Self.log.error("route → \(target.nameWithCount, privacy: .public): replace failed: \(error.localizedDescription, privacy: .public)")
-            if fromDevice {
+            if fromDevice, sourceStopped {
                 await restoreLocal(snapshot)
             }
             guard !Task.isCancelled else { return }
@@ -325,21 +482,20 @@ final class PlaybackRoute {
             AlertService.shared.showAlert(with: "Couldn't move playback to \(target.nameWithCount)", imageName: "exclamationmark.triangle")
             return
         }
+        // A newer switch may be going back to a speaker source; leave it be.
         guard !Task.isCancelled else { return }
+        await stopSource()
 
-        if snapshot.position > 2 {
-            // Give the transport a moment to leave TRANSITIONING; a seek
-            // landing before that is dropped.
-            try? await Task.sleep(for: .milliseconds(600))
-            await sonos.seek(to: snapshot.position * 1000, on: target)
-            target.coordinatorRoom.playbackPosition = snapshot.position * 1000
+        if let startup {
+            // Weighted toward the latest: a speaker's own time varies with
+            // the service and the network, and one slow start shouldn't
+            // set the next overlap a second ahead.
+            let blended = (startupEstimates[target.coordinatorID].map { ($0 + startup) / 2 }) ?? startup
+            startupEstimates[target.coordinatorID] = min(max(blended, 0.2), 3)
         }
-        if !snapshot.isPlaying {
-            await sonos.pause(ip: target.ip)
-        }
-        if !fromDevice, let source {
-            await sonos.pause(ip: source.ip)
-        }
+        let total = Int(Self.seconds(ContinuousClock.now - began) * 1000)
+        let startupText = startup.map { "\(Int($0 * 1000))ms" } ?? "-"
+        print("[handoff] → \(target.nameWithCount): started in \(total)ms (\(path)), play→playing \(startupText), estimate was \(Int(estimate * 1000))ms")
 
         AlertService.shared.showAlertContent(
             with: first,
@@ -362,6 +518,11 @@ final class PlaybackRoute {
             Self.log.error("route → \(target.nameWithCount, privacy: .public): tail failed: \(error.localizedDescription, privacy: .public)")
             AlertService.shared.showAlert(with: "Some of the queue couldn't be added on \(target.nameWithCount)", imageName: "exclamationmark.triangle")
         }
+    }
+
+    private static func seconds(_ duration: Duration) -> TimeInterval {
+        let (seconds, attoseconds) = duration.components
+        return TimeInterval(seconds) + TimeInterval(attoseconds) / 1e18
     }
 
     /// Picks the parked queue back up where `park()` left it — the same

@@ -2322,6 +2322,26 @@ public final class SonosService {
         await api.isPlaying(ipAddress: ip)
     }
 
+    /// Returns once the transport has left TRANSITIONING, or after `timeout`
+    /// with whatever it last reported. A seek sent while the speaker is still
+    /// opening the stream is dropped, and a fixed wait for that either cost
+    /// time on a fast speaker or wasn't enough on a slow one. Asked directly
+    /// rather than read from the event socket so it holds whether or not the
+    /// socket is connected; one GetTransportInfo is a LAN round trip.
+    public func waitUntilSettled(
+        ip: String,
+        timeout: Duration = .milliseconds(1500),
+        interval: Duration = .milliseconds(100)
+    ) async -> PlaybackStatus {
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        var status = await getPlaybackInfo(ip: ip)
+        while status == .transitioning, ContinuousClock.now < deadline, !Task.isCancelled {
+            try? await Task.sleep(for: interval)
+            status = await getPlaybackInfo(ip: ip)
+        }
+        return status
+    }
+
     /// Probes every group's coordinator concurrently and returns the first one
     /// reporting `.playing`, cancelling the rest. Falls back to a group in TV
     /// mode if nothing is playing. Used by deeplinks/speedlaunch to avoid
@@ -3014,6 +3034,44 @@ public final class SonosService {
 
         try? await Task.sleep(for: .milliseconds(150))
         try? await updateGroups(from: [group])
+    }
+
+    /// Replaces the group's queue with one track and sets it `offset`
+    /// seconds in, without starting it — for carrying a song across mid-play.
+    ///
+    /// Seeking before Play means the speaker opens the stream once, at the
+    /// offset. Starting it and seeking after opened it twice: the first
+    /// second of the song, then a second buffering at the offset, and the
+    /// seek had to wait out TRANSITIONING or be dropped.
+    ///
+    /// Returns false when the speaker refused the seek while stopped; the
+    /// track is then loaded at its start, and the caller seeks after Play.
+    public func cue(_ track: PlayableContent, on group: GroupRoom, at offset: TimeInterval) async throws -> Bool {
+        if group.playbackService != .queue {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+            await markSwitchedToQueue(group: group)
+        }
+        await api.removeAllTrackFromQueue(IP: group.ip)
+        try await api.queuePlayable(playableContent: track, IP: group.ip, position: .end, shuffling: group.playMode.isShuffleEnabled)
+        // The seek needs a current track; after a clear there may be none.
+        await api.seek(trackNumber: 1, IP: group.ip)
+        return await api.seek(to: offset * 1000, IP: group.ip)
+    }
+
+    /// Returns true once the transport reports PLAYING, false if it hasn't
+    /// by `timeout`. Unlike `waitUntilSettled`, a STOPPED read keeps it
+    /// waiting: it's meant to run alongside a Play still in flight.
+    public func waitUntilPlaying(
+        ip: String,
+        timeout: Duration = .seconds(4),
+        interval: Duration = .milliseconds(50)
+    ) async -> Bool {
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        while ContinuousClock.now < deadline, !Task.isCancelled {
+            if await getPlaybackInfo(ip: ip) == .playing { return true }
+            try? await Task.sleep(for: interval)
+        }
+        return false
     }
 
     public func getQueue(ip: String, with startingIndex: Int? = nil, total: Int = 50) async -> [PlayableContent] {
