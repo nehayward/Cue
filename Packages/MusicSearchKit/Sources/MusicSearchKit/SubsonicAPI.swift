@@ -277,6 +277,25 @@ public final class SubsonicAPI: DirectStreamProvider {
         await song(for: id)?.starred != nil
     }
 
+    // MARK: - Play reporting
+
+    /// Tells the server about a play. `submission: false` puts the song on
+    /// the server's "now playing" list; `true` counts the play — the play
+    /// count, Recently Played, and whatever the server forwards on to
+    /// Last.fm or ListenBrainz. `startedAt` is when the play began, which is
+    /// the time those services file a listen under.
+    @discardableResult
+    public func scrobble(id: String, submission: Bool, startedAt: Date? = nil) async -> Bool {
+        var items = [
+            URLQueryItem(name: "id", value: id),
+            URLQueryItem(name: "submission", value: submission ? "true" : "false")
+        ]
+        if let startedAt {
+            items.append(URLQueryItem(name: "time", value: "\(Int64(startedAt.timeIntervalSince1970 * 1000))"))
+        }
+        return await get("scrobble", queryItems: items)?.isOK ?? false
+    }
+
     // MARK: - Media URLs
 
     /// The direct stream URL for a song — this is what the Sonos speaker

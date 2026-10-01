@@ -59,6 +59,15 @@ final class LocalPlaybackService {
                 }
             })
         }
+        // A stream run's last song ending is the cue to arm what follows,
+        // straight away rather than on the next poll — up to half a second
+        // of silence at every hand-off otherwise.
+        observers.append(Task { [weak self] in
+            for await note in NotificationCenter.default.notifications(named: AVPlayerItem.didPlayToEndTimeNotification) {
+                guard let item = note.object as? AVPlayerItem else { continue }
+                self?.streamItemDidFinish(ObjectIdentifier(item))
+            }
+        })
     }
 
     enum LocalPlaybackError: LocalizedError {
@@ -306,6 +315,9 @@ final class LocalPlaybackService {
     /// set by a restore, used by the first arm of that same track, and
     /// dropped by anything that arms a different one.
     @ObservationIgnored private var resumePosition: TimeInterval?
+    /// The first row of the run after the armed one, once its Apple songs
+    /// have been looked up ahead of the hand-off (see `prepareNextRun()`).
+    @ObservationIgnored private var preparedRunStart: Int?
     /// Debounces the queue's write to disk, for the same bursts as the cache.
     @ObservationIgnored private var queueSaveTask: Task<Void, Never>?
     /// True from a queue change until it has been written.
@@ -1115,12 +1127,46 @@ final class LocalPlaybackService {
         }
     }
 
+    /// How long before the end of a song the player is left to line up the
+    /// next one undisturbed, and the next run's songs are looked up.
+    private static let joinLeadTime: TimeInterval = 15
+
+    /// A stream player item played to its end. When it was the run's last,
+    /// the run is over: arm what follows now. Earlier items are the player
+    /// advancing within its run, which it does itself.
+    private func streamItemDidFinish(_ item: ObjectIdentifier) {
+        guard backend == .stream, streamPlayer != nil,
+              let queueIndex = streamRun[item], queueIndex == runEnd else { return }
+        let end = runEnd
+        teardownRun()
+        advancePastRun(endingAt: end)
+    }
+
+    /// Looks up the next run's Apple songs while the last song of this run
+    /// plays, so the hand-off at its end arms from the cache instead of
+    /// waiting on the catalog — the difference between a beat of silence
+    /// and a couple of seconds of it. Once per run; streams need nothing
+    /// ahead, since the playback cache already fetches the songs coming up.
+    private func prepareNextRun() {
+        let next = runEnd + 1
+        guard backend != nil, currentIndex == runEnd, preparedRunStart != next,
+              repeatMode != .one, !sleepsAtEndOfTrack,
+              queue.indices.contains(next), backendKind(for: queue[next]) == .appleMusic,
+              duration > 0, duration - progress < Self.joinLeadTime else { return }
+        preparedRunStart = next
+        let end = runEnd(from: next)
+        Task { _ = try? await resolveAppleSongs(next...end) }
+    }
+
     /// Silences whichever player is armed. Sets `backend` to nil first so the
     /// poll can't misread the teardown as a run ending.
     private func teardownRun() {
         let previous = backend
         backend = nil
+        // Whatever was playing has been left, wherever it got to.
+        PlayReporter.shared.end()
         runEnd = -1
+        preparedRunStart = nil
         appleRun = []
         appleWasPlaying = false
         appleRunExpectedEnd = nil
@@ -1347,6 +1393,13 @@ final class LocalPlaybackService {
             guard let queueIndex = streamRun[ObjectIdentifier(playerItem)],
                   queueIndex > currentIndex,
                   queue[safe: queueIndex]?.content.id == item.content.id else { continue }
+            // The player starts buffering the next song well before the
+            // current one ends, so it can join them without a gap. Swapping
+            // it out that close to the join throws the buffer away and
+            // opens the gap; the stream is already on its way by then.
+            if queueIndex == currentIndex + 1, duration > 0, duration - progress < Self.joinLeadTime {
+                return
+            }
             let replacement = AVPlayerItem(url: url)
             guard streamPlayer.canInsert(replacement, after: playerItem) else { return }
             streamPlayer.insert(replacement, after: playerItem)
@@ -1761,6 +1814,7 @@ final class LocalPlaybackService {
                     appleRunExpectedEnd = nil
                 }
             }
+            prepareNextRun()
             // Past the end of the last entry by the clock, and parked either
             // at its end or back at the top — some OS versions rewind the
             // finished queue (to zero, or to its first entry) and read
@@ -1811,6 +1865,7 @@ final class LocalPlaybackService {
             let total = current.duration.seconds
             let itemDuration = total.isFinite && total > 0 ? total : catalogDuration(at: currentIndex)
             if duration != itemDuration { duration = itemDuration }
+            prepareNextRun()
             if audioQualityItem != ObjectIdentifier(current) {
                 audioQualityItem = ObjectIdentifier(current)
                 readAudioQuality(of: current)
@@ -1821,6 +1876,14 @@ final class LocalPlaybackService {
                 duration: duration,
                 elapsed: progress,
                 canSkip: currentIndex + 1 < queue.count
+            )
+            // Plex and Subsonic hear about the play, as from their own apps.
+            PlayReporter.shared.observe(
+                streamRun[ObjectIdentifier(current)].flatMap { queue[safe: $0] },
+                playID: ObjectIdentifier(current),
+                position: progress,
+                duration: duration,
+                isPlaying: isPlaying
             )
         case nil:
             if isPlaying { isPlaying = false }

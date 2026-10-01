@@ -1,6 +1,7 @@
 # 2026.8
 
 –– New Features ––
+- Plays count on your server: songs you play on this device in Cue now show up in your Plex and Subsonic play counts, Recently Played and the server's Now Playing. Navidrome passes them on to Last.fm or ListenBrainz if you've set that up
 - Subsonic & Navidrome: Play your self-hosted music library on Sonos. Connect any Subsonic-compatible server (Navidrome, Airsonic, Gonic, and more) with its address and login under Settings ▸ Services, and your speakers stream your music straight from the server — no Sonos account involved, with your password kept in the device keychain
 - Subsonic search and browse: Search your server's songs, albums and artists alongside your other services, browse your whole library — Artists, Albums, Songs, Recently Added, and Playlists — and open artist pages complete with top songs and a playable discography
 - Subsonic playlists and favorites: Create playlists, add and remove songs, and delete playlists right from Cue; star songs with the heart in the player and menus, and preview any song before sending it to a speaker
@@ -13,6 +14,7 @@
 - Live Transcription: While a radio station plays, tap the captions button on the player (⇧⌘T on Mac) to see what's being said, written out live by a model that runs entirely on your device (iOS 26 and later). Works for TuneIn stations on this device, and for TuneIn and internet radio stations playing on your Sonos speakers. Pick any supported language — it downloads the first time — and Cue remembers it for each station. The switch stays how you left it between launches
 
 –– Bug Fixes & Improvements ––
+- Smoother changes between songs from different services on this device: Cue starts the next song the moment the last one ends, and looks up Apple Music songs ahead of time, so there's barely a pause going from your server to Apple Music and back
 - Fixed the Plex Albums and Artists lists stuttering as they scrolled — every page of albums that arrived was re-sorted into letter groups many times over
 - Discography on artist pages now starts fresh — it clears the queue and plays every album in order, oldest first, starting as soon as the first song is ready. Play Next and Play Last are still in the ••• menu
 - Restored the Favorite option in Deezer song menus — it had quietly gone missing from the ••• menu

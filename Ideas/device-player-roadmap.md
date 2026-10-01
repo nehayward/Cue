@@ -35,7 +35,7 @@ branch lands.
   Done when: shuffle survives relaunch and route hand-off to Sonos, and
   unshuffle puts the current song back at its original index.
 
-- [ ] **Report plays to Plex and Subsonic** — `claude/server-play-reporting`
+- [x] **Report plays to Plex and Subsonic** — `claude/server-play-reporting`
   Nothing calls Subsonic `scrobble` or Plex `:/timeline`, so server play
   counts, "recently played", and Navidrome's Last.fm / ListenBrainz
   forwarding never fire from Cue.
