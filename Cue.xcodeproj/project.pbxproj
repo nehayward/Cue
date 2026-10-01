@@ -80,10 +80,8 @@
 		E97563342B699B2400787E14 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E97562D42B699B2400787E14 /* VibesDS */; };
 		E97563352B699B2400787E14 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E97562CF2B699B2400787E14 /* SonosKit */; };
 		E97563362B699B2400787E14 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E97562D22B699B2400787E14 /* CloudStorage */; };
-		E975633C2B699B2400787E14 /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E97C0D412A325CC5005AB0E0 /* Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E97C0D432A325CC5005AB0E0 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */; };
 		E97C0D452A325CC5005AB0E0 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */; };
-		E97C0D542A325CC6005AB0E0 /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E97C0D412A325CC5005AB0E0 /* Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E97C0D5D2A326D25005AB0E0 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E97C0D5C2A326D25005AB0E0 /* SonosKit */; };
 		E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
 		E9A5412C2BD83F5800EAAF5C /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E9A5412B2BD83F5800EAAF5C /* VibesDS */; };
@@ -135,20 +133,6 @@
 			remoteGlobalIDString = E92E47422B360C5C00DE6647;
 			remoteInfo = PlayAction;
 		};
-		E97562CA2B699B2400787E14 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E97C0D402A325CC5005AB0E0;
-			remoteInfo = SonosWidgetExtension;
-		};
-		E97C0D522A325CC6005AB0E0 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E97C0D402A325CC5005AB0E0;
-			remoteInfo = SonosWidgetExtension;
-		};
 		E9D637782CEBF06D00434339 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
@@ -189,7 +173,6 @@
 				01F0B0BB2D28742200885D20 /* MacGlue.bundle in Embed Foundation Extensions */,
 				AA00CA0C0000000000000001 /* CueAction.appex in Embed Foundation Extensions */,
 				E9D637772CEBF06D00434339 /* QueueAction.appex in Embed Foundation Extensions */,
-				E975633C2B699B2400787E14 /* Widgets.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -202,7 +185,6 @@
 			files = (
 				AA00CA0B0000000000000001 /* CueAction.appex in Embed Foundation Extensions */,
 				E9249A652C0A6CCB00D8B920 /* QueueAction.appex in Embed Foundation Extensions */,
-				E97C0D542A325CC6005AB0E0 /* Widgets.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -875,7 +857,6 @@
 			);
 			dependencies = (
 				010858FE2D17BDF500DD9B84 /* PBXTargetDependency */,
-				E97562C92B699B2400787E14 /* PBXTargetDependency */,
 				E9D637792CEBF06D00434339 /* PBXTargetDependency */,
 				01F0B0BD2D28742200885D20 /* PBXTargetDependency */,
 				AA00CA100000000000000001 /* PBXTargetDependency */,
@@ -944,7 +925,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				E97C0D532A325CC6005AB0E0 /* PBXTargetDependency */,
 				E9249A672C0A6CCB00D8B920 /* PBXTargetDependency */,
 				AA00CA0F0000000000000001 /* PBXTargetDependency */,
 			);
@@ -1204,16 +1184,6 @@
 			isa = PBXTargetDependency;
 			target = E92E47422B360C5C00DE6647 /* QueueAction */;
 			targetProxy = E9249A662C0A6CCB00D8B920 /* PBXContainerItemProxy */;
-		};
-		E97562C92B699B2400787E14 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = E97C0D402A325CC5005AB0E0 /* Widgets */;
-			targetProxy = E97562CA2B699B2400787E14 /* PBXContainerItemProxy */;
-		};
-		E97C0D532A325CC6005AB0E0 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = E97C0D402A325CC5005AB0E0 /* Widgets */;
-			targetProxy = E97C0D522A325CC6005AB0E0 /* PBXContainerItemProxy */;
 		};
 		E9D637792CEBF06D00434339 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
