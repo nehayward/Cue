@@ -18,7 +18,8 @@ struct LocalDownloadMenuSection: View {
         if [.plex, .subsonic].contains(item.content.service) {
             if item.content.type == .track {
                 if manager.isDownloaded(item) {
-                    Button(role: .destructive) {
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
                         manager.removeDownload(item)
                     } label: {
                         Label("Remove Download", systemImage: "trash")
@@ -79,7 +80,8 @@ struct LocalDownloadMenuSection: View {
             } else if manager.canDownload(contentsOf: item) {
                 switch manager.containerState(for: item) {
                 case .downloaded:
-                    Button(role: .destructive) {
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
                         manager.removeDownload(contentsOf: item)
                         alertService.showAlertContent(with: item, subtitle: "Removed from this device", symbolName: "trash")
                     } label: {
@@ -146,7 +148,8 @@ struct LocalDownloadMenuSection: View {
                 case .downloading:
                     Label("Downloading from iCloud…", systemImage: "icloud.and.arrow.down")
                 case .local:
-                    Button(role: .destructive) {
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
                         files.removeFromDevice(trackIDs: [item.content.id])
                     } label: {
                         Label("Remove Download", systemImage: "icloud.slash")
@@ -160,7 +163,8 @@ struct LocalDownloadMenuSection: View {
                 } label: {
                     Label("Download from iCloud", systemImage: "icloud.and.arrow.down")
                 }
-                Button(role: .destructive) {
+                Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
                     cloudContainer(download: false)
                 } label: {
                     Label("Remove Downloads", systemImage: "icloud.slash")
