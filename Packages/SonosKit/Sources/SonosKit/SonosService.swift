@@ -229,6 +229,9 @@ public final class SonosService {
     @ObservationIgnored var liveUpdateObservers: [LiveListener: (GroupRoom) -> Void] = [:]
     @ObservationIgnored private var metadataTask: Task<Void, Never>?
     @ObservationIgnored private var hasAppliedGroupsCache = false
+    /// How long a topology change waits on per-room volume/mute before the
+    /// rooms are published. Healthy speakers answer well inside this.
+    private static let roomSeedDeadline: Duration = .seconds(2)
     @ObservationIgnored private var cachedIPVerified = false
     @ObservationIgnored private var attemptedTrackInfoUniques = Set<String>()
 
@@ -531,7 +534,22 @@ public final class SonosService {
         let newSig = Set(newGroup.map(\.topologyKey))
         let oldSig = Set(groups.map(\.topologyKey))
         if !newGroup.isEmpty, newSig != oldSig, !isGrouping {
-            await updateGroupsRooms(from: newGroup)
+            // Seed volume/mute before the rooms appear, but don't let one
+            // speaker that the topology lists as active and that never answers
+            // (unplugged, dropped off Wi-Fi) hold the whole list for the 15s
+            // request timeout. Rooms still unanswered at the deadline are
+            // cancelled and filled in by the watcher's next pass.
+            let deadline = Self.roomSeedDeadline
+            await withTaskGroup(of: Void.self) { taskGroup in
+                taskGroup.addTask { @MainActor [weak self] in
+                    await self?.updateGroupsRooms(from: newGroup)
+                }
+                taskGroup.addTask {
+                    try? await Task.sleep(for: deadline)
+                }
+                await taskGroup.next()
+                taskGroup.cancelAll()
+            }
             adoptGroups(newGroup)
             applyGroupsCacheIfMatching()
             refreshGroup = true
