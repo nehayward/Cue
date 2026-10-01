@@ -2312,6 +2312,26 @@ public final class SonosService {
         await api.isPlaying(ipAddress: ip)
     }
 
+    /// Returns once the transport has left TRANSITIONING, or after `timeout`
+    /// with whatever it last reported. A seek sent while the speaker is still
+    /// opening the stream is dropped, and a fixed wait for that either cost
+    /// time on a fast speaker or wasn't enough on a slow one. Asked directly
+    /// rather than read from the event socket so it holds whether or not the
+    /// socket is connected; one GetTransportInfo is a LAN round trip.
+    public func waitUntilSettled(
+        ip: String,
+        timeout: Duration = .milliseconds(1500),
+        interval: Duration = .milliseconds(100)
+    ) async -> PlaybackStatus {
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        var status = await getPlaybackInfo(ip: ip)
+        while status == .transitioning, ContinuousClock.now < deadline, !Task.isCancelled {
+            try? await Task.sleep(for: interval)
+            status = await getPlaybackInfo(ip: ip)
+        }
+        return status
+    }
+
     /// Probes every group's coordinator concurrently and returns the first one
     /// reporting `.playing`, cancelling the rest. Falls back to a group in TV
     /// mode if nothing is playing. Used by deeplinks/speedlaunch to avoid

@@ -328,9 +328,10 @@ final class PlaybackRoute {
         guard !Task.isCancelled else { return }
 
         if snapshot.position > 2 {
-            // Give the transport a moment to leave TRANSITIONING; a seek
-            // landing before that is dropped.
-            try? await Task.sleep(for: .milliseconds(600))
+            // A seek landing while the transport is still TRANSITIONING is
+            // dropped, so it waits for the speaker to say it has the stream.
+            _ = await sonos.waitUntilSettled(ip: target.ip)
+            guard !Task.isCancelled else { return }
             await sonos.seek(to: snapshot.position * 1000, on: target)
             target.coordinatorRoom.playbackPosition = snapshot.position * 1000
         }
