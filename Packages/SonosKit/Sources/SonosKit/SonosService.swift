@@ -3559,8 +3559,20 @@ public final class SonosService {
         guard liveSig == cache.topologySignature else { return }
 
         for cached in cache.groups {
-            guard let group = groups.first(where: { $0.coordinatorID == cached.coordinatorID }),
-                  group.coordinatorRoom.track.name.isEmpty else { continue }
+            guard let group = groups.first(where: { $0.coordinatorID == cached.coordinatorID }) else { continue }
+
+            // Runs before the first volume reads start, so these only stand
+            // in until `updateGroupsRooms` and the pulse replace them.
+            if let groupVolume = cached.groupVolume, !group.isEditingVolume {
+                group.groupVolume = groupVolume
+            }
+            for room in group.rooms where !room.isEditingVolume {
+                if let volume = cached.roomVolumes?[room.id] {
+                    room.volume = volume
+                }
+            }
+
+            guard group.coordinatorRoom.track.name.isEmpty else { continue }
 
             var track = Track(
                 trackID: cached.trackID,
@@ -3590,7 +3602,9 @@ public final class SonosService {
                 trackArtworkURL: group.coordinatorRoom.track.downloadedArtworkURL,
                 trackSonosAlbumArtURL: group.coordinatorRoom.track.sonosAlbumArtURL,
                 trackMusicService: group.coordinatorRoom.track.musicService,
-                trackDuration: group.coordinatorRoom.track.duration
+                trackDuration: group.coordinatorRoom.track.duration,
+                groupVolume: group.groupVolume,
+                roomVolumes: group.rooms.reduce(into: [String: Double]()) { $0[$1.id] = $1.volume }
             )
         }
         GroupsCacheStore.write(GroupsCache(groups: snapshots))
