@@ -2,12 +2,13 @@
 # Build Cue for a connected iPhone, install it and launch it.
 #
 #   Scripts/deploy-to-iphone.sh            # build Debug, install, launch
+#   Scripts/deploy-to-iphone.sh --logs     # ...then capture 30s of console
+#   Scripts/deploy-to-iphone.sh --logs 90  # ...or 90s
 #   Scripts/deploy-to-iphone.sh --no-launch
 #   CUE_DEVICE="Nick's iPhone" Scripts/deploy-to-iphone.sh
 #
-# The device is picked in this order: $CUE_DEVICE (name or UDID), the one
-# saved by Scripts/claude-remote.sh in .cue-device, then the first iPhone
-# that is connected right now (USB before Wi-Fi).
+# The phone is chosen by Scripts/lib/iphone.sh. Console capture and crash
+# reports are handled by Scripts/iphone-logs.sh and Scripts/iphone-crashes.sh.
 
 set -euo pipefail
 
@@ -17,28 +18,26 @@ SCHEME="${CUE_SCHEME:-Cue}"
 CONFIGURATION="${CUE_CONFIGURATION:-Debug}"
 DERIVED_DATA="build/DeviceDerivedData"
 LAUNCH=1
-[ "${1:-}" = "--no-launch" ] && LAUNCH=0
+LOG_SECONDS=0
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--no-launch) LAUNCH=0 ;;
+		--logs)
+			LOG_SECONDS=30
+			if [[ "${2:-}" =~ ^[0-9]+$ ]]; then LOG_SECONDS="$2"; shift; fi
+			;;
+		*) echo "error: unknown option $1" >&2; exit 1 ;;
+	esac
+	shift
+done
 
 step() { echo -e "\n==== $1 ====\n"; }
 fail() { echo "error: $1" >&2; exit 1; }
 
 command -v xcodebuild >/dev/null || fail "xcodebuild not found. Install Xcode."
 
-WANTED="${CUE_DEVICE:-}"
-[ -z "$WANTED" ] && [ -f .cue-device ] && WANTED="$(cat .cue-device)"
-
-DEVICES="$(Scripts/list-iphones.py)"
-[ -n "$DEVICES" ] || fail "No iPhone connected. Plug it in (or pair it over Wi-Fi in Xcode ▸ Devices), unlock it, and make sure Developer Mode is on."
-
-if [ -n "$WANTED" ]; then
-	LINE="$(echo "$DEVICES" | awk -F'\t' -v w="$WANTED" '$1 == w || $2 == w' | head -1)"
-	[ -n "$LINE" ] || fail "\"$WANTED\" is not connected. Connected iPhones:
-$(echo "$DEVICES" | cut -f2-4)"
-else
-	LINE="$(echo "$DEVICES" | head -1)"
-fi
-UDID="$(echo "$LINE" | cut -f1)"
-NAME="$(echo "$LINE" | cut -f2)"
+source Scripts/lib/iphone.sh
+resolve_iphone
 
 step "Building $SCHEME ($CONFIGURATION) for $NAME"
 mkdir -p build
@@ -63,7 +62,9 @@ BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Info.pl
 step "Installing $(basename "$APP") on $NAME"
 xcrun devicectl device install app --device "$UDID" "$APP"
 
-if [ "$LAUNCH" -eq 1 ]; then
+if [ "$LAUNCH" -eq 1 ] && [ "$LOG_SECONDS" -gt 0 ]; then
+	CUE_DEVICE="$UDID" CUE_BUNDLE_ID="$BUNDLE_ID" Scripts/iphone-logs.sh "$LOG_SECONDS"
+elif [ "$LAUNCH" -eq 1 ]; then
 	step "Launching $BUNDLE_ID"
 	xcrun devicectl device process launch --terminate-existing --device "$UDID" "$BUNDLE_ID" \
 		|| echo "Installed, but could not launch. Unlock the phone and open Cue."

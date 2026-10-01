@@ -29,6 +29,11 @@ These rules apply to every session on the Mac (started with `Scripts/claude-remo
 - If it reports that no iPhone is connected, build for the simulator instead (`xcodebuild -project Cue.xcodeproj -scheme Cue -destination 'generic/platform=iOS Simulator' build`) and tell the user the phone was not reachable.
 - Other targets (Mac, TV, Cue Mini) build with `xcodebuild` as usual; only the iOS app is deployed.
 
+### Logs and crashes from the iPhone
+- To check runtime behaviour, deploy with `Scripts/deploy-to-iphone.sh --logs [seconds]` (default 30), or relaunch without rebuilding with `Scripts/iphone-logs.sh [seconds]`. Ask the user to reproduce on the phone while it captures. It shows the last 200 lines; the full capture is in `build/device-console.log`. Set `CUE_LOG_FILTER=<text>` to see only matching lines. `print` and `Logger` output both appear.
+- When the user says the app crashed, run `Scripts/iphone-crashes.sh` (`--count N` for more) before reading code. It pulls Cue's newest crash report into `build/crashes` and prints the exception, the crash message and the crashed thread with Cue's frames symbolicated. If it says the phone's build doesn't match the local one, deploy again and ask the user to reproduce the crash.
+- For crashes in an extension, pass `--process Widgets` (or the extension's executable name).
+
 ## Build & Development Commands
 
 This is an Xcode project with multiple targets and schemes:
