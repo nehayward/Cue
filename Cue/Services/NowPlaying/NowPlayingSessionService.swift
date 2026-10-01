@@ -236,12 +236,12 @@ final class NowPlayingSessionService {
         Preferences(nowPlaying: isPreferenceOn, volumeBridge: isVolumeBridgeEnabled)
     }
 
-    /// Unset means on — this is the default Lock Screen surface for Super. The
-    /// subscription half of `isEnabled` is what keeps that from running for
-    /// everyone.
-    private var isPreferenceOn: Bool {
-        UserDefaults.standard.lockScreenNowPlayingEnabled
-    }
+    /// Always on: the Lock Screen setting is gone and Now Playing is the only
+    /// surface while Live Activities are off. The subscription half of
+    /// `isEnabled` is what keeps that from running for everyone. Read
+    /// `UserDefaults.standard.lockScreenNowPlayingEnabled` here again if the
+    /// choice comes back.
+    private var isPreferenceOn: Bool { true }
 
     /// **Use iPhone Volume Buttons**, on when unset — the same switch the
     /// player screen's `hardwareVolumeControl` modifier reads.
