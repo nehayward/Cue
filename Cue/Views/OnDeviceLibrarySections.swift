@@ -40,14 +40,16 @@ struct OnDeviceLibrarySections: View {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     Task { await playEverything(shuffle: false) }
                 } label: {
-                    Label("Play", systemImage: "play.fill")
+                    // The symbol inline, as the album header has it: a
+                    // `Label` in a list row drops its icon.
+                    Text("\(Image(systemName: "play.fill")) Play")
                         .frame(maxWidth: .infinity)
                 }
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     Task { await playEverything(shuffle: true) }
                 } label: {
-                    Label("Shuffle", systemImage: "shuffle")
+                    Text("\(Image(systemName: "shuffle")) Shuffle")
                         .frame(maxWidth: .infinity)
                 }
             }
