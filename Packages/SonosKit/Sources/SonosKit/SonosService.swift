@@ -229,9 +229,6 @@ public final class SonosService {
     @ObservationIgnored var liveUpdateObservers: [LiveListener: (GroupRoom) -> Void] = [:]
     @ObservationIgnored private var metadataTask: Task<Void, Never>?
     @ObservationIgnored private var hasAppliedGroupsCache = false
-    /// How long a topology change waits on per-room volume/mute before the
-    /// rooms are published. Healthy speakers answer well inside this.
-    private static let roomSeedDeadline: Duration = .seconds(2)
     @ObservationIgnored private var cachedIPVerified = false
     @ObservationIgnored private var attemptedTrackInfoUniques = Set<String>()
 
@@ -422,6 +419,16 @@ public final class SonosService {
             room.container = currentRoom.container
             room.queueTotal = currentRoom.queueTotal
         }
+        // Per-room state that `updateGroupsRooms` refreshes after the swap:
+        // carry it by room ID so a regroup doesn't drop every slider to 0
+        // until that read lands.
+        let currentRooms = Dictionary(rooms.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for room in newGroups.flatMap(\.rooms) {
+            guard let current = currentRooms[room.id] else { continue }
+            room.volume = current.volume
+            room.isMuted = current.isMuted
+            room.alarmRunning = current.alarmRunning
+        }
         groups = newGroups
         rooms = newGroups.flatMap(\.rooms)
     }
@@ -534,26 +541,19 @@ public final class SonosService {
         let newSig = Set(newGroup.map(\.topologyKey))
         let oldSig = Set(groups.map(\.topologyKey))
         if !newGroup.isEmpty, newSig != oldSig, !isGrouping {
-            // Seed volume/mute before the rooms appear, but don't let one
-            // speaker that the topology lists as active and that never answers
-            // (unplugged, dropped off Wi-Fi) hold the whole list for the 15s
-            // request timeout. Rooms still unanswered at the deadline are
-            // cancelled and filled in by the watcher's next pass.
-            let deadline = Self.roomSeedDeadline
-            await withTaskGroup(of: Void.self) { taskGroup in
-                taskGroup.addTask { @MainActor [weak self] in
-                    await self?.updateGroupsRooms(from: newGroup)
-                }
-                taskGroup.addTask {
-                    try? await Task.sleep(for: deadline)
-                }
-                await taskGroup.next()
-                taskGroup.cancelAll()
-            }
+            // Publish the topology first, then read each room's volume, mute
+            // and alarm without holding the list on it: a speaker the topology
+            // still lists as active but that never answers (unplugged, off
+            // Wi-Fi) used to keep every room off screen for the 15s request
+            // timeout. `adoptGroups` carries known room state across, so only
+            // rooms seen for the first time start at the defaults.
             adoptGroups(newGroup)
             applyGroupsCacheIfMatching()
             refreshGroup = true
             print("Refreshed")
+            Task { [weak self] in
+                await self?.updateGroupsRooms(from: newGroup)
+            }
 
             if !mediaServerHandler.deviceIP.isEmpty {
                 // MARK: I don't want to block
