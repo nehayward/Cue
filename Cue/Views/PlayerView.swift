@@ -205,6 +205,10 @@ struct PlayerView: View {
             } action: { isArtworkVisible = $0 }
             .opacity(isArtworkVisible ? 1 : 0)
             .animation(.interactiveSpring, value: isArtworkVisible)
+            // Sized before the spacers below share out what's left; at an
+            // equal priority they split the height with it and the cover
+            // shrank to a thumbnail.
+            .layoutPriority(isPhoneLayout ? 1 : 0)
 
         if isPhoneLayout {
             Spacer(minLength: 12)
@@ -339,6 +343,7 @@ struct PlayerView: View {
                 } action: { isArtworkVisible = $0 }
                 .opacity(isArtworkVisible ? 1 : 0)
                 .animation(.interactiveSpring, value: isArtworkVisible)
+                .layoutPriority(isPhoneLayout ? 1 : 0)
 
             if isPhoneLayout {
                 Spacer(minLength: 12)
