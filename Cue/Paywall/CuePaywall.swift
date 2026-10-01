@@ -18,11 +18,10 @@ struct CuePaywall: View {
     /// Rows for the Free vs Super comparison table. Free column is intentionally
     /// blank for every paid capability — loss aversion lands harder when the gap
     /// is visceral. Top rows are the two visceral wins (speakers + lock-screen);
-    /// Watch / iPad / Mac / TV / Vision collapse into the single-license footer.
+    /// iPad / Mac / TV / Vision collapse into the single-license footer.
     private let comparisonRows: [ComparisonRow] = [
         .init(label: "All your speakers", inFree: false),
-        .init(label: "Lock Screen controls", description: "Widgets + Live Activities", inFree: false),
-        .init(label: "Apple Watch", description: "Full control from your wrist", inFree: false),
+        .init(label: "Lock Screen controls", description: "Now Playing for your speakers", inFree: false),
         .init(label: "Scenes", description: "One-tap automations", inFree: false),
         .init(label: "Unlimited downloads", description: "Keep Plex & Subsonic songs on this device", inFree: false),
         .init(label: "Apple Shortcuts", inFree: false)
@@ -248,7 +247,7 @@ struct ComparisonTable: View {
             Image(systemName: "infinity")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Color.accentColor)
-            Text("One license · Every Apple platform")
+            Text("One license · Every Cue app")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.white.opacity(0.85))
             Spacer()
