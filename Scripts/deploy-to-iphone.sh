@@ -7,7 +7,7 @@
 #
 # The device is picked in this order: $CUE_DEVICE (name or UDID), the one
 # saved by Scripts/claude-remote.sh in .cue-device, then the first iPhone
-# that is connected (USB or paired over Wi-Fi).
+# that is connected right now (USB before Wi-Fi).
 
 set -euo pipefail
 
@@ -24,35 +24,16 @@ fail() { echo "error: $1" >&2; exit 1; }
 
 command -v xcodebuild >/dev/null || fail "xcodebuild not found. Install Xcode."
 
-# Prints "<udid>\t<name>" for each connected iPhone.
-connected_iphones() {
-	local json
-	json="$(mktemp)"
-	xcrun devicectl list devices --json-output "$json" >/dev/null 2>&1 || { rm -f "$json"; return 0; }
-	/usr/bin/python3 - "$json" <<'PY'
-import json, sys
-devices = json.load(open(sys.argv[1])).get("result", {}).get("devices", [])
-for d in devices:
-    hw = d.get("hardwareProperties", {})
-    if hw.get("platform") != "iOS" or hw.get("deviceType") != "iPhone":
-        continue
-    if d.get("connectionProperties", {}).get("tunnelState") == "unavailable":
-        continue
-    print(f'{hw.get("udid", d.get("identifier"))}\t{d.get("deviceProperties", {}).get("name", "iPhone")}')
-PY
-	rm -f "$json"
-}
-
 WANTED="${CUE_DEVICE:-}"
 [ -z "$WANTED" ] && [ -f .cue-device ] && WANTED="$(cat .cue-device)"
 
-DEVICES="$(connected_iphones)"
+DEVICES="$(Scripts/list-iphones.py)"
 [ -n "$DEVICES" ] || fail "No iPhone connected. Plug it in (or pair it over Wi-Fi in Xcode ▸ Devices), unlock it, and make sure Developer Mode is on."
 
 if [ -n "$WANTED" ]; then
 	LINE="$(echo "$DEVICES" | awk -F'\t' -v w="$WANTED" '$1 == w || $2 == w' | head -1)"
 	[ -n "$LINE" ] || fail "\"$WANTED\" is not connected. Connected iPhones:
-$(echo "$DEVICES" | cut -f2)"
+$(echo "$DEVICES" | cut -f2-4)"
 else
 	LINE="$(echo "$DEVICES" | head -1)"
 fi

@@ -29,33 +29,32 @@ echo "Xcode, devicectl and claude found."
 
 step "Choosing iPhone"
 if [ "${1:-}" = "--pick" ] || [ ! -f .cue-device ]; then
-	JSON="$(mktemp)"
-	xcrun devicectl list devices --json-output "$JSON" >/dev/null 2>&1 || true
-	NAMES=()
-	while IFS= read -r line; do [ -n "$line" ] && NAMES+=("$line"); done < <(
-		/usr/bin/python3 - "$JSON" <<'PY' 2>/dev/null
-import json, sys
-for d in json.load(open(sys.argv[1])).get("result", {}).get("devices", []):
-    hw = d.get("hardwareProperties", {})
-    if hw.get("platform") == "iOS" and hw.get("deviceType") == "iPhone":
-        print(d.get("deviceProperties", {}).get("name", "iPhone"))
-PY
-	)
-	rm -f "$JSON"
+	# Only phones reachable right now, USB first: udid, name, model, link.
+	PHONES=()
+	while IFS= read -r line; do [ -n "$line" ] && PHONES+=("$line"); done < <(Scripts/list-iphones.py)
 
-	if [ "${#NAMES[@]}" -eq 0 ]; then
-		echo "No iPhone found. Plug it in, unlock it, trust this Mac, and turn on"
-		echo "Developer Mode (Settings ▸ Privacy & Security). Pair it once in"
-		echo "Xcode ▸ Window ▸ Devices and Simulators to deploy over Wi-Fi."
-		echo "Continuing; Claude will fall back to simulator builds until then."
-	elif [ "${#NAMES[@]}" -eq 1 ]; then
-		echo "${NAMES[0]}" > .cue-device
+	if [ "${#PHONES[@]}" -eq 0 ]; then
+		echo "No iPhone connected. Plug it in with a cable, unlock it, trust this Mac,"
+		echo "and turn on Developer Mode (Settings ▸ Privacy & Security). Then run"
+		echo "Scripts/claude-remote.sh --pick. Until then Claude builds for the simulator."
+	elif [ "${#PHONES[@]}" -eq 1 ]; then
+		echo "${PHONES[0]}" | cut -f1 > .cue-device
 	else
+		LABELS=()
+		for p in "${PHONES[@]}"; do
+			LABELS+=("$(echo "$p" | awk -F'\t' '{ printf "%s (%s, %s)", $2, $3, $4 }')")
+		done
 		echo "Which iPhone should Claude deploy to?"
-		select name in "${NAMES[@]}"; do [ -n "$name" ] && { echo "$name" > .cue-device; break; }; done
+		select label in "${LABELS[@]}"; do
+			[ -n "$label" ] && { echo "${PHONES[$((REPLY - 1))]}" | cut -f1 > .cue-device; break; }
+		done
 	fi
 fi
-[ -f .cue-device ] && echo "Deploying to: $(cat .cue-device)"
+if [ -f .cue-device ]; then
+	CHOSEN="$(Scripts/list-iphones.py | awk -F'\t' -v id="$(cat .cue-device)" '$1 == id || $2 == id { printf "%s (%s, %s)", $2, $3, $4 }')"
+	echo "Deploying to: ${CHOSEN:-$(cat .cue-device) (not connected right now)}"
+	echo "Run Scripts/claude-remote.sh --pick to choose another iPhone."
+fi
 
 step "Updating main"
 if [ -n "$(git status --porcelain)" ]; then
