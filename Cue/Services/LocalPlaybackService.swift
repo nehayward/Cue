@@ -241,10 +241,19 @@ final class LocalPlaybackService {
     /// switch, like the system player's: on shuffles Up Next, off puts it
     /// back. It used to be a one-off shuffle, which left no way back to the
     /// album's order.
-    private(set) var isShuffled = false
-    /// Up Next in the order it had before shuffle went on, for putting it
-    /// back. Nil while shuffle is off.
-    @ObservationIgnored private var unshuffledUpNext: [PlayableContent]?
+    private(set) var isShuffled = false {
+        didSet { if oldValue != isShuffled { savePosition() } }
+    }
+    /// Up Next in its real order while shuffle is on — the order it had
+    /// before, kept up to date with what's added and removed meanwhile — for
+    /// putting it back. Nil while shuffle is off. Saved with the queue, so a
+    /// relaunch still knows the album's order.
+    @ObservationIgnored private var unshuffledUpNext: [PlayableContent]? {
+        didSet {
+            guard !isRestoring else { return }
+            LocalQueueStore.save(unshuffled: unshuffledUpNext)
+        }
+    }
     /// When the sleep timer will pause playback, if one is running. Nil for
     /// none and for the end-of-track kind, which has no fixed time.
     private(set) var sleepTimerEndDate: Date?
@@ -477,8 +486,8 @@ final class LocalPlaybackService {
             let page = await containerTracks(for: container, offset: offset)
             guard !page.isEmpty else { return }
             offset += page.count
-            if shuffle, isShuffled { unshuffledUpNext?.append(contentsOf: page) }
-            try? await addToQueue(shuffle ? page.shuffled() : page)
+            if isShuffled { unshuffledUpNext?.append(contentsOf: page) }
+            try? await addToQueue(shuffle ? page.shuffled() : page, recordingOrder: false)
             setOrigin(origin ?? container, for: page)
         }
     }
@@ -521,6 +530,8 @@ final class LocalPlaybackService {
             truncateArmedRunAfterCurrent()
         }
         queue.insert(contentsOf: playable, at: min(currentIndex + 1, queue.count))
+        // Next in the real order too, so shuffle off keeps it next.
+        unshuffledUpNext?.insert(contentsOf: playable, at: 0)
     }
 
     func playNext(_ item: PlayableContent) async throws {
@@ -530,11 +541,16 @@ final class LocalPlaybackService {
     /// Appends `items` to the end of the queue (they play when the armed run
     /// ends and the advance reaches them). Starts playing if the queue was
     /// empty.
-    func addToQueue(_ items: [PlayableContent]) async throws {
+    ///
+    /// `recordingOrder: false` is for a caller that has already put the
+    /// items in the real order itself — a shuffled page arriving behind a
+    /// Shuffle Play, whose real order isn't the order it's queued in.
+    func addToQueue(_ items: [PlayableContent], recordingOrder: Bool = true) async throws {
         let playable = items.filter { canPlayLocally($0) }
         guard !playable.isEmpty else { throw LocalPlaybackError.nothingPlayable }
         guard isActive else { return try await play(playable) }
         queue.append(contentsOf: playable)
+        if recordingOrder { unshuffledUpNext?.append(contentsOf: playable) }
         await extendArmedRun()
     }
 
@@ -895,6 +911,7 @@ final class LocalPlaybackService {
             truncateArmedRunAfterCurrent()
         }
         queue.removeSubrange(start...)
+        if isShuffled { unshuffledUpNext = [] }
     }
 
     /// Removes queue rows after the current track. Played rows and the
@@ -909,7 +926,10 @@ final class LocalPlaybackService {
         }
         var updated = queue
         for index in upcoming.sorted(by: >) {
-            updated.remove(at: index)
+            let removed = updated.remove(at: index)
+            if let saved = unshuffledUpNext?.firstIndex(of: removed) {
+                unshuffledUpNext?.remove(at: saved)
+            }
         }
         queue = updated
     }
@@ -1030,6 +1050,8 @@ final class LocalPlaybackService {
         preparedAppleRun = nil
         teardownRun()
         resumePosition = nil
+        isShuffled = false
+        unshuffledUpNext = nil
         queue = []
         origins = [:]
         currentIndex = 0
@@ -2061,6 +2083,8 @@ final class LocalPlaybackService {
         queue = kept
         currentIndex = currentKept ?? 0
         repeatMode = saved.position.repeatMode
+        isShuffled = saved.position.isShuffled ?? false
+        unshuffledUpNext = isShuffled ? (saved.unshuffled ?? []).filter { canPlayLocally($0) } : nil
         // The position belongs to the track that was current; with that
         // one dropped, the queue starts from the top of what's left.
         duration = currentKept == nil ? 0 : Self.finite(saved.position.duration, else: 0)
@@ -2100,7 +2124,7 @@ final class LocalPlaybackService {
     private func savePosition() {
         guard !isRestoring, !queue.isEmpty else { return }
         savedProgress = progress
-        LocalQueueStore.save(position: .init(index: currentIndex, progress: progress, duration: duration, repeatMode: repeatMode))
+        LocalQueueStore.save(position: .init(index: currentIndex, progress: progress, duration: duration, repeatMode: repeatMode, isShuffled: isShuffled))
     }
 
     /// Writes where the queued tracks were played from, so the player still
@@ -2287,11 +2311,16 @@ private enum LocalQueueStore {
         var progress: TimeInterval
         var duration: TimeInterval
         var repeatMode: LocalPlaybackService.RepeatMode
+        /// Optional so a position saved before shuffle was a switch still
+        /// reads.
+        var isShuffled: Bool? = nil
     }
 
     struct Saved {
         var queue: [PlayableContent]
         var position: Position
+        /// Up Next in its real order, while shuffle is on.
+        var unshuffled: [PlayableContent]?
         /// Where each queued track was played from, by track ID.
         var origins: [String: PlayableContent]
     }
@@ -2302,6 +2331,11 @@ private enum LocalQueueStore {
         }
         try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
         return support.appendingPathComponent("LocalQueue.json")
+    }
+
+    /// Beside the queue file, which stays a bare `[PlayableContent]`.
+    private static var unshuffledURL: URL? {
+        queueURL?.deletingLastPathComponent().appendingPathComponent("LocalQueueUnshuffled.json")
     }
 
     private static var positionKey: String { AppStorageKeys.localQueuePosition }
@@ -2318,7 +2352,22 @@ private enum LocalQueueStore {
             ?? Position(index: 0, progress: 0, duration: 0, repeatMode: .off)
         let origins = UserDefaults.standard.data(forKey: sourceKey)
             .flatMap { Origins.decode($0, queue: queue) } ?? [:]
-        return Saved(queue: queue, position: position, origins: origins)
+        let unshuffled = unshuffledURL
+            .flatMap { try? Data(contentsOf: $0) }
+            .flatMap { try? JSONDecoder().decode([PlayableContent].self, from: $0) }
+        return Saved(queue: queue, position: position, unshuffled: unshuffled, origins: origins)
+    }
+
+    /// Written on the same serial queue as the queue file, in order.
+    static func save(unshuffled: [PlayableContent]?) {
+        io.async {
+            guard let url = Self.unshuffledURL else { return }
+            guard let unshuffled, let data = try? JSONEncoder().encode(unshuffled) else {
+                try? FileManager.default.removeItem(at: url)
+                return
+            }
+            try? data.write(to: url, options: .atomic)
+        }
     }
 
     static func save(queue: [PlayableContent], waitUntilDone: Bool = false) {
@@ -2385,6 +2434,9 @@ private enum LocalQueueStore {
     static func clear() {
         if let queueURL {
             try? FileManager.default.removeItem(at: queueURL)
+        }
+        if let unshuffledURL {
+            try? FileManager.default.removeItem(at: unshuffledURL)
         }
         UserDefaults.standard.removeObject(forKey: positionKey)
         UserDefaults.standard.removeObject(forKey: sourceKey)
