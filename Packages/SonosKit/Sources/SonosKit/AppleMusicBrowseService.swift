@@ -180,8 +180,23 @@ public final class AppleMusicBrowseService {
     }
 
     public func albumLookup(id: String) async -> [PlayableContent] {
-        guard let container = try? await apple.lookupUsersLibraryAlbum(id: id) else { return [] }
-        return container.data.compactMap(\.toPlayable)
+        if let container = try? await apple.lookupUsersLibraryAlbum(id: id) {
+            let tracks = container.data.compactMap(\.toPlayable)
+            if !tracks.isEmpty { return tracks }
+        }
+        // The Albums list pages through MusicKit, whose library ids are the
+        // device's own (a long number) rather than the web API's `l.…`, so
+        // the web API knows none of them and the album opened empty. Ask
+        // MusicKit for the album it named.
+        var request = MusicLibraryRequest<Album>()
+        request.filter(matching: \.id, equalTo: MusicItemID(id))
+        guard let album = try? await request.response().items.first,
+              let detailed = try? await album.with([.tracks]),
+              let tracks = detailed.tracks else { return [] }
+        return tracks.compactMap { track in
+            guard case let .song(song) = track else { return nil }
+            return song.toPlayableLibraryTrack
+        }
     }
 
     public func updateRecommendedAlbums(offset: Int = 0, limit: Int = 25) async {

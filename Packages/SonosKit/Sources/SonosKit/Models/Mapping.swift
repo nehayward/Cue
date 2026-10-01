@@ -40,21 +40,33 @@ extension Track {
 
 // MARK: - Apple Music Mapping
 
-/// MusicKit hands library artwork out as a `musickit://` URL with the real
-/// `https` one percent-encoded inside it; the image loaders want the inner
-/// one. Anything else passes through.
+/// MusicKit hands library artwork out as a `musickit://` URL the image
+/// loaders can't open. Some carry the real `https` one percent-encoded
+/// inside; most carry only the image's path on Apple's artwork server, in
+/// `aat`, with the size in the URL's last path component — and those were
+/// the blank covers in the library's Albums list. Either way this returns
+/// an `https` URL; anything that isn't `musickit://` passes through.
 private func unwrappingMusicKitArtwork(_ url: URL?) -> URL? {
     guard let url,
           let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
-          components.scheme?.lowercased() == "musickit",
-          let regex = try? NSRegularExpression(pattern: "https%3A%2F%2F[^&]+") else {
+          components.scheme?.lowercased() == "musickit" else {
         return url
     }
-    let nsString = url.absoluteString as NSString
-    guard let match = regex.firstMatch(in: url.absoluteString, range: NSRange(location: 0, length: nsString.length)) else {
+    let string = url.absoluteString
+    if let range = string.range(of: "https%3A%2F%2F[^&]+", options: .regularExpression),
+       let inner = String(string[range]).removingPercentEncoding {
+        return URL(string: inner)
+    }
+    // `…/library/<id>/100x100?aat=Music116/v4/…/075679688767.jpg` is
+    // `https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/…/075679688767.jpg/100x100bb.jpg`.
+    guard let path = components.queryItems?.first(where: { $0.name == "aat" })?.value,
+          !path.isEmpty else {
         return url
     }
-    return URL(string: nsString.substring(with: match.range).removingPercentEncoding ?? "")
+    let size = url.lastPathComponent.range(of: #"^\d+x\d+$"#, options: .regularExpression) != nil
+        ? url.lastPathComponent
+        : "600x600"
+    return URL(string: "https://is1-ssl.mzstatic.com/image/thumb/\(path)/\(size)bb.jpg")
 }
 
 extension Song {
