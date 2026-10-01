@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Cue is a multi-platform SwiftUI music player that also controls Sonos speakers. It plays Apple Music, Plex, Subsonic, TuneIn and local files on the device itself (`LocalPlaybackService`) and hands the same queue to a Sonos group (`PlaybackRoute`). It provides native apps for iOS, iPadOS, macOS and tvOS, and includes widgets, live activities, and a menu bar app (Cue Mini).
+Cue is a multi-platform SwiftUI music player that also controls Sonos speakers. It plays Apple Music, Plex, Subsonic, TuneIn and local files on the device itself (`LocalPlaybackService`) and hands the same queue to a Sonos group (`PlaybackRoute`). It provides native apps for iOS, iPadOS, macOS and tvOS, and includes a menu bar app (Cue Mini). Widgets and Live Activities are switched off for now (see Platform-Specific Features).
 
 ## Product Priorities
 
@@ -73,7 +73,7 @@ The app is built around several Swift packages in `/Packages`:
 ### Platform-Specific Apps
 - **CueMini/** - macOS menu bar app for quick controls
 - **TV/** - tvOS app optimized for Apple TV
-- **Widgets/** - iOS/macOS widgets and live activities
+- **Widgets/** - iOS/macOS widgets, controls and Live Activities (target kept, not embedded in the apps for now)
 - **PlayAction/** - Share sheet extension for queuing music
 
 ### Key Services
@@ -138,7 +138,7 @@ The app is built around several Swift packages in `/Packages`:
 4. Update settings screen layout
 
 ### Platform-Specific Features
-- **iOS**: Focus on mobile-optimized UI and live activities
+- **iOS**: Focus on mobile-optimized UI. The Lock Screen relies on the system Now Playing card; Live Activities are off for now (`LiveActivityManagerKey` and `LiveActivityManagerFactory` hand out `LiveActivityManagerMock`, `NSSupportsLiveActivities` is unset, and the Widgets extension is not embedded)
 - **macOS**: Leverage menu bar app and Mac-specific controls
 - **tvOS**: Optimize for remote control navigation
 - **watchOS**: The watch app and its widgets were removed pending a rewrite; the old code lives in git history (`Watch/`, `WatchWidgets/`)

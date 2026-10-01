@@ -27,8 +27,6 @@ struct PreferenceScreen: View {
     @State private var libraryShare: String?
     
     @AppStorage("AppIcon") private var selectedAppIcon = "Default"
-    @AppStorage("isCompact", store: UserDefaults(suiteName: "group.dance.cue")) private var isCompact: Bool = false
-    @AppStorage("LiveActivityStep", store: UserDefaults(suiteName: "group.dance.cue")) private var liveActivityStep: Int = 5
     
     @AppStorage("CueMiniEnabled") private var isMenuBarAppEnabled: Bool = true
 
@@ -546,11 +544,10 @@ struct PreferenceScreen: View {
                             .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
                     // Greyed out without Super, the same way the Scenes row is.
-                    // Every option here needs a subscription — `CueApp` won't
-                    // even start a Live Activity without one — so there is
-                    // nothing to leave enabled. `gated` keeps the tap for the
-                    // paywall outside the `.disabled`.
-                    .gated(.liveActivities)
+                    // Now Playing needs a subscription and Off needs nothing to
+                    // configure, so there is nothing to leave enabled. `gated`
+                    // keeps the tap for the paywall outside the `.disabled`.
+                    .gated(.lockScreenNowPlaying)
 
                     // Directly under the picker, and present only while Now
                     // Playing is the chosen surface — the same treatment the
@@ -615,59 +612,6 @@ struct PreferenceScreen: View {
                         .disabled(!featureGate.isAvailable(.hardwareVolumeButtons))
                     }
 #endif
-                    // Both of these only shape the Live Activity, so they appear
-                    // only when it's the chosen surface. They used to be dimmed
-                    // in place instead, on the theory that a section which
-                    // doesn't resize is easier to follow — in practice a list of
-                    // permanently greyed controls reads as broken, and the two
-                    // states have nothing in common to keep aligned. Insertion
-                    // and removal are animated from the picker's binding.
-                    if lockScreenSurface == .liveActivity,
-                       UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
-                        Label {
-                            Toggle(isOn: $isCompact) {
-                                Text("Compact Live Activities")
-                                Text("Removes volumes controls and reduces size of Live Activities")
-                            }
-                            .tint(.accent)
-                        } icon: {
-                            Image(systemName: "inset.filled.capsule")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .bold()
-                                .padding(8)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(LinearGradient(colors: [Color(red: 0.55, green: 0.45, blue: 0.95), Color(red: 0.4, green: 0.3, blue: 0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                )
-                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                        }
-                        .disabled(!featureGate.isAvailable(.liveActivities))
-
-                        Label {
-                            Stepper(value: $liveActivityStep, in: 1...10) {
-                                Text("Volume Steps: ") +  Text(liveActivityStep, format: .number).bold()
-                                Text("Adjust how much the volume changes with each step in Live Activities.")
-                            }
-                            .sensoryFeedback(.levelChange, trigger: liveActivityStep)
-                        } icon: {
-                            Image(systemName: "plus.minus.capsule")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .bold()
-                                .padding(8)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(LinearGradient(colors: [Color(red: 0.6, green: 0.5, blue: 0.98), Color(red: 0.45, green: 0.35, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                )
-                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                        }
-                        .disabled(!featureGate.isAvailable(.liveActivities))
-                    }
                 } header: {
                     // Carries the `SuperBadge` now that the picker's row has no
                     // title to hang it on. It belongs here anyway: every option
@@ -676,7 +620,7 @@ struct PreferenceScreen: View {
                     HStack(spacing: 6) {
                         Text("Lock Screen")
                             .foregroundStyle(.primary)
-                        FeatureBadge(feature: .liveActivities)
+                        FeatureBadge(feature: .lockScreenNowPlaying)
                     }
                     .headerProminence(.increased)
                 }
@@ -1224,13 +1168,10 @@ struct PreferenceScreen: View {
             : latestReleaseHeadline
     }
 
-    /// What the Lock Screen shows while a speaker is playing. The three states
-    /// are exclusive by construction — one picker instead of two switches that
-    /// silently moved each other, which is what the pair looked like from the
-    /// outside.
+    /// What the Lock Screen shows while a speaker is playing. Live Activities
+    /// were a third choice here; they're off for now, so the system Now
+    /// Playing card is the only surface.
     private enum LockScreenSurface: String, CaseIterable, Identifiable {
-        /// A Cue card, per playing speaker. What everyone gets without Super.
-        case liveActivity
         /// The system Now Playing card, driven by the silent audio session. The
         /// default with Cue Super — the preference is on unless turned off.
         case nowPlaying
@@ -1240,7 +1181,6 @@ struct PreferenceScreen: View {
 
         var title: String {
             switch self {
-            case .liveActivity: return "Live Activity"
             case .nowPlaying: return "Now Playing"
             case .off: return "Off"
             }
@@ -1248,8 +1188,6 @@ struct PreferenceScreen: View {
 
         var footnote: String {
             switch self {
-            case .liveActivity:
-                return "A Cue card on the Lock Screen and Dynamic Island for each playing speaker."
             case .nowPlaying:
                 // No promises about a volume slider: what the system player
                 // draws is the system's call and differs by device — an iPad
@@ -1276,12 +1214,10 @@ struct PreferenceScreen: View {
     /// copy would be one more thing to keep in step.
     ///
     /// No subscription check here, deliberately. Nothing in this section runs
-    /// without Super — `CueApp` won't start a Live Activity either — so the
-    /// whole row is disabled rather than partly usable, and what it shows while
+    /// without Super, so the whole row is disabled rather than partly usable, and what it shows while
     /// greyed is an honest preview of what a subscriber would get.
     private var lockScreenSurface: LockScreenSurface {
-        if lockScreenNowPlaying { return .nowPlaying }
-        return liveActivities ? .liveActivity : .off
+        lockScreenNowPlaying ? .nowPlaying : .off
     }
 
     /// Turning speakers off moves playback back to this device first, so the
@@ -1331,14 +1267,6 @@ struct PreferenceScreen: View {
                         // restores them — duplicating that here would give the
                         // invariant two owners.
                         lockScreenNowPlaying = true
-                    case .liveActivity:
-                        // Clear Lock Screen Controls *first*: the defaults change
-                        // each write posts is what wakes the service, and it
-                        // would otherwise read "still on" and turn these straight
-                        // back off.
-                        lockScreenNowPlaying = false
-                        liveActivitiesSuspendedByLockScreen = false
-                        liveActivities = true
                     case .off:
                         lockScreenNowPlaying = false
                         liveActivitiesSuspendedByLockScreen = false

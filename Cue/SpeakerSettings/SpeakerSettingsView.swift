@@ -4,37 +4,11 @@ import SonosKit
 struct SpeakerSettingsView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(SonosService.self) var sonosService
-    @Environment(\.liveActivityManager) var liveActivityManager
     
     @State var room: Room
     
     var body: some View {
         Form {
-#if os(iOS) && !targetEnvironment(macCatalyst)
-            Section("Live Activity") {
-                Toggle(isOn: Binding(
-                    get: { !liveActivityManager.isActivityDisabled(id: room.id) },
-                    set: { enabled in
-                        Task {
-                            if enabled {
-                                liveActivityManager.enableActivity(id: room.id)
-                            } else {
-                                liveActivityManager.disableActivity(id: room.id)
-                            }
-                        }
-                    }
-                )) {
-                    VStack(alignment: .leading) {
-                        Text("Lock Screen Controls")
-                        Text("Show playback controls on lock screen")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .tint(.accentColor)
-            }
-#endif
-            
             Section {
                 VStack {
                     LabeledContent {
