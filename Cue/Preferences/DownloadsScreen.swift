@@ -28,6 +28,7 @@ struct DownloadsScreen: View {
     @Environment(Router.self) private var router: Router?
     @State private var manager = DownloadManager.shared
     @State private var cache = PlaybackCache.shared
+    @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
     @State private var cloudSummary: (local: Int, remote: Int)?
     @State private var tab: Tab = .songs
@@ -101,6 +102,7 @@ struct DownloadsScreen: View {
             }
         }
         .task {
+            apple.refreshIfNeeded()
             files.startCloudMonitor()
             await refreshCloudSummary()
         }
@@ -173,6 +175,30 @@ struct DownloadsScreen: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
+        }
+
+        if !apple.songs.isEmpty {
+            appleSection
+        }
+    }
+
+    /// The Music app's downloads, counted rather than listed: they're the
+    /// system's, not the manager's — nothing here to pause, remove or count
+    /// against the free limit — and they're browsed as a library of their
+    /// own under Downloaded on the Apple Library page.
+    private var appleSection: some View {
+        Section {
+            NavigationLink(value: RouterDestination.downloaded(service: .apple)) {
+                LabeledContent {
+                    Text(apple.songs.count == 1 ? "1 song" : "\(apple.songs.count.formatted()) songs")
+                } label: {
+                    Label("Downloaded in Music", systemImage: "arrow.down.circle.fill")
+                }
+            }
+        } header: {
+            Text("Apple Music")
+        } footer: {
+            Text("Songs the Music app has downloaded. Cue plays them on this device with or without a network; adding and removing them is done in Music, and they don't count toward the free limit.")
         }
     }
 

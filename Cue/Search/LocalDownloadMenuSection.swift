@@ -122,7 +122,7 @@ struct LocalDownloadMenuSection: View {
         } else if item.content.service == .files {
             filesCloudSection
         } else if AppleDownloadsIndex.shared.isDownloaded(item) {
-            Label("Downloaded", systemImage: "arrow.down.circle.fill")
+            Label("Downloaded in Music", systemImage: "arrow.down.circle.fill")
         }
     }
 

@@ -121,7 +121,14 @@ struct AppleLibraryBrowseScreen: View {
             })) {
                 Label("Songs", systemImage: "music.note")
             }
-            
+
+        case .downloaded:
+            // The songs the Music app has downloaded; Cue lists and plays
+            // them, and the Music app is where they're added and removed.
+            NavigationLink(value: RouterDestination.downloaded(service: .apple)) {
+                Label("Downloaded", systemImage: "arrow.down.circle")
+            }
+
         case .playlistFolders:
             NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlist Folders", items: $appleMusicBrowseService.userPlaylistFolders, action: { offset in
                 await appleMusicBrowseService.updateUsersApplePlaylistFolders(offset: offset)
