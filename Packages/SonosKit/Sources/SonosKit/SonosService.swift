@@ -324,8 +324,8 @@ public final class SonosService {
             syncBatteries(from: updateGroup, into: groups[index])
         }
 
-        let newSig = Set(newGroup.map(\.topologyKey))
-        let oldSig = Set(groups.map(\.topologyKey))
+        let newSig = Set(newGroup.map(\.adoptionKey))
+        let oldSig = Set(groups.map(\.adoptionKey))
         if !newGroup.isEmpty, newSig != oldSig {
             adoptGroups(newGroup)
             self.zones = OrderedDictionary(uniqueKeys: newGroup.map(\.coordinatorID), values: newGroup)
@@ -341,8 +341,8 @@ public final class SonosService {
             syncBatteries(from: updateGroup, into: groups[index])
         }
 
-        let newSig = Set(newGroup.map(\.topologyKey))
-        let oldSig = Set(groups.map(\.topologyKey))
+        let newSig = Set(newGroup.map(\.adoptionKey))
+        let oldSig = Set(groups.map(\.adoptionKey))
         if !newGroup.isEmpty, newSig != oldSig {
             adoptGroups(newGroup)
             self.zones = OrderedDictionary(uniqueKeys: newGroup.map(\.coordinatorID), values: newGroup)
@@ -537,8 +537,8 @@ public final class SonosService {
             syncBatteries(from: updateGroup, into: group)
         }
 
-        let newSig = Set(newGroup.map(\.topologyKey))
-        let oldSig = Set(groups.map(\.topologyKey))
+        let newSig = Set(newGroup.map(\.adoptionKey))
+        let oldSig = Set(groups.map(\.adoptionKey))
         if !newGroup.isEmpty, newSig != oldSig, !isGrouping {
             // Publish the topology first, then read each room's volume, mute
             // and alarm without holding the list on it: a speaker the topology
@@ -1201,8 +1201,8 @@ public final class SonosService {
         // Guard on topology only — comparing full GroupRoom equality includes
         // Track content and would fire on essentially every call, replacing
         // `self.groups` from a fresh-from-XML snapshot with empty tracks.
-        let newSig = Set(newGroup.map(\.topologyKey))
-        let oldSig = Set(groups.map(\.topologyKey))
+        let newSig = Set(newGroup.map(\.adoptionKey))
+        let oldSig = Set(groups.map(\.adoptionKey))
         if !newGroup.isEmpty, newSig != oldSig {
             adoptGroups(newGroup)
         }

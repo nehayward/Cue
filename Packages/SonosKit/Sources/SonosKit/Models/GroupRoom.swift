@@ -63,6 +63,20 @@ extension GroupRoom {
         "\(coordinatorID):\(rooms.map(\.id).sorted().joined(separator: ","))"
     }
 
+    /// `topologyKey` plus each room's state and address: what decides whether a
+    /// fresh parse replaces the stored groups. A speaker alone in its group has
+    /// the same `topologyKey` whether Sonos lists it as a member or under
+    /// VanishedDevices, so comparing topology alone kept a vanished speaker
+    /// `.active` (and polled until every request timed out), and kept one that
+    /// came back stuck inactive.
+    public var adoptionKey: String {
+        let rooms = rooms
+            .sorted { $0.id < $1.id }
+            .map { "\($0.id)@\($0.ip)=\($0.state)" }
+            .joined(separator: ",")
+        return "\(coordinatorID):\(rooms)"
+    }
+
     public var nameWithCount: String {
         switch rooms.count {
         case 0...1:
