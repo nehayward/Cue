@@ -4,7 +4,7 @@ public enum AppStorageKeys {
     /// Whether Cue looks for Sonos speakers at all. Cue is a player first,
     /// and looking for speakers is what puts up the Local Network prompt, so
     /// a new install starts with this off. It is turned on from Settings ▸
-    /// Sonos or the Play On menu. Read and written through
+    /// Sonos (or onboarding). Read and written through
     /// `SonosService.isEnabled`, never directly: unset is decided there, and
     /// only the iOS and Mac app reads this key at all.
     public static let sonosEnabled = "\(Prefix.id).sonosEnabled"
