@@ -14,6 +14,21 @@ Cue is a multi-platform SwiftUI music player that also controls Sonos speakers. 
 
 When a change forces a trade-off between the player and the Sonos client, the player wins. Do not add a service, feature or screen that only works when a speaker is present.
 
+## Session Workflow
+
+These rules apply to every session on the Mac (started with `Scripts/claude-remote.sh` and driven from the phone).
+
+### Branch per session
+- At the start of every session, before editing anything, create a new branch from the latest `main`: `git fetch origin main && git switch -c claude/<short-topic> origin/main`. Name it after the task, for example `claude/queue-swipe-actions`. If the working tree has uncommitted changes, ask before switching.
+- Make every change and commit of the session on that branch. Do not commit to `main`, and do not start another branch in the same session.
+- Push the branch with `git push -u origin <branch>` when work is committed. Merge to `main` only when asked.
+
+### Deploy to the iPhone after every build
+- When you build the iOS app, run `Scripts/deploy-to-iphone.sh` instead of a simulator build. It builds the `Cue` scheme (Debug) for the connected iPhone, installs it and launches it. The user tests on the phone, so a change is not finished until it has been deployed.
+- On failure, it prints the compile errors and writes the full log to `build/device-build.log`. Fix the errors and run it again.
+- If it reports that no iPhone is connected, build for the simulator instead (`xcodebuild -project Cue.xcodeproj -scheme Cue -destination 'generic/platform=iOS Simulator' build`) and tell the user the phone was not reachable.
+- Other targets (Mac, TV, Watch, Cue Mini) build with `xcodebuild` as usual; only the iOS app is deployed.
+
 ## Build & Development Commands
 
 This is an Xcode project with multiple targets and schemes:
