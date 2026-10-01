@@ -655,6 +655,41 @@ final class LocalPlaybackService {
         }
     }
 
+    /// Plays `container` from `track` on: a row tapped in an album or
+    /// playlist queues the whole list, the way it does on a speaker and in
+    /// Music, rather than that one song. The songs before it are in the
+    /// queue too, so Previous goes back through them.
+    ///
+    /// Pages are read until the track turns up — it can sit past the first
+    /// page of a long playlist — and the rest follow once it's playing.
+    /// Returns `false` when the container can't be played here or the track
+    /// isn't in it, so the caller can fall back to the row alone.
+    func play(_ track: PlayableContent, in container: PlayableContent) async throws -> Bool {
+        guard canPlayContainerLocally(container) else { return false }
+        var items: [PlayableContent] = []
+        var start: Int?
+        // Bounded, like `appendRemainder`: a source that ignored `offset`
+        // would hand back its first page forever.
+        for _ in 0 ..< 50 {
+            let page = await containerTracks(for: container, offset: items.count)
+            guard !page.isEmpty else { break }
+            if start == nil, let found = page.firstIndex(where: { $0.content.id == track.content.id }) {
+                start = items.count + found
+            }
+            items += page
+            if start != nil { break }
+        }
+        guard let start else { return false }
+
+        try await play(items, startingAt: start)
+        setOrigin(container, for: items)
+        let loaded = items.count
+        Task {
+            await appendRemainder(of: container, from: loaded, origin: container)
+        }
+        return true
+    }
+
     /// Whether `enqueue` has any chance with this content — the cheap check the
     /// UI uses to decide whether to offer Device at all.
     func canPlayAnywhereLocally(_ content: PlayableContent) -> Bool {

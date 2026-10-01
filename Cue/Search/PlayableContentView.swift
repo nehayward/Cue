@@ -113,6 +113,7 @@ struct PlayableContentView: View {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 AudioPlaybackService.shared.stopPreview()
             } else {
+                HapticManager.shared.fireHaptic(.buttonPress)
                 play()
             }
         } label: {

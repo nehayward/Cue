@@ -187,6 +187,16 @@ enum PlayDestinationRouter {
             return false
         }
         do {
+            // A song tapped in an album or playlist plays the list from that
+            // song, not the song alone — what a speaker does with the same
+            // tap, since the queue closure hands it the parent.
+            if let origin, contents.count == 1, !shuffle, [.now, .replace].contains(position),
+               origin.content.type == .album || origin.content.type == .libraryAlbum || origin.content.type.isPlaylist,
+               try await LocalPlaybackService.shared.play(contents[0], in: origin) {
+                record(contents)
+                announce(contents, position: position)
+                return true
+            }
             try await LocalPlaybackService.shared.enqueue(contents, at: position, shuffle: shuffle, from: origin)
             record(contents)
             announce(contents, position: position)
