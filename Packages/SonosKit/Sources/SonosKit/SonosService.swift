@@ -105,6 +105,7 @@ public final class SonosService {
         sonosPulse.cancel()
         watcher.cancel()
         monitorTask.cancel()
+        roomStateTask?.cancel()
 
         zones.removeAll()
         groups.removeAll()
@@ -228,6 +229,10 @@ public final class SonosService {
     /// polling.
     @ObservationIgnored var liveUpdateObservers: [LiveListener: (GroupRoom) -> Void] = [:]
     @ObservationIgnored private var metadataTask: Task<Void, Never>?
+    /// Reads room volume/mute/alarm after a topology change without holding
+    /// the list on it. Kept so the next change or `clearDevices` can cancel
+    /// a read still waiting on a speaker that doesn't answer.
+    @ObservationIgnored private var roomStateTask: Task<Void, Never>?
     @ObservationIgnored private var hasAppliedGroupsCache = false
     @ObservationIgnored private var cachedIPVerified = false
     @ObservationIgnored private var attemptedTrackInfoUniques = Set<String>()
@@ -550,7 +555,8 @@ public final class SonosService {
             applyGroupsCacheIfMatching()
             refreshGroup = true
             print("Refreshed")
-            Task { [weak self] in
+            roomStateTask?.cancel()
+            roomStateTask = Task { [weak self] in
                 await self?.updateGroupsRooms(from: newGroup)
             }
 
