@@ -3,6 +3,7 @@ import Defaults
 import Foundation
 import MusicKit
 import Observation
+import OSLog
 import SonosKit
 import UIKit
 
@@ -318,6 +319,13 @@ final class LocalPlaybackService {
     /// The first row of the run after the armed one, once its Apple songs
     /// have been looked up ahead of the hand-off (see `prepareNextRun()`).
     @ObservationIgnored private var preparedRunStart: Int?
+    /// The Apple run after a stream run, already loaded into the Apple player
+    /// and prepared while the stream's last song played — see
+    /// `prepareNextRun()`. `armApple` only has to press play when the run it
+    /// is asked for is still these songs.
+    @ObservationIgnored private var preparedAppleRun: (start: Int, songIDs: [MusicItemID])?
+
+    private static let log = Logger(subsystem: "dance.cue", category: "localplayback")
     /// Debounces the queue's write to disk, for the same bursts as the cache.
     @ObservationIgnored private var queueSaveTask: Task<Void, Never>?
     /// True from a queue change until it has been written.
@@ -962,6 +970,7 @@ final class LocalPlaybackService {
         poller?.invalidate()
         poller = nil
         cancelSleepTimer()
+        preparedAppleRun = nil
         teardownRun()
         resumePosition = nil
         queue = []
@@ -1190,13 +1199,45 @@ final class LocalPlaybackService {
               duration > 0, duration - progress < Self.joinLeadTime else { return }
         preparedRunStart = next
         let end = runEnd(from: next)
-        Task { _ = try? await resolveAppleSongs(next...end) }
+        Self.log.notice("looking ahead to the run at \(next)...\(end)")
+        let fromStream = backend == .stream
+        let token = playToken
+        Task {
+            guard let resolved = try? await resolveAppleSongs(next...end) else {
+                Self.log.notice("pre-arm: resolving the Apple run at \(next) failed")
+                return
+            }
+            // Coming off a stream, the Apple player is idle: load and
+            // prepare the run now, so the hand-off is a press of play rather
+            // than a queue load and a prepare in silence, which was most of
+            // the gap between a Plex song and an Apple one. Off an Apple run
+            // the player is busy playing, so the songs alone will do.
+            guard fromStream, let first = resolved.first,
+                  playToken == token, backend == .stream, runEnd + 1 == next else {
+                Self.log.notice("pre-arm skipped: fromStream=\(fromStream) resolved=\(resolved.count) tokenSame=\(self.playToken == token) stream=\(self.backend == .stream) runEnd=\(self.runEnd) next=\(next)")
+                return
+            }
+            musicPlayer.queue = ApplicationMusicPlayer.Queue(for: resolved.map(\.song), startingAt: first.song)
+            do {
+                try await musicPlayer.prepareToPlay()
+            } catch {
+                Self.log.error("pre-arming the Apple run failed: \(error.localizedDescription, privacy: .public)")
+                return
+            }
+            guard playToken == token, backend == .stream, runEnd + 1 == next else { return }
+            preparedAppleRun = (next, resolved.map(\.song.id))
+            Self.log.notice("Apple run at \(next) prepared ahead of the hand-off")
+        }
     }
 
     /// Silences whichever player is armed. Sets `backend` to nil first so the
     /// poll can't misread the teardown as a run ending.
     private func teardownRun() {
         let previous = backend
+        // The stream run is ending into an Apple run that's already loaded:
+        // keep the audio session rather than release it and take it straight
+        // back, which only adds to the gap.
+        let handsToPreparedApple = previous == .stream && preparedAppleRun?.start == runEnd + 1
         backend = nil
         // Whatever was playing has been left, wherever it got to.
         PlayReporter.shared.end()
@@ -1230,7 +1271,7 @@ final class LocalPlaybackService {
             isPlayingLocalStream = false
             // Hand the audio session back to whatever held it behind us (see
             // `AudioSessionArbiter`), otherwise release it entirely.
-            if !AudioSessionArbiter.shared.handBack() {
+            if !handsToPreparedApple, !AudioSessionArbiter.shared.handBack() {
                 try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
             }
         }
@@ -1269,6 +1310,9 @@ final class LocalPlaybackService {
     private func armApple(index: Int, end: Int, token: Int, resume: TimeInterval? = nil) async throws {
         isLoading = true
         defer { if playToken == token { isLoading = false } }
+        // Taken either way: it was for this hand-off and no other.
+        let prepared = preparedAppleRun
+        preparedAppleRun = nil
 
         let resolved = try await resolveAppleSongs(index...end)
 
@@ -1285,8 +1329,17 @@ final class LocalPlaybackService {
             throw LocalPlaybackError.songNotFound
         }
 
-        musicPlayer.queue = ApplicationMusicPlayer.Queue(for: resolved.map(\.song), startingAt: first.song)
-        if let resume, resume > 0 {
+        // Already loaded and prepared during the last stream song, if the run
+        // is still those songs — a queue edit or a skip since then and it's
+        // loaded again here.
+        let isPrepared = resume == nil
+            && prepared?.start == index
+            && prepared?.songIDs == resolved.map(\.song.id)
+        Self.log.notice("arming Apple run at \(index), prepared=\(isPrepared)")
+        if !isPrepared {
+            musicPlayer.queue = ApplicationMusicPlayer.Queue(for: resolved.map(\.song), startingAt: first.song)
+        }
+        if !isPrepared, let resume, resume > 0 {
             // Point the player partway in before it starts. A seek issued
             // after `play()` returns is dropped while the entry is still
             // preparing, which started a hand-off's track from the top.
