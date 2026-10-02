@@ -71,7 +71,9 @@ extension SonosService {
 
         let moved = burst.plan.press(
             direction,
-            playbackPosition: group.coordinatorRoom.playbackPosition,
+            // Where playback is now, not the last report: the stored position
+            // only moves when something writes it.
+            playbackPosition: group.coordinatorRoom.estimatedPlaybackPosition(),
             queueTotal: group.coordinatorRoom.queueTotal
         )
         guard moved else {
@@ -87,8 +89,11 @@ extension SonosService {
         liveTrackRefreshTasks.removeValue(forKey: group.coordinatorID)?.cancel()
         burst.holdDeadline = ContinuousClock.now + Self.skipHoldTimeout
 
-        group.coordinatorRoom.updatePlaybackPosition(0)
         showSkipPreview(for: burst, on: group)
+        // The bar goes to the start and holds there, ignoring the old song's
+        // reports, until the speaker plays from the new one. After the
+        // preview: a new song ends the hold.
+        group.coordinatorRoom.beginSkip()
         fetchSkipPreviewsIfNeeded(for: burst, on: group)
         prefetchSkipArtwork(for: burst)
 
@@ -210,7 +215,9 @@ extension SonosService {
             if group.coordinatorRoom.track != burst.startTrack {
                 group.coordinatorRoom.track = burst.startTrack
             }
-            group.coordinatorRoom.updatePlaybackPosition(burst.startPlaybackPosition)
+            // Releases the press's hold at 0: the bar goes back to where the
+            // song was, and the speaker, still playing it, confirms at once.
+            group.coordinatorRoom.beginSeek(to: burst.startPlaybackPosition)
             return
         }
 
@@ -300,7 +307,7 @@ extension SonosService {
         return TrackSkipBurst(
             plan: TrackSkipPlan(mode: mode, startPosition: track.position),
             startTrack: track,
-            startPlaybackPosition: group.coordinatorRoom.playbackPosition,
+            startPlaybackPosition: group.coordinatorRoom.estimatedPlaybackPosition(),
             wasPlaying: group.coordinatorRoom.isPlaying,
             nextPreview: liveNextPreview(for: group, position: track.position + 1)
         )
@@ -335,6 +342,8 @@ extension SonosService {
         burst.shownTarget = target
         if group.coordinatorRoom.track != preview {
             group.coordinatorRoom.track = preview
+            // A new song ends the room's skip hold; this one hasn't landed.
+            group.coordinatorRoom.beginSkip()
         }
     }
 
