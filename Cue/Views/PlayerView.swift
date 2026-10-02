@@ -1282,12 +1282,16 @@ struct LocalQueueIconView: View {
                       color: .primary,
                       lineWidth: 2)
         .overlay {
-            Text(position, format: .number)
-                .minimumScaleFactor(0.5)
-                .padding(.horizontal, 4)
-                .allowsTightening(true)
-                .font(.caption2.monospacedDigit())
-                .contentTransition(.numericText())
+            // Past 999 the ring is shown alone, as in `QueueIconView`.
+            if position < 1000 {
+                Text(position, format: .number)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .padding(.horizontal, 4)
+                    .allowsTightening(true)
+                    .font(.caption2.monospacedDigit())
+                    .contentTransition(.numericText())
+            }
         }
         .animation(.spring, value: playback.currentIndex)
         .fontDesign(.rounded)

@@ -17,13 +17,18 @@ struct QueueIconView: View {
                       color: .primary,
                       lineWidth: 2)
         .overlay {
-            Text(position, format: .number)
-                .minimumScaleFactor(0.5)
-                .padding(.horizontal, 4)
-                .allowsTightening(true)
-                .contentTransition(.numericText())
-                .font(.caption2.monospacedDigit())
-                .contentTransition(.identity)
+            // Four digits don't fit inside the gauge: "1,000" wraps onto two
+            // lines and spills past the ring. Past 999 the ring is shown alone.
+            if position < 1000 {
+                Text(position, format: .number)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .padding(.horizontal, 4)
+                    .allowsTightening(true)
+                    .contentTransition(.numericText())
+                    .font(.caption2.monospacedDigit())
+                    .contentTransition(.identity)
+            }
         }
         .animation(.spring, value: group.coordinatorRoom.track.position)
         .fontDesign(.rounded)
