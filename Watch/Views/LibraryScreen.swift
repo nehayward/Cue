@@ -13,7 +13,6 @@ enum LibraryRoute: Hashable {
 enum HomeRoute: Hashable {
     case settings
     case downloads
-    case nowPlaying
 }
 
 /// The watch's home: Downloads at the top (the count of songs here in its
@@ -21,8 +20,10 @@ enum HomeRoute: Hashable {
 /// left; the bottom bar has search, Now Playing in the middle and play on
 /// the right edge (double tap presses it), hidden while the list scrolls
 /// down. No title: the rows say what's what. Screens zoom out of the row
-/// that opens them. The widget opens it on Downloads or Now Playing. The
-/// first time there's music to fetch, it asks at what quality.
+/// that opens them; Now Playing comes up as a sheet — the system's, so it
+/// shows the iPhone's playback too when the watch has none. The widget
+/// opens it on Downloads or Now Playing. The first time there's music to
+/// fetch, it asks at what quality.
 struct LibraryScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
@@ -35,7 +36,7 @@ struct LibraryScreen: View {
     @Namespace private var zoom
 
     private enum Sheet: String, Identifiable {
-        case quality, library
+        case quality, library, nowPlaying
         var id: String { rawValue }
     }
 
@@ -95,16 +96,15 @@ struct LibraryScreen: View {
                         .accessibilityLabel("Search \(source.title)")
                     }
                     Spacer()
-                    if player.current != nil {
-                        Button {
-                            path.append(HomeRoute.nowPlaying)
-                        } label: {
-                            Image(systemName: player.isPlaying ? "waveform" : "play.fill")
-                                .symbolEffect(.variableColor.iterative, isActive: player.isPlaying)
-                        }
-                        .accessibilityLabel("Now Playing")
-                        .zoomSource(HomeRoute.nowPlaying, in: zoom)
+                    // Always there: with nothing on the watch, Now Playing
+                    // shows what the iPhone's playing.
+                    Button {
+                        sheet = .nowPlaying
+                    } label: {
+                        Image(systemName: "waveform")
+                            .symbolEffect(.variableColor.iterative, isActive: player.isPlaying)
                     }
+                    .accessibilityLabel("Now Playing")
                     Spacer()
                     if player.current != nil || store.downloadedCount > 0 {
                         PrimaryPlayButton()
@@ -119,8 +119,6 @@ struct LibraryScreen: View {
                         SettingsScreen()
                     case .downloads:
                         DownloadsScreen()
-                    case .nowPlaying:
-                        NowPlayingView()
                     }
                 }
                 .zoomDestination(route, in: zoom)
@@ -152,13 +150,15 @@ struct LibraryScreen: View {
                         self.sheet = nil
                         chosenSource = chosen.rawValue
                     }
+                case .nowPlaying:
+                    NowPlayingView()
                 }
             }
             // From the Smart Stack widget.
             .onOpenURL { url in
                 switch url.host() {
                 case "downloads": path = NavigationPath([HomeRoute.downloads])
-                case "nowplaying": path = NavigationPath([HomeRoute.nowPlaying])
+                case "nowplaying": sheet = .nowPlaying
                 default: break
                 }
             }

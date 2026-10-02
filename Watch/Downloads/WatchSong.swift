@@ -27,8 +27,8 @@ struct WatchSong: Codable, Hashable, Identifiable, Sendable {
 
     /// The stream at `quality`: converted to MP3 by the server, or the
     /// original file, with the suffix it arrives under. A Plex conversion
-    /// runs as `plexClient`.
-    func stream(at quality: WatchDownloadQuality, plexClient: String = "Cue-Watch") -> (url: URL, fileExtension: String) {
+    /// runs as `plexClient`, in a session named after `plexSession`.
+    func stream(at quality: WatchDownloadQuality, plexClient: String = "Cue-Watch", plexSession: String = "cue-watch") -> (url: URL, fileExtension: String) {
         let service: ConvertedStream.Service = switch source {
         case .plex: .plex
         case .subsonic: .subsonic
@@ -40,7 +40,8 @@ struct WatchSong: Codable, Hashable, Identifiable, Sendable {
             audioCodec: audioCodec,
             format: quality.bitrate == nil ? .original : .mp3,
             bitrate: quality.bitrate ?? StreamTranscoding.defaultBitrate,
-            plexClient: plexClient
+            plexClient: plexClient,
+            plexSession: plexSession
         )
     }
 
@@ -54,5 +55,20 @@ struct WatchSong: Codable, Hashable, Identifiable, Sendable {
     /// The pick that puts just this song on the watch.
     var pick: WatchPick {
         WatchPick(source: source, kind: .song, id: contentID, title: title, subtitle: artist, artworkURL: artworkURL)
+    }
+
+    /// The song as Cue on the iPhone takes it, to play there.
+    var playRequestSong: WatchPlayRequest.Song {
+        WatchPlayRequest.Song(
+            source: source,
+            id: contentID,
+            title: title,
+            artist: artist,
+            album: album,
+            artworkURL: artworkURL,
+            duration: duration,
+            streamURL: sourceURL,
+            audioCodec: audioCodec
+        )
     }
 }

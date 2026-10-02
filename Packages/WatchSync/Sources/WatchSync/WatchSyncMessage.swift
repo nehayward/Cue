@@ -33,6 +33,28 @@ public enum WatchSyncMessage {
         return try? JSONDecoder().decode(WatchCredentials.self, from: data)
     }
 
+    // MARK: - Play on iPhone
+
+    /// A play the watch hands the iPhone, as a message's data: packed, since
+    /// a message has to stay small and a playlist's URLs repeat.
+    public static func requestData(_ request: WatchPlayRequest) throws -> Data {
+        pack(try JSONEncoder().encode(request))
+    }
+
+    public static func playRequest(in data: Data) -> WatchPlayRequest? {
+        guard let json = unpack(data) else { return nil }
+        return try? JSONDecoder().decode(WatchPlayRequest.self, from: json)
+    }
+
+    /// The iPhone's answer, as the reply's data.
+    public static func replyData(_ reply: WatchPlayReply) -> Data {
+        (try? JSONEncoder().encode(reply)) ?? Data()
+    }
+
+    public static func playReply(in data: Data) -> WatchPlayReply? {
+        try? JSONDecoder().decode(WatchPlayReply.self, from: data)
+    }
+
     // MARK: - Packing
 
     private enum Packing: UInt8 {

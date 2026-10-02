@@ -1,3 +1,4 @@
+import Defaults
 import Foundation
 import MusicSearchKit
 import Observation
@@ -9,7 +10,8 @@ import UIKit
 import WatchConnectivity
 #endif
 
-/// Tells the Apple Watch what to put on itself, and how to reach it.
+/// Tells the Apple Watch what to put on itself, and how to reach it — and
+/// plays what the watch hands over (Play On ▸ iPhone, `play(_:)`).
 ///
 /// The watch is the client: it browses Plex and Subsonic itself, looks
 /// songs up and downloads them (MusicSearchKit). All this iPhone sends is a
@@ -188,6 +190,125 @@ final class WatchSyncService {
         }
     }
 
+    // MARK: - Play from the watch
+
+    #if os(iOS) && !targetEnvironment(macCatalyst)
+    /// Songs the watch handed over, played wherever this iPhone is pointed:
+    /// the phone, or the Sonos group it's set to (the phone while offline).
+    /// Answers once the song it starts at is playing. On a speaker the rest
+    /// fill in behind it, from that song on; the message may have woken Cue
+    /// in the background, so a background task keeps it running meanwhile.
+    fileprivate func play(_ request: WatchPlayRequest) async -> WatchPlayReply {
+        let tracks = request.songs.map(Self.playable(for:))
+        let start = request.startIndex
+        guard tracks.indices.contains(start) else { return .failed("There was nothing to play.") }
+        let background = WakeTask.begin("Play from Apple Watch")
+        let sonos = SonosService.shared
+        let destination = sonos.isEnabled ? (PlayDestination.remembered ?? .device) : .device
+        logger.notice("watch play: \(tracks.count) songs from \(start), destination=\(String(describing: destination), privacy: .public)")
+
+        if !OfflineMode.shared.isActive, let id = destination.groupID {
+            // Woken by the watch, Cue may not have found the speakers yet.
+            if sonos.groups.isEmpty {
+                try? await sonos.updateGroups()
+            }
+            guard let group = sonos.groups.first(where: { $0.coordinatorID == id }) else {
+                background.end()
+                return .failed("The speakers Cue on your iPhone plays on can't be found. Pick others there, or play on this watch.")
+            }
+            // Playing on the speaker takes over from the phone, as a Play
+            // there does (`PlayDestinationRouter`).
+            LocalPlaybackService.shared.park()
+            do {
+                try await sonos.queue(contents: [tracks[start]], group: group, position: .replace, startIndex: 0)
+            } catch {
+                background.end()
+                logger.error("watch play on \(group.nameWithCount, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+                return .failed("\(group.nameWithCount) couldn't play it: \(error.localizedDescription)")
+            }
+            let rest = Array(tracks[(start + 1)...])
+            Task {
+                defer { background.end() }
+                guard !rest.isEmpty else { return }
+                try? await sonos.queue(contents: rest, group: group, position: .end)
+            }
+            record(tracks[start])
+            return WatchPlayReply(playingOn: group.nameWithCount)
+        }
+
+        defer { background.end() }
+        do {
+            try await LocalPlaybackService.shared.play(tracks, startingAt: start)
+        } catch {
+            logger.error("watch play on the phone failed: \(error.localizedDescription, privacy: .public)")
+            return .failed("Your iPhone couldn't play it. Open Cue there and try again.")
+        }
+        record(tracks[start])
+        return WatchPlayReply(playingOn: "iPhone")
+    }
+
+    /// Into Recently Played, as a play from the phone.
+    private func record(_ track: PlayableContent) {
+        let history = PlayHistoryService.shared
+        history.history.remove(track)
+        history.history.insert(track, at: 0)
+    }
+
+    /// A song from the watch as this iPhone plays it: a speaker by its id,
+    /// the phone from its stream — the whole song off the server, as the
+    /// iPhone's own Plex and Subsonic songs carry it. A Subsonic stream is
+    /// built again with this iPhone's sign-in; a Plex one names the file
+    /// on the server, which only the watch's lookup knows.
+    private static func playable(for song: WatchPlayRequest.Song) -> PlayableContent {
+        let service: MusicService
+        let stream: URL
+        switch song.source {
+        case .plex:
+            service = .plex
+            stream = song.streamURL
+        case .subsonic:
+            service = .subsonic
+            stream = SubsonicAPI.streamURL(for: song.id, fileExtension: song.audioCodec) ?? song.streamURL
+        }
+        return PlayableContent(
+            title: song.title,
+            subtitle: song.artist,
+            thumbnail: song.artworkURL,
+            artwork: largeArtwork(song.artworkURL),
+            content: MediaContent(service: service, id: song.id, type: .track, location: nil),
+            previewURL: stream,
+            metadata: PlayableContentMetadata(
+                duration: song.duration.map { Duration.seconds($0) },
+                artist: song.artist,
+                album: song.album,
+                audioCodec: song.audioCodec
+            )
+        )
+    }
+
+    /// The watch asks its servers for small covers; the phone's player
+    /// draws them large. The same cover at the size the iPhone uses: a
+    /// Plex transcode's width and height, a Subsonic cover's size.
+    private static func largeArtwork(_ url: URL?) -> URL? {
+        guard let url, var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        let names: Set<String>
+        let size: Int
+        if components.path.hasSuffix("/photo/:/transcode") {
+            names = ["width", "height"]
+            size = PlexImageSize.artwork
+        } else if components.path.hasSuffix("getCoverArt") || components.path.hasSuffix("getCoverArt.view") {
+            names = ["size"]
+            size = SubsonicAPI.artworkSize
+        } else {
+            return url
+        }
+        components.queryItems = components.queryItems?.map { item in
+            names.contains(item.name) ? URLQueryItem(name: item.name, value: "\(size)") : item
+        }
+        return components.url ?? url
+    }
+    #endif
+
     // MARK: - Storage
 
     private static var picksURL: URL {
@@ -242,6 +363,39 @@ private final class WatchSessionRelay: NSObject, WCSessionDelegate, @unchecked S
         Task { @MainActor in
             self.service?.didReceive(picks: picks)
         }
+    }
+
+    /// Songs to play here, from the watch's Play On ▸ iPhone.
+    func session(_ session: WCSession, didReceiveMessageData messageData: Data, replyHandler: @escaping (Data) -> Void) {
+        guard let request = WatchSyncMessage.playRequest(in: messageData) else {
+            replyHandler(WatchSyncMessage.replyData(.failed("Update Cue on your iPhone to play from the watch.")))
+            return
+        }
+        Task { @MainActor in
+            let reply = await self.service?.play(request) ?? .failed("Open Cue on your iPhone and try again.")
+            replyHandler(WatchSyncMessage.replyData(reply))
+        }
+    }
+}
+
+/// Keeps Cue running, when the watch woke it in the background, until
+/// what it was woken for is under way — or the system's time is up.
+@MainActor
+private final class WakeTask {
+    private var id = UIBackgroundTaskIdentifier.invalid
+
+    static func begin(_ name: String) -> WakeTask {
+        let task = WakeTask()
+        task.id = UIApplication.shared.beginBackgroundTask(withName: name) { [weak task] in
+            task?.end()
+        }
+        return task
+    }
+
+    func end() {
+        guard id != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(id)
+        id = .invalid
     }
 }
 #endif

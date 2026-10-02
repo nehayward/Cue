@@ -2,12 +2,13 @@ import SwiftUI
 import WatchSync
 
 /// An album, playlist or artist on the watch, or the songs added on their
-/// own: Play and Shuffle for what's here, and each song with where its
-/// download stands.
+/// own: Play and Shuffle (the downloaded songs from the watch, the rest
+/// streamed), and each song with where its download stands.
 struct CollectionScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
     @Environment(\.dismiss) private var dismiss
+    @State private var playOn = PlayOn()
     let route: LibraryRoute
 
     private var picks: [WatchPick] {
@@ -33,7 +34,7 @@ struct CollectionScreen: View {
 
                     HStack {
                         Button {
-                            player.play(playable)
+                            playOn.play(songs)
                         } label: {
                             Image(systemName: "play.fill")
                                 .frame(maxWidth: .infinity)
@@ -41,7 +42,7 @@ struct CollectionScreen: View {
                         .accessibilityLabel("Play")
                         .primaryHandGesture()
                         Button {
-                            player.play(playable, shuffled: true)
+                            playOn.play(songs, shuffled: true)
                         } label: {
                             Image(systemName: "shuffle")
                                 .frame(maxWidth: .infinity)
@@ -49,18 +50,17 @@ struct CollectionScreen: View {
                         .accessibilityLabel("Shuffle")
                     }
                     .buttonStyle(.bordered)
-                    .disabled(playable.isEmpty)
+                    .disabled(songs.isEmpty)
                     .listRowBackground(Color.clear)
                 }
 
                 Section {
                     ForEach(songs) { song in
                         Button {
-                            player.play(playable, startingAt: song.key)
+                            playOn.play(songs, startingAt: song.key)
                         } label: {
                             SongStateRow(song: song, item: store.item(for: song.key), isCurrent: player.current?.key == song.key)
                         }
-                        .disabled(!store.isPlayable(song.key))
                         .swipeActions {
                             if route == .songs {
                                 Button(role: .destructive) {
@@ -88,6 +88,7 @@ struct CollectionScreen: View {
                 }
             }
             .navigationTitle(route == .songs ? "Songs" : picks[0].title)
+            .playOnSheet(playOn)
         }
     }
 
@@ -119,7 +120,7 @@ struct CollectionScreen: View {
         } else if keys.contains(where: { store.unreachable.contains($0) }) {
             Text("Couldn't reach the server. Cue tries again the next time you open it.")
         } else if playable.count < songs.count {
-            Text("\(playable.count) of \(songs.count) songs on this watch. Fast Download fetches the rest over Wi‑Fi.")
+            Text("\(playable.count) of \(songs.count) songs on this watch; the rest stream when they play. Fast Download fetches them over Wi‑Fi.")
         } else if !songs.isEmpty, route != .songs {
             Text("\(songs.count == 1 ? "1 song" : "\(songs.count) songs") • \(ByteCountFormatter.string(fromByteCount: store.bytesUsed(by: songs), countStyle: .file))")
         } else if route == .songs {

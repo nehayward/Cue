@@ -6,13 +6,15 @@ import UIKit
 import WatchKit
 import WatchSync
 
-/// Plays what's on the watch, to headphones or a speaker.
+/// Plays Plex and Subsonic songs on the watch, to headphones or a speaker.
 ///
 /// A long-form audio session: the system offers its route picker when
 /// nothing's connected, playback carries on with the screen off, and the
-/// song shows in Now Playing, where the Digital Crown sets the volume. Only
-/// songs that are here play; a queue is the downloaded songs of an album,
-/// playlist, artist or the songs added one at a time.
+/// song shows in Now Playing, where the Digital Crown sets the volume. A
+/// song that's downloaded plays from its file; any other streams from its
+/// server (`streamQuality`), through the iPhone when it's connected over
+/// Bluetooth and over the watch's own Wi‑Fi or cellular otherwise. A song
+/// that won't stream (no network, the server's away) is skipped.
 @MainActor
 @Observable
 final class WatchPlayer {
@@ -26,8 +28,24 @@ final class WatchPlayer {
         queue.indices.contains(index) ? queue[index] : nil
     }
 
+    /// Streams go as 128 kbps MP3: it keeps up through the iPhone's
+    /// Bluetooth link (tens of KB/s), and the watch's player can't open the
+    /// Opus in Ogg the servers send otherwise.
+    static let streamQuality = WatchDownloadQuality.small
+    /// A Plex client and session of the player's own, so a stream never
+    /// ends a download's conversion (`WatchDownloadStore.plexClients`), even
+    /// of the same song.
+    private static let plexClient = "Cue-Watch-Player"
+    private static let plexSession = "cue-watch-player"
+
     @ObservationIgnored private let player = AVPlayer()
     @ObservationIgnored private var statusObservation: NSKeyValueObservation?
+    /// The current item's, to skip a stream that won't open.
+    @ObservationIgnored private var itemObservation: NSKeyValueObservation?
+    @ObservationIgnored private var failureObserver: NSObjectProtocol?
+    /// Songs that failed in a row; past a few, nothing's reachable and it
+    /// stops rather than run down the queue.
+    @ObservationIgnored private var failuresInARow = 0
     @ObservationIgnored private var endObserver: NSObjectProtocol?
     @ObservationIgnored private var interruptionObserver: NSObjectProtocol?
     @ObservationIgnored private var commandsConfigured = false
@@ -36,7 +54,11 @@ final class WatchPlayer {
     private init() {
         statusObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
             let playing = player.timeControlStatus != .paused
+            let started = player.timeControlStatus == .playing
             Task { @MainActor in
+                if started {
+                    self?.failuresInARow = 0
+                }
                 self?.isPlaying = playing
                 self?.updateNowPlaying()
                 WidgetStatePublisher.schedule()
@@ -47,6 +69,15 @@ final class WatchPlayer {
             Task { @MainActor in
                 guard let self, item != nil, item === self.player.currentItem else { return }
                 self.next()
+            }
+        }
+        // A stream cut off part-way.
+        failureObserver = NotificationCenter.default.addObserver(forName: AVPlayerItem.failedToPlayToEndTimeNotification, object: nil, queue: .main) { [weak self] notification in
+            let item = notification.object as? AVPlayerItem
+            let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error
+            Task { @MainActor in
+                guard let self, let item, item === self.player.currentItem else { return }
+                self.skip(error: error)
             }
         }
         // A call or an alarm pauses the player by itself; carry on after
@@ -62,40 +93,53 @@ final class WatchPlayer {
         }
     }
 
-    /// Plays these songs — those of them that are here — from the one with
-    /// `key`, or shuffled with that one first.
-    /// False when none of them is here to play.
+    /// Plays these songs from the one with `key`, or shuffled with that one
+    /// first: the downloaded ones from their files, the rest streamed.
+    /// False when there are none.
     @discardableResult
     func play(_ songs: [WatchSong], startingAt key: String? = nil, shuffled: Bool = false) -> Bool {
-        let store = WatchDownloadStore.shared
-        var playable = songs.filter { store.localURL(for: $0) != nil }
-        guard !playable.isEmpty else { return false }
-        var start = 0
-        if shuffled {
-            playable.shuffle()
-            if let key, let found = playable.firstIndex(where: { $0.key == key }) {
-                playable.swapAt(0, found)
-            }
-        } else if let key, let found = playable.firstIndex(where: { $0.key == key }) {
-            start = found
-        }
-        queue = playable
+        let (ordered, start) = Self.order(songs, startingAt: key, shuffled: shuffled)
+        guard !ordered.isEmpty else { return false }
+        queue = ordered
         index = start
+        failuresInARow = 0
         Task { await startPlayback() }
         return true
     }
 
-    /// Everything on the watch, newest pick first.
+    /// `songs` in play order and where to start: as given from the one with
+    /// `key`, or shuffled with that one first. Also how a play handed to the
+    /// iPhone is ordered.
+    static func order(_ songs: [WatchSong], startingAt key: String?, shuffled: Bool) -> (songs: [WatchSong], start: Int) {
+        var songs = songs
+        guard shuffled else {
+            return (songs, key.flatMap { key in songs.firstIndex { $0.key == key } } ?? 0)
+        }
+        songs.shuffle()
+        if let key, let found = songs.firstIndex(where: { $0.key == key }) {
+            songs.swapAt(0, found)
+        }
+        return (songs, 0)
+    }
+
+    /// Everything downloaded to the watch, newest pick first: what plays
+    /// with nothing in reach.
     @discardableResult
     func playDownloads(shuffled: Bool) -> Bool {
         let store = WatchDownloadStore.shared
-        return play(store.songs(in: store.picks.items.map(\.key)), shuffled: shuffled)
+        return play(downloaded(store.songs(in: store.picks.items.map(\.key))), shuffled: shuffled)
     }
 
-    /// One album, playlist, artist or song on the watch.
+    /// The downloaded songs of one album, playlist, artist or song on the
+    /// watch.
     @discardableResult
     func play(pickKey: String, shuffled: Bool) -> Bool {
-        play(WatchDownloadStore.shared.songs(in: [pickKey]), shuffled: shuffled)
+        play(downloaded(WatchDownloadStore.shared.songs(in: [pickKey])), shuffled: shuffled)
+    }
+
+    private func downloaded(_ songs: [WatchSong]) -> [WatchSong] {
+        let store = WatchDownloadStore.shared
+        return songs.filter { store.localURL(for: $0) != nil }
     }
 
     func togglePlayPause() {
@@ -139,8 +183,11 @@ final class WatchPlayer {
         }
     }
 
-    private func stop() {
+    /// Ends playback and lets the audio session go: when what's playing
+    /// moves to the iPhone, so Now Playing shows the iPhone's.
+    func stop() {
         player.pause()
+        itemObservation = nil
         player.replaceCurrentItem(with: nil)
         queue = []
         index = 0
@@ -170,22 +217,46 @@ final class WatchPlayer {
         }
     }
 
-    /// Loads the song at `index` — or the next one that's still here, when
-    /// it was removed from the watch since the queue was made.
+    /// Loads the song at `index`: its file when it's downloaded, its stream
+    /// otherwise.
     private func loadCurrent() {
-        let store = WatchDownloadStore.shared
-        while let song = current {
-            if let url = store.localURL(for: song) {
-                player.replaceCurrentItem(with: AVPlayerItem(url: url))
-                updateNowPlaying()
-                // A skip can keep playing straight through, so the widgets
-                // don't hear of the new song from the play state.
-                WidgetStatePublisher.schedule()
-                return
-            }
-            queue.remove(at: index)
+        guard let song = current else {
+            stop()
+            return
         }
-        stop()
+        let url: URL
+        if let file = WatchDownloadStore.shared.localURL(for: song) {
+            url = file
+        } else {
+            url = song.stream(at: Self.streamQuality, plexClient: Self.plexClient, plexSession: Self.plexSession).url
+            logger.notice("Streaming \(song.key, privacy: .public)")
+        }
+        let item = AVPlayerItem(url: url)
+        itemObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+            guard item.status == .failed else { return }
+            let error = item.error
+            Task { @MainActor in
+                guard let self, item === self.player.currentItem else { return }
+                self.skip(error: error)
+            }
+        }
+        player.replaceCurrentItem(with: item)
+        updateNowPlaying()
+        // A skip can keep playing straight through, so the widgets don't
+        // hear of the new song from the play state.
+        WidgetStatePublisher.schedule()
+    }
+
+    /// On to the next song when this one won't play — or stops, when
+    /// several in a row haven't: nothing's reachable.
+    private func skip(error: Error?) {
+        failuresInARow += 1
+        logger.error("Couldn't play \(self.current?.key ?? "-", privacy: .public): \(error?.localizedDescription ?? "unknown", privacy: .public)")
+        if failuresInARow >= min(queue.count, 3) {
+            stop()
+        } else {
+            next()
+        }
     }
 
     private func updateNowPlaying() {
