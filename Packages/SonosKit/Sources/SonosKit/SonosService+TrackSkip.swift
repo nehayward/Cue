@@ -130,6 +130,29 @@ extension SonosService {
         isRunning || liveConnections[group.coordinatorID] != nil
     }
 
+    /// Reads the speaker's position before a skip that starts in the
+    /// background.
+    ///
+    /// There only the socket keeps the model, and it reports on change rather
+    /// than continuously: the playback position freezes at the last event, and
+    /// a missed event leaves the track number one behind. A skip is worked out
+    /// from both — a frozen 0:00 turned previous's restart into going back a
+    /// song, and a stale track number aims a jump at the song already playing.
+    /// One read fixes both: the round trip `previous` always paid before. In
+    /// the foreground the poll keeps them current, so presses there don't wait.
+    @MainActor
+    func refreshPositionForSkip(_ group: GroupRoom) async {
+        guard !isRunning, !isLandingSkip(on: group),
+              let track = await getTrack(ip: group.coordinatorRoom.ip), !track.isEmpty,
+              // A press that landed during the read already zeroed the
+              // position on purpose.
+              !isLandingSkip(on: group) else { return }
+        group.coordinatorRoom.updatePlaybackPosition(track.playbackPosition)
+        if group.coordinatorRoom.track.position != track.position {
+            group.coordinatorRoom.track.position = track.position
+        }
+    }
+
     /// Whether a skip on `group` is still on its way to the speaker. Socket
     /// position updates are dropped meanwhile: they describe the old song.
     @MainActor

@@ -2355,6 +2355,7 @@ public final class SonosService {
             await api.next(ipAddress: ip)
             return
         }
+        await refreshPositionForSkip(group)
         await skip(.next, on: group).value
     }
 
@@ -2363,6 +2364,7 @@ public final class SonosService {
     @MainActor
     public func previous(ip: String) async {
         if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }), isKeepingCurrent(group) {
+            await refreshPositionForSkip(group)
             await skip(.previous, on: group).value
             return
         }
