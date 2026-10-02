@@ -91,7 +91,7 @@ final class LiveActivityManager: LiveActivityManageable {
                 continue
             }
 
-            let trackReadAt = Date.now
+            let trackReadAt = ContinuousClock.now
             async let track = sonosService.getTrack(ip: group.coordinatorRoom.ip)
             async let playbackInfo = sonosService.getPlaybackInfo(ip: group.coordinatorRoom.ip)
             async let groupVolume = sonosService.getGroupVolume(ip: group.coordinatorRoom.ip)

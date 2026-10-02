@@ -22,7 +22,12 @@ extension SonosService {
     /// How long to keep showing the target after the last press or command
     /// while the speaker hasn't reported it. Past this, whatever the speaker
     /// says wins.
-    static let skipHoldTimeout: TimeInterval = 2.5
+    ///
+    /// The hold's times are all `ContinuousClock`, not `Date`: the wall clock
+    /// can step backwards (a manual change, a network time correction), and a
+    /// send time left in the future would drop every read of that group until
+    /// the clock caught up — the player frozen on one song.
+    static let skipHoldTimeout: Duration = .seconds(2.5)
     /// After the last command, how often and how many times to re-read the
     /// speaker until it agrees — only while the poll isn't running to do it:
     /// backgrounded, the Lock Screen controls drive skips and nothing polls.
@@ -35,7 +40,23 @@ extension SonosService {
     /// Loads covers ahead of the player. Nuke's prefetcher skips covers already
     /// in memory, runs at low priority with capped concurrency, and can be told
     /// to stop the ones a skip has moved past.
-    static let artworkPrefetcher = ImagePrefetcher(pipeline: .shared, destination: .memoryCache)
+    ///
+    /// Bound to whichever pipeline is `ImagePipeline.shared` at the time, not
+    /// the one there when this was first touched. The app replaces the shared
+    /// pipeline at launch with one whose disk cache Settings can clear; a
+    /// prefetcher made before that would keep loading through Nuke's default
+    /// pipeline, into a second disk cache nothing clears.
+    @MainActor
+    static var artworkPrefetcher: ImagePrefetcher {
+        if let current = currentArtworkPrefetcher, current.pipeline === ImagePipeline.shared {
+            return current.prefetcher
+        }
+        let prefetcher = ImagePrefetcher(pipeline: .shared, destination: .memoryCache)
+        currentArtworkPrefetcher = (ImagePipeline.shared, prefetcher)
+        return prefetcher
+    }
+    @MainActor
+    private static var currentArtworkPrefetcher: (pipeline: ImagePipeline, prefetcher: ImagePrefetcher)?
 
     /// Skips `group` a song forward or back.
     ///
@@ -64,7 +85,7 @@ extension SonosService {
         // Reads now describe a song being left. That includes the confirmation
         // of an earlier round of this burst, which the sender restarts.
         liveTrackRefreshTasks.removeValue(forKey: group.coordinatorID)?.cancel()
-        burst.holdDeadline = Date.now.addingTimeInterval(Self.skipHoldTimeout)
+        burst.holdDeadline = ContinuousClock.now + Self.skipHoldTimeout
 
         group.coordinatorRoom.updatePlaybackPosition(0)
         showSkipPreview(for: burst, on: group)
@@ -103,12 +124,13 @@ extension SonosService {
     /// Releases the hold, and returns `false`, once a read shows the speaker
     /// has arrived or the hold has timed out.
     ///
-    /// - Parameter readAt: When the read was *sent*. A read sent before the last
-    ///   command reached the speaker describes the old song however late its
-    ///   answer lands — even after a faster read has confirmed the new one,
-    ///   since the poll awaits several other calls before it looks at its track.
+    /// - Parameter readAt: `ContinuousClock.now` when the read was *sent*. A
+    ///   read sent before the last command reached the speaker describes the
+    ///   old song however late its answer lands — even after a faster read has
+    ///   confirmed the new one, since the poll awaits several other calls
+    ///   before it looks at its track.
     @MainActor
-    public func skipHoldsTrack(on group: GroupRoom, read track: Track, at readAt: Date) -> Bool {
+    public func skipHoldsTrack(on group: GroupRoom, read track: Track, at readAt: ContinuousClock.Instant) -> Bool {
         if let settledAt = lastSkipSettledAt[group.coordinatorID], readAt < settledAt {
             return true
         }
@@ -121,7 +143,7 @@ extension SonosService {
             position: track.position,
             isStartTrack: track.unique == burst.startTrack.unique
         )
-        if !arrived, Date.now < burst.holdDeadline {
+        if !arrived, ContinuousClock.now < burst.holdDeadline {
             return true
         }
 
@@ -175,8 +197,9 @@ extension SonosService {
                 return
             }
             burst.plan.didSend(command)
-            lastSkipSettledAt[group.coordinatorID] = .now
-            burst.holdDeadline = Date.now.addingTimeInterval(Self.skipHoldTimeout)
+            let settledAt = ContinuousClock.now
+            lastSkipSettledAt[group.coordinatorID] = settledAt
+            burst.holdDeadline = settledAt + Self.skipHoldTimeout
         }
         burst.sender = nil
 
@@ -451,10 +474,10 @@ final class TrackSkipBurst {
     var sender: Task<Void, Never>?
     /// When to stop waiting for the speaker to report the target. Set by every
     /// press and every accepted command.
-    var holdDeadline: Date = .distantPast
+    var holdDeadline = ContinuousClock.now
 
     /// Commands still going out, or the speaker not yet given up on.
-    var isLanding: Bool { sender != nil || Date.now < holdDeadline }
+    var isLanding: Bool { sender != nil || ContinuousClock.now < holdDeadline }
 
     init(plan: TrackSkipPlan, startTrack: Track, startPlaybackPosition: TimeInterval, wasPlaying: Bool, nextPreview: Track?) {
         self.plan = plan

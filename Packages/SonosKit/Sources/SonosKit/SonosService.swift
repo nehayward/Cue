@@ -236,7 +236,7 @@ public final class SonosService {
     @ObservationIgnored var skipBursts: [String: TrackSkipBurst] = [:]
     /// When each coordinator's last finished skip reached the speaker. Reads
     /// sent before it are of the song that was skipped away from.
-    @ObservationIgnored var lastSkipSettledAt: [String: Date] = [:]
+    @ObservationIgnored var lastSkipSettledAt: [String: ContinuousClock.Instant] = [:]
     @ObservationIgnored private var metadataTask: Task<Void, Never>?
     /// Reads room volume/mute/alarm after a topology change without holding
     /// the list on it. Kept so the next change or `clearDevices` can cancel
@@ -620,7 +620,7 @@ public final class SonosService {
             if roomGroup != selectedGroup {
                 self.selectedGroup = roomGroup
             }
-            let trackReadAt = Date.now
+            let trackReadAt = ContinuousClock.now
             async let track = self.getTrack(ip: roomGroup.coordinatorRoom.ip)
             async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
             async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
@@ -999,7 +999,7 @@ public final class SonosService {
                     guard let self else { return }
                     // MARK: Sleeping or Off
                     if roomGroup.coordinatorRoom.state != .active { return }
-                    let trackReadAt = Date.now
+                    let trackReadAt = ContinuousClock.now
                     async let track = getTrack(ip: roomGroup.coordinatorRoom.ip)
                     async let mediaInfo = api.mediaInfo(ipAddress: roomGroup.coordinatorRoom.ip)
 
