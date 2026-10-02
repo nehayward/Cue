@@ -20,12 +20,21 @@ enum WidgetStatePublisher {
         }
     }
 
+    /// At once: when Cue leaves the screen (the system may suspend it
+    /// before a scheduled publish runs) and at launch (a state left by a
+    /// killed app may still say it's playing).
+    static func publishNow() {
+        pending?.cancel()
+        publish()
+    }
+
     private static func publish() {
         let store = WatchDownloadStore.shared
         let player = WatchPlayer.shared
         let state = WatchWidgetState(
             songsOnWatch: store.downloadedCount,
-            songsToDownload: store.remainingCount,
+            // Still coming, not failed: failed ones wait for Cue to open.
+            songsToDownload: store.remainingCount - store.failedCount,
             bytesUsed: store.bytesUsed,
             nowPlayingTitle: player.current?.title,
             nowPlayingArtist: player.current?.artist,

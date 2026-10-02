@@ -178,6 +178,9 @@ final class WatchPlayer {
             if let url = store.localURL(for: song) {
                 player.replaceCurrentItem(with: AVPlayerItem(url: url))
                 updateNowPlaying()
+                // A skip can keep playing straight through, so the widgets
+                // don't hear of the new song from the play state.
+                WidgetStatePublisher.schedule()
                 return
             }
             queue.remove(at: index)

@@ -27,6 +27,7 @@ struct CueWatchApp: App {
                 store.appDidBecomeActive()
             case .background:
                 store.appDidEnterBackground()
+                WidgetStatePublisher.publishNow()
             default:
                 break
             }
@@ -41,6 +42,8 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate {
         // Makes the store, and with it the background session, so events
         // for transfers that finished while Cue was closed are delivered.
         _ = WatchDownloadStore.shared
+        // Nothing's playing yet, whatever the widgets were last told.
+        WidgetStatePublisher.publishNow()
     }
 
     func handle(_ backgroundTasks: Set<WKRefreshBackgroundTask>) {
