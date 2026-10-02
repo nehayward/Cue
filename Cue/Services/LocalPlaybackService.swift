@@ -418,6 +418,20 @@ final class LocalPlaybackService {
         }
     }
 
+    /// Every track of a container, page after page, so a long playlist
+    /// comes whole — what a download or the watch takes of it.
+    func allContainerTracks(for container: PlayableContent) async -> [PlayableContent] {
+        var tracks: [PlayableContent] = []
+        // Bounded: a source that quietly ignored `offset` would otherwise
+        // hand back its first page forever.
+        for _ in 0 ..< 200 {
+            let page = await containerTracks(for: container, offset: tracks.count)
+            guard !page.isEmpty else { break }
+            tracks.append(contentsOf: page)
+        }
+        return tracks
+    }
+
     /// One page of a container's tracks, fetched the same way its detail
     /// screen does. Sources that answer in a single shot return everything at
     /// offset 0 and nothing after, so callers can page uniformly.

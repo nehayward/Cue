@@ -27,7 +27,8 @@ These rules apply to every session on the Mac (started with `Scripts/claude-remo
 - When you build the iOS app, run `Scripts/deploy-to-iphone.sh` instead of a simulator build. It builds the `Cue` scheme (Debug) for the connected iPhone, installs it and launches it. The user tests on the phone, so a change is not finished until it has been deployed.
 - On failure, it prints the compile errors and writes the full log to `build/device-build.log`. Fix the errors and run it again.
 - If it reports that no iPhone is connected, build for the simulator instead (`xcodebuild -project Cue.xcodeproj -scheme Cue -destination 'generic/platform=iOS Simulator' build`) and tell the user the phone was not reachable.
-- Other targets (Mac, TV, Cue Mini) build with `xcodebuild` as usual; only the iOS app is deployed.
+- The script also installs the watch app from the build straight onto the paired Apple Watch (`Scripts/list-watches.py` finds it; `CUE_WATCH=<name or UDID>` picks one, `--no-watch` skips it), so the watch's reason shows in the output when it refuses. The watch has to be known to Xcode (Devices and Simulators) with Developer Mode on.
+- Other targets (Mac, TV, Cue Mini) build with `xcodebuild` as usual; only the iOS and watch apps are deployed.
 
 ### Logs and crashes from the iPhone
 - To check runtime behaviour, deploy with `Scripts/deploy-to-iphone.sh --logs [seconds]` (default 30), or relaunch without rebuilding with `Scripts/iphone-logs.sh [seconds]`. Ask the user to reproduce on the phone while it captures. It shows the last 200 lines; the full capture is in `build/device-console.log`. Set `CUE_LOG_FILTER=<text>` to see only matching lines. `print` and `Logger` output both appear.
@@ -41,7 +42,7 @@ This is an Xcode project with multiple targets and schemes:
 ### Build Commands
 - **Open in Xcode**: `open Cue.xcodeproj`
 - **Build main app**: Use Xcode's build system (⌘+B) or select specific schemes
-- **Available schemes**: Cue, Cue (Mac), Cue (TV), Cue Mini, Cue [Free], Vision [Free], QueueAction, Widgets
+- **Available schemes**: Cue, Cue (Mac), Cue (TV), Cue (Watch), Cue Mini, Cue [Free], Vision [Free], QueueAction, Widgets
 
 ### Testing
 - **Run tests**: Use Xcode's test navigator or ⌘+U
@@ -64,7 +65,7 @@ The app is built around several Swift packages in `/Packages`:
    - XML parsers for Sonos responses
    - Device discovery and monitoring
 
-2. **MusicSearchKit** - Music service integrations
+2. **MusicSearchKit** - Music service integrations (also linked into the watch app, which browses Plex and Subsonic with it). A dynamic framework: the iOS app gets it embedded through SonosKit, but the watch links it directly, so its target embeds it in its own Embed Frameworks phase
    - Apple Music, Spotify, Plex, Tidal, TuneIn, SoundCloud APIs
    - Authentication services for each platform
    - Search result parsing and models
@@ -82,6 +83,11 @@ The app is built around several Swift packages in `/Packages`:
 6. **VibesDS** - Custom UI design system
    - Reusable SwiftUI components and styles
 
+7. **WatchSync** - What the iPhone and the watch app share (pure Foundation, tested with `swift test`)
+   - `WatchPicks`/`WatchPick` (what's chosen to be on the watch, by id, merged per pick), `WatchCredentials` (the iPhone's sign-ins), `WatchKeys`, `WatchDownloadQuality`, `WatchSyncMessage` (the application context each side sends)
+   - `TransferRateMeter` and `RouteEstimator`, which tell the watch's own Wi‑Fi from the iPhone relay by speed
+   - `WatchWidgetState`, what the watch app leaves in the app group (`group.dance.cue`) for its widgets
+
 ### Main App Structure
 - **CueApp.swift** - Main app entry point with shared services
 - **Router.swift** - Navigation and routing system
@@ -94,6 +100,8 @@ The app is built around several Swift packages in `/Packages`:
 - **CueMini/** - macOS menu bar app for quick controls
 - **TV/** - tvOS app optimized for Apple TV
 - **CarPlay/** - the iPhone app's CarPlay scene (built by the Cue target only; there is no separate CarPlay target)
+- **Watch/** - watchOS app (`Cue (Watch)`, embedded in the iOS app): plays Plex and Subsonic songs downloaded to the watch. See Apple Watch below
+- **WatchWidgets/** - the watch's widget extension (`Widgets (Watch)`, embedded in the watch app): the Smart Stack / watch face widget and the Shuffle Downloads control
 - **Widgets/** - iOS/macOS widgets, controls and Live Activities (target kept, not embedded in the apps for now)
 - **PlayAction/** - Share sheet extension for queuing music
 - **Website/** - cue.dance, a Cloudflare Worker (see `Website/README.md`). Release pages and the in-app What's New JSON come from `Website/src/content/releases.js` (starting at 2026.1), and `/help` and `/releases/<version>` are opened by the app's web views
@@ -164,7 +172,17 @@ The app is built around several Swift packages in `/Packages`:
 - **CarPlay**: `CarPlay/` is an audio-app template scene (Recents, Library, Radio, Play On) that always plays on the device. The entitlement is in `Cue/Cue-iOS.entitlements` (iOS SDKs only; `Cue.entitlements` is shared with Mac/TV/Vision and must not carry it), the scene is in `Cue/Info.plist`, and `AppDelegate.application(_:configurationForConnecting:)` hands that role `CarPlaySceneDelegate`. Test it in the Simulator with I/O ▸ External Displays ▸ CarPlay
 - **macOS**: Leverage menu bar app and Mac-specific controls
 - **tvOS**: Optimize for remote control navigation
-- **watchOS**: The watch app and its widgets were removed pending a rewrite; the old code lives in git history (`Watch/`, `WatchWidgets/`)
+- **watchOS**: A device-first player for Plex and Subsonic, rewritten from scratch (the old Sonos remote and its widgets live in git history). The watch is the client: it browses and searches the servers itself with MusicSearchKit (its home screen, `WatchLibraryBrowser`, `WatchAccounts`), with the sign-ins the iPhone shares (`WatchCredentials`). What's on the watch is a list of picks — albums, playlists, artists and songs by id (`WatchPicks`) — made on either device: browsing on the watch, Add to Apple Watch in a menu on the iPhone (Settings ▸ Storage ▸ Apple Watch lists them). Only the picks cross, as each side's application context (the iPhone's also carries the sign-ins); each side merges what arrives per pick (later of add and removal wins, removals kept as tombstones) and sends back only when the other was missing something. The watch looks each pick up on its server (`WatchLibraryBrowser.songs(for:)`), again when the sign-ins change and every six hours, and `WatchDownloadStore` downloads the songs; `WatchPlayer` plays the files through a long-form audio session (`UIBackgroundModes: audio` — watchOS ignores `WKBackgroundModes` for audio)
+
+### Apple Watch downloads
+- watchOS routes a watch app's `URLSession` traffic through the iPhone whenever the two are connected over Bluetooth (tens of KB/s), and no app can choose otherwise. Low-level networking, `NWPathMonitor` included, is off limits outside audio streaming and VoIP (TN3135), so the app can't ask which way a transfer goes.
+- Downloads normally run on a background session (`dance.cue.watch.downloads`), 16 songs handed to it at a time, and carry on with Cue closed. **Fast Download** runs them on a foreground session, four at a time, while Cue is open, and asks for Bluetooth to be turned off in the iPhone's Settings app (Control Center leaves the watch connected), which leaves the watch its own Wi‑Fi. The speed is the evidence of the route (`RouteEstimator`: under 250 KB/s after 5 s is "through iPhone", 400 KB/s or more is Wi‑Fi), and the screen asks again while it's slow. Leaving the app hands what's left back to the background session; returning resumes the fast run.
+- Each transfer logs its metrics (proxy connection, local and remote address, KB/s) under the `dance.cue.watch` subsystem, for checking the route on a device.
+- Only Plex and Subsonic go on the watch: the same rule as `DownloadManager`, since their songs are plain URLs. Adding is gated by `FeatureGate` `.downloads`, with no separate limit.
+- Songs go at the watch's own quality (`WatchDownloadQuality`: MP3 at 256/192/128 kbps converted by the server, or Original), not the iPhone's Streaming Quality. The watch asks the first time it has music to fetch and keeps it in its defaults; songs come down at the recommended one meanwhile. MP3 because Plex and Subsonic send Opus in Ogg, which the watch's player can't open. Streams are built when a download starts (`WatchSong.stream(at:)`, `ConvertedStream` in MusicSearchKit), so they carry the current sign-ins; a new quality fetches each song again and plays the old file (`previousFileExtension`) until the new one lands.
+- Plex converts as it sends, and starting a transcode can end another of the same client, so the watch's run under client ids of their own (`WatchDownloadStore.plexClients`: `Cue-Watch`, `Cue-Watch-2`), never ending one the iPhone is playing, and as many at once as there are ids. One conversion goes about as fast as the server encodes (around 2 MB/s), so two fill more of Wi‑Fi. A conversion the server breaks off (`cannot parse response`, `bad server response`, connection lost) is tried again twice by itself, then counts as failed; opening Cue, new sign-ins or Fast Download try failed songs again. A lookup that fails part-way (a playlist page, one of an artist's albums) fails whole, so a passing fault never deletes songs.
+- Beyond the app: **double tap** (and the pinch, watchOS 11+'s `handGestureShortcut(.primaryAction)`) presses the play button on the right edge of the home screen's bottom bar (play/pause, or Shuffle Downloads when nothing's loaded) and an album's Play. **Siri and Shortcuts** (`Watch/Intents`): `ShuffleDownloadsIntent`, `PlayDownloadsIntent` and `PlayPickIntent` (a `PickEntity` per pick, names refreshed with `CueShortcuts.updateAppShortcutParameters()` when picks change) are `AudioPlaybackIntent`s, so they play in the app. **Widgets** (`WatchWidgets/`): one widget for the Smart Stack and faces (rectangular with a Shuffle button, circular, corner, inline; ranked up while playing or downloading) reading `WatchWidgetState`, which `WidgetStatePublisher` writes a few seconds after the store or player changes and then reloads; tapping opens Downloads or Now Playing (`cuewatch://downloads`, `cuewatch://nowplaying`, handled by `onOpenURL`). A Shuffle Downloads control for Control Center on watchOS 26+. The playback intents file is shared with the extension (a membership exception), where `WIDGET_EXTENSION` compiles `perform` empty; the system runs them in the app.
+- The watch's home (`LibraryScreen`) has no title: a Downloads row at the top (the count of songs on the watch in its title) opening `DownloadsScreen` (Fast Download while songs are still to come, then what's on the watch, each with the room it takes), then the lists of the chosen library (playlists, recently added, albums, artists, songs — the same as the iPhone's library screens) under its name. Settings is top left (quality, storage, Remove All, which sign-ins arrived), the library picker top right (an icon; Plex or Subsonic). The bottom bar holds search (`TextFieldLink`, left), Now Playing (the system's animated waveform, centre) and play (right); it hides while the list scrolls down and comes back scrolling up or at the top (`onScrollGeometryChange` driving `.toolbar(.hidden, for: .bottomBar)`, watchOS 11). watchOS 27's `toolbarMinimizationBehavior` only takes `.automatic` on the watch (`.onScrollDown` is iOS-only), hence the hand-rolled version. Screens zoom out of the row or button that opened them (watchOS 11 `navigationTransition(.zoom)`): the routes are the ids, and the home screen's namespace reaches rows further in through `\.zoomNamespace`. The player hands Now Playing the song's cover (`ArtworkStore`, prefetched when a pick is looked up, so it shows offline); a Plex song without its own cover uses its album's (`parentThumb`). A song goes on with a tap, an album or playlist opens on its songs to add whole or one at a time, an artist on its albums. 40 rows a page, with no iPhone in reach. Keys match the iPhone's download manager (`WatchKeys`), so a pick made on either device is the same pick. MusicKit has no player on watchOS (`ApplicationMusicPlayer` and `SystemMusicPlayer` aren't available there), so Apple Music stays out.
 
 ## Deferred Work / Notes
 
