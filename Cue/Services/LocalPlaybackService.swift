@@ -274,6 +274,9 @@ final class LocalPlaybackService {
     }
 
     var upNext: [PlayableContent] { Array(queue.dropFirst(currentIndex + 1)) }
+    /// `upNext.count` without copying it: a button's enabled state read the
+    /// copy of a 1,700-song queue on every update.
+    var upNextCount: Int { max(0, queue.count - currentIndex - 1) }
     var isActive: Bool { !queue.isEmpty }
     /// Whether a skip forward has somewhere to go: another track, or the top
     /// of the queue again when it repeats.

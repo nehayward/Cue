@@ -1407,7 +1407,7 @@ private struct LocalPlayerMenuView: View {
                 }
                 .menuActionDismissBehavior(.disabled)
                 .tint(playback.isShuffled ? .accent : .secondary)
-                .disabled(!playback.isShuffled && playback.upNext.count < 2)
+                .disabled(!playback.isShuffled && playback.upNextCount < 2)
 
                 Button {
                     HapticManager.shared.fireHaptic(.selection)

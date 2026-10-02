@@ -76,7 +76,7 @@ private struct LocalNextUpView: View {
         .foregroundStyle(playback.isShuffled ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
         .accessibilityValue(playback.isShuffled ? "On" : "Off")
         // Off stays reachable with nothing left to shuffle.
-        .disabled(!playback.isShuffled && playback.upNext.count < 2)
+        .disabled(!playback.isShuffled && playback.upNextCount < 2)
         .help(playback.isShuffled ? "Shuffle On" : "Shuffle Off")
 
         Button {
@@ -101,14 +101,14 @@ private struct LocalNextUpView: View {
                 Label(editMode.isEditing ? "Done" : "Edit",
                       systemImage: editMode.isEditing ? "checkmark" : "pencil")
             }
-            .disabled(playback.upNext.isEmpty && !editMode.isEditing)
+            .disabled(playback.upNextCount == 0 && !editMode.isEditing)
 
             Button(role: .destructive) {
                 clearConfirmation = true
             } label: {
                 Label("Clear Up Next", systemImage: "trash")
             }
-            .disabled(playback.upNext.isEmpty)
+            .disabled(playback.upNextCount == 0)
         } label: {
             Image(systemName: "ellipsis")
                 .frame(width: 24, height: 24)
@@ -133,24 +133,42 @@ private struct LocalNextUpView: View {
         }
     }
 
+    /// A row's identity: the song, and which copy of it in the queue.
+    private struct RowID: Hashable {
+        let service: MusicService
+        let songID: String
+        let occurrence: Int
+    }
+
     /// The queue's rows with an identity that follows the song rather than
     /// its position: keyed by position, a dragged row and every row between
     /// its old and new place changed identity, so the list swapped their
     /// contents instead of sliding the one row. The same song queued twice
     /// tells its copies apart by which occurrence each is.
-    private var rows: [(id: String, index: Int, item: PlayableContent)] {
-        var occurrences: [String: Int] = [:]
+    ///
+    /// Not strings: rebuilt for every row on every song change, describing
+    /// the service enum into each one was a measurable part of a skip with a
+    /// long queue open.
+    private var rows: [(id: RowID, index: Int, item: PlayableContent)] {
+        var occurrences: [RowID: Int] = [:]
         return playback.queue.enumerated().map { index, item in
-            let key = "\(item.content.service)/\(item.content.id)"
+            let key = RowID(service: item.content.service, songID: item.content.id, occurrence: 0)
             let occurrence = occurrences[key, default: 0]
             occurrences[key] = occurrence + 1
-            return ("\(key)#\(occurrence)", index, item)
+            return (RowID(service: key.service, songID: key.songID, occurrence: occurrence), index, item)
         }
     }
 
-    /// The current song's row, which the list opens on.
-    private var currentRowID: String? {
-        rows.first { $0.index == playback.currentIndex }?.id
+    /// The current song's row, which the list opens on — counted from the
+    /// rows before it, without building all of them again.
+    private var currentRowID: RowID? {
+        let index = playback.currentIndex
+        guard playback.queue.indices.contains(index) else { return nil }
+        let content = playback.queue[index].content
+        let occurrence = playback.queue[..<index].reduce(0) { count, item in
+            item.content.id == content.id && item.content.service == content.service ? count + 1 : count
+        }
+        return RowID(service: content.service, songID: content.id, occurrence: occurrence)
     }
 
     /// Opens on the current song, with what's played above it to scroll
