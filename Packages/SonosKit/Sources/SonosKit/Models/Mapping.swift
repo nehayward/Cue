@@ -729,6 +729,9 @@ extension PlexTrack {
                 type: .track,
                 location: nil
             ),
+            // The full track off the user's server, as a library row has it —
+            // what this device plays.
+            previewURL: streamURL,
             metadata: .init(
                 duration: trackDuration,
                 popularity: nil,

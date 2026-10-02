@@ -11,12 +11,17 @@ public final class PlexParser {
         guard let accessToken = plexServer.accessToken, let id = plexServer.clientIdentifier else { return nil }
         let imageBase = baseURL ?? plexServer.baseURL(preferring: connectionPreference)
 
+        // Token-signed URL for a server path on the connection the results
+        // came over: artwork, and a track's media part.
+        func signedURL(for path: String?) -> URL? {
+            path.flatMap {
+                imageBase?.appending(path: $0).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
+            }
+        }
         // Token-signed image URL for a thumb path; one place to change how
         // Plex artwork is authenticated/transcoded.
         func imageURL(for thumb: String?) -> URL? {
-            thumb.flatMap {
-                imageBase?.appending(path: $0).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
-            }
+            signedURL(for: thumb)
         }
 
         let tracks: [PlexTrack] = xml["MediaContainer"]["Hub"].all.filter { $0.element?.attribute(by: "type")?.text == "track" }.flatMap { hub in
@@ -54,7 +59,11 @@ public final class PlexParser {
                     imageURL: imageURL,
                     id: "\(id)%3A3%3A\(ratingKey)",
                     librarySectionID: (track.element?.attribute(by: "librarySectionID")?.text).flatMap(Int.init),
-                    userRating: userRating
+                    userRating: userRating,
+                    // The Part's key, signed the way library rows are. Without
+                    // it a song from search had nothing for this device to
+                    // play: the player turned it away as unplayable.
+                    streamURL: signedURL(for: track["Media"]["Part"].element?.attribute(by: "key")?.text)
                 )
             }
         }
