@@ -9,6 +9,7 @@ import WatchSync
 struct BrowseScreen: View {
     let path: WatchBrowsePath
 
+    @Environment(\.zoomNamespace) private var zoom
     @Environment(WatchDownloadStore.self) private var store
     @State private var title = ""
     @State private var items: [WatchBrowseItem] = []
@@ -25,6 +26,7 @@ struct BrowseScreen: View {
                     Label("All Songs", systemImage: "music.note.list")
                         .foregroundStyle(.tint)
                 }
+                .zoomSource(BrowseRoute.item(container), in: zoom)
             }
 
             ForEach(items) { item in
@@ -71,6 +73,7 @@ struct BrowseScreen: View {
             NavigationLink(value: BrowseRoute.path(destination)) {
                 BrowseRow(item: item)
             }
+            .zoomSource(BrowseRoute.path(destination), in: zoom)
         } else if let pick = item.pick, pick.kind == .song {
             Button {
                 store.add(pick, songs: item.song.map { [$0] })
@@ -83,6 +86,7 @@ struct BrowseScreen: View {
             NavigationLink(value: BrowseRoute.item(item)) {
                 BrowseRow(item: item)
             }
+            .zoomSource(BrowseRoute.item(item), in: zoom)
         }
     }
 

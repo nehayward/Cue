@@ -18,9 +18,10 @@ enum HomeRoute: Hashable {
 
 /// The watch's home: Downloads at the top (the count of songs here in its
 /// title), then the lists of the library picked top right. Settings is top
-/// left; the bottom bar has search, play (double tap presses it) and Now
-/// Playing, out of the way while the list scrolls down. No title: the rows
-/// say what's what. The widget opens it on Downloads or Now Playing. The
+/// left; the bottom bar has search, Now Playing in the middle and play on
+/// the right edge (double tap presses it), hidden while the list scrolls
+/// down. No title: the rows say what's what. Screens zoom out of the row
+/// that opens them. The widget opens it on Downloads or Now Playing. The
 /// first time there's music to fetch, it asks at what quality.
 struct LibraryScreen: View {
     @Environment(WatchDownloadStore.self) private var store
@@ -30,7 +31,8 @@ struct LibraryScreen: View {
     @State private var path = NavigationPath()
     @State private var sheet: Sheet?
     @State private var hasAskedQuality = false
-    @State private var isScrolling = false
+    @State private var isBottomBarHidden = false
+    @Namespace private var zoom
 
     private enum Sheet: String, Identifiable {
         case quality, library
@@ -57,9 +59,11 @@ struct LibraryScreen: View {
                 NavigationLink(value: HomeRoute.downloads) {
                     DownloadsRow()
                 }
+                .zoomSource(HomeRoute.downloads, in: zoom)
                 library
             }
-            .modifier(BottomBarGetsOutOfTheWay(isScrolling: $isScrolling))
+            .modifier(HidesBottomBarScrollingDown(isHidden: $isBottomBarHidden))
+            .toolbar(isBottomBarHidden ? .hidden : .visible, for: .bottomBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -68,6 +72,7 @@ struct LibraryScreen: View {
                         Image(systemName: "gearshape")
                     }
                     .accessibilityLabel("Settings")
+                    .zoomSource(HomeRoute.settings, in: zoom)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -77,9 +82,9 @@ struct LibraryScreen: View {
                     }
                     .accessibilityLabel("Library")
                 }
-                // Search left, play in the middle (double tap presses it),
-                // Now Playing right with its waveform moving while music
-                // plays.
+                // Search left, Now Playing in the middle with its waveform
+                // moving while music plays, play on the right edge (double
+                // tap presses it).
                 ToolbarItemGroup(placement: .bottomBar) {
                     if let source {
                         TextFieldLink(prompt: Text("Search \(source.title)")) {
@@ -88,12 +93,6 @@ struct LibraryScreen: View {
                             search(text, in: source)
                         }
                         .accessibilityLabel("Search \(source.title)")
-                        .fadesWhileScrolling(isScrolling)
-                    }
-                    Spacer()
-                    if player.current != nil || store.downloadedCount > 0 {
-                        PrimaryPlayButton()
-                            .fadesWhileScrolling(isScrolling)
                     }
                     Spacer()
                     if player.current != nil {
@@ -104,30 +103,42 @@ struct LibraryScreen: View {
                                 .symbolEffect(.variableColor.iterative, isActive: player.isPlaying)
                         }
                         .accessibilityLabel("Now Playing")
-                        .fadesWhileScrolling(isScrolling)
+                        .zoomSource(HomeRoute.nowPlaying, in: zoom)
+                    }
+                    Spacer()
+                    if player.current != nil || store.downloadedCount > 0 {
+                        PrimaryPlayButton()
                     }
                 }
             }
+            // Each screen zooms out of the row or button that opened it.
             .navigationDestination(for: HomeRoute.self) { route in
-                switch route {
-                case .settings:
-                    SettingsScreen()
-                case .downloads:
-                    DownloadsScreen()
-                case .nowPlaying:
-                    NowPlayingView()
+                Group {
+                    switch route {
+                    case .settings:
+                        SettingsScreen()
+                    case .downloads:
+                        DownloadsScreen()
+                    case .nowPlaying:
+                        NowPlayingView()
+                    }
                 }
+                .zoomDestination(route, in: zoom)
             }
             .navigationDestination(for: LibraryRoute.self) { route in
                 CollectionScreen(route: route)
+                    .zoomDestination(route, in: zoom)
             }
             .navigationDestination(for: BrowseRoute.self) { route in
-                switch route {
-                case let .path(path):
-                    BrowseScreen(path: path)
-                case let .item(item):
-                    BrowseItemScreen(item: item)
+                Group {
+                    switch route {
+                    case let .path(path):
+                        BrowseScreen(path: path)
+                    case let .item(item):
+                        BrowseItemScreen(item: item)
+                    }
                 }
+                .zoomDestination(route, in: zoom)
             }
             .sheet(item: $sheet) { sheet in
                 switch sheet {
@@ -160,6 +171,7 @@ struct LibraryScreen: View {
                 }
             }
         }
+        .environment(\.zoomNamespace, zoom)
     }
 
     private func search(_ text: String, in source: WatchSource) {
@@ -175,9 +187,11 @@ struct LibraryScreen: View {
         if let source {
             Section {
                 ForEach(WatchBrowseSection.allCases, id: \.self) { section in
-                    NavigationLink(value: BrowseRoute.path(.section(source, section))) {
+                    let route = BrowseRoute.path(.section(source, section))
+                    NavigationLink(value: route) {
                         Label(section.title, systemImage: section.symbol)
                     }
+                    .zoomSource(route, in: zoom)
                 }
             } header: {
                 Text(source.title)
@@ -228,29 +242,69 @@ extension View {
     }
 }
 
-private extension View {
-    /// Out of the way while the list scrolls.
-    func fadesWhileScrolling(_ isScrolling: Bool) -> some View {
-        opacity(isScrolling ? 0 : 1)
-            .allowsHitTesting(!isScrolling)
-            .animation(.easeInOut(duration: 0.2), value: isScrolling)
-    }
-}
-
-/// The bottom bar's buttons fade while the list moves (`isScrolling`), from
-/// watchOS 11, which reports the scroll phase. (watchOS 27's toolbar
-/// minimizing takes only `.automatic` on the watch: the system decides, so
-/// there's nothing to ask it for.)
-private struct BottomBarGetsOutOfTheWay: ViewModifier {
-    @Binding var isScrolling: Bool
+/// Hides the bottom bar while the list scrolls down and brings it back
+/// when it scrolls up or reaches the top, as iPhone toolbars minimize
+/// (watchOS 11 reports the scroll position; before that, it stays).
+private struct HidesBottomBarScrollingDown: ViewModifier {
+    @Binding var isHidden: Bool
 
     func body(content: Content) -> some View {
         if #available(watchOS 11.0, *) {
-            content.onScrollPhaseChange { _, phase in
-                isScrolling = phase.isScrolling
+            content.onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top
+            } action: { previous, offset in
+                let hide: Bool
+                if offset < 12 {
+                    hide = false
+                } else if offset > previous + 2 {
+                    hide = true
+                } else if offset < previous - 2 {
+                    hide = false
+                } else {
+                    return
+                }
+                guard hide != isHidden else { return }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isHidden = hide
+                }
             }
         } else {
             content
+        }
+    }
+}
+
+/// The zoom from a row or button into the screen it opens (watchOS 11).
+/// The routes are the ids, so a source and its screen meet on the value
+/// that links them.
+struct ZoomNamespaceKey: EnvironmentKey {
+    static let defaultValue: Namespace.ID? = nil
+}
+
+extension EnvironmentValues {
+    /// The home screen's, for rows further in to zoom from.
+    var zoomNamespace: Namespace.ID? {
+        get { self[ZoomNamespaceKey.self] }
+        set { self[ZoomNamespaceKey.self] = newValue }
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func zoomSource(_ id: some Hashable, in namespace: Namespace.ID?) -> some View {
+        if #available(watchOS 11.0, *), let namespace {
+            matchedTransitionSource(id: id, in: namespace)
+        } else {
+            self
+        }
+    }
+
+    @ViewBuilder
+    func zoomDestination(_ id: some Hashable, in namespace: Namespace.ID?) -> some View {
+        if #available(watchOS 11.0, *), let namespace {
+            navigationTransition(.zoom(sourceID: id, in: namespace))
+        } else {
+            self
         }
     }
 }

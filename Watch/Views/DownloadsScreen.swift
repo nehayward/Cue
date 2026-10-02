@@ -6,6 +6,7 @@ import WatchSync
 /// how far it's got and the room it takes.
 struct DownloadsScreen: View {
     @Environment(WatchDownloadStore.self) private var store
+    @Environment(\.zoomNamespace) private var zoom
     @State private var isShowingFastDownload = false
 
     var body: some View {
@@ -24,11 +25,13 @@ struct DownloadsScreen: View {
                     NavigationLink(value: LibraryRoute.songs) {
                         SongsRow(count: songPicks.count, bytes: store.bytesUsed(by: store.songs(in: songPicks.map(\.key))))
                     }
+                    .zoomSource(LibraryRoute.songs, in: zoom)
                 }
                 ForEach(collections, id: \.key) { pick in
                     NavigationLink(value: LibraryRoute.pick(pick.key)) {
                         PickRow(pick: pick)
                     }
+                    .zoomSource(LibraryRoute.pick(pick.key), in: zoom)
                 }
                 if store.picks.items.isEmpty {
                     Text("Nothing here yet. Browse your library, or choose Add to Apple Watch in Cue on your iPhone.")
