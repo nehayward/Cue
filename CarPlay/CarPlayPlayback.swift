@@ -74,8 +74,10 @@ enum CarPlayPlayback {
     }
 
     /// Into Recently Played, the same as a play from the phone — see
-    /// `PlayDestinationRouter.record`.
+    /// `PlayDestinationRouter.record`. Not Shuffle All over the downloads:
+    /// On This Device is a way to play, not something to go back to.
     private static func record(_ item: PlayableContent) {
+        guard !OnDeviceLibrary.isAllSongs(item) else { return }
         let history = PlayHistoryService.shared
         history.history.remove(item)
         history.history.insert(item, at: 0)
@@ -92,6 +94,9 @@ enum CarPlayArtwork {
     static let rowWidth: CGFloat = 120
     /// For the cards of an image row, and the details header's thumbnail.
     static let cardWidth: CGFloat = 400
+
+    /// The car's screen, for its light or dark look (see `symbol(_:)`).
+    static weak var screen: CPInterfaceController?
 
     /// Sets `content`'s cover on `item` once it's loaded. The row keeps its
     /// placeholder symbol until then, and for good when there's no cover.
@@ -119,12 +124,26 @@ enum CarPlayArtwork {
 
     /// What a row shows before its cover arrives: the content type's symbol.
     static func placeholder(for content: PlayableContent) -> UIImage? {
-        UIImage(systemName: content.content.type.symbol)
+        symbol(content.content.type.symbol)
     }
 
     /// The same, never nil, for the APIs that won't take a missing image.
     static func requiredPlaceholder(for content: PlayableContent) -> UIImage {
-        placeholder(for: content) ?? UIImage(systemName: "music.note") ?? UIImage()
+        placeholder(for: content) ?? symbol("music.note") ?? UIImage()
+    }
+
+    /// A system symbol in white on a dark screen and black on a light one.
+    /// The car tints the tab bar's symbols but draws a row's or a button's
+    /// as it gets them, and a plain symbol is black. Both looks go in the
+    /// image's asset, for the car to switch as it goes from day to night;
+    /// the one handed over is the screen's look now.
+    static func symbol(_ name: String) -> UIImage? {
+        guard let symbol = UIImage(systemName: name) else { return nil }
+        let dark = UITraitCollection(userInterfaceStyle: .dark)
+        let asset = UIImageAsset()
+        asset.register(symbol.withTintColor(.black, renderingMode: .alwaysOriginal), with: UITraitCollection(userInterfaceStyle: .light))
+        asset.register(symbol.withTintColor(.white, renderingMode: .alwaysOriginal), with: dark)
+        return asset.image(with: screen?.carTraitCollection ?? dark)
     }
 }
 #endif

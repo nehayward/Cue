@@ -56,11 +56,14 @@ enum CarPlayLibrary {
     // MARK: - Recents
 
     /// What was last played in Cue, newest first — the phone's Recently
-    /// Played — narrowed to what this device can play.
+    /// Played — narrowed to what this device can play. Without Play All
+    /// over the downloads (On This Device, Downloaded • a provider), which
+    /// is a way to play rather than an album to go back to.
     static func recents() -> [PlayableContent] {
         let player = LocalPlaybackService.shared
         let history = Array(PlayHistoryService.shared.history)
-        return Array(history.filter { player.canPlayAnywhereLocally($0) }.prefix(rowLimit))
+        let playable = history.filter { player.canPlayAnywhereLocally($0) && !OnDeviceLibrary.isAllSongs($0) }
+        return Array(playable.prefix(rowLimit))
     }
 
     // MARK: - Library

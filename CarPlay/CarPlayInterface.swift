@@ -78,6 +78,7 @@ final class CarPlayInterface: NSObject {
 
     func start() {
         isConnected = true
+        CarPlayArtwork.screen = interfaceController
         // The car's Now Playing reads this app's own card; Apple Music needs
         // one there too (see `publishesAppleMusicCard`).
         LocalPlaybackService.shared.publishesAppleMusicCard = true
@@ -205,37 +206,30 @@ final class CarPlayInterface: NSObject {
 
     // MARK: - Recents
 
-    /// How many of the newest plays are cards at the top of Recents. The
-    /// rest are rows under them.
+    /// How many of the newest plays are cards on Recents. The cards' title
+    /// opens them all as a list.
     private static let recentCardCount = 10
 
     private func reloadRecents() {
         let player = LocalPlaybackService.shared
-        let recents = CarPlayLibrary.recents()
+        let newest = Array(CarPlayLibrary.recents().prefix(Self.recentCardCount))
         // The device's queue, waiting: restored from the last launch, just
         // paused, or parked when the phone handed playback over.
         let waiting = isPlayingOnDevice ? nil : player.nowPlaying
 
         recentsTemplate.emptyViewTitleVariants = ["Nothing Played Yet"]
         recentsTemplate.emptyViewSubtitleVariants = ["What you play in Cue shows up here."]
-        let signature = ([waiting?.id ?? ""] + recents.map(\.id)).joined(separator: "|")
+        let signature = ([waiting?.id ?? ""] + newest.map(\.id)).joined(separator: "|")
         update(recentsTemplate, signature: signature) {
             var sections: [CPListSection] = []
             if let waiting {
                 sections.append(CPListSection(items: [resumeRow(for: waiting)]))
             }
-            let newest = Array(recents.prefix(Self.recentCardCount))
             if !newest.isEmpty {
                 let cards = cardRow(title: "Recently Played", items: newest) { [weak self] in
                     self?.pushRecents()
                 }
                 sections.append(CPListSection(items: [cards]))
-            }
-            let earlier = recents.dropFirst(Self.recentCardCount)
-            if !earlier.isEmpty {
-                let limit = CarPlayLibrary.rowLimit - sections.count
-                let rows: [CPListTemplateItem] = earlier.prefix(limit).map { row(for: $0) }
-                sections.append(CPListSection(items: rows, header: "Earlier", sectionIndexTitle: nil))
             }
             return sections
         }
@@ -339,7 +333,7 @@ final class CarPlayInterface: NSObject {
     }
 
     private func collectionRow(_ collection: ProviderCollection) -> CPListItem {
-        let row = CPListItem(text: collection.title, detailText: nil, image: UIImage(systemName: collection.systemImage))
+        let row = CPListItem(text: collection.title, detailText: nil, image: CarPlayArtwork.symbol(collection.systemImage))
         row.accessoryType = .disclosureIndicator
         row.handler = { [weak self] _, completion in
             MainActor.assumeIsolated {
@@ -396,7 +390,7 @@ final class CarPlayInterface: NSObject {
     }
 
     private func listingRow(_ listing: CarPlayLibrary.Listing) -> CPListItem {
-        let row = CPListItem(text: listing.title, detailText: listing.detail, image: UIImage(systemName: listing.systemImage))
+        let row = CPListItem(text: listing.title, detailText: listing.detail, image: CarPlayArtwork.symbol(listing.systemImage))
         row.accessoryType = .disclosureIndicator
         row.handler = { [weak self] _, completion in
             MainActor.assumeIsolated {
@@ -797,7 +791,7 @@ final class CarPlayInterface: NSObject {
     /// A button pinned above a list (`headerGridButtons`). System symbols
     /// only: custom ones don't draw there on iOS 27 (FB24806621).
     private func gridButton(titleVariants: [String], systemImage: String, _ action: @escaping @MainActor () -> Void) -> CPGridButton {
-        let image = UIImage(systemName: systemImage) ?? UIImage()
+        let image = CarPlayArtwork.symbol(systemImage) ?? UIImage()
         return CPGridButton(titleVariants: titleVariants, image: image) { _ in
             MainActor.assumeIsolated {
                 action()

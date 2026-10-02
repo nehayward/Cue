@@ -365,6 +365,13 @@ enum OnDeviceLibrary {
         content.content.id.hasPrefix(containerIDPrefix)
     }
 
+    /// Whether this is an every-song container (On This Device, or
+    /// Downloaded • a provider) rather than an album or artist.
+    nonisolated static func isAllSongs(_ content: PlayableContent) -> Bool {
+        let id = content.content.id
+        return id == "\(containerIDPrefix)all" || id.hasPrefix("\(containerIDPrefix)all|")
+    }
+
     /// The songs a container minted here stands for, in play order — or nil
     /// for anything else, so callers fall through to their usual expansion.
     static func tracks(inContainer container: PlayableContent) -> [PlayableContent]? {
