@@ -65,7 +65,7 @@ The app is built around several Swift packages in `/Packages`:
    - XML parsers for Sonos responses
    - Device discovery and monitoring
 
-2. **MusicSearchKit** - Music service integrations (also linked into the watch app, which browses Plex and Subsonic with it)
+2. **MusicSearchKit** - Music service integrations (also linked into the watch app, which browses Plex and Subsonic with it). A dynamic framework: the iOS app gets it embedded through SonosKit, but the watch links it directly, so its target embeds it in its own Embed Frameworks phase
    - Apple Music, Spotify, Plex, Tidal, TuneIn, SoundCloud APIs
    - Authentication services for each platform
    - Search result parsing and models

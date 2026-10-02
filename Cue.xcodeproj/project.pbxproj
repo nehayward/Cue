@@ -101,6 +101,7 @@
 		CA7C00010000000000000014 /* WatchSync in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000004 /* WatchSync */; };
 		CA7C00010000000000000015 /* WatchSync in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000005 /* WatchSync */; };
 		CA7C00010000000000000016 /* MusicSearchKit in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000006 /* MusicSearchKit */; };
+		CA7C00010000000000000020 /* MusicSearchKit in Embed Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000006 /* MusicSearchKit */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -210,6 +211,17 @@
 			files = (
 			);
 			name = "Embed ExtensionKit Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CA7C00010000000000000021 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				CA7C00010000000000000020 /* MusicSearchKit in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E9C03B0D2A586F6100FB9118 /* Embed Watch Content */ = {
@@ -1016,6 +1028,7 @@
 				E9C03AF82A586F5E00FB9118 /* Sources */,
 				E9C03AF92A586F5E00FB9118 /* Frameworks */,
 				E9C03AFA2A586F5E00FB9118 /* Resources */,
+				CA7C00010000000000000021 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
