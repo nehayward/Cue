@@ -1,22 +1,25 @@
 import SwiftUI
 import WatchKit
 
-/// Cue on Apple Watch: the music the iPhone put here, downloaded to the
-/// watch and played from it, with no iPhone needed once it's down. What's
-/// here is chosen on the iPhone (Add to Apple Watch); the watch fetches it
-/// from the server itself, and Fast Download does that over Wi‑Fi.
+/// Cue on Apple Watch: Plex and Subsonic music downloaded to the watch and
+/// played from it. What's here is chosen on the watch (Add Music browses the
+/// servers with the sign-ins the iPhone shared) or on the iPhone (Add to
+/// Apple Watch); the watch fetches it from the server itself, and Fast
+/// Download does that over Wi‑Fi.
 @main
 struct CueWatchApp: App {
     @WKApplicationDelegateAdaptor(WatchAppDelegate.self) private var delegate
     @Environment(\.scenePhase) private var scenePhase
     @State private var store = WatchDownloadStore.shared
     @State private var player = WatchPlayer.shared
+    @State private var accounts = WatchAccounts.shared
 
     var body: some Scene {
         WindowGroup {
             LibraryScreen()
                 .environment(store)
                 .environment(player)
+                .environment(accounts)
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {

@@ -105,3 +105,46 @@ public enum StreamTranscoding {
         format(for: destination).fileExtension ?? original
     }
 }
+
+/// A Plex or Subsonic song's stream at a format and bitrate of its own,
+/// whatever the Streaming Quality setting says — for the Apple Watch, which
+/// has a quality of its own. One answer for both devices: the watch and the
+/// iPhone each build streams from a song's origin, and must build the same
+/// one, or the watch takes a song it already has for a new one.
+public enum ConvertedStream {
+    public enum Service: String, Sendable {
+        case plex, subsonic
+    }
+
+    /// The stream, and the suffix it arrives with.
+    public static func stream(
+        service: Service,
+        contentID: String,
+        sourceURL: URL,
+        audioCodec: String?,
+        format: StreamTranscoding.Format,
+        bitrate: Int
+    ) -> (url: URL, fileExtension: String) {
+        let url: URL = switch service {
+        case .subsonic:
+            SubsonicAPI.streamURL(for: contentID, fileExtension: audioCodec, format: format, bitrate: bitrate) ?? sourceURL
+        case .plex:
+            plexRatingKey(contentID: contentID).map {
+                PlexAPI.playbackStreamURL(from: sourceURL, ratingKey: $0, format: format, bitrate: bitrate, session: "cue-watch")
+            } ?? sourceURL
+        }
+        let original = audioCodec?.trimmingCharacters(in: .whitespaces).lowercased()
+        let fromURL = url.pathExtension.lowercased()
+        let suffix = format.fileExtension
+            ?? original.flatMap { $0.isEmpty || $0.count > 5 ? nil : $0 }
+            ?? (fromURL.isEmpty ? "mp3" : fromURL)
+        return (url, suffix)
+    }
+
+    /// A Plex track's `ratingKey`: the last segment of its Sonos-style id
+    /// (`<machine>%3A3%3A<ratingKey>`).
+    public static func plexRatingKey(contentID: String) -> String? {
+        let key = (contentID.removingPercentEncoding ?? contentID).components(separatedBy: ":").last ?? ""
+        return key.isEmpty ? nil : key
+    }
+}

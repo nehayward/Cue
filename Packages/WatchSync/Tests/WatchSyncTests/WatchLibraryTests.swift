@@ -97,4 +97,22 @@ final class WatchLibraryTests: XCTestCase {
 
         XCTAssertEqual(try WatchLibrary.decoded(from: library.encoded()), library)
     }
+
+    func testTheSameSongSignedByEachDeviceIsTheSameDownload() {
+        let origin = WatchTrackOrigin(source: .subsonic, contentID: "tr-1", sourceURL: URL(string: "https://s.example/rest/stream?id=tr-1&s=phone")!, audioCodec: "flac")
+        let fromPhone = WatchTrack(key: "subsonic-tr-1", title: "S", artist: "A", streamURL: URL(string: "https://s.example/rest/stream?id=tr-1&format=mp3&s=phone")!, fileExtension: "mp3", origin: origin, quality: .high)
+        let watchOrigin = WatchTrackOrigin(source: .subsonic, contentID: "tr-1", sourceURL: URL(string: "https://s.example/rest/stream?id=tr-1&s=watch")!, audioCodec: "flac")
+        let fromWatch = WatchTrack(key: "subsonic-tr-1", title: "S", artist: "A", streamURL: URL(string: "https://s.example/rest/stream?id=tr-1&format=mp3&s=watch")!, fileExtension: "mp3", origin: watchOrigin, quality: .high)
+        XCTAssertTrue(fromPhone.isSameDownload(as: fromWatch))
+
+        let smaller = fromWatch.withStream(URL(string: "https://s.example/rest/stream?id=tr-1&format=mp3&maxBitRate=128")!, fileExtension: "mp3", quality: .small)
+        XCTAssertFalse(fromPhone.isSameDownload(as: smaller))
+        let original = fromWatch.withStream(origin.sourceURL, fileExtension: "flac", quality: .original)
+        XCTAssertFalse(fromPhone.isSameDownload(as: original))
+
+        // Songs from before origins were kept go by their URL.
+        let legacy = WatchTrack(key: "1", title: "S", artist: "A", streamURL: URL(string: "https://s.example/1")!, fileExtension: "flac")
+        XCTAssertTrue(legacy.isSameDownload(as: legacy))
+        XCTAssertFalse(legacy.isSameDownload(as: legacy.withStream(URL(string: "https://s.example/2")!, fileExtension: "flac", quality: nil)))
+    }
 }

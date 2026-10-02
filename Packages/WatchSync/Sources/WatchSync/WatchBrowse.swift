@@ -1,13 +1,10 @@
 import Foundation
 
-// Browsing the iPhone's libraries from the watch. The watch asks with a
-// `WatchRequest` (`sendMessageData`, which wakes Cue on the iPhone if it
-// isn't running) and the iPhone answers with a `WatchReply`: a page of its
-// Plex or Subsonic library, or the outcome of putting something on the
-// watch. The iPhone does the fetching with its own accounts, and adding goes
-// through the same library and sync as Add to Apple Watch on the iPhone.
+// What the watch browses: the Plex and Subsonic libraries the iPhone signed
+// in to, fetched by the watch itself with MusicSearchKit and the shared
+// sign-ins (`WatchCredentials`), with no iPhone in reach.
 
-/// A library on the iPhone the watch can browse.
+/// A server the watch can browse.
 public enum WatchSource: String, Codable, CaseIterable, Hashable, Sendable {
     case plex, subsonic
 
@@ -63,7 +60,7 @@ public struct WatchContentRef: Codable, Hashable, Sendable {
 
 /// Where in the iPhone's libraries a page comes from.
 public enum WatchBrowsePath: Codable, Hashable, Sendable {
-    /// The libraries the iPhone has set up.
+    /// The servers the watch has sign-ins for.
     case root
     /// One library's lists.
     case source(WatchSource)
@@ -111,6 +108,9 @@ public struct WatchBrowseItem: Codable, Hashable, Identifiable, Sendable {
 }
 
 public struct WatchBrowsePage: Codable, Sendable {
+    /// Rows asked for at a time, whatever the server pages by.
+    public static let pageSize = 40
+
     public let title: String
     public let items: [WatchBrowseItem]
     /// The offset to ask for next, or nil at the end.
@@ -127,40 +127,4 @@ public struct WatchBrowsePage: Codable, Sendable {
         self.container = container
         self.message = message
     }
-}
-
-public enum WatchRequest: Codable, Sendable, Equatable {
-    case browse(WatchBrowsePath, offset: Int)
-    /// Puts it on the watch, at `quality` if the iPhone has none set yet.
-    case add(WatchContentRef, quality: WatchDownloadQuality?)
-    case remove(WatchContentRef)
-
-    public func encoded() throws -> Data {
-        try JSONEncoder().encode(self)
-    }
-
-    public static func decoded(from data: Data) throws -> WatchRequest {
-        try JSONDecoder().decode(WatchRequest.self, from: data)
-    }
-}
-
-public enum WatchReply: Codable, Sendable {
-    case page(WatchBrowsePage)
-    case added(songs: Int)
-    case removed
-    /// No download quality chosen yet: ask, then send the add again with one.
-    case needsQuality
-    case failed(String)
-
-    public func encoded() throws -> Data {
-        try JSONEncoder().encode(self)
-    }
-
-    public static func decoded(from data: Data) throws -> WatchReply {
-        try JSONDecoder().decode(WatchReply.self, from: data)
-    }
-
-    /// The number of rows a page carries, so a reply stays well inside what
-    /// WatchConnectivity will carry (about 64 KB).
-    public static let pageSize = 40
 }

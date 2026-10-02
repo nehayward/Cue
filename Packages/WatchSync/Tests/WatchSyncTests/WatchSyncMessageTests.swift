@@ -32,33 +32,60 @@ final class WatchSyncMessageTests: XCTestCase {
         return library
     }
 
-    func testALibraryRoundTripsThroughApplicationContext() throws {
-        let library = library(albums: 3, tracksEach: 12)
-        let context = try XCTUnwrap(WatchSyncMessage.libraryContext(library, sentAt: Date(timeIntervalSince1970: 5)))
+    func testTheiPhonesContextCarriesTheLibraryAndSignIns() throws {
+        var library = library(albums: 3, tracksEach: 12)
+        library.quality = .small
+        let credentials = WatchCredentials(
+            plex: .init(token: "tok", serverID: "srv", librarySectionID: "3", connectionPreference: "auto"),
+            subsonic: .init(serverAddress: "https://music.example", username: "me", password: "pw")
+        )
+        let (context, fits) = try WatchSyncMessage.context(library: library, credentials: credentials, sentAt: Date(timeIntervalSince1970: 5))
+        XCTAssertTrue(fits)
         XCTAssertEqual(WatchSyncMessage.library(in: context), library)
+        XCTAssertEqual(WatchSyncMessage.library(in: context)?.quality, .small)
+        XCTAssertEqual(WatchSyncMessage.credentials(in: context), credentials)
+        XCTAssertNil(WatchSyncMessage.status(in: context))
         XCTAssertEqual(WatchSyncMessage.revision(in: context), library.revision)
-        XCTAssertTrue(WatchSyncMessage.isLibrary(context))
         XCTAssertNil(WatchSyncMessage.library(in: [:]))
         XCTAssertNil(WatchSyncMessage.library(in: [WatchSyncMessage.libraryKey: Data([9, 9])]))
     }
 
+    func testTheWatchsContextCarriesTheLibraryAndStatus() throws {
+        let library = library(albums: 1, tracksEach: 3)
+        let status = WatchStatus(library: library, isDownloaded: { _ in false }, pendingCount: 3, failedCount: 0, bytesUsed: 0, updatedAt: .now)
+        let (context, _) = try WatchSyncMessage.context(library: library, status: status)
+        XCTAssertEqual(WatchSyncMessage.library(in: context), library)
+        XCTAssertEqual(WatchSyncMessage.status(in: context), status)
+        XCTAssertNil(WatchSyncMessage.credentials(in: context))
+    }
+
     func testSendingAgainChangesTheContext() throws {
         let library = library(albums: 1, tracksEach: 2)
-        let first = try XCTUnwrap(WatchSyncMessage.libraryContext(library, sentAt: Date(timeIntervalSince1970: 1)))
-        let second = try XCTUnwrap(WatchSyncMessage.libraryContext(library, sentAt: Date(timeIntervalSince1970: 2)))
+        let first = try WatchSyncMessage.context(library: library, sentAt: Date(timeIntervalSince1970: 1)).context
+        let second = try WatchSyncMessage.context(library: library, sentAt: Date(timeIntervalSince1970: 2)).context
         XCTAssertNotEqual(first[WatchSyncMessage.sentAtKey] as? Double, second[WatchSyncMessage.sentAtKey] as? Double)
     }
 
-    func testATooBigLibraryGoesAsAFile() throws {
+    func testATooBigLibraryIsLeftOutForAFile() throws {
         // Unpacked here (Linux has no LZFSE), so a few hundred songs is over.
         let big = library(albums: 40, tracksEach: 12)
         let packed = WatchSyncMessage.pack(try big.encoded())
-        if packed.count > WatchSyncMessage.contextLimit {
-            XCTAssertNil(try WatchSyncMessage.libraryContext(big))
-        } else {
-            XCTAssertNotNil(try WatchSyncMessage.libraryContext(big))
-        }
+        let (context, fits) = try WatchSyncMessage.context(library: big, credentials: WatchCredentials())
+        XCTAssertEqual(fits, packed.count <= WatchSyncMessage.contextLimit)
+        XCTAssertEqual(WatchSyncMessage.library(in: context) != nil, fits)
+        XCTAssertNotNil(WatchSyncMessage.credentials(in: context))
         XCTAssertEqual(try WatchLibrary.decoded(from: XCTUnwrap(WatchSyncMessage.unpack(packed))), big)
+    }
+
+    func testALibraryFromBeforeQualityAndOriginsStillReads() throws {
+        let old = """
+        {"revision":5,"collections":[{"key":"album-1","kind":"album","title":"A","subtitle":"","addedAt":0,"trackKeys":["1"]}],
+         "tracks":{"1":{"key":"1","title":"S","artist":"X","streamURL":"https://s.example/1","fileExtension":"flac"}}}
+        """
+        let library = try WatchLibrary.decoded(from: Data(old.utf8))
+        XCTAssertNil(library.quality)
+        XCTAssertEqual(library.effectiveQuality, .recommended)
+        XCTAssertNil(library.tracks["1"]?.origin)
     }
 
     func testRevisionReadsANumberOfAnotherWidth() {
@@ -76,7 +103,7 @@ final class WatchSyncMessageTests: XCTestCase {
             bytesUsed: 12_345,
             updatedAt: Date(timeIntervalSince1970: 99)
         )
-        let context = try WatchSyncMessage.statusContext(status)
+        let context = try WatchSyncMessage.context(library: nil, status: status).context
         XCTAssertEqual(WatchSyncMessage.status(in: context), status)
         XCTAssertNil(WatchSyncMessage.status(in: [:]))
     }
@@ -105,7 +132,7 @@ final class WatchSyncMessageTests: XCTestCase {
             library.upsert(WatchCollection(key: "album-\(album)", kind: .album, title: "", subtitle: "", addedAt: .now, trackKeys: keys), tracks: tracks)
         }
         let status = WatchStatus(library: library, isDownloaded: { _ in true }, pendingCount: 0, failedCount: 0, bytesUsed: 1, updatedAt: .now)
-        let data = try XCTUnwrap(WatchSyncMessage.statusContext(status)[WatchSyncMessage.statusKey] as? Data)
+        let data = try XCTUnwrap(WatchSyncMessage.context(library: nil, status: status).context[WatchSyncMessage.statusKey] as? Data)
         XCTAssertEqual(status.downloadedCount, 2_000)
         XCTAssertLessThan(data.count, 16_000)
     }

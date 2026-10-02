@@ -1,10 +1,28 @@
 import Foundation
 
+/// Where a song comes from on its server — enough for either device to
+/// build its stream again at another quality.
+public struct WatchTrackOrigin: Codable, Hashable, Sendable {
+    public let source: WatchSource
+    public let contentID: String
+    /// The original file.
+    public let sourceURL: URL
+    /// The file's own format (`flac`, `mp3`…), as the server reports it.
+    public let audioCodec: String?
+
+    public init(source: WatchSource, contentID: String, sourceURL: URL, audioCodec: String?) {
+        self.source = source
+        self.contentID = contentID
+        self.sourceURL = sourceURL
+        self.audioCodec = audioCodec
+    }
+}
+
 /// A song the watch keeps: what it shows, and the URL it downloads the file
-/// from — a Plex or Subsonic stream as the iPhone's Streaming Quality
-/// delivers it, self-authenticating, so the watch needs no account of its
-/// own. `key` is the iPhone's download key (`DownloadNaming`): stable per
-/// track and safe as a file name, so a song in two albums is one file.
+/// from — a Plex or Subsonic stream at the library's quality,
+/// self-authenticating. `key` is the same on both devices (`WatchKeys`,
+/// matching the iPhone's download manager): stable per track and safe as a
+/// file name, so a song in two albums is one file.
 public struct WatchTrack: Codable, Hashable, Identifiable, Sendable {
     public let key: String
     public let title: String
@@ -14,6 +32,11 @@ public struct WatchTrack: Codable, Hashable, Identifiable, Sendable {
     public let streamURL: URL
     public let fileExtension: String
     public let duration: TimeInterval?
+    /// Nil for songs put on the watch before origins were kept; those keep
+    /// their stream until they're added again.
+    public let origin: WatchTrackOrigin?
+    /// The quality `streamURL` delivers; nil for songs from before.
+    public let quality: WatchDownloadQuality?
 
     public var id: String { key }
 
@@ -25,7 +48,9 @@ public struct WatchTrack: Codable, Hashable, Identifiable, Sendable {
         artworkURL: URL? = nil,
         streamURL: URL,
         fileExtension: String,
-        duration: TimeInterval? = nil
+        duration: TimeInterval? = nil,
+        origin: WatchTrackOrigin? = nil,
+        quality: WatchDownloadQuality? = nil
     ) {
         self.key = key
         self.title = title
@@ -35,6 +60,39 @@ public struct WatchTrack: Codable, Hashable, Identifiable, Sendable {
         self.streamURL = streamURL
         self.fileExtension = fileExtension
         self.duration = duration
+        self.origin = origin
+        self.quality = quality
+    }
+
+    /// The same song fetched from another stream, at `quality`.
+    public func withStream(_ url: URL, fileExtension: String, quality: WatchDownloadQuality?) -> WatchTrack {
+        WatchTrack(
+            key: key,
+            title: title,
+            artist: artist,
+            album: album,
+            artworkURL: artworkURL,
+            streamURL: url,
+            fileExtension: fileExtension,
+            duration: duration,
+            origin: origin,
+            quality: quality
+        )
+    }
+
+    /// Whether this is the same download as `other`: the same song from the
+    /// same server at the same quality, whatever the stream's sign-in
+    /// parameters say. Each device signs a Subsonic stream with its own
+    /// salt, so one song's URL differs between them, and a file that's here
+    /// shouldn't come down again for that.
+    public func isSameDownload(as other: WatchTrack) -> Bool {
+        guard fileExtension == other.fileExtension else { return false }
+        if let origin, let otherOrigin = other.origin {
+            return origin.source == otherOrigin.source
+                && origin.contentID == otherOrigin.contentID
+                && quality == other.quality
+        }
+        return streamURL == other.streamURL
     }
 }
 
@@ -78,25 +136,35 @@ public struct WatchCollection: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
-/// Everything the iPhone has put on the watch. The iPhone owns it: every
-/// change there makes a new revision and sends it whole, and the watch
-/// downloads what's new in it and deletes what's gone. A whole library is
-/// small (a few hundred bytes a song), and sending it whole means a
-/// transfer lost on the way is put right by the next one.
+/// Everything on the watch, or on its way there. Either device changes it
+/// — the iPhone from its menus, the watch from its own browsing — and every
+/// change makes a new revision and goes to the other side whole; the
+/// newest revision wins. The watch downloads what's new in it and deletes
+/// what's gone. A whole library is small (a few hundred bytes a song), and
+/// sending it whole means a transfer lost on the way is put right by the
+/// next one.
 public struct WatchLibrary: Codable, Equatable, Sendable {
     /// Grows with every change, and never goes back — it starts from the
-    /// clock, so a reinstalled iPhone app still outranks what the watch has.
+    /// clock, so a reinstalled app on either side still outranks the other.
     public var revision: Int
     /// Newest first.
     public var collections: [WatchCollection]
     public var tracks: [String: WatchTrack]
+    /// What songs come down at; nil until someone picks.
+    public var quality: WatchDownloadQuality?
 
     public static let empty = WatchLibrary(revision: 0, collections: [], tracks: [:])
 
-    public init(revision: Int, collections: [WatchCollection], tracks: [String: WatchTrack]) {
+    public init(revision: Int, collections: [WatchCollection], tracks: [String: WatchTrack], quality: WatchDownloadQuality? = nil) {
         self.revision = revision
         self.collections = collections
         self.tracks = tracks
+        self.quality = quality
+    }
+
+    /// What songs come down at: the chosen quality, or the recommended one.
+    public var effectiveQuality: WatchDownloadQuality {
+        quality ?? .recommended
     }
 
     public var isEmpty: Bool { collections.isEmpty }

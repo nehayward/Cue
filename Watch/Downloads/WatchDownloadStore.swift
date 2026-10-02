@@ -4,11 +4,14 @@ import OSLog
 import WatchKit
 import WatchSync
 
-/// Keeps the songs the iPhone put on the watch, on the watch.
+/// Keeps the songs on the watch, on the watch.
 ///
-/// The iPhone sends the library whole (`PhoneConnection`); this downloads
-/// what's new in it straight from the Plex or Subsonic server, deletes what's
-/// gone, and reports back. Two ways down:
+/// The library comes from either side: the iPhone sends it whole when it
+/// changes there (`PhoneConnection`), and the watch changes it itself when
+/// music is added from its own browsing (`add`, `addSongs`, `remove`,
+/// `setQuality`), sending it back. This downloads what's new in it straight
+/// from the Plex or Subsonic server, deletes what's gone, and reports back.
+/// Two ways down:
 ///
 /// - **In the background**, on a background `URLSession`: it carries on with
 ///   Cue closed, and the system relaunches the app to finish up. While the
@@ -264,8 +267,9 @@ final class WatchDownloadStore {
             var item = existing
             // A stream that moved — a new quality, mostly — is fetched again
             // from the new URL. A song that's here keeps playing from its
-            // file until the new one lands.
-            if track.streamURL != item.track.streamURL || track.fileExtension != item.fileExtension {
+            // file until the new one lands. The same song signed by the
+            // other device isn't a move (`isSameDownload`).
+            if !track.isSameDownload(as: item.track) || track.fileExtension != item.fileExtension {
                 stopTask(for: key)
                 if item.state == .completed {
                     item.previousFileExtension = item.fileExtension
@@ -290,6 +294,54 @@ final class WatchDownloadStore {
             items[key] = Item(track: track, fileExtension: track.fileExtension, state: .queued)
         }
         return plan
+    }
+
+    // MARK: - Changes made here
+
+    /// Puts an album, playlist or artist on the watch from its own
+    /// browsing, with its songs as fetched — replacing it if it's there.
+    func add(_ collection: WatchCollection, tracks: [WatchTrack]) {
+        guard !tracks.isEmpty else { return }
+        var collection = collection
+        collection.trackKeys = tracks.map(\.key)
+        library.upsert(collection, tracks: tracks)
+        libraryDidChangeHere()
+    }
+
+    /// Puts single songs in the Songs list.
+    func addSongs(_ tracks: [WatchTrack]) {
+        guard !tracks.isEmpty else { return }
+        library.addSongs(tracks, at: .now)
+        libraryDidChangeHere()
+    }
+
+    func removeCollection(key: String) {
+        guard library.collection(key: key) != nil else { return }
+        library.removeCollection(key: key)
+        libraryDidChangeHere()
+    }
+
+    /// Sets what songs come down at and rebuilds every stream for it; each
+    /// song comes down again, playing its old file meanwhile.
+    func setQuality(_ quality: WatchDownloadQuality) {
+        guard quality != library.quality else { return }
+        library.quality = quality
+        for (key, track) in library.tracks {
+            library.tracks[key] = track.converted(to: quality)
+        }
+        libraryDidChangeHere()
+    }
+
+    /// A change made on the watch: a new revision, downloaded and deleted
+    /// here at once, and sent to the iPhone with the status.
+    private func libraryDidChangeHere() {
+        library.bumpRevision()
+        saveLibrary()
+        matchItemsToLibrary(retryingFailed: false)
+        ArtworkStore.shared.prefetch(library.collections.compactMap(\.artworkURL))
+        pump()
+        saveNow()
+        postStatusNow()
     }
 
     // MARK: - Fast Download
@@ -744,7 +796,7 @@ final class WatchDownloadStore {
             bytesUsed: bytesUsed,
             updatedAt: .now
         )
-        PhoneConnection.shared.send(status)
+        PhoneConnection.shared.send(status: status, library: library)
     }
 
     // MARK: - Storage

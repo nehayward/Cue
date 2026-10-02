@@ -1,4 +1,3 @@
-import Defaults
 import Foundation
 import MusicSearchKit
 import Observation
@@ -6,28 +5,32 @@ import OSLog
 import SonosKit
 import WatchSync
 #if os(iOS) && !targetEnvironment(macCatalyst)
+import UIKit
 import WatchConnectivity
 #endif
 
-/// Puts Plex and Subsonic music on the Apple Watch.
+/// Puts Plex and Subsonic music on the Apple Watch, and lets the watch get
+/// its own.
 ///
-/// The iPhone keeps the list — a `WatchLibrary` of the albums, playlists,
-/// artists and songs the person chose, each song with the stream URL it
-/// comes from — and sends it whole to the watch after every change. The
-/// watch downloads the files from the server itself rather than through the
-/// iPhone, which is what lets its Fast Download mode run over its own Wi‑Fi
-/// with Bluetooth off (see the watch's `WatchDownloadStore`). It answers
-/// with a `WatchStatus`, so this side can say how much has landed.
+/// Both devices keep the same list — a `WatchLibrary` of the albums,
+/// playlists, artists and songs on the watch, each song with where it comes
+/// from — and either changes it: this iPhone from Add to Apple Watch, the
+/// watch from its own browsing. Every change makes a new revision and goes
+/// across whole as application context; the newer revision wins. The watch
+/// downloads the files from the server itself, which is what lets its Fast
+/// Download run over its own Wi‑Fi with Bluetooth off, and answers with a
+/// `WatchStatus` so this side can say how much has landed.
 ///
-/// The same services the download manager takes, for the same reason: a
-/// Plex or Subsonic song is a plain URL anything can fetch. Apple Music on
-/// the watch is the Music app's to download (MusicKit has no player on
-/// watchOS).
+/// The watch browses and downloads with MusicSearchKit and the sign-ins this
+/// iPhone shares (`WatchCredentials`), sent with the library and again
+/// whenever they change, so it needs no iPhone in reach.
 ///
-/// Songs go at the watch's own quality (`WatchDownloadQuality`), not the
-/// iPhone's Streaming Quality: each is kept as a `WatchTrackSource`, and its
-/// stream built from that, so a new quality rebuilds every stream and the
-/// watch converts what it has.
+/// Songs go at the library's quality (`WatchDownloadQuality`), not this
+/// iPhone's Streaming Quality, and keep their origin, so a new quality
+/// rebuilds every stream on whichever device chose it (`ConvertedStream`)
+/// and the watch converts what it has. Only Plex and Subsonic, as with the
+/// download manager: their songs are plain URLs. Apple Music on the watch is
+/// the Music app's (MusicKit has no player on watchOS).
 ///
 /// Inert where there's no watch to pair (iPad, Mac, Vision Pro): nothing
 /// is available, so no menu offers it.
@@ -44,14 +47,12 @@ final class WatchSyncService {
     private(set) var isWatchAppInstalled = false
     /// Albums whose songs are being fetched to go on the watch.
     private(set) var addingKeys: Set<String> = []
-    /// How songs come down to the watch; nil until the person picks.
-    private(set) var quality: WatchDownloadQuality?
 
     /// What songs go at: the chosen quality, or the recommended one.
-    var effectiveQuality: WatchDownloadQuality { quality ?? .recommended }
+    var effectiveQuality: WatchDownloadQuality { library.effectiveQuality }
 
     /// Nobody has picked a quality yet, so the first add asks.
-    var needsQualityChoice: Bool { quality == nil }
+    var needsQualityChoice: Bool { library.quality == nil }
 
     /// A watch is paired and has Cue on it, so music can be put there.
     var isAvailable: Bool { isPaired && isWatchAppInstalled }
@@ -60,15 +61,14 @@ final class WatchSyncService {
     /// The session's delegate, kept alive here; nil where there's no
     /// WatchConnectivity.
     @ObservationIgnored private var relay: AnyObject?
-    /// Every song in the library as the iPhone knows it, by key — what its
-    /// stream is built from.
-    @ObservationIgnored private var sources: [String: WatchTrackSource]
+    /// The sign-ins last sent, so signing in or out, or a new server, goes
+    /// across too.
+    @ObservationIgnored private var sentCredentials: WatchCredentials?
+    @ObservationIgnored private var foregroundObserver: NSObjectProtocol?
 
     private init() {
         library = Self.loadLibrary()
         status = Self.loadStatus()
-        sources = Self.loadSources()
-        quality = UserDefaults.standard.string(forKey: AppStorageKeys.watchDownloadQuality).flatMap(WatchDownloadQuality.init(rawValue:))
     }
 
     /// Starts the session, once, at launch.
@@ -80,18 +80,10 @@ final class WatchSyncService {
         self.relay = relay
         WCSession.default.delegate = relay
         WCSession.default.activate()
-        #endif
-    }
-
-    /// Reads whether a watch is paired and has Cue straight from the
-    /// session — for a request from the watch that woke Cue, which can come
-    /// in before the activation report has been taken in.
-    func refreshSessionState() {
-        #if os(iOS) && !targetEnvironment(macCatalyst)
-        let session = WCSession.default
-        guard session.activationState == .activated else { return }
-        isPaired = session.isPaired
-        isWatchAppInstalled = session.isWatchAppInstalled
+        // Sign-ins change in Settings; coming back to Cue is when to check.
+        foregroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.sendIfCredentialsChanged() }
+        }
         #endif
     }
 
@@ -109,14 +101,17 @@ final class WatchSyncService {
     /// Whether this album, playlist or artist is on the watch whole, or
     /// this song is among its Songs.
     func isOnWatch(_ item: PlayableContent) -> Bool {
+        guard let source = WatchSource(item.content.service) else { return false }
         if item.content.type == .track {
-            return library.collection(key: WatchCollection.songsKey)?.trackKeys.contains(DownloadManager.key(for: item)) == true
+            let key = WatchKeys.track(source: source, id: item.content.id)
+            return library.collection(key: WatchCollection.songsKey)?.trackKeys.contains(key) == true
         }
-        return library.collection(key: DownloadManager.containerKey(for: item)) != nil
+        return library.collection(key: Self.collectionKey(for: item, source: source)) != nil
     }
 
     func isAdding(_ item: PlayableContent) -> Bool {
-        addingKeys.contains(DownloadManager.containerKey(for: item))
+        guard let source = WatchSource(item.content.service) else { return false }
+        return addingKeys.contains(Self.collectionKey(for: item, source: source))
     }
 
     /// How many of a collection's songs the watch has, by its last report.
@@ -131,33 +126,28 @@ final class WatchSyncService {
 
     /// Puts an album, playlist or artist on the watch whole — its songs as
     /// they are now, every page of them — or a song among its Songs. Adding
-    /// what's already there refreshes it: a playlist picks up its new songs,
-    /// and every song a fresh stream URL. Returns how many songs it put
-    /// there; 0 means nothing could go.
+    /// what's already there refreshes it: a playlist picks up its new songs.
+    /// Returns how many songs it put there; 0 means nothing could go.
     @discardableResult
     func add(_ item: PlayableContent) async -> Int {
-        guard canAdd(item) else { return 0 }
+        guard canAdd(item), let source = WatchSource(item.content.service) else { return 0 }
+        let quality = effectiveQuality
         if item.content.type == .track {
-            guard let source = WatchTrackSource(item) else { return 0 }
-            sources[source.key] = source
-            library.addSongs([source.track(at: effectiveQuality)], at: .now)
+            guard let track = Self.watchTrack(for: item, quality: quality) else { return 0 }
+            library.addSongs([track], at: .now)
             libraryDidChange()
             return 1
         }
 
-        let key = DownloadManager.containerKey(for: item)
+        let key = Self.collectionKey(for: item, source: source)
         guard !addingKeys.contains(key) else { return 0 }
         addingKeys.insert(key)
         defer { addingKeys.remove(key) }
 
         let fetched = await LocalPlaybackService.shared.allContainerTracks(for: item)
         var seen = Set<String>()
-        let found = fetched.compactMap { WatchTrackSource($0) }.filter { seen.insert($0.key).inserted }
-        guard !found.isEmpty else { return 0 }
-        for source in found {
-            sources[source.key] = source
-        }
-        let tracks = found.map { $0.track(at: effectiveQuality) }
+        let tracks = fetched.compactMap { Self.watchTrack(for: $0, quality: quality) }.filter { seen.insert($0.key).inserted }
+        guard !tracks.isEmpty else { return 0 }
         let collection = WatchCollection(
             key: key,
             kind: WatchCollection.Kind(item.content.type),
@@ -175,10 +165,11 @@ final class WatchSyncService {
     /// Takes an album, playlist or artist off the watch, or a song out of
     /// its Songs. The watch deletes the files no collection holds any more.
     func remove(_ item: PlayableContent) {
+        guard let source = WatchSource(item.content.service) else { return }
         if item.content.type == .track {
-            library.removeSong(key: DownloadManager.key(for: item))
+            library.removeSong(key: WatchKeys.track(source: source, id: item.content.id))
         } else {
-            library.removeCollection(key: DownloadManager.containerKey(for: item))
+            library.removeCollection(key: Self.collectionKey(for: item, source: source))
         }
         libraryDidChange()
     }
@@ -196,24 +187,15 @@ final class WatchSyncService {
 
     /// Sets how songs come down to the watch, and rebuilds every song's
     /// stream for it. The watch fetches each again, playing the old file
-    /// until the new one lands; a song with no source (put there before
-    /// sources were kept) stays as it is until it's added again.
-    func setQuality(_ newQuality: WatchDownloadQuality) {
-        UserDefaults.standard.set(newQuality.rawValue, forKey: AppStorageKeys.watchDownloadQuality)
-        guard newQuality != quality else { return }
-        quality = newQuality
-        var changed = false
+    /// until the new one lands; a song with no origin (put there before
+    /// origins were kept) stays as it is until it's added again.
+    func setQuality(_ quality: WatchDownloadQuality) {
+        guard quality != library.quality else { return }
+        library.quality = quality
         for (key, track) in library.tracks {
-            guard let source = sources[key] else { continue }
-            let rebuilt = source.track(at: newQuality)
-            if rebuilt != track {
-                library.tracks[key] = rebuilt
-                changed = true
-            }
+            library.tracks[key] = track.converted(to: quality)
         }
-        if changed {
-            libraryDidChange()
-        }
+        libraryDidChange()
     }
 
     private func libraryDidChange() {
@@ -222,13 +204,76 @@ final class WatchSyncService {
         send()
     }
 
+    /// A newer library from the watch — it added or removed something
+    /// itself — taken as it is. Not sent back: the watch has it.
+    private func adopt(_ newer: WatchLibrary) {
+        guard newer.revision > library.revision else { return }
+        library = newer
+        saveLibrary()
+        logger.info("Took the watch's library, revision \(newer.revision), \(newer.tracks.count) songs")
+    }
+
+    // MARK: - Building songs
+
+    /// A Plex or Subsonic song as the watch fetches it at `quality`: its
+    /// origin kept, so either device can build its stream again.
+    static func watchTrack(for item: PlayableContent, quality: WatchDownloadQuality) -> WatchTrack? {
+        guard DownloadManager.shared.canDownload(item),
+              let source = WatchSource(item.content.service),
+              let sourceURL = item.previewURL else { return nil }
+        let origin = WatchTrackOrigin(source: source, contentID: item.content.id, sourceURL: sourceURL, audioCodec: item.metadata?.audioCodec)
+        let track = WatchTrack(
+            key: WatchKeys.track(source: source, id: item.content.id),
+            title: item.title,
+            artist: item.metadata?.artist ?? item.subtitle,
+            album: item.metadata?.album,
+            artworkURL: item.thumbnail ?? item.artwork,
+            streamURL: sourceURL,
+            fileExtension: item.metadata?.audioCodec ?? "mp3",
+            duration: item.metadata?.duration.map { Double($0.components.seconds) + Double($0.components.attoseconds) / 1e18 },
+            origin: origin
+        )
+        return track.converted(to: quality)
+    }
+
+    static func collectionKey(for item: PlayableContent, source: WatchSource) -> String {
+        WatchKeys.collection(kind: WatchCollection.Kind(item.content.type), source: source, id: item.content.id)
+    }
+
+    // MARK: - Sign-ins
+
+    /// This iPhone's Plex and Subsonic sign-ins, as MusicSearchKit keeps them.
+    private func currentCredentials() -> WatchCredentials {
+        var credentials = WatchCredentials()
+        if let token = PlexAuthenticator.shared.authToken, !token.isEmpty {
+            let plex = PlexAPI.shared
+            credentials.plex = .init(
+                token: token,
+                serverID: plex.serverID,
+                librarySectionID: plex.librarySelectionID,
+                connectionPreference: plex.connectionPreference.rawValue
+            )
+        }
+        let subsonic = SubsonicAPI.shared
+        if subsonic.isConfigured {
+            credentials.subsonic = .init(serverAddress: subsonic.serverAddress, username: subsonic.username, password: subsonic.password)
+        }
+        return credentials
+    }
+
+    private func sendIfCredentialsChanged() {
+        guard isAvailable, currentCredentials() != sentCredentials else { return }
+        send()
+    }
+
     // MARK: - Session
 
-    /// Sends the library as it is now, as application context — or, when
-    /// it's too big for that, as a file, in place of any older copy still
-    /// waiting to go. File transfers never arrive between simulators, so
-    /// context is the way that works everywhere; a file stays until its
-    /// transfer finishes (the system reads it as it goes).
+    /// Sends the library and the sign-ins as application context — or, when
+    /// the library is too big for it, the sign-ins there and the library as
+    /// a file, in place of any older copy still waiting to go. File transfers
+    /// never arrive between simulators, so context is the way that works
+    /// everywhere; a file stays until its transfer finishes (the system
+    /// reads it as it goes).
     private func send() {
         #if os(iOS) && !targetEnvironment(macCatalyst)
         let session = WCSession.default
@@ -237,15 +282,19 @@ final class WatchSyncService {
             transfer.cancel()
         }
         Self.clearOutgoing()
+        let credentials = currentCredentials()
+        let libraryFits: Bool
         do {
-            if let context = try WatchSyncMessage.libraryContext(library) {
-                try session.updateApplicationContext(context)
-                logger.info("Sent the watch library as context, revision \(self.library.revision), \(self.library.tracks.count) songs")
-                return
-            }
+            let (context, fits) = try WatchSyncMessage.context(library: library, credentials: credentials)
+            try session.updateApplicationContext(context)
+            sentCredentials = credentials
+            libraryFits = fits
+            logger.info("Sent the watch library, revision \(self.library.revision), \(self.library.tracks.count) songs, \(fits ? "in context" : "as a file")")
         } catch {
-            logger.error("Couldn't send the watch library as context, sending a file: \(error.localizedDescription, privacy: .public)")
+            logger.error("Couldn't send the watch context: \(error.localizedDescription, privacy: .public)")
+            libraryFits = false
         }
+        guard !libraryFits else { return }
         let url = Self.outgoingDirectory.appendingPathComponent("library-\(library.revision).json")
         do {
             try FileManager.default.createDirectory(at: Self.outgoingDirectory, withIntermediateDirectories: true)
@@ -255,29 +304,23 @@ final class WatchSyncService {
             return
         }
         session.transferFile(url, metadata: WatchSyncMessage.libraryMetadata(revision: library.revision))
-        logger.info("Sent the watch library as a file, revision \(self.library.revision), \(self.library.tracks.count) songs")
         #endif
     }
 
     /// Sends the library when the watch is behind it and no copy is on its
     /// way: after a reinstall, a first pairing, or a transfer that failed.
-    /// A watch ahead of this library (an iPhone restored from an older
-    /// backup) would ignore it, so the revision moves past the watch's
-    /// first; otherwise the two would trade the same copy and status
-    /// forever.
+    /// A watch ahead of it sends its own, which `adopt` takes.
     private func sendIfWatchIsBehind() {
         #if os(iOS) && !targetEnvironment(macCatalyst)
         let session = WCSession.default
         guard session.activationState == .activated, isAvailable else { return }
-        // Nothing to send to a watch that has nothing and should have nothing.
-        guard library.revision > 0 else { return }
-        let watchRevision = status?.libraryRevision ?? 0
-        if watchRevision > library.revision {
-            library.revision = watchRevision
-            libraryDidChange()
+        if currentCredentials() != sentCredentials {
+            send()
             return
         }
-        guard watchRevision < library.revision else { return }
+        // Nothing to send to a watch that has nothing and should have nothing.
+        let watchRevision = status?.libraryRevision ?? 0
+        guard library.revision > 0, watchRevision < library.revision else { return }
         let pending = session.outstandingFileTransfers.contains { transfer in
             WatchSyncMessage.isLibrary(transfer.file.metadata)
                 && WatchSyncMessage.revision(in: transfer.file.metadata) == library.revision
@@ -292,9 +335,15 @@ final class WatchSyncService {
         sendIfWatchIsBehind()
     }
 
-    fileprivate func didReceive(status: WatchStatus) {
-        self.status = status
-        Self.saveStatus(status)
+    /// The watch's context: its library first, when newer, then its status.
+    fileprivate func didReceive(library newer: WatchLibrary?, status: WatchStatus?) {
+        if let newer {
+            adopt(newer)
+        }
+        if let status {
+            self.status = status
+            Self.saveStatus(status)
+        }
         sendIfWatchIsBehind()
     }
 
@@ -329,26 +378,13 @@ final class WatchSyncService {
         return (try? WatchLibrary.decoded(from: data)) ?? .empty
     }
 
-    /// Saves the library, and the sources of the songs it still holds.
     private func saveLibrary() {
-        sources = sources.filter { library.tracks[$0.key] != nil }
         do {
             try FileManager.default.createDirectory(at: Self.directory, withIntermediateDirectories: true)
             try library.encoded().write(to: Self.libraryURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-            try JSONEncoder().encode(Array(sources.values)).write(to: Self.sourcesURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         } catch {
             logger.error("Couldn't save the watch library: \(error.localizedDescription)")
         }
-    }
-
-    private static var sourcesURL: URL {
-        directory.appendingPathComponent("sources.json")
-    }
-
-    private static func loadSources() -> [String: WatchTrackSource] {
-        guard let data = try? Data(contentsOf: sourcesURL),
-              let sources = try? JSONDecoder().decode([WatchTrackSource].self, from: data) else { return [:] }
-        return Dictionary(sources.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     private static func loadStatus() -> WatchStatus? {
@@ -377,9 +413,11 @@ private final class WatchSessionRelay: NSObject, WCSessionDelegate, @unchecked S
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         let paired = session.isPaired
         let installed = session.isWatchAppInstalled
-        let status = WatchSyncMessage.status(in: session.receivedApplicationContext)
+        let context = session.receivedApplicationContext
+        let library = WatchSyncMessage.library(in: context)
+        let status = WatchSyncMessage.status(in: context)
         Task { @MainActor in
-            if let status { self.service?.didReceive(status: status) }
+            self.service?.didReceive(library: library, status: status)
             self.service?.sessionStateDidChange(isPaired: paired, isWatchAppInstalled: installed)
         }
     }
@@ -400,22 +438,21 @@ private final class WatchSessionRelay: NSObject, WCSessionDelegate, @unchecked S
     }
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
-        guard let status = WatchSyncMessage.status(in: applicationContext) else { return }
+        let library = WatchSyncMessage.library(in: applicationContext)
+        let status = WatchSyncMessage.status(in: applicationContext)
         Task { @MainActor in
-            self.service?.didReceive(status: status)
+            self.service?.didReceive(library: library, status: status)
         }
     }
 
-    /// The watch browsing this iPhone's libraries, or putting something on
-    /// itself from them (`WatchBrowseServer`).
-    func session(_ session: WCSession, didReceiveMessageData messageData: Data, replyHandler: @escaping (Data) -> Void) {
-        guard let request = try? WatchRequest.decoded(from: messageData) else {
-            replyHandler((try? WatchReply.failed("Update Cue on your iPhone.").encoded()) ?? Data())
-            return
-        }
+    /// A library from the watch too big for its context.
+    func session(_ session: WCSession, didReceive file: WCSessionFile) {
+        guard WatchSyncMessage.isLibrary(file.metadata) else { return }
+        // Read now: the system deletes the file when this returns.
+        guard let data = try? Data(contentsOf: file.fileURL),
+              let library = try? WatchLibrary.decoded(from: data) else { return }
         Task { @MainActor in
-            let reply = await WatchBrowseServer.shared.reply(to: request)
-            replyHandler((try? reply.encoded()) ?? Data())
+            self.service?.didReceive(library: library, status: nil)
         }
     }
 
@@ -429,57 +466,20 @@ private final class WatchSessionRelay: NSObject, WCSessionDelegate, @unchecked S
 }
 #endif
 
-/// A Plex or Subsonic song as the iPhone knows it: what the watch shows,
-/// and what its stream is built from at whatever quality the watch is set
-/// to — saved under the download manager's key.
-struct WatchTrackSource: Codable {
-    let key: String
-    let service: MusicService
-    let contentID: String
-    /// The original file (`previewURL`).
-    let sourceURL: URL
-    let audioCodec: String?
-    let title: String
-    let artist: String
-    let album: String?
-    let artworkURL: URL?
-    let duration: TimeInterval?
-
-    /// Nil for anything the download manager can't take.
-    @MainActor
-    init?(_ item: PlayableContent) {
-        guard DownloadManager.shared.canDownload(item), let sourceURL = item.previewURL else { return nil }
-        key = DownloadManager.key(for: item)
-        service = item.content.service
-        contentID = item.content.id
-        self.sourceURL = sourceURL
-        audioCodec = item.metadata?.audioCodec
-        title = item.title
-        artist = item.metadata?.artist ?? item.subtitle
-        album = item.metadata?.album
-        artworkURL = item.thumbnail ?? item.artwork
-        duration = item.metadata?.duration.map { Double($0.components.seconds) + Double($0.components.attoseconds) / 1e18 }
-    }
-
-    /// The song as the watch fetches it at `quality`: converted to MP3 by
-    /// the server, or the original file.
-    func track(at quality: WatchDownloadQuality) -> WatchTrack {
-        let format: StreamTranscoding.Format = quality.bitrate == nil ? .original : .mp3
-        let bitrate = quality.bitrate ?? StreamTranscoding.defaultBitrate
-        let url = DeviceStream.url(service: service, contentID: contentID, sourceURL: sourceURL, audioCodec: audioCodec, format: format, bitrate: bitrate)
-        let fromURL = url.pathExtension.lowercased()
-        let fileExtension = DeviceStream.fileExtension(service: service, audioCodec: audioCodec, format: format).flatMap { $0.isEmpty || $0.count > 5 ? nil : $0 }
-            ?? (fromURL.isEmpty ? "mp3" : fromURL)
-        return WatchTrack(
-            key: key,
-            title: title,
-            artist: artist,
-            album: album,
-            artworkURL: artworkURL,
-            streamURL: url,
-            fileExtension: fileExtension,
-            duration: duration
+extension WatchTrack {
+    /// This song's stream at `quality`, built from its origin the way the
+    /// watch builds it (`ConvertedStream`). One with no origin stays as it is.
+    func converted(to quality: WatchDownloadQuality) -> WatchTrack {
+        guard let origin, let service = ConvertedStream.Service(rawValue: origin.source.rawValue) else { return self }
+        let stream = ConvertedStream.stream(
+            service: service,
+            contentID: origin.contentID,
+            sourceURL: origin.sourceURL,
+            audioCodec: origin.audioCodec,
+            format: quality.bitrate == nil ? .original : .mp3,
+            bitrate: quality.bitrate ?? StreamTranscoding.defaultBitrate
         )
+        return withStream(stream.url, fileExtension: stream.fileExtension, quality: quality)
     }
 }
 
@@ -489,6 +489,16 @@ extension WatchCollection.Kind {
         case .playlist: self = .playlist
         case .artist: self = .artist
         default: self = .album
+        }
+    }
+}
+
+extension WatchSource {
+    init?(_ service: MusicService) {
+        switch service {
+        case .plex: self = .plex
+        case .subsonic: self = .subsonic
+        default: return nil
         }
     }
 }

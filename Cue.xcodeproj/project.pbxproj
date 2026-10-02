@@ -100,6 +100,7 @@
 		CA7C00010000000000000013 /* WatchSync in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000003 /* WatchSync */; };
 		CA7C00010000000000000014 /* WatchSync in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000004 /* WatchSync */; };
 		CA7C00010000000000000015 /* WatchSync in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000005 /* WatchSync */; };
+		CA7C00010000000000000016 /* MusicSearchKit in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000006 /* MusicSearchKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -671,6 +672,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CA7C00010000000000000015 /* WatchSync in Frameworks */,
+				CA7C00010000000000000016 /* MusicSearchKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1025,6 +1027,7 @@
 			name = "Cue (Watch)";
 			packageProductDependencies = (
 				CA7C00010000000000000005 /* WatchSync */,
+				CA7C00010000000000000006 /* MusicSearchKit */,
 			);
 			productName = "Cue Watch";
 			productReference = E9C03AFC2A586F5E00FB9118 /* Cue Watch.app */;
@@ -2969,6 +2972,10 @@
 		CA7C00010000000000000005 /* WatchSync */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WatchSync;
+		};
+		CA7C00010000000000000006 /* MusicSearchKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MusicSearchKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

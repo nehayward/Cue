@@ -6,6 +6,7 @@ import WatchSync
 struct CollectionScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
+    @Environment(\.dismiss) private var dismiss
     let collectionKey: String
 
     var body: some View {
@@ -64,6 +65,16 @@ struct CollectionScreen: View {
                 } footer: {
                     if downloaded.count < tracks.count {
                         Text("\(downloaded.count) of \(tracks.count) songs on this watch. Fast Download fetches the rest over Wi‑Fi.")
+                    }
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        store.removeCollection(key: collection.key)
+                        dismiss()
+                    } label: {
+                        Text("Remove from Watch")
+                            .frame(maxWidth: .infinity)
                     }
                 }
             }

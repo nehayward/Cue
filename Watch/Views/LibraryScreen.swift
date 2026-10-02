@@ -9,6 +9,7 @@ struct LibraryScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
     @State private var isShowingFastDownload = false
+    @State private var isChoosingQuality = false
 
     var body: some View {
         NavigationStack {
@@ -41,11 +42,11 @@ struct LibraryScreen: View {
                     }
                 }
 
-                NavigationLink(value: WatchBrowsePath.root) {
+                NavigationLink(value: BrowseRoute.path(.root)) {
                     Label {
                         VStack(alignment: .leading) {
                             Text("Add Music")
-                            Text("Browse Plex and Subsonic on your iPhone")
+                            Text("Browse Plex and Subsonic")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
@@ -68,19 +69,33 @@ struct LibraryScreen: View {
                         Text(storageSummary)
                     }
                 }
+
+                Button {
+                    isChoosingQuality = true
+                } label: {
+                    LabeledContent("Quality", value: store.library.effectiveQuality.title)
+                }
             }
             .navigationTitle("Cue")
             .navigationDestination(for: String.self) { key in
                 CollectionScreen(collectionKey: key)
             }
-            .navigationDestination(for: WatchBrowsePath.self) { path in
-                BrowseScreen(path: path)
-            }
-            .navigationDestination(for: WatchBrowseItem.self) { item in
-                BrowseItemScreen(item: item)
+            .navigationDestination(for: BrowseRoute.self) { route in
+                switch route {
+                case let .path(path):
+                    BrowseScreen(path: path)
+                case let .item(item):
+                    BrowseItemScreen(item: item)
+                }
             }
             .sheet(isPresented: $isShowingFastDownload) {
                 FastDownloadScreen()
+            }
+            .sheet(isPresented: $isChoosingQuality) {
+                QualityPicker(current: store.library.quality) { quality in
+                    isChoosingQuality = false
+                    store.setQuality(quality)
+                }
             }
         }
     }
@@ -92,7 +107,7 @@ struct LibraryScreen: View {
                 .foregroundStyle(.tint)
             Text("No Music Yet")
                 .font(.headline)
-            Text("Tap Add Music, or in Cue on your iPhone choose Add to Apple Watch from an album or playlist's menu.")
+            Text("Tap Add Music to browse your Plex or Subsonic library, or choose Add to Apple Watch in Cue on your iPhone.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
