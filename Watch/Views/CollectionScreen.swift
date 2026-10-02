@@ -102,7 +102,9 @@ private struct TrackRow: View {
         case .completed:
             EmptyView()
         case .downloading:
-            if let item, item.bytesReceived > 0 {
+            // A transcoded stream doesn't say how big it is, so there's no
+            // fraction to show for it.
+            if let item, item.bytesReceived > 0, item.bytesExpected > 0 {
                 ProgressRing(fraction: item.progress)
                     .frame(width: 16, height: 16)
             } else {

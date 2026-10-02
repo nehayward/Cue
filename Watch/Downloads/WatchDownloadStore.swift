@@ -138,6 +138,11 @@ final class WatchDownloadStore {
     /// Songs fetched at once in Fast Download: enough to fill Wi‑Fi from a
     /// server that sends each one slowly, few enough that one finishes soon.
     static let fastConcurrency = 4
+    /// Songs handed to the background session at once. The system runs
+    /// them as it sees fit; each one that lands makes room for the next
+    /// (the session relaunches the app for it), so an artist of hundreds
+    /// doesn't sit on the session as hundreds of tasks.
+    static let backgroundConcurrency = 16
 
     private init() {
         Self.prepareDirectory()
@@ -146,6 +151,7 @@ final class WatchDownloadStore {
         backgroundRelay.store = self
         fastRelay.store = self
         reconcileWithDisk()
+        matchItemsToLibrary(retryingFailed: false)
         reattachBackgroundTasks()
     }
 
@@ -198,9 +204,13 @@ final class WatchDownloadStore {
 
     /// Takes a library from the iPhone: deletes the songs no collection
     /// holds now, gives the rest the library's copy of themselves (a fresh
-    /// stream URL, a corrected title), and queues what's new. An older
-    /// revision than the one here is left alone — the transfers can arrive
-    /// out of order.
+    /// stream URL, a corrected title), queues what's new, and tries again
+    /// what failed — adding something again on the iPhone is the way to
+    /// retry it. An older revision than the one here is left alone: the
+    /// transfers can arrive out of order.
+    ///
+    /// Saved and reported at once, not after the usual pause: this can run
+    /// in a WatchConnectivity wake that ends as soon as it returns.
     func apply(_ newLibrary: WatchLibrary) {
         guard newLibrary.revision > library.revision else {
             scheduleStatus()
@@ -208,13 +218,31 @@ final class WatchDownloadStore {
         }
         library = newLibrary
         saveLibrary()
+        let plan = matchItemsToLibrary(retryingFailed: true)
+        logger.info("Library \(newLibrary.revision): \(plan.toDownload.count) to fetch, \(plan.toRemove.count) to delete")
 
-        let plan = WatchSyncPlan.make(library: newLibrary, present: Set(items.keys))
+        ArtworkStore.shared.prefetch(newLibrary.collections.compactMap(\.artworkURL))
+        pump()
+        saveNow()
+        postStatusNow()
+    }
+
+    /// Brings the manifest in line with the library: deletes what no
+    /// collection holds, refreshes the rest from it, queues what's missing.
+    /// Run on every new library, and at launch, in case the app was killed
+    /// between saving one and the other.
+    @discardableResult
+    private func matchItemsToLibrary(retryingFailed: Bool) -> WatchSyncPlan {
+        let plan = WatchSyncPlan.make(library: library, present: Set(items.keys))
+        if fastPhase == .running {
+            let unfinished = plan.toRemove.filter { items[$0]?.state != .completed }.count
+            fastTotal = max(fastCompleted, fastTotal - unfinished + plan.toDownload.count)
+        }
         for key in plan.toRemove {
             delete(key: key)
         }
         for (key, existing) in items {
-            guard let track = newLibrary.tracks[key], track != existing.track else { continue }
+            guard let track = library.tracks[key] else { continue }
             var item = existing
             // One not here yet whose stream moved starts over from the new
             // URL; a finished file keeps its name.
@@ -226,23 +254,19 @@ final class WatchDownloadStore {
                 item.resumeOn = nil
                 item.bytesReceived = 0
                 item.error = nil
+            } else if retryingFailed, item.state == .failed {
+                item.state = .queued
+                item.error = nil
+                item.failedOnNetwork = nil
             }
             item.track = track
             items[key] = item
         }
         for key in plan.toDownload {
-            guard let track = newLibrary.tracks[key] else { continue }
+            guard let track = library.tracks[key] else { continue }
             items[key] = Item(track: track, fileExtension: track.fileExtension, state: .queued)
         }
-        if fastPhase == .running {
-            fastTotal += plan.toDownload.count
-        }
-        logger.info("Library \(newLibrary.revision): \(plan.toDownload.count) to fetch, \(plan.toRemove.count) to delete")
-
-        ArtworkStore.shared.prefetch(newLibrary.collections.compactMap(\.artworkURL))
-        pump()
-        scheduleSave()
-        scheduleStatus()
+        return plan
     }
 
     // MARK: - Fast Download
@@ -396,9 +420,18 @@ final class WatchDownloadStore {
     /// The system woke the app for the background session's events. Making
     /// the session hooks its delegate up to them; the handler runs once
     /// they've been delivered.
+    ///
+    /// If the events already went out while the app was running, that
+    /// callback may not come again, so the wake is let go after 25 seconds
+    /// regardless; watchOS ends it soon after anyway.
     func handleBackgroundEvents(completion: @escaping () -> Void) {
         backgroundCompletionHandlers.append(completion)
         _ = backgroundSession
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(25))
+            guard let self, !self.backgroundCompletionHandlers.isEmpty else { return }
+            self.didFinishBackgroundEvents()
+        }
     }
 
     // MARK: - Moving songs
@@ -417,7 +450,8 @@ final class WatchDownloadStore {
                 finishFastDownload()
             }
         } else {
-            for key in queued {
+            let running = tasks.values.filter { $0.kind == .background }.count
+            for key in queued.prefix(max(0, Self.backgroundConcurrency - running)) {
                 start(key, on: .background)
             }
         }
@@ -528,13 +562,18 @@ final class WatchDownloadStore {
         tasks[key] = nil
         let nsError = error as NSError
         let cancelled = nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
-        item.state = .failed
-        item.error = cancelled ? nil : error.localizedDescription
-        // Cancelled by someone other than this store — the system — counts
-        // as the network's doing, so it's tried again rather than lost.
-        item.failedOnNetwork = cancelled || Self.isNetworkFailure(nsError)
         item.resumeData = resumeData
         item.resumeOn = resumeData == nil ? nil : kind
+        if cancelled {
+            // Not this store's doing (its own cancels are stale by the time
+            // they report): the system's, after a force quit say. Back in
+            // line, rather than failed until the app is next opened.
+            item.state = .queued
+        } else {
+            item.state = .failed
+            item.error = error.localizedDescription
+            item.failedOnNetwork = Self.isNetworkFailure(nsError)
+        }
         items[key] = item
         logger.error("\(item.track.title, privacy: .public) failed on the \(kind.rawValue, privacy: .public) session: \(error.localizedDescription, privacy: .public)")
         pump()

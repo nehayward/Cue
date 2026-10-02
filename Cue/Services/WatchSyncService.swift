@@ -190,13 +190,23 @@ final class WatchSyncService {
 
     /// Sends the library when the watch is behind it and no copy is on its
     /// way: after a reinstall, a first pairing, or a transfer that failed.
+    /// A watch ahead of this library (an iPhone restored from an older
+    /// backup) would ignore it, so the revision moves past the watch's
+    /// first; otherwise the two would trade the same copy and status
+    /// forever.
     private func sendIfWatchIsBehind() {
         #if os(iOS) && !targetEnvironment(macCatalyst)
         let session = WCSession.default
         guard session.activationState == .activated, isAvailable else { return }
         // Nothing to send to a watch that has nothing and should have nothing.
         guard library.revision > 0 else { return }
-        guard status?.libraryRevision != library.revision else { return }
+        let watchRevision = status?.libraryRevision ?? 0
+        if watchRevision > library.revision {
+            library.revision = watchRevision
+            libraryDidChange()
+            return
+        }
+        guard watchRevision < library.revision else { return }
         let pending = session.outstandingFileTransfers.contains { transfer in
             WatchSyncMessage.isLibrary(transfer.file.metadata)
                 && WatchSyncMessage.revision(in: transfer.file.metadata) == library.revision

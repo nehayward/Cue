@@ -95,7 +95,15 @@ struct FastDownloadScreen: View {
                     Text(item.track.title)
                         .font(.footnote)
                         .lineLimit(1)
-                    ProgressView(value: item.progress)
+                    if item.bytesExpected > 0 {
+                        ProgressView(value: item.progress)
+                    } else {
+                        // A transcoded stream doesn't say how big it is.
+                        Text(ByteCountFormatter.string(fromByteCount: item.bytesReceived, countStyle: .file))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
                 }
             }
 

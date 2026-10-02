@@ -28,6 +28,7 @@ final class WatchPlayer {
     @ObservationIgnored private let player = AVPlayer()
     @ObservationIgnored private var statusObservation: NSKeyValueObservation?
     @ObservationIgnored private var endObserver: NSObjectProtocol?
+    @ObservationIgnored private var interruptionObserver: NSObjectProtocol?
     @ObservationIgnored private var commandsConfigured = false
     @ObservationIgnored private let logger = Logger(subsystem: "dance.cue.watch", category: "Player")
 
@@ -44,6 +45,17 @@ final class WatchPlayer {
             Task { @MainActor in
                 guard let self, item != nil, item === self.player.currentItem else { return }
                 self.next()
+            }
+        }
+        // A call or an alarm pauses the player by itself; carry on after
+        // it when the system says to.
+        interruptionObserver = NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] notification in
+            let info = notification.userInfo
+            let type = (info?[AVAudioSessionInterruptionTypeKey] as? UInt).flatMap { AVAudioSession.InterruptionType(rawValue: $0) }
+            let options = (info?[AVAudioSessionInterruptionOptionKey] as? UInt).map { AVAudioSession.InterruptionOptions(rawValue: $0) } ?? []
+            guard type == .ended, options.contains(.shouldResume) else { return }
+            Task { @MainActor in
+                self?.resume()
             }
         }
     }
@@ -139,13 +151,19 @@ final class WatchPlayer {
         }
     }
 
+    /// Loads the song at `index` — or the next one that's still here, when
+    /// it was removed from the watch since the queue was made.
     private func loadCurrent() {
-        guard let track = current, let url = WatchDownloadStore.shared.localURL(for: track) else {
-            stop()
-            return
+        let store = WatchDownloadStore.shared
+        while let track = current {
+            if let url = store.localURL(for: track) {
+                player.replaceCurrentItem(with: AVPlayerItem(url: url))
+                updateNowPlaying()
+                return
+            }
+            queue.remove(at: index)
         }
-        player.replaceCurrentItem(with: AVPlayerItem(url: url))
-        updateNowPlaying()
+        stop()
     }
 
     private func updateNowPlaying() {
