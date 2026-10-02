@@ -614,8 +614,8 @@ struct PreferenceScreen: View {
                 storageCacheSection
                 
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
-                // Opening to Now Playing means the playing speaker.
-                if sonosService.isEnabled {
+                // Opens the player on whatever is playing — this device or a
+                // speaker — so it's here with or without Sonos.
                 Section {
                     Label {
                         Toggle(isOn: $speedLaunchNowPlaying) {
@@ -641,8 +641,7 @@ struct PreferenceScreen: View {
                         .foregroundStyle(.primary)
                         .headerProminence(.increased)
                 } footer: {
-                    Text("Opens to Now Playing instead of the room list.")
-                }
+                    Text("Opens Cue to Now Playing.")
                 }
 #endif
                 

@@ -1080,7 +1080,7 @@ final class LocalPlaybackService {
             if repeatMode == .all, !queue.isEmpty {
                 Task { try? await arm(at: 0) }
             } else {
-                stop()
+                rewindToStart()
             }
             return
         }
@@ -1331,11 +1331,36 @@ final class LocalPlaybackService {
             if repeatMode == .all, !queue.isEmpty {
                 Task { try? await arm(at: 0) }
             } else {
-                stop()
+                rewindToStart()
             }
             return
         }
         Task { try? await arm(at: end + 1) }
+    }
+
+    /// The queue has played out with nothing set to repeat: back to its first
+    /// song, paused at the start, with nothing armed — the way a finished
+    /// album waits in Music. Play starts it again from the top. Clearing it
+    /// instead left the player on "Nothing Playing", with what was queued
+    /// gone.
+    private func rewindToStart() {
+        guard !queue.isEmpty else {
+            stop()
+            return
+        }
+        poller?.invalidate()
+        poller = nil
+        cancelSleepTimer()
+        teardownRun()
+        resumePosition = nil
+        currentIndex = 0
+        isPlaying = false
+        isLoading = false
+        progress = 0
+        // Parked on the first song: show its length, as a paused speaker
+        // would, rather than no scrubber at all.
+        duration = catalogDuration(at: 0)
+        savePosition()
     }
 
     private func restartCurrent() {

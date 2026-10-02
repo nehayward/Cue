@@ -115,14 +115,11 @@ struct PlayerView: View {
             VStack(alignment: .center) {
                 if let group {
                     groupContent(group)
-                } else if let item = playback.nowPlayingDisplay {
-                    // The display item, not the queue row: a station reads as
-                    // the song on air here.
-                    deviceContent(item)
                 } else {
-                    Spacer()
-                    ContentUnavailableView("Nothing Playing", systemImage: "iphone.radiowaves.left.and.right")
-                    Spacer()
+                    // The display item, not the queue row: a station reads as
+                    // the song on air here. Nil with nothing queued, which
+                    // still draws the whole player, empty.
+                    deviceContent(playback.nowPlayingDisplay)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -194,16 +191,24 @@ struct PlayerView: View {
     // MARK: - This device
 
     @ViewBuilder
-    private func deviceContent(_ item: PlayableContent) -> some View {
+    ///
+    /// With nothing queued (`item` nil) the player keeps its shape — an empty
+    /// cover, "Not Playing", the transport greyed out — so the route picker,
+    /// the volume and the queue are where they always are, rather than a
+    /// blank "Nothing Playing" screen with no way to do anything.
+    private func deviceContent(_ item: PlayableContent?) -> some View {
         // Live Transcription takes the artwork's place, in the same frame,
         // so the controls below don't move when it's switched.
         Group {
             if showsTranscription {
                 LiveTranscriptionView()
                     .transition(.opacity)
-            } else {
+            } else if let item {
                 ContentArtworkView(content: item, showMusicSource: true, preferredSize: 600, cornerRadius: 8, isDraggable: isArtworkDraggable)
                     .shadow(radius: 2)
+                    .transition(.opacity)
+            } else {
+                EmptyPlayerArtwork()
                     .transition(.opacity)
             }
         }
@@ -222,9 +227,7 @@ struct PlayerView: View {
 
         if isPhoneLayout {
             Spacer(minLength: 12)
-            localAlbumLine(item)
-            LocalSongTitleButton(item: item, target: playback.onAirMatch)
-            LocalArtistButton(item: item, target: playback.onAirMatch, showArtworkOnly: showArtworkOnly)
+            localTitleLines(item)
 
             if !showArtworkOnly {
                 Group {
@@ -241,11 +244,7 @@ struct PlayerView: View {
                 .transition(.opacity.combined(with: .push(from: .bottom)))
             }
         } else {
-            localAlbumLine(item)
-            // While a station plays, a tap opens the song on air once Apple
-            // Music has it — named by the station or by Shazam.
-            LocalSongTitleButton(item: item, target: playback.onAirMatch)
-            LocalArtistButton(item: item, target: playback.onAirMatch, showArtworkOnly: showArtworkOnly)
+            localTitleLines(item)
 
             if !showArtworkOnly {
                 VStack {
@@ -272,6 +271,31 @@ struct PlayerView: View {
     /// line takes — the album when there is no origin, and the station's
     /// name when a station is playing. Fixed height so the layout doesn't
     /// shift between tracks that have one and tracks that don't.
+    @ViewBuilder
+    private func localTitleLines(_ item: PlayableContent?) -> some View {
+        if let item {
+            localAlbumLine(item)
+            // While a station plays, a tap opens the song on air once Apple
+            // Music has it — named by the station or by Shazam.
+            LocalSongTitleButton(item: item, target: playback.onAirMatch)
+            LocalArtistButton(item: item, target: playback.onAirMatch, showArtworkOnly: showArtworkOnly)
+        } else {
+            // The same three lines, holding their places.
+            Color.clear
+                .frame(height: 12)
+            Text("Not Playing")
+                .bold()
+                .fontDesign(.rounded)
+                .font(.title2)
+                .lineLimit(1)
+            Text(" ")
+                .font(.title3)
+                .lineLimit(1, reservesSpace: true)
+                .padding(.bottom, showArtworkOnly ? 100 : nil)
+                .accessibilityHidden(true)
+        }
+    }
+
     private func localAlbumLine(_ item: PlayableContent) -> some View {
         LocalAlbumButton(
             item: item,
@@ -793,6 +817,23 @@ private struct LocalArtistButton: View {
     }
 }
 
+/// The cover's place with nothing queued: a blank cover with a note in it,
+/// the shape `ContentArtworkView` gives a missing image.
+private struct EmptyPlayerArtwork: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(.quaternary)
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                Image(systemName: "music.note")
+                    .font(.system(size: 72))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityLabel("No Artwork")
+    }
+}
+
 // MARK: - Scrubber and transport
 
 /// The scrubber, mirroring `GroupPlaybackScrubber`: `VibeSlider` over
@@ -964,6 +1005,9 @@ private struct LocalMediaControlsView: View {
         }
         .frame(maxWidth: canSkip ? (isProminent ? 320 : 300) : nil)
         .padding(.horizontal, isProminent ? 36 : 60)
+        // Nothing queued: there, so the player keeps its shape, but nothing
+        // to press.
+        .disabled(!playback.isActive)
     }
 }
 
