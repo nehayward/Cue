@@ -346,6 +346,9 @@ final class LocalPlaybackService {
     }
     /// The armed stream run: player item → queue index.
     @ObservationIgnored private var streamRun: [ObjectIdentifier: Int] = [:]
+    /// Each armed stream item's status, watched so a song that won't load is
+    /// reported the moment it fails — see `watch(_:)`.
+    @ObservationIgnored private var itemWatches: [ObjectIdentifier: NSKeyValueObservation] = [:]
     /// Resolved Apple `Song`s by catalog id, so replaying or skipping back to
     /// a track doesn't re-fetch it. Loaded from (and saved to) disk, which is
     /// what lets a previously seen track arm with no network — so songs the
@@ -679,7 +682,7 @@ final class LocalPlaybackService {
                       runEnd == queueIndex - 1 else { return }
                 let item = AVPlayerItem(url: url)
                 player.insert(item, after: nil)
-                streamRun[ObjectIdentifier(item)] = queueIndex
+                register(item, at: queueIndex)
                 runEnd = queueIndex
             }
         case .appleMusic:
@@ -1160,7 +1163,7 @@ final class LocalPlaybackService {
                   let url = trackStreamURL(for: row) else { return }
             let item = AVPlayerItem(url: url)
             player.insert(item, after: nil)
-            streamRun[ObjectIdentifier(item)] = queueIndex
+            register(item, at: queueIndex)
             runEnd = queueIndex
         }
     }
@@ -1553,6 +1556,7 @@ final class LocalPlaybackService {
             streamPlayer?.removeAllItems()
             streamPlayer = nil
             streamRun = [:]
+            itemWatches = [:]
             nowPlayingCard.end()
             isPlayingLocalStream = false
             // Hand the audio session back to whatever held it behind us (see
@@ -1779,7 +1783,8 @@ final class LocalPlaybackService {
             streamPlayer.insert(replacement, after: playerItem)
             streamPlayer.remove(playerItem)
             streamRun[ObjectIdentifier(playerItem)] = nil
-            streamRun[ObjectIdentifier(replacement)] = queueIndex
+            itemWatches[ObjectIdentifier(playerItem)] = nil
+            register(replacement, at: queueIndex)
             return
         }
     }
@@ -1795,6 +1800,36 @@ final class LocalPlaybackService {
             return await MusicSearchService.shared.tuneInStreamURL(id: item.content.id)
         }
         return trackStreamURL(for: item)
+    }
+
+    /// Hands `item` to the armed stream run as queue row `queueIndex`.
+    private func register(_ item: AVPlayerItem, at queueIndex: Int) {
+        streamRun[ObjectIdentifier(item)] = queueIndex
+        watch(item)
+    }
+
+    /// Reports a song that won't load as soon as it fails. `AVQueuePlayer`
+    /// drops a failed item and moves on by itself, often before the next
+    /// poll — and when it was the last one the queue looked finished, so a
+    /// song that couldn't play just sat at 0:00 with no word why.
+    private func watch(_ item: AVPlayerItem) {
+        itemWatches[ObjectIdentifier(item)] = item.observe(\.status) { [weak self] item, _ in
+            guard item.status == .failed else { return }
+            Task { @MainActor in self?.streamItemFailed(item) }
+        }
+    }
+
+    private func streamItemFailed(_ item: AVPlayerItem) {
+        let key = ObjectIdentifier(item)
+        guard itemWatches.removeValue(forKey: key) != nil,
+              let queueIndex = streamRun[key], let row = queue[safe: queueIndex] else { return }
+        AlertService.shared.showAlert(with: "Couldn't play “\(row.title)”", imageName: "exclamationmark.triangle")
+        // The item's error and the stream's path (not its query, which
+        // carries the server's token).
+        let error = item.error as NSError?
+        let underlying = error?.userInfo[NSUnderlyingErrorKey] as? NSError
+        let path = (item.asset as? AVURLAsset)?.url.path ?? "?"
+        Self.log.error("couldn't play \(row.title, privacy: .public) [\(row.metadata?.audioCodec ?? "?", privacy: .public)] from \(path, privacy: .public): \(error?.domain ?? "", privacy: .public) \(error?.code ?? 0) \(error?.localizedDescription ?? "", privacy: .public) / \(underlying?.domain ?? "", privacy: .public) \(underlying?.code ?? 0) \(underlying?.localizedDescription ?? "", privacy: .public)")
     }
 
     /// `streamURL(for:)` for anything but a station: answered at once.
@@ -1864,7 +1899,8 @@ final class LocalPlaybackService {
             print(error)
         }
 
-        streamRun = Dictionary(uniqueKeysWithValues: rows.map { (ObjectIdentifier($0.item), $0.queueIndex) })
+        streamRun = [:]
+        for row in rows { register(row.item, at: row.queueIndex) }
         let player = AVQueuePlayer(items: rows.map(\.item))
         streamPlayer = player
         player.volume = streamVolume
@@ -2226,10 +2262,9 @@ final class LocalPlaybackService {
             // to the next item — with nothing after it, `currentItem` goes
             // nil and the next poll ends the run.
             if current.status == .failed {
-                if let queueIndex = streamRun[ObjectIdentifier(current)],
-                   let item = queue[safe: queueIndex] {
-                    AlertService.shared.showAlert(with: "Couldn't play “\(item.title)”", imageName: "exclamationmark.triangle")
-                }
+                // Reported by its watch (`streamItemFailed`); this only
+                // moves on, in case the player hasn't.
+                streamItemFailed(current)
                 streamPlayer.advanceToNextItem()
                 return
             }
