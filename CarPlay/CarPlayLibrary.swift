@@ -10,14 +10,21 @@ import SonosKit
 /// expand it and a row when the local queue can take it.
 @MainActor
 enum CarPlayLibrary {
-    /// One row on the Library tab: a provider's playlists or albums, or
-    /// what's downloaded. Its list is loaded when the row is opened.
+    /// A row that opens a list: a provider's playlists or albums on the
+    /// Library tab, or the downloads by album, artist or song. Its list is
+    /// loaded when the row is opened.
     struct Listing {
         let title: String
         let systemImage: String
-        /// Everything the collection stands for, offered as Shuffle All at
-        /// the top of its list. Only the on-device library has one.
+        /// A count or other note under the title.
+        var detail: String? = nil
+        /// Everything the collection stands for, behind Shuffle above its
+        /// list. Only the downloads' songs have one.
         var shuffleAll: PlayableContent? = nil
+        /// Whether a song picked in the list plays the list from there on,
+        /// as a song picked in an album does. Off for lists of albums and
+        /// playlists, whose rows open rather than play.
+        var playsInOrder = false
         let load: @MainActor () async -> [PlayableContent]
     }
 
@@ -43,6 +50,9 @@ enum CarPlayLibrary {
     /// The Recently Added lists: the newest is what's wanted in a car.
     private static let recentLimit = 50
 
+    /// The newest albums at the foot of the Downloads tab.
+    private static let recentDownloadsLimit = 12
+
     // MARK: - Recents
 
     /// What was last played in Cue, newest first — the phone's Recently
@@ -56,22 +66,14 @@ enum CarPlayLibrary {
     // MARK: - Library
 
     /// A shelf per provider that is switched on and signed in, in the order
-    /// the app lists providers, then the on-device library. Offline, the
-    /// on-device library alone: no provider can answer without a network.
+    /// the app lists providers. None offline: no provider can answer without
+    /// a network, and what's on this iPhone has the Downloads tab.
     static func shelves() -> [Shelf] {
-        var shelves: [Shelf] = []
-        if !OfflineMode.shared.isActive {
-            for service in MediaSearchService.supported where isReady(service) {
-                let rows = listings(for: service)
-                if !rows.isEmpty {
-                    shelves.append(Shelf(title: service.title, listings: rows))
-                }
-            }
+        guard !OfflineMode.shared.isActive else { return [] }
+        return MediaSearchService.supported.filter(isReady).compactMap { service in
+            let rows = listings(for: service)
+            return rows.isEmpty ? nil : Shelf(title: service.title, listings: rows)
         }
-        if let downloaded = downloadedShelf() {
-            shelves.append(downloaded)
-        }
-        return shelves
     }
 
     /// Switched on in Services and set up far enough to browse. Apple Music
@@ -186,19 +188,75 @@ enum CarPlayLibrary {
         return Array(apple.userPlaylists)
     }
 
-    /// The songs on this device — Cue's downloads, the Music app's and the
-    /// Files folder's — by album, newest first, the way Offline Mode reads
-    /// them. Nil while there are none.
-    private static func downloadedShelf() -> Shelf? {
-        guard !OnDeviceLibrary.isEmpty else { return nil }
-        let downloaded = Listing(
-            title: "Downloaded",
-            systemImage: "arrow.down.circle",
-            shuffleAll: OnDeviceLibrary.allSongsContainer
-        ) {
-            OnDeviceLibrary.groups(.albums, sortedBy: .added, descending: true).map(\.container)
-        }
-        return Shelf(title: "On This iPhone", listings: [downloaded])
+    // MARK: - Downloads
+
+    /// Everything on this device — Cue's downloads, the Music app's and the
+    /// Files folder's — the way Offline Mode reads it. It all plays with no
+    /// network, which in a car is the point.
+    static var hasDownloads: Bool {
+        !OnDeviceLibrary.isEmpty
+    }
+
+    /// Every song on this device as one container, for Shuffle All.
+    static var allDownloads: PlayableContent {
+        OnDeviceLibrary.allSongsContainer
+    }
+
+    /// How many songs are on this device.
+    static var downloadCount: Int {
+        OnDeviceLibrary.allSongs.count
+    }
+
+    /// Albums, Artists and Songs over what's on this device, as the phone's
+    /// Downloaded pages list them, each with its count.
+    static func downloadListings() -> [Listing] {
+        let albums = OnDeviceLibrary.groups(.albums, sortedBy: .title, descending: false)
+        let artists = OnDeviceLibrary.groups(.artists, sortedBy: .title, descending: false)
+        let songCount = downloadCount
+        return [
+            Listing(
+                title: OnDeviceCollection.albums.title,
+                systemImage: OnDeviceCollection.albums.systemImage,
+                detail: count(albums.count, "album")
+            ) {
+                OnDeviceLibrary.groups(.albums, sortedBy: .title, descending: false).map(\.container)
+            },
+            Listing(
+                title: OnDeviceCollection.artists.title,
+                systemImage: OnDeviceCollection.artists.systemImage,
+                detail: count(artists.count, "artist")
+            ) {
+                OnDeviceLibrary.groups(.artists, sortedBy: .title, descending: false).map(\.container)
+            },
+            Listing(
+                title: "Songs",
+                systemImage: "music.note",
+                detail: count(songCount, "song"),
+                shuffleAll: allDownloads,
+                playsInOrder: true
+            ) {
+                OnDeviceLibrary.songs(sortedBy: .title, descending: false)
+            },
+        ]
+    }
+
+    /// The albums that arrived last, newest first.
+    static func recentlyDownloaded() -> [PlayableContent] {
+        Array(allRecentlyDownloaded().prefix(recentDownloadsLimit))
+    }
+
+    /// Every album on this device, newest first, behind the title of the
+    /// Recently Downloaded cards.
+    static let recentlyDownloadedListing = Listing(title: "Recently Downloaded", systemImage: "clock") {
+        allRecentlyDownloaded()
+    }
+
+    private static func allRecentlyDownloaded() -> [PlayableContent] {
+        OnDeviceLibrary.groups(.albums, sortedBy: .added, descending: true).map(\.container)
+    }
+
+    private static func count(_ value: Int, _ noun: String) -> String {
+        value == 1 ? "1 \(noun)" : "\(value.formatted()) \(noun)s"
     }
 
     // MARK: - Radio

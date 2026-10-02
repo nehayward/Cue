@@ -1,7 +1,7 @@
 # 2026.8
 
 –– New Features ––
-- CarPlay: Play your Apple Music, Plex, Subsonic and Files libraries, your downloads and your radio stations from the car's screen — Recents, Library and Radio, with Up Next, shuffle and repeat in Now Playing. Play On hands what's playing to your Sonos speakers when you get home
+- CarPlay: Play your Apple Music, Plex, Subsonic and Files libraries, your downloads and your radio stations from the car's screen — Recents, Library, Downloads and Radio, with Up Next, shuffle and repeat in Now Playing. Downloads plays what's on your iPhone with no signal, and albums and playlists open with their cover, Play and Shuffle
 - Plays count on your server: songs you play on this device in Cue now show up in your Plex and Subsonic play counts, Recently Played and the server's Now Playing. Navidrome passes them on to Last.fm or ListenBrainz if you've set that up
 - Subsonic & Navidrome: Play your self-hosted music library on Sonos. Connect any Subsonic-compatible server (Navidrome, Airsonic, Gonic, and more) with its address and login under Settings ▸ Services, and your speakers stream your music straight from the server — no Sonos account involved, with your password kept in the device keychain
 - Subsonic search and browse: Search your server's songs, albums and artists alongside your other services, browse your whole library — Artists, Albums, Songs, Recently Added, and Playlists — and open artist pages complete with top songs and a playable discography

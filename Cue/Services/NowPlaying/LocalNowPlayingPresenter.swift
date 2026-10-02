@@ -11,6 +11,11 @@ import UIKit
 /// artwork and timeline, and the transport commands, for as long as a run
 /// is armed.
 ///
+/// While CarPlay is connected it publishes Apple Music runs as well. On
+/// iOS 27 the car's Now Playing screen reads this app's own client rather
+/// than MusicKit's, so Apple Music needs a card here to show up there at
+/// all (`LocalPlaybackService.publishesAppleMusicCard`).
+///
 /// The Sonos mirror (`NowPlayingSessionService`) stands down while local
 /// audio plays, and on its way out it clears the card. The presenter notices
 /// its card is gone on the next poll and puts it back, so the two hand off
@@ -32,6 +37,9 @@ final class LocalNowPlayingPresenter {
 
     private var published: Snapshot?
     private var publishedElapsed: TimeInterval = 0
+    /// When `publishedElapsed` was stated, for where the system's clock
+    /// should be now.
+    private var publishedAt = Date.distantPast
     private var commandTokens: [(MPRemoteCommand, Any)] = []
     private var artworkTask: Task<Void, Never>?
     private var publishedArtworkURL: URL?
@@ -85,9 +93,15 @@ final class LocalNowPlayingPresenter {
             canSkip: canSkip
         )
         let cardIsOurs = isOurs(MPNowPlayingInfoCenter.default().nowPlayingInfo)
-        // A stall or a hiccup can leave the system's clock well off; a
-        // drift past a couple of seconds is worth a republish.
-        let drifted = abs(elapsed - publishedElapsed) > 2 && !isPlaying
+        // A stall or a hiccup can leave the system's clock well off, and so
+        // can a seek this player never saw (MusicKit's own card takes
+        // those for Apple Music); a drift past a couple of seconds is worth
+        // a republish. The clock runs on from the last publish while
+        // playing and stands still while paused.
+        let expected = published?.isPlaying == true
+            ? publishedElapsed + Date.now.timeIntervalSince(publishedAt)
+            : publishedElapsed
+        let drifted = abs(elapsed - expected) > 2
         guard snapshot != published || !cardIsOurs || drifted else { return }
         publish(snapshot, elapsed: elapsed, item: item)
     }
@@ -95,8 +109,7 @@ final class LocalNowPlayingPresenter {
     /// A seek moves the timeline; the card has to know now.
     func noteSeek(elapsed: TimeInterval) {
         guard let published, let player else { return }
-        publish(published, elapsed: elapsed, item: player.nowPlaying)
-        publishedElapsed = elapsed
+        publish(published, elapsed: elapsed, item: player.nowPlayingDisplay)
     }
 
     // MARK: - Publishing
@@ -129,7 +142,8 @@ final class LocalNowPlayingPresenter {
         center.changePlaybackPositionCommand.isEnabled = snapshot.duration > 0
 
         published = snapshot
-        publishedElapsed = elapsed
+        publishedElapsed = max(0, elapsed)
+        publishedAt = .now
 
         if publishedArtworkURL != snapshot.artworkURL {
             loadArtwork(from: snapshot.artworkURL, item: item)
