@@ -14,6 +14,11 @@ public final class MusicSearchService {
             }
         }
     }
+
+    /// `query` as it's searched for.
+    private var trimmedQuery: String {
+        query.trimmingCharacters(in: .whitespaces)
+    }
     
     public var appleMusicAuthorizationStatus: AppleMusicAuthorization = .denied
     
@@ -183,7 +188,10 @@ public final class MusicSearchService {
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
 
-    private let debounceDuration: Duration = .milliseconds(150)
+    /// The pause after a keystroke before the services are asked. At 150 ms,
+    /// about the gap between two keystrokes, most keystrokes still sent a
+    /// search to every selected service.
+    private let debounceDuration: Duration = .milliseconds(250)
 
     public var suggestions: [MusicCatalogSearchSuggestionsResponse.Suggestion] = []
 
@@ -209,13 +217,14 @@ public final class MusicSearchService {
     @discardableResult
     public func search(for providers: Set<MediaSearchService>, recentlyPlayedIDs: Set<String> = []) async -> Bool {
         self.recentlyPlayedIDs = recentlyPlayedIDs
-        if query.isEmpty {
+        // Spaces around the query don't change what the services return.
+        let capturedQuery = trimmedQuery
+        if capturedQuery.isEmpty {
             results = []
             return true
         }
 
         var allProvidersAnswered = true
-        let capturedQuery = query
         searchSuggestionTask.cancel()
         searchSuggestionTask = Task { [weak self] in
             guard let self else { return nil }
@@ -295,7 +304,7 @@ public final class MusicSearchService {
                 if Task.isCancelled { continue }
                 // The user may have edited the query while we were awaiting; the new
                 // search() call will handle the fresh query, so drop these.
-                if self.query != capturedQuery { continue }
+                if self.trimmedQuery != capturedQuery { continue }
                 guard let providerResults else {
                     // Not cancelled and still the current query: the provider
                     // timed out or failed. A single-service search must clear
@@ -319,7 +328,7 @@ public final class MusicSearchService {
         }
 
         if Task.isCancelled { return false }
-        if self.query != capturedQuery { return false }
+        if self.trimmedQuery != capturedQuery { return false }
 
         if isMultiServiceSearch {
             // Publish the merged list once, after every provider has drained.
