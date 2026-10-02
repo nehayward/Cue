@@ -148,7 +148,37 @@ private struct LocalNextUpView: View {
         }
     }
 
+    /// The current song's row, which the list opens on.
+    private var currentRowID: String? {
+        rows.first { $0.index == playback.currentIndex }?.id
+    }
+
+    /// Opens on the current song, with what's played above it to scroll
+    /// back to, and follows it as the queue moves on. Not while editing: a
+    /// reorder shouldn't yank the list away. Near the end of a short queue
+    /// the list can't scroll the current song all the way up, so the played
+    /// ones above it fill the space.
+    ///
+    /// By row id through `ScrollViewReader`: `List` ignores
+    /// `ScrollPosition.scrollTo(id:)`, which only drives a `ScrollView`, and
+    /// this has to stay a `List` for swipe-to-remove and drag-to-reorder.
     private var list: some View {
+        ScrollViewReader { proxy in
+            rowList
+                // After the first layout: scrolled in the same pass as the
+                // list appears, it stays at the top.
+                .task {
+                    guard let currentRowID else { return }
+                    proxy.scrollTo(currentRowID, anchor: .top)
+                }
+                .onChange(of: playback.currentIndex) {
+                    guard !editMode.isEditing, let currentRowID else { return }
+                    withAnimation(.snappy) { proxy.scrollTo(currentRowID, anchor: .top) }
+                }
+        }
+    }
+
+    private var rowList: some View {
         List {
             ForEach(rows, id: \.id) { row in
                 let index = row.index
@@ -229,6 +259,8 @@ private struct GroupNextUpView: View {
 
     @State private var isLoading = false
     @State private var clearConfirmation = false
+    /// Where the list is scrolled, by row offset.
+    @State private var position = ScrollPosition(idType: Int.self)
 
     /// The current row is only meaningful while the speaker plays from its
     /// queue; on radio or TV the list is what would play if it went back.
@@ -281,8 +313,19 @@ private struct GroupNextUpView: View {
                             .accessibilityHint("Plays this song")
                         }
                     }
+                    .scrollTargetLayout()
                     .padding(.horizontal, 8)
                     .padding(.bottom, 12)
+                }
+                // Opens on the current song, as the device's list does, and
+                // follows it — including once the queue has loaded.
+                .scrollPosition($position, anchor: .top)
+                .onAppear {
+                    if let currentOffset { position.scrollTo(id: currentOffset, anchor: .top) }
+                }
+                .onChange(of: currentOffset) {
+                    guard let currentOffset else { return }
+                    withAnimation(.snappy) { position.scrollTo(id: currentOffset, anchor: .top) }
                 }
                 .opacity(isQueueActive ? 1 : 0.6)
             }
@@ -365,6 +408,13 @@ private struct GroupNextUpView: View {
                 }
             }
         }
+    }
+
+    /// The current song's place in the loaded queue, while the speaker plays
+    /// from it.
+    private var currentOffset: Int? {
+        guard isQueueActive else { return nil }
+        return group.coordinatorRoom.queue.firstIndex { group.isNowPlaying($0) }
     }
 
     /// Sets the mode optimistically, then reloads: shuffling reorders the
