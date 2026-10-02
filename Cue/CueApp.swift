@@ -322,6 +322,10 @@ struct CueApp: App {
     @AppStorage("CueMiniEnabled") private var isMenuBarAppEnabled: Bool = true
     @AppStorage(AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
+    /// True at launch and while Cue is in the background, so Quick Launch
+    /// opens the player once per return rather than after every Control
+    /// Center pull or notification, which pass through `.inactive`.
+    @State private var quickLaunchPending = true
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
     @AppStorage(AppStorageKeys.savedGroupID) private var savedGroupID: String?
 
@@ -683,6 +687,12 @@ struct CueApp: App {
             // presented from them follows it too.
             .onChange(of: colorScheme, initial: true) { _, preference in
                 preference.apply()
+            }
+            // Quick Launch's own hook. `handleScenePhase`, which used to run
+            // it, isn't attached to this scene (it went with the old launch
+            // block), so the setting did nothing.
+            .onChange(of: scenePhase, initial: true) { _, phase in
+                quickLaunch(on: phase)
             }
             .onOpenURL(perform: handle)
             .onAppear {
@@ -1114,16 +1124,6 @@ struct CueApp: App {
                     sonosService.onServerListening()
                 }
             
-                if speedLaunchNowPlaying {
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(200))
-                        if sonosService.groups.isEmpty {
-                            try? await sonosService.updateGroups()
-                        }
-                        handle(URL(string: "cue://playing")!)
-                    }
-                }
-            
                 if FeatureGate.shared.isAvailable(.liveActivities) {
                     Task {
                         for group in sonosService.groups {
@@ -1211,6 +1211,31 @@ struct CueApp: App {
         sonosService.watcher.cancel()
     }
 
+    /// Settings ▸ Quick Launch: opens the player when Cue launches or comes
+    /// back from the background.
+    @MainActor
+    private func quickLaunch(on phase: ScenePhase) {
+        switch phase {
+        case .background:
+            quickLaunchPending = true
+        case .active:
+            guard quickLaunchPending else { return }
+            quickLaunchPending = false
+            guard speedLaunchNowPlaying, !isOnboarding else { return }
+            openNowPlaying()
+        default:
+            break
+        }
+    }
+
+    /// Opens the player. It shows whatever the route points at — this
+    /// device's queue or the speaker last chosen — so there's nothing to pick
+    /// here, and with nothing queued it's the empty player, controls and all.
+    @MainActor
+    private func openNowPlaying() {
+        router.isPlayerPresented = true
+    }
+
     @MainActor
     private func handle(_ url: URL) {
         Task {
@@ -1222,10 +1247,7 @@ struct CueApp: App {
             }
             
             if components.host?.lowercased() == "playing" {
-                guard let group = await sonosService.firstPlayingGroup() else {
-                    return
-                }
-                router.selectedID = group.coordinatorID
+                openNowPlaying()
                 return
             }
             
