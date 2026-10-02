@@ -73,8 +73,12 @@ extension SonosService {
         if let sender = burst.sender {
             return sender
         }
+        // `guard let self` rather than `self?.`: a single-expression closure
+        // takes the optional chain's `()?` as its result type, making this a
+        // `Task<()?, Never>`.
         let sender = Task { @MainActor [weak self] in
-            await self?.runSkipSender(burst, on: group)
+            guard let self else { return }
+            await self.runSkipSender(burst, on: group)
         }
         burst.sender = sender
         return sender
@@ -167,7 +171,8 @@ extension SonosService {
         }
 
         burst.confirmation = Task { @MainActor [weak self] in
-            await self?.confirmSkip(burst, on: group)
+            guard let self else { return }
+            await self.confirmSkip(burst, on: group)
         }
     }
 
