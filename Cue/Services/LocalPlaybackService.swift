@@ -312,8 +312,30 @@ final class LocalPlaybackService {
     /// for a run the user has already skipped away from.
     @ObservationIgnored private var playToken = 0
     /// The Lock Screen card for the stream backend. Apple Music's player
-    /// publishes its own.
+    /// publishes its own — except to a car, see `publishesAppleMusicCard`.
     @ObservationIgnored private lazy var nowPlayingCard = LocalNowPlayingPresenter(player: self)
+    /// Whether Apple Music runs get this app's own card too, alongside the
+    /// one MusicKit's player publishes. On while CarPlay is connected: on
+    /// iOS 27 the car's Now Playing screen reads the app's own Now Playing
+    /// client and never MusicKit's (FB24840951), so without this it stays
+    /// blank, or shows the last stream song, while Apple Music plays. The
+    /// Lock Screen follows the client that's making the sound, MusicKit's,
+    /// so the phone's own card is unchanged.
+    @ObservationIgnored var publishesAppleMusicCard = false {
+        didSet {
+            guard publishesAppleMusicCard != oldValue else { return }
+            switch backend {
+            case .appleMusic, .appleStation:
+                if publishesAppleMusicCard {
+                    updateAppleMusicCard()
+                } else {
+                    nowPlayingCard.end()
+                }
+            case .stream, nil:
+                break
+            }
+        }
+    }
     /// True while the stream backend is armed — the Sonos Lock Screen mirror
     /// stands down for it, since iOS has one Now Playing app at a time.
     private(set) var isPlayingLocalStream = false
@@ -772,6 +794,9 @@ final class LocalPlaybackService {
         switch backend {
         case .appleMusic:
             musicPlayer.playbackTime = seconds
+            if publishesAppleMusicCard {
+                nowPlayingCard.noteSeek(elapsed: seconds)
+            }
         case .stream:
             streamPlayer?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
             nowPlayingCard.noteSeek(elapsed: seconds)
@@ -1354,6 +1379,9 @@ final class LocalPlaybackService {
 
         if previous == .appleMusic || previous == .appleStation {
             musicPlayer.stop()
+            if publishesAppleMusicCard {
+                nowPlayingCard.end()
+            }
         }
         if streamPlayer != nil {
             streamPlayer?.pause()
@@ -1996,6 +2024,9 @@ final class LocalPlaybackService {
                 }
             }
             prepareNextRun()
+            if publishesAppleMusicCard {
+                updateAppleMusicCard()
+            }
             // Past the end of the last entry by the clock, and parked either
             // at its end or back at the top — some OS versions rewind the
             // finished queue (to zero, or to its first entry) and read
@@ -2069,6 +2100,20 @@ final class LocalPlaybackService {
         case nil:
             if isPlaying { isPlaying = false }
         }
+    }
+
+    /// This app's card for the Apple Music run, for a connected car (see
+    /// `publishesAppleMusicCard`). Its commands drive this player, which
+    /// drives MusicKit's.
+    private func updateAppleMusicCard() {
+        nowPlayingCard.begin()
+        nowPlayingCard.update(
+            item: nowPlayingDisplay,
+            isPlaying: isPlaying,
+            duration: duration,
+            elapsed: progress,
+            canSkip: hasNext
+        )
     }
 
     // MARK: - Surviving a relaunch
