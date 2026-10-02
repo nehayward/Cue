@@ -1691,6 +1691,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
        configurationForConnecting connectingSceneSession: UISceneSession,
        options: UIScene.ConnectionOptions
      ) -> UISceneConfiguration {
+#if os(iOS) && !targetEnvironment(macCatalyst)
+         // The car's screen gets its own delegate. Every scene used to get
+         // `CueSceneDelegate`, which is a window delegate and can't drive
+         // CarPlay's templates.
+         if let carPlay = CarPlaySceneDelegate.configuration(for: connectingSceneSession) {
+             return carPlay
+         }
+#endif
          if let shortcutItem = options.shortcutItem {
              if shortcutItem.type == "com.cue.search" {
                  Task { @MainActor in
