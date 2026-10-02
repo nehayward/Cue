@@ -80,10 +80,10 @@ struct LibraryScreen: View {
                 // own toolbar buttons, the waveform moving while music plays.
                 ToolbarItemGroup(placement: .bottomBar) {
                     if let source {
-                        TextFieldLink(prompt: Text("Search \(source.title)"), onSubmit: { text in
-                            search(text, in: source)
-                        }) {
+                        TextFieldLink(prompt: Text("Search \(source.title)")) {
                             Image(systemName: "magnifyingglass")
+                        } onSubmit: { text in
+                            search(text, in: source)
                         }
                         .accessibilityLabel("Search \(source.title)")
                         .fadesWhileScrolling(isScrolling)
