@@ -195,9 +195,11 @@ final class WatchSyncService {
     #if os(iOS) && !targetEnvironment(macCatalyst)
     /// Songs the watch handed over, played wherever this iPhone is pointed:
     /// the phone, or the Sonos group it's set to (the phone while offline).
-    /// Answers once the song it starts at is playing. On a speaker the rest
-    /// fill in behind it, from that song on; the message may have woken Cue
-    /// in the background, so a background task keeps it running meanwhile.
+    /// Answers once the song it starts at is playing. A speaker gets that
+    /// one first and the rest after: the songs after it, then the ones
+    /// before it in front. That's one call a song, and the message may have
+    /// woken Cue in the background, so a background task keeps it running
+    /// meanwhile; past the system's time, a long list may land part-way.
     fileprivate func play(_ request: WatchPlayRequest) async -> WatchPlayReply {
         let tracks = request.songs.map(Self.playable(for:))
         let start = request.startIndex
@@ -226,22 +228,39 @@ final class WatchSyncService {
                 logger.error("watch play on \(group.nameWithCount, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
                 return .failed("\(group.nameWithCount) couldn't play it: \(error.localizedDescription)")
             }
-            let rest = Array(tracks[(start + 1)...])
+            let after = Array(tracks[(start + 1)...])
+            // Each goes in at the top, so they're handed over last first.
+            let before = Array(tracks[..<start].reversed())
             Task {
                 defer { background.end() }
-                guard !rest.isEmpty else { return }
-                try? await sonos.queue(contents: rest, group: group, position: .end)
+                if !after.isEmpty {
+                    try? await sonos.queue(contents: after, group: group, position: .end)
+                }
+                if !before.isEmpty {
+                    try? await sonos.queue(contents: before, group: group, position: .front)
+                }
             }
             record(tracks[start])
             return WatchPlayReply(playingOn: group.nameWithCount)
         }
 
         defer { background.end() }
+        let player = LocalPlaybackService.shared
         do {
-            try await LocalPlaybackService.shared.play(tracks, startingAt: start)
+            try await player.play(tracks, startingAt: start)
         } catch {
             logger.error("watch play on the phone failed: \(error.localizedDescription, privacy: .public)")
             return .failed("Your iPhone couldn't play it. Open Cue there and try again.")
+        }
+        // Woken in the background while another app plays, iOS can refuse
+        // Cue the audio session, and the player says nothing of it. Not
+        // playing after a few seconds, it didn't start.
+        for _ in 0 ..< 16 where !player.isPlaying {
+            try? await Task.sleep(for: .milliseconds(250))
+        }
+        guard player.isPlaying else {
+            logger.error("watch play on the phone didn't start")
+            return .failed("Your iPhone didn't start playing. Open Cue there and try again.")
         }
         record(tracks[start])
         return WatchPlayReply(playingOn: "iPhone")

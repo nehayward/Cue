@@ -25,6 +25,9 @@ final class PlayOn {
 
     /// What the sheet shows; nil while it's down.
     var stage: Stage?
+    /// The latest play handed to the iPhone, so an answer that comes after
+    /// a newer play changes nothing.
+    @ObservationIgnored private var sending: UUID?
 
     /// Plays `songs` from the one with `key`, or shuffled with that one
     /// first — asking where, while the iPhone's in reach.
@@ -40,6 +43,7 @@ final class PlayOn {
 
     /// Downloaded songs from their files, the rest streamed.
     func playOnWatch(_ request: Request) {
+        sending = nil
         guard WatchPlayer.shared.play(request.songs, startingAt: request.startKey, shuffled: request.shuffled) else {
             stage = nil
             return
@@ -50,12 +54,16 @@ final class PlayOn {
     /// Cue on the iPhone plays them, on the phone or its speakers. The
     /// watch stops its own, so Now Playing turns to the iPhone's.
     func playOnPhone(_ request: Request) {
+        let id = UUID()
+        sending = id
         stage = .sending
         WKInterfaceDevice.current().play(.click)
         let (songs, start) = WatchPlayer.order(request.songs, startingAt: request.startKey, shuffled: request.shuffled)
         let message = WatchPlayRequest(songs: songs.map(\.playRequestSong), startIndex: start)
         Task {
             let reply = await PhoneConnection.shared.play(message)
+            guard sending == id else { return }
+            sending = nil
             // One player at a time, even when the sheet was closed meanwhile.
             if reply.failure == nil, WatchPlayer.shared.current != nil {
                 WatchPlayer.shared.stop()

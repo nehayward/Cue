@@ -158,7 +158,10 @@ struct LibraryScreen: View {
             .onOpenURL { url in
                 switch url.host() {
                 case "downloads": path = NavigationPath([HomeRoute.downloads])
-                case "nowplaying": sheet = .nowPlaying
+                case "nowplaying":
+                    // From home, so no other screen's sheet is in the way.
+                    path = NavigationPath()
+                    sheet = .nowPlaying
                 default: break
                 }
             }
