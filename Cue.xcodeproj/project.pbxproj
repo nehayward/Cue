@@ -929,8 +929,8 @@
 				AA00CA0F0000000000000001 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				E91B7FBA2CEBC162004C279D /* Cue */,
 				5CC12915E2F2465FFCE05D0E /* CarPlay */,
+				E91B7FBA2CEBC162004C279D /* Cue */,
 			);
 			name = Cue;
 			packageProductDependencies = (
