@@ -1,5 +1,6 @@
 import Defaults
 import Foundation
+import MusicSearchKit
 import Network
 import Observation
 import SonosKit
@@ -314,9 +315,30 @@ final class DownloadManager {
     /// The local file for a downloaded track, or nil. Playback prefers this
     /// over the server URL, so downloaded tracks work away from the server.
     func localURL(for item: PlayableContent) -> URL? {
-        guard let entry = items[Self.key(for: item)], entry.state == .completed else { return nil }
+        guard var entry = items[Self.key(for: item)], entry.state == .completed else { return nil }
+        let fixed = Self.containerFixed(key: entry.key, fileExtension: entry.fileExtension, in: Self.fileURL)
+        if fixed != entry.fileExtension {
+            entry.fileExtension = fixed
+            items[entry.key] = entry
+            scheduleSave()
+        }
         let url = Self.fileURL(key: entry.key, fileExtension: entry.fileExtension)
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// A copy an earlier build saved under its codec's name (`.alac`), which
+    /// the player can't open, renamed to its container's (`.m4a`). Returns
+    /// the extension to use from now on: the new one once the file has
+    /// moved, the old one if it couldn't.
+    static func containerFixed(key: String, fileExtension: String, in fileURL: (String, String) -> URL) -> String {
+        let fixed = StreamTranscoding.fileExtension(forCodec: fileExtension)
+        guard fixed != fileExtension else { return fileExtension }
+        let from = fileURL(key, fileExtension)
+        let to = fileURL(key, fixed)
+        let files = FileManager.default
+        if files.fileExists(atPath: to.path) { return fixed }
+        guard files.fileExists(atPath: from.path), (try? files.moveItem(at: from, to: to)) != nil else { return fileExtension }
+        return fixed
     }
 
     /// Whether the manager can download this whole: a Plex or Subsonic

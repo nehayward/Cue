@@ -28,7 +28,7 @@ final class PlaybackCache {
         let key: String
         let title: String
         let subtitle: String
-        let fileExtension: String
+        var fileExtension: String
         var size: Int64
         var lastUsed: Date
 
@@ -137,6 +137,7 @@ final class PlaybackCache {
     func localURL(for item: PlayableContent) -> URL? {
         let key = DownloadManager.key(for: item)
         guard var entry = entries[key] else { return nil }
+        entry.fileExtension = DownloadManager.containerFixed(key: key, fileExtension: entry.fileExtension, in: Self.fileURL)
         let url = Self.fileURL(key: key, fileExtension: entry.fileExtension)
         guard FileManager.default.fileExists(atPath: url.path) else {
             entries[key] = nil
