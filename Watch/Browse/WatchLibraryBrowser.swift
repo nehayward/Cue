@@ -262,15 +262,19 @@ final class WatchLibraryBrowser {
             guard let metadata = await plex.lookupAlbumTracks(key: ratingKey)?.metadata else { return nil }
             songs = metadata.compactMap(plexSong)
         case (.plex, .playlist):
-            // Paged: Plex caps each response at 200.
+            // Paged: Plex caps each response at 200. A page that fails
+            // fails the lookup — a partial list would delete the rest —
+            // except past the end, where Plex sends no items at all.
             var fetched: [PlexMetadata] = []
+            var total: Int?
             for _ in 0 ..< 50 {
-                guard let page = await plex.lookupPlaylist(key: ratingKey, type: .song, ascending: true, offset: fetched.count)?.metadata else {
-                    if fetched.isEmpty { return nil }
-                    break
+                guard let page = await plex.lookupPlaylist(key: ratingKey, type: .song, ascending: true, offset: fetched.count) else {
+                    if let total, fetched.count >= total { break }
+                    return nil
                 }
-                fetched += page
-                if page.count < 200 { break }
+                total = total ?? page.totalSize
+                fetched += page.metadata
+                if page.metadata.count < 200 || fetched.count >= (total ?? .max) { break }
             }
             songs = fetched.compactMap(plexSong)
         case (.subsonic, .song):
@@ -287,17 +291,19 @@ final class WatchLibraryBrowser {
             // bounded as on the iPhone (30 albums, 200 songs).
             guard let albums = await albums(of: pick) else { return nil }
             let picks = albums.prefix(30).compactMap { $0.item.pick }
-            let byAlbum = await withTaskGroup(of: (Int, [WatchSong]).self) { group in
+            let byAlbum = await withTaskGroup(of: (Int, [WatchSong]?).self) { group in
                 for (index, album) in picks.enumerated() {
-                    group.addTask { (index, await self.songs(for: album) ?? []) }
+                    group.addTask { (index, await self.songs(for: album)) }
                 }
-                var results = [[WatchSong]](repeating: [], count: picks.count)
+                var results = [[WatchSong]?](repeating: nil, count: picks.count)
                 for await (index, songs) in group {
                     results[index] = songs
                 }
                 return results
             }
-            songs = Array(byAlbum.joined().prefix(200))
+            // One album missing would take its songs off the watch.
+            guard !byAlbum.contains(where: { $0 == nil }) else { return nil }
+            songs = Array(byAlbum.compactMap { $0 }.joined().prefix(200))
         }
         var seen = Set<String>()
         return songs.filter { seen.insert($0.key).inserted }

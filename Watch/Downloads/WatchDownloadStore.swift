@@ -49,8 +49,7 @@ final class WatchDownloadStore {
             /// start it.
             case downloading
             case completed
-            /// Stopped; Fast Download, or the app coming back to the
-            /// screen when the network was to blame, tries it again.
+            /// Stopped; opening Cue or Fast Download tries it again.
             case failed
         }
 
@@ -67,7 +66,6 @@ final class WatchDownloadStore {
         var resumeData: Data?
         var resumeOn: SessionKind?
         var error: String?
-        var failedOnNetwork: Bool?
         /// Times it was tried again by itself after the server broke off.
         var retries: Int?
         /// The suffix of the file an earlier download left — at another
@@ -265,12 +263,14 @@ final class WatchDownloadStore {
 
     /// Puts something on the watch from its own browsing. Songs already
     /// fetched for it (an album's, opened to pick from) save looking it up.
+    /// Adding again what's there tries its failed songs again.
     func add(_ pick: WatchPick, songs: [WatchSong]? = nil) {
         picks.add(pick)
         if let songs, !songs.isEmpty {
             songsByPick[pick.key] = songs
             unreachable.remove(pick.key)
         }
+        retryFailed(self.songs(in: [pick.key]).map(\.key))
         picksDidChange(tellPhone: true)
     }
 
@@ -310,8 +310,11 @@ final class WatchDownloadStore {
     }
 
     /// New sign-ins: what was looked up with the old ones (Plex streams
-    /// carry the token) is looked up again.
+    /// carry the token) is looked up again, and what the server refused
+    /// tries again.
     func credentialsDidChange() {
+        retryFailed(Array(items.keys))
+        pump()
         lookUpAll()
     }
 
@@ -420,7 +423,6 @@ final class WatchDownloadStore {
             var item = existing
             item.state = .queued
             item.error = nil
-            item.failedOnNetwork = nil
             item.retries = nil
             items[key] = item
             count += 1
@@ -530,7 +532,7 @@ final class WatchDownloadStore {
 
     /// Back on screen: picks are looked up again when it's been a while
     /// (or they couldn't be before), the interrupted Fast Download carries
-    /// on, and songs that failed for want of a network try again.
+    /// on, and songs that failed try again.
     func appDidBecomeActive() {
         if Date.now.timeIntervalSince(lookedUpAt ?? .distantPast) > Self.lookUpInterval {
             lookUpAll()
@@ -542,20 +544,23 @@ final class WatchDownloadStore {
             return
         }
         guard fastPhase != .running else { return }
-        var retried = false
-        for (key, existing) in items where existing.state == .failed && existing.failedOnNetwork == true {
-            var item = existing
-            item.state = .queued
-            item.error = nil
-            item.failedOnNetwork = nil
-            item.retries = nil
-            items[key] = item
-            retried = true
-        }
-        if retried {
+        if retryFailed(Array(items.keys)) {
             pump()
             scheduleSave()
         }
+    }
+
+    /// Puts failed songs back in line. True when there were any.
+    @discardableResult
+    private func retryFailed(_ keys: [String]) -> Bool {
+        var retried = false
+        for key in keys where items[key]?.state == .failed {
+            items[key]?.state = .queued
+            items[key]?.error = nil
+            items[key]?.retries = nil
+            retried = true
+        }
+        return retried
     }
 
     /// The system woke the app for the background session's events. Making
@@ -598,7 +603,10 @@ final class WatchDownloadStore {
             start(key, on: kind)
             running += 1
         }
-        if fastPhase == .running, queued.isEmpty, running == 0, lookingUp.isEmpty {
+        // A pick looked up again has its songs already; only a new one
+        // can still add to the run.
+        let awaitingSongs = lookingUp.contains { songsByPick[$0] == nil }
+        if fastPhase == .running, queued.isEmpty, running == 0, !awaitingSongs {
             finishFastDownload()
         }
     }
@@ -627,7 +635,6 @@ final class WatchDownloadStore {
         item.resumeData = nil
         item.resumeOn = nil
         item.error = nil
-        item.failedOnNetwork = nil
         items[key] = item
         task.resume()
     }
@@ -689,6 +696,13 @@ final class WatchDownloadStore {
             return
         }
         guard item.state != .completed else { return }
+        // From a task replaced when the quality changed: the wrong file.
+        if !accepts(kind: kind, task: identifier, key: key), fileExtension != item.fileExtension {
+            if fileExtension != item.previousFileExtension {
+                try? FileManager.default.removeItem(at: Self.fileURL(key: key, fileExtension: fileExtension))
+            }
+            return
+        }
         if let ref = tasks.removeValue(forKey: key), ref.kind != kind || ref.task.taskIdentifier != identifier {
             ref.task.cancel()
         }
@@ -733,7 +747,6 @@ final class WatchDownloadStore {
         } else {
             item.state = .failed
             item.error = error.localizedDescription
-            item.failedOnNetwork = Self.isNetworkFailure(nsError) || Self.isBrokenOff(nsError)
         }
         items[key] = item
         logger.error("\(item.song.title, privacy: .public) failed on the \(kind.rawValue, privacy: .public) session: \(error.localizedDescription, privacy: .public)")
@@ -757,24 +770,6 @@ final class WatchDownloadStore {
             NSURLErrorBadServerResponse,
             NSURLErrorNetworkConnectionLost,
             NSURLErrorZeroByteResource,
-        ].contains(error.code)
-    }
-
-    /// Failures a better network would fix, as opposed to the server
-    /// refusing the file.
-    private static func isNetworkFailure(_ error: NSError) -> Bool {
-        guard error.domain == NSURLErrorDomain else { return false }
-        return [
-            NSURLErrorNotConnectedToInternet,
-            NSURLErrorNetworkConnectionLost,
-            NSURLErrorTimedOut,
-            NSURLErrorCannotConnectToHost,
-            NSURLErrorCannotFindHost,
-            NSURLErrorDNSLookupFailed,
-            NSURLErrorDataNotAllowed,
-            NSURLErrorCannotLoadFromNetwork,
-            NSURLErrorBackgroundSessionWasDisconnected,
-            NSURLErrorSecureConnectionFailed,
         ].contains(error.code)
     }
 

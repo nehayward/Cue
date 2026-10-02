@@ -134,9 +134,8 @@ public enum ConvertedStream {
                 PlexAPI.playbackStreamURL(from: sourceURL, ratingKey: $0, format: format, bitrate: bitrate, session: "cue-watch", client: "Cue-Watch")
             }
         }
-        let original = audioCodec?.trimmingCharacters(in: .whitespaces).lowercased()
-            .flatMap { $0.isEmpty || $0.count > 5 ? nil : $0 }
-            ?? sourceURL.pathExtension.lowercased()
+        let codec = audioCodec?.trimmingCharacters(in: .whitespaces).lowercased() ?? ""
+        let original = codec.isEmpty || codec.count > 5 ? sourceURL.pathExtension.lowercased() : codec
         guard let converted else {
             return (sourceURL, original.isEmpty ? "mp3" : original)
         }

@@ -14,8 +14,8 @@ final class PhoneConnection {
 
     private let relay = PhoneSessionRelay()
     private let logger = Logger(subsystem: "dance.cue.watch", category: "PhoneConnection")
-    /// What to send once the session is up.
-    private var pending: WatchPicks?
+    /// Picks changed before the session was up.
+    private var hasPending = false
 
     private init() {}
 
@@ -28,7 +28,7 @@ final class PhoneConnection {
 
     func send(picks: WatchPicks) {
         guard WCSession.default.activationState == .activated else {
-            pending = picks
+            hasPending = true
             return
         }
         do {
@@ -55,10 +55,12 @@ final class PhoneConnection {
         }
     }
 
+    /// Sends what waited for the session — as the picks are now, which
+    /// may have merged in the iPhone's since.
     fileprivate func didActivate() {
-        if let pending {
-            self.pending = nil
-            send(picks: pending)
+        if hasPending {
+            hasPending = false
+            send(picks: WatchDownloadStore.shared.picks)
         }
     }
 
