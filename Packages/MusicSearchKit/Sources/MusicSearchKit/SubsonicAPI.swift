@@ -88,11 +88,44 @@ public final class SubsonicAPI: DirectStreamProvider {
     /// Verifies credentials **without** storing them, so a login is only
     /// persisted once the server has actually accepted it.
     public func ping(address: String, username: String, password: String) async -> PingResult {
+        await probe(address: address, username: username, password: password).result
+    }
+
+    /// The outcome of checking a login typed into settings.
+    public struct LoginCheck: Equatable, Sendable {
+        public let result: PingResult
+        /// The address that was checked last, with its scheme: on success,
+        /// the one to store.
+        public let address: String?
+    }
+
+    /// Verifies a login without storing it, and settles which address to
+    /// keep.
+    ///
+    /// A bare host name that looks public ("music.example.com") is tried over
+    /// HTTPS first, falling back to HTTP only when no Subsonic server answers
+    /// there. A server on the internet is nearly always behind TLS, and the
+    /// login's token shouldn't cross the internet in the clear. Home-network
+    /// names and IP addresses, and an address typed with its scheme, are used
+    /// as given.
+    public func checkLogin(address: String, username: String, password: String) async -> LoginCheck {
+        var check = LoginCheck(result: .failure("Enter a server address."), address: nil)
+        for candidate in Self.candidateAddresses(for: address) {
+            let outcome = await probe(address: candidate, username: username, password: password)
+            check = LoginCheck(result: outcome.result, address: candidate)
+            // A Subsonic answer, even a rejected password, means this is the
+            // server.
+            if outcome.answered { break }
+        }
+        return check
+    }
+
+    private func probe(address: String, username: String, password: String) async -> (result: PingResult, answered: Bool) {
         guard let normalized = Self.normalizedAddress(address), let base = URL(string: normalized) else {
-            return .failure("Enter a server address.")
+            return (.failure("Enter a server address."), false)
         }
         guard !username.isEmpty, !password.isEmpty else {
-            return .failure("Enter your username and password.")
+            return (.failure("Enter your username and password."), false)
         }
         guard let url = Self.url(
             endpoint: "ping",
@@ -100,20 +133,65 @@ public final class SubsonicAPI: DirectStreamProvider {
             username: username,
             password: password,
             salt: Self.makeSalt()
-        ) else { return .failure("Invalid server address.") }
-        return await ping(url: url)
+        ) else { return (.failure("Invalid server address."), false) }
+        return await probe(url: url, timeout: 15)
     }
 
     private func ping(url: URL) async -> PingResult {
+        await probe(url: url).result
+    }
+
+    /// `answered` is whether a Subsonic server replied at all, accepting the
+    /// login or not.
+    private func probe(url: URL, timeout: TimeInterval? = nil) async -> (result: PingResult, answered: Bool) {
+        var request = URLRequest(url: url)
+        if let timeout {
+            request.timeoutInterval = timeout
+        }
         do {
-            let (data, _) = try await session.data(for: URLRequest(url: url))
+            let (data, _) = try await session.data(for: request)
             guard let body = try? decoder.decode(SubsonicEnvelope.self, from: data).subsonicResponse else {
-                return .failure("Not a Subsonic server.")
+                return (.failure("That address answered, but not as a Subsonic server. Check the port, and the path if it's behind a proxy."), false)
             }
-            if body.isOK { return .success }
-            return .failure(body.error?.message ?? "Server returned an error.")
+            if body.isOK { return (.success, true) }
+            return (.failure(Self.message(forServerError: body.error)), true)
         } catch {
-            return .failure(error.localizedDescription)
+            return (.failure(Self.message(forConnectionError: error)), false)
+        }
+    }
+
+    /// What to say about an error the server returned, for the codes the
+    /// person can act on (Subsonic API error codes).
+    static func message(forServerError error: SubsonicError?) -> String {
+        switch error?.code {
+        case 40:
+            return "Wrong username or password."
+        case 41:
+            return "This server can't check this account's password the way Cue signs in, which is usual for LDAP accounts. Try a local account on the server."
+        default:
+            return error?.message ?? "The server returned an error."
+        }
+    }
+
+    /// What to say when the server couldn't be reached at all.
+    static func message(forConnectionError error: Error) -> String {
+        guard let urlError = error as? URLError else { return error.localizedDescription }
+        switch urlError.code {
+        case .cannotFindHost, .dnsLookupFailed:
+            return "Couldn't find that server. Check the address."
+        case .cannotConnectToHost, .timedOut, .networkConnectionLost:
+            return "Couldn't reach the server. Check the address and port, and that the server is running."
+        case .notConnectedToInternet:
+            // Also what iOS reports when Local Network access is off.
+            return "Couldn't reach the server. If it's on your home network, check that Cue is allowed in Settings ▸ Privacy & Security ▸ Local Network."
+        case .secureConnectionFailed,
+             .serverCertificateUntrusted,
+             .serverCertificateHasBadDate,
+             .serverCertificateNotYetValid,
+             .serverCertificateHasUnknownRoot:
+            return "Couldn't connect securely. If the server doesn't use HTTPS, start the address with http://."
+        default:
+            return urlError.localizedDescription
         }
     }
 
@@ -474,6 +552,29 @@ public final class SubsonicAPI: DirectStreamProvider {
             result.removeLast()
         }
         return result.isEmpty ? nil : result
+    }
+
+    /// The addresses to try for what the user typed, best first. See
+    /// `checkLogin`.
+    static func candidateAddresses(for raw: String) -> [String] {
+        guard let normalized = normalizedAddress(raw) else { return [] }
+        guard !raw.contains("://"),
+              var components = URLComponents(string: normalized),
+              let host = components.host,
+              looksPublic(host: host)
+        else { return [normalized] }
+        components.scheme = "https"
+        guard let secure = components.url?.absoluteString else { return [normalized] }
+        return [secure, normalized]
+    }
+
+    /// A dotted name that isn't an IP address or a home-network suffix.
+    static func looksPublic(host: String) -> Bool {
+        let host = host.lowercased()
+        guard host.contains("."), !host.contains(":") else { return false }
+        if host.allSatisfy({ $0.isNumber || $0 == "." }) { return false }
+        let homeSuffixes = [".local", ".lan", ".home", ".internal", ".home.arpa", ".localdomain"]
+        return !homeSuffixes.contains { host.hasSuffix($0) }
     }
 
     /// The Subsonic auth token: `md5(password + salt)`, lowercase hex.
