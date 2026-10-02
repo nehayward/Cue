@@ -26,6 +26,8 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
     case onDevicePlayback
     /// Keeping Plex, Subsonic and iCloud Drive tracks on this device.
     case downloads
+    /// Cue on a car's screen: browsing and playing from CarPlay.
+    case carPlay
     case lastFM
 
     var id: String { rawValue }
@@ -40,6 +42,7 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
         case .files: "Files"
         case .onDevicePlayback: "Play on This Device"
         case .downloads: "Downloads"
+        case .carPlay: "CarPlay"
         case .lastFM: "Last.fm"
         }
     }
@@ -48,7 +51,7 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .allRooms, .scenes, .liveActivities, .lockScreenNowPlaying, .hardwareVolumeButtons:
             .superTier
-        case .files, .onDevicePlayback, .downloads:
+        case .files, .onDevicePlayback, .downloads, .carPlay:
             .free
         case .lastFM:
             .remoteFlag(.lastFM)

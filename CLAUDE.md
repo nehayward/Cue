@@ -160,6 +160,7 @@ The app is built around several Swift packages in `/Packages`:
 
 ### Platform-Specific Features
 - **iOS**: Focus on mobile-optimized UI. The Lock Screen relies on the system Now Playing card, always on for Cue Super (there is no Lock Screen setting; `NowPlayingSessionService.isPreferenceOn` is fixed to true, and Use iPhone Volume Buttons lives in Settings ▸ Sonos); Live Activities are off for now (`LiveActivityManagerKey` and `LiveActivityManagerFactory` hand out `LiveActivityManagerMock`, `NSSupportsLiveActivities` is unset, and the Widgets extension is not embedded)
+- **CarPlay**: `Cue/CarPlay/` is an audio-app template scene (Recents, Library, Radio, Play On) that always plays on the device. The entitlement is in `Cue/Cue-iOS.entitlements` (iOS SDKs only; `Cue.entitlements` is shared with Mac/TV/Vision and must not carry it), the scene is in `Cue/Info.plist`, and `AppDelegate.application(_:configurationForConnecting:)` hands that role `CarPlaySceneDelegate`. Test it in the Simulator with I/O ▸ External Displays ▸ CarPlay
 - **macOS**: Leverage menu bar app and Mac-specific controls
 - **tvOS**: Optimize for remote control navigation
 - **watchOS**: The watch app and its widgets were removed pending a rewrite; the old code lives in git history (`Watch/`, `WatchWidgets/`)
