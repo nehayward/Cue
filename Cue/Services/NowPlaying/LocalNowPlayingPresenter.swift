@@ -80,7 +80,22 @@ final class LocalNowPlayingPresenter {
     /// its length changed, or when the card isn't ours any more; the
     /// elapsed time is left to the system's own clock between publishes,
     /// which is smoother than pushing a number twice a second.
-    func update(item: PlayableContent?, isPlaying: Bool, duration: TimeInterval, elapsed: TimeInterval, canSkip: Bool) {
+    ///
+    /// `restatesClock` publishes about once a second while playing, for a
+    /// card the system won't run the clock on. That's Apple Music's in a
+    /// car: iOS reads a card as playing only while this process makes the
+    /// sound (`playbackState` is macOS-only), MusicKit's player makes it
+    /// out of process, and on iOS 27 the car reads this card all the same
+    /// (FB24840951) — so it froze at the last publish. Stepping beats
+    /// standing still; the car's play/pause glyph stays wrong regardless.
+    func update(
+        item: PlayableContent?,
+        isPlaying: Bool,
+        duration: TimeInterval,
+        elapsed: TimeInterval,
+        canSkip: Bool,
+        restatesClock: Bool = false
+    ) {
         guard let item else { return }
         let snapshot = Snapshot(
             identity: item.content.id,
@@ -102,7 +117,10 @@ final class LocalNowPlayingPresenter {
             ? publishedElapsed + Date.now.timeIntervalSince(publishedAt)
             : publishedElapsed
         let drifted = abs(elapsed - expected) > 2
-        guard snapshot != published || !cardIsOurs || drifted else { return }
+        // The poll runs twice a second; just under one lets every other
+        // tick through, whatever the timer's jitter.
+        let restate = restatesClock && isPlaying && Date.now.timeIntervalSince(publishedAt) >= 0.9
+        guard snapshot != published || !cardIsOurs || drifted || restate else { return }
         publish(snapshot, elapsed: elapsed, item: item)
     }
 
