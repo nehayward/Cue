@@ -31,61 +31,35 @@ final class WatchLibraryBrowser {
     // MARK: - Pages
 
     func page(_ path: WatchBrowsePath, offset: Int) async -> WatchBrowsePage {
-        let accounts = WatchAccounts.shared
-        switch path {
-        case .root:
-            var sources: [WatchBrowseItem] = []
-            if accounts.hasPlex {
-                sources.append(WatchBrowseItem(id: "plex", title: WatchSource.plex.title, symbol: "server.rack", destination: .source(.plex)))
-            }
-            if accounts.hasSubsonic {
-                sources.append(WatchBrowseItem(id: "subsonic", title: WatchSource.subsonic.title, symbol: "externaldrive.connected.to.line.below", destination: .source(.subsonic)))
-            }
-            return WatchBrowsePage(
-                title: "Add Music",
-                items: sources,
-                message: sources.isEmpty ? "Open Cue on your iPhone, signed in to Plex or Subsonic, to share its sign-ins with this watch." : nil
-            )
-
-        case let .source(source):
-            return WatchBrowsePage(
-                title: source.title,
-                items: WatchBrowseSection.allCases.map {
-                    WatchBrowseItem(id: $0.rawValue, title: $0.title, symbol: $0.symbol, destination: .section(source, $0))
-                }
-            )
-
-        case .section, .artist, .search:
-            if offset == 0 {
-                listings[path] = nil
-            }
-            var listing = listings[path] ?? Listing()
-            // Bounded: a source that ignored `offset` and kept answering
-            // with new rows would otherwise never stop.
-            var rounds = 0
-            while listing.items.count < offset + WatchBrowsePage.pageSize, !listing.isComplete, rounds < 20 {
-                rounds += 1
-                let known = Set(listing.items.map(\.id))
-                let fresh = await fetch(path, offset: listing.items.count).filter { !known.contains($0.id) }
-                if fresh.isEmpty {
-                    listing.isComplete = true
-                } else {
-                    listing.items += fresh
-                }
-            }
-            listings[path] = listing
-
-            let slice = Array(listing.items.dropFirst(offset).prefix(WatchBrowsePage.pageSize))
-            let next = offset + slice.count
-            let hasMore = !slice.isEmpty && (next < listing.items.count || !listing.isComplete)
-            return WatchBrowsePage(
-                title: title(of: path),
-                items: slice,
-                nextOffset: hasMore ? next : nil,
-                container: container(of: path),
-                message: listing.items.isEmpty ? emptyMessage(for: path) : nil
-            )
+        if offset == 0 {
+            listings[path] = nil
         }
+        var listing = listings[path] ?? Listing()
+        // Bounded: a source that ignored `offset` and kept answering
+        // with new rows would otherwise never stop.
+        var rounds = 0
+        while listing.items.count < offset + WatchBrowsePage.pageSize, !listing.isComplete, rounds < 20 {
+            rounds += 1
+            let known = Set(listing.items.map(\.id))
+            let fresh = await fetch(path, offset: listing.items.count).filter { !known.contains($0.id) }
+            if fresh.isEmpty {
+                listing.isComplete = true
+            } else {
+                listing.items += fresh
+            }
+        }
+        listings[path] = listing
+
+        let slice = Array(listing.items.dropFirst(offset).prefix(WatchBrowsePage.pageSize))
+        let next = offset + slice.count
+        let hasMore = !slice.isEmpty && (next < listing.items.count || !listing.isComplete)
+        return WatchBrowsePage(
+            title: title(of: path),
+            items: slice,
+            nextOffset: hasMore ? next : nil,
+            container: container(of: path),
+            message: listing.items.isEmpty ? emptyMessage(for: path) : nil
+        )
     }
 
     /// One page of a list from the server. Lists that come whole answer at
@@ -138,8 +112,6 @@ final class WatchLibraryBrowser {
             guard offset == 0 else { return [] }
             return await search(source, for: query)
 
-        case .root, .source:
-            return []
         }
     }
 
@@ -176,8 +148,6 @@ final class WatchLibraryBrowser {
 
     private func title(of path: WatchBrowsePath) -> String {
         switch path {
-        case .root: "Add Music"
-        case let .source(source): source.title
         case let .section(_, section): section.title
         case let .artist(artist): artist.title
         case let .search(_, query): "“\(query)”"

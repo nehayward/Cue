@@ -9,18 +9,31 @@ enum LibraryRoute: Hashable {
     case songs
 }
 
-/// The watch's home: what's playing, Fast Download while songs are still to
-/// come, Add Music to browse the servers, and the albums, playlists and
-/// artists on the watch — with the songs added on their own gathered in one
-/// row. The first time there's music to fetch, it asks at what quality.
+/// Where the home screen's toolbar goes.
+enum HomeRoute: Hashable {
+    case settings
+    case nowPlaying
+}
+
+/// The watch's home, one screen deep for everything: what's downloaded at
+/// the top (with Fast Download while songs are still to come), and below
+/// it the library chosen top right — its search and lists, a tap from
+/// here. Settings is top left; Now Playing sits bottom centre while
+/// something plays, out of the way while the list scrolls. The first time
+/// there's music to fetch, it asks at what quality.
 struct LibraryScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
+    @Environment(WatchAccounts.self) private var accounts
+    @AppStorage("librarySource") private var chosenSource = WatchSource.plex.rawValue
+    @State private var path = NavigationPath()
     @State private var sheet: Sheet?
     @State private var hasAskedQuality = false
+    @State private var isScrolling = false
+    @State private var query = ""
 
     private enum Sheet: String, Identifiable {
-        case fastDownload, quality
+        case fastDownload, quality, library
         var id: String { rawValue }
     }
 
@@ -28,79 +41,65 @@ struct LibraryScreen: View {
         !store.hasChosenQuality && !store.picks.items.isEmpty
     }
 
+    /// The libraries there are sign-ins for.
+    private var sources: [WatchSource] {
+        WatchSource.allCases.filter { $0 == .plex ? accounts.hasPlex : accounts.hasSubsonic }
+    }
+
+    /// The one chosen, while there's a sign-in for it; else the one there is.
+    private var source: WatchSource? {
+        sources.first { $0.rawValue == chosenSource } ?? sources.first
+    }
+
     var body: some View {
-        let collections = store.picks.items.filter { $0.kind != .song }
-        let songPicks = store.picks.items.filter { $0.kind == .song }
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
-                if let song = player.current {
-                    NavigationLink {
-                        NowPlayingView()
-                    } label: {
-                        Label {
-                            VStack(alignment: .leading) {
-                                Text(song.title)
-                                    .lineLimit(1)
-                                Text(song.artist)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        } icon: {
-                            Image(systemName: player.isPlaying ? "speaker.wave.2.fill" : "pause.fill")
-                                .foregroundStyle(.tint)
-                        }
-                    }
-                }
-
-                if store.remainingCount > 0 || store.fastPhase != .off {
+                downloads
+                library
+            }
+            .modifier(ScrollPhaseReader(isScrolling: $isScrolling))
+            .navigationTitle("Cue")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        sheet = .fastDownload
+                        path.append(HomeRoute.settings)
                     } label: {
-                        FastDownloadRow()
+                        Image(systemName: "gearshape")
                     }
+                    .accessibilityLabel("Settings")
                 }
-
-                NavigationLink(value: BrowseRoute.path(.root)) {
-                    Label {
-                        VStack(alignment: .leading) {
-                            Text("Add Music")
-                            Text("Browse and search Plex and Subsonic")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                    } icon: {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundStyle(.tint)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        sheet = .library
+                    } label: {
+                        Image(systemName: "books.vertical")
                     }
+                    .accessibilityLabel("Library")
                 }
-
-                if store.picks.items.isEmpty {
-                    emptyState
-                } else {
-                    Section {
-                        if !songPicks.isEmpty {
-                            NavigationLink(value: LibraryRoute.songs) {
-                                SongsRow(count: songPicks.count)
-                            }
+                ToolbarItemGroup(placement: .bottomBar) {
+                    if let song = player.current {
+                        Spacer()
+                        Button {
+                            path.append(HomeRoute.nowPlaying)
+                        } label: {
+                            NowPlayingBadge(song: song, isPlaying: player.isPlaying)
                         }
-                        ForEach(collections, id: \.key) { pick in
-                            NavigationLink(value: LibraryRoute.pick(pick.key)) {
-                                PickRow(pick: pick)
-                            }
-                        }
-                    } footer: {
-                        Text(storageSummary)
+                        .accessibilityLabel("Now Playing")
+                        .opacity(isScrolling ? 0 : 1)
+                        .allowsHitTesting(!isScrolling)
+                        .animation(.easeInOut(duration: 0.2), value: isScrolling)
+                        Spacer()
                     }
-                }
-
-                Button {
-                    sheet = .quality
-                } label: {
-                    LabeledContent("Quality", value: store.quality.title)
                 }
             }
-            .navigationTitle("Cue")
+            .navigationDestination(for: HomeRoute.self) { route in
+                switch route {
+                case .settings:
+                    SettingsScreen()
+                case .nowPlaying:
+                    NowPlayingView()
+                }
+            }
             .navigationDestination(for: LibraryRoute.self) { route in
                 CollectionScreen(route: route)
             }
@@ -121,6 +120,11 @@ struct LibraryScreen: View {
                         self.sheet = nil
                         store.setQuality(quality)
                     }
+                case .library:
+                    LibraryPicker(sources: sources, current: source) { chosen in
+                        self.sheet = nil
+                        chosenSource = chosen.rawValue
+                    }
                 }
             }
             // Asked once a launch until answered; songs come down at the
@@ -134,24 +138,151 @@ struct LibraryScreen: View {
         }
     }
 
-    private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: "music.note.list")
-                .font(.title2)
-                .foregroundStyle(.tint)
-            Text("No Music Yet")
-                .font(.headline)
-            Text("Tap Add Music to browse your Plex or Subsonic library, or choose Add to Apple Watch in Cue on your iPhone.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+    // MARK: - Downloads
+
+    @ViewBuilder
+    private var downloads: some View {
+        let collections = store.picks.items.filter { $0.kind != .song }
+        let songPicks = store.picks.items.filter { $0.kind == .song }
+        Section {
+            if store.remainingCount > 0 || store.fastPhase != .off {
+                Button {
+                    sheet = .fastDownload
+                } label: {
+                    FastDownloadRow()
+                }
+            }
+            if !songPicks.isEmpty {
+                NavigationLink(value: LibraryRoute.songs) {
+                    SongsRow(count: songPicks.count)
+                }
+            }
+            ForEach(collections, id: \.key) { pick in
+                NavigationLink(value: LibraryRoute.pick(pick.key)) {
+                    PickRow(pick: pick)
+                }
+            }
+            if store.picks.items.isEmpty {
+                Text("Nothing here yet. Find music below, or choose Add to Apple Watch in Cue on your iPhone.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
+            }
+        } header: {
+            Text("Downloads")
+        } footer: {
+            if !store.picks.items.isEmpty {
+                Text(storageSummary)
+            }
         }
-        .listRowBackground(Color.clear)
     }
 
     private var storageSummary: String {
         let size = ByteCountFormatter.string(fromByteCount: store.bytesUsed, countStyle: .file)
         let songs = store.downloadedCount == 1 ? "1 song" : "\(store.downloadedCount) songs"
         return "\(songs) on this watch • \(size)"
+    }
+
+    // MARK: - Library
+
+    @ViewBuilder
+    private var library: some View {
+        if let source {
+            Section {
+                TextField("Search \(source.title)", text: $query)
+                    .onSubmit {
+                        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        query = ""
+                        path.append(BrowseRoute.path(.search(source, trimmed)))
+                    }
+                ForEach(WatchBrowseSection.allCases, id: \.self) { section in
+                    NavigationLink(value: BrowseRoute.path(.section(source, section))) {
+                        Label(section.title, systemImage: section.symbol)
+                    }
+                }
+            } header: {
+                Text(source.title)
+            }
+        } else {
+            Section {
+                Text("Open Cue on your iPhone, signed in to Plex or Subsonic, to browse your library here.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
+            } header: {
+                Text("Library")
+            }
+        }
+    }
+}
+
+/// Whether a list is being scrolled, for what should get out of its way.
+/// Only watchOS 11 says; before it, nothing fades.
+private struct ScrollPhaseReader: ViewModifier {
+    @Binding var isScrolling: Bool
+
+    func body(content: Content) -> some View {
+        if #available(watchOS 11.0, *) {
+            content.onScrollPhaseChange { _, phase in
+                isScrolling = phase.isScrolling
+            }
+        } else {
+            content
+        }
+    }
+}
+
+/// The playing song's cover, with whether it's playing over it.
+private struct NowPlayingBadge: View {
+    let song: WatchSong
+    let isPlaying: Bool
+
+    var body: some View {
+        ArtworkView(url: song.artworkURL)
+            .frame(width: 30, height: 30)
+            .clipShape(Circle())
+            .overlay {
+                Image(systemName: isPlaying ? "waveform" : "pause.fill")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .shadow(radius: 2)
+            }
+    }
+}
+
+/// The libraries there are sign-ins for, to browse on the home screen.
+private struct LibraryPicker: View {
+    let sources: [WatchSource]
+    let current: WatchSource?
+    let choose: (WatchSource) -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(sources, id: \.self) { source in
+                    Button {
+                        choose(source)
+                    } label: {
+                        HStack {
+                            Label(source.title, systemImage: source == .plex ? "server.rack" : "externaldrive.connected.to.line.below")
+                            Spacer(minLength: 0)
+                            if source == current {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.tint)
+                            }
+                        }
+                    }
+                }
+                if sources.isEmpty {
+                    Text("Sign in to Plex or Subsonic in Cue on your iPhone, and open it once, to bring the sign-ins here.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(Color.clear)
+                }
+            }
+            .navigationTitle("Library")
+        }
     }
 }
 
@@ -240,43 +371,5 @@ private struct PickRow: View {
             return pick.subtitle
         }
         return songs.count == 1 ? "1 song" : "\(songs.count) songs"
-    }
-}
-
-/// Which quality songs come down at — asked the first time there's music
-/// to fetch, and changed from the library screen.
-struct QualityPicker: View {
-    var current: WatchDownloadQuality?
-    let choose: (WatchDownloadQuality) -> Void
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    ForEach(WatchDownloadQuality.allCases) { quality in
-                        Button {
-                            choose(quality)
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(quality == .recommended ? "\(quality.title) (Recommended)" : quality.title)
-                                    Text(quality.detail)
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer(minLength: 0)
-                                if quality == current {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.tint)
-                                }
-                            }
-                        }
-                    }
-                } footer: {
-                    Text("Your watch has much less room than your iPhone, so songs can be converted to MP3 as they download. Changing it converts the songs already here.")
-                }
-            }
-            .navigationTitle("Quality")
-        }
     }
 }

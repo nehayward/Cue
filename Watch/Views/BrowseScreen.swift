@@ -3,13 +3,12 @@ import WatchKit
 import WatchSync
 
 /// A page of the Plex and Subsonic libraries, fetched by the watch itself
-/// (`WatchLibraryBrowser`) a page at a time: the servers, their lists and
-/// search, and the albums, playlists, artists and songs in them. A song
-/// goes on the watch with a tap; an album or playlist opens on its songs.
+/// (`WatchLibraryBrowser`) a page at a time: a list, an artist's albums or
+/// search results. A song goes on the watch with a tap; an album or
+/// playlist opens on its songs.
 struct BrowseScreen: View {
     let path: WatchBrowsePath
 
-    @Environment(WatchAccounts.self) private var accounts
     @Environment(WatchDownloadStore.self) private var store
     @State private var title = ""
     @State private var items: [WatchBrowseItem] = []
@@ -18,20 +17,9 @@ struct BrowseScreen: View {
     @State private var message: String?
     @State private var isLoading = false
     @State private var hasLoaded = false
-    @State private var query = ""
-    @State private var search: WatchBrowsePath?
 
     var body: some View {
         List {
-            if case let .source(source) = path {
-                TextField("Search \(source.title)", text: $query)
-                    .onSubmit {
-                        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !trimmed.isEmpty else { return }
-                        search = .search(source, trimmed)
-                    }
-            }
-
             if let container {
                 NavigationLink(value: BrowseRoute.item(container)) {
                     Label("All Songs", systemImage: "music.note.list")
@@ -61,32 +49,22 @@ struct BrowseScreen: View {
                     Text(message)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    if path != .root {
-                        Button("Try Again") {
-                            Task { await load(offset: 0) }
-                        }
+                    Button("Try Again") {
+                        Task { await load(offset: 0) }
                     }
                 }
                 .listRowBackground(Color.clear)
             }
         }
         .navigationTitle(title)
-        .navigationDestination(item: $search) { path in
-            BrowseScreen(path: path)
-        }
         .task {
             guard !hasLoaded else { return }
             await load(offset: 0)
         }
-        // New sign-ins from the iPhone: the list of servers changes.
-        .onChange(of: accounts.hasAny) {
-            guard path == .root else { return }
-            Task { await load(offset: 0) }
-        }
     }
 
-    /// A place opens; a song goes on the watch with a tap; an album or
-    /// playlist opens on its songs.
+    /// An artist opens on its albums; a song goes on the watch with a tap;
+    /// an album or playlist opens on its songs.
     @ViewBuilder
     private func row(for item: WatchBrowseItem) -> some View {
         if let destination = item.destination {
@@ -122,22 +100,16 @@ struct BrowseScreen: View {
     }
 }
 
-/// A row: a place (with its symbol) or music (with its cover), ticked once
-/// it's on the watch — a song with a download arrow until then.
+/// A row with its cover, ticked once it's on the watch — a song with a
+/// download arrow until then.
 private struct BrowseRow: View {
     @Environment(WatchDownloadStore.self) private var store
     let item: WatchBrowseItem
 
     var body: some View {
         HStack(spacing: 8) {
-            if let symbol = item.symbol {
-                Image(systemName: symbol)
-                    .foregroundStyle(.tint)
-                    .frame(width: 28)
-            } else {
-                ArtworkView(url: item.artworkURL)
-                    .frame(width: 32, height: 32)
-            }
+            ArtworkView(url: item.artworkURL)
+                .frame(width: 32, height: 32)
             VStack(alignment: .leading) {
                 Text(item.title)
                     .lineLimit(2)

@@ -45,7 +45,7 @@ public struct WatchPick: Codable, Hashable, Identifiable, Sendable {
 }
 
 /// What's chosen to be on the watch, newest first. Either device changes it
-/// — the iPhone from Add to Apple Watch, the watch from Add Music — and they
+/// — the iPhone from Add to Apple Watch, the watch from its own browsing — and they
 /// merge rather than overwrite: for each pick the later of its last add and
 /// its last removal wins (a removal is kept as a dated tombstone), so
 /// changes made apart, or at once, all survive. Each side sends its picks

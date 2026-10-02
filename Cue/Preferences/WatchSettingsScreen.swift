@@ -25,7 +25,7 @@ struct WatchSettingsScreen: View {
                     ContentUnavailableView(
                         "Nothing on Your Watch",
                         systemImage: "applewatch",
-                        description: Text("Choose Add to Apple Watch from a Plex or Subsonic album, playlist or song's menu, or tap Add Music in Cue on your watch to browse there.")
+                        description: Text("Choose Add to Apple Watch from a Plex or Subsonic album, playlist or song's menu, or browse your library in Cue on your watch.")
                     )
                 }
             } else {

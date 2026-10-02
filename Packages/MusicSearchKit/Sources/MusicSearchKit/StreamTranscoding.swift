@@ -109,7 +109,8 @@ public enum StreamTranscoding {
 /// A Plex or Subsonic song's stream at a format and bitrate of its own,
 /// whatever the Streaming Quality setting says — for the Apple Watch, which
 /// has a quality of its own. Plex conversions run under a client of their
-/// own (`Cue-Watch`), so they never end a transcode the iPhone is playing.
+/// own (`plexClient`), so they never end a transcode the iPhone is playing,
+/// and two under different clients never end each other.
 public enum ConvertedStream {
     public enum Service: String, Sendable {
         case plex, subsonic
@@ -124,14 +125,15 @@ public enum ConvertedStream {
         sourceURL: URL,
         audioCodec: String?,
         format: StreamTranscoding.Format,
-        bitrate: Int
+        bitrate: Int,
+        plexClient: String = "Cue-Watch"
     ) -> (url: URL, fileExtension: String) {
         let converted: URL? = switch service {
         case .subsonic:
             SubsonicAPI.streamURL(for: contentID, fileExtension: audioCodec, format: format, bitrate: bitrate)
         case .plex:
             plexRatingKey(contentID: contentID).map {
-                PlexAPI.playbackStreamURL(from: sourceURL, ratingKey: $0, format: format, bitrate: bitrate, session: "cue-watch", client: "Cue-Watch")
+                PlexAPI.playbackStreamURL(from: sourceURL, ratingKey: $0, format: format, bitrate: bitrate, session: "cue-watch", client: plexClient)
             }
         }
         let codec = audioCodec?.trimmingCharacters(in: .whitespaces).lowercased() ?? ""

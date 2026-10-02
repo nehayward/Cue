@@ -7,7 +7,7 @@ import WatchSync
 /// Keeps the music on the watch, on the watch.
 ///
 /// What's wanted is a list of picks — albums, playlists, artists and songs
-/// by id (`WatchPicks`) — made on either device: Add Music here, Add to
+/// by id (`WatchPicks`) — made on either device: browsing here, Add to
 /// Apple Watch on the iPhone (`PhoneConnection`). The watch looks each pick
 /// up on its server itself (`WatchLibraryBrowser.songs(for:)`), downloads
 /// the songs at the quality chosen here, and deletes what no pick holds any
@@ -165,6 +165,10 @@ final class WatchDownloadStore {
     /// Times a song the server broke off is tried again before it counts
     /// as failed.
     static let retryLimit = 2
+    /// The Plex clients conversions run as, one each: as many conversions
+    /// at once as there are names. A single conversion goes as fast as the
+    /// server encodes, around 2 MB/s, so a second one fills more of Wi‑Fi.
+    static let plexClients = ["Cue-Watch", "Cue-Watch-2"]
     /// How old the songs looked up for the picks get before they're looked
     /// up again, so playlists follow the server.
     static let lookUpInterval: TimeInterval = 6 * 60 * 60
@@ -277,6 +281,13 @@ final class WatchDownloadStore {
     func remove(key: String) {
         guard picks.contains(key: key) else { return }
         picks.remove(key: key)
+        picksDidChange(tellPhone: true)
+    }
+
+    /// Takes everything off the watch, on both devices.
+    func removeAll() {
+        guard !picks.items.isEmpty else { return }
+        picks.removeAll()
         picksDidChange(tellPhone: true)
     }
 
@@ -584,21 +595,21 @@ final class WatchDownloadStore {
 
     /// Puts waiting songs on their way, in play order: up to the background
     /// session's share, or the next few on the fast one while Fast Download
-    /// runs — finishing the run when nothing's left. Plex conversions go
-    /// one at a time, whichever session they're on.
+    /// runs — finishing the run when nothing's left. Plex conversions run
+    /// one per client name (`plexClients`), whichever session they're on.
     private func pump() {
         let kind: SessionKind = fastPhase == .running ? .fast : .background
         let limit = kind == .fast ? Self.fastConcurrency : Self.backgroundConcurrency
         let queued = orderedKeys().filter { items[$0]?.state == .queued }
         var running = tasks.values.filter { $0.kind == kind }.count
-        var converting = tasks.keys.contains { key in
+        var converting = tasks.keys.filter { key in
             items[key].map { $0.song.isPlexConversion(at: $0.quality) } ?? false
-        }
+        }.count
         for key in queued where running < limit {
             guard let item = items[key] else { continue }
             if item.song.isPlexConversion(at: item.quality) {
-                if converting { continue }
-                converting = true
+                if converting >= Self.plexClients.count { continue }
+                converting += 1
             }
             start(key, on: kind)
             running += 1
@@ -620,7 +631,7 @@ final class WatchDownloadStore {
             task = session.downloadTask(withResumeData: resumeData)
         } else {
             // Built now, so it carries the sign-ins as they are now.
-            let stream = item.song.stream(at: item.quality)
+            let stream = item.song.stream(at: item.quality, plexClient: freePlexClient())
             item.fileExtension = stream.fileExtension
             item.bytesReceived = 0
             task = session.downloadTask(with: URLRequest(url: stream.url))
@@ -637,6 +648,17 @@ final class WatchDownloadStore {
         item.error = nil
         items[key] = item
         task.resume()
+    }
+
+    /// A Plex client no conversion under way is using. Read off the tasks'
+    /// own URLs, so it holds for tasks picked up after a relaunch too.
+    private func freePlexClient() -> String {
+        let used = Set(tasks.values.compactMap { ref -> String? in
+            guard let url = ref.task.originalRequest?.url,
+                  let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else { return nil }
+            return items.first { $0.name == "X-Plex-Client-Identifier" }?.value
+        })
+        return Self.plexClients.first { !used.contains($0) } ?? Self.plexClients[0]
     }
 
     private func stopTask(for key: String) {

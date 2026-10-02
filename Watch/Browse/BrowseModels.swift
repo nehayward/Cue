@@ -26,27 +26,22 @@ enum WatchBrowseSection: String, CaseIterable, Hashable {
     }
 }
 
-/// Where in a server's library a page comes from.
+/// Where in a server's library a page comes from. The server's lists and
+/// its search are on the home screen.
 enum WatchBrowsePath: Hashable {
-    /// The servers the watch has sign-ins for.
-    case root
-    /// One server's lists, and its search.
-    case source(WatchSource)
     case section(WatchSource, WatchBrowseSection)
     /// An artist's albums.
     case artist(WatchPick)
     case search(WatchSource, String)
 }
 
-/// A row: a place to go (a server, a list, an artist), an album or playlist
-/// to open on its songs, or a song to put on the watch with a tap.
+/// A row: an artist to open on its albums, an album or playlist to open on
+/// its songs, or a song to put on the watch with a tap.
 struct WatchBrowseItem: Hashable, Identifiable {
     let id: String
     var title: String
     var subtitle: String = ""
     var artworkURL: URL?
-    /// An SF Symbol, for a row that's a place rather than music.
-    var symbol: String?
     var destination: WatchBrowsePath?
     /// What it puts on the watch, if it goes whole.
     var pick: WatchPick?

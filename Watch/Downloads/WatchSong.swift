@@ -26,8 +26,9 @@ struct WatchSong: Codable, Hashable, Identifiable, Sendable {
     var id: String { key }
 
     /// The stream at `quality`: converted to MP3 by the server, or the
-    /// original file, with the suffix it arrives under.
-    func stream(at quality: WatchDownloadQuality) -> (url: URL, fileExtension: String) {
+    /// original file, with the suffix it arrives under. A Plex conversion
+    /// runs as `plexClient`.
+    func stream(at quality: WatchDownloadQuality, plexClient: String = "Cue-Watch") -> (url: URL, fileExtension: String) {
         let service: ConvertedStream.Service = switch source {
         case .plex: .plex
         case .subsonic: .subsonic
@@ -38,13 +39,14 @@ struct WatchSong: Codable, Hashable, Identifiable, Sendable {
             sourceURL: sourceURL,
             audioCodec: audioCodec,
             format: quality.bitrate == nil ? .original : .mp3,
-            bitrate: quality.bitrate ?? StreamTranscoding.defaultBitrate
+            bitrate: quality.bitrate ?? StreamTranscoding.defaultBitrate,
+            plexClient: plexClient
         )
     }
 
-    /// Plex and Subsonic convert on the server as they send; Plex's
-    /// transcoder runs one at a time per client, so its conversions are
-    /// fetched one at a time.
+    /// Plex and Subsonic convert on the server as they send. Starting a Plex
+    /// transcode ends the one before it under the same client, so the
+    /// store gives each conversion it runs at once a client of its own.
     func isPlexConversion(at quality: WatchDownloadQuality) -> Bool {
         source == .plex && quality.bitrate != nil
     }
