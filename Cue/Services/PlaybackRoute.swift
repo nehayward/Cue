@@ -306,12 +306,12 @@ final class PlaybackRoute {
         case .playing: isPlaying = true
         case .paused: isPlaying = false
         // Between states, or the read failed: the cache is the best guess.
-        case .transitioning: isPlaying = group.coordinatorRoom.isPlaying
+        case .transitioning, .unknown: isPlaying = group.coordinatorRoom.isPlaying
         }
         return Snapshot(
             items: Array(queue[start...]),
             // Positions from the device are in milliseconds.
-            position: (fetched?.playbackPosition ?? group.coordinatorRoom.playbackPosition) / 1000,
+            position: (fetched?.playbackPosition ?? group.coordinatorRoom.estimatedPlaybackPosition()) / 1000,
             isPlaying: isPlaying,
             queuePosition: track.position
         )
@@ -457,7 +457,9 @@ final class PlaybackRoute {
                         await sonos.pause(ip: target.ip)
                     }
                 }
-                target.coordinatorRoom.playbackPosition = offset * 1000
+                // Held there until the speaker reports playing past it, as
+                // for any seek (see `Room.beginSeek`).
+                target.coordinatorRoom.beginSeek(to: offset * 1000)
             } else {
                 // The first track alone, so it starts now; the rest fill in
                 // behind it while it plays. One call for the lot meant the
