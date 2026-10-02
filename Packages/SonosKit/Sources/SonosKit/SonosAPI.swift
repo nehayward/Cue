@@ -38,6 +38,11 @@ final class SonosAPI: NSObject {
         let configuration: URLSessionConfiguration = .default
         configuration.allowsCellularAccess = false
         configuration.timeoutIntervalForRequest = 10
+        // Commands are SOAP POSTs, which `URLCache` never serves from cache —
+        // so this changes no behavior. It only keeps a session that exists to
+        // send commands from touching the shared on-disk cache at all.
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         return URLSession(configuration: configuration)
     }()
     
