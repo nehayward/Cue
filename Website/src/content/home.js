@@ -20,6 +20,15 @@ export const handoff = {
 	],
 };
 
+// The hero's fanned phones, front one first. `finish` picks the frame colour:
+// 'orange' (Cosmic Orange) or leave it out for dark titanium. Web-sized JPEGs live in
+// public/shots/; the full-resolution originals are in public/press/.
+export const screens = [
+	{ file: 'shots/now-playing.jpg', finish: 'orange', alt: 'Cue’s Now Playing screen, with playback controls and speaker volume' },
+	{ file: 'shots/plex-library.jpg', alt: 'Cue showing a Plex library: Artists, Albums, Songs, Downloaded and Playlists' },
+	{ file: 'shots/radio.jpg', alt: 'Live radio from TuneIn and Apple Music in Cue' },
+];
+
 export const features = [
 	{ icon: 'search', title: 'Universal Search', body: 'Search several services at once and get one ranked list that forgives typos.' },
 	{ icon: 'wifi-off', title: 'Offline Mode', body: 'Download from Plex and Subsonic and keep listening on a plane or in a tunnel.' },

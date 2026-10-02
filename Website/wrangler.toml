@@ -3,9 +3,10 @@ name = "cue-site"
 main = "src/worker.js"
 compatibility_date = "2026-09-01"
 
-# cue.dance is on Cloudflare; the Worker serves every path on the apex.
-# api.cue.dance and resource.cue.dance are separate and untouched.
-routes = [{ pattern = "cue.dance/*", zone_name = "cue.dance" }]
+# The Worker is cue.dance's custom domain: Cloudflare creates the DNS record
+# and certificate on deploy. api.cue.dance and resource.cue.dance are
+# separate and untouched.
+routes = [{ pattern = "cue.dance", custom_domain = true }]
 
 # public/ is served straight from Cloudflare's edge (styles, icons);
 # any path without a file there runs the Worker.

@@ -42,7 +42,7 @@ export const pressPage = () =>
 							</a></li>`,
 					)}
 				</ul>
-				${screenshots.length === 0 && html`<p class="fine">Screenshots are on the way. Need them sooner? Just ask.</p>`}
+				<p class="fine">${screenshots.length > 0 ? 'Screenshots are full-resolution JPEGs — click one to open it.' : 'Screenshots are on the way. Need them sooner? Just ask.'}</p>
 
 				<div class="cta-panel compact">
 					<h2>Writing about Cue?</h2>

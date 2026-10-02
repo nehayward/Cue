@@ -3,13 +3,27 @@ import { html, icon, raw } from './html.js';
 
 // Bumped by hand when styles.css changes in a way that must not mix with a
 // cached copy. Static assets are otherwise cached for an hour (public/_headers).
-const ASSET_VERSION = '3';
+const ASSET_VERSION = '8';
 
 /** The main call to action: an App Store link once Cue is listed, a "coming soon" label until then. */
 export const downloadButton = ({ size = 'large' } = {}) =>
 	appStoreUrl
 		? html`<a class="btn btn-primary btn-${size}" href="${appStoreUrl}" aria-label="Download Cue on the App Store">${icon('download')}<span>Download on the App Store</span></a>`
 		: html`<span class="btn btn-soon btn-${size}">${icon('smartphone')}<span>Coming soon to the App Store</span></span>`;
+
+/**
+ * A screenshot in a drawn iPhone: titanium frame, bezel, Dynamic Island and
+ * side buttons, all CSS (`.iphone` in styles.css), so it stays sharp at any
+ * size. Expects a full-screen iPhone screenshot (status bar included).
+ */
+export const iphone = ({ file, alt, finish }, { priority = false } = {}) => html`
+	<div class="iphone${finish ? ` ${finish}` : ''}">
+		<span class="iphone-button action"></span><span class="iphone-button volume-up"></span><span class="iphone-button volume-down"></span><span class="iphone-button power"></span>
+		<div class="iphone-screen">
+			<img src="/${file}" alt="${alt}" width="600" height="1305" decoding="async" ${priority ? raw('fetchpriority="high"') : raw('loading="lazy"')}>
+			<span class="iphone-island"></span>
+		</div>
+	</div>`;
 
 // Shows each `.reveal` element for good the first time it scrolls into view.
 const revealScript = `

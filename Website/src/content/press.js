@@ -25,7 +25,12 @@ export const highlights = [
 	'Live, on-device transcription of radio stations',
 ];
 
-// { file: 'press/<name>.png', alt: '…' } — shown as a grid once added.
-export const screenshots = [];
+// { file: 'press/<name>.jpg', alt: '…' } — shown as a grid once added.
+export const screenshots = [
+	{ file: 'press/cue-now-playing.jpg', alt: 'Cue’s Now Playing screen' },
+	{ file: 'press/cue-plex-library.jpg', alt: 'Cue showing a Plex library: Artists, Albums, Songs, Downloaded and Playlists' },
+	{ file: 'press/cue-albums.jpg', alt: 'Cue’s Albums list from a Plex library' },
+	{ file: 'press/cue-radio.jpg', alt: 'Cue’s Radio tab with trending TuneIn stations and Apple Music Radio' },
+];
 
 export const downloads = [{ file: 'press/cue-icon-1024.png', label: 'App icon', detail: 'PNG, 1024 × 1024' }];

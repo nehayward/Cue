@@ -1,32 +1,8 @@
 import { appStoreUrl, site } from '../config.js';
-import { faq, features, handoff, hero, services } from '../content/home.js';
+import { faq, features, handoff, hero, screens, services } from '../content/home.js';
 import { html, icon, inline, raw } from '../lib/html.js';
-import { downloadButton, page } from '../lib/layout.js';
+import { downloadButton, iphone, page } from '../lib/layout.js';
 import { releases } from './releases.js';
-
-// A drawn player rather than a screenshot, so the hero never goes stale when
-// the app's UI changes. The route pill flips between the device and a speaker
-// group to show the hand-off (styles.css, `.route`).
-const playerMock = html`
-	<div class="player" aria-hidden="true">
-		<div class="player-art"><span></span></div>
-		<div class="player-meta">
-			<strong>Golden Hour Drive</strong>
-			<span>The Late Signals — Coastline</span>
-		</div>
-		<div class="player-progress"><span></span></div>
-		<div class="player-controls">
-			${icon('shuffle')}
-			${icon('skip-back')}
-			<span class="player-play">${icon('pause')}</span>
-			${icon('skip-forward')}
-			${icon('list-music')}
-		</div>
-		<div class="route">
-			<span class="route-option">${icon('smartphone')} This iPhone</span>
-			<span class="route-option">${icon('speaker')} Living Room + 2</span>
-		</div>
-	</div>`;
 
 const structuredData = {
 	'@context': 'https://schema.org',
@@ -54,7 +30,11 @@ const body = html`
 			</div>
 			<p class="fine">${hero.platforms}</p>
 		</div>
-		<div class="hero-visual">${playerMock}</div>
+		<div class="hero-visual">
+			<div class="hero-phones">
+				${screens.map((shot, i) => iphone(shot, { priority: i === 0 }))}
+			</div>
+		</div>
 	</section>
 
 	<section class="section container" id="handoff">
@@ -113,7 +93,7 @@ const body = html`
 
 	<section class="section container narrow" id="get">
 		<div class="cta-panel reveal">
-			<img src="/icon-512.png" alt="" width="88" height="88" loading="lazy">
+			<img src="/apple-touch-icon.png" alt="" width="88" height="88" loading="lazy">
 			<h2>${appStoreUrl ? 'Ready when you are.' : 'Coming soon to iPhone.'}</h2>
 			<p>${appStoreUrl ? 'Free to download, with every service ready to play.' : 'Cue is almost here. Until then, see what’s in the first release.'}</p>
 			${appStoreUrl ? downloadButton() : html`<a class="btn btn-ghost" href="/releases/${releases[0].version}">What’s in ${releases[0].version} ${icon('arrow-right')}</a>`}
