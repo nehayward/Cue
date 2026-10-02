@@ -2,6 +2,7 @@ import AVFoundation
 import MediaPlayer
 import Observation
 import OSLog
+import UIKit
 import WatchKit
 import WatchSync
 
@@ -183,6 +184,16 @@ final class WatchPlayer {
         }
         if let duration = song.duration {
             info[MPMediaItemPropertyPlaybackDuration] = duration
+        }
+        if let image = ArtworkStore.shared.image(for: song.artworkURL) {
+            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+        } else if song.artworkURL != nil {
+            // Not here yet: fetched, and put in once it is, if the song's
+            // still playing.
+            Task {
+                guard await ArtworkStore.shared.fetch(song.artworkURL) != nil, current?.key == song.key else { return }
+                updateNowPlaying()
+            }
         }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }

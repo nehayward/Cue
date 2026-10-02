@@ -17,10 +17,11 @@ enum HomeRoute: Hashable {
 
 /// The watch's home, one screen deep for everything: what's downloaded at
 /// the top (with Fast Download while songs are still to come), and below
-/// it the library chosen top right — its search and lists, a tap from
+/// it the library named top right — its search and lists, a tap from
 /// here. Settings is top left; Now Playing sits bottom centre while
-/// something plays, out of the way while the list scrolls. The first time
-/// there's music to fetch, it asks at what quality.
+/// something plays, out of the way while the list scrolls. No title: the
+/// sections say what's what. The first time there's music to fetch, it
+/// asks at what quality.
 struct LibraryScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
@@ -58,7 +59,6 @@ struct LibraryScreen: View {
                 library
             }
             .modifier(ScrollPhaseReader(isScrolling: $isScrolling))
-            .navigationTitle("Cue")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -68,21 +68,25 @@ struct LibraryScreen: View {
                     }
                     .accessibilityLabel("Settings")
                 }
+                // The library browsed below, named; tap to change it.
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         sheet = .library
                     } label: {
-                        Image(systemName: "books.vertical")
+                        Text(source?.title ?? "Library")
                     }
-                    .accessibilityLabel("Library")
+                    .accessibilityHint("Chooses the library to browse")
                 }
+                // The system's own look: a toolbar button with the waveform
+                // that moves while music plays.
                 ToolbarItemGroup(placement: .bottomBar) {
-                    if let song = player.current {
+                    if player.current != nil {
                         Spacer()
                         Button {
                             path.append(HomeRoute.nowPlaying)
                         } label: {
-                            NowPlayingBadge(song: song, isPlaying: player.isPlaying)
+                            Image(systemName: player.isPlaying ? "waveform" : "play.fill")
+                                .symbolEffect(.variableColor.iterative, isActive: player.isPlaying)
                         }
                         .accessibilityLabel("Now Playing")
                         .opacity(isScrolling ? 0 : 1)
@@ -154,7 +158,7 @@ struct LibraryScreen: View {
             }
             if !songPicks.isEmpty {
                 NavigationLink(value: LibraryRoute.songs) {
-                    SongsRow(count: songPicks.count)
+                    SongsRow(count: songPicks.count, bytes: store.bytesUsed(by: store.songs(in: songPicks.map(\.key))))
                 }
             }
             ForEach(collections, id: \.key) { pick in
@@ -233,24 +237,6 @@ private struct ScrollPhaseReader: ViewModifier {
     }
 }
 
-/// The playing song's cover, with whether it's playing over it.
-private struct NowPlayingBadge: View {
-    let song: WatchSong
-    let isPlaying: Bool
-
-    var body: some View {
-        ArtworkView(url: song.artworkURL)
-            .frame(width: 30, height: 30)
-            .clipShape(Circle())
-            .overlay {
-                Image(systemName: isPlaying ? "waveform" : "pause.fill")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .shadow(radius: 2)
-            }
-    }
-}
-
 /// The libraries there are sign-ins for, to browse on the home screen.
 private struct LibraryPicker: View {
     let sources: [WatchSource]
@@ -321,6 +307,7 @@ private struct FastDownloadRow: View {
 
 private struct SongsRow: View {
     let count: Int
+    let bytes: Int64
 
     var body: some View {
         HStack(spacing: 8) {
@@ -330,9 +317,10 @@ private struct SongsRow: View {
                 .background(.gray.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
             VStack(alignment: .leading) {
                 Text("Songs")
-                Text(count == 1 ? "1 song" : "\(count) songs")
+                Text("\(count == 1 ? "1 song" : "\(count) songs") • \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
         }
     }
@@ -367,9 +355,8 @@ private struct PickRow: View {
         if here < songs.count {
             return "\(here) of \(songs.count) downloaded"
         }
-        if !pick.subtitle.isEmpty {
-            return pick.subtitle
-        }
-        return songs.count == 1 ? "1 song" : "\(songs.count) songs"
+        let size = ByteCountFormatter.string(fromByteCount: store.bytesUsed(by: songs), countStyle: .file)
+        let what = pick.subtitle.isEmpty ? (songs.count == 1 ? "1 song" : "\(songs.count) songs") : pick.subtitle
+        return "\(what) • \(size)"
     }
 }

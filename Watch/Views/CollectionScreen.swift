@@ -119,6 +119,8 @@ struct CollectionScreen: View {
             Text("Couldn't reach the server. Cue tries again the next time you open it.")
         } else if playable.count < songs.count {
             Text("\(playable.count) of \(songs.count) songs on this watch. Fast Download fetches the rest over Wi‑Fi.")
+        } else if !songs.isEmpty, route != .songs {
+            Text("\(songs.count == 1 ? "1 song" : "\(songs.count) songs") • \(ByteCountFormatter.string(fromByteCount: store.bytesUsed(by: songs), countStyle: .file))")
         } else if route == .songs {
             Text("Swipe a song to take it off this watch.")
         }
@@ -151,7 +153,12 @@ struct SongStateRow: View {
     private var stateIcon: some View {
         switch item?.state {
         case .completed:
-            EmptyView()
+            if let size = item?.fileSize {
+                Text(ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
         case .downloading:
             // A converted stream doesn't say how big it is, so there's no
             // fraction to show for it.

@@ -312,11 +312,21 @@ final class WatchLibraryBrowser {
             title: metadata.title,
             artist: metadata.grandparentTitle ?? metadata.originalTitle ?? "",
             album: metadata.parentTitle,
-            artworkURL: plexThumbnail(metadata.thumbImageURL),
+            artworkURL: plexThumbnail(metadata.thumbImageURL ?? plexImageURL(metadata.parentThumb, server: sourceURL)),
             duration: metadata.duration.map { Double($0) / 1000 },
             sourceURL: sourceURL,
             audioCodec: metadata.media?.first?.audioCodec
         )
+    }
+
+    /// A Plex image path (`/library/metadata/12/thumb/…`) on the server a
+    /// song streams from, with its token. Most tracks have no cover of
+    /// their own, only their album's (`parentThumb`).
+    private func plexImageURL(_ path: String?, server streamURL: URL) -> URL? {
+        guard let path, var components = URLComponents(url: streamURL, resolvingAgainstBaseURL: false) else { return nil }
+        components.path = path
+        components.queryItems = components.queryItems?.filter { $0.name == "X-Plex-Token" }
+        return components.url
     }
 
     private func subsonicSong(_ song: SubsonicSong) -> WatchSong? {

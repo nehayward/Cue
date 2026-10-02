@@ -251,6 +251,14 @@ final class WatchDownloadStore {
         items.values.reduce(0) { $0 + ($1.state == .completed ? $1.fileSize ?? 0 : 0) }
     }
 
+    /// The room these songs' files take on the watch.
+    func bytesUsed(by songs: [WatchSong]) -> Int64 {
+        songs.reduce(0) { total, song in
+            guard let item = items[song.key], item.state == .completed else { return total }
+            return total + (item.fileSize ?? 0)
+        }
+    }
+
     /// What's coming down on the fast session now, in play order.
     var fastActive: [Item] {
         orderedKeys().compactMap { key in
@@ -273,6 +281,7 @@ final class WatchDownloadStore {
         if let songs, !songs.isEmpty {
             songsByPick[pick.key] = songs
             unreachable.remove(pick.key)
+            prefetchArtwork(of: songs)
         }
         retryFailed(self.songs(in: [pick.key]).map(\.key))
         picksDidChange(tellPhone: true)
@@ -350,6 +359,7 @@ final class WatchDownloadStore {
                 if let songs, !songs.isEmpty || songsByPick[pick.key] == nil {
                     songsByPick[pick.key] = songs
                     unreachable.remove(pick.key)
+                    prefetchArtwork(of: songs)
                 } else {
                     unreachable.insert(pick.key)
                     logger.error("Couldn't look up \(pick.title, privacy: .public)")
@@ -359,6 +369,11 @@ final class WatchDownloadStore {
                 scheduleSave()
             }
         }
+    }
+
+    /// Each cover once, kept for Now Playing away from any network.
+    private func prefetchArtwork(of songs: [WatchSong]) {
+        ArtworkStore.shared.prefetch(Array(Set(songs.compactMap(\.artworkURL))))
     }
 
     /// Brings the manifest in line with the picks' songs: deletes what

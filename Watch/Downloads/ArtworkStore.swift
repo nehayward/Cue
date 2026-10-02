@@ -37,17 +37,24 @@ final class ArtworkStore {
         guard memory[name] == nil, !loading.contains(name),
               !FileManager.default.fileExists(atPath: Self.fileURL(name).path) else { return }
         loading.insert(name)
-        Task {
-            defer { loading.remove(name) }
-            guard let fetched = try? await URLSession.shared.data(from: url) else { return }
-            let (data, response) = fetched
-            let status = (response as? HTTPURLResponse)?.statusCode ?? 200
-            guard (200 ..< 300).contains(status), let image = Self.thumbnail(from: data) else { return }
-            try? FileManager.default.createDirectory(at: Self.directory, withIntermediateDirectories: true)
-            try? data.write(to: Self.fileURL(name), options: .atomic)
-            memory[name] = image
-            revision += 1
-        }
+        Task { _ = await fetch(url) }
+    }
+
+    /// The cover, from here or fetched now; nil when it can't be had.
+    func fetch(_ url: URL?) async -> UIImage? {
+        guard let url else { return nil }
+        if let image = image(for: url) { return image }
+        let name = Self.name(for: url)
+        loading.insert(name)
+        defer { loading.remove(name) }
+        guard let (data, response) = try? await URLSession.shared.data(from: url) else { return nil }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 200
+        guard (200 ..< 300).contains(status), let image = Self.thumbnail(from: data) else { return nil }
+        try? FileManager.default.createDirectory(at: Self.directory, withIntermediateDirectories: true)
+        try? data.write(to: Self.fileURL(name), options: .atomic)
+        memory[name] = image
+        revision += 1
+        return image
     }
 
     func prefetch(_ urls: [URL]) {
