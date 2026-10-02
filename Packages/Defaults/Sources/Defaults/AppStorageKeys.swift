@@ -26,6 +26,10 @@ public enum AppStorageKeys {
     /// Whether the download manager may fetch over cellular data. Off when
     /// unset: a whole album on a phone plan is a surprise nobody asked for.
     public static let downloadsOverCellular = "\(Prefix.id).downloadsOverCellular"
+    /// How songs come down to the Apple Watch (`WatchDownloadQuality`'s raw
+    /// value). Unset until the person picks one, which they're asked to the
+    /// first time something goes on the watch.
+    public static let watchDownloadQuality = "\(Prefix.id).watchDownloadQuality"
     /// How Plex and Subsonic hand audio over — the original file, or
     /// transcoded on the server to MP3 or Opus (`"original"`, `"mp3"`,
     /// `"opus"`) — and the bitrate cap in kbit/s for a transcode. Read by

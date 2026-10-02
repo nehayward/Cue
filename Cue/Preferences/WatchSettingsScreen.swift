@@ -32,6 +32,10 @@ struct WatchSettingsScreen: View {
                 collectionsSection
             }
 
+            if watch.isWatchAppInstalled {
+                qualitySection
+            }
+
             fastDownloadSection
 
             if !watch.library.isEmpty {
@@ -126,6 +130,32 @@ struct WatchSettingsScreen: View {
         case .playlist: "Playlist"
         case .artist: "Artist"
         case .songs: "Songs"
+        }
+    }
+
+    /// How songs come down to the watch. A change converts what's already
+    /// there, a song at a time, each playing from its old file meanwhile.
+    private var qualitySection: some View {
+        Section {
+            Picker(selection: Binding(
+                get: { watch.effectiveQuality },
+                set: { watch.setQuality($0) }
+            )) {
+                ForEach(WatchDownloadQuality.allCases) { quality in
+                    VStack(alignment: .leading) {
+                        Text(quality == .recommended ? "\(quality.title) (Recommended)" : quality.title)
+                        Text(quality.detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .tag(quality)
+                }
+            } label: {
+                Label("Download Quality", systemImage: "waveform")
+            }
+            .pickerStyle(.navigationLink)
+        } footer: {
+            Text("Your server converts songs to MP3 as the watch downloads them. Changing this converts the songs already on your watch; each keeps playing until its new copy arrives. If your server can't convert, choose Original.")
         }
     }
 

@@ -46,6 +46,45 @@ final class PhoneConnection {
         }
     }
 
+    enum RequestError: LocalizedError {
+        case notConnected
+        case unreadableReply
+
+        var errorDescription: String? {
+            switch self {
+            case .notConnected: "Your iPhone isn't connected. Keep it nearby with Cue installed."
+            case .unreadableReply: "Your iPhone sent something this watch can't read. Update Cue on both."
+            }
+        }
+    }
+
+    /// Asks the iPhone (`WatchBrowseServer`) and waits for its answer.
+    /// WatchConnectivity wakes Cue there if it isn't running; the iPhone
+    /// has to be in reach — over Bluetooth, or the same Wi‑Fi.
+    func request(_ request: WatchRequest) async throws -> WatchReply {
+        activate()
+        let session = WCSession.default
+        guard session.activationState == .activated else { throw RequestError.notConnected }
+        let data = try request.encoded()
+        return try await withCheckedThrowingContinuation { continuation in
+            session.sendMessageData(data, replyHandler: { reply in
+                if let decoded = try? WatchReply.decoded(from: reply) {
+                    continuation.resume(returning: decoded)
+                } else {
+                    continuation.resume(throwing: RequestError.unreadableReply)
+                }
+            }, errorHandler: { error in
+                let code = (error as NSError).domain == WCErrorDomain ? WCError.Code(rawValue: (error as NSError).code) : nil
+                switch code {
+                case .notReachable, .deviceNotPaired, .companionAppNotInstalled:
+                    continuation.resume(throwing: RequestError.notConnected)
+                default:
+                    continuation.resume(throwing: error)
+                }
+            })
+        }
+    }
+
     /// Keeps a WatchConnectivity wake open until the session has handed
     /// over everything waiting — or 20 seconds, past which the system would
     /// end it anyway.

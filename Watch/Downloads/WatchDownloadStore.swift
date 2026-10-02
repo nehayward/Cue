@@ -60,6 +60,10 @@ final class WatchDownloadStore {
         var resumeOn: SessionKind?
         var error: String?
         var failedOnNetwork: Bool?
+        /// The suffix of the file an earlier download left — at another
+        /// quality — kept playable while this one comes down, and deleted
+        /// when it lands.
+        var previousFileExtension: String?
 
         var id: String { track.key }
         var key: String { track.key }
@@ -165,11 +169,25 @@ final class WatchDownloadStore {
         items[key]?.state == .completed
     }
 
-    /// The file for a song that's here, or nil.
+    /// The file for a song that's here, or nil — the earlier copy while a
+    /// song is fetched again at a new quality.
     func localURL(for track: WatchTrack) -> URL? {
-        guard let item = items[track.key], item.state == .completed else { return nil }
-        let url = Self.fileURL(key: item.key, fileExtension: item.fileExtension)
+        guard let item = items[track.key] else { return nil }
+        let url: URL
+        if item.state == .completed {
+            url = Self.fileURL(key: item.key, fileExtension: item.fileExtension)
+        } else if let previous = item.previousFileExtension {
+            url = Self.fileURL(key: item.key, fileExtension: previous)
+        } else {
+            return nil
+        }
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// Whether a song can play now: it's here, or its earlier copy is.
+    func isPlayable(_ key: String) -> Bool {
+        guard let item = items[key] else { return false }
+        return item.state == .completed || item.previousFileExtension != nil
     }
 
     /// Songs not here yet, failed ones included: what Fast Download fetches.
@@ -244,15 +262,20 @@ final class WatchDownloadStore {
         for (key, existing) in items {
             guard let track = library.tracks[key] else { continue }
             var item = existing
-            // One not here yet whose stream moved starts over from the new
-            // URL; a finished file keeps its name.
-            if item.state != .completed, track.streamURL != item.track.streamURL || track.fileExtension != item.fileExtension {
+            // A stream that moved — a new quality, mostly — is fetched again
+            // from the new URL. A song that's here keeps playing from its
+            // file until the new one lands.
+            if track.streamURL != item.track.streamURL || track.fileExtension != item.fileExtension {
                 stopTask(for: key)
+                if item.state == .completed {
+                    item.previousFileExtension = item.fileExtension
+                }
                 item.state = .queued
                 item.fileExtension = track.fileExtension
                 item.resumeData = nil
                 item.resumeOn = nil
                 item.bytesReceived = 0
+                item.bytesExpected = 0
                 item.error = nil
             } else if retryingFailed, item.state == .failed {
                 item.state = .queued
@@ -491,6 +514,9 @@ final class WatchDownloadStore {
         stopTask(for: key)
         if let item = items[key] {
             try? FileManager.default.removeItem(at: Self.fileURL(key: key, fileExtension: item.fileExtension))
+            if let previous = item.previousFileExtension {
+                try? FileManager.default.removeItem(at: Self.fileURL(key: key, fileExtension: previous))
+            }
         }
         items[key] = nil
         lastProgressPublish[key] = nil
@@ -540,6 +566,12 @@ final class WatchDownloadStore {
         if let ref = tasks.removeValue(forKey: key), ref.kind != kind || ref.task.taskIdentifier != identifier {
             ref.task.cancel()
         }
+        // The copy at the old quality goes once the new one is in place (a
+        // new one with the same suffix has already replaced it).
+        if let previous = item.previousFileExtension, previous != fileExtension {
+            try? FileManager.default.removeItem(at: Self.fileURL(key: key, fileExtension: previous))
+        }
+        item.previousFileExtension = nil
         item.state = .completed
         item.fileExtension = fileExtension
         item.fileSize = fileSize
@@ -659,15 +691,31 @@ final class WatchDownloadStore {
                 item.state = .queued
                 item.bytesReceived = 0
                 item.fileSize = nil
-            } else if item.state != .completed, let size = Self.size(of: url) {
+            } else if item.state != .completed, item.previousFileExtension != item.fileExtension, let size = Self.size(of: url) {
+                // Landed while the manifest was unsaved. Not when the file
+                // there is the old copy of a song being converted within one
+                // format (256 to 128 kbps MP3, say), which shares its name.
                 item.state = .completed
                 item.fileSize = size
                 item.resumeData = nil
                 item.resumeOn = nil
             }
+            if let previous = item.previousFileExtension {
+                let previousURL = Self.fileURL(key: key, fileExtension: previous)
+                if item.state == .completed {
+                    if previous != item.fileExtension {
+                        try? FileManager.default.removeItem(at: previousURL)
+                    }
+                    item.previousFileExtension = nil
+                } else if !FileManager.default.fileExists(atPath: previousURL.path) {
+                    item.previousFileExtension = nil
+                }
+            }
             items[key] = item
         }
-        let owned = Set(items.values.map { Self.fileURL(key: $0.key, fileExtension: $0.fileExtension).lastPathComponent })
+        let owned = Set(items.values.flatMap { item in
+            [item.fileExtension, item.previousFileExtension].compactMap { $0 }.map { Self.fileURL(key: item.key, fileExtension: $0).lastPathComponent }
+        })
         let files = (try? FileManager.default.contentsOfDirectory(at: Self.directory, includingPropertiesForKeys: nil)) ?? []
         for file in files where file.lastPathComponent != Self.manifestURL.lastPathComponent && !owned.contains(file.lastPathComponent) {
             try? FileManager.default.removeItem(at: file)

@@ -11,7 +11,7 @@ struct CollectionScreen: View {
     var body: some View {
         if let collection = store.library.collection(key: collectionKey) {
             let tracks = store.library.tracks(in: collection)
-            let downloaded = tracks.filter { store.isDownloaded($0.key) }
+            let downloaded = tracks.filter { store.isPlayable($0.key) }
             List {
                 Section {
                     VStack(spacing: 4) {
@@ -59,7 +59,7 @@ struct CollectionScreen: View {
                         } label: {
                             TrackRow(track: track, item: store.item(for: track.key), isCurrent: player.current?.key == track.key)
                         }
-                        .disabled(!store.isDownloaded(track.key))
+                        .disabled(!store.isPlayable(track.key))
                     }
                 } footer: {
                     if downloaded.count < tracks.count {

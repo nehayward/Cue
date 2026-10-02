@@ -61,6 +61,29 @@ public enum DeviceStream {
         return StreamTranscoding.fileExtension(for: .device, original: original)
     }
 
+    /// The stream a device with a quality of its own (the Apple Watch)
+    /// fetches: transcoded to `format` at `bitrate` whatever the Streaming
+    /// Quality setting says, or the original file for `.original`.
+    public static func url(service: MusicService, contentID: String, sourceURL: URL, audioCodec: String?, format: StreamTranscoding.Format, bitrate: Int) -> URL {
+        switch service {
+        case .subsonic:
+            SubsonicAPI.streamURL(for: contentID, fileExtension: audioCodec, format: format, bitrate: bitrate) ?? sourceURL
+        case .plex:
+            plexRatingKey(contentID: contentID).map {
+                PlexAPI.playbackStreamURL(from: sourceURL, ratingKey: $0, format: format, bitrate: bitrate, session: "cue-watch")
+            } ?? sourceURL
+        default:
+            sourceURL
+        }
+    }
+
+    /// The suffix that stream arrives with.
+    public static func fileExtension(service: MusicService, audioCodec: String?, format: StreamTranscoding.Format) -> String? {
+        let original = audioCodec?.trimmingCharacters(in: .whitespaces).lowercased()
+        guard isTranscodable(service) else { return original }
+        return format.fileExtension ?? original
+    }
+
     public static func plexRatingKey(contentID: String) -> String? {
         let key = (contentID.removingPercentEncoding ?? contentID).components(separatedBy: ":").last ?? ""
         return key.isEmpty ? nil : key

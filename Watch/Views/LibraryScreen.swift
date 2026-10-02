@@ -3,7 +3,8 @@ import WatchKit
 import WatchSync
 
 /// The watch's home: what's playing, Fast Download while songs are still to
-/// come, and the albums, playlists and artists the iPhone put here.
+/// come, the albums, playlists and artists on the watch, and Add Music to
+/// browse the iPhone's libraries for more.
 struct LibraryScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
@@ -40,6 +41,20 @@ struct LibraryScreen: View {
                     }
                 }
 
+                NavigationLink(value: WatchBrowsePath.root) {
+                    Label {
+                        VStack(alignment: .leading) {
+                            Text("Add Music")
+                            Text("Browse Plex and Subsonic on your iPhone")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundStyle(.tint)
+                    }
+                }
+
                 if store.library.isEmpty {
                     emptyState
                 } else {
@@ -58,6 +73,12 @@ struct LibraryScreen: View {
             .navigationDestination(for: String.self) { key in
                 CollectionScreen(collectionKey: key)
             }
+            .navigationDestination(for: WatchBrowsePath.self) { path in
+                BrowseScreen(path: path)
+            }
+            .navigationDestination(for: WatchBrowseItem.self) { item in
+                BrowseItemScreen(item: item)
+            }
             .sheet(isPresented: $isShowingFastDownload) {
                 FastDownloadScreen()
             }
@@ -71,7 +92,7 @@ struct LibraryScreen: View {
                 .foregroundStyle(.tint)
             Text("No Music Yet")
                 .font(.headline)
-            Text("In Cue on your iPhone, open a Plex or Subsonic album or playlist and choose Add to Apple Watch.")
+            Text("Tap Add Music, or in Cue on your iPhone choose Add to Apple Watch from an album or playlist's menu.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }

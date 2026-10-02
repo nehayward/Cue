@@ -327,17 +327,33 @@ public final class SubsonicAPI: DirectStreamProvider {
     /// without — a stream that ends short of an estimate is a failed
     /// transfer there. `nil` is the original file.
     public static func streamURL(for id: String, fileExtension: String?, destination: StreamTranscoding.Destination?) -> URL? {
+        guard let destination else {
+            return streamURL(for: id, fileExtension: fileExtension, format: .original, bitrate: StreamTranscoding.bitrate)
+        }
+        return streamURL(
+            for: id,
+            fileExtension: fileExtension,
+            format: StreamTranscoding.format(for: destination),
+            bitrate: StreamTranscoding.bitrate,
+            estimatesContentLength: destination == .speaker
+        )
+    }
+
+    /// The stream URL transcoded to `format` at `bitrate`, whatever the
+    /// Streaming Quality setting says — for a device with a quality of its
+    /// own (the Apple Watch). `.original` is the original file.
+    public static func streamURL(for id: String, fileExtension: String?, format: StreamTranscoding.Format, bitrate: Int, estimatesContentLength: Bool = false) -> URL? {
         var queryItems = [URLQueryItem(name: "id", value: id)]
         var hint = fileExtension?.trimmingCharacters(in: .whitespaces).lowercased() ?? ""
-        if let destination, let codec = StreamTranscoding.format(for: destination).codec {
+        if let codec = format.codec {
             queryItems += [
                 URLQueryItem(name: "format", value: codec),
-                URLQueryItem(name: "maxBitRate", value: "\(StreamTranscoding.bitrate)")
+                URLQueryItem(name: "maxBitRate", value: "\(bitrate)")
             ]
-            if destination == .speaker {
+            if estimatesContentLength {
                 queryItems.append(URLQueryItem(name: "estimateContentLength", value: "true"))
             }
-            hint = StreamTranscoding.fileExtension(for: destination, original: nil) ?? hint
+            hint = format.fileExtension ?? hint
         }
         guard let url = storedURL(endpoint: "stream", queryItems: queryItems) else { return nil }
         guard !hint.isEmpty,
