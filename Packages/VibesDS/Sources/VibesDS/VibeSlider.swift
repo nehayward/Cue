@@ -293,8 +293,6 @@ public struct VibeSliderTV: View {
         }
     
     public var body: some View {
-        let _ = Self._printChanges()
-        
         ZStack(alignment: .leading) {
             Capsule()
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }

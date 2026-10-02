@@ -15,7 +15,9 @@ struct ArtworkBadgeView: View {
             // it used to be there always, hidden with opacity, and its
             // repeating wiggle ran every frame on every speaker's artwork
             // regardless - about 300 SwiftUI updates a second with five
-            // speakers, foreground or locked.
+            // speakers, foreground or locked. On the Mac, a redraw that
+            // restarts a symbol animation also costs ~90 MB of GPU memory
+            // for ~2 s.
             if alarmRunning {
                 alarmSymbol
             }

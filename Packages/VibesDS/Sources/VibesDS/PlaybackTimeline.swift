@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 /// Redraws `content` with a running playback position — and only while that's
 /// worth doing.
@@ -6,13 +9,13 @@ import SwiftUI
 /// Progress bars draw from an estimate that runs forward from the last
 /// reported position (`Room.estimatedPlaybackPosition()` in SonosKit) rather
 /// than the stored number, so something has to redraw them as time passes.
-/// That something must stop whenever nobody can see the result: Clic holds a
+/// That something must stop whenever nobody can see the result: Cue holds a
 /// silent audio session for the Lock Screen card, so the process stays alive —
-/// and a locked phone with Clic frontmost doesn't reliably reach
+/// and a locked phone with Cue frontmost doesn't reliably reach
 /// `.background` — and an unconditional timeline kept ticking behind the Lock
 /// Screen. So it ticks only while all of these hold:
 ///
-/// - the scene is active (not locked, not in the app switcher),
+/// - the scene is on screen (see `isSceneVisible`),
 /// - the view is on screen (not under a pushed screen or a covering sheet),
 /// - `isRunning`: playback is actually moving, and nothing (a finger on the
 ///   scrubber) is holding it still.
@@ -58,7 +61,30 @@ public struct PlaybackTimeline<Content: View>: View {
     }
 
     private var isPaused: Bool {
-        !isRunning || !isOnScreen || scenePhase != .active
+        !isRunning || !isOnScreen || !isSceneVisible
+    }
+
+    /// `.inactive` means "possibly off screen" only on iPhone, where a lock
+    /// with Cue frontmost often parks there. On iPad it's also what a window
+    /// in Split View or Stage Manager reports when it simply isn't focused,
+    /// and on the Mac (which runs as iPad) what Cue's window reports whenever
+    /// another app is in front. Pausing there froze every bar and ring in a
+    /// window that was plainly visible, since a poll that agrees with the
+    /// estimate writes nothing to redraw them. Same rule as the app's
+    /// `stopMonitoringOffScreen`, which keeps polling there too.
+    private var isSceneVisible: Bool {
+        switch scenePhase {
+        case .active:
+            return true
+        case .inactive:
+            #if os(iOS)
+            return UIDevice.current.userInterfaceIdiom != .phone
+            #else
+            return false
+            #endif
+        default:
+            return false
+        }
     }
 }
 
