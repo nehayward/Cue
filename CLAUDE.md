@@ -27,7 +27,8 @@ These rules apply to every session on the Mac (started with `Scripts/claude-remo
 - When you build the iOS app, run `Scripts/deploy-to-iphone.sh` instead of a simulator build. It builds the `Cue` scheme (Debug) for the connected iPhone, installs it and launches it. The user tests on the phone, so a change is not finished until it has been deployed.
 - On failure, it prints the compile errors and writes the full log to `build/device-build.log`. Fix the errors and run it again.
 - If it reports that no iPhone is connected, build for the simulator instead (`xcodebuild -project Cue.xcodeproj -scheme Cue -destination 'generic/platform=iOS Simulator' build`) and tell the user the phone was not reachable.
-- Other targets (Mac, TV, Cue Mini) build with `xcodebuild` as usual; only the iOS app is deployed.
+- The script also installs the watch app from the build straight onto the paired Apple Watch (`Scripts/list-watches.py` finds it; `CUE_WATCH=<name or UDID>` picks one, `--no-watch` skips it), so the watch's reason shows in the output when it refuses. The watch has to be known to Xcode (Devices and Simulators) with Developer Mode on.
+- Other targets (Mac, TV, Cue Mini) build with `xcodebuild` as usual; only the iOS and watch apps are deployed.
 
 ### Logs and crashes from the iPhone
 - To check runtime behaviour, deploy with `Scripts/deploy-to-iphone.sh --logs [seconds]` (default 30), or relaunch without rebuilding with `Scripts/iphone-logs.sh [seconds]`. Ask the user to reproduce on the phone while it captures. It shows the last 200 lines; the full capture is in `build/device-console.log`. Set `CUE_LOG_FILTER=<text>` to see only matching lines. `print` and `Logger` output both appear.
