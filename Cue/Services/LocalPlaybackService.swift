@@ -297,8 +297,28 @@ final class LocalPlaybackService {
 
     @ObservationIgnored private var backend: Backend?
     /// Inclusive queue range the armed player currently owns. Empty (`end <
-    /// start`) when nothing is armed.
+    /// start`) when nothing is armed. For a stream run it's a window of the
+    /// run, topped up as it plays — see `streamWindow`.
     @ObservationIgnored private var runEnd = -1
+    /// Where an arm in flight is taking playback, until it lands. A skip
+    /// pressed meanwhile goes on from there, not from the song being left:
+    /// five presses during a re-arm move five songs, where each used to
+    /// re-arm the same one.
+    @ObservationIgnored private var armingIndex: Int?
+
+    /// How many songs a stream run hands its player at a time.
+    ///
+    /// `AVQueuePlayer` only buffers the song after the current one, but every
+    /// `AVPlayerItem` costs about 60 KB of player machinery — dozens of
+    /// notification listeners, dispatch queues and timebases — the moment it
+    /// exists. Arming a 1,700-song Plex playlist whole made 1,700 of them:
+    /// ~100 MB and four seconds of main-thread work before the first note,
+    /// and again on every Previous or row tap. The rest of the run follows a
+    /// few songs ahead of playback (`topUpStreamRun`).
+    private static let streamWindow = 10
+    /// The window is topped back up once fewer than this many armed songs
+    /// are left after the current one.
+    private static let streamTopUpThreshold = 4
     @ObservationIgnored private let musicPlayer = ApplicationMusicPlayer.shared
     /// The armed Apple run: player-entry offset → (queue index, resolved song).
     /// Rows that failed to resolve are absent, which is why this maps offsets
@@ -635,6 +655,11 @@ final class LocalPlaybackService {
               backendKind(for: queue[end + 1]) == backend,
               !isStation(queue[end + 1]) {
             end += 1
+        }
+        // A stream run stays a window ahead of the current song; the poll
+        // tops it up from there (`topUpStreamRun`).
+        if backend == .stream {
+            end = min(end, currentIndex + Self.streamWindow)
         }
         guard end > runEnd else { return }
         let token = playToken
@@ -1075,7 +1100,7 @@ final class LocalPlaybackService {
             }
             return
         }
-        let target = currentIndex + 1
+        let target = (armingIndex ?? currentIndex) + 1
         guard target < queue.count else {
             if repeatMode == .all, !queue.isEmpty {
                 Task { try? await arm(at: 0) }
@@ -1086,12 +1111,13 @@ final class LocalPlaybackService {
         }
         // Inside the armed run the native skip is instant (and keeps the run's
         // gapless chain); past its end we arm the next run ourselves.
-        if target <= runEnd, let backend {
+        if armingIndex == nil, target <= runEnd, let backend {
             switch backend {
             case .appleMusic:
                 Task { try? await musicPlayer.skipToNextEntry() }
             case .stream:
                 streamPlayer?.advanceToNextItem()
+                followStreamPlayer()
             case .appleStation:
                 // Skipped within the station above.
                 break
@@ -1101,7 +1127,50 @@ final class LocalPlaybackService {
         }
     }
 
+    /// Moves the queue's place to the song the stream player is on now,
+    /// without waiting for the poll: a skip shows its song at once, and a
+    /// press made straight after it goes from there. The poll fills in the
+    /// rest (the item's own length, its audio quality).
+    private func followStreamPlayer() {
+        guard let item = streamPlayer?.currentItem,
+              let queueIndex = streamRun[ObjectIdentifier(item)],
+              queueIndex != currentIndex else { return }
+        currentIndex = queueIndex
+        progress = 0
+        duration = catalogDuration(at: queueIndex)
+        topUpStreamRun()
+    }
+
+    /// Keeps a stream run's window ahead of playback: once it's down to a
+    /// few songs after the current one, the next ones are handed to the
+    /// player that's playing. Synchronous, so a run of quick skips can't
+    /// outpace it — a track's URL needs no network.
+    private func topUpStreamRun() {
+        guard backend == .stream, let player = streamPlayer, player.currentItem != nil,
+              repeatMode != .one, !sleepsAtEndOfTrack,
+              runEnd - currentIndex < Self.streamTopUpThreshold else { return }
+        let limit = min(queue.count - 1, currentIndex + Self.streamWindow)
+        guard runEnd < limit else { return }
+        for queueIndex in (runEnd + 1)...limit {
+            let row = queue[queueIndex]
+            // The run ends at another service, a station, or a song still in
+            // iCloud; the run-end advance arms those.
+            guard backendKind(for: row) == .stream, !isStation(row),
+                  cloudPendingURL(for: row) == nil,
+                  let url = trackStreamURL(for: row) else { return }
+            let item = AVPlayerItem(url: url)
+            player.insert(item, after: nil)
+            streamRun[ObjectIdentifier(item)] = queueIndex
+            runEnd = queueIndex
+        }
+    }
+
     func previous() {
+        // Mid-arm, back from where that arm is going (see `armingIndex`).
+        if let armingIndex {
+            if armingIndex > 0 { Task { try? await arm(at: armingIndex - 1) } }
+            return
+        }
         // First tap restarts the track, a quick second tap goes back — the
         // same rule every player uses.
         if progress > 3 || currentIndex == 0 {
@@ -1208,6 +1277,8 @@ final class LocalPlaybackService {
     private func arm(at index: Int, from position: TimeInterval? = nil) async throws {
         playToken += 1
         let token = playToken
+        armingIndex = index
+        defer { if playToken == token { armingIndex = nil } }
         teardownRun()
         guard queue.indices.contains(index) else {
             stop()
@@ -1348,6 +1419,11 @@ final class LocalPlaybackService {
             stop()
             return
         }
+        // Supersedes an arm still in flight (a Next pressed through to the
+        // end while one was loading), which would otherwise start playing
+        // after this.
+        playToken += 1
+        armingIndex = nil
         poller?.invalidate()
         poller = nil
         cancelSleepTimer()
@@ -1718,10 +1794,15 @@ final class LocalPlaybackService {
         if item.content.service == .tuneIn, item.content.type == .radio {
             return await MusicSearchService.shared.tuneInStreamURL(id: item.content.id)
         }
+        return trackStreamURL(for: item)
+    }
+
+    /// `streamURL(for:)` for anything but a station: answered at once.
+    private func trackStreamURL(for item: PlayableContent) -> URL? {
         // A local copy beats the server URL. The server URL is built now,
         // not read off the item, so the Streaming Quality setting in force
         // is the one used.
-        return DownloadManager.shared.localURL(for: item)
+        DownloadManager.shared.localURL(for: item)
             ?? PlaybackCache.shared.localURL(for: item)
             ?? item.playbackStreamURL
     }
@@ -1754,7 +1835,8 @@ final class LocalPlaybackService {
 
         var rows: [(queueIndex: Int, item: AVPlayerItem)] = []
         var lastArmed = index
-        for queueIndex in index...end {
+        // A window of the run, not all of it — see `streamWindow`.
+        for queueIndex in index...min(end, index + Self.streamWindow - 1) {
             let item = queue[queueIndex]
             // A later song still in iCloud ends the run here; the next arm
             // fetches it.
@@ -2160,6 +2242,7 @@ final class LocalPlaybackService {
             if let queueIndex = streamRun[ObjectIdentifier(current)], currentIndex != queueIndex {
                 currentIndex = queueIndex
             }
+            topUpStreamRun()
             // `AVPlayerItem.duration` is indefinite until the item is ready
             // to play — and for good if it never gets there. The catalog's
             // length stands in until then so the scrubber doesn't vanish.
