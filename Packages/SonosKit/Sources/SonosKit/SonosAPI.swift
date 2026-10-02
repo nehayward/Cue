@@ -284,7 +284,7 @@ final class SonosAPI: NSObject {
         ]
 
         guard let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetTransportInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-            return .transitioning
+            return .unknown
         }
 
         let xml = String(decoding: data, as: UTF8.self)

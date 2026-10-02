@@ -426,8 +426,11 @@ public final class SonosService {
             let room = newGroup.coordinatorRoom
             let currentRoom = current.coordinatorRoom
             room.track = currentRoom.track
-            room.playbackPosition = currentRoom.playbackPosition
+            // Play state before position, and the running estimate rather than
+            // the stored number: starting the new room's clock after the
+            // position was copied would drop the time since the last report.
             room.isPlaying = currentRoom.isPlaying
+            room.playbackPosition = currentRoom.estimatedPlaybackPosition()
             room.isTransitioning = currentRoom.isTransitioning
             room.radioStation = currentRoom.radioStation
             room.container = currentRoom.container
@@ -640,7 +643,9 @@ public final class SonosService {
 
             roomGroup.coordinatorRoom.setPlaying(isNowPlaying, source: .poll)
 
-            roomGroup.coordinatorRoom.setTransitioning(playbackStatus == .transitioning)
+            if let isNowTransitioning = playbackStatus.isTransitioning {
+                roomGroup.coordinatorRoom.setTransitioning(isNowTransitioning)
+            }
 
             if let updateGroupVolume = try? await groupVolume, !roomGroup.isEditingVolume, roomGroup.groupVolume != updateGroupVolume {
                 roomGroup.groupVolume = updateGroupVolume
@@ -728,8 +733,7 @@ public final class SonosService {
             // still needs the lookup below.
             if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique,
                !roomGroup.coordinatorRoom.track.isSkipPreview {
-                if !roomGroup.isEditingPlayback,
-                   roomGroup.coordinatorRoom.playbackPosition != awaitedTrack.playbackPosition {
+                if !roomGroup.isEditingPlayback {
                     roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
                 }
                 if roomGroup.coordinatorRoom.track.position != awaitedTrack.position {
@@ -979,7 +983,9 @@ public final class SonosService {
 
                     roomGroup.coordinatorRoom.setPlaying(isNowPlaying, source: .poll)
 
-                    roomGroup.coordinatorRoom.setTransitioning(playbackStatus == .transitioning)
+                    if let isNowTransitioning = playbackStatus.isTransitioning {
+                        roomGroup.coordinatorRoom.setTransitioning(isNowTransitioning)
+                    }
                 }
             }
         }
@@ -1074,7 +1080,7 @@ public final class SonosService {
                     if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique,
                        attemptedTrackInfoUniques.contains(awaitedTrack.unique),
                        !roomGroup.coordinatorRoom.track.isSkipPreview {
-                        if !roomGroup.isEditingPlayback, roomGroup.coordinatorRoom.playbackPosition != awaitedTrack.playbackPosition {
+                        if !roomGroup.isEditingPlayback {
                             roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
                         }
 
@@ -1170,7 +1176,9 @@ public final class SonosService {
                     group.addTask { @MainActor [weak self] in
                         if room.state != .active { return }
                         guard let self else { return }
-                        if let volume = try? await getVolume(ip: room.ip), !room.isEditingVolume {
+                        // Only on change: this runs on every pulse, and a write of
+                        // the same value still invalidates every view reading it.
+                        if let volume = try? await getVolume(ip: room.ip), !room.isEditingVolume, room.volume != volume {
                             room.volume = volume
                         }
                     }
@@ -1178,7 +1186,7 @@ public final class SonosService {
                     group.addTask { @MainActor [weak self] in
                         if room.state != .active { return }
                         guard let self else { return }
-                        if let isMuted = await api.getRoomMute(IP: room.ip) {
+                        if let isMuted = await api.getRoomMute(IP: room.ip), room.isMuted != isMuted {
                             room.isMuted = isMuted
                         }
                     }
@@ -1230,16 +1238,8 @@ public final class SonosService {
                 group.addTask { @MainActor [weak self] in
                     guard let self else { return }
                     async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
-                    switch await playbackInfo {
-                    case .playing:
-                        roomGroup.coordinatorRoom.setPlaying(true, source: .poll)
-                        roomGroup.coordinatorRoom.setTransitioning(false)
-                    case .paused:
-                        roomGroup.coordinatorRoom.setPlaying(false, source: .poll)
-                        roomGroup.coordinatorRoom.setTransitioning(false)
-                    default:
-                        roomGroup.coordinatorRoom.setTransitioning(true)
-                    }
+                    let status = await playbackInfo
+                    roomGroup.coordinatorRoom.apply(polled: status)
                 }
             }
         }
@@ -1335,16 +1335,8 @@ public final class SonosService {
                     async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
                     async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
 
-                    switch await playbackInfo {
-                    case .playing:
-                        roomGroup.coordinatorRoom.setPlaying(true, source: .poll)
-                        roomGroup.coordinatorRoom.setTransitioning(false)
-                    case .paused:
-                        roomGroup.coordinatorRoom.setPlaying(false, source: .poll)
-                        roomGroup.coordinatorRoom.setTransitioning(false)
-                    default:
-                        roomGroup.coordinatorRoom.setTransitioning(true)
-                    }
+                    let status = await playbackInfo
+                    roomGroup.coordinatorRoom.apply(polled: status)
 
                     if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume, roomGroup.groupVolume != groupVolumeAwaited {
                         roomGroup.groupVolume = groupVolumeAwaited
@@ -1629,6 +1621,7 @@ public final class SonosService {
         // Refresh playback state for relevant groups so we can prefer a playing coordinator
         for group in relevantGroups {
             let playback = await getPlaybackInfo(ip: group.ip)
+            guard playback != .unknown else { continue }
             group.coordinatorRoom.setPlaying(playback == .playing, source: .poll)
             group.coordinatorRoom.setTransitioning(playback == .transitioning)
         }
@@ -2326,6 +2319,7 @@ public final class SonosService {
     @MainActor
     public func next(ip: String) async {
         guard let group = liveSkipGroup(ip: ip) else {
+            coordinatorRoom(at: ip)?.beginSkip()
             await api.next(ipAddress: ip)
             return
         }
@@ -2338,6 +2332,7 @@ public final class SonosService {
     @MainActor
     public func previous(ip: String) async {
         guard let group = liveSkipGroup(ip: ip) else {
+            coordinatorRoom(at: ip)?.beginSkip()
             // No live model for this group (an extension that hasn't loaded
             // one, or only a cached one), so the position has to come from the
             // speaker.
@@ -2351,6 +2346,15 @@ public final class SonosService {
         }
         await refreshPositionForSkip(group)
         await skip(.previous, on: group)
+    }
+
+    /// The room whose progress a transport command sent to `ip` moves. Every
+    /// skip goes through `next`/`previous`, so that's where the bar is told —
+    /// here for a plain skip, in `skip(_:on:)` for a coalesced one — not at
+    /// each button, menu command and remote command separately.
+    @MainActor
+    private func coordinatorRoom(at ip: String) -> Room? {
+        groups.first { $0.ip == ip || $0.coordinatorRoom.ip == ip }?.coordinatorRoom
     }
 
     public func isMuted(for group: GroupRoom) async -> Bool? {
@@ -2677,7 +2681,7 @@ public final class SonosService {
         switch playback {
         case .playing:
             await api.pause(ipAddress: ip)
-        case .paused, .transitioning:
+        case .paused, .transitioning, .unknown:
             await api.play(ipAddress: ip)
         }
     }
@@ -2817,7 +2821,9 @@ public final class SonosService {
         await api.deleteFavorite(IP: group?.ip ?? foundGroup.ip, itemID: favoriteID)
     }
 
+    @MainActor
     public func seek(to time: TimeInterval, on group: GroupRoom) async {
+        group.coordinatorRoom.beginSeek(to: time)
         await api.seek(to: time, IP: group.coordinatorRoom.ip)
     }
     

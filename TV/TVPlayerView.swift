@@ -256,43 +256,39 @@ struct TVPlayerView: View {
     }
     
     private func playbackView() -> some View {
-        VStack(spacing: 0) {
-            // Floored at one: a radio stream has no duration, and a
-            // `ClosedRange` with its bounds inverted traps. See the same
-            // guard on `LargePlayerView`'s scrubber.
-            VibeSliderTV(value: $group.coordinatorRoom.playbackPosition, in: 0...max(group.coordinatorRoom.track.duration, 1), step: 1000, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, showValue: false) { isEditing in
-                Task { @MainActor in
-                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
-                    group.isEditingPlayback = isEditing
-                }
+        let room = group.coordinatorRoom
+        // Drawn from the running estimate, like the iPhone player: the stored
+        // position only moves when the speaker reports a jump. Display-only —
+        // `VibeSliderTV` takes no input on tvOS.
+        return PlaybackTimeline(
+            isRunning: room.isClockRunning,
+            minimumInterval: 0.25,
+            position: { room.estimatedPlaybackPosition() }
+        ) { position in
+            VStack(spacing: 0) {
+                // Floored at one: a radio stream has no duration, and a
+                // `ClosedRange` with its bounds inverted traps.
+                VibeSliderTV(value: .constant(position), in: 0...max(room.track.duration, 1), step: 1000, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, showValue: false)
+                .frame(height: 40)
+                .foregroundStyle(.primary)
+                .disabled(!group.availableActions.contains(.scrubbable))
 
-                if !isEditing {
-                    Task { @MainActor in
-                        await SonosService.shared.seek(to: group.coordinatorRoom.playbackPosition, on: group)
+                HStack {
+                    let duration = room.track.duration
+                    let timeRemaining = Duration.milliseconds(max(0, duration - position))
+                    if Duration.milliseconds(duration).components.seconds > (60 * 60) {
+                        Text(Duration.milliseconds(position).formatted(.time(pattern: .hourMinuteSecond)))
+                        Spacer()
+                        Text("-") + Text(timeRemaining.formatted(.time(pattern: .hourMinuteSecond)))
+                    } else {
+                        Text(Duration.milliseconds(position).formatted(.time(pattern: .minuteSecond)))
+                        Spacer()
+                        Text("-") + Text(timeRemaining.formatted(.time(pattern: .minuteSecond)))
                     }
                 }
+                .monospacedDigit()
+                .font(.caption)
             }
-            .frame(height: 40)
-            .foregroundStyle(.primary)
-            .disabled(!group.availableActions.contains(.scrubbable))
-
-            HStack {
-                let position = group.coordinatorRoom.playbackPosition
-                let duration = group.coordinatorRoom.track.duration
-                let timeRemaining = Duration.milliseconds(max(0, duration - position))
-                if Duration.milliseconds(duration).components.seconds > (60 * 60) {
-                    Text(Duration.milliseconds(position).formatted(.time(pattern: .hourMinuteSecond)))
-                    Spacer()
-                    Text("-") + Text(timeRemaining.formatted(.time(pattern: .hourMinuteSecond)))
-                } else {
-                    Text(Duration.milliseconds(position).formatted(.time(pattern: .minuteSecond)))
-                    Spacer()
-                    Text("-") + Text(timeRemaining.formatted(.time(pattern: .minuteSecond)))
-                }
-            }
-            .monospacedDigit()
-            .font(.caption)
-            
         }
         .fontDesign(.rounded)
         .containerRelativeFrame(.horizontal, { size, axis in
@@ -340,7 +336,7 @@ struct TVPlayerView: View {
                     .resizable()
                     .scaledToFit()
                     .contentTransition(.symbolEffect(.automatic))
-                    .symbolEffect(.pulse, isActive: group.coordinatorRoom.isTransitioning)
+                    .sustainedPulse(isActive: group.coordinatorRoom.isTransitioning)
                     .frame(width: 32, height: 32)
             }
             .buttonBorderShape(.circle)

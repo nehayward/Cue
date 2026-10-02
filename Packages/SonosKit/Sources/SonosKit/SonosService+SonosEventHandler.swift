@@ -37,25 +37,32 @@ extension SonosService: SonosEventHandler {
         // whenever the poll wasn't running to correct it (i.e. backgrounded,
         // exactly when the Lock Screen card is the only thing showing).
         // `SonosMiniService` skips the same state for the same reason.
+        //
+        // It does mean the song has stopped moving, though, so it's recorded
+        // as transitioning: the progress clock holds until PLAYING rather than
+        // counting through the buffering and being pulled back afterwards.
+        // Written only on change: an @Observable setter notifies every
+        // observer even when the value is the same.
+        let room = group.coordinatorRoom
         switch playbackState.playbackState {
         case "PLAYBACK_STATE_PLAYING":
+            if room.isTransitioning { room.isTransitioning = false }
             setIsPlaying(true, on: group)
         case "PLAYBACK_STATE_PAUSED", "PLAYBACK_STATE_IDLE":
+            if room.isTransitioning { room.isTransitioning = false }
             setIsPlaying(false, on: group)
+        case "PLAYBACK_STATE_BUFFERING", "PLAYBACK_STATE_TRANSITIONING":
+            if !room.isTransitioning { room.isTransitioning = true }
         default:
-            // BUFFERING, TRANSITIONING, or a state this build doesn't know:
-            // keep whatever we had rather than guessing.
+            // A state this build doesn't know: keep whatever we had rather
+            // than guessing.
             break
         }
 
-        // Only correct real drift: the position ticks continuously and every
-        // write invalidates each progress-bar consumer. Not mid-skip: the
-        // player is showing the new song from zero, and until the speaker gets
-        // there this is the old song's position.
-        let position = TimeInterval(playbackState.positionMillis)
-        if !isLandingSkip(on: group), abs(group.coordinatorRoom.playbackPosition - position) > 1000 {
-            group.coordinatorRoom.updatePlaybackPosition(position)
-        }
+        // `updatePlaybackPosition` decides what's worth writing: it drops a
+        // report the running estimate already agrees with, and it's how an
+        // in-flight seek learns it landed.
+        room.updatePlaybackPosition(TimeInterval(playbackState.positionMillis))
 
         notifyLiveUpdate(for: group)
     }

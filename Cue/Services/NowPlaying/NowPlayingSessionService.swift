@@ -839,11 +839,11 @@ final class NowPlayingSessionService {
 
         // A new song is a new timeline, so the anchor's numbers no longer mean
         // anything. Without this the anchor keeps interpolating across the
-        // boundary: skipping tracks writes `playbackPosition = 0` optimistically,
-        // the new track then reports ~0 as well, and "the model didn't move" is
-        // read as "keep counting" — so a song that just started shows several
-        // seconds in. It only self-corrected when the new position happened to
-        // differ from the last one seen.
+        // boundary: a skip puts `playbackPosition` at 0 straight away
+        // (`Room.beginSkip`), the new track then reports ~0 as well, and "the
+        // model didn't move" is read as "keep counting" — so a song that just
+        // started shows several seconds in. It only self-corrected when the new
+        // position happened to differ from the last one seen.
         if anchoredTrackUnique != track.unique {
             anchoredTrackUnique = track.unique
             positionAnchor.reset()
@@ -1010,30 +1010,19 @@ final class NowPlayingSessionService {
         }))
         commandTokens.append((center.nextTrackCommand, center.nextTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform { service, group in
-                    group.coordinatorRoom.playbackPosition = 0
-                    await service.next(ip: group.ip)
-                } ?? .commandFailed
+                self?.perform { service, group in await service.next(ip: group.ip) } ?? .commandFailed
             }
         }))
         commandTokens.append((center.previousTrackCommand, center.previousTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                // No optimistic zero here: `previous` reads the position to
-                // decide between restarting the song and going back one, and
-                // zeroes it itself.
-                self?.perform { service, group in
-                    await service.previous(ip: group.ip)
-                } ?? .commandFailed
+                self?.perform { service, group in await service.previous(ip: group.ip) } ?? .commandFailed
             }
         }))
         commandTokens.append((center.changePlaybackPositionCommand, center.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             let milliseconds = event.positionTime * 1000
             return MainActor.assumeIsolated {
-                self?.perform { service, group in
-                    group.coordinatorRoom.updatePlaybackPosition(milliseconds)
-                    await service.seek(to: milliseconds, on: group)
-                } ?? .commandFailed
+                self?.perform { service, group in await service.seek(to: milliseconds, on: group) } ?? .commandFailed
             }
         }))
 

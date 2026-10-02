@@ -461,17 +461,14 @@ struct GroupPlaybackScrubber: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Bindable var group: GroupRoom
 
-    /// `VibeSlider` animates its fill on every value change, which is what makes
-    /// playback tick along smoothly — but a track change drops the position back
-    /// to the start, and animating *that* sweeps the whole bar backwards like a
-    /// rewind. Suppress it while the position is at the very beginning, where
-    /// there is nothing to see anyway; normal ticking picks the animation back
-    /// up a couple of seconds in. Derived from the position itself rather than
-    /// latched on a timer, so it cannot get stuck in either state, and it is
-    /// read at the same body pass the new value arrives in.
-    private var positionAnimation: Animation? {
-        group.coordinatorRoom.playbackPosition < 2000 ? nil : .interactiveSpring
-    }
+    @Environment(\.displayScale) private var displayScale
+
+    /// True while a finger is on the bar. The bar then shows the stored
+    /// position as is, without running it forward, or it would creep ahead
+    /// under the finger.
+    @State private var isScrubbing = false
+    /// The bar's width, which sets how often it's worth redrawing.
+    @State private var barWidth: CGFloat = 0
 
     /// The range the scrubber runs over. A radio source has no duration —
     /// Sonos reports none for a stream, and the parser hands that on as zero
@@ -486,55 +483,78 @@ struct GroupPlaybackScrubber: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            VibeSlider(value: $group.coordinatorRoom.playbackPosition, in: scrubRange, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, valueAnimation: positionAnimation) { isEditing in
-                sonosService.isEditing = true
-                Task { @MainActor in
-                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
-                    group.isEditingPlayback = isEditing
+        let room = group.coordinatorRoom
+        // Redrawn once per pixel of progress. Under a finger the bar shows the
+        // stored value, without running it on.
+        PlaybackTimeline(
+            isRunning: room.isClockRunning && !isScrubbing,
+            minimumInterval: ProgressRedraw.interval(
+                forDuration: room.track.duration,
+                length: barWidth,
+                scale: displayScale
+            ),
+            position: { isScrubbing ? room.playbackPosition : room.estimatedPlaybackPosition() }
+        ) { position in
+            VStack(spacing: 0) {
+                VibeSlider(value: Binding(get: { position }, set: { room.playbackPosition = $0 }), in: scrubRange, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, valueAnimation: nil, onEditingChanged: scrubbingChanged)
+                .frame(maxWidth: 500)
+                .frame(height: 40)
+                .foregroundStyle(.primary)
+                .accessibilityLabel("Playback Position")
+                .accessibilityValue(Duration.milliseconds(position).formatted(.time(pattern: .minuteSecond)))
+                .disabled(!group.availableActions.contains(.scrubbable))
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
+
+                HStack {
+                    let duration = Duration.milliseconds(room.track.duration)
+                    let elapsed = Duration.milliseconds(position)
+                    let timeRemaining = Duration.milliseconds(max(0, room.track.duration - position))
+
+                    let usesHourFormat = duration.components.seconds > 3600
+                    let pattern: Duration.TimeFormatStyle.Pattern = usesHourFormat ? .hourMinuteSecond : .minuteSecond
+
+                    Text(elapsed.formatted(.time(pattern: pattern)))
+                        .contentTransition(.identity)
+                    Spacer()
+                    AudioInfoView(quality: group.audioQuality)
+                        .frame(height: 12)
+                        .contentTransition(.identity)
+                        .animation(.spring, value: group.audioQuality)
+                    Spacer()
+                    Text("-\(timeRemaining.formatted(.time(pattern: pattern)))")
+                        .contentTransition(.identity)
                 }
-
-                if !isEditing {
-                    Task { @MainActor in
-                        await sonosService.seek(to: group.coordinatorRoom.playbackPosition, on: group)
-                        sonosService.isEditing = false
-                    }
-                }
+                .frame(maxWidth: 500)
+                .monospacedDigit()
+                .font(.caption)
             }
-            .frame(maxWidth: 500)
-            .frame(height: 40)
-            .foregroundStyle(.primary)
-            .accessibilityLabel("Playback Position")
-            .accessibilityValue(Duration.milliseconds(group.coordinatorRoom.playbackPosition).formatted(.time(pattern: .minuteSecond)))
-            .disabled(!group.availableActions.contains(.scrubbable))
-
-            HStack {
-                let duration = Duration.milliseconds(group.coordinatorRoom.track.duration)
-                let position = Duration.milliseconds(group.coordinatorRoom.playbackPosition)
-                let timeRemaining = Duration.milliseconds(max(0, group.coordinatorRoom.track.duration - group.coordinatorRoom.playbackPosition))
-
-                let usesHourFormat = duration.components.seconds > 3600
-                let pattern: Duration.TimeFormatStyle.Pattern = usesHourFormat ? .hourMinuteSecond : .minuteSecond
-
-                Text(position.formatted(.time(pattern: pattern)))
-                    .contentTransition(.identity)
-                Spacer()
-                AudioInfoView(quality: group.audioQuality)
-                    .frame(height: 12)
-                    .contentTransition(.identity)
-                    .animation(.spring, value: group.audioQuality)
-                Spacer()
-                Text("-\(timeRemaining.formatted(.time(pattern: pattern)))")
-                    .contentTransition(.identity)
-            }
-            .frame(maxWidth: 500)
-            .monospacedDigit()
-            .font(.caption)
         }
         .fontDesign(.rounded)
         .frame(maxWidth: .infinity)
         .frame(height: 60)
-        .opacity(group.coordinatorRoom.track.duration.isZero ? 0 : 1)
+        .opacity(room.track.duration.isZero ? 0 : 1)
+    }
+
+    /// `VibeSlider` reports `true` on every movement, not only the first touch.
+    private func scrubbingChanged(_ isEditing: Bool) {
+        let room = group.coordinatorRoom
+        if isEditing {
+            guard !isScrubbing else { return }
+            // Start from what's on screen, not the last report.
+            room.playbackPosition = room.estimatedPlaybackPosition()
+            isScrubbing = true
+            // Keeps polls and socket events off the position while the finger
+            // is down.
+            group.isEditingPlayback = true
+        } else {
+            isScrubbing = false
+            Task { @MainActor in
+                // Same turn as the seek starts, so no report lands in between:
+                // from here `beginSeek` decides which reports count.
+                group.isEditingPlayback = false
+                await sonosService.seek(to: room.playbackPosition, on: group)
+            }
+        }
     }
 }
 
@@ -602,7 +622,7 @@ struct GroupMediaControlsView: View {
                     .resizable()
                     .scaledToFit()
                     .contentTransition(.symbolEffect(.automatic))
-                    .symbolEffect(.pulse, isActive: group.coordinatorRoom.isTransitioning)
+                    .sustainedPulse(isActive: group.coordinatorRoom.isTransitioning)
                     .frame(width: playSize, height: playSize)
 
             }
@@ -618,7 +638,6 @@ struct GroupMediaControlsView: View {
                 selectionTrack?.cancel()
                 selectionTrack = Task {
                     HapticManager.shared.fireHaptic(.selection)
-                    group.coordinatorRoom.playbackPosition = 0
                     shouldFade = false
                     // Left to the socket — twin of the previous button above,
                     // including the no-fade window. Holding `isEditing` across a

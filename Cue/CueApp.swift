@@ -266,7 +266,6 @@ struct MusicPlaybackView: View {
                 Button {
                     Task {
                         HapticManager.shared.fireHaptic(.buttonPress)
-                        room.playbackPosition = 0
                         await sonosService.next(ip: group.ip)
                         try? await sonosService.updateGroups(from: [group])
                     }
@@ -959,7 +958,7 @@ struct CueApp: App {
 //                    Task {
 //                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
 //                            HapticManager.shared.fireHaptic(.selection)
-//                            let newPosition = group.coordinatorRoom.playbackPosition + 15000
+//                            let newPosition = group.coordinatorRoom.estimatedPlaybackPosition() + 15000
 //                            await sonosService.seek(to: newPosition, on: group)
 //                        }
 //                    }
@@ -973,7 +972,7 @@ struct CueApp: App {
 //                    Task {
 //                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
 //                            HapticManager.shared.fireHaptic(.selection)
-//                            let newPosition = max(0, group.coordinatorRoom.playbackPosition - 15000)
+//                            let newPosition = max(0, group.coordinatorRoom.estimatedPlaybackPosition() - 15000)
 //                            await sonosService.seek(to: newPosition, on: group)
 //                        }
 //                    }
@@ -1592,7 +1591,6 @@ private struct PlaybackTransportControls: View {
                 Task {
                     guard let group = selectedGroup else { return }
                     HapticManager.shared.fireHaptic(.selection)
-                    group.coordinatorRoom.playbackPosition = 0
                     router.beginSkipWindow()
                     await sonosService.next(ip: group.coordinatorRoom.ip)
                 }

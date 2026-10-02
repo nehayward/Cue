@@ -22,7 +22,7 @@ public struct PlaybackIconView: View {
                     .scaledToFit()
                     .foregroundStyle(isPlaying ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color.secondary))
                     .contentTransition(.symbolEffect(.replace))
-                    .symbolEffect(.pulse, isActive: isTransitioning)
+                    .sustainedPulse(isActive: isTransitioning)
                     .frame(width: 12, height: 12, alignment: .center)
                     .padding(.leading, !isPlaying ? 2 : 0)
             }

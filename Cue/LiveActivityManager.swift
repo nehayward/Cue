@@ -114,7 +114,10 @@ final class LiveActivityManager: LiveActivityManageable {
                     group.coordinatorRoom.updatePlaybackPosition(track.playbackPosition)
                 }
             }
-            group.coordinatorRoom.setPlaying(info.1 == .playing, source: .poll)
+            // A failed read says nothing about whether it's playing.
+            if info.1 != .unknown {
+                group.coordinatorRoom.setPlaying(info.1 == .playing, source: .poll)
+            }
             group.groupVolume = info.2
             group.isMuted = info.3 ?? false
             
