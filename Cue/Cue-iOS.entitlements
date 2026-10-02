@@ -2,12 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- The iPhone and iPad build of the Cue target (iphoneos and
-	     iphonesimulator SDKs only — see CODE_SIGN_ENTITLEMENTS[sdk=…] in the
-	     project). Cue.entitlements plus CarPlay, which only an iOS
-	     provisioning profile carries: the Mac, TV and Vision targets share
-	     Cue.entitlements and would fail to sign with it. Keep the rest in
-	     step with Cue.entitlements. -->
 	<key>com.apple.developer.carplay-audio</key>
 	<true/>
 	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
@@ -22,10 +16,6 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
-	<!-- The Files provider: the open panel that picks the folder (a
-	     sandboxed Mac app can't show one without this), and the
-	     security-scoped bookmark that keeps the folder across launches.
-	     Read-write, because playlists are saved into the folder as .m3u. -->
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
 	<key>com.apple.security.files.bookmarks.app-scope</key>
