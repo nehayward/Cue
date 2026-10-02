@@ -10,9 +10,8 @@ import SonosKit
 /// expand it and a row when the local queue can take it.
 @MainActor
 enum CarPlayLibrary {
-    /// A row that opens a list: a provider's playlists or albums on the
-    /// Library tab, or the downloads by album, artist or song. Its list is
-    /// loaded when the row is opened.
+    /// A row that opens a list: the downloads by album, artist or song. Its
+    /// list is loaded when the row is opened.
     struct Listing {
         let title: String
         let systemImage: String
@@ -28,10 +27,11 @@ enum CarPlayLibrary {
         let load: @MainActor () async -> [PlayableContent]
     }
 
-    /// A provider's rows on the Library tab, under its name.
+    /// A provider's part of a list on the Library tab: its name, and what it
+    /// has there that this device can play.
     struct Shelf {
         let title: String
-        let listings: [Listing]
+        let items: [PlayableContent]
     }
 
     /// A titled run of stations on the Radio tab.
@@ -65,15 +65,39 @@ enum CarPlayLibrary {
 
     // MARK: - Library
 
-    /// A shelf per provider that is switched on and signed in, in the order
-    /// the app lists providers. None offline: no provider can answer without
-    /// a network, and what's on this iPhone has the Downloads tab.
-    static func shelves() -> [Shelf] {
+    /// The providers the Library tab browses: switched on and signed in, in
+    /// the order the app lists them. None offline: no provider can answer
+    /// without a network, and what's on this iPhone has the Downloads tab.
+    static func libraryServices() -> [MediaSearchService] {
         guard !OfflineMode.shared.isActive else { return [] }
-        return MediaSearchService.supported.filter(isReady).compactMap { service in
-            let rows = listings(for: service)
-            return rows.isEmpty ? nil : Shelf(title: service.title, listings: rows)
+        return MediaSearchService.supported.filter(isReady)
+    }
+
+    /// The Library tab's buttons, in order, that at least one of `services`
+    /// can fill. Playlists fill the tab itself.
+    static func libraryCollections(for services: [MediaSearchService]) -> [ProviderCollection] {
+        [ProviderCollection.recentlyAdded, .albums].filter { collection in
+            services.contains { loader(collection, for: $0) != nil }
         }
+    }
+
+    /// `collection` from each of `services` that has it, loaded side by side
+    /// and narrowed to what this device can play. A provider with nothing
+    /// to show is left out.
+    static func shelves(_ collection: ProviderCollection, from services: [MediaSearchService]) async -> [Shelf] {
+        let loads = services.compactMap { service -> (MediaSearchService, Task<[PlayableContent], Never>)? in
+            guard let load = loader(collection, for: service) else { return nil }
+            return (service, Task { await load() })
+        }
+        let player = LocalPlaybackService.shared
+        var shelves: [Shelf] = []
+        for (service, load) in loads {
+            let items = await load.value.filter { player.canPlayAnywhereLocally($0) }
+            if !items.isEmpty {
+                shelves.append(Shelf(title: service.title, items: items))
+            }
+        }
+        return shelves
     }
 
     /// Switched on in Services and set up far enough to browse. Apple Music
@@ -91,84 +115,86 @@ enum CarPlayLibrary {
         }
     }
 
-    /// Playlists, Recently Added and Albums, each read the way the
-    /// provider's own browse screen reads it.
-    private static func listings(for service: MediaSearchService) -> [Listing] {
-        let playlists = ProviderCollection.playlists
-        let albums = ProviderCollection.albums
-        let recentlyAdded = ProviderCollection.recentlyAdded
-
-        switch service {
-        case .apple:
+    /// Reads `collection` the way `service`'s own browse screen reads it;
+    /// nil where the provider has no such collection.
+    private static func loader(
+        _ collection: ProviderCollection,
+        for service: MediaSearchService
+    ) -> (@MainActor () async -> [PlayableContent])? {
+        switch (service, collection) {
+        case (.apple, .playlists):
+            return { await applePlaylists() }
+        case (.apple, .recentlyAdded):
             let apple = AppleMusicBrowseService.shared
-            return [
-                Listing(title: playlists.title, systemImage: playlists.systemImage) {
-                    await applePlaylists()
-                },
-                Listing(title: recentlyAdded.title, systemImage: recentlyAdded.systemImage) {
-                    await collect(limit: recentLimit) { offset in
-                        await apple.libraryAlbums(offset: offset, sort: .recentlyAdded, descending: true)
-                    }
-                },
-                Listing(title: albums.title, systemImage: albums.systemImage) {
-                    await collect { offset in
-                        await apple.libraryAlbums(offset: offset, sort: .title)
-                    }
-                },
-            ]
-        case .plex:
+            return {
+                await collect(limit: recentLimit) { offset in
+                    await apple.libraryAlbums(offset: offset, sort: .recentlyAdded, descending: true)
+                }
+            }
+        case (.apple, .albums):
+            let apple = AppleMusicBrowseService.shared
+            return {
+                await collect { offset in
+                    await apple.libraryAlbums(offset: offset, sort: .title)
+                }
+            }
+        case (.plex, .playlists):
             let plex = PlexBrowseService.shared
-            return [
-                Listing(title: playlists.title, systemImage: playlists.systemImage) {
-                    await plex.updateUserPlaylists()
-                    return Array(plex.userPlaylists)
-                },
-                Listing(title: recentlyAdded.title, systemImage: recentlyAdded.systemImage) {
-                    await collect(limit: recentLimit) { offset in
-                        await plex.updateUserAlbums(offset: offset, sort: .recentlyAdded)
-                    }
-                },
-                Listing(title: albums.title, systemImage: albums.systemImage) {
-                    await collect { offset in
-                        await plex.updateUserAlbums(offset: offset, sort: .title)
-                    }
-                },
-            ]
-        case .subsonic:
+            return {
+                await plex.updateUserPlaylists()
+                return Array(plex.userPlaylists)
+            }
+        case (.plex, .recentlyAdded):
+            let plex = PlexBrowseService.shared
+            return {
+                await collect(limit: recentLimit) { offset in
+                    await plex.updateUserAlbums(offset: offset, sort: .recentlyAdded)
+                }
+            }
+        case (.plex, .albums):
+            let plex = PlexBrowseService.shared
+            return {
+                await collect { offset in
+                    await plex.updateUserAlbums(offset: offset, sort: .title)
+                }
+            }
+        case (.subsonic, .playlists):
             let search = MusicSearchService.shared
-            return [
-                Listing(title: playlists.title, systemImage: playlists.systemImage) {
-                    await search.subsonicUserPlaylists()
-                },
-                Listing(title: recentlyAdded.title, systemImage: recentlyAdded.systemImage) {
-                    await collect(limit: recentLimit) { offset in
-                        await search.subsonicAlbums(offset: offset, sort: .recentlyAdded)
-                    }
-                },
-                Listing(title: albums.title, systemImage: albums.systemImage) {
-                    await collect { offset in
-                        await search.subsonicAlbums(offset: offset, sort: .title)
-                    }
-                },
-            ]
-        case .files:
+            return { await search.subsonicUserPlaylists() }
+        case (.subsonic, .recentlyAdded):
+            let search = MusicSearchService.shared
+            return {
+                await collect(limit: recentLimit) { offset in
+                    await search.subsonicAlbums(offset: offset, sort: .recentlyAdded)
+                }
+            }
+        case (.subsonic, .albums):
+            let search = MusicSearchService.shared
+            return {
+                await collect { offset in
+                    await search.subsonicAlbums(offset: offset, sort: .title)
+                }
+            }
+        case (.files, .playlists):
             let files = FilesLibraryService.shared
-            return [
-                Listing(title: playlists.title, systemImage: playlists.systemImage) {
-                    await files.scanIfNeeded()
-                    return files.playlists
-                },
-                Listing(title: recentlyAdded.title, systemImage: recentlyAdded.systemImage) {
-                    await files.scanIfNeeded()
-                    return files.recentlyAddedAlbums(limit: recentLimit)
-                },
-                Listing(title: albums.title, systemImage: albums.systemImage) {
-                    await files.scanIfNeeded()
-                    return files.albums(sortedBy: .title)
-                },
-            ]
+            return {
+                await files.scanIfNeeded()
+                return files.playlists
+            }
+        case (.files, .recentlyAdded):
+            let files = FilesLibraryService.shared
+            return {
+                await files.scanIfNeeded()
+                return files.recentlyAddedAlbums(limit: recentLimit)
+            }
+        case (.files, .albums):
+            let files = FilesLibraryService.shared
+            return {
+                await files.scanIfNeeded()
+                return files.albums(sortedBy: .title)
+            }
         default:
-            return []
+            return nil
         }
     }
 
