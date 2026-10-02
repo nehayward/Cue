@@ -3,7 +3,7 @@
 # that can be shared for review, since a .trace bundle can only be read in
 # Instruments.
 #
-# Usage: Scripts/export-swiftui-trace.sh path/to/Clic.trace [--raw] [--run N]
+# Usage: Scripts/export-swiftui-trace.sh path/to/Cue.trace [--raw] [--run N]
 #
 # A .trace can hold several recordings ("runs"); the latest is exported
 # unless --run picks another.

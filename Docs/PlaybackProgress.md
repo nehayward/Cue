@@ -1,8 +1,9 @@
 # Playback Progress
 
-How Clic tracks and draws a speaker's playback position — the player's bar,
-the play-button rings, the TV player and the Lock Screen card — and why it
-works this way. Landed in PR #103 (2026.9).
+How Cue tracks and draws playback position — a speaker's and this device's —
+in the player's bar, the mini player's line, the play-button rings, the TV
+player and the Lock Screen card, and why it works this way. Ported from Clic
+(its PR #103, 2026.9); the on-device half is Cue's own.
 
 ## The problems this fixed
 
@@ -92,6 +93,21 @@ An `@Observable` setter notifies every observer even when the value is the
 same. The pulse runs every 500–800 ms, so `isTransitioning`, `volume`,
 `isMuted` and repeated seek reports are all compared before writing.
 
+## This device: `LocalPlaybackService`
+
+The same idea for Cue's own player. `progress` is a computed property: the
+player's clock as last read (`progressAnchor`), run forward while
+`isPlaying`, clamped to `duration`. Stopping folds the elapsed time into the
+anchor; starting only restamps it. Writing `progress` (a seek, a new song, a
+restore) sets the clock.
+
+The 0.5 s poll reports through `noteProgress(_:)`: while playing, a reading
+within `progressTolerance` (0.5 s) of the estimate is dropped, since AVPlayer
+and MusicKit report their time exactly and the clock already has it; paused,
+it's written only when it changed. Everything that reads `progress` — the
+scrubber, the mini player, the hand-off snapshot, the Now Playing card, play
+reports — gets the estimate.
+
 ## The views
 
 ### `PlaybackTimeline` (VibesDS)
@@ -109,9 +125,10 @@ PlaybackTimeline(
 Redraws its content with the running position, and only while that's worth
 doing. It is paused unless **all** of these hold:
 
-- the scene is active — Clic holds a silent audio session for the Lock Screen
-  card, so the process outlives the screen, and a lock with Clic frontmost
-  doesn't reliably reach `.background`;
+- the scene is visible — Cue's audio session keeps the process alive behind
+  the Lock Screen, and a lock with Cue frontmost doesn't reliably reach
+  `.background`. `.inactive` counts as visible on iPad and the Mac, where it's
+  an unfocused window, not a locked screen;
 - the view is on screen (`onAppear` / `onDisappear`);
 - `isRunning` — the clock is running and nothing (a finger) holds the value.
 
@@ -121,16 +138,17 @@ bridge or lifecycle to manage.
 
 | Where | Redraw rate |
 |---|---|
-| Player bar (`LargePlayerView.PlaybackView`) | Once per pixel of progress (`ProgressRedraw.interval`: song length ÷ bar pixels, 1/30 s – 1 s). ~0.17 s for a 3-minute song on a phone. |
+| Player bar (`GroupPlaybackScrubber`, `LocalPlaybackScrubber`) | Once per pixel of progress (`ProgressRedraw.interval`: song length ÷ bar pixels, 1/30 s – 1 s). ~0.17 s for a 3-minute song on a phone. |
 | TV player bar (display-only) | 0.25 s |
 | Play-button rings (`MiniPlayerView`, `MediaControlsView`) | 1 s |
+| Mini player line (`MiniPlayerProgressLine` in `CueApp.swift`) | Once per pixel, as the player bar |
 
 The player bar uses `valueAnimation: nil`: it moves frame by frame on its own,
 and a seek or track change should land instantly, not sweep.
 
 ### Scrubbing
 
-`PlaybackView.scrubbingChanged(_:)`: on the first touch it starts from the
+`GroupPlaybackScrubber.scrubbingChanged(_:)`: on the first touch it starts from the
 on-screen estimate and sets `isEditingPlayback` (keeps polls and socket events
 off the position); on release it clears that and calls `SonosService.seek`, in
 the same turn, so `beginSeek` decides which reports count from there.
@@ -164,8 +182,9 @@ From Instruments SwiftUI traces on device (iPhone, five speakers):
 |---|---|
 | Model | `Packages/SonosKit/Sources/SonosKit/Models/Room.swift`, `Models/PlaybackStatus.swift` |
 | Service | `SonosService.swift` (`seek`, `next`, `previous`, sweeps, `adoptGroups`), `SonosService+SonosEventHandler.swift`, `SonosAPI.swift`, `Parsers/XMLParserSonos.swift` |
-| Views | `Packages/VibesDS/Sources/VibesDS/PlaybackTimeline.swift`, `Icons/SustainedPulse.swift`, `Icons/PlaybackIconView.swift`, `Clic/LargePlayerView.swift`, `Clic/MediaControlsView.swift`, `Clic/Search/MiniPlayerView.swift`, `Clic/ArtworkBadgeView.swift`, `TV/TVPlayerView.swift` |
-| Callers | `Clic/Services/NowPlaying/NowPlayingSessionService.swift`, `Clic/LiveActivityManager.swift`, `Clic/ClicApp.swift`, `Widgets/ControlWidgets/PlaybackControlWidget.swift` |
+| Views | `Packages/VibesDS/Sources/VibesDS/PlaybackTimeline.swift`, `Icons/SustainedPulse.swift`, `Icons/PlaybackIconView.swift`, `Cue/LargePlayerView.swift` (`GroupPlaybackScrubber`), `Cue/Views/PlayerView.swift` (`LocalPlaybackScrubber`), `Cue/CueApp.swift` (`MiniPlayerProgressLine`), `Cue/MediaControlsView.swift`, `Cue/Search/MiniPlayerView.swift`, `Cue/ArtworkBadgeView.swift`, `TV/TVPlayerView.swift` |
+| Callers | `Cue/Services/NowPlaying/NowPlayingSessionService.swift`, `Cue/LiveActivityManager.swift`, `Cue/CueApp.swift`, `Cue/Services/PlaybackRoute.swift`, `Widgets/ControlWidgets/PlaybackControlWidget.swift` |
+| This device | `Cue/Services/LocalPlaybackService.swift` (`progress`, `estimatedProgress(at:)`, `noteProgress(_:)`) |
 | Tests | `Packages/SonosKit/Tests/SonosKitTests/RoomPlaybackPositionTests.swift` |
 | Tooling | `Scripts/export-swiftui-trace.sh` |
 
