@@ -779,7 +779,16 @@ public final class SonosService {
                     roomGroup.coordinatorRoom.track = awaitedTrack
                 }
 
-                guard let (trackMetadata, artworkURL) = await self.getTrackInformation(from: awaitedTrack) else {
+                let trackInformation = await self.getTrackInformation(from: awaitedTrack)
+                // The catalog lookup is slow enough to span a skip press. If one
+                // landed meanwhile, the song on screen is newer than this read,
+                // and the writes below — the last one unconditional — put the
+                // old song back mid-skip.
+                if skipHoldsTrack(on: roomGroup, read: awaitedTrack, at: trackReadAt) {
+                    return
+                }
+
+                guard let (trackMetadata, artworkURL) = trackInformation else {
                     // Metadata fetch failed. If Sonos gave us nothing, bail — keep prior track.
                     guard hasDisplayableInfo else { return }
                     if !roomGroup.isEditingPlayback {
@@ -1128,7 +1137,14 @@ public final class SonosService {
                         roomGroup.coordinatorRoom.track = awaitedTrack
                     }
 
-                    guard let (trackMetadata, artworkURL) = await getTrackInformation(from: awaitedTrack) else {
+                    let trackInformation = await getTrackInformation(from: awaitedTrack)
+                    // See twin site in `load()`: a skip may have landed during
+                    // the lookup.
+                    if skipHoldsTrack(on: roomGroup, read: awaitedTrack, at: trackReadAt) {
+                        return
+                    }
+
+                    guard let (trackMetadata, artworkURL) = trackInformation else {
                         guard hasDisplayableInfo else { return }
                         if !roomGroup.isEditingPlayback {
                             roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)

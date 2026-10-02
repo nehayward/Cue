@@ -95,8 +95,13 @@ extension SonosService: SonosEventHandler {
             if let track = metadata.currentItem?.track {
                 groups[index].audioQuality = track.quality
                 groups[index].coordinatorRoom.container = metadata.container
-                // What a next press can show before the speaker has moved.
+                // What a next press can show before the speaker has moved —
+                // cover included, so it's loaded before anyone presses.
                 liveNextItems[playerId] = LiveNextItem(currentName: track.name ?? "", next: metadata.nextItem?.track)
+                if let next = metadata.nextItem?.track,
+                   let preview = Track(skipPreviewOf: next, musicService: groups[index].coordinatorRoom.track.musicService, position: 0) {
+                    prefetchPlayerArtwork(for: [preview])
+                }
                 // The socket carries the *new* song before the poll notices.
                 // Prefer the catalog object id; fall back to the name for
                 // sources that don't carry one (radio track announcements).

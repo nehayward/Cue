@@ -54,20 +54,10 @@ struct ArtworkView: View {
         return (track.artworkURL?.absoluteString ?? "") + ".player"
     }
 
+    /// Shared with the skip prefetch in SonosKit, so the covers it loads ahead
+    /// are the ones found here.
     private var artworkRequest: ImageRequest? {
-        guard let url = group.coordinatorRoom.track.artworkURL else { return nil }
-        var request = ImageRequest(
-            url: url,
-            processors: [.resize(width: 500)],
-            priority: .high
-        )
-        // `imageID`, not `userInfo[.imageIdKey]`: Nuke 13 stopped reading that
-        // key — it survives only as a deprecated constant — and both the memory
-        // and data cache keys now come from `imageID`. Passing it via userInfo
-        // still compiles and silently does nothing, which split each cover into
-        // two entries (Sonos proxy URL, then service CDN URL).
-        request.imageID = imageIDKey
-        return request
+        group.coordinatorRoom.track.playerArtworkRequest
     }
 
     // Synchronous memory-cache lookup used as the fallback below. On a hit

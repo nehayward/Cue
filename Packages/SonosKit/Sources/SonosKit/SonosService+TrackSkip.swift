@@ -1,4 +1,5 @@
 import Foundation
+import Nuke
 
 /// Skip presses, made instant.
 ///
@@ -13,8 +14,7 @@ import Foundation
 ///
 /// - It moves a target (`TrackSkipPlan`), and one sender per group chases it.
 ///   For a queue played in order that means jumping straight to the target
-///   position; anything else goes out one skip at a time, over the group's open
-///   socket when it has one.
+///   position; anything else goes out one skip at a time.
 /// - It puts the song it's heading to on screen — from the queue, or the
 ///   socket's `nextItem` — and holds back reads that still describe the song
 ///   being left (`skipHoldsTrack`) until the speaker reports the target.
@@ -23,9 +23,6 @@ extension SonosService {
     /// while the speaker hasn't reported it. Past this, whatever the speaker
     /// says wins.
     static let skipHoldTimeout: TimeInterval = 2.5
-    /// A socket send only means the frame left the phone. Reads issued within
-    /// this long of one may still predate the speaker acting on it.
-    static let skipSocketGrace: TimeInterval = 0.4
     /// After the last command, how often and how many times to re-read the
     /// speaker until it agrees. The poll would get there too, but it isn't
     /// always running: backgrounded, the Lock Screen controls drive skips and
@@ -69,6 +66,7 @@ extension SonosService {
         group.coordinatorRoom.updatePlaybackPosition(0)
         showSkipPreview(for: burst, on: group)
         fetchSkipPreviewsIfNeeded(for: burst, on: group)
+        prefetchSkipArtwork(for: burst)
 
         if let sender = burst.sender {
             return sender
@@ -180,8 +178,7 @@ extension SonosService {
     @MainActor
     private func sendPendingSkips(_ burst: TrackSkipBurst, on group: GroupRoom) async {
         while let command = burst.plan.nextCommand {
-            let (accepted, viaSocket) = await sendSkipCommand(command, on: group)
-            guard accepted else {
+            guard await sendSkipCommand(command, on: group) else {
                 // Refused — most likely a jump past the end of a queue whose
                 // length wasn't known yet, or a source that stopped being the
                 // queue. Stop guessing: drop the run and show what the speaker
@@ -193,44 +190,35 @@ extension SonosService {
             }
             burst.plan.didSend(command)
             if case .jump = command { burst.jumped = true }
-            burst.settledAt = Date.now.addingTimeInterval(viaSocket ? Self.skipSocketGrace : 0)
+            burst.settledAt = .now
             burst.holdDeadline = burst.settledAt.addingTimeInterval(Self.skipHoldTimeout)
         }
     }
 
-    /// - Returns: Whether the speaker took the command, and whether it went
-    ///   over the socket — where "took" only means the frame was sent.
+    /// Sends one command as SOAP on the transport session.
+    ///
+    /// Not over the socket, though it was tried: a socket send only says the
+    /// frame left the phone, so the hold had to guess how long the speaker took
+    /// to act and had no way to hear a refusal. SOAP answers when the speaker
+    /// has taken the command, or that it won't — which is what the hold and the
+    /// failure path key off — and on its own connection pool it no longer waits
+    /// behind the poll, which was where the lag was.
+    ///
+    /// - Returns: Whether the speaker accepted it.
     @MainActor
-    private func sendSkipCommand(_ command: TrackSkipPlan.Command, on group: GroupRoom) async -> (accepted: Bool, viaSocket: Bool) {
+    private func sendSkipCommand(_ command: TrackSkipPlan.Command, on group: GroupRoom) async -> Bool {
         let ip = group.coordinatorRoom.ip
         switch command {
         case .jump(let position):
-            let accepted = await api.seek(trackNumber: position, IP: ip)
-            return (accepted, false)
+            return await api.seek(trackNumber: position, IP: ip)
         case .restart:
             // `TimeInterval`, not a bare `0`: that resolves to the relative
             // `TIME_DELTA` overload, which seeks nowhere.
-            let accepted = await api.seek(to: TimeInterval(0), IP: ip)
-            return (accepted, false)
-        case .step(let forward):
-            // The socket is only open while something is listening to this
-            // group (the player on screen, the Lock Screen card), and only
-            // usable while it's still addressed to this group.
-            if let streamingService {
-                do {
-                    try await streamingService.skip(forward: forward, playerId: group.coordinatorID, groupId: group.id)
-                    return (true, true)
-                } catch {
-                    // Fall through to SOAP.
-                }
-            }
-            let accepted: Bool
-            if forward {
-                accepted = await api.next(ipAddress: ip)
-            } else {
-                accepted = await api.previous(ipAddress: ip)
-            }
-            return (accepted, false)
+            return await api.seek(to: TimeInterval(0), IP: ip)
+        case .step(forward: true):
+            return await api.next(ipAddress: ip)
+        case .step(forward: false):
+            return await api.previous(ipAddress: ip)
         }
     }
 
@@ -401,6 +389,40 @@ extension SonosService {
             guard self.skipBursts[group.coordinatorID] === burst else { return }
             self.showSkipPreview(for: burst, on: group)
             self.fetchSkipPreviewsIfNeeded(for: burst, on: group)
+            self.prefetchSkipArtwork(for: burst)
+        }
+    }
+
+    /// Loads the covers of the songs the next press could land on.
+    ///
+    /// The player holds the outgoing cover until the incoming one has loaded,
+    /// so a natural track change never flashes the placeholder. Mid-skip that
+    /// meant the old song's cover sat under the new song's title for as long
+    /// as the speaker took to serve the art — and mashing next cancelled each
+    /// load before it finished. Loaded ahead, the cover is in the cache by the
+    /// time its song comes up.
+    @MainActor
+    private func prefetchSkipArtwork(for burst: TrackSkipBurst) {
+        guard case .queue = burst.plan.mode else { return }
+        let target = burst.plan.target
+        let upcoming = [target + 1, target + 2, target - 1].compactMap { position in
+            burst.queuePreviews[position].map { Track(skipPreviewOf: $0, position: position) }
+        }
+        prefetchPlayerArtwork(for: upcoming)
+    }
+
+    /// Warms the image cache with the player's request for each track. A cover
+    /// already cached costs a lookup; one already loading joins that load.
+    func prefetchPlayerArtwork(for tracks: [Track]) {
+        for track in tracks {
+            guard var request = track.playerArtworkRequest,
+                  ImagePipeline.shared.cache.cachedImage(for: request) == nil else { continue }
+            // Below the cover actually on screen. Priority isn't part of the
+            // cache key, and the player asking for the same image raises it.
+            request.priority = .normal
+            Task {
+                _ = try? await ImagePipeline.shared.image(for: request)
+            }
         }
     }
 
