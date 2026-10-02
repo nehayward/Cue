@@ -1653,6 +1653,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // The continued-processing task's launch handler has to be in place
         // before a download batch submits it.
         ContinuedDownloadTask.shared.register()
+        // Early, so a status the watch sent while Cue was closed, and the
+        // end of a library transfer, are delivered.
+        WatchSyncService.shared.activate()
         // A Files scan gets the same card: progress on the Lock Screen and
         // the app kept running until it's done. The pass that reads the
         // tags of songs still in iCloud follows the scan on the same card,

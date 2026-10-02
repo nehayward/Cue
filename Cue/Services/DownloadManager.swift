@@ -423,16 +423,7 @@ final class DownloadManager {
     @discardableResult
     func download(contentsOf container: PlayableContent) async -> BatchResult {
         guard canDownload(contentsOf: container) else { return BatchResult() }
-        var tracks: [PlayableContent] = []
-        var offset = 0
-        // Bounded: a source that quietly ignored `offset` would otherwise
-        // hand back its first page forever.
-        for _ in 0 ..< 200 {
-            let page = await LocalPlaybackService.shared.containerTracks(for: container, offset: offset)
-            guard !page.isEmpty else { break }
-            tracks.append(contentsOf: page)
-            offset += page.count
-        }
+        let tracks = await LocalPlaybackService.shared.allContainerTracks(for: container)
         let downloadable = tracks.filter { canDownload($0) }
         guard !downloadable.isEmpty else { return BatchResult() }
 

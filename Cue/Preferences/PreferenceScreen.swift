@@ -1182,6 +1182,39 @@ struct PreferenceScreen: View {
                 }
             }
 
+            if WatchSyncService.shared.isPaired {
+                NavigationLink {
+                    WatchSettingsScreen()
+                } label: {
+                    let watch = WatchSyncService.shared
+                    Label {
+                        VStack(alignment: .leading) {
+                            Text("Apple Watch")
+                            Text(!watch.isWatchAppInstalled
+                                 ? "Install Cue on your watch to take music with you"
+                                 : watch.songCount == 0
+                                 ? "Take Plex and Subsonic music with you"
+                                 : watch.songCount == 1 ? "1 song" : "\(watch.songCount) songs")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "applewatch")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(7)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.4, green: 0.4, blue: 0.45), Color(red: 0.2, green: 0.2, blue: 0.25)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+                }
+            }
+
             Button {
                 Task {
                     isClearing = true

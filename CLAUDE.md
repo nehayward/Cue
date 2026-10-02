@@ -41,7 +41,7 @@ This is an Xcode project with multiple targets and schemes:
 ### Build Commands
 - **Open in Xcode**: `open Cue.xcodeproj`
 - **Build main app**: Use Xcode's build system (⌘+B) or select specific schemes
-- **Available schemes**: Cue, Cue (Mac), Cue (TV), Cue Mini, Cue [Free], Vision [Free], QueueAction, Widgets
+- **Available schemes**: Cue, Cue (Mac), Cue (TV), Cue (Watch), Cue Mini, Cue [Free], Vision [Free], QueueAction, Widgets
 
 ### Testing
 - **Run tests**: Use Xcode's test navigator or ⌘+U
@@ -82,6 +82,10 @@ The app is built around several Swift packages in `/Packages`:
 6. **VibesDS** - Custom UI design system
    - Reusable SwiftUI components and styles
 
+7. **WatchSync** - What the iPhone and the watch app share (pure Foundation, tested with `swift test`)
+   - `WatchLibrary`/`WatchTrack`/`WatchCollection` (what's on the watch), `WatchStatus` (what the watch reports back), `WatchSyncMessage` (WatchConnectivity keys), `WatchSyncPlan`
+   - `TransferRateMeter` and `RouteEstimator`, which tell the watch's own Wi‑Fi from the iPhone relay by speed
+
 ### Main App Structure
 - **CueApp.swift** - Main app entry point with shared services
 - **Router.swift** - Navigation and routing system
@@ -93,6 +97,7 @@ The app is built around several Swift packages in `/Packages`:
 ### Platform-Specific Apps
 - **CueMini/** - macOS menu bar app for quick controls
 - **TV/** - tvOS app optimized for Apple TV
+- **Watch/** - watchOS app (`Cue (Watch)`, embedded in the iOS app): plays Plex and Subsonic songs downloaded to the watch. See Apple Watch below
 - **Widgets/** - iOS/macOS widgets, controls and Live Activities (target kept, not embedded in the apps for now)
 - **PlayAction/** - Share sheet extension for queuing music
 - **Website/** - cue.dance, a Cloudflare Worker (see `Website/README.md`). Release pages and the in-app What's New JSON come from `Website/src/content/releases.js` (starting at 2026.1), and `/help` and `/releases/<version>` are opened by the app's web views
@@ -162,7 +167,13 @@ The app is built around several Swift packages in `/Packages`:
 - **iOS**: Focus on mobile-optimized UI. The Lock Screen relies on the system Now Playing card, always on for Cue Super (there is no Lock Screen setting; `NowPlayingSessionService.isPreferenceOn` is fixed to true, and Use iPhone Volume Buttons lives in Settings ▸ Sonos); Live Activities are off for now (`LiveActivityManagerKey` and `LiveActivityManagerFactory` hand out `LiveActivityManagerMock`, `NSSupportsLiveActivities` is unset, and the Widgets extension is not embedded)
 - **macOS**: Leverage menu bar app and Mac-specific controls
 - **tvOS**: Optimize for remote control navigation
-- **watchOS**: The watch app and its widgets were removed pending a rewrite; the old code lives in git history (`Watch/`, `WatchWidgets/`)
+- **watchOS**: A device-first player for Plex and Subsonic, rewritten from scratch (the old Sonos remote and its widgets live in git history). What's on the watch is chosen on the iPhone (Add to Apple Watch in a song, album, playlist or artist menu; Settings ▸ Storage ▸ Apple Watch lists it). `WatchSyncService` (iOS) keeps the `WatchLibrary` and sends it whole with `WCSession.transferFile`; the watch's `WatchDownloadStore` downloads the self-authenticating stream URLs straight from the server and answers with a `WatchStatus` as application context. `WatchPlayer` plays the files through a long-form audio session (`UIBackgroundModes: audio` — watchOS ignores `WKBackgroundModes` for audio)
+
+### Apple Watch downloads
+- watchOS routes a watch app's `URLSession` traffic through the iPhone whenever the two are connected over Bluetooth (tens of KB/s), and no app can choose otherwise. Low-level networking, `NWPathMonitor` included, is off limits outside audio streaming and VoIP (TN3135), so the app can't ask which way a transfer goes.
+- Downloads normally run on a background session (`dance.cue.watch.downloads`) and carry on with Cue closed. **Fast Download** runs them on a foreground session, four at a time, while Cue is open, and asks for Bluetooth to be turned off in the iPhone's Settings app (Control Center leaves the watch connected), which leaves the watch its own Wi‑Fi. The speed is the evidence of the route (`RouteEstimator`: under 250 KB/s after 5 s is "through iPhone", 400 KB/s or more is Wi‑Fi), and the screen asks again while it's slow. Leaving the app hands what's left back to the background session; returning resumes the fast run.
+- Each transfer logs its metrics (proxy connection, local and remote address, KB/s) under the `dance.cue.watch` subsystem, for checking the route on a device.
+- Only Plex and Subsonic go on the watch: the same rule as `DownloadManager`, since their songs are plain URLs. Adding is gated by `FeatureGate` `.downloads`, with no separate limit.
 
 ## Deferred Work / Notes
 

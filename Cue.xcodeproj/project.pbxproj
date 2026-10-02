@@ -95,6 +95,11 @@
 		ED069F1D2F58A2AA00869F64 /* DropKit in Frameworks */ = {isa = PBXBuildFile; productRef = ED069F1C2F58A2AA00869F64 /* DropKit */; };
 		ED069F1F2F58A2B000869F64 /* DropKit in Frameworks */ = {isa = PBXBuildFile; productRef = ED069F1E2F58A2B000869F64 /* DropKit */; };
 		ED069F212F58A2B600869F64 /* DropKit in Frameworks */ = {isa = PBXBuildFile; productRef = ED069F202F58A2B600869F64 /* DropKit */; };
+		E9C03B092A586F6100FB9118 /* Cue Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = E9C03AFC2A586F5E00FB9118 /* Cue Watch.app */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CA7C00010000000000000012 /* WatchSync in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000002 /* WatchSync */; };
+		CA7C00010000000000000013 /* WatchSync in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000003 /* WatchSync */; };
+		CA7C00010000000000000014 /* WatchSync in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000004 /* WatchSync */; };
+		CA7C00010000000000000015 /* WatchSync in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000005 /* WatchSync */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -139,6 +144,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = E92E47422B360C5C00DE6647;
 			remoteInfo = QueueAction;
+		};
+		E9C03B072A586F6100FB9118 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E9C03AFB2A586F5E00FB9118;
+			remoteInfo = "Cue (Watch)";
 		};
 /* End PBXContainerItemProxy section */
 
@@ -199,6 +211,17 @@
 			name = "Embed ExtensionKit Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E9C03B0D2A586F6100FB9118 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				E9C03B092A586F6100FB9118 /* Cue Watch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -217,6 +240,7 @@
 		E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		E9BDE56C29E3396700D230A8 /* Cue.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cue.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9C03AFC2A586F5E00FB9118 /* Cue Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cue Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -468,6 +492,20 @@
 			);
 			target = E97562C82B699B2400787E14 /* Cue (Mac) */;
 		};
+		01B9C56F2E73C13C00CDE053 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Icon.icon,
+			);
+			target = E9C03AFB2A586F5E00FB9118 /* Cue (Watch) */;
+		};
+		E91B816D2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E9C03AFB2A586F5E00FB9118 /* Cue (Watch) */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -475,7 +513,8 @@
 		01C129702D0CB4E9009F9E90 /* CueMini */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01E41E302D15DFB200E89679 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = CueMini; sourceTree = "<group>"; };
 		01CB341F2DC4FA46006406B6 /* TV */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01CB34222DC4FAE3006406B6 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = TV; sourceTree = "<group>"; };
 		AA00CA0A0000000000000001 /* CueAction */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (AA00CA1E0000000000000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = CueAction; sourceTree = "<group>"; };
-		E91B7FBA2CEBC162004C279D /* Cue */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B811A2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811B2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811C2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811D2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01B10FDB2E43F1B300CDA80A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811E2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 012CCD362FD3338900A07E7D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Cue; sourceTree = "<group>"; };
+		E91B7FBA2CEBC162004C279D /* Cue */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B811A2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811B2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01B9C56F2E73C13C00CDE053 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811C2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811D2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01B10FDB2E43F1B300CDA80A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811E2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 012CCD362FD3338900A07E7D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Cue; sourceTree = "<group>"; };
+		E91B813B2CEBC171004C279D /* Watch */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816D2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Watch; sourceTree = "<group>"; };
 		E91B815B2CEBC171004C279D /* Mac */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E9D6375B2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E9D6375C2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01FF08422D11F3B90078CD62 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01F0B0C42D2876EE00885D20 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Mac; sourceTree = "<group>"; };
 		E91B81742CEBC222004C279D /* PlayAction */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01F2A5D62FAE525700C98AF9 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B81792CEBC222004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, AA00CA1F0000000000000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = PlayAction; sourceTree = "<group>"; };
 		E91B829A2CEBC291004C279D /* Widgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B83292CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832A2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832C2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832D2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Widgets; sourceTree = "<group>"; };
@@ -535,6 +574,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CA7C00010000000000000014 /* WatchSync in Frameworks */,
 				E92B3EE42B60249B00724FA1 /* Nuke in Frameworks */,
 				E92B3EE62B60249B00724FA1 /* StoreKit.framework in Frameworks */,
 				E92B3EE72B60249B00724FA1 /* SubscriptionKit in Frameworks */,
@@ -571,6 +611,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CA7C00010000000000000013 /* WatchSync in Frameworks */,
 				E975632C2B699B2400787E14 /* Nuke in Frameworks */,
 				E975632E2B699B2400787E14 /* StoreKit.framework in Frameworks */,
 				E975632F2B699B2400787E14 /* SubscriptionKit in Frameworks */,
@@ -606,6 +647,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CA7C00010000000000000012 /* WatchSync in Frameworks */,
 				E9F600C22B4E5E470039AAA6 /* Nuke in Frameworks */,
 				E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */,
 				E960ED4A2AC4969F003E3732 /* SubscriptionKit in Frameworks */,
@@ -624,6 +666,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E9C03AF92A586F5E00FB9118 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CA7C00010000000000000015 /* WatchSync in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -635,6 +685,7 @@
 				010855CA2D15FB9F00DD9B84 /* Packages */,
 				E91B7FBA2CEBC162004C279D /* Cue */,
 				E91B815B2CEBC171004C279D /* Mac */,
+				E91B813B2CEBC171004C279D /* Watch */,
 				01CB341F2DC4FA46006406B6 /* TV */,
 				E91B829A2CEBC291004C279D /* Widgets */,
 				E91B81742CEBC222004C279D /* PlayAction */,
@@ -650,6 +701,7 @@
 			children = (
 				E9BDE56C29E3396700D230A8 /* Cue.app */,
 				E97C0D412A325CC5005AB0E0 /* Widgets.appex */,
+				E9C03AFC2A586F5E00FB9118 /* Cue Watch.app */,
 				E92E47432B360C5C00DE6647 /* QueueAction.appex */,
 				AA00CA020000000000000001 /* CueAction.appex */,
 				E92B3EFB2B60249B00724FA1 /* Cue.app */,
@@ -808,6 +860,7 @@
 				0186D94B2E674B4F001387F1 /* FocusOnAppear */,
 				ED069F202F58A2B600869F64 /* DropKit */,
 				01A1F8872F61075600C0D52B /* Glur */,
+				CA7C00010000000000000004 /* WatchSync */,
 			);
 			productName = Sonos;
 			productReference = E92B3EFB2B60249B00724FA1 /* Cue.app */;
@@ -878,6 +931,7 @@
 				01A662752F27241E00C7524D /* Glur */,
 				ED069F1E2F58A2B000869F64 /* DropKit */,
 				0131617F2FC54BF500249DC4 /* NewsletterKit */,
+				CA7C00010000000000000003 /* WatchSync */,
 			);
 			productName = Sonos;
 			productReference = E97563432B699B2400787E14 /* Cue.app */;
@@ -917,6 +971,7 @@
 				E9BDE56929E3396700D230A8 /* Frameworks */,
 				E9BDE56A29E3396700D230A8 /* Resources */,
 				E97C0D582A325CC6005AB0E0 /* Embed Foundation Extensions */,
+				E9C03B0D2A586F6100FB9118 /* Embed Watch Content */,
 				E9B00E782C6FE857005BF635 /* Embed ExtensionKit Extensions */,
 				0159A2E52D1283F600AF0F19 /* Embed Frameworks */,
 			);
@@ -925,6 +980,7 @@
 			dependencies = (
 				E9249A672C0A6CCB00D8B920 /* PBXTargetDependency */,
 				AA00CA0F0000000000000001 /* PBXTargetDependency */,
+				E9C03B082A586F6100FB9118 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				E91B7FBA2CEBC162004C279D /* Cue */,
@@ -945,9 +1001,33 @@
 				01A662732F27240E00C7524D /* Glur */,
 				ED069F1C2F58A2AA00869F64 /* DropKit */,
 				01FA14662FC546A800B95FA3 /* NewsletterKit */,
+				CA7C00010000000000000002 /* WatchSync */,
 			);
 			productName = Sonos;
 			productReference = E9BDE56C29E3396700D230A8 /* Cue.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E9C03AFB2A586F5E00FB9118 /* Cue (Watch) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E9C03B0A2A586F6100FB9118 /* Build configuration list for PBXNativeTarget "Cue (Watch)" */;
+			buildPhases = (
+				E9C03AF82A586F5E00FB9118 /* Sources */,
+				E9C03AF92A586F5E00FB9118 /* Frameworks */,
+				E9C03AFA2A586F5E00FB9118 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				E91B813B2CEBC171004C279D /* Watch */,
+			);
+			name = "Cue (Watch)";
+			packageProductDependencies = (
+				CA7C00010000000000000005 /* WatchSync */,
+			);
+			productName = "Cue Watch";
+			productReference = E9C03AFC2A586F5E00FB9118 /* Cue Watch.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -973,6 +1053,9 @@
 						CreatedOnToolsVersion = 15.1;
 					};
 					E97C0D402A325CC5005AB0E0 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					E9C03AFB2A586F5E00FB9118 = {
 						CreatedOnToolsVersion = 15.0;
 					};
 					E9BDE56B29E3396700D230A8 = {
@@ -1001,6 +1084,7 @@
 				0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */,
 				01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */,
 				01FA14652FC546A800B95FA3 /* XCLocalSwiftPackageReference "Packages/NewsletterKit" */,
+				CA7C00010000000000000001 /* XCLocalSwiftPackageReference "Packages/WatchSync" */,
 			);
 			productRefGroup = E9BDE56D29E3396700D230A8 /* Products */;
 			projectDirPath = "";
@@ -1008,6 +1092,7 @@
 			targets = (
 				E9BDE56B29E3396700D230A8 /* Cue */,
 				E97C0D402A325CC5005AB0E0 /* Widgets */,
+				E9C03AFB2A586F5E00FB9118 /* Cue (Watch) */,
 				E97562C82B699B2400787E14 /* Cue (Mac) */,
 				E92B3E862B60249B00724FA1 /* Cue (Vision) */,
 				01CB33E92DC4F851006406B6 /* Cue (TV) */,
@@ -1087,6 +1172,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E9C03AFA2A586F5E00FB9118 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -1153,6 +1245,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E9C03AF82A586F5E00FB9118 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1187,6 +1286,12 @@
 			isa = PBXTargetDependency;
 			target = E92E47422B360C5C00DE6647 /* QueueAction */;
 			targetProxy = E9D637782CEBF06D00434339 /* PBXContainerItemProxy */;
+		};
+		E9C03B082A586F6100FB9118 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = E9C03AFB2A586F5E00FB9118 /* Cue (Watch) */;
+			targetProxy = E9C03B072A586F6100FB9118 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -2170,6 +2275,91 @@
 			};
 			name = Release;
 		};
+		E9C03B0B2A586F6100FB9118 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Watch/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Cue;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue downloads music from your Plex or Subsonic server on this network.";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(BUNDLE_ID)";
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).watch";
+				PRODUCT_NAME = "Cue Watch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		E9C03B0C2A586F6100FB9118 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Watch/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Cue;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue downloads music from your Plex or Subsonic server on this network.";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(BUNDLE_ID)";
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).watch";
+				PRODUCT_NAME = "Cue Watch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -2263,6 +2453,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		E9C03B0A2A586F6100FB9118 /* Build configuration list for PBXNativeTarget "Cue (Watch)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E9C03B0B2A586F6100FB9118 /* Debug */,
+				E9C03B0C2A586F6100FB9118 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -2277,6 +2476,10 @@
 		01FA14652FC546A800B95FA3 /* XCLocalSwiftPackageReference "Packages/NewsletterKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/NewsletterKit;
+		};
+		CA7C00010000000000000001 /* XCLocalSwiftPackageReference "Packages/WatchSync" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/WatchSync;
 		};
 /* End XCLocalSwiftPackageReference section */
 
@@ -2750,6 +2953,22 @@
 		ED069F202F58A2B600869F64 /* DropKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DropKit;
+		};
+		CA7C00010000000000000002 /* WatchSync */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WatchSync;
+		};
+		CA7C00010000000000000003 /* WatchSync */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WatchSync;
+		};
+		CA7C00010000000000000004 /* WatchSync */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WatchSync;
+		};
+		CA7C00010000000000000005 /* WatchSync */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WatchSync;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

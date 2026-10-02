@@ -42,6 +42,8 @@ struct PlayableMenuView: View {
                         Label("Play Radio", systemImage: "dot.radiowaves.left.and.right")
                     }
                 }
+
+                WatchMenuSection(item: item)
             case .playlist, .libraryPlaylist, .libraryImportedPlaylists:
                 ControlGroup("Queue \(item.title)") {
                     Button {
@@ -62,6 +64,8 @@ struct PlayableMenuView: View {
                         Label("Play Next", systemImage: "text.insert")
                     }
                 }
+
+                WatchMenuSection(item: item)
 
                 if (item.content.service == .library && item.content.id.last?.isNumber ?? false) || item.isFilesPlaylist {
                     Button {
@@ -109,6 +113,7 @@ struct PlayableMenuView: View {
                 if LocalPlaybackService.shared.canPlayAnywhereLocally(item) {
                     Section {
                         LocalDownloadMenuSection(item: item)
+                        WatchMenuSection(item: item)
                     }
                     .onAppear {
                         AppleDownloadsIndex.shared.refreshIfNeeded()
