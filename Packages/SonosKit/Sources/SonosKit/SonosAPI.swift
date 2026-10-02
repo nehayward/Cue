@@ -10,8 +10,8 @@ final class SonosAPI: NSObject {
     private let logger: Logger = Logger(subsystem: "com.sonos.nick", category: "SonosAPI")
     lazy var session: URLSession = privateSession
     private lazy var queueSession: URLSession = queueSessionConfig
-    /// Transport commands (skip, track jump, seek) get their own connection
-    /// pool. On `session` they queued behind the pulse's reads — five or six
+    /// Transport commands (play, pause, skip, track jump, seek) get their own
+    /// connection pool. On `session` they queued behind the pulse's reads — five or six
     /// SOAP calls per group every 500 ms — so a skip pressed mid-pulse waited
     /// for polls that were about to be stale anyway.
     private lazy var transportSession: URLSession = transportSessionConfig
@@ -42,7 +42,6 @@ final class SonosAPI: NSObject {
         // so this changes no behavior. It only keeps a session that exists to
         // send commands from touching the shared on-disk cache at all.
         configuration.urlCache = nil
-        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         return URLSession(configuration: configuration)
     }()
     
@@ -244,18 +243,11 @@ final class SonosAPI: NSObject {
             ("InstanceID", 0)
         ]
 
-        // A throw here used to return silently, so a pause that never reached
-        // the speaker was indistinguishable from one that worked — the model
-        // held the optimistic "paused" until a poll quietly corrected it back.
-        guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Pause", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-            logger.error("Pause request to \(ipAddress) failed to send")
-            return
-        }
-
-        let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-        if status != 200 {
-            logger.error("Pause to \(ipAddress) rejected, status \(status)")
-        }
+        // Logs both a send failure and a refusal: a throw here used to return
+        // silently, so a pause that never reached the speaker was
+        // indistinguishable from one that worked — the model held the
+        // optimistic "paused" until a poll quietly corrected it back.
+        await sendTransportCommand(ip: ipAddress, action: "Pause", arguments: arguments)
     }
 
     func play(ipAddress: String) async {
@@ -264,15 +256,7 @@ final class SonosAPI: NSObject {
             ("Speed", 1)
         ]
 
-        guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Play", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-            logger.error("Play request to \(ipAddress) failed to send")
-            return
-        }
-
-        let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-        if status != 200 {
-            logger.error("Play to \(ipAddress) rejected, status \(status)")
-        }
+        await sendTransportCommand(ip: ipAddress, action: "Play", arguments: arguments)
     }
 
     /// - Returns: Whether the speaker accepted the skip.
@@ -1056,6 +1040,7 @@ final class SonosAPI: NSObject {
     ///
     /// - Returns: Whether the speaker answered 200. Cancellation reads as a
     ///   failure: nothing confirms the speaker acted on it.
+    @discardableResult
     private func sendTransportCommand(ip: String, action: String, arguments: OrderedKeys) async -> Bool {
         guard let request = createSoapRequest(ip: ip, action: action, arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
             return false

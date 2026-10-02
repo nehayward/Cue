@@ -723,7 +723,11 @@ public final class SonosService {
             // (This was the silent cause of stale title/artist/artwork after
             // foreground when the new track shared `unique` with the prior
             // pulse's reconcile path, e.g. HLS radio metadata catching up.)
-            if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique {
+            //
+            // Not for a skip preview: it shares the real song's `unique` but
+            // still needs the lookup below.
+            if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique,
+               !roomGroup.coordinatorRoom.track.isSkipPreview {
                 if !roomGroup.isEditingPlayback,
                    roomGroup.coordinatorRoom.playbackPosition != awaitedTrack.playbackPosition {
                     roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
@@ -753,81 +757,54 @@ public final class SonosService {
                 return
             }
 
-            // Only get track information if the track ID has changed
-            let shouldGetTrackInfo = roomGroup.coordinatorRoom.track.unique != awaitedTrack.unique
-                || !attemptedTrackInfoUniques.contains(awaitedTrack.unique)
-            
-            if shouldGetTrackInfo {
-                attemptedTrackInfoUniques.insert(awaitedTrack.unique)
-                // Sonos's XML (`dc:title`, `dc:creator`, `r:albumArtist`) already gives us
-                // displayable name/artist — assign immediately so the row never sits blank
-                // while we wait on `getTrackInformation` (which can be slow or rate-limited
-                // for Spotify/Apple Music). Metadata then enhances the track in place.
-                //
-                // Same-album carry: if the new track is on the same album, inherit the
-                // existing artwork URL so ArtworkView's artworkURL never briefly becomes
-                // the Sonos proxy (or nil) before the CDN URL arrives. Spotify sends only
-                // dc:creator (per-track artist), so without this the URL changes twice on
-                // every track change within an album, causing a visible flash.
-                if !awaitedTrack.album.isEmpty,
-                   awaitedTrack.album == roomGroup.coordinatorRoom.track.album,
-                   let priorURL = roomGroup.coordinatorRoom.track.downloadedArtworkURL {
-                    awaitedTrack.downloadedArtworkURL = priorURL
-                }
-                let hasDisplayableInfo = !awaitedTrack.name.isEmpty || !awaitedTrack.artist.isEmpty
-                if hasDisplayableInfo {
-                    roomGroup.coordinatorRoom.track = awaitedTrack
-                }
-
-                let trackInformation = await self.getTrackInformation(from: awaitedTrack)
-                // The catalog lookup is slow enough to span a skip press. If one
-                // landed meanwhile, the song on screen is newer than this read,
-                // and the writes below — the last one unconditional — put the
-                // old song back mid-skip.
-                if skipHoldsTrack(on: roomGroup, read: awaitedTrack, at: trackReadAt) {
-                    return
-                }
-
-                guard let (trackMetadata, artworkURL) = trackInformation else {
-                    // Metadata fetch failed. If Sonos gave us nothing, bail — keep prior track.
-                    guard hasDisplayableInfo else { return }
-                    if !roomGroup.isEditingPlayback {
-                        roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
-                    }
-                    return
-                }
-
-                awaitedTrack.metadata = trackMetadata
-                awaitedTrack.downloadedArtworkURL = artworkURL
-
-                if awaitedTrack.musicService == .tuneIn {
-                    awaitedTrack.artist = trackMetadata?.artist ?? ""
-                }
-
-                // If Sonos was empty earlier, this is our first chance to assign.
-                if !hasDisplayableInfo {
-                    roomGroup.coordinatorRoom.track = awaitedTrack
-                }
-
-                // Compare against the on-screen track — not `awaitedTrack`, which
-                // already holds `artworkURL` from the line above, making this
-                // check always false. Guard on `unique` so a track the user
-                // skipped past during the slow lookup isn't clobbered.
-                if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique {
-                    roomGroup.coordinatorRoom.track.metadata = trackMetadata
-                    if roomGroup.coordinatorRoom.track.downloadedArtworkURL != artworkURL {
-                        roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
-                    }
-                }
-            } else {
-                if !roomGroup.isEditingPlayback, isNowPlaying {
-                    roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
-                }
+            // A different song (or a skip preview of this one) from here on, so
+            // it always needs its track information.
+            attemptedTrackInfoUniques.insert(awaitedTrack.unique)
+            // Sonos's XML (`dc:title`, `dc:creator`, `r:albumArtist`) already gives us
+            // displayable name/artist — assign immediately so the row never sits blank
+            // while we wait on `getTrackInformation` (which can be slow or rate-limited
+            // for Spotify/Apple Music). Metadata then enhances the track in place.
+            awaitedTrack.inheritAlbumArtwork(from: roomGroup.coordinatorRoom.track)
+            let hasDisplayableInfo = !awaitedTrack.name.isEmpty || !awaitedTrack.artist.isEmpty
+            if hasDisplayableInfo {
+                roomGroup.coordinatorRoom.track = awaitedTrack
             }
 
-            if roomGroup.coordinatorRoom.track.unique != awaitedTrack.unique {
+            let shownBeforeLookup = roomGroup.coordinatorRoom.track.unique
+            let trackInformation = await self.getTrackInformation(from: awaitedTrack)
+            // The lookup is slow enough to span a skip press, a socket refresh,
+            // or a queue-row tap. If anything else changed the track meanwhile,
+            // it's newer than this read — writing this read back over it was
+            // the old song flickering in mid-skip.
+            guard roomGroup.coordinatorRoom.track.unique == shownBeforeLookup else { return }
+
+            guard let (trackMetadata, artworkURL) = trackInformation else {
+                // Metadata fetch failed. If Sonos gave us nothing, bail — keep prior track.
+                guard hasDisplayableInfo else { return }
+                if !roomGroup.isEditingPlayback {
+                    roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
+                }
+                return
+            }
+
+            awaitedTrack.metadata = trackMetadata
+            awaitedTrack.downloadedArtworkURL = artworkURL
+
+            if awaitedTrack.musicService == .tuneIn {
+                awaitedTrack.artist = trackMetadata?.artist ?? ""
+            }
+
+            // If Sonos was empty earlier, this is our first chance to assign.
+            if !hasDisplayableInfo {
                 roomGroup.coordinatorRoom.track = awaitedTrack
-                roomGroup.coordinatorRoom.track.downloadedArtworkURL = awaitedTrack.downloadedArtworkURL
+            }
+
+            // Write the enrichment onto the on-screen track rather than
+            // replacing it: the early assignment above may already have been
+            // reconciled by a later pulse.
+            roomGroup.coordinatorRoom.track.metadata = trackMetadata
+            if roomGroup.coordinatorRoom.track.downloadedArtworkURL != artworkURL {
+                roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
             }
 
             Task {
@@ -1093,8 +1070,10 @@ public final class SonosService {
                     // `let currentTrack = ...` capture is a value copy and
                     // mutations vanish. Write through the Room property
                     // directly so the @Observable setter actually fires.
+                    // Not for a skip preview — see twin site in `load()`.
                     if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique,
-                       attemptedTrackInfoUniques.contains(awaitedTrack.unique) {
+                       attemptedTrackInfoUniques.contains(awaitedTrack.unique),
+                       !roomGroup.coordinatorRoom.track.isSkipPreview {
                         if !roomGroup.isEditingPlayback, roomGroup.coordinatorRoom.playbackPosition != awaitedTrack.playbackPosition {
                             roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
                         }
@@ -1127,22 +1106,17 @@ public final class SonosService {
                     // the row never sits blank waiting on `getTrackInformation`.
                     //
                     // Same-album carry: see twin site above.
-                    if !awaitedTrack.album.isEmpty,
-                       awaitedTrack.album == roomGroup.coordinatorRoom.track.album,
-                       let priorURL = roomGroup.coordinatorRoom.track.downloadedArtworkURL {
-                        awaitedTrack.downloadedArtworkURL = priorURL
-                    }
+                    awaitedTrack.inheritAlbumArtwork(from: roomGroup.coordinatorRoom.track)
                     let hasDisplayableInfo = !awaitedTrack.name.isEmpty || !awaitedTrack.artist.isEmpty
                     if hasDisplayableInfo {
                         roomGroup.coordinatorRoom.track = awaitedTrack
                     }
 
+                    let shownBeforeLookup = roomGroup.coordinatorRoom.track.unique
                     let trackInformation = await getTrackInformation(from: awaitedTrack)
-                    // See twin site in `load()`: a skip may have landed during
-                    // the lookup.
-                    if skipHoldsTrack(on: roomGroup, read: awaitedTrack, at: trackReadAt) {
-                        return
-                    }
+                    // See twin site in `load()`: anything that changed the track
+                    // during the lookup is newer than this read.
+                    guard roomGroup.coordinatorRoom.track.unique == shownBeforeLookup else { return }
 
                     guard let (trackMetadata, artworkURL) = trackInformation else {
                         guard hasDisplayableInfo else { return }
@@ -2346,38 +2320,37 @@ public final class SonosService {
         isEditing = false
     }
 
-    /// Skips to the next track. On a group this service knows, the new song
-    /// shows at once and rapid presses are coalesced — see `skip(_:on:)`.
+    /// Skips to the next track. On a group this service keeps current, the new
+    /// song shows at once and rapid presses are coalesced — see `skip(_:on:)`.
     /// Returns once the speaker has been told.
     @MainActor
     public func next(ip: String) async {
-        guard let group = groups.first(where: { $0.coordinatorRoom.ip == ip }), isKeepingCurrent(group) else {
+        guard let group = liveSkipGroup(ip: ip) else {
             await api.next(ipAddress: ip)
             return
         }
         await refreshPositionForSkip(group)
-        await skip(.next, on: group).value
+        await skip(.next, on: group)
     }
 
     /// If playback is more than 3 seconds into the track, restarts the current track.
     /// Otherwise, goes to the previous track.
     @MainActor
     public func previous(ip: String) async {
-        if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }), isKeepingCurrent(group) {
-            await refreshPositionForSkip(group)
-            await skip(.previous, on: group).value
+        guard let group = liveSkipGroup(ip: ip) else {
+            // No live model for this group (an extension that hasn't loaded
+            // one, or only a cached one), so the position has to come from the
+            // speaker.
+            let track = await api.getCurrentTrack(ipAddress: ip)
+            if (track?.playbackPosition ?? 0) >= TrackSkipPlan.restartThreshold {
+                await api.seek(to: TimeInterval(0), IP: ip)
+            } else {
+                await api.previous(ipAddress: ip)
+            }
             return
         }
-
-        // No live model for this group (an extension that hasn't loaded one, or
-        // only a cached one), so the position has to come from the speaker.
-        let track = await api.getCurrentTrack(ipAddress: ip)
-        let playbackPosition = track?.playbackPosition ?? 0
-        if playbackPosition >= 3000 {
-            await api.seek(to: TimeInterval(0), IP: ip)
-        } else {
-            await api.previous(ipAddress: ip)
-        }
+        await refreshPositionForSkip(group)
+        await skip(.previous, on: group)
     }
 
     public func isMuted(for group: GroupRoom) async -> Bool? {

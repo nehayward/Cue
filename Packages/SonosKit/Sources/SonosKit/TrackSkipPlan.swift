@@ -12,13 +12,13 @@ import Foundation
 /// target is an absolute queue position, so however many presses land while a
 /// command is in flight, catching up costs one `Seek` — not one skip per press,
 /// each of which the speaker would otherwise open a stream for in turn.
-public struct TrackSkipPlan: Equatable, Sendable {
-    public enum Direction: Sendable {
+struct TrackSkipPlan {
+    enum Direction {
         case next
         case previous
     }
 
-    public enum Mode: Equatable, Sendable {
+    enum Mode {
         /// The Sonos queue, played in order. A press moves an absolute queue
         /// position the speaker can be sent straight to.
         case queue(wrapsAround: Bool)
@@ -28,7 +28,7 @@ public struct TrackSkipPlan: Equatable, Sendable {
         case relative
     }
 
-    public enum Command: Equatable, Sendable {
+    enum Command: Equatable {
         /// Jump to a 1-based queue position.
         case jump(to: Int)
         /// One relative skip.
@@ -38,35 +38,31 @@ public struct TrackSkipPlan: Equatable, Sendable {
     }
 
     /// How far into a song (ms) previous restarts it rather than going back.
-    public static let restartThreshold: TimeInterval = 3000
+    static let restartThreshold: TimeInterval = 3000
 
-    public let mode: Mode
+    let mode: Mode
     /// Queue position of the song playing when the first press landed.
-    public let startPosition: Int
-    /// Queue mode: the position the presses add up to.
-    public private(set) var target: Int
-    /// Queue mode: the position the speaker was last sent to — where it
-    /// started, until something has been sent.
-    public private(set) var speakerTarget: Int
-    /// Relative mode: skips pressed but not yet sent. Negative is backwards.
-    public private(set) var pendingSteps = 0
-    /// Relative mode: net skips sent so far. Negative is backwards.
-    public private(set) var sentSteps = 0
+    let startPosition: Int
+    /// Where the presses add up to. In relative mode the positions are only a
+    /// count from `startPosition`: nothing is clamped, and nothing but the
+    /// difference is sent.
+    private(set) var target: Int
+    /// Where the speaker was last sent — where it started, until then.
+    private(set) var speakerTarget: Int
     /// A previous press asked for the current song to start over.
-    public private(set) var restartPending = false
+    private(set) var restartPending = false
     /// Commands the speaker has accepted.
-    public private(set) var commandsSent = 0
+    private(set) var commandsSent = 0
 
-    public init(mode: Mode, startPosition: Int) {
+    init(mode: Mode, startPosition: Int) {
         self.mode = mode
         self.startPosition = startPosition
         self.target = startPosition
         self.speakerTarget = startPosition
     }
 
-    /// Relative mode: where the presses add up to, counted from the song the
-    /// first press left.
-    public var netSteps: Int { sentSteps + pendingSteps }
+    /// How far the presses lead from the song the first press left.
+    var netSteps: Int { target - startPosition }
 
     /// Records a press.
     ///
@@ -79,7 +75,7 @@ public struct TrackSkipPlan: Equatable, Sendable {
     /// - Returns: `false` when the press goes nowhere — next on the last song
     ///   of a queue that doesn't repeat.
     @discardableResult
-    public mutating func press(_ direction: Direction, playbackPosition: TimeInterval, queueTotal: Int) -> Bool {
+    mutating func press(_ direction: Direction, playbackPosition: TimeInterval, queueTotal: Int) -> Bool {
         if direction == .previous, playbackPosition >= Self.restartThreshold {
             restartPending = true
             return true
@@ -100,13 +96,13 @@ public struct TrackSkipPlan: Equatable, Sendable {
             }
             target = moved
         case .relative:
-            pendingSteps += delta
+            target += delta
         }
         return true
     }
 
     /// What to send the speaker next, or `nil` once it has everything.
-    public var nextCommand: Command? {
+    var nextCommand: Command? {
         switch mode {
         case .queue:
             if target != speakerTarget { return .jump(to: target) }
@@ -115,13 +111,13 @@ public struct TrackSkipPlan: Equatable, Sendable {
             // The restart can only have come from the first press — every press
             // zeroes the position — so it goes out ahead of any skips.
             if restartPending { return .restart }
-            if pendingSteps != 0 { return .step(forward: pendingSteps > 0) }
+            if target != speakerTarget { return .step(forward: target > speakerTarget) }
             return nil
         }
     }
 
     /// Records that the speaker accepted `command`.
-    public mutating func didSend(_ command: Command) {
+    mutating func didSend(_ command: Command) {
         commandsSent += 1
         switch command {
         case .jump(let position):
@@ -132,9 +128,7 @@ public struct TrackSkipPlan: Equatable, Sendable {
         case .restart:
             restartPending = false
         case .step(let forward):
-            let delta = forward ? 1 : -1
-            pendingSteps -= delta
-            sentSteps += delta
+            speakerTarget += forward ? 1 : -1
         }
     }
 
@@ -144,7 +138,7 @@ public struct TrackSkipPlan: Equatable, Sendable {
     /// - Parameters:
     ///   - position: The reported song's queue position.
     ///   - isStartTrack: Whether it is the song the first press left.
-    public func isConfirmed(position: Int, isStartTrack: Bool) -> Bool {
+    func isConfirmed(position: Int, isStartTrack: Bool) -> Bool {
         switch mode {
         case .queue:
             return position == target
@@ -152,7 +146,7 @@ public struct TrackSkipPlan: Equatable, Sendable {
             // Skips that cancelled out (or a lone restart) leave the speaker on
             // the song it started on, so any fresh read is the answer.
             // Otherwise wait for it to have moved off that song.
-            return sentSteps == 0 || !isStartTrack
+            return speakerTarget == startPosition || !isStartTrack
         }
     }
 

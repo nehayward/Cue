@@ -937,16 +937,6 @@ final class NowPlayingSessionService {
 
     /// Loads through the shared Nuke pipeline, so the image is usually already
     /// in memory from the player screen.
-    /// Mirrors `ArtworkView.imageIDKey` — album, else track name, else id, else
-    /// the URL — so both surfaces name the same cache entry.
-    private func artworkCacheKey(for track: Track) -> String {
-        let service = String(describing: track.musicService)
-        if !track.album.isEmpty { return "\(track.album).\(service).player" }
-        if !track.name.isEmpty { return "\(track.name).\(service).player" }
-        if !track.trackID.isEmpty { return track.trackID + ".player" }
-        return (track.artworkURL?.absoluteString ?? "") + ".player"
-    }
-
     private func loadArtwork(from url: URL?, track: Track) {
         artworkTask?.cancel()
         publishedArtworkURL = url
@@ -957,18 +947,11 @@ final class NowPlayingSessionService {
             return
         }
 
-        // Same key and processor as `ArtworkView`, so this hits the entry the
-        // player screen populated rather than downloading and decoding a second
-        // copy of the same image on every track change.
-        var request = ImageRequest(
-            url: url,
-            processors: [.resize(width: 500)],
-            priority: .high
-        )
-        // `imageID`, not `userInfo[.imageIdKey]`: Nuke 13 stopped reading that
-        // key, so passing it there compiles and silently keys the request on
-        // its URL — which is exactly the second download this avoids.
-        request.imageID = artworkCacheKey(for: track)
+        // The player's own request, so this hits the entry the player screen
+        // (and the skip prefetch) populated rather than downloading and
+        // decoding a second copy of the same image on every track change.
+        // `url` is this track's `artworkURL`, so the two always agree.
+        guard let request = track.playerArtworkRequest else { return }
         if let cached = ImagePipeline.shared.cache.cachedImage(for: request)?.image {
             attach(artwork: cached, for: url)
             return

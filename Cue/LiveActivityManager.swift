@@ -103,9 +103,13 @@ final class LiveActivityManager: LiveActivityManageable {
             // Mid-skip the model already shows where the presses are headed;
             // this read may still be of the song being left.
             if let track = info.0, await !sonosService.skipHoldsTrack(on: group, read: track, at: trackReadAt) {
-                if group.coordinatorRoom.track.trackID == track.trackID, !group.isEditingPlayback {
+                // A skip preview carries the real song's id but none of its
+                // metadata, so it's replaced rather than kept.
+                let isShownTrack = group.coordinatorRoom.track.trackID == track.trackID
+                    && !group.coordinatorRoom.track.isSkipPreview
+                if isShownTrack, !group.isEditingPlayback {
                     group.coordinatorRoom.updatePlaybackPosition(track.playbackPosition)
-                } else if group.coordinatorRoom.track.trackID != track.trackID {
+                } else if !isShownTrack {
                     group.coordinatorRoom.track = track
                     group.coordinatorRoom.updatePlaybackPosition(track.playbackPosition)
                 }

@@ -42,16 +42,7 @@ struct ArtworkView: View {
     }
 
     fileprivate var imageIDKey: String {
-        let track = group.coordinatorRoom.track
-        let service = String(describing: track.musicService)
-        if !track.album.isEmpty { return "\(track.album).\(service).player" }
-        if !track.name.isEmpty  { return "\(track.name).\(service).player" }
-        if !track.trackID.isEmpty { return track.trackID + ".player" }
-        // Identity-less track (an idle radio player's resting track has no
-        // album/name/trackID): key by the artwork URL. A bare ".player" key
-        // was shared by every idle radio room, so each room's player showed
-        // whichever station's art happened to be cached first.
-        return (track.artworkURL?.absoluteString ?? "") + ".player"
+        group.coordinatorRoom.track.playerArtworkCacheKey
     }
 
     /// Shared with the skip prefetch in SonosKit, so the covers it loads ahead

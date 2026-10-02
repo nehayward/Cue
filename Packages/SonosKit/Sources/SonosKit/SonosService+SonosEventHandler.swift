@@ -5,6 +5,7 @@
 //  Created by Nick Hayward on 9/25/25.
 //
 import Foundation
+import Nuke
 
 extension SonosService: SonosEventHandler {
     // MARK: - SonosEventHandler Implementation
@@ -97,10 +98,14 @@ extension SonosService: SonosEventHandler {
                 groups[index].coordinatorRoom.container = metadata.container
                 // What a next press can show before the speaker has moved —
                 // cover included, so it's loaded before anyone presses.
-                liveNextItems[playerId] = LiveNextItem(currentName: track.name ?? "", next: metadata.nextItem?.track)
+                if let next = metadata.nextItem?.track, let name = track.name, !name.isEmpty {
+                    liveNextItems[playerId] = LiveNextItem(currentName: name, next: next)
+                } else {
+                    liveNextItems.removeValue(forKey: playerId)
+                }
                 if let next = metadata.nextItem?.track,
-                   let preview = Track(skipPreviewOf: next, musicService: groups[index].coordinatorRoom.track.musicService, position: 0) {
-                    prefetchPlayerArtwork(for: [preview])
+                   let request = Track(skipPreviewOf: next, musicService: groups[index].coordinatorRoom.track.musicService, position: 0)?.playerArtworkRequest {
+                    Self.artworkPrefetcher.startPrefetching(with: [request])
                 }
                 // The socket carries the *new* song before the poll notices.
                 // Prefer the catalog object id; fall back to the name for
@@ -179,6 +184,9 @@ extension SonosService: SonosEventHandler {
             // it. That also lets the loop stop early when the pulse gets there
             // first, instead of re-reading against its own result.
             let outgoing = group.coordinatorRoom.track.unique
+            // A skip preview shares the real song's `unique`, so the real song
+            // replacing it counts as having moved on too.
+            let outgoingIsPreview = group.coordinatorRoom.track.isSkipPreview
 
             for _ in 0..<Self.trackRefreshAttempts {
                 try? await Task.sleep(for: Self.trackRefreshDelay)
@@ -191,7 +199,8 @@ extension SonosService: SonosEventHandler {
                 // pushing too, so notify either way — but only keep asking
                 // while the transport is still on the outgoing item.
                 self.notifyLiveUpdate(for: group)
-                if group.coordinatorRoom.track.unique != outgoing { return }
+                if group.coordinatorRoom.track.unique != outgoing
+                    || outgoingIsPreview && !group.coordinatorRoom.track.isSkipPreview { return }
             }
         }
     }
