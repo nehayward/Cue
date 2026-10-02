@@ -164,9 +164,11 @@ final class WatchSyncService {
 
     // MARK: - Session
 
-    /// Sends the library as it is now, in place of any older copy still
-    /// waiting to go. The file stays until the transfer finishes (the
-    /// system reads it as it goes); older ones are cleared as new go out.
+    /// Sends the library as it is now, as application context — or, when
+    /// it's too big for that, as a file, in place of any older copy still
+    /// waiting to go. File transfers never arrive between simulators, so
+    /// context is the way that works everywhere; a file stays until its
+    /// transfer finishes (the system reads it as it goes).
     private func send() {
         #if os(iOS) && !targetEnvironment(macCatalyst)
         let session = WCSession.default
@@ -175,16 +177,25 @@ final class WatchSyncService {
             transfer.cancel()
         }
         Self.clearOutgoing()
+        do {
+            if let context = try WatchSyncMessage.libraryContext(library) {
+                try session.updateApplicationContext(context)
+                logger.info("Sent the watch library as context, revision \(self.library.revision), \(self.library.tracks.count) songs")
+                return
+            }
+        } catch {
+            logger.error("Couldn't send the watch library as context, sending a file: \(error.localizedDescription, privacy: .public)")
+        }
         let url = Self.outgoingDirectory.appendingPathComponent("library-\(library.revision).json")
         do {
             try FileManager.default.createDirectory(at: Self.outgoingDirectory, withIntermediateDirectories: true)
             try library.encoded().write(to: url, options: .atomic)
         } catch {
-            logger.error("Couldn't write the watch library: \(error.localizedDescription)")
+            logger.error("Couldn't write the watch library: \(error.localizedDescription, privacy: .public)")
             return
         }
         session.transferFile(url, metadata: WatchSyncMessage.libraryMetadata(revision: library.revision))
-        logger.info("Sent the watch library, revision \(self.library.revision), \(self.library.tracks.count) songs")
+        logger.info("Sent the watch library as a file, revision \(self.library.revision), \(self.library.tracks.count) songs")
         #endif
     }
 

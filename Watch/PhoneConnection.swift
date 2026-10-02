@@ -5,8 +5,9 @@ import WatchKit
 import WatchSync
 
 /// The watch's end of WatchConnectivity: takes the library the iPhone
-/// sends (a file, see `WatchSyncMessage`) to the download store, and sends
-/// the store's status back as application context.
+/// sends (application context, or a file when it's big — see
+/// `WatchSyncMessage`) to the download store, and sends the store's status
+/// back as application context.
 @MainActor
 final class PhoneConnection {
     static let shared = PhoneConnection()
@@ -91,9 +92,22 @@ final class PhoneConnection {
 private final class PhoneSessionRelay: NSObject, WCSessionDelegate, @unchecked Sendable {
     weak var connection: PhoneConnection?
 
+    /// Takes the latest library the iPhone left, in case it came while
+    /// the app wasn't running, then reports.
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        let library = WatchSyncMessage.library(in: session.receivedApplicationContext)
         Task { @MainActor in
+            if let library {
+                self.connection?.didReceive(library)
+            }
             self.connection?.didActivate()
+        }
+    }
+
+    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+        guard let library = WatchSyncMessage.library(in: applicationContext) else { return }
+        Task { @MainActor in
+            self.connection?.didReceive(library)
         }
     }
 
