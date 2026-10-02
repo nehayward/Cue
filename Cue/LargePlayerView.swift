@@ -315,7 +315,7 @@ struct LargePlayerView: View {
             .safeAreaPadding(.bottom)
             .ignoresSafeArea(.keyboard)
             .background {
-                GroupPlayerBackgroundView(group: group, shouldFade: artworkShouldFade)
+                GroupPlayerBackgroundView(group: group)
             }
             .hardwareVolumeControl(group: group)
             .task(id: coordinatorID) {
@@ -930,17 +930,16 @@ fileprivate struct BackgroundView: View {
     }
 }
 
+/// The speaker player's backdrop: a gradient of the cover's colours (see
+/// `ArtworkMeshBackground`) under a thin material.
 struct GroupPlayerBackgroundView: View {
     var group: GroupRoom
-    var shouldFade: Bool
-    
+
     var body: some View {
         ZStack {
-            ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade, isBackground: true)
+            ArtworkMeshBackground(group: group)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .saturation(1.3)
                 .opacity(group.coordinatorRoom.track.artworkURL == nil ? 0 : 1)
-                .blur(radius: 80)
             BlurView()
         }
         .opacity(group.TVMode ? 0 : 1)

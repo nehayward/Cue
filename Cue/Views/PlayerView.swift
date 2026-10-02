@@ -176,7 +176,7 @@ struct PlayerView: View {
     private var backdrop: some View {
         VStack(spacing: 0) {
             if let group {
-                GroupPlayerBackgroundView(group: group, shouldFade: artworkShouldFade)
+                GroupPlayerBackgroundView(group: group)
             } else {
                 PlayerBackgroundView(content: playback.nowPlayingDisplay)
             }
@@ -1378,29 +1378,18 @@ private struct LocalPlayerMenuView: View {
 
 // MARK: - Background
 
-/// The blurred-artwork backdrop, mirroring `LargePlayerView`'s
-/// `BackgroundViewCatalyst` / `BackgroundView`. Catalyst blurs the image
-/// directly and lays a `UIVisualEffectView` over it; elsewhere the artwork is
-/// scaled to fill under a thin material, which is cheaper on device.
+/// This device's backdrop, the same as the speaker player's
+/// (`GroupPlayerBackgroundView`): a gradient of the cover's colours (see
+/// `ArtworkMeshBackground`) under a thin material.
 private struct PlayerBackgroundView: View {
     let content: PlayableContent?
 
     var body: some View {
         ZStack {
-            if let content {
-#if targetEnvironment(macCatalyst)
-                ContentArtworkView(content: content, showMusicSource: false, preferredSize: 600)
+            if content != nil {
+                ArtworkMeshBackground(content: content)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .saturation(1.3)
-                    .blur(radius: 80)
                 BlurView()
-#else
-                ContentArtworkView(content: content, showMusicSource: false, preferredSize: 600)
-                    .saturation(1.3)
-                    .aspectRatio(contentMode: .fill)
-                Rectangle()
-                    .foregroundStyle(.thinMaterial)
-#endif
             }
         }
         .scaleEffect(1.3)
