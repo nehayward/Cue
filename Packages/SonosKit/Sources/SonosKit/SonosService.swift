@@ -2399,7 +2399,8 @@ public final class SonosService {
     ) async -> PlaybackStatus {
         let deadline = ContinuousClock.now.advanced(by: timeout)
         var status = await getPlaybackInfo(ip: ip)
-        while status == .transitioning, ContinuousClock.now < deadline, !Task.isCancelled {
+        // A read that failed hasn't seen it settle either.
+        while status == .transitioning || status == .unknown, ContinuousClock.now < deadline, !Task.isCancelled {
             try? await Task.sleep(for: interval)
             status = await getPlaybackInfo(ip: ip)
         }
