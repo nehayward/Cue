@@ -324,6 +324,8 @@ final class WatchDownloadStore {
         saveNow()
         lookUp(picks.items.filter { songsByPick[$0.key] == nil })
         ArtworkStore.shared.prefetch(picks.items.compactMap(\.artworkURL))
+        // Siri learns the names of what's here ("Play <album> in Cue").
+        CueShortcuts.updateAppShortcutParameters()
         if tellPhone {
             PhoneConnection.shared.send(picks: picks)
         }
@@ -975,6 +977,7 @@ final class WatchDownloadStore {
         if let data = try? JSONEncoder().encode(SavedState(picks: picks, songs: songsByPick, lookedUpAt: lookedUpAt)) {
             try? data.write(to: Self.stateURL, options: options)
         }
+        WidgetStatePublisher.schedule()
     }
 }
 

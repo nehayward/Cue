@@ -18,9 +18,10 @@ enum HomeRoute: Hashable {
 
 /// The watch's home: Downloads at the top (the count of songs here in its
 /// title), then the lists of the library picked top right. Settings is top
-/// left; search and Now Playing are in the bottom bar, out of the way while
-/// the list scrolls. No title: the rows say what's what. The first time
-/// there's music to fetch, it asks at what quality.
+/// left; the bottom bar has search, play (double tap presses it) and Now
+/// Playing, out of the way while the list scrolls down. No title: the rows
+/// say what's what. The widget opens it on Downloads or Now Playing. The
+/// first time there's music to fetch, it asks at what quality.
 struct LibraryScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
@@ -58,7 +59,7 @@ struct LibraryScreen: View {
                 }
                 library
             }
-            .modifier(ScrollPhaseReader(isScrolling: $isScrolling))
+            .modifier(BottomBarGetsOutOfTheWay(isScrolling: $isScrolling))
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -76,8 +77,9 @@ struct LibraryScreen: View {
                     }
                     .accessibilityLabel("Library")
                 }
-                // Search the library left, Now Playing right: the system's
-                // own toolbar buttons, the waveform moving while music plays.
+                // Search left, play in the middle (double tap presses it),
+                // Now Playing right with its waveform moving while music
+                // plays.
                 ToolbarItemGroup(placement: .bottomBar) {
                     if let source {
                         TextFieldLink(prompt: Text("Search \(source.title)")) {
@@ -87,6 +89,11 @@ struct LibraryScreen: View {
                         }
                         .accessibilityLabel("Search \(source.title)")
                         .fadesWhileScrolling(isScrolling)
+                    }
+                    Spacer()
+                    if player.current != nil || store.downloadedCount > 0 {
+                        PrimaryPlayButton()
+                            .fadesWhileScrolling(isScrolling)
                     }
                     Spacer()
                     if player.current != nil {
@@ -136,6 +143,14 @@ struct LibraryScreen: View {
                     }
                 }
             }
+            // From the Smart Stack widget.
+            .onOpenURL { url in
+                switch url.host() {
+                case "downloads": path = NavigationPath([HomeRoute.downloads])
+                case "nowplaying": path = NavigationPath([HomeRoute.nowPlaying])
+                default: break
+                }
+            }
             // Asked once a launch until answered; songs come down at the
             // recommended quality meanwhile.
             .task(id: needsQuality) {
@@ -180,8 +195,42 @@ struct LibraryScreen: View {
     }
 }
 
+/// Play and pause what's playing, or shuffle the downloads when nothing
+/// is: the screen's primary action, so double tap (and the pinch on watches
+/// that have it) presses it.
+private struct PrimaryPlayButton: View {
+    @Environment(WatchPlayer.self) private var player
+
+    var body: some View {
+        Button {
+            if player.current == nil {
+                player.playDownloads(shuffled: true)
+            } else {
+                player.togglePlayPause()
+            }
+        } label: {
+            Image(systemName: player.current == nil ? "shuffle" : player.isPlaying ? "pause.fill" : "play.fill")
+        }
+        .accessibilityLabel(player.current == nil ? "Shuffle Downloads" : player.isPlaying ? "Pause" : "Play")
+        .primaryHandGesture()
+    }
+}
+
+extension View {
+    /// Double tap presses this (watchOS 11).
+    @ViewBuilder
+    func primaryHandGesture() -> some View {
+        if #available(watchOS 11.0, *) {
+            handGestureShortcut(.primaryAction)
+        } else {
+            self
+        }
+    }
+}
+
 private extension View {
-    /// Out of the way while the list scrolls.
+    /// Out of the way while the list scrolls, where the system doesn't
+    /// tuck the bar away itself.
     func fadesWhileScrolling(_ isScrolling: Bool) -> some View {
         opacity(isScrolling ? 0 : 1)
             .allowsHitTesting(!isScrolling)
@@ -189,13 +238,16 @@ private extension View {
     }
 }
 
-/// Whether a list is being scrolled, for what should get out of its way.
-/// Only watchOS 11 says; before it, nothing fades.
-private struct ScrollPhaseReader: ViewModifier {
+/// The bottom bar steps aside while the list scrolls down: on watchOS 27
+/// the system minimizes it; on 11 to 26 its buttons fade while the list
+/// moves (`isScrolling`); before that, it stays.
+private struct BottomBarGetsOutOfTheWay: ViewModifier {
     @Binding var isScrolling: Bool
 
     func body(content: Content) -> some View {
-        if #available(watchOS 11.0, *) {
+        if #available(watchOS 27.0, *) {
+            content.toolbarMinimizationBehavior(.onScrollDown, for: .bottomBar)
+        } else if #available(watchOS 11.0, *) {
             content.onScrollPhaseChange { _, phase in
                 isScrolling = phase.isScrolling
             }

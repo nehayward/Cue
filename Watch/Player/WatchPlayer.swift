@@ -39,6 +39,7 @@ final class WatchPlayer {
             Task { @MainActor in
                 self?.isPlaying = playing
                 self?.updateNowPlaying()
+                WidgetStatePublisher.schedule()
             }
         }
         endObserver = NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification, object: nil, queue: .main) { [weak self] notification in
@@ -63,10 +64,12 @@ final class WatchPlayer {
 
     /// Plays these songs — those of them that are here — from the one with
     /// `key`, or shuffled with that one first.
-    func play(_ songs: [WatchSong], startingAt key: String? = nil, shuffled: Bool = false) {
+    /// False when none of them is here to play.
+    @discardableResult
+    func play(_ songs: [WatchSong], startingAt key: String? = nil, shuffled: Bool = false) -> Bool {
         let store = WatchDownloadStore.shared
         var playable = songs.filter { store.localURL(for: $0) != nil }
-        guard !playable.isEmpty else { return }
+        guard !playable.isEmpty else { return false }
         var start = 0
         if shuffled {
             playable.shuffle()
@@ -79,6 +82,20 @@ final class WatchPlayer {
         queue = playable
         index = start
         Task { await startPlayback() }
+        return true
+    }
+
+    /// Everything on the watch, newest pick first.
+    @discardableResult
+    func playDownloads(shuffled: Bool) -> Bool {
+        let store = WatchDownloadStore.shared
+        return play(store.songs(in: store.picks.items.map(\.key)), shuffled: shuffled)
+    }
+
+    /// One album, playlist, artist or song on the watch.
+    @discardableResult
+    func play(pickKey: String, shuffled: Bool) -> Bool {
+        play(WatchDownloadStore.shared.songs(in: [pickKey]), shuffled: shuffled)
     }
 
     func togglePlayPause() {
@@ -129,6 +146,7 @@ final class WatchPlayer {
         index = 0
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        WidgetStatePublisher.schedule()
     }
 
     private func startPlayback() async {

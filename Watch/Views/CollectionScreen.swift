@@ -39,6 +39,7 @@ struct CollectionScreen: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .accessibilityLabel("Play")
+                        .primaryHandGesture()
                         Button {
                             player.play(playable, shuffled: true)
                         } label: {
