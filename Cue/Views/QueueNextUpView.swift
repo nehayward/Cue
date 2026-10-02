@@ -57,17 +57,6 @@ private struct LocalNextUpView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .confirmationDialog("Clear Up Next", isPresented: $clearConfirmation, titleVisibility: .hidden) {
-            Button("Clear Up Next", role: .destructive) {
-                HapticManager.shared.fireHaptic(.buttonPress)
-                withAnimation {
-                    playback.clearUpNext()
-                    editMode = .inactive
-                }
-            }
-        } message: {
-            Text("The current song keeps playing.")
-        }
     }
 
     @ViewBuilder
@@ -128,6 +117,20 @@ private struct LocalNextUpView: View {
         .menuIndicator(.hidden)
         .accessibilityLabel("Queue Options")
         .help("Queue Options")
+        // On the menu, so the confirmation points at the button it came
+        // from. On the whole panel it floated over the artwork, aimed at the
+        // sheet's grabber.
+        .confirmationDialog("Clear Up Next", isPresented: $clearConfirmation, titleVisibility: .hidden) {
+            Button("Clear Up Next", role: .destructive) {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                withAnimation {
+                    playback.clearUpNext()
+                    editMode = .inactive
+                }
+            }
+        } message: {
+            Text("The current song keeps playing.")
+        }
     }
 
     /// The queue's rows with an identity that follows the song rather than
