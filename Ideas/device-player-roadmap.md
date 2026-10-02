@@ -61,7 +61,7 @@ branch lands.
 - [ ] **CarPlay** — `claude/carplay`
   No CarPlay scene exists; `Cue/Services/AudioOutputRoute.swift` only
   detects the route. Needs the CarPlay audio entitlement.
-  Files: new `Cue/CarPlay/` with a `CPTemplateApplicationSceneDelegate`,
+  Files: new `CarPlay/` with a `CPTemplateApplicationSceneDelegate`,
   list templates for Recents, Playlists, Albums, Radio, Downloads, and the
   Now Playing template bound to `LocalPlaybackService`; scene manifest in
   `Cue/Info.plist`.
