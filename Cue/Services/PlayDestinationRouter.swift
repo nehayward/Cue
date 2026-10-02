@@ -221,8 +221,7 @@ enum PlayDestinationRouter {
     private static func record(_ contents: [PlayableContent]) {
         guard let first = contents.first else { return }
         withAnimation {
-            PlayHistoryService.shared.history.remove(first)
-            PlayHistoryService.shared.history.insert(first, at: 0)
+            PlayHistoryService.shared.record(first)
         }
     }
 
