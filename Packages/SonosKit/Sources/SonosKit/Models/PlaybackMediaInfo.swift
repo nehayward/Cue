@@ -14,4 +14,6 @@ public struct PlaybackMediaInfo {
     /// What the transport is playing (`CurrentURI`) — for a radio station,
     /// the stream itself or the service's reference to it.
     var currentURI: String? = nil
+    /// How many tracks the queue holds (`NrTracks`), whatever is playing.
+    var queueTotal: Int? = nil
 }

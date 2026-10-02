@@ -53,7 +53,9 @@ enum PlayDestinationRouter {
         queue: @escaping (GroupRoom, QueuePosition) async throws -> Void
     ) async {
         guard let first = contents.first else { return }
-        let destination = PlayDestination.remembered ?? .device
+        // A speaker remembered from before Sonos was switched off is not a
+        // destination any more.
+        let destination = SonosService.shared.isEnabled ? (PlayDestination.remembered ?? .device) : .device
         log.notice("play \(String(describing: first.content.service), privacy: .public)/\(String(describing: first.content.type), privacy: .public) id=\(first.content.id, privacy: .public) count=\(contents.count) position=\(position.linkValue, privacy: .public) destination=\(String(describing: destination), privacy: .public)")
 
         // No network, or Offline Mode: there is no speaker to reach, so
@@ -114,10 +116,36 @@ enum PlayDestinationRouter {
         }
     }
 
+    /// Artist or song radio at the remembered destination.
+    ///
+    /// A speaker plays Sonos' own radio for the service (`onGroup`). This
+    /// device plays Apple Music's station for the artist or song, which
+    /// MusicKit runs itself. Apple is the only service with stations the
+    /// device can play, so anything else still goes to a speaker, through
+    /// the picker when none is remembered.
+    static func playRadio(from seed: PlayableContent, onGroup: @escaping (GroupRoom) async throws -> Void) async {
+        if !OfflineMode.shared.isActive, let group = rememberedGroup {
+            do {
+                try await onGroup(group)
+            } catch {
+                log.error("speaker radio failed: \(error.localizedDescription, privacy: .public)")
+                AlertService.shared.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
+            }
+            return
+        }
+        guard let station = await MusicSearchService.shared.appleStation(for: seed) else {
+            log.notice("no Apple station for \(seed.content.id, privacy: .public)")
+            askForSpeaker([seed], position: .now) { group, _ in try await onGroup(group) }
+            return
+        }
+        await play(station, position: .now, from: seed) { group, _ in try await onGroup(group) }
+    }
+
     /// The remembered group, for the Sonos-only actions — song and artist
     /// radio, grouping — that have no local equivalent to fall back on. `nil` means the caller
     /// still has to ask.
     static var rememberedGroup: GroupRoom? {
+        guard SonosService.shared.isEnabled else { return nil }
         guard let id = PlayDestination.remembered?.groupID else { return nil }
         return SonosService.shared.groups.first { $0.coordinatorID == id }
     }
@@ -134,6 +162,13 @@ enum PlayDestinationRouter {
         position: QueuePosition,
         queue: @escaping (GroupRoom, QueuePosition) async throws -> Void
     ) {
+        // With Sonos switched off there is no speaker to offer, and a picker
+        // with nothing in it is a dead end. Say so instead.
+        guard SonosService.shared.isEnabled else {
+            log.notice("no destination can take this — Sonos is off")
+            AlertService.shared.showAlert(with: "This can't play on this device", imageName: "exclamationmark.triangle")
+            return
+        }
         log.notice("no destination can take this — asking")
         Router.main.sheet(to: .selectGroup(
             selectedGroupService: SelectedGroupService.shared,
@@ -152,6 +187,16 @@ enum PlayDestinationRouter {
             return false
         }
         do {
+            // A song tapped in an album or playlist plays the list from that
+            // song, not the song alone — what a speaker does with the same
+            // tap, since the queue closure hands it the parent.
+            if let origin, contents.count == 1, !shuffle, [.now, .replace].contains(position),
+               origin.content.type == .album || origin.content.type == .libraryAlbum || origin.content.type.isPlaylist,
+               try await LocalPlaybackService.shared.play(contents[0], in: origin) {
+                record(contents)
+                announce(contents, position: position)
+                return true
+            }
             try await LocalPlaybackService.shared.enqueue(contents, at: position, shuffle: shuffle, from: origin)
             record(contents)
             announce(contents, position: position)

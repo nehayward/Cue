@@ -23,11 +23,13 @@ public enum OnDeviceCollection: Hashable, Sendable {
 }
 
 /// What plays with no connection at all: the download manager's finished
-/// Plex and Subsonic songs, and the songs of the Files folder that are on
-/// this device rather than only in iCloud. While `OfflineMode` is active
-/// the Home tab browses just these — as Artists, Albums and Songs, the way
-/// a provider's library reads, grouped and searched here rather than on a
-/// server none of them can reach.
+/// Plex and Subsonic songs, the Apple Music songs the Music app has
+/// downloaded, and the songs of the Files folder that are on this device
+/// rather than only in iCloud. While `OfflineMode` is active the Home tab
+/// browses just these — as Artists, Albums and Songs, the way a provider's
+/// library reads, grouped and searched here rather than on a server none
+/// of them can reach. Each provider's own Downloaded page reads the same
+/// library narrowed to that `service`.
 ///
 /// Album and artist containers minted here carry an `ondevice|` id that
 /// `LocalPlaybackService` and `QueueManager` recognise and expand back into
@@ -45,6 +47,12 @@ enum OnDeviceLibrary {
             .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     }
 
+    /// The Apple Music songs downloaded in the Music app, as library
+    /// tracks. `ApplicationMusicPlayer` plays those from the local copy.
+    static var appleSongs: [PlayableContent] {
+        AppleDownloadsIndex.shared.songs
+    }
+
     /// The Files folder's songs that are here: `isPlayable` follows the
     /// index's download flag, which a scan and an iCloud eviction both keep
     /// current. Everything for a folder on the device itself.
@@ -52,20 +60,38 @@ enum OnDeviceLibrary {
         FilesLibraryService.shared.songs.filter(\.isPlayable)
     }
 
-    /// Downloads then the folder — what Play and Shuffle on Home take.
+    /// Downloads, then Apple's, then the folder — what Play and Shuffle
+    /// on Home take.
     static var allSongs: [PlayableContent] {
-        downloadedSongs + fileSongs
+        downloadedSongs + appleSongs + fileSongs
+    }
+
+    /// Everything here from one provider, or all of it for nil.
+    static func allSongs(in service: MusicService?) -> [PlayableContent] {
+        songs(in: service).map(\.track)
     }
 
     static var isEmpty: Bool {
-        DownloadManager.shared.completed.isEmpty && fileSongs.isEmpty
+        isEmpty(in: nil)
+    }
+
+    static func isEmpty(in service: MusicService?) -> Bool {
+        switch service {
+        case .apple: appleSongs.isEmpty
+        case .files: fileSongs.isEmpty
+        case .plex, .subsonic: !DownloadManager.shared.completed.contains { $0.service == service }
+        case nil: DownloadManager.shared.completed.isEmpty && appleSongs.isEmpty && fileSongs.isEmpty
+        default: true
+        }
     }
 
     /// Bumped whenever the songs here can have changed — a download
-    /// finishing or being removed, the Files index rebuilding — for the
-    /// lists that took a snapshot to know to take another.
+    /// finishing or being removed, the Apple index or the Files index
+    /// rebuilding — for the lists that took a snapshot to know to take
+    /// another.
     static var changeToken: Int {
-        DownloadManager.shared.completed.count &* 31 &+ FilesLibraryService.shared.indexVersion
+        (DownloadManager.shared.completed.count &* 31 &+ FilesLibraryService.shared.indexVersion) &* 31
+            &+ AppleDownloadsIndex.shared.version
     }
 
     // MARK: - Sorts
@@ -110,20 +136,29 @@ enum OnDeviceLibrary {
         }
     }
 
-    /// A song with when it arrived on the device. Downloads know; the
-    /// Files folder's songs don't, so they sort behind every download.
+    /// A song with when it arrived on the device. Downloads know, and
+    /// Apple's carry the day they joined the library; the Files folder's
+    /// songs don't, so they sort behind every download.
     private struct Song {
         let track: PlayableContent
         let added: Date
     }
 
     private static var songs: [Song] {
-        DownloadManager.shared.completed.map { Song(track: $0.playableContent, added: $0.createdAt) }
+        let apple = AppleDownloadsIndex.shared
+        return DownloadManager.shared.completed.map { Song(track: $0.playableContent, added: $0.createdAt) }
+            + appleSongs.map { Song(track: $0, added: apple.addedDate(for: $0) ?? .distantPast) }
             + fileSongs.map { Song(track: $0, added: .distantPast) }
     }
 
-    static func songs(sortedBy sort: SongSort, descending: Bool) -> [PlayableContent] {
-        let songs = Self.songs
+    /// The songs of one provider, or every song for nil.
+    private static func songs(in service: MusicService?) -> [Song] {
+        guard let service else { return songs }
+        return songs.filter { $0.track.content.service == service }
+    }
+
+    static func songs(sortedBy sort: SongSort, descending: Bool, in service: MusicService? = nil) -> [PlayableContent] {
+        let songs = Self.songs(in: service)
         let ordered: [Song]
         switch sort {
         case .title:
@@ -148,9 +183,9 @@ enum OnDeviceLibrary {
 
     /// Songs whose title, artist or album contains the query. Local, so it
     /// answers with no network at all.
-    static func searchSongs(_ query: String) -> [PlayableContent] {
+    static func searchSongs(_ query: String, in service: MusicService? = nil) -> [PlayableContent] {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let songs = Self.songs(sortedBy: .title, descending: false)
+        let songs = Self.songs(sortedBy: .title, descending: false, in: service)
         guard !query.isEmpty else { return songs }
         return songs.filter { track in
             [track.title, track.metadata?.artist, track.metadata?.album, track.subtitle]
@@ -179,10 +214,10 @@ enum OnDeviceLibrary {
     static var albums: [Group] { groups(.albums, sortedBy: .title, descending: false) }
     static var artists: [Group] { groups(.artists, sortedBy: .title, descending: false) }
 
-    static func groups(_ collection: OnDeviceCollection, sortedBy sort: GroupSort, descending: Bool) -> [Group] {
+    static func groups(_ collection: OnDeviceCollection, sortedBy sort: GroupSort, descending: Bool, in service: MusicService? = nil) -> [Group] {
         var buckets: [String: [Song]] = [:]
         var order: [String] = []
-        for song in songs {
+        for song in songs(in: service) {
             let key = groupKey(collection, for: song.track)
             if buckets[key] == nil { order.append(key) }
             buckets[key, default: []].append(song)
@@ -253,8 +288,8 @@ enum OnDeviceLibrary {
 
     /// Groups whose name, line under it, or a song's title contains the
     /// query.
-    static func groups(_ collection: OnDeviceCollection, matching query: String, sortedBy sort: GroupSort, descending: Bool) -> [Group] {
-        let groups = Self.groups(collection, sortedBy: sort, descending: descending)
+    static func groups(_ collection: OnDeviceCollection, matching query: String, sortedBy sort: GroupSort, descending: Bool, in service: MusicService? = nil) -> [Group] {
+        let groups = Self.groups(collection, sortedBy: sort, descending: descending, in: service)
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return groups }
         return groups.filter { group in
@@ -307,20 +342,34 @@ enum OnDeviceLibrary {
 
     /// Stands for every song on the device, behind the Songs page's Play All.
     static var allSongsContainer: PlayableContent {
-        let first = songs.first?.track
+        allSongsContainer(in: nil)
+    }
+
+    /// Every song on the device from one provider — or all of them for
+    /// nil — as one container, behind a Downloaded page's Play All.
+    static func allSongsContainer(in service: MusicService?) -> PlayableContent {
+        let first = songs(in: service).first?.track
         let artwork = first.flatMap { $0.thumbnail ?? $0.artwork }
+        let id = service.map { "\(containerIDPrefix)all|\($0.sonosRawValue)" } ?? "\(containerIDPrefix)all"
         return PlayableContent(
-            title: "On This Device",
-            subtitle: "Downloads and files",
+            title: service.map { "Downloaded • \($0.title)" } ?? "On This Device",
+            subtitle: service == nil ? "Downloads and files" : "On this device",
             thumbnail: artwork,
             artwork: artwork,
-            content: .init(service: first?.content.service ?? .plex, id: "\(containerIDPrefix)all", type: .playlist, location: nil)
+            content: .init(service: service ?? first?.content.service ?? .plex, id: id, type: .playlist, location: nil)
         )
     }
 
     /// Whether this is one of the containers minted here.
     nonisolated static func isContainer(_ content: PlayableContent) -> Bool {
         content.content.id.hasPrefix(containerIDPrefix)
+    }
+
+    /// Whether this is an every-song container (On This Device, or
+    /// Downloaded • a provider) rather than an album or artist.
+    nonisolated static func isAllSongs(_ content: PlayableContent) -> Bool {
+        let id = content.content.id
+        return id == "\(containerIDPrefix)all" || id.hasPrefix("\(containerIDPrefix)all|")
     }
 
     /// The songs a container minted here stands for, in play order — or nil
@@ -330,6 +379,10 @@ enum OnDeviceLibrary {
         let rest = container.content.id.dropFirst(containerIDPrefix.count)
         if rest == "all" {
             return songs.map(\.track).sorted(by: albumOrder)
+        }
+        if rest.hasPrefix("all|") {
+            let service = MusicService(service: String(rest.dropFirst("all|".count)))
+            return songs(in: service).map(\.track).sorted(by: albumOrder)
         }
         let parts = rest.split(separator: "|", maxSplits: 1).map(String.init)
         guard parts.count == 2 else { return [] }
@@ -341,6 +394,25 @@ enum OnDeviceLibrary {
 
     private static func containerID(_ collection: OnDeviceCollection, key: String) -> String {
         "\(containerIDPrefix)\(collection == .albums ? "album" : "artist")|\(key)"
+    }
+
+    // MARK: - Copy
+
+    /// What to do to have something here, for the empty pages: one
+    /// provider's way of downloading, or every way for nil.
+    static func emptyDescription(for service: MusicService?) -> String {
+        switch service {
+        case .apple:
+            "Download songs, albums or playlists in the Music app and they'll be here to play on this device, with or without a network."
+        case .plex:
+            "Download a Plex song, album or playlist from its menu — or an album's download button — to keep it on this device."
+        case .subsonic:
+            "Download a Subsonic song, album or playlist from its menu — or an album's download button — to keep it on this device."
+        case .files:
+            "Download songs from your iCloud Drive folder from their menus, or keep the folder on this device, and they'll be here."
+        default:
+            "Download Plex or Subsonic songs from their menus, download Apple Music songs in the Music app, or keep a Files folder on this device, and they'll be here when you're offline."
+        }
     }
 
     // MARK: - Keys & ordering

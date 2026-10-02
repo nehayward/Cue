@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- The 1200 × 630 social card (public/og.jpg). Rendered by `make og`, which
+     opens this file in headless Chrome. It reuses the site's stylesheet, so the
+     iPhone frame and colours match the home page. -->
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<link rel="stylesheet" href="../public/styles.css">
+	<style>
+		html, body { width: 1200px; height: 630px; margin: 0; overflow: hidden; }
+		body { padding: 0; display: grid; grid-template-columns: 1fr 470px; align-items: center; }
+		body::before {
+			background:
+				radial-gradient(60% 70% at 85% 50%, rgb(242 120 47 / 0.22), transparent 70%),
+				radial-gradient(55% 60% at 10% 0%, rgb(52 211 153 / 0.22), transparent 70%),
+				var(--bg);
+		}
+		.copy { padding-left: 80px; }
+		.brand { gap: 16px; font-size: 34px; }
+		.brand img { width: 64px; height: 64px; border-radius: 15px; }
+		h1 { margin-top: 44px; font-size: 76px; line-height: 0.98; letter-spacing: -0.045em; }
+		p { margin-top: 26px; font-size: 25px; color: var(--muted); max-width: 30rem; }
+		.phones { position: relative; height: 630px; }
+		.phones .iphone { position: absolute; width: 290px; }
+		.phones .iphone:first-child { left: 60px; top: 70px; z-index: 2; }
+		.phones .iphone:nth-child(2) { left: 250px; top: 120px; transform: rotate(9deg); filter: brightness(0.6); }
+	</style>
+</head>
+<body>
+	<div class="copy">
+		<div class="brand"><img src="../public/apple-touch-icon.png" alt=""><span>Cue</span></div>
+		<h1>Your music.<br>Here, or everywhere.</h1>
+		<p>Apple Music, Plex, Subsonic and radio on your iPhone — and on every Sonos speaker.</p>
+	</div>
+	<div class="phones">
+		<div class="iphone orange">
+			<span class="iphone-button action"></span><span class="iphone-button volume-up"></span><span class="iphone-button volume-down"></span><span class="iphone-button power"></span>
+			<div class="iphone-screen"><img src="../public/shots/now-playing.jpg" alt=""><span class="iphone-island"></span></div>
+		</div>
+		<div class="iphone">
+			<span class="iphone-button action"></span><span class="iphone-button volume-up"></span><span class="iphone-button volume-down"></span><span class="iphone-button power"></span>
+			<div class="iphone-screen"><img src="../public/shots/plex-library.jpg" alt=""><span class="iphone-island"></span></div>
+		</div>
+	</div>
+</body>
+</html>

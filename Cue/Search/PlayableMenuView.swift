@@ -42,6 +42,8 @@ struct PlayableMenuView: View {
                         Label("Play Radio", systemImage: "dot.radiowaves.left.and.right")
                     }
                 }
+
+                WatchMenuSection(item: item)
             case .playlist, .libraryPlaylist, .libraryImportedPlaylists:
                 ControlGroup("Queue \(item.title)") {
                     Button {
@@ -62,6 +64,8 @@ struct PlayableMenuView: View {
                         Label("Play Next", systemImage: "text.insert")
                     }
                 }
+
+                WatchMenuSection(item: item)
 
                 if (item.content.service == .library && item.content.id.last?.isNumber ?? false) || item.isFilesPlaylist {
                     Button {
@@ -107,44 +111,9 @@ struct PlayableMenuView: View {
                 }
                 
                 if LocalPlaybackService.shared.canPlayAnywhereLocally(item) {
-                    Menu {
-                        Button {
-                            playOnDevice { try await LocalPlaybackService.shared.play(localItems()) }
-                        } label: {
-                            Label("Play", systemImage: "play.fill")
-                        }
-
-                        // A station is live: it replaces what's playing and
-                        // has no place in a queue behind it.
-                        if !item.content.type.isRadio {
-                            Button {
-                                playOnDevice(subtitle: "Playing next on this device") {
-                                    try await LocalPlaybackService.shared.playNext(localItems())
-                                }
-                            } label: {
-                                Label("Play Next", systemImage: "text.insert")
-                            }
-
-                            Button {
-                                playOnDevice(subtitle: "Added to device queue") {
-                                    try await LocalPlaybackService.shared.addToQueue(localItems())
-                                }
-                            } label: {
-                                Label("Add to Queue", systemImage: "text.append")
-                            }
-                        }
-
-                        if LocalPlaybackService.shared.nowPlaying == item {
-                            Button {
-                                LocalPlaybackService.shared.stop()
-                            } label: {
-                                Label("Stop", systemImage: "stop.fill")
-                            }
-                        }
-
+                    Section {
                         LocalDownloadMenuSection(item: item)
-                    } label: {
-                        Label("This Device", systemImage: "iphone.radiowaves.left.and.right")
+                        WatchMenuSection(item: item)
                     }
                     .onAppear {
                         AppleDownloadsIndex.shared.refreshIfNeeded()
@@ -180,10 +149,12 @@ struct PlayableMenuView: View {
 
                 Divider()
                 AddToLastPlaylistButton(itemToAdd: item)
-                Button {
-                    router.sheet(to: .addToPlaylist(content: item))
-                } label: {
-                    Label("Add to Playlist…", systemImage: "text.badge.plus")
+                if AddToPlaylistSheet.canAdd(item) {
+                    Button {
+                        router.sheet(to: .addToPlaylist(content: item))
+                    } label: {
+                        Label("Add to Playlist…", systemImage: "text.badge.plus")
+                    }
                 }
                 Divider()
               
@@ -218,14 +189,6 @@ struct PlayableMenuView: View {
             }
         }
         
-        if item.content.type != .folder {
-            Button {
-                router.sheet(to: .createScene(content: item))
-            } label: {
-                Label("Create Scene", systemImage: "bolt.fill")
-            }
-        }
-        
         if [.spotify, .apple].contains(item.content.service),
            [.album, .libraryAlbum].contains(item.content.type) {
             FavoriteMenuButton(item: item)
@@ -233,15 +196,6 @@ struct PlayableMenuView: View {
         
         OpenInServiceView(item: item)
 
-        if item.content.type != .folder {
-            Button {
-                selectedGroupService.group = nil
-                play()
-            } label: {
-                Label("Play in Room…", systemImage: "hifispeaker.arrow.forward.fill")
-            }
-        }
-        
         if item.content.service == .library, item.content.type == .playlist {
             Button(role: .destructive) {
                 router.sheet(to: .confirmDeletePlaylist(content: item))
@@ -308,33 +262,6 @@ struct PlayableMenuView: View {
         }
     }
 
-    /// The items a local-queue action should operate on: the track itself, or
-    /// an album's fetched tracks.
-    private func localItems() async throws -> [PlayableContent] {
-        if LocalPlaybackService.shared.canPlayLocally(item) { return [item] }
-        let tracks = await LocalPlaybackService.shared.containerTracks(for: item)
-        guard !tracks.isEmpty else { throw LocalPlaybackService.LocalPlaybackError.nothingPlayable }
-        return tracks
-    }
-
-    /// Runs a local-playback queue action (play / play next / add to queue) on
-    /// this device instead of a Sonos group. Apple tracks need an Apple Music
-    /// subscription — failures surface as alerts.
-    private func playOnDevice(
-        subtitle: LocalizedStringKey = "Playing on this device",
-        action: @escaping () async throws -> Void
-    ) {
-        Task { @MainActor in
-            hideKeyboard()
-            do {
-                try await action()
-                alertService.showAlertContent(with: item, subtitle: subtitle, symbolName: "iphone.radiowaves.left.and.right")
-            } catch {
-                alertService.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
-            }
-        }
-    }
-
     private func startRadio() {
         Task { @MainActor in
             hideKeyboard()
@@ -342,8 +269,11 @@ struct PlayableMenuView: View {
                 guard let radioItem = await resolveRadioSeed(for: item) else { return }
                 QueueManager.shared.addToQueue(item: QueueItem(playableContent: radioItem, group: group, position: .now, title: "Starting radio", showBanner: true))
             }
+            // A speaker in context plays Sonos' radio. Otherwise the
+            // remembered destination decides: a speaker, or Apple Music's
+            // station for the song or artist on this device.
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: startRadio, content: item))
+                await PlayDestinationRouter.playRadio(from: item, onGroup: startRadio)
                 return
             }
             try await startRadio(group)

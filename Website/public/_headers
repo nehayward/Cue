@@ -1,0 +1,4 @@
+# Cloudflare static asset headers. HTML pages set their own in src/worker.js.
+/*
+  X-Content-Type-Options: nosniff
+  Cache-Control: public, max-age=3600

@@ -29,7 +29,7 @@ struct PlexStep: View {
     /// were found).
     private var headerSubtitle: String {
         if !isAuthorized {
-            return "Sign in to your Plex account — the same one linked to your Sonos system."
+            return "Sign in with the Plex account linked to your Sonos system. Plex opens in Safari, so a saved password fills in."
         }
         if isLoading {
             return "Getting your Plex libraries ready…"
@@ -118,16 +118,23 @@ struct PlexStep: View {
             }
             .buttonStyle(.plain)
 
+            if let error = plexAuthenticator.signInError {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 28)
+            }
+
+            // The same sign-in in the browser app, for a password manager
+            // that doesn't fill in the sheet. The poll picks up the approval
+            // when Cue comes back.
             if let url = plexAuthenticator.authorizationURL {
                 Link(destination: url) {
-                    Text(url.absoluteString)
+                    Label("Open in Browser Instead", systemImage: "safari")
                         .font(.footnote)
                         .foregroundStyle(.white.opacity(0.7))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
                 }
-                .textSelection(.enabled)
-                .padding(.horizontal, 28)
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 20)
@@ -243,7 +250,11 @@ struct PlexStep: View {
             if isAuthorized {
                 PrimaryPillButton(title: "Continue", action: advance)
             } else {
-                PrimaryPillButton(title: "Authorize Plex", icon: "arrow.up.forward.app") {
+                PrimaryPillButton(
+                    title: plexAuthenticator.isStartingSignIn ? "Opening Plex…" : "Sign In to Plex",
+                    icon: "arrow.up.forward.app",
+                    isDisabled: plexAuthenticator.isStartingSignIn
+                ) {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     plexAuthenticator.authenticate()
                 }

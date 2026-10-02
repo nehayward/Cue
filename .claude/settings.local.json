@@ -16,7 +16,21 @@
       "Bash(swift build *)",
       "Bash(grep -n \"^        \\\\.\\\\|^        }$\\\\|var body\" Cue/LargePlayerView.swift)",
       "Bash(cd \"/Users/nick/Library/Mobile Documents/com~apple~CloudDocs/Active/Cue\" && ls -la *.trace 2>/dev/null; find . -maxdepth 3 -name \"*.trace\" -not -path \"*/.build/*\" 2>/dev/null | head; ls ~/Library/Developer/Xcode/DerivedData 2>/dev/null | head)",
-      "Bash(xcodebuild -project Cue.xcodeproj -scheme Cue -destination 'generic/platform=iOS Simulator' -configuration Debug build)"
+      "Bash(xcodebuild -project Cue.xcodeproj -scheme Cue -destination 'generic/platform=iOS Simulator' -configuration Debug build)",
+      "Bash(Scripts/deploy-to-iphone.sh*)",
+      "Bash(Scripts/iphone-logs.sh*)",
+      "Bash(Scripts/iphone-crashes.sh*)",
+      "Bash(Scripts/list-iphones.py*)",
+      "Bash(CUE_LOG_FILTER=* Scripts/iphone-logs.sh*)",
+      "Bash(xcodebuild *)",
+      "Bash(xcrun devicectl *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git switch *)",
+      "Bash(git push -u origin claude/*)"
     ],
     "deny": []
   }

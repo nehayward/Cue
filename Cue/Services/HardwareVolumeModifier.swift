@@ -15,13 +15,11 @@ private struct HardwareVolumeControlModifier: ViewModifier {
     let group: GroupRoom
     @Environment(SonosService.self) private var sonosService
     @Environment(FeatureGate.self) private var featureGate
-    // Both default to true — see `AppStorageKeys`. The literals have to match
-    // the `UserDefaults` accessors the Lock Screen path reads
-    // (`hardwareVolumeButtonsEnabled`, `lockScreenNowPlayingEnabled`); a
-    // disagreement would mean the buttons controlled the group on one surface
-    // and the device on the other.
+    // Defaults to true — see `AppStorageKeys`. The literal has to match the
+    // `UserDefaults` accessor the Lock Screen path reads
+    // (`hardwareVolumeButtonsEnabled`); a disagreement would mean the buttons
+    // controlled the group on one surface and the device on the other.
     @AppStorage(AppStorageKeys.useHardwareVolumeButtons) private var useHardwareVolumeButtons: Bool = true
-    @AppStorage(AppStorageKeys.lockScreenNowPlaying) private var lockScreenNowPlaying: Bool = true
 
     /// The switch means exactly one thing: *while Cue is your Lock Screen
     /// player, this device's volume controls the speaker.* So the player screen
@@ -37,8 +35,9 @@ private struct HardwareVolumeControlModifier: ViewModifier {
     /// greyed out or absent. Scoping the behaviour to where the switch is
     /// reachable is what closes that.
     private var enabled: Bool {
+        // Now Playing is always the Lock Screen surface now (the setting that
+        // chose it is gone), so the switch and Super are the conditions left.
         useHardwareVolumeButtons
-            && lockScreenNowPlaying
             && featureGate.isAvailable(.hardwareVolumeButtons)
     }
 

@@ -151,9 +151,14 @@ struct SubsonicManagementView: View {
     }
 
     /// Reduces a pasted browser URL to the server's REST root, in place, so
-    /// the field shows the address that will actually be used.
+    /// the field shows the address that will actually be used. A scheme the
+    /// user didn't type stays off until connecting settles it, since a public
+    /// name is tried over HTTPS first (`SubsonicAPI.checkLogin`).
     private func tidyAddress() {
-        guard let tidied = SubsonicAPI.normalizedAddress(serverAddress) else { return }
+        guard var tidied = SubsonicAPI.normalizedAddress(serverAddress) else { return }
+        if !serverAddress.contains("://"), tidied.hasPrefix("http://") {
+            tidied.removeFirst("http://".count)
+        }
         serverAddress = tidied
     }
 
@@ -163,12 +168,14 @@ struct SubsonicManagementView: View {
         focused = nil
         tidyAddress()
         isConnecting = true
-        let outcome = await subsonic.ping(address: serverAddress, username: username, password: password)
+        let check = await subsonic.checkLogin(address: serverAddress, username: username, password: password)
         isConnecting = false
-        result = outcome
-        guard outcome == .success else { return }
+        result = check.result
+        guard check.result == .success, let address = check.address else { return }
 
-        subsonic.serverAddress = serverAddress
+        // The address that answered, scheme and all.
+        serverAddress = address
+        subsonic.serverAddress = address
         subsonic.username = username
         subsonic.password = password
         // Anything cached from a previous server belongs to that server.

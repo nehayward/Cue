@@ -28,6 +28,7 @@ struct DownloadsScreen: View {
     @Environment(Router.self) private var router: Router?
     @State private var manager = DownloadManager.shared
     @State private var cache = PlaybackCache.shared
+    @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
     @State private var cloudSummary: (local: Int, remote: Int)?
     @State private var tab: Tab = .songs
@@ -69,6 +70,15 @@ struct DownloadsScreen: View {
             if !active.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
+                        let held = manager.cellularHeldKeys
+                        if !held.isEmpty {
+                            Button {
+                                manager.allowCellular(forKeys: held)
+                            } label: {
+                                Label(held.count == 1 ? "Download Now Over Cellular" : "Download \(held.count) Now Over Cellular", systemImage: "antenna.radiowaves.left.and.right")
+                            }
+                            Divider()
+                        }
                         Button {
                             manager.pauseAll()
                         } label: {
@@ -86,12 +96,13 @@ struct DownloadsScreen: View {
                             Label("Cancel All", systemImage: "xmark.circle")
                         }
                     } label: {
-                        Label("Downloads", systemImage: "ellipsis.circle")
+                        Label("Downloads", systemImage: "ellipsis")
                     }
                 }
             }
         }
         .task {
+            apple.refreshIfNeeded()
             files.startCloudMonitor()
             await refreshCloudSummary()
         }
@@ -121,7 +132,9 @@ struct DownloadsScreen: View {
             } header: {
                 Text("Downloading")
             } footer: {
-                Text("Downloads carry on when Cue is in the background, with their progress on the Lock Screen, and pick up where they left off after a relaunch.")
+                Text(manager.allowsCellular
+                     ? "Downloads carry on when Cue is in the background, with their progress on the Lock Screen, and pick up where they left off after a relaunch."
+                     : "Downloads carry on when Cue is in the background, with their progress on the Lock Screen, and pick up where they left off after a relaunch. On cellular they wait for Wi‑Fi and start by themselves when it's back; tap the antenna to download one over cellular now.")
             }
         }
 
@@ -162,6 +175,30 @@ struct DownloadsScreen: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
+        }
+
+        if !apple.songs.isEmpty {
+            appleSection
+        }
+    }
+
+    /// The Music app's downloads, counted rather than listed: they're the
+    /// system's, not the manager's — nothing here to pause, remove or count
+    /// against the free limit — and they're browsed as a library of their
+    /// own under Downloaded on the Apple Library page.
+    private var appleSection: some View {
+        Section {
+            NavigationLink(value: RouterDestination.downloaded(service: .apple)) {
+                LabeledContent {
+                    Text(apple.songs.count == 1 ? "1 song" : "\(apple.songs.count.formatted()) songs")
+                } label: {
+                    Label("Downloaded in Music", systemImage: "arrow.down.circle.fill")
+                }
+            }
+        } header: {
+            Text("Apple Music")
+        } footer: {
+            Text("Songs the Music app has downloaded. Cue plays them on this device with or without a network; adding and removing them is done in Music, and they don't count toward the free limit.")
         }
     }
 
@@ -301,7 +338,7 @@ struct DownloadsScreen: View {
         } header: {
             Text("Downloads")
         } footer: {
-            Text("Applies to downloads queued from now on. Songs fetched ahead from iCloud Drive wait for Wi‑Fi unless the playback cache allows cellular.")
+            Text("Off, downloads on cellular wait for Wi‑Fi and start by themselves when it's back, and Cue asks before downloading over cellular. Songs fetched ahead from iCloud Drive wait for Wi‑Fi unless the playback cache allows cellular.")
         }
 
         if files.isConfigured, files.isCloudFolder {
@@ -398,18 +435,34 @@ struct DownloadsScreen: View {
                     .monospacedDigit()
             }
             Spacer(minLength: 0)
+            let heldForWiFi = manager.cellularHeldKeys.contains(item.key)
             Button {
+                if heldForWiFi {
+                    manager.offerCellular(forKeys: [item.key])
+                    return
+                }
                 switch item.state {
-                case .queued, .downloading: manager.pause(key: item.key)
+                case .queued, .downloading, .waiting: manager.pause(key: item.key)
                 case .paused, .failed: manager.resume(key: item.key)
                 case .completed: break
                 }
             } label: {
-                Image(systemName: item.isActive ? "pause.circle.fill" : "arrow.clockwise.circle.fill")
+                Image(systemName: heldForWiFi
+                      ? "antenna.radiowaves.left.and.right.circle.fill"
+                      : item.isActive ? "pause.circle.fill" : "arrow.clockwise.circle.fill")
                     .font(.title2)
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel(item.isActive ? "Pause Download" : "Resume Download")
+            .accessibilityLabel(heldForWiFi ? "Download Over Cellular" : item.isActive ? "Pause Download" : "Resume Download")
+        }
+        .swipeActions(edge: .leading) {
+            if item.state == .waiting {
+                Button {
+                    manager.pause(key: item.key)
+                } label: {
+                    Label("Pause", systemImage: "pause")
+                }
+            }
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
@@ -451,6 +504,8 @@ struct DownloadsScreen: View {
             let received = ByteCountFormatter.string(fromByteCount: item.bytesReceived, countStyle: .file)
             let expected = ByteCountFormatter.string(fromByteCount: item.bytesExpected, countStyle: .file)
             return "\(received) of \(expected)"
+        case .waiting:
+            return manager.network == .none ? "Waiting for a connection" : "Waiting for Wi‑Fi"
         case .paused:
             return "Paused"
         case .failed:

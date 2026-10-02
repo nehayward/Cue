@@ -13,6 +13,12 @@ public struct VibeSlider: View {
     @State private var onHover: Bool = false
     @State private var isHovered: Bool = false
     @State private var mouseLocation: CGPoint = .zero
+    /// False until `value` has changed once. The first change is the slider
+    /// catching up to the real level (a speaker's volume arriving after the
+    /// row appears), so it jumps there instead of sweeping up from 0. Until
+    /// then the fill and label take no animation at all, inherited ones
+    /// included.
+    @State private var animatesValue = false
     
     @GestureState private var isDragging: Bool = false
 
@@ -96,6 +102,10 @@ public struct VibeSlider: View {
 #endif
                             .frame(width: calculateProgressWidth(), height: baseHeight)
                             .animation(fillAnimation, value: value)
+                            // Until the first value lands, also drop animations
+                            // inherited from outside: a list animating rows in
+                            // otherwise grows the fill from width 0.
+                            .transaction { if !animatesValue { $0.animation = nil } }
                     }
                 }
                 .clipShape(.capsule) // Best attempt at fixing a bug https://twitter.com/ChristianSelig/status/1757139789457829902
@@ -119,6 +129,7 @@ public struct VibeSlider: View {
                 .opacity(showValue ? 1 : 0)
                 .animation(.interactiveSpring, value: isDragging)
                 .animation(fillAnimation, value: value)
+                .transaction { if !animatesValue { $0.animation = nil } }
         }
         .padding(.vertical, baseHeight/2)
         .gesture(dragGesture)
@@ -159,6 +170,12 @@ public struct VibeSlider: View {
             Slider(value: Binding(get: { math.clamped(value) }, set: { value = $0 }), in: math.safeRange, onEditingChanged: onEditingChanged)
         }
         .opacity(isEnabled ? 1 : 0.5)
+        .onChange(of: value) {
+            guard !animatesValue else { return }
+            // Deferred so the change that triggered this still renders
+            // without animation.
+            Task { @MainActor in animatesValue = true }
+        }
     }
     
     private var dragGesture: some Gesture {
@@ -193,8 +210,10 @@ public struct VibeSlider: View {
     /// on every drag tick trails the finger, which reads as lag. Values that
     /// arrive from outside (a speaker event, a button) still animate.
     /// `startingValue` rather than `isDragging`, which Mac Catalyst never sets.
+    /// Nothing before the first value lands (see `animatesValue`).
     private var fillAnimation: Animation? {
-        startingValue == nil ? valueAnimation : nil
+        guard animatesValue else { return nil }
+        return startingValue == nil ? valueAnimation : nil
     }
 
     private var innerCirclePadding: CGFloat { expandedHeight * 0.15 }
@@ -274,8 +293,6 @@ public struct VibeSliderTV: View {
         }
     
     public var body: some View {
-        let _ = Self._printChanges()
-        
         ZStack(alignment: .leading) {
             Capsule()
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }

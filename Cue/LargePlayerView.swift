@@ -122,6 +122,10 @@ struct LargePlayerView: View {
                         }
                     }
                     .animation(.default, value: group.coordinatorRoom.container != nil)
+                    // Resolve the label's layout inside this fixed frame so a
+                    // newly inserted or changed label fades in place instead
+                    // of flying in from its old/zero position.
+                    .geometryGroup()
                     .frame(height: 12)
                     GroupSongTitleButton(group: group)
                     GroupArtistButton(group: group, showArtworkOnly: showArtworkOnly)
@@ -315,7 +319,7 @@ struct LargePlayerView: View {
             .safeAreaPadding(.bottom)
             .ignoresSafeArea(.keyboard)
             .background {
-                GroupPlayerBackgroundView(group: group, shouldFade: artworkShouldFade)
+                GroupPlayerBackgroundView(group: group)
             }
             .hardwareVolumeControl(group: group)
             .task(id: coordinatorID) {
@@ -461,17 +465,14 @@ struct GroupPlaybackScrubber: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Bindable var group: GroupRoom
 
-    /// `VibeSlider` animates its fill on every value change, which is what makes
-    /// playback tick along smoothly — but a track change drops the position back
-    /// to the start, and animating *that* sweeps the whole bar backwards like a
-    /// rewind. Suppress it while the position is at the very beginning, where
-    /// there is nothing to see anyway; normal ticking picks the animation back
-    /// up a couple of seconds in. Derived from the position itself rather than
-    /// latched on a timer, so it cannot get stuck in either state, and it is
-    /// read at the same body pass the new value arrives in.
-    private var positionAnimation: Animation? {
-        group.coordinatorRoom.playbackPosition < 2000 ? nil : .interactiveSpring
-    }
+    @Environment(\.displayScale) private var displayScale
+
+    /// True while a finger is on the bar. The bar then shows the stored
+    /// position as is, without running it forward, or it would creep ahead
+    /// under the finger.
+    @State private var isScrubbing = false
+    /// The bar's width, which sets how often it's worth redrawing.
+    @State private var barWidth: CGFloat = 0
 
     /// The range the scrubber runs over. A radio source has no duration —
     /// Sonos reports none for a stream, and the parser hands that on as zero
@@ -486,55 +487,78 @@ struct GroupPlaybackScrubber: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            VibeSlider(value: $group.coordinatorRoom.playbackPosition, in: scrubRange, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, valueAnimation: positionAnimation) { isEditing in
-                sonosService.isEditing = true
-                Task { @MainActor in
-                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
-                    group.isEditingPlayback = isEditing
+        let room = group.coordinatorRoom
+        // Redrawn once per pixel of progress. Under a finger the bar shows the
+        // stored value, without running it on.
+        PlaybackTimeline(
+            isRunning: room.isClockRunning && !isScrubbing,
+            minimumInterval: ProgressRedraw.interval(
+                forDuration: room.track.duration,
+                length: barWidth,
+                scale: displayScale
+            ),
+            position: { isScrubbing ? room.playbackPosition : room.estimatedPlaybackPosition() }
+        ) { position in
+            VStack(spacing: 0) {
+                VibeSlider(value: Binding(get: { position }, set: { room.playbackPosition = $0 }), in: scrubRange, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, valueAnimation: nil, onEditingChanged: scrubbingChanged)
+                .frame(maxWidth: 500)
+                .frame(height: 40)
+                .foregroundStyle(.primary)
+                .accessibilityLabel("Playback Position")
+                .accessibilityValue(Duration.milliseconds(position).formatted(.time(pattern: .minuteSecond)))
+                .disabled(!group.availableActions.contains(.scrubbable))
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
+
+                HStack {
+                    let duration = Duration.milliseconds(room.track.duration)
+                    let elapsed = Duration.milliseconds(position)
+                    let timeRemaining = Duration.milliseconds(max(0, room.track.duration - position))
+
+                    let usesHourFormat = duration.components.seconds > 3600
+                    let pattern: Duration.TimeFormatStyle.Pattern = usesHourFormat ? .hourMinuteSecond : .minuteSecond
+
+                    Text(elapsed.formatted(.time(pattern: pattern)))
+                        .contentTransition(.identity)
+                    Spacer()
+                    AudioInfoView(quality: group.audioQuality)
+                        .frame(height: 12)
+                        .contentTransition(.identity)
+                        .animation(.spring, value: group.audioQuality)
+                    Spacer()
+                    Text("-\(timeRemaining.formatted(.time(pattern: pattern)))")
+                        .contentTransition(.identity)
                 }
-
-                if !isEditing {
-                    Task { @MainActor in
-                        await sonosService.seek(to: group.coordinatorRoom.playbackPosition, on: group)
-                        sonosService.isEditing = false
-                    }
-                }
+                .frame(maxWidth: 500)
+                .monospacedDigit()
+                .font(.caption)
             }
-            .frame(maxWidth: 500)
-            .frame(height: 40)
-            .foregroundStyle(.primary)
-            .accessibilityLabel("Playback Position")
-            .accessibilityValue(Duration.milliseconds(group.coordinatorRoom.playbackPosition).formatted(.time(pattern: .minuteSecond)))
-            .disabled(!group.availableActions.contains(.scrubbable))
-
-            HStack {
-                let duration = Duration.milliseconds(group.coordinatorRoom.track.duration)
-                let position = Duration.milliseconds(group.coordinatorRoom.playbackPosition)
-                let timeRemaining = Duration.milliseconds(max(0, group.coordinatorRoom.track.duration - group.coordinatorRoom.playbackPosition))
-
-                let usesHourFormat = duration.components.seconds > 3600
-                let pattern: Duration.TimeFormatStyle.Pattern = usesHourFormat ? .hourMinuteSecond : .minuteSecond
-
-                Text(position.formatted(.time(pattern: pattern)))
-                    .contentTransition(.identity)
-                Spacer()
-                AudioInfoView(quality: group.audioQuality)
-                    .frame(height: 12)
-                    .contentTransition(.identity)
-                    .animation(.spring, value: group.audioQuality)
-                Spacer()
-                Text("-\(timeRemaining.formatted(.time(pattern: pattern)))")
-                    .contentTransition(.identity)
-            }
-            .frame(maxWidth: 500)
-            .monospacedDigit()
-            .font(.caption)
         }
         .fontDesign(.rounded)
         .frame(maxWidth: .infinity)
         .frame(height: 60)
-        .opacity(group.coordinatorRoom.track.duration.isZero ? 0 : 1)
+        .opacity(room.track.duration.isZero ? 0 : 1)
+    }
+
+    /// `VibeSlider` reports `true` on every movement, not only the first touch.
+    private func scrubbingChanged(_ isEditing: Bool) {
+        let room = group.coordinatorRoom
+        if isEditing {
+            guard !isScrubbing else { return }
+            // Start from what's on screen, not the last report.
+            room.playbackPosition = room.estimatedPlaybackPosition()
+            isScrubbing = true
+            // Keeps polls and socket events off the position while the finger
+            // is down.
+            group.isEditingPlayback = true
+        } else {
+            isScrubbing = false
+            Task { @MainActor in
+                // Same turn as the seek starts, so no report lands in between:
+                // from here `beginSeek` decides which reports count.
+                group.isEditingPlayback = false
+                await sonosService.seek(to: room.playbackPosition, on: group)
+            }
+        }
     }
 }
 
@@ -542,8 +566,31 @@ struct GroupMediaControlsView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Bindable var group: GroupRoom
     @Binding var shouldFade: Bool
+    /// The phone's player: bigger glyphs, the skips spread wider, as in the
+    /// system's Now Playing.
+    var isProminent: Bool = false
+
+    /// No symbol animation on the Mac: any animated swap of the play/pause
+    /// icon (Magic Replace, `.replace`, `.replace.downUp`) made macOS allocate
+    /// a fixed ~85–97 MB of GPU memory for ~2 s on every play, pause and skip.
+    /// The pulse while the speaker is transitioning goes through the same
+    /// symbol animator. Shared with this device's transport.
+    static var animatesPlayPause: Bool {
+        #if targetEnvironment(macCatalyst)
+        false
+        #else
+        true
+        #endif
+    }
+
+    static var playPauseTransition: ContentTransition {
+        animatesPlayPause ? .symbolEffect(.automatic) : .identity
+    }
 
     @State private var selectionTrack: Task<Void, Never>?
+
+    private var skipSize: CGFloat { isProminent ? 38 : 32 }
+    private var playSize: CGFloat { isProminent ? 40 : 32 }
 
     var body: some View {
         HStack {
@@ -574,7 +621,7 @@ struct GroupMediaControlsView: View {
                 Image(systemName: "backward.fill")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 32, height: 32)
+                    .frame(width: skipSize, height: skipSize)
             }
             .buttonStyle(.liveActivity)
             .accessibilityLabel("Previous")
@@ -595,9 +642,9 @@ struct GroupMediaControlsView: View {
                 Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
                     .resizable()
                     .scaledToFit()
-                    .contentTransition(.symbolEffect(.automatic))
-                    .symbolEffect(.pulse, isActive: group.coordinatorRoom.isTransitioning)
-                    .frame(width: 32, height: 32)
+                    .contentTransition(Self.playPauseTransition)
+                    .sustainedPulse(isActive: Self.animatesPlayPause && group.coordinatorRoom.isTransitioning)
+                    .frame(width: playSize, height: playSize)
 
             }
             .buttonStyle(.liveActivity)
@@ -612,7 +659,6 @@ struct GroupMediaControlsView: View {
                 selectionTrack?.cancel()
                 selectionTrack = Task {
                     HapticManager.shared.fireHaptic(.selection)
-                    group.coordinatorRoom.playbackPosition = 0
                     shouldFade = false
                     // Left to the socket — twin of the previous button above,
                     // including the no-fade window. Holding `isEditing` across a
@@ -629,14 +675,14 @@ struct GroupMediaControlsView: View {
                 Image(systemName: "forward.fill")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 32, height: 32)
+                    .frame(width: skipSize, height: skipSize)
             }
             .buttonStyle(.liveActivity)
             .accessibilityLabel("Next")
             .disabled(!group.availableActions.contains(.next))
         }
-        .frame(maxWidth: 300)
-        .padding(.horizontal, 60)
+        .frame(maxWidth: isProminent ? 320 : 300)
+        .padding(.horizontal, isProminent ? 36 : 60)
     }
 }
 
@@ -905,17 +951,16 @@ fileprivate struct BackgroundView: View {
     }
 }
 
+/// The speaker player's backdrop: a gradient of the cover's colours (see
+/// `ArtworkMeshBackground`) under a thin material.
 struct GroupPlayerBackgroundView: View {
     var group: GroupRoom
-    var shouldFade: Bool
-    
+
     var body: some View {
         ZStack {
-            ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade, isBackground: true)
+            ArtworkMeshBackground(group: group)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .saturation(1.3)
                 .opacity(group.coordinatorRoom.track.artworkURL == nil ? 0 : 1)
-                .blur(radius: 80)
             BlurView()
         }
         .opacity(group.TVMode ? 0 : 1)

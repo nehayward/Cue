@@ -1,3 +1,4 @@
+import AVKit
 import Defaults
 import SonosKit
 import SwiftUI
@@ -22,11 +23,36 @@ import SwiftUI
 /// them, the same rows the press-and-hold group menu shows. Switching to a
 /// different room outright is a check and an uncheck; leaving the speakers
 /// altogether is This Device.
+///
+/// With Sonos off it is the system AirPlay button instead.
 struct PlaybackRouteButton: View {
     /// Read off the singleton rather than the environment: this sits in the tab
     /// bar accessory, which is hosted outside the tab content and so isn't
-    /// guaranteed to inherit what `withEnvironments()` installs. `@Observable`
-    /// still tracks the `sorted` access below, so the list stays live.
+    /// guaranteed to inherit what `withEnvironments()` installs.
+    private var sonosService: SonosService { .shared }
+
+    var body: some View {
+        VStack {
+            if sonosService.isEnabled {
+                SonosRouteMenu()
+            } else {
+                // With Sonos off the only routes are the system's, so the
+                // button is the system's AirPlay picker itself. Speakers are
+                // switched on in Settings ▸ Sonos.
+                AirPlayRoutePicker()
+                    .frame(width: 30, height: 30)
+                    .accessibilityLabel("AirPlay")
+            }
+        }
+        // Re-read on every appearance: the share extension writes this too, so
+        // the app can come back to a destination it didn't pick itself.
+        .onAppear { PlaybackRoute.shared.refresh() }
+    }
+}
+
+/// The Play On menu while Sonos is on: This Device, then the speakers — or,
+/// on a speaker, that group's rooms as toggles.
+private struct SonosRouteMenu: View {
     private var sonosService: SonosService { .shared }
     private var route: PlaybackRoute { .shared }
 
@@ -34,14 +60,12 @@ struct PlaybackRouteButton: View {
     @State private var pending: PendingSwitch?
 
     var body: some View {
-        let destination = route.destination
-
         Menu {
             Button {
                 select(.device)
             } label: {
                 Label("This Device", systemImage: "iphone.radiowaves.left.and.right")
-                if destination == .device {
+                if route.destination == .device {
                     Image(systemName: "checkmark")
                 }
             }
@@ -51,49 +75,22 @@ struct PlaybackRouteButton: View {
                 // list reads once: no group list above a room list.
                 GroupMenuItems(group: group)
             } else {
-                let groups = sonosService.sorted
-                if groups.isEmpty {
-                    Text("No speakers found")
-                } else {
-                    Section("Speakers") {
-                        ForEach(groups) { group in
-                            Button {
-                                select(.group(group.coordinatorID))
-                            } label: {
-                                Label(
-                                    group.nameWithCount,
-                                    systemImage: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"
-                                )
-                            }
-                        }
-                    }
-                }
+                SpeakerMenuItems(onSelect: select)
             }
         } label: {
-            // Cue's own speaker-with-arrow symbol for "this device" rather
-            // than the AirPlay glyph: the route is Cue's, not AirPlay's.
-            Group {
-                if destination == .device {
-                    Image("hifispeaker.arrow.forward.fill")
-                } else if (route.group?.rooms.count ?? 1) > 1 {
-                    Image(systemName: "hifispeaker.2.fill")
-                } else {
-                    Image(systemName: "hifispeaker.fill")
-                }
-            }
-            .contentTransition(.symbolEffect(.replace))
-            .accessibilityLabel("Play On")
+            // Cue's own speaker-with-arrow symbol rather than the AirPlay
+            // glyph: the route is Cue's, not AirPlay's.
+            Image("hifispeaker.arrow.forward.fill")
+                .accessibilityLabel("Play On")
+                .accessibilityValue(route.group?.nameWithCount ?? "This Device")
         }
         .menuIndicator(.hidden)
         .sheet(item: $pending) { pending in
             RouteTransferPrompt(target: pending.target) { carrying in
                 self.pending = nil
-                PlaybackRoute.shared.switchTo(pending.target, carrying: carrying)
+                route.switchTo(pending.target, carrying: carrying)
             }
         }
-        // Re-read on every appearance: the share extension writes this too, so
-        // the app can come back to a destination it didn't pick itself.
-        .onAppear { route.refresh() }
     }
 
     private func select(_ target: PlayDestination) {
@@ -106,6 +103,52 @@ struct PlaybackRouteButton: View {
             route.switchTo(target, carrying: preference != .never)
         }
     }
+}
+
+/// Every speaker group to switch to, for when playback is on this device.
+/// `@Observable` tracks the `sorted` access, so the list stays live.
+private struct SpeakerMenuItems: View {
+    let onSelect: (PlayDestination) -> Void
+
+    private var sonosService: SonosService { .shared }
+
+    var body: some View {
+        let groups = sonosService.sorted
+        if groups.isEmpty {
+            Text(sonosService.isSearching ? "Looking for speakers…" : "No speakers found")
+        } else {
+            Section("Speakers") {
+                ForEach(groups) { group in
+                    Button {
+                        onSelect(.group(group.coordinatorID))
+                    } label: {
+                        Label(
+                            group.nameWithCount,
+                            systemImage: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"
+                        )
+                    }
+                }
+            }
+            // Menu content appears as the menu opens, which is the head
+            // start: the pick's hand-off can skip a read.
+            .onAppear { PlaybackRoute.shared.prefetchTargets() }
+        }
+    }
+}
+
+/// The system AirPlay button: a tap puts up the system route sheet, the
+/// same one Control Center shows, and the device's audio follows it.
+private struct AirPlayRoutePicker: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let picker = AVRoutePickerView()
+        picker.prioritizesVideoDevices = false
+        picker.tintColor = .label
+        picker.activeTintColor = .tintColor
+        picker.backgroundColor = .clear
+        return picker
+    }
+
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }
 
 private struct PendingSwitch: Identifiable {

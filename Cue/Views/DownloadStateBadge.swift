@@ -5,14 +5,19 @@ import SwiftUI
 /// kept on this device, coming down (with how far), or still up in iCloud.
 /// An album, playlist or artist downloaded whole gets the same mark for
 /// the set. Nothing for a song that streams and isn't being fetched. Reads
-/// the download manager and, for Files, the folder's iCloud status, so a
-/// row on screen follows a download as it runs.
+/// the download manager, the Music app's downloads for Apple songs, and,
+/// for Files, the folder's iCloud status, so a row on screen follows a
+/// download as it runs.
 struct DownloadStateBadge: View {
     let item: PlayableContent
 
     private enum State: Equatable {
         case downloaded
         case downloading(Double?)
+        /// Paused, or failed and waiting on a retry.
+        case stopped(failed: Bool)
+        /// Queued, but held until Wi‑Fi (or any network) is back.
+        case waiting
         case inCloud
         case none
     }
@@ -27,7 +32,10 @@ struct DownloadStateBadge: View {
             }
         }
         if manager.isDownloaded(item) { return .downloaded }
+        if manager.waitingDownload(for: item) != nil { return .waiting }
         if manager.isDownloading(item) { return .downloading(manager.progress(for: item)) }
+        if let stopped = manager.stoppedDownload(for: item) { return .stopped(failed: stopped.state == .failed) }
+        if AppleDownloadsIndex.shared.isDownloaded(item) { return .downloaded }
         if item.content.service == .files {
             switch FilesLibraryService.shared.cloudStatus(trackID: item.content.id) {
             case let .downloading(fraction): return .downloading(fraction)
@@ -48,6 +56,16 @@ struct DownloadStateBadge: View {
             ProgressRing(fraction: fraction)
                 .frame(width: 13, height: 13)
                 .accessibilityLabel(fraction.map { "Downloading, \(Int($0 * 100)) percent" } ?? "Downloading")
+        case let .stopped(failed):
+            Image(systemName: failed ? "exclamationmark.circle" : "pause.circle")
+                .font(.caption2)
+                .foregroundStyle(failed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                .accessibilityLabel(failed ? "Download failed" : "Download paused")
+        case .waiting:
+            Image(systemName: "wifi")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("Download waiting for Wi‑Fi")
         case .inCloud:
             Image(systemName: "icloud.and.arrow.down")
                 .font(.caption2)

@@ -26,9 +26,13 @@ public enum RouterDestination: Hashable, Identifiable {
     /// The download manager: what's coming down, what's here, and the
     /// iCloud Drive side of the Files folder.
     case downloads
-    /// One grouped page of the on-device library, for Offline Mode: what's
-    /// here by album or by artist.
-    case onDeviceCollection(OnDeviceCollection)
+    /// What's on this device from one provider — or every provider for
+    /// nil — as a small library: Artists, Albums and Songs. A provider's
+    /// Downloaded row opens its own.
+    case downloaded(service: MusicService?)
+    /// One grouped page of the on-device library: what's here by album or
+    /// by artist, from one provider or — for Offline Mode — all of them.
+    case onDeviceCollection(OnDeviceCollection, service: MusicService? = nil)
     case houseHold
     case spotifyUserPlaylist
     case genreList
@@ -78,8 +82,10 @@ public enum RouterDestination: Hashable, Identifiable {
             return "servicePreferenceScreen"
         case .downloads:
             return "downloads"
-        case let .onDeviceCollection(collection):
-            return "onDevice.\(collection.title.lowercased())"
+        case let .downloaded(service):
+            return "downloaded.\(service?.sonosRawValue ?? "all")"
+        case let .onDeviceCollection(collection, service):
+            return "onDevice.\(collection.title.lowercased()).\(service?.sonosRawValue ?? "all")"
         case .spotifyUserPlaylist:
             return "spotifyUserPlaylist"
         case .genreList:
@@ -135,8 +141,10 @@ public enum RouterDestination: Hashable, Identifiable {
             return true
         case (.downloads, .downloads):
             return true
-        case let (.onDeviceCollection(collection1), .onDeviceCollection(collection2)):
-            return collection1 == collection2
+        case let (.downloaded(service1), .downloaded(service2)):
+            return service1 == service2
+        case let (.onDeviceCollection(collection1, service1), .onDeviceCollection(collection2, service2)):
+            return collection1 == collection2 && service1 == service2
         case (.spotifyUserPlaylist, .spotifyUserPlaylist):
             return true
         case (.genreList, .genreList):
@@ -188,9 +196,13 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("servicePreferenceScreen")
         case .downloads:
             hasher.combine("downloads")
-        case let .onDeviceCollection(collection):
+        case let .downloaded(service):
+            hasher.combine("downloaded")
+            hasher.combine(service)
+        case let .onDeviceCollection(collection, service):
             hasher.combine("onDeviceCollection")
             hasher.combine(collection)
+            hasher.combine(service)
         case .spotifyUserPlaylist:
             hasher.combine("spotifyUserPlaylist")
         case .genreList:

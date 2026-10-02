@@ -44,6 +44,26 @@ public struct Track: Identifiable, Hashable, Sendable {
         return radioStationArtworkURL
     }
 
+    /// Whether the album can key the artwork cache: every song on an album
+    /// shares its cover.
+    public var albumKeysArtwork: Bool {
+        !album.isEmpty
+    }
+
+    /// The artwork cache key the player and the lock screen share, so both
+    /// name the same entry: album, else track name, else id, else the URL.
+    public var playerArtworkCacheKey: String {
+        let service = String(describing: musicService)
+        if albumKeysArtwork { return "\(album).\(service).player" }
+        if !name.isEmpty { return "\(name).\(service).player" }
+        if !trackID.isEmpty { return trackID + ".player" }
+        // Identity-less track (an idle radio player's resting track has no
+        // album/name/trackID): key by the artwork URL. A bare ".player" key
+        // was shared by every idle radio room, so each room's player showed
+        // whichever station's art happened to be cached first.
+        return (artworkURL?.absoluteString ?? "") + ".player"
+    }
+
     public var downloadedArtworkURL: URL?
     public var radioStationArtworkURL: URL?
     public var musicService: MusicService
@@ -51,6 +71,14 @@ public struct Track: Identifiable, Hashable, Sendable {
     public var sonosAlbumArtURL: URL?
     public var metadata: Metadata?
     public var duration: TimeInterval
+
+    /// Shown on a skip press before the speaker has moved: built from the
+    /// queue or the socket's next item, so it lacks the catalog metadata and
+    /// full-size artwork the real track gets. Not identity — `trackID` and
+    /// `unique` are the real song's, so favorites, queue highlights and caches
+    /// see the right song — which is why the poll's same-song shortcuts check
+    /// it: a preview still needs the lookup.
+    public var isSkipPreview = false
 
     /// Parsed playback position from the device response. UI should NOT read
     /// this directly — use `Room.playbackPosition` instead (which is updated
@@ -87,6 +115,21 @@ public struct Track: Identifiable, Hashable, Sendable {
         self.position = position
         self.sonosAlbumArtURL = sonosAlbumArtURL
         self.metadata = metadata
+    }
+}
+
+extension Track {
+    /// Same-album carry: a track on the album already on screen takes its
+    /// full-size cover URL, so the artwork view never drops to the speaker's
+    /// proxy art (or to nothing) while this track's own lookup runs. Spotify
+    /// sends only `dc:creator`, so without it the URL changed twice on every
+    /// track change within an album, which showed as a flash.
+    mutating func inheritAlbumArtwork(from shown: Track) {
+        guard downloadedArtworkURL == nil,
+              albumKeysArtwork,
+              album == shown.album,
+              let artworkURL = shown.downloadedArtworkURL else { return }
+        downloadedArtworkURL = artworkURL
     }
 }
 

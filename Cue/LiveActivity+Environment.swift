@@ -16,12 +16,11 @@ protocol LiveActivityManageable {
 }
 
 struct LiveActivityManagerKey: EnvironmentKey {
-    // you can also set the real user service as the default value
-    #if os(iOS) && canImport(ActivityKit) && !targetEnvironment(macCatalyst)
-    static let defaultValue: any LiveActivityManageable = LiveActivityManager()
-    #else
+    // Live Activities are off for now: the Lock Screen relies on the system
+    // Now Playing card instead, and the Widgets extension that draws them isn't
+    // embedded. Swap `LiveActivityManager()` back in here and in
+    // `LiveActivityManagerFactory` to bring them back.
     static let defaultValue: any LiveActivityManageable = LiveActivityManagerMock()
-    #endif
 }
 
 extension EnvironmentValues {
@@ -47,10 +46,6 @@ final class LiveActivityManagerMock: LiveActivityManageable {
 }
 
 struct LiveActivityManagerFactory {
-    // you can also set the real user service as the default value
-    #if os(iOS) && canImport(ActivityKit) && !targetEnvironment(macCatalyst)
-    static let shared: any LiveActivityManageable = LiveActivityManager()
-    #else
+    // Off for now — see `LiveActivityManagerKey`.
     static let shared: any LiveActivityManageable = LiveActivityManagerMock()
-    #endif
 }

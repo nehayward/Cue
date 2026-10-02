@@ -69,6 +69,12 @@ struct SubsonicBrowseScreen: View {
                     .listRowInsets(.default)
                     .listRowSeparator(.hidden)
 
+                    NavigationLink(value: RouterDestination.downloaded(service: .subsonic)) {
+                        Label("Downloaded", systemImage: "arrow.down.circle")
+                    }
+                    .listRowInsets(.default)
+                    .listRowSeparator(.hidden)
+
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Recently Added",
                         showSectionIndex: false,
@@ -202,7 +208,7 @@ struct SubsonicBrowseScreen: View {
         ContentUnavailableView {
             Label("No Server Connected", systemImage: "externaldrive.fill.badge.icloud")
         } description: {
-            Text("Connect a Subsonic-compatible server to browse your own music library and play it on your Sonos speakers.")
+            Text("Connect a Subsonic-compatible server to browse your own music library and play it here or on your Sonos speakers.")
         } actions: {
             VStack(spacing: 20) {
                 Button {
@@ -225,7 +231,6 @@ struct SubsonicBrowseScreen: View {
                 }
             }
         }
-        .ignoresSafeArea(.all, edges: .all)
     }
 
     /// A link out to a self-hosted server project. Secondary (`.bordered`) on

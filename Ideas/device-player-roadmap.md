@@ -35,7 +35,7 @@ branch lands.
   Done when: shuffle survives relaunch and route hand-off to Sonos, and
   unshuffle puts the current song back at its original index.
 
-- [ ] **Report plays to Plex and Subsonic** — `claude/server-play-reporting`
+- [x] **Report plays to Plex and Subsonic** — `claude/server-play-reporting`
   Nothing calls Subsonic `scrobble` or Plex `:/timeline`, so server play
   counts, "recently played", and Navidrome's Last.fm / ListenBrainz
   forwarding never fire from Cue.
@@ -61,7 +61,7 @@ branch lands.
 - [ ] **CarPlay** — `claude/carplay`
   No CarPlay scene exists; `Cue/Services/AudioOutputRoute.swift` only
   detects the route. Needs the CarPlay audio entitlement.
-  Files: new `Cue/CarPlay/` with a `CPTemplateApplicationSceneDelegate`,
+  Files: new `CarPlay/` with a `CPTemplateApplicationSceneDelegate`,
   list templates for Recents, Playlists, Albums, Radio, Downloads, and the
   Now Playing template bound to `LocalPlaybackService`; scene manifest in
   `Cue/Info.plist`.

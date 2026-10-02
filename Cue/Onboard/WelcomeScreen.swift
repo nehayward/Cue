@@ -10,6 +10,7 @@ import SwiftUI
 /// `didBailOut`, `monitor()` on dismiss). Each step page lives in its own file:
 ///
 ///  - `WelcomeStep.swift` — splash + Get Started
+///  - `SonosQuestionStep.swift` — do you have Sonos? Sets the Sonos preference
 ///  - `DiscoveryStep.swift` — Local Network permission, searching, found/denied/notFound
 ///  - `ServicesStep.swift` — list of music services with checkmarks
 ///  - `PlexStep.swift` — Plex sign-in + default library pick (only when Plex found)
@@ -22,7 +23,7 @@ import SwiftUI
 /// launch-arg helpers are in `OnboardingDebug.swift`.
 struct WelcomeScreen: View {
     enum Step: Int, CaseIterable {
-        case welcome, discovery, services, plex, paywall, email
+        case welcome, sonos, discovery, services, plex, paywall, email
     }
 
     @Environment(SonosService.self) private var sonosService
@@ -56,7 +57,7 @@ struct WelcomeScreen: View {
                             // onboarding complete — users found the repeat
                             // re-presentation annoying and can restart
                             // setup from Preferences if they need to.
-                            if step == .welcome || step == .discovery {
+                            if [.welcome, .sonos, .discovery].contains(step) {
                                 didBailOut = true
                             }
                             dismiss()
@@ -98,7 +99,8 @@ struct WelcomeScreen: View {
             hasOnboarded = true
             // Kick discovery off — even if the user bailed before granting
             // Local Network, monitor() is harmless without permission and
-            // will start finding speakers if they granted it later.
+            // will start finding speakers if they granted it later. It does
+            // nothing when the user said they have no Sonos.
             sonosService.monitor()
         }
     }
@@ -113,11 +115,15 @@ struct WelcomeScreen: View {
     private var stepContent: some View {
         switch step {
         case .welcome:
-            WelcomeStep(advance: { goTo(.discovery) })
+            WelcomeStep(advance: { goTo(.sonos) })
                 .id(Step.welcome)
                 .transition(slideTransition)
+        case .sonos:
+            SonosQuestionStep(answer: answerSonosQuestion)
+                .id(Step.sonos)
+                .transition(slideTransition)
         case .discovery:
-            DiscoveryStep(advance: advanceFromDiscovery)
+            DiscoveryStep(advance: advanceFromDiscovery, skip: advanceToPostServices)
                 .id(Step.discovery)
                 .transition(slideTransition)
         case .services:
@@ -144,6 +150,20 @@ struct WelcomeScreen: View {
             insertion: .move(edge: .trailing),
             removal: .move(edge: .leading)
         )
+    }
+
+    /// The answer is the Sonos preference. Yes turns it on without starting
+    /// the search: the discovery page explains the Local Network prompt
+    /// before it appears. No leaves it off, so nothing touches the network,
+    /// and skips the speaker pages.
+    private func answerSonosQuestion(_ hasSonos: Bool) {
+        Analytics.shared.track(hasSonos ? OnboardingEvent.answeredHasSonos : OnboardingEvent.answeredNoSonos)
+        sonosService.setEnabled(hasSonos, startMonitoring: false)
+        if hasSonos {
+            goTo(.discovery)
+        } else {
+            advanceToPostServices()
+        }
     }
 
     private func advanceFromDiscovery() {
@@ -231,15 +251,11 @@ struct WelcomeScreen: View {
         advanceToPostServices()
     }
 
-    /// Shared post-services routing. Subscribed users skip the paywall entirely
-    /// and land straight on the newsletter step; everyone else gets the paywall
-    /// first.
+    /// Shared post-services routing. Onboarding ends here for now: the
+    /// paywall and newsletter steps are held back. To bring them back, go to
+    /// `.email` for subscribers and `.paywall` for everyone else.
     private func advanceToPostServices() {
-        if subscriptionService.subscription.isActive {
-            goTo(.email)
-        } else {
-            goTo(.paywall)
-        }
+        dismiss()
     }
 
     private func goTo(_ next: Step) {

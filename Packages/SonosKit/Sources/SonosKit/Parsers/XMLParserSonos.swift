@@ -223,7 +223,7 @@ final class XMLParserSonos {
 
     func parsePlaybackInfo(xml: String) -> PlaybackStatus {
         guard let value = try? parseValue(xml: xml, named: "CurrentTransportState") else {
-            return .transitioning
+            return .unknown
         }
         
         if value == "PLAYING" {
@@ -236,9 +236,11 @@ final class XMLParserSonos {
     }
 
     func parseMediaInfo(xml: String) -> PlaybackMediaInfo {
+        let queueTotal = (try? parseValue(xml: xml, named: "NrTracks")).flatMap { Int($0) }
+
         // Early return if we can't parse the URI
         guard let currentURI = try? parseValue(xml: xml, named: "CurrentURI") else {
-            return PlaybackMediaInfo(playbackService: .unknown, artwork: nil, title: nil)
+            return PlaybackMediaInfo(playbackService: .unknown, artwork: nil, title: nil, queueTotal: queueTotal)
         }
         
         // Map URI substrings to their corresponding PlaybackService
@@ -270,7 +272,7 @@ final class XMLParserSonos {
             albumArtURL = URL(string: albumArt ?? "")?.sonosRadioArtwork()
         }
         
-        return PlaybackMediaInfo(playbackService: playbackService, artwork: albumArtURL, title: radioTitle, currentURI: currentURI.removingHTMLEntities())
+        return PlaybackMediaInfo(playbackService: playbackService, artwork: albumArtURL, title: radioTitle, currentURI: currentURI.removingHTMLEntities(), queueTotal: queueTotal)
     }
 
 

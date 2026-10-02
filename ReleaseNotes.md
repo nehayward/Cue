@@ -1,6 +1,8 @@
 # 2026.8
 
 –– New Features ––
+- CarPlay: Play your Apple Music, Plex, Subsonic and Files libraries, your downloads and your radio stations from the car's screen — Recents, Library, Downloads and Radio, with Up Next, shuffle and repeat in Now Playing. Library opens on your playlists with Recently Added and Albums pinned on top, Downloads plays what's on your iPhone with no signal, and albums and playlists open with their cover, Play and Shuffle
+- Plays count on your server: songs you play on this device in Cue now show up in your Plex and Subsonic play counts, Recently Played and the server's Now Playing. Navidrome passes them on to Last.fm or ListenBrainz if you've set that up
 - Subsonic & Navidrome: Play your self-hosted music library on Sonos. Connect any Subsonic-compatible server (Navidrome, Airsonic, Gonic, and more) with its address and login under Settings ▸ Services, and your speakers stream your music straight from the server — no Sonos account involved, with your password kept in the device keychain
 - Subsonic search and browse: Search your server's songs, albums and artists alongside your other services, browse your whole library — Artists, Albums, Songs, Recently Added, and Playlists — and open artist pages complete with top songs and a playable discography
 - Subsonic playlists and favorites: Create playlists, add and remove songs, and delete playlists right from Cue; star songs with the heart in the player and menus, and preview any song before sending it to a speaker
@@ -13,6 +15,7 @@
 - Live Transcription: While a radio station plays, tap the captions button on the player (⇧⌘T on Mac) to see what's being said, written out live by a model that runs entirely on your device (iOS 26 and later). Works for TuneIn stations on this device, and for TuneIn and internet radio stations playing on your Sonos speakers. Pick any supported language — it downloads the first time — and Cue remembers it for each station. The switch stays how you left it between launches
 
 –– Bug Fixes & Improvements ––
+- Smoother changes between songs from different services on this device: Cue starts the next song the moment the last one ends, and looks up Apple Music songs ahead of time, so there's barely a pause going from your server to Apple Music and back
 - Fixed the Plex Albums and Artists lists stuttering as they scrolled — every page of albums that arrived was re-sorted into letter groups many times over
 - Discography on artist pages now starts fresh — it clears the queue and plays every album in order, oldest first, starting as soon as the first song is ready. Play Next and Play Last are still in the ••• menu
 - Restored the Favorite option in Deezer song menus — it had quietly gone missing from the ••• menu
@@ -24,6 +27,8 @@
 - Starred Subsonic songs now show the heart in lists, the way Plex favorites do
 - Settings ▸ Storage now shows how much space your synced libraries take, and can clear them — they rebuild the next time you open Songs
 - One speaker button on the player: the Play On button now carries the grouping menu too — with a speaker chosen, tap it to check the rooms you want playing together, uncheck one to drop it, or pick Everywhere or Ungroup All — so the second speaker button beside it is gone, and the menu no longer lists the current room's name twice
+- Improved Plex sign-in: it opens in Safari, so a saved password fills in, Sign in with Apple or Google works, and if you're already signed in to Plex in Safari you only approve Cue. The button shows when it's working, says what went wrong if Plex can't be reached, and offers Open in Browser Instead. Signing in again no longer adds another Cue to your Plex account's devices
+- Improved Subsonic setup: type just your server's name, like music.example.com, and Cue connects over HTTPS when the server has it. Errors now say what to fix — a wrong password, a server that can't be found, Local Network access, or an address that isn't a Subsonic server
 
 # 2026.7
 
