@@ -184,7 +184,7 @@ struct PlexManagementView: View {
                 Text("Connect Your Plex Account")
                     .font(.title2.bold())
 
-                Text("Make sure you're using the Plex account linked to your Sonos system and that remote access is enabled.")
+                Text(signInMessage)
                     .font(.body)
                     .foregroundStyle(.secondary)
 
@@ -197,26 +197,39 @@ struct PlexManagementView: View {
                 .foregroundStyle(.accent)
                 .buttonStyle(.plain)
 
-                if let url = plexAuthenticator.authorizationURL {
-                    Link(destination: url) {
-                        Text(url.absoluteString)
-                            .font(.footnote)
-                            .foregroundStyle(.blue)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                    .textSelection(.enabled)
-                }
-
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     plexAuthenticator.authenticate()
                 } label: {
-                    Text("Authorize Plex")
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
+                    Group {
+                        if plexAuthenticator.isStartingSignIn {
+                            ProgressView()
+                        } else {
+                            Text("Sign In to Plex")
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(plexAuthenticator.isStartingSignIn)
+
+                if let error = plexAuthenticator.signInError {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+
+                // The same sign-in in the browser app, for a password manager
+                // that doesn't fill in the sheet. The poll picks up the
+                // approval when Cue comes back.
+                if let url = plexAuthenticator.authorizationURL {
+                    Link(destination: url) {
+                        Label("Open in Browser Instead", systemImage: "safari")
+                            .font(.footnote)
+                    }
+                    .buttonStyle(.borderless)
+                }
             }
             .frame(maxWidth: .infinity)
             .multilineTextAlignment(.center)
@@ -229,6 +242,12 @@ struct PlexManagementView: View {
         .onDisappear {
             plexAuthenticator.stopMonitor()
         }
+    }
+
+    private var signInMessage: String {
+        let safari = "Plex signs in through Safari, so a saved password fills in and Sign in with Apple or Google works."
+        guard SonosService.shared.isEnabled else { return safari }
+        return safari + " Use the Plex account linked to your Sonos system."
     }
 }
 
