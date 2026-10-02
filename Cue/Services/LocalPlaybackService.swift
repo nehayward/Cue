@@ -49,6 +49,11 @@ final class LocalPlaybackService {
 
     private init() {
         restoreSavedQueue()
+        // Ready before the first Apple song is asked for: an older build's
+        // song file gets split up here, off the main thread.
+        Task.detached(priority: .utility) {
+            await AppleSongStore.shared.prepare()
+        }
         // The position is what changes most and is written least: make sure
         // the latest one is on disk before the app can be killed quietly.
         // `willTerminate` doesn't come for a kill from the switcher while
@@ -85,6 +90,18 @@ final class LocalPlaybackService {
             case .nothingPlayable:
                 "Nothing here can play on this device"
             }
+        }
+    }
+
+    /// One entry in the Apple player's queue: the queue row it plays and the
+    /// song's length. Not the `Song` itself, which holds about 25 KB.
+    private struct AppleRunEntry {
+        let queueIndex: Int
+        let duration: TimeInterval?
+
+        init(_ resolved: (queueIndex: Int, song: Song)) {
+            queueIndex = resolved.queueIndex
+            duration = resolved.song.duration
         }
     }
 
@@ -319,11 +336,48 @@ final class LocalPlaybackService {
     /// The window is topped back up once fewer than this many armed songs
     /// are left after the current one.
     private static let streamTopUpThreshold = 4
+    /// How many songs an Apple run starts with. The rest follow into the
+    /// player's queue once it's playing (`fillAppleRun`).
+    ///
+    /// Every song has to be looked up before the Apple player will take it,
+    /// and the player's own queue load grows with its length: a 600-song
+    /// library list took 8.6 s to its first note when armed whole, 3.5 s
+    /// with every song already looked up, and Previous re-armed all of it
+    /// again (11 s for three presses).
+    private static let appleWindow = 20
+    /// How far ahead of the song playing the Apple player's queue is kept.
+    /// Not the whole run, which costs memory for every song queued; but
+    /// generous, because Cue is suspended in the background while Apple's
+    /// player plays on by itself, and these are what play until Cue is next
+    /// awake to add more — 200 songs is about twelve hours.
+    private static let appleQueueAhead = 200
+    /// The least time between two inserts into the Apple player's queue.
+    /// Inserts made back to back — four within 150 ms — stop the player a
+    /// second or so later, with no error; one insert, or inserts a second
+    /// apart, don't.
+    private static let appleInsertSpacing: TimeInterval = 2
     @ObservationIgnored private let musicPlayer = ApplicationMusicPlayer.shared
-    /// The armed Apple run: player-entry offset → (queue index, resolved song).
-    /// Rows that failed to resolve are absent, which is why this maps offsets
-    /// to queue indices instead of assuming they line up.
-    @ObservationIgnored private var appleRun: [(queueIndex: Int, song: Song)] = []
+    /// The armed Apple run, one per player entry: its queue row and the
+    /// song's length. Rows that failed to resolve have no entry, which is why
+    /// this maps entry offsets to queue indices instead of assuming they line
+    /// up.
+    @ObservationIgnored private var appleRun: [AppleRunEntry] = []
+    /// The rest of the Apple run being looked up and handed to the player,
+    /// and the arm it belongs to (see `fillAppleRun`).
+    @ObservationIgnored private var appleFill: (token: Int, task: Task<Void, Never>)?
+    /// No fill before this: the last one failed (no network, say), and the
+    /// poll would otherwise try again every half second.
+    @ObservationIgnored private var appleFillRetryAfter: Date = .distantPast
+    /// When songs were last inserted into the Apple player's queue (see
+    /// `appleInsertSpacing`).
+    @ObservationIgnored private var lastAppleInsert: Date = .distantPast
+    /// The queue row the Apple player last stopped short on and was armed
+    /// again at — once, so a song it keeps stopping on is gone past instead.
+    @ObservationIgnored private var appleStallIndex: Int?
+    /// Where an Apple skip took the queue, shown at once and held over the
+    /// poll until the player gets there: MusicKit's current entry follows a
+    /// skip a beat later, and the poll would put the old song back meanwhile.
+    @ObservationIgnored private var appleSkipHold: (queueIndex: Int, until: Date)?
     /// Set once the Apple player has actually played, so a `.stopped` read
     /// means "run ended", not "still warming up".
     @ObservationIgnored private var appleWasPlaying = false
@@ -349,11 +403,14 @@ final class LocalPlaybackService {
     /// Each armed stream item's status, watched so a song that won't load is
     /// reported the moment it fails — see `watch(_:)`.
     @ObservationIgnored private var itemWatches: [ObjectIdentifier: NSKeyValueObservation] = [:]
-    /// Resolved Apple `Song`s by catalog id, so replaying or skipping back to
-    /// a track doesn't re-fetch it. Loaded from (and saved to) disk, which is
-    /// what lets a previously seen track arm with no network — so songs the
-    /// Music app has downloaded can start in airplane mode.
-    @ObservationIgnored private var songCache: [String: Song] = SongDiskCache.load()
+    /// The Apple `Song`s looked up most recently, by `songKey(for:)`, so a
+    /// skip back or a re-arm needs neither the catalog nor the disk. The rest
+    /// wait in `AppleSongStore`, which is what lets a track seen before arm
+    /// with no network — so songs the Music app has downloaded can start in
+    /// airplane mode.
+    @ObservationIgnored private var recentSongs: [String: Song] = [:]
+    /// About 25 KB each once decoded.
+    private static let recentSongLimit = 300
     @ObservationIgnored private var poller: Timer?
     /// What a tap on play/pause asked for, and until when it outranks the
     /// poll. The button flips on the tap; the players catch up a beat later
@@ -650,6 +707,11 @@ final class LocalPlaybackService {
     /// (a stream run that has let its session go). A Plex album queued in
     /// pages lands this way too, page by page.
     private func extendArmedRun() async {
+        // An Apple run fills itself (`fillAppleRun`).
+        if backend == .appleMusic {
+            fillAppleRun()
+            return
+        }
         guard let backend, backend != .appleStation,
               repeatMode != .one, !sleepsAtEndOfTrack,
               queue.indices.contains(runEnd), !isStation(queue[runEnd]) else { return }
@@ -685,30 +747,7 @@ final class LocalPlaybackService {
                 register(item, at: queueIndex)
                 runEnd = queueIndex
             }
-        case .appleMusic:
-            guard let resolved = try? await resolveAppleSongs(first...end), !resolved.isEmpty,
-                  playToken == token, self.backend == .appleMusic, runEnd == first - 1,
-                  // A finished or paused queue is left to the run-end
-                  // advance, which arms these rows itself.
-                  musicPlayer.state.playbackStatus == .playing else { return }
-            do {
-                try await musicPlayer.queue.insert(resolved.map(\.song), position: .tail)
-            } catch {
-                return
-            }
-            guard playToken == token, self.backend == .appleMusic else { return }
-            // Play Next or Repeat One cut the run off while the insert was in
-            // flight; cut again so what just landed goes too.
-            guard runEnd == first - 1 else {
-                truncateArmedRunAfterCurrent()
-                return
-            }
-            appleRun += resolved
-            runEnd = end
-            // The old last entry isn't the last any more; the new one sets
-            // its own end time once it plays.
-            appleRunExpectedEnd = nil
-        case .appleStation:
+        case .appleMusic, .appleStation:
             break
         }
     }
@@ -1118,6 +1157,9 @@ final class LocalPlaybackService {
             switch backend {
             case .appleMusic:
                 Task { try? await musicPlayer.skipToNextEntry() }
+                if let following = appleRun.first(where: { $0.queueIndex > currentIndex }) {
+                    showAppleSkip(to: following)
+                }
             case .stream:
                 streamPlayer?.advanceToNextItem()
                 followStreamPlayer()
@@ -1178,9 +1220,31 @@ final class LocalPlaybackService {
         // same rule every player uses.
         if progress > 3 || currentIndex == 0 {
             restartCurrent()
+        } else if backend == .appleMusic, let entry = appleEntry(before: currentIndex) {
+            // Still in the Apple player's queue, so it steps back there —
+            // a re-arm loads the whole queue again.
+            Task { try? await musicPlayer.skipToPreviousEntry() }
+            showAppleSkip(to: entry)
         } else {
             Task { try? await arm(at: currentIndex - 1) }
         }
+    }
+
+    /// The Apple player's entry before the one for queue row `index`, if it
+    /// has one.
+    private func appleEntry(before index: Int) -> AppleRunEntry? {
+        guard let offset = appleRun.firstIndex(where: { $0.queueIndex == index }), offset > 0 else { return nil }
+        return appleRun[offset - 1]
+    }
+
+    /// Shows an Apple skip at once rather than on a poll after the player
+    /// gets there (see `appleSkipHold`), so a run of presses counts from
+    /// where the last one showed.
+    private func showAppleSkip(to entry: AppleRunEntry) {
+        appleSkipHold = (entry.queueIndex, .now.addingTimeInterval(3))
+        currentIndex = entry.queueIndex
+        progress = 0
+        duration = entry.duration ?? catalogDuration(at: entry.queueIndex)
     }
 
     func stop() {
@@ -1484,7 +1548,9 @@ final class LocalPlaybackService {
               queue.indices.contains(next), backendKind(for: queue[next]) == .appleMusic,
               duration > 0, duration - progress < Self.joinLeadTime else { return }
         preparedRunStart = next
-        let end = runEnd(from: next)
+        // The rows `armApple` will start that run with, so it finds them
+        // prepared.
+        let end = Self.appleWindowEnd(from: next, through: runEnd(from: next))
         Self.log.notice("looking ahead to the run at \(next)...\(end)")
         let fromStream = backend == .stream
         let token = playToken
@@ -1498,12 +1564,12 @@ final class LocalPlaybackService {
             // than a queue load and a prepare in silence, which was most of
             // the gap between a Plex song and an Apple one. Off an Apple run
             // the player is busy playing, so the songs alone will do.
-            guard fromStream, let first = resolved.first,
+            guard fromStream, !resolved.isEmpty,
                   playToken == token, backend == .stream, runEnd + 1 == next else {
                 Self.log.notice("pre-arm skipped: fromStream=\(fromStream) resolved=\(resolved.count) tokenSame=\(self.playToken == token) stream=\(self.backend == .stream) runEnd=\(self.runEnd) next=\(next)")
                 return
             }
-            musicPlayer.queue = ApplicationMusicPlayer.Queue(for: resolved.map(\.song), startingAt: first.song)
+            musicPlayer.queue = ApplicationMusicPlayer.Queue(for: resolved.map(\.song))
             do {
                 try await musicPlayer.prepareToPlay()
             } catch {
@@ -1530,6 +1596,9 @@ final class LocalPlaybackService {
         runEnd = -1
         preparedRunStart = nil
         appleRun = []
+        appleFill?.task.cancel()
+        appleFill = nil
+        appleSkipHold = nil
         appleWasPlaying = false
         appleRunExpectedEnd = nil
         requestedPlaying = nil
@@ -1582,6 +1651,12 @@ final class LocalPlaybackService {
                     entries.removeSubrange(after...)
                     musicPlayer.queue.entries = entries
                 }
+                // The entries map in step with the player's, or what the
+                // fill adds next would be read as the rows cut off.
+                let kept = entries.distance(from: entries.startIndex, to: after)
+                if appleRun.count > kept {
+                    appleRun.removeSubrange(kept...)
+                }
             }
         case .stream:
             if let streamPlayer {
@@ -1604,16 +1679,18 @@ final class LocalPlaybackService {
         let prepared = preparedAppleRun
         preparedAppleRun = nil
 
-        let resolved = try await resolveAppleSongs(index...end)
+        // The first songs only; the rest follow once they're playing.
+        let windowEnd = Self.appleWindowEnd(from: index, through: end)
+        let resolved = try await resolveAppleSongs(index...windowEnd)
 
         // The user skipped elsewhere while we were resolving — that call owns
         // playback now.
         guard playToken == token else { return }
         guard let first = resolved.first else {
-            // Nothing in this run resolved (e.g. region-unavailable tracks) —
+            // Nothing in these rows resolved (e.g. region-unavailable tracks) —
             // a lone track is an error worth surfacing, otherwise skip on.
-            if end + 1 < queue.count {
-                advancePastRun(endingAt: end)
+            if windowEnd + 1 < queue.count {
+                advancePastRun(endingAt: windowEnd)
                 return
             }
             throw LocalPlaybackError.songNotFound
@@ -1627,7 +1704,11 @@ final class LocalPlaybackService {
             && prepared?.songIDs == resolved.map(\.song.id)
         Self.log.notice("arming Apple run at \(index), prepared=\(isPrepared)")
         if !isPrepared {
-            musicPlayer.queue = ApplicationMusicPlayer.Queue(for: resolved.map(\.song), startingAt: first.song)
+            // It starts at its first song either way. Naming it as the start
+            // item made the player refuse some catalog songs outright ("Prepare
+            // queue failed with unexpected start item"), so a playlist that
+            // opened with one never played.
+            musicPlayer.queue = ApplicationMusicPlayer.Queue(for: resolved.map(\.song))
         }
         if !isPrepared, let resume, resume > 0 {
             // Point the player partway in before it starts. A seek issued
@@ -1640,63 +1721,192 @@ final class LocalPlaybackService {
         try await musicPlayer.play()
         guard playToken == token else { return }
 
-        appleRun = resolved
+        appleRun = resolved.map(AppleRunEntry.init)
         backend = .appleMusic
-        runEnd = end
+        runEnd = windowEnd
         currentIndex = first.queueIndex
         duration = first.song.duration ?? catalogDuration(at: first.queueIndex)
+        fillAppleRun()
     }
 
-    /// Resolves the Apple rows in `rows` into `Song`s in one catalog request
-    /// (cache-first), keeping track of which queue rows made it — a failed
-    /// row is skipped, not fatal to the run.
+    /// The last row an Apple run starting at `index` is armed with: the
+    /// first `appleWindow` rows of the run ending at `end`.
+    private static func appleWindowEnd(from index: Int, through end: Int) -> Int {
+        min(end, index + appleWindow - 1)
+    }
+
+    /// Keeps the Apple player's queue `appleQueueAhead` songs past the one
+    /// playing: the Apple rows after the armed run are looked up and handed
+    /// to the player in one insert while it plays. Started by an arm, by
+    /// rows added behind the run, and by the poll once the songs queued
+    /// ahead are down to half.
+    private func fillAppleRun() {
+        guard backend == .appleMusic, appleFill == nil,
+              repeatMode != .one, !sleepsAtEndOfTrack,
+              runEnd - currentIndex < Self.appleQueueAhead / 2,
+              Date.now >= appleFillRetryAfter,
+              let row = queue[safe: runEnd + 1],
+              backendKind(for: row) == .appleMusic, !isStation(row) else { return }
+        let token = playToken
+        let task = Task { [weak self] in
+            // Cue is suspended soon after the phone locks while Apple's
+            // player plays on: ask for the time to finish, so a lock straight
+            // after Play doesn't leave the run at its first songs.
+            var background = UIBackgroundTaskIdentifier.invalid
+            background = UIApplication.shared.beginBackgroundTask(withName: "Queue Apple Music") {
+                UIApplication.shared.endBackgroundTask(background)
+                background = .invalid
+            }
+            while let self, await self.appendToAppleRun(token: token) {}
+            if background != .invalid {
+                UIApplication.shared.endBackgroundTask(background)
+            }
+            if self?.appleFill?.token == token { self?.appleFill = nil }
+        }
+        appleFill = (token, task)
+    }
+
+    /// Looks up the Apple rows after the armed run, as far as
+    /// `appleQueueAhead`, and hands them to the player. False once there's
+    /// nothing more to add for now, or the run has moved on.
+    private func appendToAppleRun(token: Int) async -> Bool {
+        guard !Task.isCancelled, playToken == token, backend == .appleMusic,
+              repeatMode != .one, !sleepsAtEndOfTrack,
+              // A finished or paused queue is left to the run-end advance,
+              // which arms these rows itself.
+              musicPlayer.state.playbackStatus == .playing else { return false }
+        let first = runEnd + 1
+        let limit = currentIndex + Self.appleQueueAhead
+        var last = first - 1
+        while last < limit, let row = queue[safe: last + 1],
+              backendKind(for: row) == .appleMusic, !isStation(row) {
+            last += 1
+        }
+        guard last >= first else { return false }
+        // Whether the rows are still where they were looked up, right after
+        // the run: a Play Next, a reorder or Repeat One can land meanwhile.
+        let ids = queue[first...last].map(\.id)
+        let unchanged = { [unowned self] in
+            runEnd == first - 1 && last < queue.count && queue[first...last].map(\.id) == ids
+        }
+
+        let resolved: [(queueIndex: Int, song: Song)]
+        do {
+            resolved = try await resolveAppleSongs(first...last)
+        } catch {
+            appleFillRetryAfter = .now.addingTimeInterval(30)
+            return false
+        }
+        guard !Task.isCancelled, playToken == token, backend == .appleMusic else { return false }
+        // Start again from the queue as it is now.
+        guard unchanged() else { return true }
+        if !resolved.isEmpty {
+            let wait = Self.appleInsertSpacing - Date.now.timeIntervalSince(lastAppleInsert)
+            if wait > 0 {
+                try? await Task.sleep(for: .seconds(wait))
+                guard !Task.isCancelled, playToken == token, backend == .appleMusic else { return false }
+                guard unchanged() else { return true }
+            }
+            lastAppleInsert = .now
+            do {
+                try await musicPlayer.queue.insert(resolved.map(\.song), position: .tail)
+            } catch {
+                Self.log.error("adding songs to the Apple queue failed: \(error.localizedDescription, privacy: .public)")
+                appleFillRetryAfter = .now.addingTimeInterval(30)
+                return false
+            }
+            guard playToken == token, backend == .appleMusic else { return false }
+            // Cut off or rearranged while the insert was in flight: cut again
+            // so what just landed goes too, and carry on from there.
+            guard unchanged() else {
+                truncateArmedRunAfterCurrent()
+                return true
+            }
+            appleRun += resolved.map(AppleRunEntry.init)
+            // The old last entry isn't the last any more; the new one sets
+            // its own end time once it plays.
+            appleRunExpectedEnd = nil
+        }
+        // Rows that didn't resolve are stepped over with the rest.
+        runEnd = last
+        return true
+    }
+
+    /// Resolves the Apple rows in `rows` into `Song`s, keeping track of which
+    /// queue rows made it — a failed row is skipped, not fatal to the run.
+    ///
+    /// Each song comes from the first place that has it: the songs looked up
+    /// lately, the store on disk, the library (library rows, a request per
+    /// hundred), then the catalog (likewise).
     private func resolveAppleSongs(_ rows: ClosedRange<Int>) async throws -> [(queueIndex: Int, song: Song)] {
-        var resolved: [(queueIndex: Int, song: Song)] = []
-        var missing: [(queueIndex: Int, catalogID: String)] = []
-        var cacheChanged = false
-        for queueIndex in rows {
-            guard let item = queue[safe: queueIndex] else { continue }
-            // Library tracks resolve from the library itself. Going through the
-            // catalog first was why playing one sometimes did nothing: a
-            // library-only track — a matched upload, or a purchase Apple Music
-            // doesn't carry — has no catalog equivalent, so `catalogID` came
-            // back nil and the row was silently dropped from the run.
+        let items = rows.compactMap { index in queue[safe: index].map { (queueIndex: index, item: $0) } }
+        let keys = Set(items.map { Self.songKey(for: $0.item) })
+        var songs: [String: Song] = [:]
+        for key in keys {
+            songs[key] = recentSongs[key]
+        }
+        let unseen = keys.subtracting(songs.keys)
+        if !unseen.isEmpty {
+            let stored = await AppleSongStore.shared.songs(for: Array(unseen))
+            songs.merge(stored) { current, _ in current }
+            remember(stored)
+        }
+
+        var found: [String: Song] = [:]
+        // Library tracks resolve from the library itself. Going through the
+        // catalog first was why playing one sometimes did nothing: a
+        // library-only track — a matched upload, or a purchase Apple Music
+        // doesn't carry — has no catalog equivalent.
+        let libraryIDs = Set(items.lazy
+            .filter { $0.item.content.type == .libraryTrack && songs[Self.songKey(for: $0.item)] == nil }
+            .map(\.item.content.id))
+        for (id, song) in await librarySongs(ids: Array(libraryIDs)) {
+            found[Self.libraryCacheKey(for: id)] = song
+        }
+        // The rest from the catalog. A library track the library no longer
+        // has goes by its catalog twin, and is kept under its library id so
+        // the next arm finds it without the lookup.
+        var catalogRows: [String: String] = [:]
+        var unmapped: Set<String> = []
+        for (_, item) in items {
+            let key = Self.songKey(for: item)
+            guard songs[key] == nil, found[key] == nil else { continue }
             if item.content.type == .libraryTrack {
-                let key = Self.libraryCacheKey(for: item.content.id)
-                if let cached = songCache[key] {
-                    resolved.append((queueIndex, cached))
-                    continue
-                }
-                if let song = await librarySong(id: item.content.id) {
-                    songCache[key] = song
-                    cacheChanged = true
-                    resolved.append((queueIndex, song))
-                    continue
-                }
-                // Not in the library any more — fall through and try the
-                // catalog mapping rather than dropping the row outright.
-            }
-            guard let catalogID = await catalogID(for: item) else { continue }
-            if let cached = songCache[catalogID] {
-                resolved.append((queueIndex, cached))
+                unmapped.insert(item.content.id)
             } else {
-                missing.append((queueIndex, catalogID))
+                catalogRows[key] = item.content.id
             }
         }
-        if !missing.isEmpty {
-            let fetched = try await MusicSearchService.shared.appleSongs(ids: missing.map(\.catalogID))
+        for (libraryID, catalogID) in await catalogIDs(forLibraryIDs: Array(unmapped)) {
+            catalogRows[Self.libraryCacheKey(for: libraryID)] = catalogID
+        }
+        if !catalogRows.isEmpty {
+            let fetched = try await MusicSearchService.shared.appleSongs(ids: Array(Set(catalogRows.values)))
             let byID = Dictionary(fetched.map { ($0.id.rawValue, $0) }, uniquingKeysWith: { first, _ in first })
-            for (queueIndex, catalogID) in missing {
-                guard let song = byID[catalogID] else { continue }
-                songCache[catalogID] = song
-                cacheChanged = true
-                resolved.append((queueIndex, song))
+            for (key, catalogID) in catalogRows {
+                found[key] = byID[catalogID]
             }
         }
-        if cacheChanged {
-            SongDiskCache.save(songCache)
+        if !found.isEmpty {
+            songs.merge(found) { current, _ in current }
+            remember(found)
+            Task.detached(priority: .utility) {
+                await AppleSongStore.shared.store(found)
+            }
         }
-        return resolved.sorted { $0.queueIndex < $1.queueIndex }
+        return items.compactMap { row in
+            songs[Self.songKey(for: row.item)].map { (row.queueIndex, $0) }
+        }
+    }
+
+    /// Keeps `found` among the songs looked up lately, dropping the lot once
+    /// there are too many — the store on disk still has them.
+    private func remember(_ found: [String: Song]) {
+        guard !found.isEmpty else { return }
+        if recentSongs.count + found.count > Self.recentSongLimit {
+            recentSongs.removeAll(keepingCapacity: true)
+        }
+        recentSongs.merge(found) { _, new in new }
     }
 
     /// Hands an Apple Music station to the Apple player. Stations are
@@ -1732,22 +1942,65 @@ final class LocalPlaybackService {
     /// with the catalog ids the rest of the cache holds.
     private static func libraryCacheKey(for id: String) -> String { "library:\(id)" }
 
-    /// The library `Song` for a library-track row, queued directly rather than
-    /// via its catalog twin — `ApplicationMusicPlayer` plays library items, and
-    /// this is the only path that works for a track the catalog doesn't have.
-    private func librarySong(id: String) async -> Song? {
-        var request = MusicLibraryRequest<Song>()
-        request.filter(matching: \.id, equalTo: MusicItemID(id))
-        return try? await request.response().items.first
+    /// What a row's `Song` is kept under.
+    private static func songKey(for item: PlayableContent) -> String {
+        item.content.type == .libraryTrack ? libraryCacheKey(for: item.content.id) : item.content.id
     }
 
-    /// The Apple Music catalog id for `item`. Library tracks carry a library id
-    /// (`i.…`) the catalog can't fetch, so those are mapped to their catalog
-    /// song first — the same way radio seeding does.
-    private func catalogID(for item: PlayableContent) async -> String? {
-        guard item.content.type == .libraryTrack else { return item.content.id }
-        guard let lookup = await MusicSearchService.shared.appleLibraryLookup(id: item.content.id) else { return nil }
-        return lookup.data.first?.id
+    /// Library `Song`s for library-track rows, by library id, queued directly
+    /// rather than via their catalog twins — `ApplicationMusicPlayer` plays
+    /// library items, and this is the only path that works for a track the
+    /// catalog doesn't have. A request per hundred: one per song took eight
+    /// seconds for 600.
+    private func librarySongs(ids: [String]) async -> [String: Song] {
+        var found: [String: Song] = [:]
+        for start in stride(from: 0, to: ids.count, by: 100) {
+            let chunk = ids[start..<min(start + 100, ids.count)]
+            var request = MusicLibraryRequest<Song>()
+            request.filter(matching: \.id, memberOf: chunk.map { MusicItemID($0) })
+            request.limit = chunk.count
+            guard let songs = try? await request.response().items else { continue }
+            for song in songs {
+                found[song.id.rawValue] = song
+            }
+        }
+        return found
+    }
+
+    /// The Apple Music catalog ids of library tracks, by library id, for
+    /// those the library request didn't return. An `a.` id — a catalog song
+    /// in a library playlist, not in the library itself — is its catalog id
+    /// with a prefix. Others (`i.…`) are mapped through the web API — the
+    /// same way radio seeding does — a few at a time.
+    private func catalogIDs(forLibraryIDs ids: [String]) async -> [String: String] {
+        var found: [String: String] = [:]
+        var unmapped: [String] = []
+        for id in ids {
+            let suffix = id.dropFirst(2)
+            if id.hasPrefix("a."), !suffix.isEmpty, suffix.allSatisfy(\.isNumber) {
+                found[id] = String(suffix)
+            } else {
+                unmapped.append(id)
+            }
+        }
+        guard !unmapped.isEmpty else { return found }
+        let lookUp: @Sendable (String) async -> (String, String?) = { id in
+            (id, await MusicSearchService.shared.appleLibraryLookup(id: id)?.data.first?.id)
+        }
+        return await withTaskGroup(of: (String, String?).self) { group in
+            var pending = unmapped[...]
+            for id in pending.prefix(6) {
+                group.addTask { await lookUp(id) }
+            }
+            pending = pending.dropFirst(6)
+            while let (id, catalogID) = await group.next() {
+                found[id] = catalogID
+                if let next = pending.popFirst() {
+                    group.addTask { await lookUp(next) }
+                }
+            }
+            return found
+        }
     }
 
     // MARK: - Playback cache
@@ -2182,8 +2435,27 @@ final class LocalPlaybackService {
             let playing = reconcilePlaying(status == .playing)
             let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
-            noteProgress(Self.finite(musicPlayer.playbackTime, else: progress))
+
+            // The run's entry the player is on. A skip shown ahead of the
+            // player (`appleSkipHold`) holds until the player gets there:
+            // until then its clock and entry are still the old song's.
+            let entries = musicPlayer.queue.entries
+            let currentEntry = musicPlayer.queue.currentEntry
+            let entryIndex = currentEntry.flatMap { current in entries.firstIndex { $0.id == current.id } }
+            let playerRow = entryIndex.flatMap { appleRun[safe: entries.distance(from: entries.startIndex, to: $0)] }
+            if let hold = appleSkipHold, hold.until > .now, playerRow?.queueIndex != hold.queueIndex {
+                // Still on its way.
+            } else {
+                appleSkipHold = nil
+            }
+            let followsPlayer = appleSkipHold == nil
+
+            if followsPlayer {
+                noteProgress(Self.finite(musicPlayer.playbackTime, else: progress))
+            }
             if status == .playing { appleWasPlaying = true }
+            // Playing well past a stall: the next one there gets armed again too.
+            if status == .playing, progress > 10 { appleStallIndex = nil }
             savePositionIfDue(paused: paused)
 
             // A station's entries are the songs it streams; the current one
@@ -2193,13 +2465,10 @@ final class LocalPlaybackService {
             }
 
             // Follow the player's own advance through the run.
-            let entries = musicPlayer.queue.entries
-            if let current = musicPlayer.queue.currentEntry,
-               let entryIndex = entries.firstIndex(where: { $0.id == current.id }) {
-                let offset = entries.distance(from: entries.startIndex, to: entryIndex)
-                if let row = appleRun[safe: offset] {
+            if followsPlayer, let current = currentEntry, entryIndex != nil {
+                if let row = playerRow {
                     if currentIndex != row.queueIndex { currentIndex = row.queueIndex }
-                    let songDuration = row.song.duration ?? catalogDuration(at: row.queueIndex)
+                    let songDuration = row.duration ?? catalogDuration(at: row.queueIndex)
                     if duration != songDuration { duration = songDuration }
                 }
                 // What the player is actually decoding, not what the catalog
@@ -2230,6 +2499,7 @@ final class LocalPlaybackService {
                     appleRunExpectedEnd = nil
                 }
             }
+            fillAppleRun()
             prepareNextRun()
             if publishesAppleMusicCard {
                 updateAppleMusicCard()
@@ -2245,6 +2515,20 @@ final class LocalPlaybackService {
             if appleWasPlaying, ended {
                 appleWasPlaying = false
                 let end = runEnd
+                // Stopped short of its last entry: not the end of the run
+                // but the player giving up, which it can do when its queue
+                // is changed. Arm the song again rather than skip every song
+                // still queued after it — once, so one it keeps stopping on
+                // is gone past instead.
+                if status == .stopped, !onLastEntry, appleStallIndex != currentIndex {
+                    let index = currentIndex
+                    let position = progress
+                    Self.log.error("the Apple player stopped short at \(index); arming it again")
+                    appleStallIndex = index
+                    teardownRun()
+                    Task { try? await arm(at: index, from: position > 2 ? position : nil) }
+                    return
+                }
                 teardownRun()
                 advancePastRun(endingAt: end)
             }
@@ -2538,29 +2822,6 @@ private final class StreamMetadataListener: NSObject, AVPlayerItemMetadataOutput
 private extension Array {
     subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
-    }
-}
-
-/// On-disk copy of resolved `Song`s (they're Codable), so tracks Cue has seen
-/// before re-arm with no catalog request — the piece that makes airplane-mode
-/// playback of Music-app-downloaded songs possible.
-private enum SongDiskCache {
-    private static var url: URL? {
-        guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            return nil
-        }
-        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
-        return support.appendingPathComponent("AppleSongCache.json")
-    }
-
-    static func load() -> [String: Song] {
-        guard let url, let data = try? Data(contentsOf: url) else { return [:] }
-        return (try? JSONDecoder().decode([String: Song].self, from: data)) ?? [:]
-    }
-
-    static func save(_ cache: [String: Song]) {
-        guard let url, let data = try? JSONEncoder().encode(cache) else { return }
-        try? data.write(to: url, options: .atomic)
     }
 }
 

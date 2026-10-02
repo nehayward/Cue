@@ -762,9 +762,22 @@ public final class AppleMusicAPI {
     /// the path that turns a search result back into something playable here.
     public func songs(ids: [String]) async throws -> [Song] {
         guard await requestMusicAuthorization() else { return [] }
-        let request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: ids.map { MusicItemID($0) })
-        let response = try await request.response()
-        return Array(response.items)
+        // The catalog takes a limited number of ids per request, so a long
+        // queue goes in several, side by side.
+        let chunks = stride(from: 0, to: ids.count, by: 100).map { Array(ids[$0..<min($0 + 100, ids.count)]) }
+        return try await withThrowingTaskGroup(of: [Song].self) { group in
+            for chunk in chunks {
+                group.addTask {
+                    let request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: chunk.map { MusicItemID($0) })
+                    return Array(try await request.response().items)
+                }
+            }
+            var songs: [Song] = []
+            for try await page in group {
+                songs += page
+            }
+            return songs
+        }
     }
 
     public func requestMusicAuthorization() async -> Bool {
