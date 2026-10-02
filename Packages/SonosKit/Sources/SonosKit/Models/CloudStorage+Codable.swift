@@ -6,41 +6,71 @@ private let sync = CloudStorageSync.shared
 
 extension CloudStorage where Value: Codable {
     public init(wrappedValue: Value, _ key: String) {
+        // CloudStorage calls `syncGet` on every read of the property, and
+        // SwiftUI reads values like the play history in several bodies per
+        // update. Decode only when the stored bytes change.
+        let cache = DecodedValueCache<Value>()
         func syncGet() -> Value {
             guard let data = sync.data(for: key) else { return wrappedValue }
-            do {
-                let decoder = JSONDecoder()
-                let value = try decoder.decode(Value.self, from: data)
-                return value
-            } catch {
-                // A synced list can hold entries this build can't read, written
-                // by another device on a newer build (a new `ContentType` case,
-                // say). Keep everything that does decode: falling back to the
-                // default would show an empty list here, and the next write
-                // would replace the list on every device.
-                if let lossy = Value.self as? LossyDecodableCollection.Type,
-                   let (value, dropped) = lossy.decodeLossily(from: data),
-                   let value = value as? Value {
-                    print("CloudStorage key \(key): skipped \(dropped) unreadable entries")
-                    return value
+            return cache.value(for: data) { data in
+                do {
+                    return try JSONDecoder().decode(Value.self, from: data)
+                } catch {
+                    // A synced list can hold entries this build can't read,
+                    // written by another device on a newer build (a new
+                    // `ContentType` case, say). Keep everything that does
+                    // decode: falling back to the default would show an empty
+                    // list here, and the next write would replace the list on
+                    // every device.
+                    if let lossy = Value.self as? LossyDecodableCollection.Type,
+                       let (value, dropped) = lossy.decodeLossily(from: data),
+                       let value = value as? Value {
+                        print("CloudStorage key \(key): skipped \(dropped) unreadable entries")
+                        return value
+                    }
+                    // Corrupted/incompatible cloud data should fall back to the
+                    // default rather than crash.
+                    print("CloudStorage decode failed for key \(key): \(error)")
+                    assertionFailure("\(error)")
+                    return wrappedValue
                 }
-                // Corrupted/incompatible cloud data should fall back to the
-                // default rather than crash.
-                print("CloudStorage decode failed for key \(key): \(error)")
-                assertionFailure("\(error)")
-                return wrappedValue
             }
         }
         func syncSet(_ newValue: Value) {
             do {
-                let encoder = JSONEncoder()
-                let data = try encoder.encode(newValue)
+                let data = try JSONEncoder().encode(newValue)
+                cache.store(newValue, for: data)
                 sync.set(data, for: key)
             } catch {
                 assertionFailure("\(error)")
             }
         }
         self.init(keyName: key, syncGet: syncGet, syncSet: syncSet)
+    }
+}
+
+/// The last value decoded from a key's data. Comparing the bytes is a memcmp,
+/// far cheaper than decoding them again.
+private final class DecodedValueCache<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data: Data?
+    private var value: Value?
+
+    func value(for data: Data, decode: (Data) -> Value) -> Value {
+        lock.lock()
+        defer { lock.unlock() }
+        if let value, data == self.data { return value }
+        let decoded = decode(data)
+        self.data = data
+        value = decoded
+        return decoded
+    }
+
+    func store(_ value: Value, for data: Data) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.data = data
+        self.value = value
     }
 }
 
