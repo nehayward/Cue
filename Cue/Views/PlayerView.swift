@@ -127,6 +127,12 @@ struct PlayerView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(.interactiveSpring, value: showArtworkOnly)
+            // A route switch is never animated: two players have no
+            // continuity, and on the Mac an animated swap of the whole player
+            // cost a fixed ~90 MB of GPU memory for ~2 s.
+            .transaction(value: group?.coordinatorID) { transaction in
+                transaction.animation = nil
+            }
             .padding(.horizontal, 32)
             .padding(.top, 8)
             // The stack already keeps clear of the home indicator; padding
@@ -416,6 +422,10 @@ struct PlayerView: View {
             }
         }
         .animation(.default, value: group.coordinatorRoom.container != nil)
+        // Resolve the label's layout inside this fixed frame so a newly
+        // inserted or changed label fades in place instead of flying in from
+        // its old/zero position.
+        .geometryGroup()
         .frame(height: 12)
     }
 
@@ -917,8 +927,10 @@ private struct LocalMediaControlsView: View {
                 Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
                     .resizable()
                     .scaledToFit()
-                    .contentTransition(.symbolEffect(.automatic))
-                    .symbolEffect(.pulse, isActive: playback.isLoading)
+                    .contentTransition(GroupMediaControlsView.playPauseTransition)
+                    // A load that's over in a moment doesn't pulse; one that
+                    // keeps the song waiting does (see `sustainedPulse`).
+                    .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && playback.isLoading)
                     .frame(width: playSize, height: playSize)
             }
             .buttonStyle(.liveActivity)

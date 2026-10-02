@@ -181,7 +181,7 @@ struct MusicPlaybackView: View {
                 playback.togglePlayback()
             } label: {
                 Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                    .contentTransition(.symbolEffect(.replace))
+                    .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
             }
             .buttonStyle(.plain)
             .font(.title3)
@@ -255,8 +255,8 @@ struct MusicPlaybackView: View {
                 }
             } label: {
                 Image(systemName: room.isPlaying ? "pause.fill" : "play.fill")
-                    .contentTransition(.symbolEffect(.replace))
-                    .symbolEffect(.pulse, isActive: room.isTransitioning)
+                    .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
+                    .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && room.isTransitioning)
             }
             .buttonStyle(.plain)
             .font(.title3)

@@ -129,6 +129,13 @@ struct ContainerLargePlayerView: View {
                 }
             }
         }
+        // A room switch is never animated: the two rooms' players have no
+        // continuity. Selecting a room in the sidebar list arrives inside an
+        // animated transaction on the Mac, which animated the whole player swap
+        // and cost a fixed ~90 MB of GPU memory for ~2 s on every switch.
+        .transaction(value: router.selectedID) { transaction in
+            transaction.animation = nil
+        }
         .ignoresSafeArea(.keyboard)
     }
 }

@@ -122,6 +122,10 @@ struct LargePlayerView: View {
                         }
                     }
                     .animation(.default, value: group.coordinatorRoom.container != nil)
+                    // Resolve the label's layout inside this fixed frame so a
+                    // newly inserted or changed label fades in place instead
+                    // of flying in from its old/zero position.
+                    .geometryGroup()
                     .frame(height: 12)
                     GroupSongTitleButton(group: group)
                     GroupArtistButton(group: group, showArtworkOnly: showArtworkOnly)
@@ -566,6 +570,23 @@ struct GroupMediaControlsView: View {
     /// system's Now Playing.
     var isProminent: Bool = false
 
+    /// No symbol animation on the Mac: any animated swap of the play/pause
+    /// icon (Magic Replace, `.replace`, `.replace.downUp`) made macOS allocate
+    /// a fixed ~85–97 MB of GPU memory for ~2 s on every play, pause and skip.
+    /// The pulse while the speaker is transitioning goes through the same
+    /// symbol animator. Shared with this device's transport.
+    static var animatesPlayPause: Bool {
+        #if targetEnvironment(macCatalyst)
+        false
+        #else
+        true
+        #endif
+    }
+
+    static var playPauseTransition: ContentTransition {
+        animatesPlayPause ? .symbolEffect(.automatic) : .identity
+    }
+
     @State private var selectionTrack: Task<Void, Never>?
 
     private var skipSize: CGFloat { isProminent ? 38 : 32 }
@@ -621,8 +642,8 @@ struct GroupMediaControlsView: View {
                 Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
                     .resizable()
                     .scaledToFit()
-                    .contentTransition(.symbolEffect(.automatic))
-                    .sustainedPulse(isActive: group.coordinatorRoom.isTransitioning)
+                    .contentTransition(Self.playPauseTransition)
+                    .sustainedPulse(isActive: Self.animatesPlayPause && group.coordinatorRoom.isTransitioning)
                     .frame(width: playSize, height: playSize)
 
             }
