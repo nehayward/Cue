@@ -173,7 +173,12 @@ private struct LocalNextUpView: View {
                 }
                 .onChange(of: playback.currentIndex) {
                     guard !editMode.isEditing, let currentRowID else { return }
-                    withAnimation(.snappy) { proxy.scrollTo(currentRowID, anchor: .top) }
+                    // A turn later: when the change came from a tap on a row,
+                    // the list is still handling that tap and drops a scroll
+                    // asked for in the same pass.
+                    Task { @MainActor in
+                        withAnimation(.snappy) { proxy.scrollTo(currentRowID, anchor: .top) }
+                    }
                 }
         }
     }
