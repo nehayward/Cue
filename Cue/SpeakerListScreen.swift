@@ -310,7 +310,7 @@ fileprivate struct SpeakerGroupSection: View {
                         .opacity(group.TVMode ? 1 : 0)
                         .animation(.smooth, value: group.TVMode)
                     HStack(alignment: .top) {
-                        ArtworkView(group: group)
+                        ArtworkView(group: group, decodeSize: 72)
                             .frame(width: 72, height: 72)
                         ZoneView(
                             radioStation: group.coordinatorRoom.radioStation ?? "",

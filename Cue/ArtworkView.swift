@@ -6,6 +6,7 @@ import MusicSearchKit
 
 struct ArtworkView: View {
     @Environment(AlertService.self) var alertService
+    @Environment(\.displayScale) private var displayScale
 
     let group: GroupRoom
     var isDraggable: Bool = false
@@ -16,6 +17,10 @@ struct ArtworkView: View {
     // player, where those decorations are invisible under the blur but still
     // cost render time on every frame of a crossfade.
     var isBackground: Bool = false
+    /// Longest side, in points, the artwork is decoded at. The 500 pt default
+    /// is shared with the lock screen artwork (see `ImageRequest.playerArtwork`);
+    /// small tiles pass their own size so they don't each hold a ~4 MB bitmap.
+    var decodeSize: CGFloat = ImageRequest.playerArtworkSize
 
     private let defaultFadeDuration: Double = 0.3
     @State private var alarmRunning: Bool = false
@@ -45,10 +50,12 @@ struct ArtworkView: View {
         group.coordinatorRoom.track.playerArtworkCacheKey
     }
 
-    /// Shared with the skip prefetch in SonosKit, so the covers it loads ahead
-    /// are the ones found here.
+    /// At the player's size this is `Track.playerArtworkRequest`, shared with
+    /// the skip prefetch in SonosKit, so the covers it loads ahead are the ones
+    /// found here.
     private var artworkRequest: ImageRequest? {
-        group.coordinatorRoom.track.playerArtworkRequest
+        guard let url = group.coordinatorRoom.track.artworkURL else { return nil }
+        return .playerArtwork(url: url, imageID: imageIDKey, pointSize: decodeSize)
     }
 
     // Synchronous memory-cache lookup used as the fallback below. On a hit
@@ -138,14 +145,36 @@ struct ArtworkView: View {
                         setImage(cached.image, fade: fade)
                         return
                     }
-                    do {
-                        let image = try await ImagePipeline.shared.image(for: artworkRequest)
-                        setImage(image, fade: fade)
-                    } catch {
-                        // Swallow errors silently — the Sonos proxy for Spotify is
-                        // unreliable right at track boundaries (the speaker may not
-                        // have fetched the new art yet). Keeping the previous image
-                        // is better than flashing a grey placeholder.
+                    if let shrunk = shrunkPlayerArtwork(for: artworkRequest) {
+                        setImage(shrunk, fade: fade)
+                        return
+                    }
+                    // The Sonos proxy for Spotify is unreliable right at track
+                    // boundaries (the speaker may not have fetched the new art
+                    // yet), and a skip can settle on that URL with nothing
+                    // changing it again to restart this task. So a failure
+                    // keeps the previous image — better than flashing a grey
+                    // placeholder — and tries again a couple of times.
+                    for attempt in 1...3 {
+                        do {
+                            let image = try await ImagePipeline.shared.image(for: artworkRequest)
+                            setImage(image, fade: fade)
+                            return
+                        } catch {
+                            // A newer URL took over; that task loads it.
+                            guard !Task.isCancelled else { return }
+                            #if DEBUG
+                            print("ArtworkView: load \(attempt)/3 failed for \(imageIDKey): \(error)")
+                            #endif
+                        }
+                        guard attempt < 3 else { return }
+                        try? await Task.sleep(for: .seconds(2 * attempt))
+                        guard !Task.isCancelled else { return }
+                        // The player, or the skip prefetch, may have it by now.
+                        if let shrunk = shrunkPlayerArtwork(for: artworkRequest) {
+                            setImage(shrunk, fade: fade)
+                            return
+                        }
                     }
                 }
         }
@@ -229,6 +258,33 @@ struct ArtworkView: View {
                 decorated
             }
         }
+    }
+
+    /// A smaller tile's copy of the cover, made from the player-size one when
+    /// that's already in memory: the player, or the skip prefetch in SonosKit,
+    /// loads covers at `ImageRequest.playerArtworkSize`, and the thumbnail
+    /// size is part of Nuke's cache key, so a sidebar tile never finds those.
+    /// Without this the tile downloads the cover again from whatever URL the
+    /// track has, which right after a skip is often the speaker's proxy that
+    /// isn't serving it yet, while the player shows the prefetched cover.
+    ///
+    /// Shrunk and stored under the tile's own request rather than shown as is,
+    /// so the tile doesn't keep a player-size bitmap alive after the cache
+    /// lets it go.
+    private func shrunkPlayerArtwork(for request: ImageRequest) -> UIImage? {
+        guard decodeSize < ImageRequest.playerArtworkSize,
+              let playerRequest = group.coordinatorRoom.track.playerArtworkRequest,
+              let large = ImagePipeline.shared.cache.cachedImage(for: playerRequest, caches: .memory)?.image,
+              large.size.width > 0, large.size.height > 0 else { return nil }
+        let fit = min(decodeSize / large.size.width, decodeSize / large.size.height, 1)
+        let size = CGSize(width: large.size.width * fit, height: large.size.height * fit)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = displayScale
+        let small = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            large.draw(in: CGRect(origin: .zero, size: size))
+        }
+        ImagePipeline.shared.cache.storeCachedImage(ImageContainer(image: small), for: request, caches: .memory)
+        return small
     }
 
     // The only place an artwork swap is animated. Scoping the animation to

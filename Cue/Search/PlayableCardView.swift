@@ -127,7 +127,9 @@ struct PlayableCardView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 20)
             } else {
-                ContentArtworkView(content: item, showMusicSource: false, preferredSize: 500)
+                // Cards top out at 200pt in the grid and ~250pt in the three-up rows;
+                // 500 decoded ~1000px bitmaps for every visible card.
+                ContentArtworkView(content: item, showMusicSource: false, preferredSize: 250)
                     .aspectRatio(contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 VStack(alignment: .leading) {
