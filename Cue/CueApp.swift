@@ -123,14 +123,18 @@ struct MusicPlaybackView: View {
             let room = group.coordinatorRoom
             if !room.track.isEmpty {
                 MiniPlayerProgressLine(
-                    position: room.playbackPosition,
                     duration: room.track.duration,
-                    isPlaying: room.isPlaying,
-                    unitsPerSecond: 1000
+                    isRunning: room.isClockRunning,
+                    unitsPerSecond: 1000,
+                    position: { room.estimatedPlaybackPosition() }
                 )
             }
         } else if playback.nowPlayingDisplay != nil {
-            MiniPlayerProgressLine(position: playback.progress, duration: playback.duration, isPlaying: playback.isPlaying)
+            MiniPlayerProgressLine(
+                duration: playback.duration,
+                isRunning: playback.isPlaying,
+                position: { playback.progress }
+            )
         }
     }
 
@@ -1470,73 +1474,57 @@ private struct AdaptiveTabViewStyle: ViewModifier {
 /// the ratio is drawn. A live stream reports no duration, so the line keeps
 /// its height but stays hidden rather than showing an empty track.
 ///
-/// The reported position only moves about once a second (the device poller,
-/// a speaker's poll or event), which stepped the fill visibly. So while
-/// playing, the line runs its own clock off the last reported value, redrawn
-/// every frame by a `TimelineView`, and re-anchors whenever a new report
-/// lands.
+/// Drawn from a running estimate (`Room.estimatedPlaybackPosition()` for a
+/// speaker, `LocalPlaybackService.progress` for this device) through
+/// `PlaybackTimeline`, so it redraws once per pixel of progress and only
+/// while it's on screen, the scene is visible and playback is moving. It used
+/// to run its own clock on every frame of a `TimelineView` that kept going
+/// behind the Lock Screen, since the audio session keeps the app alive there.
 private struct MiniPlayerProgressLine: View {
-    let position: TimeInterval
     let duration: TimeInterval
-    let isPlaying: Bool
+    /// Whether the position is moving on its own right now.
+    let isRunning: Bool
     /// How many of the caller's units pass per second of playback: `1` for
     /// seconds, `1000` for milliseconds.
     var unitsPerSecond: Double = 1
+    /// Where playback is now, read on every redraw.
+    let position: () -> TimeInterval
 
-    @State private var anchorPosition: TimeInterval = 0
-    @State private var anchorDate: Date = .now
+    @Environment(\.displayScale) private var displayScale
+    @State private var width: CGFloat = 0
 
     private var hasDuration: Bool {
         duration.isFinite && duration > 0
     }
 
-    private func fraction(at date: Date) -> CGFloat {
-        guard hasDuration, anchorPosition.isFinite else { return 0 }
-        let elapsed = isPlaying ? max(0, date.timeIntervalSince(anchorDate)) * unitsPerSecond : 0
-        return CGFloat(min(max((anchorPosition + elapsed) / duration, 0), 1))
+    private func fraction(of position: TimeInterval) -> CGFloat {
+        guard hasDuration, position.isFinite else { return 0 }
+        return CGFloat(min(max(position / duration, 0), 1))
     }
 
     var body: some View {
-        TimelineView(.animation(paused: !isPlaying || !hasDuration)) { context in
-            let fraction = fraction(at: context.date)
-            GeometryReader { proxy in
-                Capsule()
-                    .fill(.secondary.opacity(0.3))
-                    .overlay(alignment: .leading) {
-                        Capsule()
-                            .fill(.primary)
-                            .frame(width: proxy.size.width * fraction)
-                    }
-            }
+        PlaybackTimeline(
+            isRunning: isRunning && hasDuration,
+            minimumInterval: ProgressRedraw.interval(
+                forDuration: duration / unitsPerSecond * 1000,
+                length: width,
+                scale: displayScale
+            ),
+            position: position
+        ) { position in
+            Capsule()
+                .fill(.secondary.opacity(0.3))
+                .overlay(alignment: .leading) {
+                    Capsule()
+                        .fill(.primary)
+                        .frame(width: width * fraction(of: position))
+                }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .frame(height: 3)
         .padding(.top, 2)
         .opacity(hasDuration ? 1 : 0)
-        .onAppear { anchor(at: position) }
-        .onChange(of: position) { reanchor(wasPlaying: isPlaying) }
-        .onChange(of: isPlaying) { wasPlaying, _ in reanchor(wasPlaying: wasPlaying) }
         .accessibilityHidden(true)
-    }
-
-    /// `wasPlaying` is the state the clock was running under up to now, so
-    /// a pause freezes the line where it was drawn rather than on the last
-    /// report, which is up to a second old.
-    private func reanchor(wasPlaying: Bool) {
-        guard wasPlaying, hasDuration else {
-            anchor(at: position)
-            return
-        }
-        let estimate = anchorPosition + max(0, Date.now.timeIntervalSince(anchorDate)) * unitsPerSecond
-        // A report landing a little behind the running estimate is poll
-        // latency, not a rewind — taking it would tick the fill backwards.
-        // A real jump (a seek, a new track) is far bigger than this.
-        let lag = estimate - position
-        anchor(at: lag > 0 && lag < 1.5 * unitsPerSecond ? estimate : position)
-    }
-
-    private func anchor(at value: TimeInterval) {
-        anchorPosition = value
-        anchorDate = .now
     }
 }
 

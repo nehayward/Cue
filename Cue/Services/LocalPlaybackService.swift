@@ -146,10 +146,39 @@ final class LocalPlaybackService {
             }
         }
     }
-    private(set) var isPlaying = false
+    private(set) var isPlaying = false {
+        didSet {
+            guard isPlaying != oldValue else { return }
+            // Stopping keeps the time that ran since the last reading, so a
+            // bar stays where it was showing; starting only restarts the
+            // clock, so time spent paused doesn't count.
+            if oldValue { progressAnchor = runningProgress(at: .now) }
+            progressAnchoredAt = .now
+        }
+    }
     private(set) var isLoading = false
-    private(set) var progress: TimeInterval = 0
+    /// Where playback is now, in seconds: the player's clock as last read,
+    /// run forward while playing (see `estimatedProgress(at:)`). Writing it —
+    /// a seek, a new song, a restore — sets the clock there.
+    ///
+    /// Not stored, so the poll doesn't have to write it: every write of an
+    /// `@Observable` property invalidates every view reading it, and a
+    /// reading taken twice a second re-rendered each progress display, the
+    /// mini player included, for a number the clock already had. Views draw
+    /// it through `PlaybackTimeline`, which redraws only as often as a pixel
+    /// of progress and only while it's on screen.
+    private(set) var progress: TimeInterval {
+        get { estimatedProgress() }
+        set {
+            if progressAnchor != newValue { progressAnchor = newValue }
+            progressAnchoredAt = .now
+        }
+    }
     private(set) var duration: TimeInterval = 0
+    /// The clock's last setting, in seconds — see `progress`.
+    private var progressAnchor: TimeInterval = 0
+    /// When `progressAnchor` was set, or playback last started or stopped.
+    @ObservationIgnored private var progressAnchoredAt: Date = .distantPast
 
     var nowPlaying: PlayableContent? { queue[safe: currentIndex] }
 
@@ -1225,6 +1254,41 @@ final class LocalPlaybackService {
         }
     }
 
+    /// Where playback is at `date`, not where the player was last read: the
+    /// clock's setting run forward while playing, clamped to the song's
+    /// length. Live streams have no length to stop at.
+    func estimatedProgress(at date: Date = .now) -> TimeInterval {
+        isPlaying ? runningProgress(at: date) : progressAnchor
+    }
+
+    private func runningProgress(at date: Date) -> TimeInterval {
+        guard progressAnchoredAt != .distantPast else { return progressAnchor }
+        let elapsed = progressAnchor + max(date.timeIntervalSince(progressAnchoredAt), 0)
+        return duration > 0 ? min(elapsed, duration) : elapsed
+    }
+
+    /// Records a reading of the player's clock from the poll.
+    ///
+    /// While playing, a reading within `progressTolerance` of the estimate is
+    /// dropped: the clock already has it, and taking it would invalidate every
+    /// progress display twice a second for nothing. Anything further off is
+    /// the player being somewhere else — a stall, a seek from Control Center
+    /// or the car, the next song — and is taken. Paused, a reading is written
+    /// only when it changed.
+    private func noteProgress(_ reading: TimeInterval) {
+        if isPlaying {
+            guard abs(reading - runningProgress(at: .now)) >= Self.progressTolerance else { return }
+        } else {
+            guard reading != progressAnchor else { return }
+        }
+        progress = reading
+    }
+
+    /// How far the player's clock can sit from the estimate before it's worth
+    /// a write. The player reports its time exactly, so this only has to
+    /// cover the moment between Play and the audio starting.
+    private static let progressTolerance: TimeInterval = 0.5
+
     /// Where the armed player is in its track, straight from the player.
     private var playerTime: TimeInterval {
         switch backend {
@@ -1967,15 +2031,15 @@ final class LocalPlaybackService {
         case .appleMusic, .appleStation:
             let status = musicPlayer.state.playbackStatus
             // Every property here is observed by the player screen, and
-            // `@Observable` notifies on every write, equal or not — so only
-            // `progress` is written each tick. Writing the rest unchanged
-            // re-rendered the whole screen twice a second, artwork and
-            // blurred backdrop included, which is what made the scrubber's
-            // fill stutter between polls.
+            // `@Observable` notifies on every write, equal or not — so each is
+            // written only when it changed, and `progress` only when the
+            // player has moved off the running clock (`noteProgress`).
+            // Writing them every tick re-rendered the whole screen twice a
+            // second, artwork and backdrop included.
             let playing = reconcilePlaying(status == .playing)
             let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
-            progress = Self.finite(musicPlayer.playbackTime, else: progress)
+            noteProgress(Self.finite(musicPlayer.playbackTime, else: progress))
             if status == .playing { appleWasPlaying = true }
             savePositionIfDue(paused: paused)
 
@@ -2066,7 +2130,7 @@ final class LocalPlaybackService {
             let playing = reconcilePlaying(streamPlayer.timeControlStatus != .paused)
             let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
-            progress = Self.finite(current.currentTime().seconds, else: progress)
+            noteProgress(Self.finite(current.currentTime().seconds, else: progress))
             savePositionIfDue(paused: paused)
             if let queueIndex = streamRun[ObjectIdentifier(current)], currentIndex != queueIndex {
                 currentIndex = queueIndex

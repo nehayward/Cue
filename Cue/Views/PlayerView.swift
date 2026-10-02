@@ -795,21 +795,19 @@ private struct LocalArtistButton: View {
 
 // MARK: - Scrubber and transport
 
-/// The scrubber, mirroring `LargePlayerView.PlaybackView`: `VibeSlider` over
-/// elapsed / audio quality / remaining, monospaced.
+/// The scrubber, mirroring `GroupPlaybackScrubber`: `VibeSlider` over
+/// elapsed / audio quality / remaining, monospaced, redrawn from the
+/// player's running clock once per pixel of progress.
 private struct LocalPlaybackScrubber: View {
     private var playback: LocalPlaybackService { .shared }
 
-    /// Held only while dragging, so the poller's `progress` updates don't yank
-    /// the thumb back under the finger mid-scrub.
-    @State private var scrubPosition: TimeInterval?
+    @Environment(\.displayScale) private var displayScale
 
-    /// Twin of `LargePlayerView`'s: animating the fill is what makes playback
-    /// tick along, but a track change drops the position to zero and animating
-    /// *that* sweeps the bar backwards like a rewind.
-    private var positionAnimation: Animation? {
-        playback.progress < 2 ? nil : .interactiveSpring
-    }
+    /// Held only while dragging, so the thumb stays under the finger rather
+    /// than running on with the clock.
+    @State private var scrubPosition: TimeInterval?
+    /// The bar's width, which sets how often it's worth redrawing.
+    @State private var barWidth: CGFloat = 0
 
     /// Both kept finite here as well as in the service: everything below
     /// goes through `Duration.seconds(_:)`, which traps on NaN or infinity,
@@ -818,60 +816,71 @@ private struct LocalPlaybackScrubber: View {
         playback.duration.isFinite ? max(playback.duration, 1) : 1
     }
 
-    /// Where the scrubber sits: the finger while dragging, the player's
-    /// clock otherwise.
-    private var position: TimeInterval {
-        let value = scrubPosition ?? playback.progress
-        return value.isFinite ? min(max(0, value), duration) : 0
+    private func clamped(_ value: TimeInterval) -> TimeInterval {
+        value.isFinite ? min(max(0, value), duration) : 0
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            VibeSlider(
-                value: Binding(
-                    get: { position },
-                    set: { scrubPosition = $0 }
-                ),
-                in: 0...duration,
-                step: 1,
-                baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24,
-                delayDrag: false,
-                valueAnimation: positionAnimation
-            ) { isEditing in
-                guard !isEditing else { return }
-                if let scrubPosition {
-                    playback.seek(to: scrubPosition)
+        // Paused under a finger, while nothing plays, and off screen (see
+        // `PlaybackTimeline`). A seek or a new song lands at once rather than
+        // sweeping, hence no value animation.
+        PlaybackTimeline(
+            isRunning: playback.isPlaying && scrubPosition == nil,
+            minimumInterval: ProgressRedraw.interval(
+                forDuration: duration * 1000,
+                length: barWidth,
+                scale: displayScale
+            ),
+            position: { clamped(scrubPosition ?? playback.progress) }
+        ) { position in
+            VStack(spacing: 0) {
+                VibeSlider(
+                    value: Binding(
+                        get: { position },
+                        set: { scrubPosition = $0 }
+                    ),
+                    in: 0...duration,
+                    step: 1,
+                    baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24,
+                    delayDrag: false,
+                    valueAnimation: nil
+                ) { isEditing in
+                    guard !isEditing else { return }
+                    if let scrubPosition {
+                        playback.seek(to: scrubPosition)
+                    }
+                    scrubPosition = nil
                 }
-                scrubPosition = nil
-            }
-            .frame(maxWidth: 500)
-            .frame(height: 40)
-            .foregroundStyle(.primary)
-            .accessibilityLabel("Playback Position")
-            .accessibilityValue(Duration.seconds(position).formatted(.time(pattern: .minuteSecond)))
+                .frame(maxWidth: 500)
+                .frame(height: 40)
+                .foregroundStyle(.primary)
+                .accessibilityLabel("Playback Position")
+                .accessibilityValue(Duration.seconds(position).formatted(.time(pattern: .minuteSecond)))
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
 
-            HStack {
-                let elapsed = Duration.seconds(position)
-                let remaining = Duration.seconds(max(0, duration - position))
-                let pattern: Duration.TimeFormatStyle.Pattern =
-                    duration > 3600 ? .hourMinuteSecond : .minuteSecond
+                HStack {
+                    let elapsed = Duration.seconds(position)
+                    let remaining = Duration.seconds(max(0, duration - position))
+                    let pattern: Duration.TimeFormatStyle.Pattern =
+                        duration > 3600 ? .hourMinuteSecond : .minuteSecond
 
-                Text(elapsed.formatted(.time(pattern: pattern)))
-                    .contentTransition(.identity)
-                Spacer()
-                // Lossless / Atmos / bit depth, as far as the backend says —
-                // the badge the Sonos player draws from the speaker's report.
-                AudioInfoView(quality: playback.audioQuality)
-                    .frame(height: 12)
-                    .contentTransition(.identity)
-                    .animation(.spring, value: playback.audioQuality)
-                Spacer()
-                Text("-\(remaining.formatted(.time(pattern: pattern)))")
-                    .contentTransition(.identity)
+                    Text(elapsed.formatted(.time(pattern: pattern)))
+                        .contentTransition(.identity)
+                    Spacer()
+                    // Lossless / Atmos / bit depth, as far as the backend says —
+                    // the badge the Sonos player draws from the speaker's report.
+                    AudioInfoView(quality: playback.audioQuality)
+                        .frame(height: 12)
+                        .contentTransition(.identity)
+                        .animation(.spring, value: playback.audioQuality)
+                    Spacer()
+                    Text("-\(remaining.formatted(.time(pattern: pattern)))")
+                        .contentTransition(.identity)
+                }
+                .frame(maxWidth: 500)
+                .monospacedDigit()
+                .font(.caption)
             }
-            .frame(maxWidth: 500)
-            .monospacedDigit()
-            .font(.caption)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 60)
