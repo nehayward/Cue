@@ -191,6 +191,7 @@ extension SonosService {
         for source in LiveItemSource.allCases {
             lastLiveItemIDs.removeValue(forKey: liveItemKey(source, playerID))
         }
+        liveNextItems.removeValue(forKey: playerID)
         liveTrackRefreshTasks.removeValue(forKey: playerID)?.cancel()
     }
 }

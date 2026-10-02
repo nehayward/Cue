@@ -1094,6 +1094,47 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         
         try await task?.send(.data(data))
     }
+
+    /// Skips the group to the next track.
+    ///
+    /// Sent on the socket that's already open, so a skip costs one frame rather
+    /// than a fresh SOAP request competing with the poll, and back-to-back skips
+    /// reach the speaker in the order they were pressed.
+    ///
+    /// - Throws: `SonosWebSocketError.connectionNotFound` when the socket isn't
+    ///   live, so the caller can fall back to SOAP.
+    public func skipToNextTrack(groupID: String) async throws {
+        try await sendPlaybackCommand("skipToNextTrack", groupID: groupID)
+    }
+
+    /// Skips the group to the previous track. Unlike the player's previous
+    /// button this never restarts the current track — that decision is the
+    /// caller's. See `skipToNextTrack`.
+    public func skipToPreviousTrack(groupID: String) async throws {
+        try await sendPlaybackCommand("skipToPreviousTrack", groupID: groupID)
+    }
+
+    private func sendPlaybackCommand(_ command: String, groupID: String) async throws {
+        // Fail fast on a task that isn't running — never resumed, mid
+        // reconnect, or closed. A send on one waits out the request timeout,
+        // and the skip would sit behind it.
+        guard let task, task.state == .running, task.closeCode == .invalid else {
+            throw SonosWebSocketError.connectionNotFound
+        }
+
+        let header: [String: Any] = [
+            "namespace": "playback:1",
+            "command": command,
+            "groupId": groupID
+        ]
+
+        let payload: [Any] = [header, [String: Any]()]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: []) else {
+            throw SonosWebSocketError.invalidResponse
+        }
+
+        try await task.send(.data(data))
+    }
 //
 //    /// Plays an audio clip on the Sonos device
 //    /// - Parameters:

@@ -84,7 +84,7 @@ public final class SonosService {
     }
 
     @ObservationIgnored private lazy var sonosSystemDiscoverService = SonosSystemDiscoverService()
-    @ObservationIgnored private lazy var api = SonosAPI()
+    @ObservationIgnored lazy var api = SonosAPI()
     @ObservationIgnored private lazy var mediaServerHandler = MediaServerHandler()
 
     // The shared instance, not a private one: all uses here are stateless
@@ -228,6 +228,15 @@ public final class SonosService {
     /// SwiftUI (the Lock Screen Now Playing card) register here instead of
     /// polling.
     @ObservationIgnored var liveUpdateObservers: [LiveListener: (GroupRoom) -> Void] = [:]
+    /// The song after the current one, per player, from the socket's metadata —
+    /// what a next press shows before the speaker has moved.
+    @ObservationIgnored var liveNextItems: [String: LiveNextItem] = [:]
+    /// Skip presses still landing, per coordinator — see
+    /// `SonosService+TrackSkip.swift`.
+    @ObservationIgnored var skipBursts: [String: TrackSkipBurst] = [:]
+    /// When each coordinator's last finished skip reached the speaker. Reads
+    /// sent before it are of the song that was skipped away from.
+    @ObservationIgnored var lastSkipSettledAt: [String: Date] = [:]
     @ObservationIgnored private var metadataTask: Task<Void, Never>?
     /// Reads room volume/mute/alarm after a topology change without holding
     /// the list on it. Kept so the next change or `clearDevices` can cancel
@@ -608,6 +617,7 @@ public final class SonosService {
             if roomGroup != selectedGroup {
                 self.selectedGroup = roomGroup
             }
+            let trackReadAt = Date.now
             async let track = self.getTrack(ip: roomGroup.coordinatorRoom.ip)
             async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
             async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
@@ -653,6 +663,11 @@ public final class SonosService {
             await updateGroupMuteState(for: [roomGroup])
 
             guard var awaitedTrack = await track else {
+                return
+            }
+
+            // Mid-skip, this read is likely of the song being left behind.
+            if skipHoldsTrack(on: roomGroup, read: awaitedTrack, at: trackReadAt) {
                 return
             }
 
@@ -992,10 +1007,17 @@ public final class SonosService {
                     guard let self else { return }
                     // MARK: Sleeping or Off
                     if roomGroup.coordinatorRoom.state != .active { return }
+                    let trackReadAt = Date.now
                     async let track = getTrack(ip: roomGroup.coordinatorRoom.ip)
                     async let mediaInfo = api.mediaInfo(ipAddress: roomGroup.coordinatorRoom.ip)
 
                     guard var awaitedTrack = await track else {
+                        return
+                    }
+
+                    // Mid-skip, this read is likely of the song being left
+                    // behind. See twin site in `load()`.
+                    if skipHoldsTrack(on: roomGroup, read: awaitedTrack, at: trackReadAt) {
                         return
                     }
 
@@ -2308,13 +2330,29 @@ public final class SonosService {
         isEditing = false
     }
 
+    /// Skips to the next track. On a group this service knows, the new song
+    /// shows at once and rapid presses are coalesced — see `skip(_:on:)`.
+    /// Returns once the speaker has been told.
+    @MainActor
     public func next(ip: String) async {
-        await api.next(ipAddress: ip)
+        guard let group = groups.first(where: { $0.coordinatorRoom.ip == ip }), isKeepingCurrent(group) else {
+            await api.next(ipAddress: ip)
+            return
+        }
+        await skip(.next, on: group).value
     }
 
     /// If playback is more than 3 seconds into the track, restarts the current track.
     /// Otherwise, goes to the previous track.
+    @MainActor
     public func previous(ip: String) async {
+        if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }), isKeepingCurrent(group) {
+            await skip(.previous, on: group).value
+            return
+        }
+
+        // No live model for this group (an extension that hasn't loaded one, or
+        // only a cached one), so the position has to come from the speaker.
         let track = await api.getCurrentTrack(ipAddress: ip)
         let playbackPosition = track?.playbackPosition ?? 0
         if playbackPosition >= 3000 {

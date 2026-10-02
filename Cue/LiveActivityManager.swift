@@ -91,6 +91,7 @@ final class LiveActivityManager: LiveActivityManageable {
                 continue
             }
 
+            let trackReadAt = Date.now
             async let track = sonosService.getTrack(ip: group.coordinatorRoom.ip)
             async let playbackInfo = sonosService.getPlaybackInfo(ip: group.coordinatorRoom.ip)
             async let groupVolume = sonosService.getGroupVolume(ip: group.coordinatorRoom.ip)
@@ -99,7 +100,9 @@ final class LiveActivityManager: LiveActivityManageable {
             // One unreachable speaker shouldn't stop the remaining activities
             // from refreshing.
             guard let info = try? await (track, playbackInfo, groupVolume, isMuted) else { continue }
-            if let track = info.0 {
+            // Mid-skip the model already shows where the presses are headed;
+            // this read may still be of the song being left.
+            if let track = info.0, await !sonosService.skipHoldsTrack(on: group, read: track, at: trackReadAt) {
                 if group.coordinatorRoom.track.trackID == track.trackID, !group.isEditingPlayback {
                     group.coordinatorRoom.updatePlaybackPosition(track.playbackPosition)
                 } else if group.coordinatorRoom.track.trackID != track.trackID {

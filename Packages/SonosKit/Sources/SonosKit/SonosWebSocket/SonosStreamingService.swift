@@ -728,6 +728,32 @@ public final class SonosStreamingService {
         let groupId = config.groupId
         try await socket.seek(groupID: groupId, positionMillis: positionMillis)
     }
+
+    /**
+     * Skip a group one track forward or back over the player's open socket.
+     *
+     * - Parameters:
+     *   - forward: `true` for the next track, `false` for the previous one
+     *   - playerId: The player whose socket carries the command
+     *   - groupId: The group the caller means to skip. Checked against what the
+     *     socket was built for, since a socket that hasn't been re-pointed after
+     *     a regroup would send the command to a group that no longer exists.
+     * - Throws: `SonosWebSocketError.connectionNotFound` when no live socket
+     *   covers that group — fall back to SOAP.
+     */
+    public func skip(forward: Bool, playerId: String, groupId: String) async throws {
+        guard let socket = connections[playerId],
+              let config = playerConfigs[playerId],
+              config.groupId == groupId else {
+            throw SonosWebSocketError.connectionNotFound
+        }
+
+        if forward {
+            try await socket.skipToNextTrack(groupID: groupId)
+        } else {
+            try await socket.skipToPreviousTrack(groupID: groupId)
+        }
+    }
     
     /// Disconnect all players and clean up
     public func disconnectAll() async {

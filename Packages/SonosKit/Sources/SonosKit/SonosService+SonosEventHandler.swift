@@ -48,9 +48,11 @@ extension SonosService: SonosEventHandler {
         }
 
         // Only correct real drift: the position ticks continuously and every
-        // write invalidates each progress-bar consumer.
+        // write invalidates each progress-bar consumer. Not mid-skip: the
+        // player is showing the new song from zero, and until the speaker gets
+        // there this is the old song's position.
         let position = TimeInterval(playbackState.positionMillis)
-        if abs(group.coordinatorRoom.playbackPosition - position) > 1000 {
+        if !isLandingSkip(on: group), abs(group.coordinatorRoom.playbackPosition - position) > 1000 {
             group.coordinatorRoom.updatePlaybackPosition(position)
         }
 
@@ -93,6 +95,8 @@ extension SonosService: SonosEventHandler {
             if let track = metadata.currentItem?.track {
                 groups[index].audioQuality = track.quality
                 groups[index].coordinatorRoom.container = metadata.container
+                // What a next press can show before the speaker has moved.
+                liveNextItems[playerId] = LiveNextItem(currentName: track.name ?? "", next: metadata.nextItem?.track)
                 // The socket carries the *new* song before the poll notices.
                 // Prefer the catalog object id; fall back to the name for
                 // sources that don't carry one (radio track announcements).
@@ -103,6 +107,7 @@ extension SonosService: SonosEventHandler {
                 )
             } else {
                 groups[index].coordinatorRoom.container = nil
+                liveNextItems.removeValue(forKey: playerId)
             }
         }
     }

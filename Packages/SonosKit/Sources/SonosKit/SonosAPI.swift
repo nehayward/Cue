@@ -10,6 +10,11 @@ final class SonosAPI: NSObject {
     private let logger: Logger = Logger(subsystem: "com.sonos.nick", category: "SonosAPI")
     lazy var session: URLSession = privateSession
     private lazy var queueSession: URLSession = queueSessionConfig
+    /// Transport commands (skip, track jump, seek) get their own connection
+    /// pool. On `session` they queued behind the pulse's reads — five or six
+    /// SOAP calls per group every 500 ms — so a skip pressed mid-pulse waited
+    /// for polls that were about to be stale anyway.
+    private lazy var transportSession: URLSession = transportSessionConfig
 
     var xmlParser = XMLParserSonos()
     lazy var decoder = JSONDecoder()
@@ -28,11 +33,19 @@ final class SonosAPI: NSObject {
         configuration.timeoutIntervalForRequest = 60
         return URLSession(configuration: configuration)
     }()
+
+    private lazy var transportSessionConfig: URLSession = {
+        let configuration: URLSessionConfiguration = .default
+        configuration.allowsCellularAccess = false
+        configuration.timeoutIntervalForRequest = 10
+        return URLSession(configuration: configuration)
+    }()
     
     deinit {
         // Invalidate URLSession instances to prevent memory leaks
         session.invalidateAndCancel()
         queueSession.invalidateAndCancel()
+        transportSession.invalidateAndCancel()
     }
     
     private static var spotifyLocal: String {
@@ -257,33 +270,23 @@ final class SonosAPI: NSObject {
         }
     }
 
-    func next(ipAddress: String) async {
+    /// - Returns: Whether the speaker accepted the skip.
+    @discardableResult func next(ipAddress: String) async -> Bool {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),
             ("Speed", 1)
         ]
 
-        guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Next", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-            return
-        }
-
-        if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
-        }
+        return await sendTransportCommand(ip: ipAddress, action: "Next", arguments: arguments)
     }
 
-    func previous(ipAddress: String) async {
+    /// - Returns: Whether the speaker accepted the skip.
+    @discardableResult func previous(ipAddress: String) async -> Bool {
         let arguments: OrderedKeys = [
             ("InstanceID", 0)
         ]
 
-        guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Previous", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-            return
-        }
-
-        if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
-        }
+        return await sendTransportCommand(ip: ipAddress, action: "Previous", arguments: arguments)
     }
 
     func isPlaying(ipAddress: String) async -> PlaybackStatus {
@@ -699,20 +702,18 @@ final class SonosAPI: NSObject {
         return nil
     }
 
-    func seek(trackNumber: Int, IP: String) async {
+    /// Jumps to a queue position (1-based).
+    ///
+    /// - Returns: Whether the speaker accepted the jump. A target past the end
+    ///   of the queue is rejected, not clamped.
+    @discardableResult func seek(trackNumber: Int, IP: String) async -> Bool {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),
             ("Unit", "TRACK_NR"),
             ("Target", trackNumber)
         ]
 
-        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "Seek", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-            return
-        }
-
-        if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
-        }
+        return await sendTransportCommand(ip: IP, action: "Seek", arguments: arguments)
     }
 
     func seek(to delta: Int, IP: String) async {
@@ -740,14 +741,7 @@ final class SonosAPI: NSObject {
             ("Target", convertMillisecondsToHoursMinutesSeconds(Int(time)))
         ]
 
-        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "Seek", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-            return false
-        }
-        if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
-            return false
-        }
-        return true
+        return await sendTransportCommand(ip: IP, action: "Seek", arguments: arguments)
     }
 
     private func convertMillisecondsToHoursMinutesSeconds(_ milliseconds: Int) -> String {
@@ -1052,6 +1046,28 @@ final class SonosAPI: NSObject {
         return nil
     }
     
+    /// Sends an AVTransport command on `transportSession`, away from the
+    /// pulse's reads.
+    ///
+    /// - Returns: Whether the speaker answered 200. Cancellation reads as a
+    ///   failure: nothing confirms the speaker acted on it.
+    private func sendTransportCommand(ip: String, action: String, arguments: OrderedKeys) async -> Bool {
+        guard let request = createSoapRequest(ip: ip, action: action, arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return false
+        }
+        do {
+            let (_, response) = try await transportSession.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            if status != 200 {
+                logger.error("\(action) to \(ip) rejected, status \(status)")
+            }
+            return status == 200
+        } catch {
+            logger.error("\(action) to \(ip) failed: \(error.localizedDescription)")
+            return false
+        }
+    }
+
     @discardableResult func sendQueueSoapRequest(ip: String, action: String, arguments: [(key: String, value: Any)], endpoint: String) async throws -> (Data, URLResponse)? {
         guard let request = createSoapRequest(ip: ip, action: action, arguments: arguments, endpoint: endpoint) else {
             return nil

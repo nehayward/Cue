@@ -1035,8 +1035,10 @@ final class NowPlayingSessionService {
         }))
         commandTokens.append((center.previousTrackCommand, center.previousTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
+                // No optimistic zero here: `previous` reads the position to
+                // decide between restarting the song and going back one, and
+                // zeroes it itself.
                 self?.perform { service, group in
-                    group.coordinatorRoom.playbackPosition = 0
                     await service.previous(ip: group.ip)
                 } ?? .commandFailed
             }
