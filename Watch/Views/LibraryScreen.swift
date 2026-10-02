@@ -229,8 +229,7 @@ extension View {
 }
 
 private extension View {
-    /// Out of the way while the list scrolls, where the system doesn't
-    /// tuck the bar away itself.
+    /// Out of the way while the list scrolls.
     func fadesWhileScrolling(_ isScrolling: Bool) -> some View {
         opacity(isScrolling ? 0 : 1)
             .allowsHitTesting(!isScrolling)
@@ -238,16 +237,15 @@ private extension View {
     }
 }
 
-/// The bottom bar steps aside while the list scrolls down: on watchOS 27
-/// the system minimizes it; on 11 to 26 its buttons fade while the list
-/// moves (`isScrolling`); before that, it stays.
+/// The bottom bar's buttons fade while the list moves (`isScrolling`), from
+/// watchOS 11, which reports the scroll phase. (watchOS 27's toolbar
+/// minimizing takes only `.automatic` on the watch: the system decides, so
+/// there's nothing to ask it for.)
 private struct BottomBarGetsOutOfTheWay: ViewModifier {
     @Binding var isScrolling: Bool
 
     func body(content: Content) -> some View {
-        if #available(watchOS 27.0, *) {
-            content.toolbarMinimizationBehavior(.onScrollDown, for: .bottomBar)
-        } else if #available(watchOS 11.0, *) {
+        if #available(watchOS 11.0, *) {
             content.onScrollPhaseChange { _, phase in
                 isScrolling = phase.isScrolling
             }
