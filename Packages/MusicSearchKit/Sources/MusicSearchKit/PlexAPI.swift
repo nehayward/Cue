@@ -1501,9 +1501,10 @@ public final class PlexAPI {
 
     /// The same, transcoded to `format` at `bitrate` whatever the Streaming
     /// Quality setting says — for a device with a quality of its own (the
-    /// Apple Watch). Its transcode session is named apart (`session`), so
-    /// Plex doesn't take it for this iPhone's and end one for the other.
-    public static func playbackStreamURL(from directURL: URL, ratingKey: String, format: StreamTranscoding.Format, bitrate: Int, session: String = "cue") -> URL {
+    /// Apple Watch). Its transcode session and client are named apart
+    /// (`session`, `client`), so Plex doesn't take it for this iPhone's and
+    /// end one for the other.
+    public static func playbackStreamURL(from directURL: URL, ratingKey: String, format: StreamTranscoding.Format, bitrate: Int, session: String = "cue", client: String = "Cue") -> URL {
         guard let codec = format.codec,
               let container = plexContainer(for: format),
               var components = URLComponents(url: directURL, resolvingAgainstBaseURL: false),
@@ -1522,7 +1523,7 @@ public final class PlexAPI {
             URLQueryItem(name: "audioCodec", value: codec),
             URLQueryItem(name: "musicBitrate", value: "\(bitrate)"),
             URLQueryItem(name: "session", value: "\(session)-\(ratingKey)"),
-            URLQueryItem(name: "X-Plex-Client-Identifier", value: "Cue"),
+            URLQueryItem(name: "X-Plex-Client-Identifier", value: client),
             URLQueryItem(name: "X-Plex-Product", value: "Cue"),
             URLQueryItem(name: "X-Plex-Platform", value: "Generic"),
             URLQueryItem(name: "X-Plex-Client-Profile-Extra", value: target)

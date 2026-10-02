@@ -4,14 +4,15 @@ import OSLog
 import WatchKit
 import WatchSync
 
-/// Keeps the songs on the watch, on the watch.
+/// Keeps the music on the watch, on the watch.
 ///
-/// The library comes from either side: the iPhone sends it whole when it
-/// changes there (`PhoneConnection`), and the watch changes it itself when
-/// music is added from its own browsing (`add`, `addSongs`, `remove`,
-/// `setQuality`), sending it back. This downloads what's new in it straight
-/// from the Plex or Subsonic server, deletes what's gone, and reports back.
-/// Two ways down:
+/// What's wanted is a list of picks — albums, playlists, artists and songs
+/// by id (`WatchPicks`) — made on either device: Add Music here, Add to
+/// Apple Watch on the iPhone (`PhoneConnection`). The watch looks each pick
+/// up on its server itself (`WatchLibraryBrowser.songs(for:)`), downloads
+/// the songs at the quality chosen here, and deletes what no pick holds any
+/// more. It looks the picks up again when the sign-ins change, and every few
+/// hours, so a playlist follows the server. Two ways down:
 ///
 /// - **In the background**, on a background `URLSession`: it carries on with
 ///   Cue closed, and the system relaunches the app to finish up. While the
@@ -25,8 +26,12 @@ import WatchSync
 ///   When Cue leaves the screen, what's left goes back to the background
 ///   session, and Fast Download picks up again on return.
 ///
+/// Plex converts a song as it sends it, one at a time for a client, so its
+/// conversions come down one at a time; a conversion that breaks off
+/// (`cannot parse response`, mostly) is tried again by itself.
+///
 /// Files live in Application Support/Downloads as `<key>.<ext>`, with the
-/// manifest beside them; the library the iPhone sent is kept alongside.
+/// manifest beside them; the picks and their songs are kept alongside.
 @MainActor
 @Observable
 final class WatchDownloadStore {
@@ -49,9 +54,9 @@ final class WatchDownloadStore {
             case failed
         }
 
-        var track: WatchTrack
-        /// The suffix the file is saved under: the track's, as of the
-        /// transfer that brought it.
+        var song: WatchSong
+        /// What it's fetched at, and the suffix it's saved under.
+        var quality: WatchDownloadQuality
         var fileExtension: String
         var state: State
         var bytesReceived: Int64 = 0
@@ -63,13 +68,15 @@ final class WatchDownloadStore {
         var resumeOn: SessionKind?
         var error: String?
         var failedOnNetwork: Bool?
+        /// Times it was tried again by itself after the server broke off.
+        var retries: Int?
         /// The suffix of the file an earlier download left — at another
         /// quality — kept playable while this one comes down, and deleted
         /// when it lands.
         var previousFileExtension: String?
 
-        var id: String { track.key }
-        var key: String { track.key }
+        var id: String { song.key }
+        var key: String { song.key }
 
         var progress: Double {
             guard bytesExpected > 0 else { return 0 }
@@ -81,10 +88,17 @@ final class WatchDownloadStore {
         case off, running, finished
     }
 
-    /// What the iPhone last sent.
-    private(set) var library: WatchLibrary
+    private(set) var picks: WatchPicks
+    /// Each pick's songs, in play order, as last looked up.
+    private(set) var songsByPick: [String: [WatchSong]]
+    /// Picks being looked up now, and those the server couldn't be asked
+    /// about the last time.
+    private(set) var lookingUp: Set<String> = []
+    private(set) var unreachable: Set<String> = []
     /// Every song on the watch or on its way, by key.
     private(set) var items: [String: Item]
+    private(set) var quality: WatchDownloadQuality
+    private(set) var hasChosenQuality: Bool
 
     // MARK: Fast Download
 
@@ -108,6 +122,7 @@ final class WatchDownloadStore {
     /// task for the same key — one replaced, cancelled, or left on the
     /// other session — are stale and ignored.
     @ObservationIgnored private var tasks: [String: TaskRef] = [:]
+    @ObservationIgnored private var lookedUpAt: Date?
     @ObservationIgnored private var resumesFastOnReturn = false
     @ObservationIgnored private var fastBytes: Int64 = 0
     @ObservationIgnored private var meter = TransferRateMeter()
@@ -115,7 +130,6 @@ final class WatchDownloadStore {
     @ObservationIgnored private var meterTask: Task<Void, Never>?
     @ObservationIgnored private var lastProgressPublish: [String: Date] = [:]
     @ObservationIgnored private var saveTask: Task<Void, Never>?
-    @ObservationIgnored private var statusTask: Task<Void, Never>?
     @ObservationIgnored private var backgroundCompletionHandlers: [() -> Void] = []
     @ObservationIgnored private let backgroundRelay = DownloadRelay(kind: .background)
     @ObservationIgnored private let fastRelay = DownloadRelay(kind: .fast)
@@ -150,15 +164,29 @@ final class WatchDownloadStore {
     /// (the session relaunches the app for it), so an artist of hundreds
     /// doesn't sit on the session as hundreds of tasks.
     static let backgroundConcurrency = 16
+    /// Times a song the server broke off is tried again before it counts
+    /// as failed.
+    static let retryLimit = 2
+    /// How old the songs looked up for the picks get before they're looked
+    /// up again, so playlists follow the server.
+    static let lookUpInterval: TimeInterval = 6 * 60 * 60
+
+    private static let qualityKey = "downloadQuality"
 
     private init() {
         Self.prepareDirectory()
-        library = Self.loadLibrary()
+        let saved = Self.loadState()
+        picks = saved.picks
+        songsByPick = saved.songs
+        lookedUpAt = saved.lookedUpAt
         items = Self.loadManifest()
+        let stored = UserDefaults.standard.string(forKey: Self.qualityKey).flatMap(WatchDownloadQuality.init(rawValue:))
+        quality = stored ?? .recommended
+        hasChosenQuality = stored != nil
         backgroundRelay.store = self
         fastRelay.store = self
         reconcileWithDisk()
-        matchItemsToLibrary(retryingFailed: false)
+        matchItems()
         reattachBackgroundTasks()
     }
 
@@ -174,8 +202,8 @@ final class WatchDownloadStore {
 
     /// The file for a song that's here, or nil — the earlier copy while a
     /// song is fetched again at a new quality.
-    func localURL(for track: WatchTrack) -> URL? {
-        guard let item = items[track.key] else { return nil }
+    func localURL(for song: WatchSong) -> URL? {
+        guard let item = items[song.key] else { return nil }
         let url: URL
         if item.state == .completed {
             url = Self.fileURL(key: item.key, fileExtension: item.fileExtension)
@@ -191,6 +219,17 @@ final class WatchDownloadStore {
     func isPlayable(_ key: String) -> Bool {
         guard let item = items[key] else { return false }
         return item.state == .completed || item.previousFileExtension != nil
+    }
+
+    /// The songs of picks, in order, each once.
+    func songs(in keys: [String]) -> [WatchSong] {
+        var seen = Set<String>()
+        return keys.flatMap { songsByPick[$0] ?? [] }.filter { seen.insert($0.key).inserted }
+    }
+
+    /// Whether a pick is on the watch — a song also when another pick has it.
+    func isOnWatch(_ pick: WatchPick) -> Bool {
+        picks.contains(key: pick.key) || (pick.kind == .song && items[WatchKeys.song(source: pick.source, id: pick.id)] != nil)
     }
 
     /// Songs not here yet, failed ones included: what Fast Download fetches.
@@ -210,138 +249,159 @@ final class WatchDownloadStore {
         items.values.reduce(0) { $0 + ($1.state == .completed ? $1.fileSize ?? 0 : 0) }
     }
 
-    func downloadedCount(in collection: WatchCollection) -> Int {
-        collection.trackKeys.filter { isDownloaded($0) }.count
-    }
-
-    /// What's coming down on the fast session now, in library order.
+    /// What's coming down on the fast session now, in play order.
     var fastActive: [Item] {
-        library.wantedKeys.compactMap { key in
+        orderedKeys().compactMap { key in
             tasks[key]?.kind == .fast ? items[key] : nil
         }
     }
 
-    // MARK: - Library
-
-    /// Takes a library from the iPhone: deletes the songs no collection
-    /// holds now, gives the rest the library's copy of themselves (a fresh
-    /// stream URL, a corrected title), queues what's new, and tries again
-    /// what failed — adding something again on the iPhone is the way to
-    /// retry it. An older revision than the one here is left alone: the
-    /// transfers can arrive out of order.
-    ///
-    /// Saved and reported at once, not after the usual pause: this can run
-    /// in a WatchConnectivity wake that ends as soon as it returns.
-    func apply(_ newLibrary: WatchLibrary) {
-        guard newLibrary.revision > library.revision else {
-            scheduleStatus()
-            return
-        }
-        library = newLibrary
-        saveLibrary()
-        let plan = matchItemsToLibrary(retryingFailed: true)
-        logger.info("Library \(newLibrary.revision): \(plan.toDownload.count) to fetch, \(plan.toRemove.count) to delete")
-
-        ArtworkStore.shared.prefetch(newLibrary.collections.compactMap(\.artworkURL))
-        pump()
-        saveNow()
-        postStatusNow()
+    /// Every wanted song's key, newest pick first, each once.
+    private func orderedKeys() -> [String] {
+        songs(in: picks.items.map(\.key)).map(\.key)
     }
 
-    /// Brings the manifest in line with the library: deletes what no
-    /// collection holds, refreshes the rest from it, queues what's missing.
-    /// Run on every new library, and at launch, in case the app was killed
-    /// between saving one and the other.
-    @discardableResult
-    private func matchItemsToLibrary(retryingFailed: Bool) -> WatchSyncPlan {
-        let plan = WatchSyncPlan.make(library: library, present: Set(items.keys))
-        if fastPhase == .running {
-            let unfinished = plan.toRemove.filter { items[$0]?.state != .completed }.count
-            fastTotal = max(fastCompleted, fastTotal - unfinished + plan.toDownload.count)
+    // MARK: - Picks
+
+    /// Puts something on the watch from its own browsing. Songs already
+    /// fetched for it (an album's, opened to pick from) save looking it up.
+    func add(_ pick: WatchPick, songs: [WatchSong]? = nil) {
+        picks.add(pick)
+        if let songs, !songs.isEmpty {
+            songsByPick[pick.key] = songs
+            unreachable.remove(pick.key)
         }
-        for key in plan.toRemove {
+        picksDidChange(tellPhone: true)
+    }
+
+    func remove(key: String) {
+        guard picks.contains(key: key) else { return }
+        picks.remove(key: key)
+        picksDidChange(tellPhone: true)
+    }
+
+    /// The iPhone's picks, merged with these. When it was missing something
+    /// of the watch's, it hears back.
+    func apply(_ theirs: WatchPicks) {
+        let merged = picks.merged(with: theirs)
+        if merged != picks {
+            picks = merged
+            picksDidChange(tellPhone: merged != theirs)
+        } else if merged != theirs {
+            PhoneConnection.shared.send(picks: picks)
+        }
+    }
+
+    /// Fetches what the picks want now and deletes what they don't, looks
+    /// up new ones, and saves at once: this can run in a WatchConnectivity
+    /// wake that ends soon after.
+    private func picksDidChange(tellPhone: Bool) {
+        let keys = Set(picks.items.map(\.key))
+        songsByPick = songsByPick.filter { keys.contains($0.key) }
+        unreachable.formIntersection(keys)
+        matchItems()
+        pump()
+        saveNow()
+        lookUp(picks.items.filter { songsByPick[$0.key] == nil })
+        ArtworkStore.shared.prefetch(picks.items.compactMap(\.artworkURL))
+        if tellPhone {
+            PhoneConnection.shared.send(picks: picks)
+        }
+    }
+
+    /// New sign-ins: what was looked up with the old ones (Plex streams
+    /// carry the token) is looked up again.
+    func credentialsDidChange() {
+        lookUpAll()
+    }
+
+    private func lookUpAll() {
+        lookedUpAt = .now
+        lookUp(picks.items)
+    }
+
+    /// Looks picks up on their servers, one after another, putting each
+    /// one's songs on their way as they come. A pick the server couldn't
+    /// be asked about keeps the songs it had; so does one that comes back
+    /// empty, rather than losing every song to a passing fault.
+    private func lookUp(_ wanted: [WatchPick]) {
+        let fresh = wanted.filter { !lookingUp.contains($0.key) }
+        guard !fresh.isEmpty else { return }
+        lookingUp.formUnion(fresh.map(\.key))
+        Task { @MainActor in
+            for pick in fresh {
+                let songs = await WatchLibraryBrowser.shared.songs(for: pick)
+                lookingUp.remove(pick.key)
+                guard picks.contains(key: pick.key) else { continue }
+                if let songs, !songs.isEmpty || songsByPick[pick.key] == nil {
+                    songsByPick[pick.key] = songs
+                    unreachable.remove(pick.key)
+                } else {
+                    unreachable.insert(pick.key)
+                    logger.error("Couldn't look up \(pick.title, privacy: .public)")
+                }
+                matchItems()
+                pump()
+                scheduleSave()
+            }
+        }
+    }
+
+    /// Brings the manifest in line with the picks' songs: deletes what
+    /// none holds, gives the rest their latest copy (a fresh stream, a
+    /// corrected title), queues what's new.
+    private func matchItems() {
+        var wanted: [String: WatchSong] = [:]
+        for song in songs(in: picks.items.map(\.key)) {
+            wanted[song.key] = song
+        }
+        if fastPhase == .running {
+            let unwanted = items.filter { wanted[$0.key] == nil && $0.value.state != .completed }.count
+            let new = wanted.keys.filter { items[$0] == nil }.count
+            fastTotal = max(fastCompleted, fastTotal - unwanted + new)
+        }
+        for key in items.keys where wanted[key] == nil {
             delete(key: key)
         }
-        for (key, existing) in items {
-            guard let track = library.tracks[key] else { continue }
-            var item = existing
-            // A stream that moved — a new quality, mostly — is fetched again
-            // from the new URL. A song that's here keeps playing from its
-            // file until the new one lands. The same song signed by the
-            // other device isn't a move (`isSameDownload`).
-            if !track.isSameDownload(as: item.track) || track.fileExtension != item.fileExtension {
-                stopTask(for: key)
-                if item.state == .completed {
-                    item.previousFileExtension = item.fileExtension
+        for (key, song) in wanted {
+            if let item = items[key] {
+                if item.song != song {
+                    items[key]?.song = song
                 }
-                item.state = .queued
-                item.fileExtension = track.fileExtension
-                item.resumeData = nil
-                item.resumeOn = nil
-                item.bytesReceived = 0
-                item.bytesExpected = 0
-                item.error = nil
-            } else if retryingFailed, item.state == .failed {
-                item.state = .queued
-                item.error = nil
-                item.failedOnNetwork = nil
+            } else {
+                items[key] = Item(song: song, quality: quality, fileExtension: song.stream(at: quality).fileExtension, state: .queued)
             }
-            item.track = track
+        }
+    }
+
+    // MARK: - Quality
+
+    /// Sets what songs come down at; each song here comes down again,
+    /// playing its old file meanwhile.
+    func setQuality(_ newQuality: WatchDownloadQuality) {
+        UserDefaults.standard.set(newQuality.rawValue, forKey: Self.qualityKey)
+        hasChosenQuality = true
+        guard newQuality != quality else { return }
+        quality = newQuality
+        for (key, existing) in items where existing.quality != newQuality {
+            stopTask(for: key)
+            var item = existing
+            if item.state == .completed {
+                item.previousFileExtension = item.fileExtension
+            }
+            item.quality = newQuality
+            item.fileExtension = item.song.stream(at: newQuality).fileExtension
+            item.state = .queued
+            item.resumeData = nil
+            item.resumeOn = nil
+            item.bytesReceived = 0
+            item.bytesExpected = 0
+            item.error = nil
+            item.retries = nil
             items[key] = item
         }
-        for key in plan.toDownload {
-            guard let track = library.tracks[key] else { continue }
-            items[key] = Item(track: track, fileExtension: track.fileExtension, state: .queued)
-        }
-        return plan
-    }
-
-    // MARK: - Changes made here
-
-    /// Puts an album, playlist or artist on the watch from its own
-    /// browsing, with its songs as fetched — replacing it if it's there.
-    func add(_ collection: WatchCollection, tracks: [WatchTrack]) {
-        guard !tracks.isEmpty else { return }
-        var collection = collection
-        collection.trackKeys = tracks.map(\.key)
-        library.upsert(collection, tracks: tracks)
-        libraryDidChangeHere()
-    }
-
-    /// Puts single songs in the Songs list.
-    func addSongs(_ tracks: [WatchTrack]) {
-        guard !tracks.isEmpty else { return }
-        library.addSongs(tracks, at: .now)
-        libraryDidChangeHere()
-    }
-
-    func removeCollection(key: String) {
-        guard library.collection(key: key) != nil else { return }
-        library.removeCollection(key: key)
-        libraryDidChangeHere()
-    }
-
-    /// Sets what songs come down at and rebuilds every stream for it; each
-    /// song comes down again, playing its old file meanwhile.
-    func setQuality(_ quality: WatchDownloadQuality) {
-        guard quality != library.quality else { return }
-        library.quality = quality
-        for (key, track) in library.tracks {
-            library.tracks[key] = track.converted(to: quality)
-        }
-        libraryDidChangeHere()
-    }
-
-    /// A change made on the watch: a new revision, downloaded and deleted
-    /// here at once, and sent to the iPhone with the status.
-    private func libraryDidChangeHere() {
-        library.bumpRevision()
-        saveLibrary()
-        matchItemsToLibrary(retryingFailed: false)
-        ArtworkStore.shared.prefetch(library.collections.compactMap(\.artworkURL))
         pump()
         saveNow()
-        postStatusNow()
     }
 
     // MARK: - Fast Download
@@ -361,6 +421,7 @@ final class WatchDownloadStore {
             item.state = .queued
             item.error = nil
             item.failedOnNetwork = nil
+            item.retries = nil
             items[key] = item
             count += 1
         }
@@ -431,7 +492,6 @@ final class WatchDownloadStore {
         fastPhase = .finished
         logger.info("Fast Download finished: \(self.fastCompleted) of \(self.fastTotal), \(self.failedCount) failed")
         WKInterfaceDevice.current().play(failedCount > 0 ? .failure : .success)
-        scheduleStatus()
     }
 
     private func startMeter() {
@@ -466,12 +526,17 @@ final class WatchDownloadStore {
             pump()
         }
         saveNow()
-        postStatusNow()
     }
 
-    /// Back on screen: the interrupted Fast Download carries on, and songs
-    /// that failed for want of a network try again.
+    /// Back on screen: picks are looked up again when it's been a while
+    /// (or they couldn't be before), the interrupted Fast Download carries
+    /// on, and songs that failed for want of a network try again.
     func appDidBecomeActive() {
+        if Date.now.timeIntervalSince(lookedUpAt ?? .distantPast) > Self.lookUpInterval {
+            lookUpAll()
+        } else {
+            lookUp(picks.items.filter { songsByPick[$0.key] == nil || unreachable.contains($0.key) })
+        }
         if resumesFastOnReturn {
             startFastDownload(continuing: true)
             return
@@ -483,6 +548,7 @@ final class WatchDownloadStore {
             item.state = .queued
             item.error = nil
             item.failedOnNetwork = nil
+            item.retries = nil
             items[key] = item
             retried = true
         }
@@ -511,24 +577,29 @@ final class WatchDownloadStore {
 
     // MARK: - Moving songs
 
-    /// Puts waiting songs on their way: every one on the background
-    /// session, or the next few on the fast one while Fast Download runs —
-    /// finishing the run when nothing's left.
+    /// Puts waiting songs on their way, in play order: up to the background
+    /// session's share, or the next few on the fast one while Fast Download
+    /// runs — finishing the run when nothing's left. Plex conversions go
+    /// one at a time, whichever session they're on.
     private func pump() {
-        let queued = library.wantedKeys.filter { items[$0]?.state == .queued }
-        if fastPhase == .running {
-            let running = tasks.values.filter { $0.kind == .fast }.count
-            for key in queued.prefix(max(0, Self.fastConcurrency - running)) {
-                start(key, on: .fast)
+        let kind: SessionKind = fastPhase == .running ? .fast : .background
+        let limit = kind == .fast ? Self.fastConcurrency : Self.backgroundConcurrency
+        let queued = orderedKeys().filter { items[$0]?.state == .queued }
+        var running = tasks.values.filter { $0.kind == kind }.count
+        var converting = tasks.keys.contains { key in
+            items[key].map { $0.song.isPlexConversion(at: $0.quality) } ?? false
+        }
+        for key in queued where running < limit {
+            guard let item = items[key] else { continue }
+            if item.song.isPlexConversion(at: item.quality) {
+                if converting { continue }
+                converting = true
             }
-            if queued.isEmpty, running == 0 {
-                finishFastDownload()
-            }
-        } else {
-            let running = tasks.values.filter { $0.kind == .background }.count
-            for key in queued.prefix(max(0, Self.backgroundConcurrency - running)) {
-                start(key, on: .background)
-            }
+            start(key, on: kind)
+            running += 1
+        }
+        if fastPhase == .running, queued.isEmpty, running == 0, lookingUp.isEmpty {
+            finishFastDownload()
         }
     }
 
@@ -540,8 +611,11 @@ final class WatchDownloadStore {
         if let resumeData = item.resumeData, item.resumeOn == kind {
             task = session.downloadTask(withResumeData: resumeData)
         } else {
+            // Built now, so it carries the sign-ins as they are now.
+            let stream = item.song.stream(at: item.quality)
+            item.fileExtension = stream.fileExtension
             item.bytesReceived = 0
-            task = session.downloadTask(with: URLRequest(url: item.track.streamURL))
+            task = session.downloadTask(with: URLRequest(url: stream.url))
         }
         // Key and extension travel with the task, so the relay can put the
         // file in place before the system deletes the temporary copy — even
@@ -608,7 +682,7 @@ final class WatchDownloadStore {
 
     /// A file landed, already moved into place by the relay. It's the song
     /// whichever task brought it; any other task for it is let go. One no
-    /// collection wants any more is deleted.
+    /// pick wants any more is deleted.
     fileprivate func didFinish(kind: SessionKind, task identifier: Int, key: String, fileExtension: String, fileSize: Int64?) {
         guard var item = items[key] else {
             try? FileManager.default.removeItem(at: Self.fileURL(key: key, fileExtension: fileExtension))
@@ -631,6 +705,7 @@ final class WatchDownloadStore {
         item.resumeData = nil
         item.resumeOn = nil
         item.error = nil
+        item.retries = nil
         items[key] = item
         lastProgressPublish[key] = nil
         if fastPhase == .running {
@@ -638,7 +713,6 @@ final class WatchDownloadStore {
         }
         pump()
         scheduleSave()
-        scheduleStatus()
     }
 
     fileprivate func didFail(kind: SessionKind, task identifier: Int, key: String, error: Error, resumeData: Data?) {
@@ -653,24 +727,37 @@ final class WatchDownloadStore {
             // they report): the system's, after a force quit say. Back in
             // line, rather than failed until the app is next opened.
             item.state = .queued
+        } else if Self.isBrokenOff(nsError), (item.retries ?? 0) < Self.retryLimit {
+            item.state = .queued
+            item.retries = (item.retries ?? 0) + 1
         } else {
             item.state = .failed
             item.error = error.localizedDescription
-            item.failedOnNetwork = Self.isNetworkFailure(nsError)
+            item.failedOnNetwork = Self.isNetworkFailure(nsError) || Self.isBrokenOff(nsError)
         }
         items[key] = item
-        logger.error("\(item.track.title, privacy: .public) failed on the \(kind.rawValue, privacy: .public) session: \(error.localizedDescription, privacy: .public)")
+        logger.error("\(item.song.title, privacy: .public) failed on the \(kind.rawValue, privacy: .public) session: \(error.localizedDescription, privacy: .public)")
         pump()
         scheduleSave()
-        scheduleStatus()
     }
 
     fileprivate func didFinishBackgroundEvents() {
         saveNow()
-        postStatusNow()
         let handlers = backgroundCompletionHandlers
         backgroundCompletionHandlers = []
         handlers.forEach { $0() }
+    }
+
+    /// The server broke off a response before or while sending it — what
+    /// a Plex conversion does when the transcoder is busy or restarted.
+    /// Worth trying again by itself.
+    private static func isBrokenOff(_ error: NSError) -> Bool {
+        error.domain == NSURLErrorDomain && [
+            NSURLErrorCannotParseResponse,
+            NSURLErrorBadServerResponse,
+            NSURLErrorNetworkConnectionLost,
+            NSURLErrorZeroByteResource,
+        ].contains(error.code)
     }
 
     /// Failures a better network would fix, as opposed to the server
@@ -728,7 +815,6 @@ final class WatchDownloadStore {
             }
             self.pump()
             self.scheduleSave()
-            self.scheduleStatus()
         }
     }
 
@@ -774,32 +860,14 @@ final class WatchDownloadStore {
         }
     }
 
-    // MARK: - Status
-
-    private func scheduleStatus() {
-        statusTask?.cancel()
-        statusTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1))
-            guard !Task.isCancelled else { return }
-            self?.postStatusNow()
-        }
-    }
-
-    /// Tells the iPhone what's here.
-    func postStatusNow() {
-        statusTask?.cancel()
-        let status = WatchStatus(
-            library: library,
-            isDownloaded: { self.isDownloaded($0) },
-            pendingCount: items.values.filter { $0.state == .queued || $0.state == .downloading }.count,
-            failedCount: failedCount,
-            bytesUsed: bytesUsed,
-            updatedAt: .now
-        )
-        PhoneConnection.shared.send(status: status, library: library)
-    }
-
     // MARK: - Storage
+
+    /// The picks and what they were last looked up as.
+    private struct SavedState: Codable {
+        var picks: WatchPicks
+        var songs: [String: [WatchSong]]
+        var lookedUpAt: Date?
+    }
 
     nonisolated static var directory: URL {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -815,8 +883,8 @@ final class WatchDownloadStore {
         directory.appendingPathComponent("manifest.json")
     }
 
-    nonisolated private static var libraryURL: URL {
-        directory.deletingLastPathComponent().appendingPathComponent("library.json")
+    nonisolated private static var stateURL: URL {
+        directory.deletingLastPathComponent().appendingPathComponent("picks.json")
     }
 
     nonisolated static func size(of url: URL) -> Int64? {
@@ -837,6 +905,8 @@ final class WatchDownloadStore {
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         try? url.setResourceValues(values)
+        // Left by the version that took whole libraries from the iPhone.
+        try? FileManager.default.removeItem(at: directory.deletingLastPathComponent().appendingPathComponent("library.json"))
     }
 
     private static func loadManifest() -> [String: Item] {
@@ -845,14 +915,12 @@ final class WatchDownloadStore {
         return Dictionary(items.map { ($0.key, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
-    private static func loadLibrary() -> WatchLibrary {
-        guard let data = try? Data(contentsOf: libraryURL) else { return .empty }
-        return (try? WatchLibrary.decoded(from: data)) ?? .empty
-    }
-
-    private func saveLibrary() {
-        guard let data = try? library.encoded() else { return }
-        try? data.write(to: Self.libraryURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    private static func loadState() -> SavedState {
+        guard let data = try? Data(contentsOf: stateURL),
+              let state = try? JSONDecoder().decode(SavedState.self, from: data) else {
+            return SavedState(picks: .empty, songs: [:])
+        }
+        return state
     }
 
     /// Coalesces saves: progress alone never writes, and a burst of
@@ -868,8 +936,13 @@ final class WatchDownloadStore {
 
     private func saveNow() {
         saveTask?.cancel()
-        guard let data = try? JSONEncoder().encode(Array(items.values)) else { return }
-        try? data.write(to: Self.manifestURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        let options: Data.WritingOptions = [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
+        if let data = try? JSONEncoder().encode(Array(items.values)) {
+            try? data.write(to: Self.manifestURL, options: options)
+        }
+        if let data = try? JSONEncoder().encode(SavedState(picks: picks, songs: songsByPick, lookedUpAt: lookedUpAt)) {
+            try? data.write(to: Self.stateURL, options: options)
+        }
     }
 }
 
@@ -983,7 +1056,7 @@ private final class DownloadRelay: NSObject, URLSessionDownloadDelegate, @unchec
 
         var errorDescription: String? {
             if (400 ..< 500).contains(statusCode) {
-                return "The server refused the song (HTTP \(statusCode)). Add it again from your iPhone."
+                return "The server refused the song (HTTP \(statusCode))."
             }
             if statusCode >= 500 {
                 return "The server couldn't send the song (HTTP \(statusCode))."

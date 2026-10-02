@@ -3,13 +3,14 @@ import WatchKit
 import WatchSync
 
 /// A page of the Plex and Subsonic libraries, fetched by the watch itself
-/// (`WatchLibraryBrowser`) a page at a time: the servers, their lists, and
-/// the albums, playlists and artists in them. An album or playlist opens on
-/// its songs, to put on the watch whole or one at a time.
+/// (`WatchLibraryBrowser`) a page at a time: the servers, their lists and
+/// search, and the albums, playlists, artists and songs in them. A song
+/// goes on the watch with a tap; an album or playlist opens on its songs.
 struct BrowseScreen: View {
     let path: WatchBrowsePath
 
     @Environment(WatchAccounts.self) private var accounts
+    @Environment(WatchDownloadStore.self) private var store
     @State private var title = ""
     @State private var items: [WatchBrowseItem] = []
     @State private var container: WatchBrowseItem?
@@ -17,9 +18,20 @@ struct BrowseScreen: View {
     @State private var message: String?
     @State private var isLoading = false
     @State private var hasLoaded = false
+    @State private var query = ""
+    @State private var search: WatchBrowsePath?
 
     var body: some View {
         List {
+            if case let .source(source) = path {
+                TextField("Search \(source.title)", text: $query)
+                    .onSubmit {
+                        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        search = .search(source, trimmed)
+                    }
+            }
+
             if let container {
                 NavigationLink(value: BrowseRoute.item(container)) {
                     Label("All Songs", systemImage: "music.note.list")
@@ -28,9 +40,7 @@ struct BrowseScreen: View {
             }
 
             ForEach(items) { item in
-                NavigationLink(value: item.destination.map(BrowseRoute.path) ?? .item(item)) {
-                    BrowseRow(item: item)
-                }
+                row(for: item)
             }
 
             if let nextOffset, !isLoading {
@@ -61,6 +71,9 @@ struct BrowseScreen: View {
             }
         }
         .navigationTitle(title)
+        .navigationDestination(item: $search) { path in
+            BrowseScreen(path: path)
+        }
         .task {
             guard !hasLoaded else { return }
             await load(offset: 0)
@@ -69,6 +82,29 @@ struct BrowseScreen: View {
         .onChange(of: accounts.hasAny) {
             guard path == .root else { return }
             Task { await load(offset: 0) }
+        }
+    }
+
+    /// A place opens; a song goes on the watch with a tap; an album or
+    /// playlist opens on its songs.
+    @ViewBuilder
+    private func row(for item: WatchBrowseItem) -> some View {
+        if let destination = item.destination {
+            NavigationLink(value: BrowseRoute.path(destination)) {
+                BrowseRow(item: item)
+            }
+        } else if let pick = item.pick, pick.kind == .song {
+            Button {
+                store.add(pick, songs: item.song.map { [$0] })
+                WKInterfaceDevice.current().play(.success)
+            } label: {
+                BrowseRow(item: item)
+            }
+            .disabled(store.isOnWatch(pick))
+        } else {
+            NavigationLink(value: BrowseRoute.item(item)) {
+                BrowseRow(item: item)
+            }
         }
     }
 
@@ -86,15 +122,8 @@ struct BrowseScreen: View {
     }
 }
 
-/// Where a browse row goes: another page, or an album, playlist or artist's
-/// songs.
-enum BrowseRoute: Hashable {
-    case path(WatchBrowsePath)
-    case item(WatchBrowseItem)
-}
-
 /// A row: a place (with its symbol) or music (with its cover), ticked once
-/// it's on the watch.
+/// it's on the watch — a song with a download arrow until then.
 private struct BrowseRow: View {
     @Environment(WatchDownloadStore.self) private var store
     let item: WatchBrowseItem
@@ -120,44 +149,30 @@ private struct BrowseRow: View {
                 }
             }
             Spacer(minLength: 0)
-            if let key = item.collectionKey, store.library.collection(key: key) != nil {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.tint)
-                    .accessibilityLabel("On this watch")
+            if let pick = item.pick {
+                if store.isOnWatch(pick) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.tint)
+                        .accessibilityLabel("On this watch")
+                } else if pick.kind == .song {
+                    Image(systemName: "arrow.down.circle")
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
 }
 
 /// An album, playlist or artist from a server, with its songs: put it on
-/// the watch whole, take it off, or put on single songs. The first time,
-/// with no quality chosen yet, it asks which.
+/// the watch whole, take it off, or put on single songs.
 struct BrowseItemScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     let item: WatchBrowseItem
 
-    @State private var tracks: [WatchTrack] = []
+    @State private var songs: [WatchSong] = []
     @State private var isLoading = false
     @State private var hasLoaded = false
     @State private var note: String?
-    /// What to do once a quality is picked.
-    @State private var awaitingQuality: QualityPurpose?
-
-    private enum QualityPurpose: Identifiable {
-        case all
-        case song(WatchTrack)
-
-        var id: String {
-            switch self {
-            case .all: "all"
-            case let .song(track): track.key
-            }
-        }
-    }
-
-    private var isOnWatch: Bool {
-        item.collectionKey.map { store.library.collection(key: $0) != nil } ?? false
-    }
 
     var body: some View {
         List {
@@ -179,29 +194,31 @@ struct BrowseItemScreen: View {
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
 
-                if item.content != nil {
-                    if isOnWatch {
+                if let pick = item.pick {
+                    if store.picks.contains(key: pick.key) {
                         Label("On This Watch", systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.tint)
                             .listRowBackground(Color.clear)
                         Button(role: .destructive) {
-                            if let key = item.collectionKey {
-                                store.removeCollection(key: key)
-                                note = "Removed from this watch."
-                            }
+                            store.remove(key: pick.key)
+                            note = "Removed from this watch."
                         } label: {
                             Text("Remove from Watch")
                                 .frame(maxWidth: .infinity)
                         }
                     } else {
                         Button {
-                            perform(.all)
+                            store.add(pick, songs: songs)
+                            WKInterfaceDevice.current().play(.success)
+                            note = songs.count == 1
+                                ? "Downloading 1 song. Fast Download gets it here sooner."
+                                : "Downloading \(songs.count) songs. Fast Download gets them here sooner."
                         } label: {
-                            Label(tracks.isEmpty ? "Download" : "Download \(tracks.count) Songs", systemImage: "arrow.down.circle.fill")
+                            Label(songs.isEmpty ? "Download" : "Download \(songs.count) Songs", systemImage: "arrow.down.circle.fill")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(tracks.isEmpty)
+                        .disabled(songs.isEmpty)
                         .listRowBackground(Color.clear)
                     }
                 }
@@ -219,120 +236,47 @@ struct BrowseItemScreen: View {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .listRowBackground(Color.clear)
-                } else if hasLoaded, tracks.isEmpty {
+                } else if hasLoaded, songs.isEmpty {
                     Text("No songs, or the server can't be reached.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .listRowBackground(Color.clear)
                 }
-                ForEach(tracks) { track in
+                ForEach(songs) { song in
+                    let isHere = store.isOnWatch(song.pick)
                     Button {
-                        perform(.song(track))
+                        store.add(song.pick, songs: [song])
+                        WKInterfaceDevice.current().play(.success)
+                        note = "Downloading “\(song.title)”. It's in Songs."
                     } label: {
-                        SongRow(track: track, isHere: store.library.tracks[track.key] != nil)
+                        HStack(spacing: 6) {
+                            VStack(alignment: .leading) {
+                                Text(song.title)
+                                    .lineLimit(2)
+                                Text(song.artist)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: isHere ? "checkmark.circle.fill" : "arrow.down.circle")
+                                .foregroundStyle(isHere ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                        }
                     }
-                    .disabled(store.library.tracks[track.key] != nil)
+                    .disabled(isHere)
                 }
             } footer: {
-                if !tracks.isEmpty {
+                if !songs.isEmpty {
                     Text("Tap a song to put just that one on your watch.")
                 }
             }
         }
         .task {
-            guard !hasLoaded, let content = item.content else { return }
+            guard !hasLoaded, let pick = item.pick else { return }
             isLoading = true
-            tracks = await WatchLibraryBrowser.shared.tracks(for: content, quality: store.library.effectiveQuality)
+            songs = await WatchLibraryBrowser.shared.songs(for: pick) ?? []
             isLoading = false
             hasLoaded = true
-        }
-        .sheet(item: $awaitingQuality) { purpose in
-            QualityPicker { quality in
-                awaitingQuality = nil
-                store.setQuality(quality)
-                perform(purpose)
-            }
-        }
-    }
-
-    private func perform(_ purpose: QualityPurpose) {
-        guard let content = item.content else { return }
-        guard let quality = store.library.quality else {
-            awaitingQuality = purpose
-            return
-        }
-        let converted = tracks.map { $0.converted(to: quality) }
-        switch purpose {
-        case .all:
-            guard !converted.isEmpty else { return }
-            let collection = WatchLibraryBrowser.shared.collection(for: content, tracks: converted, addedAt: .now)
-            store.add(collection, tracks: converted)
-            note = converted.count == 1
-                ? "Downloading 1 song. Fast Download gets it here sooner."
-                : "Downloading \(converted.count) songs. Fast Download gets them here sooner."
-        case let .song(track):
-            store.addSongs([track.converted(to: quality)])
-            note = "Downloading “\(track.title)”. It's in Songs."
-        }
-        WKInterfaceDevice.current().play(.success)
-    }
-}
-
-private struct SongRow: View {
-    let track: WatchTrack
-    let isHere: Bool
-
-    var body: some View {
-        HStack(spacing: 6) {
-            VStack(alignment: .leading) {
-                Text(track.title)
-                    .lineLimit(2)
-                Text(track.artist)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            Image(systemName: isHere ? "checkmark.circle.fill" : "arrow.down.circle")
-                .foregroundStyle(isHere ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-        }
-    }
-}
-
-/// Which quality songs come down at — asked the first time something goes
-/// on the watch, and changed from the library screen.
-struct QualityPicker: View {
-    var current: WatchDownloadQuality?
-    let choose: (WatchDownloadQuality) -> Void
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    ForEach(WatchDownloadQuality.allCases) { quality in
-                        Button {
-                            choose(quality)
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(quality == .recommended ? "\(quality.title) (Recommended)" : quality.title)
-                                    Text(quality.detail)
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer(minLength: 0)
-                                if quality == current {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.tint)
-                                }
-                            }
-                        }
-                    }
-                } footer: {
-                    Text("Your watch has much less room than your iPhone, so songs can be converted to MP3 as they download. Changing it converts the songs already here.")
-                }
-            }
-            .navigationTitle("Quality")
         }
     }
 }

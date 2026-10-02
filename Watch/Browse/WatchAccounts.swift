@@ -25,57 +25,73 @@ final class WatchAccounts {
 
     /// Stores what changed, and only that: a new Subsonic password rotates
     /// the salt, and a new Plex server drops the connections found for the
-    /// old one.
-    func apply(_ credentials: WatchCredentials) {
+    /// old one. A server or library the iPhone didn't send leaves the one
+    /// here as it is. True when anything changed, so what was looked up
+    /// with the old sign-ins is looked up again.
+    @discardableResult
+    func apply(_ credentials: WatchCredentials) -> Bool {
         let authenticator = PlexAuthenticator.shared
         let plex = PlexAPI.shared
+        var changed = false
         if let shared = credentials.plex {
-            var changed = false
+            var plexChanged = false
             if authenticator.authToken != shared.token {
                 authenticator.authToken = shared.token
-                changed = true
+                plexChanged = true
             }
-            if plex.serverID != shared.serverID {
-                plex.serverID = shared.serverID
-                changed = true
+            if let serverID = shared.serverID, plex.serverID != serverID {
+                plex.serverID = serverID
+                plexChanged = true
             }
-            if plex.librarySelectionID != shared.librarySectionID {
-                plex.librarySelectionID = shared.librarySectionID
-                changed = true
+            if let section = shared.librarySectionID, plex.librarySelectionID != section {
+                plex.librarySelectionID = section
+                plexChanged = true
             }
             let preference = shared.connectionPreference.flatMap(PlexAPI.ConnectionPreference.init(rawValue:)) ?? .auto
-            if changed || plex.connectionPreference != preference {
+            if plexChanged || plex.connectionPreference != preference {
                 // Setting it drops the cached server and connections too.
                 plex.connectionPreference = preference
+                changed = true
             }
         } else if authenticator.authToken != nil {
             authenticator.authToken = nil
             plex.serverID = nil
             plex.librarySelectionID = nil
+            changed = true
         }
 
         let subsonic = SubsonicAPI.shared
         if let shared = credentials.subsonic {
             if subsonic.serverAddress != shared.serverAddress {
                 subsonic.serverAddress = shared.serverAddress
+                changed = true
             }
             if subsonic.username != shared.username {
                 subsonic.username = shared.username
+                changed = true
             }
             if subsonic.password != shared.password {
                 subsonic.password = shared.password
+                changed = true
             }
         } else if subsonic.isConfigured {
             subsonic.password = ""
             subsonic.username = ""
             subsonic.serverAddress = ""
+            changed = true
         }
 
-        hasPlex = Self.isPlexSet
-        hasSubsonic = subsonic.isConfigured
+        refresh()
+        return changed
     }
 
+    private func refresh() {
+        hasPlex = Self.isPlexSet
+        hasSubsonic = SubsonicAPI.shared.isConfigured
+    }
+
+    /// Signed in, with a server: MusicSearchKit browses the one named.
     private static var isPlexSet: Bool {
-        PlexAuthenticator.shared.authToken != nil && PlexAPI.shared.serverID != nil
+        !(PlexAuthenticator.shared.authToken ?? "").isEmpty && PlexAPI.shared.serverID != nil
     }
 }

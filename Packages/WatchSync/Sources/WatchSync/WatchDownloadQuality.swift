@@ -6,10 +6,9 @@ import Foundation
 /// it's what every server converts to and the watch's player opens; Opus
 /// arrives from Plex and Subsonic in Ogg, which it can't.
 ///
-/// Chosen on the iPhone (asked the first time something goes on the watch),
-/// or on the watch when it adds something before then. Changing it converts
-/// what's already there: each song keeps playing from its old file until the
-/// new one lands.
+/// Chosen on the watch, which asks the first time it has music to fetch.
+/// Changing it converts what's already there: each song keeps playing from
+/// its old file until the new one lands.
 public enum WatchDownloadQuality: String, Codable, CaseIterable, Identifiable, Sendable {
     case high
     case medium

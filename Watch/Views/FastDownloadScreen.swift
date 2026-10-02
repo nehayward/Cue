@@ -92,7 +92,7 @@ struct FastDownloadScreen: View {
 
             ForEach(store.fastActive) { item in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.track.title)
+                    Text(item.song.title)
                         .font(.footnote)
                         .lineLimit(1)
                     if item.bytesExpected > 0 {

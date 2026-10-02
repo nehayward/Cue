@@ -11,17 +11,17 @@ import WatchSync
 /// nothing's connected, playback carries on with the screen off, and the
 /// song shows in Now Playing, where the Digital Crown sets the volume. Only
 /// songs that are here play; a queue is the downloaded songs of an album,
-/// playlist, artist or the Songs list.
+/// playlist, artist or the songs added one at a time.
 @MainActor
 @Observable
 final class WatchPlayer {
     static let shared = WatchPlayer()
 
-    private(set) var queue: [WatchTrack] = []
+    private(set) var queue: [WatchSong] = []
     private(set) var index = 0
     private(set) var isPlaying = false
 
-    var current: WatchTrack? {
+    var current: WatchSong? {
         queue.indices.contains(index) ? queue[index] : nil
     }
 
@@ -62,9 +62,9 @@ final class WatchPlayer {
 
     /// Plays these songs — those of them that are here — from the one with
     /// `key`, or shuffled with that one first.
-    func play(_ tracks: [WatchTrack], startingAt key: String? = nil, shuffled: Bool = false) {
+    func play(_ songs: [WatchSong], startingAt key: String? = nil, shuffled: Bool = false) {
         let store = WatchDownloadStore.shared
-        var playable = tracks.filter { store.localURL(for: $0) != nil }
+        var playable = songs.filter { store.localURL(for: $0) != nil }
         guard !playable.isEmpty else { return }
         var start = 0
         if shuffled {
@@ -155,8 +155,8 @@ final class WatchPlayer {
     /// it was removed from the watch since the queue was made.
     private func loadCurrent() {
         let store = WatchDownloadStore.shared
-        while let track = current {
-            if let url = store.localURL(for: track) {
+        while let song = current {
+            if let url = store.localURL(for: song) {
                 player.replaceCurrentItem(with: AVPlayerItem(url: url))
                 updateNowPlaying()
                 return
@@ -167,21 +167,21 @@ final class WatchPlayer {
     }
 
     private func updateNowPlaying() {
-        guard let track = current else {
+        guard let song = current else {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
             return
         }
         let elapsed = player.currentTime().seconds
         var info: [String: Any] = [
-            MPMediaItemPropertyTitle: track.title,
-            MPMediaItemPropertyArtist: track.artist,
+            MPMediaItemPropertyTitle: song.title,
+            MPMediaItemPropertyArtist: song.artist,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsed.isFinite ? elapsed : 0,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
         ]
-        if let album = track.album {
+        if let album = song.album {
             info[MPMediaItemPropertyAlbumTitle] = album
         }
-        if let duration = track.duration {
+        if let duration = song.duration {
             info[MPMediaItemPropertyPlaybackDuration] = duration
         }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info

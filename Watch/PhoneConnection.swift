@@ -5,11 +5,9 @@ import WatchKit
 import WatchSync
 
 /// The watch's end of WatchConnectivity (`WatchSyncMessage`). From the
-/// iPhone it takes the sign-ins (to `WatchAccounts`) and the library (to
-/// the download store), from its application context, or a file when the
-/// library is big. To the iPhone it sends its own application context: the
-/// library as the watch has it — changed here when music is added from the
-/// watch — and its status.
+/// iPhone's application context it takes the sign-ins (to `WatchAccounts`)
+/// and the picks (merged into the download store's). To the iPhone it sends
+/// its own: the picks as the watch has them, when they change here.
 @MainActor
 final class PhoneConnection {
     static let shared = PhoneConnection()
@@ -17,11 +15,7 @@ final class PhoneConnection {
     private let relay = PhoneSessionRelay()
     private let logger = Logger(subsystem: "dance.cue.watch", category: "PhoneConnection")
     /// What to send once the session is up.
-    private var pending: (status: WatchStatus, library: WatchLibrary)?
-    /// Background wakes for WatchConnectivity, held until what the iPhone
-    /// sent has been delivered.
-    private var connectivityTasks: [WKWatchConnectivityRefreshBackgroundTask] = []
-    private var pendingObservation: NSKeyValueObservation?
+    private var pending: WatchPicks?
 
     private init() {}
 
@@ -29,56 +23,34 @@ final class PhoneConnection {
         guard WCSession.isSupported(), WCSession.default.delegate == nil else { return }
         relay.connection = self
         WCSession.default.delegate = relay
-        pendingObservation = WCSession.default.observe(\.hasContentPending) { [weak self] _, _ in
-            Task { @MainActor in self?.completeConnectivityTasksIfDone() }
-        }
         WCSession.default.activate()
     }
 
-    /// Sends the status, and the library with it — as a file when it's too
-    /// big for the context, in place of any older one still waiting to go.
-    func send(status: WatchStatus, library: WatchLibrary) {
-        let session = WCSession.default
-        guard session.activationState == .activated else {
-            pending = (status, library)
+    func send(picks: WatchPicks) {
+        guard WCSession.default.activationState == .activated else {
+            pending = picks
             return
         }
-        let libraryFits: Bool
         do {
-            let (context, fits) = try WatchSyncMessage.context(library: library, status: status)
-            try session.updateApplicationContext(context)
-            libraryFits = fits
+            try WCSession.default.updateApplicationContext(WatchSyncMessage.context(picks: picks))
         } catch {
-            logger.error("Couldn't send the status: \(error.localizedDescription, privacy: .public)")
-            libraryFits = false
-        }
-        guard !libraryFits, library.revision > 0 else { return }
-        for transfer in session.outstandingFileTransfers where WatchSyncMessage.isLibrary(transfer.file.metadata) {
-            transfer.cancel()
-        }
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("Outgoing", isDirectory: true)
-        try? FileManager.default.removeItem(at: directory)
-        let url = directory.appendingPathComponent("library-\(library.revision).json")
-        do {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try library.encoded().write(to: url, options: .atomic)
-            session.transferFile(url, metadata: WatchSyncMessage.libraryMetadata(revision: library.revision))
-        } catch {
-            logger.error("Couldn't send the library: \(error.localizedDescription, privacy: .public)")
+            logger.error("Couldn't send the picks: \(error.localizedDescription, privacy: .public)")
         }
     }
 
-    /// Keeps a WatchConnectivity wake open until the session has handed
-    /// over everything waiting — or 20 seconds, past which the system would
-    /// end it anyway.
+    /// Keeps a WatchConnectivity wake open until what the iPhone sent has
+    /// arrived and been looked up — or 20 seconds, past which the system
+    /// would end it anyway.
     func hold(_ task: WKWatchConnectivityRefreshBackgroundTask) {
         activate()
-        connectivityTasks.append(task)
-        completeConnectivityTasksIfDone()
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(20))
-            guard let self, let index = self.connectivityTasks.firstIndex(where: { $0 === task }) else { return }
-            self.connectivityTasks.remove(at: index)
+        Task { @MainActor in
+            let deadline = Date.now.addingTimeInterval(20)
+            while Date.now < deadline {
+                let session = WCSession.default
+                let settled = session.activationState == .activated && !session.hasContentPending
+                if settled, WatchDownloadStore.shared.lookingUp.isEmpty { break }
+                try? await Task.sleep(for: .milliseconds(500))
+            }
             task.setTaskCompletedWithSnapshot(false)
         }
     }
@@ -86,33 +58,20 @@ final class PhoneConnection {
     fileprivate func didActivate() {
         if let pending {
             self.pending = nil
-            send(status: pending.status, library: pending.library)
-        } else {
-            // So the iPhone hears from a freshly installed watch app, and
-            // sends its library if this one is behind.
-            WatchDownloadStore.shared.postStatusNow()
+            send(picks: pending)
         }
-        completeConnectivityTasksIfDone()
     }
 
-    /// The iPhone's context: sign-ins first, so a library that follows can
-    /// be fetched with them.
-    fileprivate func didReceive(credentials: WatchCredentials?, library: WatchLibrary?) {
-        if let credentials {
-            WatchAccounts.shared.apply(credentials)
+    /// The iPhone's context: sign-ins first, so the picks that come with
+    /// them are looked up with them.
+    fileprivate func didReceive(credentials: WatchCredentials?, picks: WatchPicks?) {
+        let store = WatchDownloadStore.shared
+        if let credentials, WatchAccounts.shared.apply(credentials) {
+            store.credentialsDidChange()
         }
-        if let library {
-            WatchDownloadStore.shared.apply(library)
+        if let picks {
+            store.apply(picks)
         }
-        completeConnectivityTasksIfDone()
-    }
-
-    private func completeConnectivityTasksIfDone() {
-        let session = WCSession.default
-        guard !connectivityTasks.isEmpty, session.activationState == .activated, !session.hasContentPending else { return }
-        let tasks = connectivityTasks
-        connectivityTasks = []
-        tasks.forEach { $0.setTaskCompletedWithSnapshot(false) }
     }
 }
 
@@ -122,36 +81,22 @@ private final class PhoneSessionRelay: NSObject, WCSessionDelegate, @unchecked S
     weak var connection: PhoneConnection?
 
     /// Takes the latest the iPhone left, in case it came while the app
-    /// wasn't running, then reports.
+    /// wasn't running.
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         let context = session.receivedApplicationContext
         let credentials = WatchSyncMessage.credentials(in: context)
-        let library = WatchSyncMessage.library(in: context)
+        let picks = WatchSyncMessage.picks(in: context)
         Task { @MainActor in
-            self.connection?.didReceive(credentials: credentials, library: library)
+            self.connection?.didReceive(credentials: credentials, picks: picks)
             self.connection?.didActivate()
         }
     }
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         let credentials = WatchSyncMessage.credentials(in: applicationContext)
-        let library = WatchSyncMessage.library(in: applicationContext)
+        let picks = WatchSyncMessage.picks(in: applicationContext)
         Task { @MainActor in
-            self.connection?.didReceive(credentials: credentials, library: library)
+            self.connection?.didReceive(credentials: credentials, picks: picks)
         }
-    }
-
-    func session(_ session: WCSession, didReceive file: WCSessionFile) {
-        guard WatchSyncMessage.isLibrary(file.metadata) else { return }
-        // Read now: the system deletes the file when this returns.
-        guard let data = try? Data(contentsOf: file.fileURL),
-              let library = try? WatchLibrary.decoded(from: data) else { return }
-        Task { @MainActor in
-            self.connection?.didReceive(credentials: nil, library: library)
-        }
-    }
-
-    func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
-        try? FileManager.default.removeItem(at: fileTransfer.file.fileURL)
     }
 }

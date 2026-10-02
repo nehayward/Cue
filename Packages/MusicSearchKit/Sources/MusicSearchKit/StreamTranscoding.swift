@@ -108,15 +108,16 @@ public enum StreamTranscoding {
 
 /// A Plex or Subsonic song's stream at a format and bitrate of its own,
 /// whatever the Streaming Quality setting says — for the Apple Watch, which
-/// has a quality of its own. One answer for both devices: the watch and the
-/// iPhone each build streams from a song's origin, and must build the same
-/// one, or the watch takes a song it already has for a new one.
+/// has a quality of its own. Plex conversions run under a client of their
+/// own (`Cue-Watch`), so they never end a transcode the iPhone is playing.
 public enum ConvertedStream {
     public enum Service: String, Sendable {
         case plex, subsonic
     }
 
-    /// The stream, and the suffix it arrives with.
+    /// The stream, and the suffix it arrives with. When no converted stream
+    /// can be built (no sign-in to sign it with, no Plex rating key), the
+    /// original file, under its own suffix.
     public static func stream(
         service: Service,
         contentID: String,
@@ -125,20 +126,22 @@ public enum ConvertedStream {
         format: StreamTranscoding.Format,
         bitrate: Int
     ) -> (url: URL, fileExtension: String) {
-        let url: URL = switch service {
+        let converted: URL? = switch service {
         case .subsonic:
-            SubsonicAPI.streamURL(for: contentID, fileExtension: audioCodec, format: format, bitrate: bitrate) ?? sourceURL
+            SubsonicAPI.streamURL(for: contentID, fileExtension: audioCodec, format: format, bitrate: bitrate)
         case .plex:
             plexRatingKey(contentID: contentID).map {
-                PlexAPI.playbackStreamURL(from: sourceURL, ratingKey: $0, format: format, bitrate: bitrate, session: "cue-watch")
-            } ?? sourceURL
+                PlexAPI.playbackStreamURL(from: sourceURL, ratingKey: $0, format: format, bitrate: bitrate, session: "cue-watch", client: "Cue-Watch")
+            }
         }
         let original = audioCodec?.trimmingCharacters(in: .whitespaces).lowercased()
-        let fromURL = url.pathExtension.lowercased()
-        let suffix = format.fileExtension
-            ?? original.flatMap { $0.isEmpty || $0.count > 5 ? nil : $0 }
-            ?? (fromURL.isEmpty ? "mp3" : fromURL)
-        return (url, suffix)
+            .flatMap { $0.isEmpty || $0.count > 5 ? nil : $0 }
+            ?? sourceURL.pathExtension.lowercased()
+        guard let converted else {
+            return (sourceURL, original.isEmpty ? "mp3" : original)
+        }
+        let suffix = format.fileExtension ?? (original.isEmpty ? "mp3" : original)
+        return (converted, suffix)
     }
 
     /// A Plex track's `ratingKey`: the last segment of its Sonos-style id

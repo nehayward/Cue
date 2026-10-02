@@ -1192,9 +1192,9 @@ struct PreferenceScreen: View {
                             Text("Apple Watch")
                             Text(!watch.isWatchAppInstalled
                                  ? "Install Cue on your watch to take music with you"
-                                 : watch.songCount == 0
+                                 : watch.picks.items.isEmpty
                                  ? "Take Plex and Subsonic music with you"
-                                 : watch.songCount == 1 ? "1 song" : "\(watch.songCount) songs")
+                                 : watch.picks.items.count == 1 ? "1 item" : "\(watch.picks.items.count) items")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }

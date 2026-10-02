@@ -1,139 +1,155 @@
 import XCTest
 @testable import WatchSync
 
+final class WatchPicksTests: XCTestCase {
+    private func pick(_ kind: WatchPick.Kind, _ id: String, source: WatchSource = .subsonic) -> WatchPick {
+        WatchPick(source: source, kind: kind, id: id, title: "\(kind) \(id)", addedAt: Date(timeIntervalSince1970: 1))
+    }
+
+    func testAddingPutsAPickFirstAndOnlyOnce() {
+        var picks = WatchPicks.empty
+        picks.add(pick(.album, "a"))
+        picks.add(pick(.playlist, "p"))
+        picks.add(pick(.album, "a"))
+        XCTAssertEqual(picks.items.map(\.key), ["album-subsonic-a", "playlist-subsonic-p"])
+        XCTAssertTrue(picks.contains(key: "playlist-subsonic-p"))
+
+        picks.remove(key: "album-subsonic-a")
+        XCTAssertEqual(picks.items.map(\.key), ["playlist-subsonic-p"])
+        picks.removeAll()
+        XCTAssertTrue(picks.items.isEmpty)
+    }
+
+    func testAnAlbumAndAPlaylistWithOneIdStayApart() {
+        var picks = WatchPicks.empty
+        picks.add(pick(.album, "7"))
+        picks.add(pick(.playlist, "7"))
+        XCTAssertEqual(picks.items.count, 2)
+    }
+
+    private let t0 = Date(timeIntervalSince1970: 1_000)
+
+    private func at(_ seconds: TimeInterval) -> Date {
+        t0.addingTimeInterval(seconds)
+    }
+
+    func testChangesMadeApartBothSurvive() {
+        var watch = WatchPicks.empty
+        var phone = WatchPicks.empty
+        watch.add(pick(.album, "a"), at: at(1))
+        phone.add(pick(.album, "b"), at: at(2))
+
+        let merged = watch.merged(with: phone)
+        XCTAssertEqual(merged.items.map(\.key), ["album-subsonic-b", "album-subsonic-a"])
+        XCTAssertEqual(phone.merged(with: watch), merged)
+    }
+
+    func testTheLaterOfAddAndRemoveWins() {
+        var watch = WatchPicks.empty
+        watch.add(pick(.album, "a"), at: at(1))
+        var phone = watch
+
+        phone.remove(key: "album-subsonic-a", at: at(2))
+        XCTAssertFalse(watch.merged(with: phone).contains(key: "album-subsonic-a"))
+        XCTAssertEqual(watch.merged(with: phone).removed.keys.sorted(), ["album-subsonic-a"])
+
+        watch.add(pick(.album, "a"), at: at(3))
+        let merged = watch.merged(with: phone)
+        XCTAssertTrue(merged.contains(key: "album-subsonic-a"))
+        XCTAssertTrue(merged.removed.isEmpty)
+    }
+
+    func testMergingWhatYouAlreadyHaveChangesNothing() {
+        var picks = WatchPicks.empty
+        picks.add(pick(.album, "a"), at: at(1))
+        picks.add(pick(.song, "s"), at: at(2))
+        picks.remove(key: "album-subsonic-a", at: at(3))
+        XCTAssertEqual(picks.merged(with: picks), picks)
+        XCTAssertEqual(picks.merged(with: .empty), picks)
+        XCTAssertEqual(WatchPicks.empty.merged(with: picks), picks)
+    }
+
+    func testOldTombstonesAreDropped() {
+        var picks = WatchPicks.empty
+        picks.add(pick(.album, "a"), at: at(0))
+        picks.remove(key: "album-subsonic-a", at: at(1))
+        picks.add(pick(.album, "b"), at: at(2))
+        picks.remove(key: "album-subsonic-b", at: at(WatchPicks.tombstoneLifetime + 10))
+        XCTAssertEqual(picks.removed.keys.sorted(), ["album-subsonic-b"])
+    }
+}
+
+final class WatchKeysTests: XCTestCase {
+    // The same answers as DownloadNamingTests in SonosKit: the two have to
+    // agree, or a song added from both devices comes down twice.
+    func testSongKeysMatchTheDownloadManager() {
+        XCTAssertEqual(WatchKeys.song(source: .plex, id: "12345"), "12345")
+        XCTAssertEqual(WatchKeys.song(source: .subsonic, id: "tr/ab:c.d"), "subsonic-tr-ab-c-d")
+        XCTAssertEqual(WatchKeys.song(source: .plex, id: "abc%3A3%3A99"), "abc%3A3%3A99")
+    }
+
+    func testPickKeysPutTheKindFirst() {
+        XCTAssertEqual(WatchKeys.pick(kind: .album, source: .subsonic, id: "al-1"), "album-subsonic-al-1")
+        XCTAssertEqual(WatchKeys.pick(kind: .playlist, source: .plex, id: "m%3A3%3A7"), "playlist-m%3A3%3A7")
+        XCTAssertEqual(WatchKeys.pick(kind: .song, source: .subsonic, id: "tr.1"), "song-subsonic-tr-1")
+    }
+}
+
 final class WatchSyncMessageTests: XCTestCase {
-    func testLibraryMetadataNamesTheFileAndItsRevision() {
-        let metadata = WatchSyncMessage.libraryMetadata(revision: 42)
-        XCTAssertTrue(WatchSyncMessage.isLibrary(metadata))
-        XCTAssertEqual(WatchSyncMessage.revision(in: metadata), 42)
-        XCTAssertFalse(WatchSyncMessage.isLibrary(["kind": "other"]))
-        XCTAssertFalse(WatchSyncMessage.isLibrary(nil))
-    }
-
-    private func library(albums: Int, tracksEach: Int) -> WatchLibrary {
-        var library = WatchLibrary.empty
-        for album in 0 ..< albums {
-            let keys = (0 ..< tracksEach).map { "subsonic-al\(album)-tr\($0)" }
-            let tracks = keys.map {
-                WatchTrack(
-                    key: $0,
-                    title: "Song \($0)",
-                    artist: "Artist",
-                    album: "Album \(album)",
-                    artworkURL: URL(string: "https://music.example/rest/getCoverArt?id=al\(album)&u=me&t=0123456789abcdef&s=salt&v=1.16.1&c=Cue"),
-                    streamURL: URL(string: "https://music.example/rest/stream?id=\($0)&u=me&t=0123456789abcdef&s=salt&v=1.16.1&c=Cue&format=mp3&maxBitRate=256")!,
-                    fileExtension: "mp3",
-                    duration: 215
-                )
-            }
-            library.upsert(WatchCollection(key: "album-al\(album)", kind: .album, title: "Album \(album)", subtitle: "Artist", addedAt: .now, trackKeys: keys), tracks: tracks)
+    private func picks(count: Int) -> WatchPicks {
+        var picks = WatchPicks.empty
+        for index in 0 ..< count {
+            picks.add(WatchPick(
+                source: .plex,
+                kind: .album,
+                id: "2b5d1c0f9a8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c%3A3%3A\(10_000 + index)",
+                title: "A Fairly Long Album Title \(index) (Deluxe Edition)",
+                subtitle: "Some Artist • 2019",
+                artworkURL: URL(string: "https://192-168-1-20.0123456789abcdef.plex.direct:32400/photo/:/transcode?width=300&height=300&url=%2Flibrary%2Fmetadata%2F\(index)%2Fthumb&X-Plex-Token=abcdefghijklmnopqrst"),
+                addedAt: Date(timeIntervalSince1970: TimeInterval(index))
+            ))
         }
-        library.bumpRevision(now: Date(timeIntervalSince1970: 100))
-        return library
+        return picks
     }
 
-    func testTheiPhonesContextCarriesTheLibraryAndSignIns() throws {
-        var library = library(albums: 3, tracksEach: 12)
-        library.quality = .small
+    func testTheiPhonesContextCarriesPicksAndSignIns() throws {
+        let picks = picks(count: 3)
         let credentials = WatchCredentials(
             plex: .init(token: "tok", serverID: "srv", librarySectionID: "3", connectionPreference: "auto"),
             subsonic: .init(serverAddress: "https://music.example", username: "me", password: "pw")
         )
-        let (context, fits) = try WatchSyncMessage.context(library: library, credentials: credentials, sentAt: Date(timeIntervalSince1970: 5))
-        XCTAssertTrue(fits)
-        XCTAssertEqual(WatchSyncMessage.library(in: context), library)
-        XCTAssertEqual(WatchSyncMessage.library(in: context)?.quality, .small)
+        let context = try WatchSyncMessage.context(picks: picks, credentials: credentials)
+        XCTAssertEqual(WatchSyncMessage.picks(in: context), picks)
         XCTAssertEqual(WatchSyncMessage.credentials(in: context), credentials)
-        XCTAssertNil(WatchSyncMessage.status(in: context))
-        XCTAssertEqual(WatchSyncMessage.revision(in: context), library.revision)
-        XCTAssertNil(WatchSyncMessage.library(in: [:]))
-        XCTAssertNil(WatchSyncMessage.library(in: [WatchSyncMessage.libraryKey: Data([9, 9])]))
     }
 
-    func testTheWatchsContextCarriesTheLibraryAndStatus() throws {
-        let library = library(albums: 1, tracksEach: 3)
-        let status = WatchStatus(library: library, isDownloaded: { _ in false }, pendingCount: 3, failedCount: 0, bytesUsed: 0, updatedAt: .now)
-        let (context, _) = try WatchSyncMessage.context(library: library, status: status)
-        XCTAssertEqual(WatchSyncMessage.library(in: context), library)
-        XCTAssertEqual(WatchSyncMessage.status(in: context), status)
+    func testTheWatchsContextCarriesPicksOnly() throws {
+        let context = try WatchSyncMessage.context(picks: picks(count: 1))
+        XCTAssertNotNil(WatchSyncMessage.picks(in: context))
         XCTAssertNil(WatchSyncMessage.credentials(in: context))
+        XCTAssertNil(WatchSyncMessage.picks(in: [:]))
+        XCTAssertNil(WatchSyncMessage.picks(in: [WatchSyncMessage.picksKey: Data([9, 9])]))
     }
 
     func testSendingAgainChangesTheContext() throws {
-        let library = library(albums: 1, tracksEach: 2)
-        let first = try WatchSyncMessage.context(library: library, sentAt: Date(timeIntervalSince1970: 1)).context
-        let second = try WatchSyncMessage.context(library: library, sentAt: Date(timeIntervalSince1970: 2)).context
+        let picks = picks(count: 1)
+        let first = try WatchSyncMessage.context(picks: picks, sentAt: Date(timeIntervalSince1970: 1))
+        let second = try WatchSyncMessage.context(picks: picks, sentAt: Date(timeIntervalSince1970: 2))
         XCTAssertNotEqual(first[WatchSyncMessage.sentAtKey] as? Double, second[WatchSyncMessage.sentAtKey] as? Double)
     }
 
-    func testATooBigLibraryIsLeftOutForAFile() throws {
-        // Unpacked here (Linux has no LZFSE), so a few hundred songs is over.
-        let big = library(albums: 40, tracksEach: 12)
-        let packed = WatchSyncMessage.pack(try big.encoded())
-        let (context, fits) = try WatchSyncMessage.context(library: big, credentials: WatchCredentials())
-        XCTAssertEqual(fits, packed.count <= WatchSyncMessage.contextLimit)
-        XCTAssertEqual(WatchSyncMessage.library(in: context) != nil, fits)
-        XCTAssertNotNil(WatchSyncMessage.credentials(in: context))
-        XCTAssertEqual(try WatchLibrary.decoded(from: XCTUnwrap(WatchSyncMessage.unpack(packed))), big)
+    /// Picks are ids, so even a couple of hundred fit in a context, packed or
+    /// not (Linux has no LZFSE, so this runs on the plain size).
+    func testTwoHundredPicksFit() throws {
+        let context = try WatchSyncMessage.context(picks: picks(count: 200))
+        let packed = try XCTUnwrap(context[WatchSyncMessage.picksKey] as? Data)
+        XCTAssertLessThan(packed.count, 120_000)
+        XCTAssertEqual(WatchSyncMessage.picks(in: context)?.items.count, 200)
     }
 
-    func testALibraryFromBeforeQualityAndOriginsStillReads() throws {
-        let old = """
-        {"revision":5,"collections":[{"key":"album-1","kind":"album","title":"A","subtitle":"","addedAt":0,"trackKeys":["1"]}],
-         "tracks":{"1":{"key":"1","title":"S","artist":"X","streamURL":"https://s.example/1","fileExtension":"flac"}}}
-        """
-        let library = try WatchLibrary.decoded(from: Data(old.utf8))
-        XCTAssertNil(library.quality)
-        XCTAssertEqual(library.effectiveQuality, .recommended)
-        XCTAssertNil(library.tracks["1"]?.origin)
-    }
-
-    func testRevisionReadsANumberOfAnotherWidth() {
-        let metadata: [String: Any] = [WatchSyncMessage.revisionKey: NSNumber(value: Int64(1_759_000_000_000))]
-        XCTAssertEqual(WatchSyncMessage.revision(in: metadata), 1_759_000_000_000)
-    }
-
-    func testStatusRoundTripsThroughApplicationContext() throws {
-        let status = WatchStatus(
-            libraryRevision: 7,
-            downloadedByCollection: ["album-1": 2],
-            downloadedCount: 2,
-            pendingCount: 3,
-            failedCount: 1,
-            bytesUsed: 12_345,
-            updatedAt: Date(timeIntervalSince1970: 99)
-        )
-        let context = try WatchSyncMessage.context(library: nil, status: status).context
-        XCTAssertEqual(WatchSyncMessage.status(in: context), status)
-        XCTAssertNil(WatchSyncMessage.status(in: [:]))
-    }
-
-    func testStatusCountsEachCollectionAndEachSongOnce() {
-        func track(_ key: String) -> WatchTrack {
-            WatchTrack(key: key, title: key, artist: "", streamURL: URL(string: "https://s.example/\(key)")!, fileExtension: "mp3")
-        }
-        var library = WatchLibrary.empty
-        library.upsert(WatchCollection(key: "a", kind: .album, title: "A", subtitle: "", addedAt: .now, trackKeys: ["1", "2", "3"]), tracks: [track("1"), track("2"), track("3")])
-        library.upsert(WatchCollection(key: "b", kind: .playlist, title: "B", subtitle: "", addedAt: .now, trackKeys: ["3", "4"]), tracks: [track("3"), track("4")])
-        library.bumpRevision(now: Date(timeIntervalSince1970: 1))
-
-        let here: Set<String> = ["1", "3"]
-        let status = WatchStatus(library: library, isDownloaded: here.contains, pendingCount: 2, failedCount: 0, bytesUsed: 10, updatedAt: .now)
-        XCTAssertEqual(status.libraryRevision, library.revision)
-        XCTAssertEqual(status.downloadedByCollection, ["a": 2, "b": 1])
-        XCTAssertEqual(status.downloadedCount, 2)
-    }
-
-    func testAStatusForTwoThousandSongsStaysSmall() throws {
-        var library = WatchLibrary.empty
-        for album in 0 ..< 200 {
-            let keys = (0 ..< 10).map { "subsonic-album\(album)-track\($0)" }
-            let tracks = keys.map { WatchTrack(key: $0, title: $0, artist: "", streamURL: URL(string: "https://s.example/\($0)")!, fileExtension: "flac") }
-            library.upsert(WatchCollection(key: "album-\(album)", kind: .album, title: "", subtitle: "", addedAt: .now, trackKeys: keys), tracks: tracks)
-        }
-        let status = WatchStatus(library: library, isDownloaded: { _ in true }, pendingCount: 0, failedCount: 0, bytesUsed: 1, updatedAt: .now)
-        let data = try XCTUnwrap(WatchSyncMessage.context(library: nil, status: status).context[WatchSyncMessage.statusKey] as? Data)
-        XCTAssertEqual(status.downloadedCount, 2_000)
-        XCTAssertLessThan(data.count, 16_000)
+    func testQualitiesSayWhatTheyCost() {
+        XCTAssertEqual(WatchDownloadQuality.high.megabytesPerSong, 8)
+        XCTAssertEqual(WatchDownloadQuality.small.detail, "MP3 128 kbps • about 4 MB a song")
+        XCTAssertNil(WatchDownloadQuality.original.bitrate)
     }
 }
