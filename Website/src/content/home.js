@@ -13,6 +13,10 @@ export const hero = {
 export const handoff = {
 	title: 'One queue. Wherever you are.',
 	lede: 'Cue is a complete music player on its own. Sonos is where it goes next, not what it needs.',
+	// The hand-off picture: the phone, and rooms that join one by one. The animation is timed for exactly three rooms.
+	screen: { file: 'shots/now-playing.jpg', alt: 'Cue’s Now Playing screen' },
+	device: 'This iPhone',
+	rooms: ['Living Room', 'Kitchen', 'Bedroom'],
 	steps: [
 		{ icon: 'smartphone', title: 'Plays on your device', body: 'Every song, album and station plays right here — no speaker, no network, no problem.' },
 		{ icon: 'arrow-left-right', title: 'Hands off to Sonos', body: 'Tap Play On and the queue moves to any room or group, right where you left it.' },
@@ -27,6 +31,32 @@ export const screens = [
 	{ file: 'shots/now-playing.jpg', finish: 'orange', alt: 'Cue’s Now Playing screen, with playback controls and speaker volume' },
 	{ file: 'shots/plex-library.jpg', alt: 'Cue showing a Plex library: Artists, Albums, Songs, Downloaded and Playlists' },
 	{ file: 'shots/radio.jpg', alt: 'Live radio from TuneIn and Apple Music in Cue' },
+];
+
+// Big alternating sections between the hand-off and the feature grid. Swap a
+// `screen` for a closer match when there's a screenshot of that feature.
+export const spotlights = [
+	{
+		eyebrow: 'Library',
+		title: 'Your whole library, instantly.',
+		body: 'Cue syncs your Plex or Subsonic library once and keeps it on your phone. Songs opens complete, search filters every track as you type, and every list sorts the way you like.',
+		points: ['Title, artist, album, year, play count or date added', 'Plex editions labelled with format and bitrate', 'Plays counted back on your server'],
+		screen: { file: 'shots/albums.jpg', alt: 'Albums from a Plex library in Cue' },
+	},
+	{
+		eyebrow: 'Offline',
+		title: 'Downloads for the road.',
+		body: 'Download songs, albums and playlists from Plex and Subsonic. With no signal, Cue shows just what’s on your phone and keeps playing.',
+		points: ['Offline Mode for planes and tunnels', 'Streaming quality you choose, MP3 or Opus', 'Smooth hand-off between your server and Apple Music'],
+		screen: { file: 'shots/plex-library.jpg', alt: 'A Plex library in Cue, with a Downloaded section', finish: 'orange' },
+	},
+	{
+		eyebrow: 'Radio',
+		title: 'Live radio, word for word.',
+		body: 'Thousands of TuneIn stations and Apple Music’s live radio. Tap captions to read what’s being said, transcribed live and entirely on your iPhone.',
+		points: ['Trending stations and browse by genre or place', 'Apple Music 1, Hits, Country and more', 'Live Transcription on iOS 26 and later'],
+		screen: { file: 'shots/radio.jpg', alt: 'Live radio from TuneIn and Apple Music in Cue' },
+	},
 ];
 
 export const features = [
@@ -50,11 +80,13 @@ export const services = {
 	title: 'Every service plays on both.',
 	lede: 'If Cue can play it on your device, it can play it on Sonos — no exceptions, no “speaker only” fine print.',
 	list: [
-		{ name: 'Apple Music', detail: 'Catalog, library and live radio' },
-		{ name: 'Plex', detail: 'Your server, at home or away' },
-		{ name: 'Subsonic', detail: 'Navidrome, Airsonic, Gonic and more' },
-		{ name: 'TuneIn', detail: 'Thousands of live stations' },
-		{ name: 'Your Files', detail: 'A folder on your device or in iCloud' },
+		// `mark` is a logo from src/lib/brand-marks.js; `icon` a Lucide icon
+		// for services without a usable mark.
+		{ name: 'Apple Music', detail: 'Catalog, library and live radio', mark: 'applemusic' },
+		{ name: 'Plex', detail: 'Your server, at home or away', mark: 'plex' },
+		{ name: 'Subsonic', detail: 'Navidrome, Airsonic, Gonic and more', icon: 'server', color: '#60a5fa' },
+		{ name: 'TuneIn', detail: 'Thousands of live stations', icon: 'radio', color: '#2dd4bf' },
+		{ name: 'Your Files', detail: 'A folder on your device or in iCloud', icon: 'music', color: '#a1a1aa' },
 	],
 };
 

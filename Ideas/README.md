@@ -15,3 +15,4 @@ Feature ideas and design notes for future development.
 - [Radio: Local Stations & More Sources](radio-local-stations.md) — Live-stream playback, location-accurate local radio, Radio Browser as a source
 - [Port to Clic: Apple Music library fixes](clic-port-apple-library.md) — Recently Played order, library album covers and songs, library artists opening the Apple Music artist
 - [Device-First Services](device-first-services.md) — Every service must play on the device and on Sonos; audit and removal plan for the ones that don't (Spotify, Tidal, Deezer, SoundCloud, Pandora, Sonos Radio)
+- [Website (cue.dance)](website.md) — Launch checklist, screenshots wanted, and app-side follow-ups for the site in `Website/`

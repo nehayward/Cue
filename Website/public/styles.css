@@ -242,7 +242,21 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
    tilt out behind it, dimmed. Phones only show the front one. */
 .hero-phones { position: relative; display: grid; place-items: center; width: min(100%, 30rem); padding-block: 1rem; }
 .hero-phones .iphone { grid-area: 1 / 1; width: min(64vw, 16.5rem); }
+.hero-phones .iphone { z-index: 1; }
 .hero-phones .iphone:first-child { z-index: 2; }
+
+/* A soft halo in the colours of the screenshot (`--glow`), the way Cue's
+   player tints itself from the album art. */
+.hero-phones::before, .spotlight-visual::before {
+	content: '';
+	position: absolute;
+	inset: 12% 4%;
+	border-radius: 50%;
+	background: var(--glow) center / cover;
+	filter: blur(70px) saturate(1.8);
+	opacity: 0.55;
+	pointer-events: none;
+}
 .hero-phones .iphone:nth-child(2) { transform: translateX(-47%) rotate(-8deg) scale(0.86); filter: brightness(0.6) saturate(0.85); }
 .hero-phones .iphone:nth-child(3) { transform: translateX(47%) rotate(8deg) scale(0.86); filter: brightness(0.6) saturate(0.85); }
 @media (max-width: 520px) {
@@ -322,6 +336,132 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .iphone-button.volume-down { left: -1.1%; top: 31.5%; height: 7%; }
 .iphone-button.power { right: -1.1%; top: 24%; height: 10.5%; }
 
+/* ── Hand-off picture ───────────────────────────────────────────────────── */
+
+/* The phone and three rooms that join one by one, on one loop of --trip:
+
+     0–14%   playing on the phone
+     14–27%  the Living Room lights up (caption: Playing in Living Room)
+     27–39%  the Kitchen joins
+     39–72%  Everywhere: all three rooms
+     72–84%  the queue streams back along every line
+     84–100% playing on the phone again
+
+   Everything inside .handoff-visual is placed in percentages of a box with
+   a fixed 100:62 shape, the same units as the SVG's viewBox, so the lines
+   meet the phone and the rooms at any width. */
+.handoff { --trip: 12s; margin: 0 auto clamp(2.5rem, 6vw, 4rem); max-width: 54rem; }
+.handoff-visual { position: relative; aspect-ratio: 100 / 62; container-type: inline-size; }
+.handoff-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.handoff-lines path { fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+
+.link .base { stroke: rgb(255 255 255 / 0.12); stroke-width: 1.5; stroke-dasharray: 4 5; }
+.link .out, .link .back { stroke-width: 2; stroke-dasharray: 4 5; opacity: 0; }
+.link .out { stroke: var(--accent); filter: drop-shadow(0 0 3px rgb(52 211 153 / 0.8)); animation: link-1 var(--trip) var(--ease) infinite, march 0.6s linear infinite; }
+.link .back { stroke: var(--text); animation: link-back var(--trip) var(--ease) infinite, march-back 0.6s linear infinite; }
+.link-2 .out { animation-name: link-2, march; }
+.link-3 .out { animation-name: link-3, march; }
+@keyframes march { to { stroke-dashoffset: -18; } }
+@keyframes march-back { to { stroke-dashoffset: 18; } }
+@keyframes link-1 { 0%, 12% { opacity: 0; } 17%, 72% { opacity: 1; } 76%, 100% { opacity: 0; } }
+@keyframes link-2 { 0%, 25% { opacity: 0; } 30%, 72% { opacity: 1; } 76%, 100% { opacity: 0; } }
+@keyframes link-3 { 0%, 37% { opacity: 0; } 42%, 72% { opacity: 1; } 76%, 100% { opacity: 0; } }
+@keyframes link-back { 0%, 72% { opacity: 0; } 75%, 82% { opacity: 1; } 86%, 100% { opacity: 0; } }
+
+.handoff-phone { position: absolute; left: 4%; top: 50%; width: 26%; transform: translateY(-50%); }
+.handoff-phone .iphone { animation: phone-glow var(--trip) var(--ease) infinite; }
+.handoff-phone .iphone-screen img { animation: phone-screen var(--trip) var(--ease) infinite; }
+@keyframes phone-glow {
+	0%, 12%, 86%, 100% { filter: drop-shadow(0 0 28px rgb(52 211 153 / 0.45)); }
+	18%, 80% { filter: drop-shadow(0 0 28px rgb(52 211 153 / 0)); }
+}
+@keyframes phone-screen {
+	0%, 12%, 86%, 100% { filter: none; }
+	18%, 80% { filter: brightness(0.4) saturate(0.6); }
+}
+
+/* Rooms are centred on the lines' end points (y = 19, 31 and 43 of 62),
+   so they fan out evenly around the middle of the phone. */
+.room {
+	position: absolute;
+	left: 58%;
+	width: 36%;
+	height: 11%;
+	display: flex;
+	align-items: center;
+	gap: 0.45em;
+	padding-inline: 0.8em;
+	border-radius: 999px;
+	border: 1px solid rgb(255 255 255 / 0.12);
+	background: rgb(255 255 255 / 0.04);
+	color: var(--faint);
+	font-size: clamp(0.62rem, 1.7cqw, 0.9rem);
+	font-weight: 600;
+	white-space: nowrap;
+	transform: translateY(-50%);
+	animation: room-1 var(--trip) var(--ease) infinite;
+}
+.room .icon { width: 1.1em; height: 1.1em; }
+.room-1 { top: 30.65%; }
+.room-2 { top: 50%; animation-name: room-2; }
+.room-3 { top: 69.35%; animation-name: room-3; }
+@keyframes room-1 {
+	0%, 14%, 76%, 100% { color: var(--faint); border-color: rgb(255 255 255 / 0.12); background: rgb(255 255 255 / 0.04); box-shadow: none; }
+	18%, 72% { color: var(--text); border-color: rgb(52 211 153 / 0.6); background: rgb(52 211 153 / 0.14); box-shadow: 0 0 24px -6px rgb(52 211 153 / 0.6); }
+}
+@keyframes room-2 {
+	0%, 27%, 76%, 100% { color: var(--faint); border-color: rgb(255 255 255 / 0.12); background: rgb(255 255 255 / 0.04); box-shadow: none; }
+	31%, 72% { color: var(--text); border-color: rgb(52 211 153 / 0.6); background: rgb(52 211 153 / 0.14); box-shadow: 0 0 24px -6px rgb(52 211 153 / 0.6); }
+}
+@keyframes room-3 {
+	0%, 39%, 76%, 100% { color: var(--faint); border-color: rgb(255 255 255 / 0.12); background: rgb(255 255 255 / 0.04); box-shadow: none; }
+	43%, 72% { color: var(--text); border-color: rgb(52 211 153 / 0.6); background: rgb(52 211 153 / 0.14); box-shadow: 0 0 24px -6px rgb(52 211 153 / 0.6); }
+}
+
+/* One caption at a time, cross-fading with the picture. */
+.handoff-caption { position: relative; height: 2.5rem; margin-top: 1rem; text-align: center; }
+.handoff-caption span {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--accent);
+	font-weight: 600;
+	font-size: 1.05rem;
+	opacity: 0;
+}
+.handoff-caption .c1 { color: var(--text); animation: cap-1 var(--trip) var(--ease) infinite; }
+.handoff-caption .c2 { animation: cap-2 var(--trip) var(--ease) infinite; }
+.handoff-caption .c3 { animation: cap-3 var(--trip) var(--ease) infinite; }
+.handoff-caption .c4 { animation: cap-4 var(--trip) var(--ease) infinite; }
+.handoff-caption .c5 { color: var(--text); animation: cap-5 var(--trip) var(--ease) infinite; }
+@keyframes cap-1 { 0%, 11% { opacity: 1; } 14%, 86% { opacity: 0; } 89%, 100% { opacity: 1; } }
+@keyframes cap-2 { 0%, 14% { opacity: 0; } 17%, 25% { opacity: 1; } 28%, 100% { opacity: 0; } }
+@keyframes cap-3 { 0%, 27% { opacity: 0; } 30%, 37% { opacity: 1; } 40%, 100% { opacity: 0; } }
+@keyframes cap-4 { 0%, 39% { opacity: 0; } 42%, 69% { opacity: 1; } 72%, 100% { opacity: 0; } }
+@keyframes cap-5 { 0%, 72% { opacity: 0; } 75%, 83% { opacity: 1; } 86%, 100% { opacity: 0; } }
+
+/* ── Spotlights ─────────────────────────────────────────────────────────── */
+
+.spotlight { display: grid; gap: clamp(2rem, 6vw, 5rem); align-items: center; }
+@media (min-width: 900px) {
+	.spotlight { grid-template-columns: 1fr 1fr; }
+	.spotlight.flip .spotlight-copy { order: 2; }
+}
+.spotlight-copy h2 { font-size: clamp(2rem, 4.5vw, 3.1rem); }
+.spotlight-copy > p:not(.eyebrow) { margin-top: 1rem; color: var(--muted); font-size: clamp(1.05rem, 1.6vw, 1.2rem); max-width: 32rem; }
+.spotlight-copy ul { margin-top: 1.5rem; display: grid; gap: 0.7rem; }
+.spotlight-copy li { display: flex; gap: 0.65rem; align-items: flex-start; }
+.spotlight-copy li .icon { margin-top: 0.2em; color: var(--accent); }
+.spotlight-visual { position: relative; display: grid; place-items: center; padding-block: 1rem; }
+.spotlight-visual .iphone { width: min(64vw, 16rem); }
+@media (max-width: 899px) {
+	.spotlight-copy { text-align: center; }
+	.spotlight-copy > p:not(.eyebrow) { margin-inline: auto; }
+	.spotlight-copy ul { justify-content: center; text-align: left; }
+}
+
 /* ── Cards ──────────────────────────────────────────────────────────────── */
 
 .card, .feature, .plan, .services li, .requirements li, .faq details {
@@ -361,9 +501,13 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 /* ── Services ───────────────────────────────────────────────── */
 
 .services { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12.5rem), 1fr)); }
-.services li { display: grid; gap: 0.25rem; padding: 1.25rem 1.35rem; border-top: 2px solid var(--accent); }
+.services li { display: grid; align-content: start; gap: 0.25rem; padding: 1.25rem 1.35rem; border-top: 2px solid var(--brand, var(--accent)); }
 .services strong { font-size: 1.1rem; }
 .services span { color: var(--muted); font-size: 0.9rem; }
+.services .service-mark { display: flex; align-items: center; height: 2.25rem; margin-bottom: 0.5rem; color: var(--brand, var(--accent)); }
+.services .service-mark svg { width: 2rem; height: 2rem; }
+/* Plex's mark is a wordmark: give it room to be read. */
+.services li[data-mark='plex'] .service-mark svg { width: 4.5rem; height: 4.5rem; margin-left: -0.35rem; }
 
 
 /* ── Plans ──────────────────────────────────────────────────────────────── */
@@ -562,4 +706,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 	html { scroll-behavior: auto; }
 	*, *::before, *::after { animation: none !important; transition: none !important; }
 	.js .reveal { opacity: 1; transform: none; }
+	/* The hand-off holds its fullest moment: every room playing. */
+	.link .out { opacity: 1; }
+	.room { color: var(--text); border-color: rgb(52 211 153 / 0.6); background: rgb(52 211 153 / 0.14); }
+	.handoff-caption .c4 { opacity: 1; }
+	.handoff-phone .iphone-screen img { filter: brightness(0.4) saturate(0.6); }
 }

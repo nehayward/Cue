@@ -1,5 +1,6 @@
 import { appStoreUrl, site } from '../config.js';
-import { faq, features, handoff, hero, screens, services } from '../content/home.js';
+import { faq, features, handoff, hero, screens, services, spotlights } from '../content/home.js';
+import { brandMarks } from '../lib/brand-marks.js';
 import { html, icon, inline, raw } from '../lib/html.js';
 import { downloadButton, iphone, page } from '../lib/layout.js';
 import { releases } from './releases.js';
@@ -31,7 +32,7 @@ const body = html`
 			<p class="fine">${hero.platforms}</p>
 		</div>
 		<div class="hero-visual">
-			<div class="hero-phones">
+			<div class="hero-phones" style="--glow: url('/${screens[0].file}')">
 				${screens.map((shot, i) => iphone(shot, { priority: i === 0 }))}
 			</div>
 		</div>
@@ -42,6 +43,26 @@ const body = html`
 			<h2>${handoff.title}</h2>
 			<p>${handoff.lede}</p>
 		</div>
+		<figure class="handoff reveal" aria-hidden="true">
+			<div class="handoff-visual">
+				<svg class="handoff-lines" viewBox="0 0 100 62">
+					${[19, 31, 43].map(
+						(y, i) => html`<g class="link link-${i + 1}">
+							${['base', 'out', 'back'].map((kind) => raw(`<path class="${kind}" d="M30 31 C 44 31, 44 ${y}, 58 ${y}" />`))}
+						</g>`,
+					)}
+				</svg>
+				<div class="handoff-phone">${iphone(handoff.screen)}</div>
+				${handoff.rooms.map((room, i) => html`<span class="room room-${i + 1}">${icon('volume-2')}${room}</span>`)}
+			</div>
+			<figcaption class="handoff-caption">
+				<span class="c1">Playing on ${handoff.device}</span>
+				<span class="c2">Playing in ${handoff.rooms[0]}</span>
+				<span class="c3">${handoff.rooms[0]} + ${handoff.rooms[1]}</span>
+				<span class="c4">Everywhere</span>
+				<span class="c5">Back on ${handoff.device}</span>
+			</figcaption>
+		</figure>
 		<ol class="steps">
 			${handoff.steps.map(
 				(step, i) => html`
@@ -54,6 +75,19 @@ const body = html`
 			)}
 		</ol>
 	</section>
+
+	${spotlights.map(
+		(s, i) => html`
+			<section class="section container spotlight ${i % 2 ? 'flip' : ''}">
+				<div class="spotlight-copy reveal">
+					<p class="eyebrow">${s.eyebrow}</p>
+					<h2>${s.title}</h2>
+					<p>${s.body}</p>
+					<ul>${s.points.map((p) => html`<li>${icon('check')}${p}</li>`)}</ul>
+				</div>
+				<div class="spotlight-visual reveal" style="--glow: url('/${s.screen.file}')">${iphone(s.screen)}</div>
+			</section>`,
+	)}
 
 	<section class="section container" id="features">
 		<div class="section-head reveal">
@@ -77,7 +111,15 @@ const body = html`
 			<p>${services.lede}</p>
 		</div>
 		<ul class="services">
-			${services.list.map((s) => html`<li class="reveal"><strong>${s.name}</strong><span>${s.detail}</span></li>`)}
+			${services.list.map(
+				(s) => html`
+					<li class="reveal" data-mark="${s.mark ?? ''}" style="--brand: ${s.mark ? brandMarks[s.mark].color : s.color}">
+						<span class="service-mark">${s.mark
+							? raw(`<svg viewBox="0 0 24 24" role="img" aria-label="${s.name}"><path fill="currentColor" d="${brandMarks[s.mark].path}"/></svg>`)
+							: icon(s.icon)}</span>
+						<strong>${s.name}</strong><span>${s.detail}</span>
+					</li>`,
+			)}
 		</ul>
 		<p class="more-link"><a href="/self-hosted">Running Plex or Navidrome? See what Cue does for your server ${icon('arrow-right')}</a></p>
 	</section>

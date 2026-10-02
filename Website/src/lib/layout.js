@@ -3,7 +3,7 @@ import { html, icon, raw } from './html.js';
 
 // Bumped by hand when styles.css changes in a way that must not mix with a
 // cached copy. Static assets are otherwise cached for an hour (public/_headers).
-const ASSET_VERSION = '8';
+const ASSET_VERSION = '14';
 
 /** The main call to action: an App Store link once Cue is listed, a "coming soon" label until then. */
 export const downloadButton = ({ size = 'large' } = {}) =>
@@ -73,7 +73,8 @@ const footer = () => html`
 export const page = ({ path, title, description = site.description, image, body, head = '', embed = false }) => {
 	const fullTitle = title ? `${title} – ${site.name}` : `${site.name} — Your music, here or on Sonos`;
 	const url = `${site.origin}${path}`;
-	const ogImage = image ?? `${site.origin}/icon-512.png`;
+	// public/og.jpg is rebuilt with `make og` from scripts/og-card.html.
+	const ogImage = image ?? `${site.origin}/og.jpg`;
 	return `<!DOCTYPE html>${html`
 <html lang="en">
 <head>
@@ -95,7 +96,9 @@ export const page = ({ path, title, description = site.description, image, body,
 	<meta property="og:title" content="${fullTitle}">
 	<meta property="og:description" content="${description}">
 	<meta property="og:image" content="${ogImage}">
-	<meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}">
+	<meta property="og:image:width" content="1200">
+	<meta property="og:image:height" content="630">
+	<meta name="twitter:card" content="summary_large_image">
 	${raw(head)}
 </head>
 <body class="${embed ? 'embed' : ''}">

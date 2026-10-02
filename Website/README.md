@@ -21,6 +21,8 @@ make deploy    # tests, then publishes to cue.dance
 | Help questions | `src/content/help.js` |
 | Plex & Subsonic page | `src/content/self-hosted.js` |
 | Press kit (copy, facts, screenshots) | `src/content/press.js`, files in `public/press/` |
+| Hero phones, hand-off picture, spotlights | `src/content/home.js` (`screens`, `handoff`, `spotlights`) |
+| Social preview card | `scripts/og-card.html`, then `make og` → `public/og.jpg` |
 | Releases: notes, dates, headlines, video reels | `src/content/releases.js` |
 | Privacy policy, terms | `src/pages/legal.js` |
 | Colours, spacing, every style | `public/styles.css` (tokens at the top) |
@@ -40,6 +42,9 @@ touch them.
   description.
 - **`src/lib/markdown.js`**: paragraphs and lists for help answers and legal
   text.
+- **Screenshots**: web copies are JPEGs in `public/shots/` (about 1150px
+  tall); full-resolution ones for the press kit are in `public/press/`.
+  `iphone()` in `layout.js` draws the frame around them in CSS.
 - **`public/`**: served by Cloudflare before the Worker runs. Static file
   cache headers are in `public/_headers`. When a styles change mustn't mix
   with a cached copy, bump `ASSET_VERSION` in `layout.js`.
@@ -68,9 +73,5 @@ footer. Moving the app to `?embed` would remove that coupling.
 
 ## Launch checklist
 
-- [ ] Set `appStoreId` in `src/config.js`. "Coming soon to the App Store"
-      becomes a download link, the header gets a download button, and the
-      Smart App Banner turns on.
-- [ ] Add a 1200×630 social card and reference it from `page()`. Until then,
-      the app icon is used.
-- [ ] Review `src/pages/legal.js` (privacy and terms).
+The full to-do list (launch, screenshots wanted, app-side follow-ups) is
+in [`Ideas/website.md`](../Ideas/website.md).
