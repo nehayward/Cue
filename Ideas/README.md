@@ -10,7 +10,8 @@ Feature ideas and design notes for future development.
 - [Listening Stats](listening-stats.md) — Wrapped-style play history insights, shareable image card
 - [Auto-DJ](auto-dj.md) — Automatically seed the queue when it runs low
 - [Guest Queue](guest-queue.md) — Share your Sonos group via QR code so guests can add songs
-- [User Playlists](user-playlists.md) — Cue-native playlists with sharing via export/import link
+- [Cue Playlists and Pins](cue-playlists-and-pins.md) — Cue's own playlists mixing every service, and pins above every library, synced through CloudKit (`CKSyncEngine`); the model is in `Packages/CueLibrary`
+- [User Playlists](user-playlists.md) — Superseded by Cue Playlists and Pins
 - [Super Day](super-day.md) — Free 24-hour pass to Cue Super, once a month, granted as a RevenueCat promotional entitlement
 - [Radio: Local Stations & More Sources](radio-local-stations.md) — Live-stream playback, location-accurate local radio, Radio Browser as a source
 - [Port to Clic: Apple Music library fixes](clic-port-apple-library.md) — Recently Played order, library album covers and songs, library artists opening the Apple Music artist

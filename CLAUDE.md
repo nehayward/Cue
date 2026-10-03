@@ -88,6 +88,10 @@ The app is built around several Swift packages in `/Packages`:
    - `TransferRateMeter` and `RouteEstimator`, which tell the watch's own Wi‑Fi from the iPhone relay by speed
    - `WatchWidgetState`, what the watch app leaves in the app group (`group.dance.cue`) for its widgets
 
+8. **CueLibrary** - Cue's own playlists and pins, the model only (pure Foundation, tested with `swift test`; not yet linked into a target). See `Ideas/cue-playlists-and-pins.md`
+   - `CueItem` (a token-free reference to a song, album, playlist, artist or station in any service), `CuePlaylist`, `CuePins`, `CueLibrary` (all of it in one value, packed by `CueLibraryCoding`)
+   - `SyncedList` and `OrderKey` (fractional index): ordered lists that merge edits made apart on several devices, per element, with dated tombstones. Only people's edits go into them; anything the app works out by itself stays on the device
+
 ### Main App Structure
 - **CueApp.swift** - Main app entry point with shared services
 - **Router.swift** - Navigation and routing system

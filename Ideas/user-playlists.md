@@ -1,5 +1,7 @@
 # User Playlists
 
+> **Superseded** by [Cue Playlists and Pins](cue-playlists-and-pins.md), which keeps the cross-service idea but syncs through `CKSyncEngine` instead of SwiftData, stores token-free references instead of `PlayableContent` JSON, and merges concurrent edits. Kept for its sharing notes.
+
 Cue-native playlists separate from Sonos device playlists — stored in SwiftData, synced across the user's devices via CloudKit, and shareable with other Cue users via an export/import link.
 
 Requires [SwiftData Foundation](swiftdata-foundation.md).

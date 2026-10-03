@@ -15,7 +15,7 @@ Split into two `ModelConfiguration` objects in one `ModelContainer`, each with a
 ### Store 2: User Data (`userData.sqlite`)
 - CloudKit private database sync — syncs across all the user's Apple devices automatically
 - Permanent — never auto-deleted
-- Small, surgical writes (playlists, stats log, pins)
+- Small, surgical writes (stats log). Playlists and pins no longer need this store: they sync through `CKSyncEngine` (see [Cue Playlists and Pins](cue-playlists-and-pins.md))
 
 ## Content Cache Model
 
