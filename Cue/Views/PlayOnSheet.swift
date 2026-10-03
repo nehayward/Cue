@@ -17,12 +17,11 @@ import SwiftUI
 /// menu): tap to add one, tap again to drop it. This Device leaves the
 /// speakers.
 ///
-/// The rows sit in a scroll view, so every drag has to say whose it is. The
-/// first few points of movement decide (`VolumeRouteRow`): mostly sideways is
-/// the row's volume, and the list holds still until the finger lifts; mostly
-/// up or down is the list's. The list's scroll phase is watched as well, so
-/// a touch that lands while it is still moving only stops it — it never
-/// regroups and never changes a volume.
+/// The rows sit in a scroll view, under a header that isn't part of it, and
+/// a sideways drag is the only one a row takes (`SidewaysPan`): up and down
+/// belong to the list and, from the header or the top of the list, to the
+/// sheet's pull to dismiss. A tap that lands while the list is still moving
+/// only stops it; it never regroups.
 struct PlayOnSheet: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -42,12 +41,45 @@ struct PlayOnSheet: View {
     @State private var sheetHeight: CGFloat?
 
     private static let deviceRowID = "device"
+    private static let allSpeakersRowID = "all speakers"
 
     private var activeRooms: [Room] {
         sonosService.sortedRooms.filter { $0.state == .active }
     }
 
     var body: some View {
+        VStack(spacing: 0) {
+            // Outside the list, so a pull down on it is always the sheet's.
+            PlayOnHeader()
+                .padding(.horizontal, 24)
+                .padding(.top, 28)
+                .padding(.bottom, 8)
+
+            roomList
+        }
+        // One height, fitted to the rooms, as the system's picker does. With
+        // a taller one to grow to, a swipe up grew the sheet before it
+        // scrolled the list, and the list stopped short at the buttons with
+        // nothing to say it went on.
+        .presentationDetents([.height(sheetHeight ?? openingSheetHeight)])
+        .presentationDragIndicator(.visible)
+        .sheet(item: $pending) { pending in
+            RouteTransferPrompt(target: pending.target) { carrying in
+                self.pending = nil
+                route.switchTo(pending.target, carrying: carrying)
+            }
+        }
+        .task { await refreshRoomVolumes() }
+        .onAppear {
+            // The rooms are where a pick goes from here, which is the head
+            // start: the hand-off can skip a read.
+            if route.destination == .device {
+                route.prefetchTargets()
+            }
+        }
+    }
+
+    private var roomList: some View {
         ScrollView {
             VStack(spacing: 10) {
                 deviceRow
@@ -74,53 +106,22 @@ struct PlayOnSheet: View {
                 listIsSettled = false
             }
         }
-        // How much longer the rows are than the room they have between the
-        // header and the buttons; negative when there's room to spare.
+        // How much longer the rows are than the room they have above the
+        // buttons; negative when there's room to spare.
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
             let visible = geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
             return geometry.contentSize.height - visible
         } action: { _, overflow in
             fit(overflow: overflow)
         }
-        // Bars rather than a stack around the list, so the rows scroll under
-        // them and the system softens the edge they pass under.
-        .playOnBar(edge: .top) {
-            PlayOnHeader()
-                .padding(.horizontal, 24)
-                .padding(.top, 28)
-                .padding(.bottom, 8)
-        }
+        // A bar rather than a stack under the list, so the rows scroll under
+        // it and the system softens the edge they pass under: the sign
+        // there's more.
         .playOnBar(edge: .bottom) {
             if let group = route.group, showsGroupingBar {
-                VStack(spacing: 12) {
-                    groupingButtons(GroupMembership(group: group))
-                    if showsAllSpeakers {
-                        allSpeakersVolume(group)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
-            }
-        }
-        // One height, fitted to the rooms, as the system's picker does. With
-        // a taller one to grow to, a swipe up grew the sheet before it
-        // scrolled the list, and the list stopped short at the buttons with
-        // nothing to say it went on.
-        .presentationDetents([.height(sheetHeight ?? openingSheetHeight)])
-        .presentationContentInteraction(.scrolls)
-        .presentationDragIndicator(.visible)
-        .sheet(item: $pending) { pending in
-            RouteTransferPrompt(target: pending.target) { carrying in
-                self.pending = nil
-                route.switchTo(pending.target, carrying: carrying)
-            }
-        }
-        .task { await refreshRoomVolumes() }
-        .onAppear {
-            // The rooms are where a pick goes from here, which is the head
-            // start: the hand-off can skip a read.
-            if route.destination == .device {
-                route.prefetchTargets()
+                groupingButtons(GroupMembership(group: group))
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
             }
         }
     }
@@ -132,15 +133,15 @@ struct PlayOnSheet: View {
         route.group != nil && activeRooms.count > 1
     }
 
-    /// The group's own volume and mute, under the buttons: with more than
-    /// one room in it, so it isn't the one room's row again.
+    /// The group's own volume and mute, at the head of the rooms: with more
+    /// than one room in it, so it isn't the one room's row again.
     private var showsAllSpeakers: Bool {
         (route.group?.rooms.count ?? 0) > 1
     }
 
     /// What decides the height, as `FittedSheetHeights` files it.
     private var layout: String {
-        "\(activeRooms.count + 1)-\(showsGroupingBar ? 1 : 0)-\(showsAllSpeakers ? 1 : 0)"
+        "rows \(activeRooms.count + 1 + (showsAllSpeakers ? 1 : 0)), buttons \(showsGroupingBar ? 1 : 0)"
     }
 
     /// The height to open at: what this layout fitted to last time, so the
@@ -150,13 +151,12 @@ struct PlayOnSheet: View {
         min(FittedSheetHeights.height(for: layout) ?? estimatedSheetHeight, Self.tallestSheet)
     }
 
-    /// The header, a row for this device and each room, and the buttons and
-    /// group volume on a speaker, at the default text size.
+    /// The header, a row for this device, All Speakers and each room, and
+    /// the buttons on a speaker, at the default text size.
     private var estimatedSheetHeight: CGFloat {
-        let rows = CGFloat(activeRooms.count + 1)
+        let rows = CGFloat(activeRooms.count + 1 + (showsAllSpeakers ? 1 : 0))
         let buttons: CGFloat = showsGroupingBar ? 68 : 0
-        let allSpeakers: CGFloat = showsAllSpeakers ? 70 : 0
-        return min(106 + rows * 68 + buttons + allSpeakers, Self.tallestSheet)
+        return min(106 + rows * 68 + buttons, Self.tallestSheet)
     }
 
     /// Grows or shrinks the sheet by what the rows need, up to about where
@@ -211,6 +211,9 @@ struct PlayOnSheet: View {
                 .padding(.vertical, 24)
         } else {
             let membership = route.group.map { GroupMembership(group: $0) }
+            if let group = route.group, showsAllSpeakers {
+                allSpeakersRow(group)
+            }
             ForEach(rooms) { room in
                 roomRow(room, membership: membership)
             }
@@ -281,7 +284,7 @@ struct PlayOnSheet: View {
     /// Every room in the group at once: Mute All / Unmute All, then the
     /// group's volume as a row like the rooms', which moves them all and
     /// keeps the balance between them.
-    private func allSpeakersVolume(_ group: GroupRoom) -> some View {
+    private func allSpeakersRow(_ group: GroupRoom) -> some View {
         let isMuted = group.isMuted || group.rooms.allSatisfy(\.isMuted)
         return HStack(spacing: 10) {
             Button {
@@ -306,10 +309,9 @@ struct PlayOnSheet: View {
                 // A fixed-output coordinator ignores volume: nothing to drag.
                 level: group.coordinatorRoom.isOutputFixed ? nil : group.groupVolume / 100,
                 isMuted: isMuted,
-                // Not in the list: there's no scroll to tell it from.
-                listIsSettled: true,
+                listIsSettled: listIsSettled,
                 onLevel: { volumes.set(group, to: $0 * 100) },
-                onAdjusting: { _ in }
+                onAdjusting: { setAdjusting(Self.allSpeakersRowID, $0) }
             )
         }
     }
@@ -502,17 +504,11 @@ private struct PlayOnHeader: View {
 /// One row of the Play On sheet: a destination that is also its own volume
 /// slider, the way the system's AirPlay picker draws one.
 ///
-/// One drag gesture does the tap, the volume and nothing at all, decided by
-/// how the touch moves. Under `decisionDistance` it is still undecided, and
-/// lifting there is a tap. Past it, mostly sideways is volume — measured from
-/// that point, so the fill doesn't jump by the distance it took to decide —
-/// and anything else is left to the list. It runs simultaneously with the
-/// scroll view's own pan, so a vertical drag that starts on a row still
-/// scrolls, and the sheet stops the list scrolling while a volume drag runs.
-///
-/// The drag's bookkeeping is `@State`, and `isTouching` is `@GestureState`
-/// next to it: a gesture the system cancels never calls `onEnded`, but it
-/// always resets its gesture state, which is what ends a cancelled drag.
+/// A tap routes; a sideways drag sets the volume, through `SidewaysPan`,
+/// which never starts on a drag up or down. Those go on to the list and the
+/// sheet untouched. The first version caught every touch the moment it
+/// landed, with a SwiftUI drag, and a pull down on the rows no longer closed
+/// the sheet.
 struct VolumeRouteRow: View {
     enum Mark {
         /// Nothing trailing: a route to switch to.
@@ -538,24 +534,13 @@ struct VolumeRouteRow: View {
     /// A volume drag started (`true`) or ended (`false`).
     let onAdjusting: (Bool) -> Void
 
-    @GestureState private var isTouching = false
-    @State private var touch: Touch?
+    /// The level when the volume drag began; `nil` when there isn't one.
+    @State private var startLevel: Double?
     @State private var width: CGFloat = 0
 
-    private struct Touch: Equatable {
-        let beganWhileScrolling: Bool
-        var axis: Axis?
-        var anchorX: CGFloat = 0
-        var startLevel: Double = 0
-    }
-
-    /// How far a touch moves before it counts as a drag, and which way.
-    /// Under the scroll view's own threshold, so a sideways drag is claimed
-    /// before the list starts to move.
-    private static let decisionDistance: CGFloat = 8
     private static let accessibilityStep = 0.05
 
-    private var isAdjusting: Bool { touch?.axis == .horizontal }
+    private var isAdjusting: Bool { startLevel != nil }
     private var isSelected: Bool { mark == .checkmark || mark == .checkedCircle }
 
     /// 0 or 1 while a drag holds the level at that end, for the haptic.
@@ -568,9 +553,12 @@ struct VolumeRouteRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
+            // Fitted into one box: the two-speaker and TV glyphs are wider
+            // than the rest and ran into the name.
             Image(systemName: symbol)
-                .font(.title3)
-                .frame(width: 28)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 30, height: 24)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
@@ -596,19 +584,19 @@ struct VolumeRouteRow: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .scaleEffect(isAdjusting ? 1.02 : 1)
         .animation(.snappy(duration: 0.2), value: isAdjusting)
-        .simultaneousGesture(drag)
-        .onChange(of: isTouching) { _, touching in
-            guard !touching else { return }
-            // A touch that lifted has been through `onEnded` already. One
-            // the system took away (the sheet closing, the list claiming
-            // it) only resets the gesture state; finish it here, a turn
-            // later so a normal end's `onEnded` always goes first.
-            Task { @MainActor in
-                guard !isTouching, let leftover = touch else { return }
-                touch = nil
-                if leftover.axis == .horizontal { onAdjusting(false) }
-            }
+        .onTapGesture {
+            // A tap that only stopped the list moving isn't a choice.
+            guard listIsSettled else { return }
+            onTap?()
         }
+        .gesture(
+            SidewaysPan(
+                isEnabled: level != nil,
+                onBegan: beginAdjusting,
+                onChanged: adjust,
+                onEnded: endAdjusting
+            )
+        )
 #if !os(visionOS)
         .sensoryFeedback(.impact(weight: .light), trigger: edge) { _, new in new != nil }
 #endif
@@ -694,46 +682,87 @@ struct VolumeRouteRow: View {
 
     // MARK: Gesture
 
-    private var drag: some Gesture {
-        DragGesture(minimumDistance: 0)
-            .updating($isTouching) { _, state, _ in state = true }
-            .onChanged(dragChanged)
-            .onEnded(dragEnded)
+    private func beginAdjusting() {
+        guard let level else { return }
+        startLevel = level
+        onAdjusting(true)
     }
 
-    private func dragChanged(_ value: DragGesture.Value) {
-        var current = touch ?? Touch(beganWhileScrolling: !listIsSettled)
-        if current.axis == nil {
-            let dx = value.translation.width
-            let dy = value.translation.height
-            if max(abs(dx), abs(dy)) >= Self.decisionDistance {
-                if let level, !current.beganWhileScrolling, abs(dx) > abs(dy) {
-                    current.axis = .horizontal
-                    current.anchorX = dx
-                    current.startLevel = level
-                    onAdjusting(true)
-                } else {
-                    current.axis = .vertical
-                }
-            }
-        }
-        if current != touch {
-            touch = current
-        }
-        guard current.axis == .horizontal, width > 0 else { return }
-        let next = current.startLevel + (value.translation.width - current.anchorX) / width
-        onLevel(min(1, max(0, next)))
+    /// `translation` is how far the finger has gone sideways since the drag
+    /// began; the whole row's width is the whole range.
+    private func adjust(_ translation: CGFloat) {
+        guard let startLevel, width > 0 else { return }
+        onLevel(min(1, max(0, startLevel + translation / width)))
     }
 
-    private func dragEnded(_ value: DragGesture.Value) {
-        let finished = touch
-        touch = nil
-        if finished?.axis == .horizontal {
-            onAdjusting(false)
-        } else if finished?.axis == nil, !(finished?.beganWhileScrolling ?? !listIsSettled) {
-            // Never moved far enough to pick a way: a tap — unless it landed
-            // on a list still moving, where all it did was stop it.
-            onTap?()
+    private func endAdjusting() {
+        guard startLevel != nil else { return }
+        startLevel = nil
+        onAdjusting(false)
+    }
+}
+
+/// A pan that only ever starts sideways.
+///
+/// One that sets off up or down fails at once, so the list's scroll and the
+/// sheet's pull to dismiss get every vertical drag as if the row weren't
+/// there. Their pans wait for it to fail, the few points it takes to tell,
+/// so a sideways drag is never a scroll or a dismiss as well. UIKit rather
+/// than a SwiftUI drag: only a recognizer can decline to begin, where a
+/// SwiftUI gesture takes the touch first and decides after.
+struct SidewaysPan: UIGestureRecognizerRepresentable {
+    var isEnabled = true
+    let onBegan: () -> Void
+    /// Points moved sideways since it began.
+    let onChanged: (CGFloat) -> Void
+    let onEnded: () -> Void
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let pan = UIPanGestureRecognizer()
+        pan.maximumNumberOfTouches = 1
+        pan.delegate = context.coordinator
+        return pan
+    }
+
+    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        recognizer.isEnabled = isEnabled
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        switch recognizer.state {
+        case .began:
+            // Measured from here, not from where the finger landed: the few
+            // points it took to tell the direction shouldn't jump the level.
+            recognizer.setTranslation(.zero, in: recognizer.view)
+            onBegan()
+        case .changed:
+            onChanged(recognizer.translation(in: recognizer.view).x)
+        case .ended, .cancelled, .failed:
+            onEnded()
+        default:
+            break
+        }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
+            guard let pan = recognizer as? UIPanGestureRecognizer else { return true }
+            let moved = pan.translation(in: pan.view)
+            let motion = moved == .zero ? pan.velocity(in: pan.view) : moved
+            return abs(motion.x) > abs(motion.y)
+        }
+
+        /// The list's pan and the sheet's: any other pan the touch could
+        /// start.
+        func gestureRecognizer(
+            _ recognizer: UIGestureRecognizer,
+            shouldBeRequiredToFailBy other: UIGestureRecognizer
+        ) -> Bool {
+            other is UIPanGestureRecognizer && other !== recognizer
         }
     }
 }
