@@ -21,6 +21,10 @@ import SwiftUI
 /// coming back, or for the next Play on the device. A speaker's queue lives
 /// on the speaker anyway, so nothing is cleared on that side either.
 ///
+/// A long queue goes to a speaker a stretch at a time: the playing song and
+/// the `feedAhead` after it, then more as the speaker plays toward the end of
+/// what it has (see `Feed`).
+///
 /// Views read `destination` and `group` off `shared` rather than the
 /// environment: the tab bar accessory and the Next Up panel are hosted
 /// outside what `withEnvironments()` installs.
@@ -35,9 +39,10 @@ final class PlaybackRoute {
     /// The stored destination, mirrored so views can observe it.
     private(set) var destination: PlayDestination
 
-    /// True from a switch until the target has started playing. The tail of a
-    /// long queue keeps filling in after this clears; the accessory shows it,
-    /// and nothing is disabled by it — a second choice cancels the first.
+    /// True from a switch until the target has started playing. The next
+    /// stretch of the queue goes in after this clears, and the rest as the
+    /// speaker plays (see `Feed`); the accessory shows it, and nothing is
+    /// disabled by it — a second choice cancels the first.
     private(set) var isSwitching = false
 
     /// The hand-off in flight. A new choice cancels it: the URLSession calls
@@ -69,6 +74,19 @@ final class PlaybackRoute {
     /// Within this much of the end, the source would move on to the next
     /// song before the speaker picks this one up, so the source stops first.
     private static let overlapTailGuard: TimeInterval = 8
+
+    /// What each speaker is still owed of a queue carried to it, keyed by
+    /// coordinator.
+    @ObservationIgnored private var feeds: [String: Feed] = [:]
+    @ObservationIgnored private var feedToken = 0
+    /// How many rows a speaker is kept ahead of the one playing.
+    private static let feedAhead = 50
+    /// With fewer than this left after the playing row, the speaker is
+    /// topped back up to `feedAhead`, so about ten go at a time.
+    private static let feedLowWater = 40
+    /// How often a speaker being fed is checked. Forty songs ahead is hours
+    /// of music, so a check only has to notice it getting closer.
+    private static let feedInterval: Duration = .seconds(30)
 
     private init() {
         destination = Self.storedDestination
@@ -231,6 +249,11 @@ final class PlaybackRoute {
     /// follows the group to its new coordinator.
     func follow(groupID: String) {
         guard destination.groupID != groupID else { return }
+        // The queue moved with the group, and what it's still owed follows.
+        if let old = destination.groupID, let feed = feeds.removeValue(forKey: old) {
+            feed.task?.cancel()
+            resumeFeed(feed, on: groupID)
+        }
         remember(.group(groupID))
     }
 
@@ -285,7 +308,10 @@ final class PlaybackRoute {
     /// cache lags the device — a stale "paused" left the speaker playing
     /// under the phone, and a stale position started the phone in the wrong
     /// place. Same reason `seek(trackNumber:)` fetches.
-    private func snapshot(of group: GroupRoom) async -> Snapshot? {
+    ///
+    /// `feed` is what a hand-off still owes this speaker; its rows follow the
+    /// speaker's own while its queue is still the one carried.
+    private func snapshot(of group: GroupRoom, feed: Feed? = nil) async -> Snapshot? {
         let sonos = SonosService.shared
         let service = await sonos.playbackService(ip: group.ip) ?? group.playbackService
         // Kept, so a caller can say what it was that couldn't be carried.
@@ -293,6 +319,12 @@ final class PlaybackRoute {
         guard service == .queue else { return nil }
         let queue = await sonos.getQueue(ip: group.ip)
         guard !queue.isEmpty else { return nil }
+        // Read before the position, so its round trips aren't counted in
+        // how far the source has moved on since.
+        var owed: [PlayableContent] = []
+        if let feed, let current = await reconciled(feed, with: group) {
+            owed = current.pending
+        }
         let fetched = await sonos.getTrack(ip: group.ip)
         let state = await sonos.getPlaybackInfo(ip: group.ip)
         // The cached track stands in when the read fails.
@@ -309,7 +341,7 @@ final class PlaybackRoute {
         case .transitioning, .unknown: isPlaying = group.coordinatorRoom.isPlaying
         }
         return Snapshot(
-            items: Array(queue[start...]),
+            items: Array(queue[start...]) + owed,
             // Positions from the device are in milliseconds.
             position: (fetched?.playbackPosition ?? group.coordinatorRoom.estimatedPlaybackPosition()) / 1000,
             isPlaying: isPlaying,
@@ -326,10 +358,21 @@ final class PlaybackRoute {
         let sonos = SonosService.shared
         let began = ContinuousClock.now
         let snapshot: Snapshot?
+        // How the source comes down: see `stopSource()` below.
+        var sourceStopped = false
+        // A speaker source being fed is held still while its queue is read,
+        // and fed again if the hand-off leaves it playing.
+        var sourceFeed: Feed?
+        defer {
+            if !sourceStopped, let source, let sourceFeed {
+                resumeFeed(sourceFeed, on: source.coordinatorID)
+            }
+        }
         if fromDevice {
             snapshot = localSnapshot()
         } else if let source, source.coordinatorID != target.coordinatorID {
-            snapshot = await self.snapshot(of: source)
+            sourceFeed = await stopFeed(source.coordinatorID)
+            snapshot = await self.snapshot(of: source, feed: sourceFeed)
         } else {
             snapshot = nil
         }
@@ -359,7 +402,6 @@ final class PlaybackRoute {
 
         // How the source comes down. The phone is parked, not stopped: its
         // queue stays, paused where it was, for the route coming back.
-        var sourceStopped = false
         func stopSource() async {
             guard !sourceStopped else { return }
             sourceStopped = true
@@ -399,6 +441,11 @@ final class PlaybackRoute {
             target.playbackService = await sonos.playbackService(ip: target.ip) ?? .unknown
         }
         step("transport read: \(target.playbackService)")
+        guard !Task.isCancelled else { return }
+
+        // Its queue is about to be replaced, so whatever it was still owed
+        // goes; waited out so none of it lands in the new queue.
+        await stopFeed(target.coordinatorID)
         guard !Task.isCancelled else { return }
 
         // Mid-song, the track is loaded at the offset before it starts (see
@@ -510,16 +557,21 @@ final class PlaybackRoute {
         guard !Task.isCancelled else { return }
         isSwitching = false
 
+        // The next stretch now, and the rest as the speaker plays toward it.
         let rest = Array(items.dropFirst())
-        guard !rest.isEmpty else { return }
+        let window = Array(rest.prefix(Self.feedAhead))
+        guard let last = window.last else { return }
         do {
-            try await sonos.queue(contents: rest, group: target, position: .end)
+            try await sonos.queue(contents: window, group: target, position: .end)
         } catch {
             guard !Task.isCancelled else { return }
             // Playing already; the tail is what's missing.
             Self.log.error("route → \(target.nameWithCount, privacy: .public): tail failed: \(error.localizedDescription, privacy: .public)")
             AlertService.shared.showAlert(with: "Some of the queue couldn't be added on \(target.nameWithCount)", imageName: "exclamationmark.triangle")
+            return
         }
+        guard !Task.isCancelled else { return }
+        startFeed(Array(rest.dropFirst(window.count)), after: last, on: target)
     }
 
     private static func seconds(_ duration: Duration) -> TimeInterval {
@@ -556,7 +608,16 @@ final class PlaybackRoute {
     private func handOffToDevice(from source: GroupRoom?) async {
         guard let source else { return }
         let sonos = SonosService.shared
-        guard var snapshot = await snapshot(of: source) else {
+        // Held still while the speaker's queue is read, and fed again unless
+        // this device takes over.
+        let sourceFeed = await stopFeed(source.coordinatorID)
+        var handedOver = false
+        defer {
+            if !handedOver, let sourceFeed {
+                resumeFeed(sourceFeed, on: source.coordinatorID)
+            }
+        }
+        guard var snapshot = await snapshot(of: source, feed: sourceFeed) else {
             guard !Task.isCancelled else { return }
             // A radio station, the TV or a line-in can't be carried, and
             // saying nothing left the route on the device with the speaker
@@ -591,6 +652,7 @@ final class PlaybackRoute {
                 AlertService.shared.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
                 return
             }
+            handedOver = true
             if !snapshot.isPlaying {
                 playback.pause()
             }
@@ -645,6 +707,7 @@ final class PlaybackRoute {
             AlertService.shared.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
             return
         }
+        handedOver = true
         if !snapshot.isPlaying {
             playback.pause()
         }
@@ -733,6 +796,137 @@ final class PlaybackRoute {
             }
         }
         return resolved.compactMap { $0 }
+    }
+
+    // MARK: - Feeding a speaker
+
+    /// The rest of a queue carried to a speaker, sent as it plays toward it.
+    ///
+    /// Every row is its own AddURIToQueue round trip, so a long queue sent
+    /// whole kept the speaker busy for minutes after the first note, and
+    /// stopped wherever iOS suspended the app. A hand-off sends the playing
+    /// row and the `feedAhead` after it, and the feed keeps the speaker about
+    /// that far ahead while Cue runs. While Cue is suspended the speaker plays
+    /// on through what it has, and the feed catches up when Cue runs again;
+    /// quit, the speaker keeps what it was sent.
+    private struct Feed {
+        /// The rows not sent yet, in order.
+        var pending: [PlayableContent]
+        /// `carryKey` of the last row sent. While the speaker's queue still
+        /// ends on it, the queue is the one carried and `pending` follows on;
+        /// a Play or an Add to Queue since, from Cue or anywhere else, ends it
+        /// on something else, and the feed stops.
+        var lastSent: String
+        /// Tells a feed from one that replaced it on the same speaker.
+        var token = 0
+        var task: Task<Void, Never>?
+    }
+
+    /// Feeds `pending` to `group` behind `last`, the last row it was sent.
+    private func startFeed(_ pending: [PlayableContent], after last: PlayableContent, on group: GroupRoom) {
+        feeds.removeValue(forKey: group.coordinatorID)?.task?.cancel()
+        resumeFeed(Feed(pending: pending, lastSent: Self.carryKey(for: last)), on: group.coordinatorID)
+    }
+
+    /// Runs `feed` on the speaker `id`, unless something else feeds it by now.
+    private func resumeFeed(_ feed: Feed, on id: String) {
+        guard feeds[id] == nil, !feed.pending.isEmpty else { return }
+        feedToken += 1
+        let token = feedToken
+        var feed = feed
+        feed.token = token
+        feed.task = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.feedInterval)
+                guard let self, !Task.isCancelled else { return }
+                guard await self.topUp(id, token: token) else { break }
+            }
+            // Finished or given up. One that replaced it is left be.
+            if let self, self.feeds[id]?.token == token {
+                self.feeds[id] = nil
+            }
+        }
+        feeds[id] = feed
+    }
+
+    /// Stops feeding the speaker `id` and hands back what it was still owed,
+    /// once a top-up in flight has given up, so none of its rows land in a
+    /// queue about to be replaced. A send cut off part-way is sorted out by
+    /// `reconciled`.
+    @discardableResult
+    private func stopFeed(_ id: String) async -> Feed? {
+        guard var feed = feeds.removeValue(forKey: id) else { return nil }
+        feed.task?.cancel()
+        await feed.task?.value
+        feed.task = nil
+        return feed
+    }
+
+    /// One check on a speaker being fed: with fewer than `feedLowWater` rows
+    /// left after the playing one, it's topped back up to `feedAhead`.
+    /// Returns false once the feed is over: everything sent, or the queue
+    /// isn't the one carried any more.
+    private func topUp(_ id: String, token: Int) async -> Bool {
+        let sonos = SonosService.shared
+        guard sonos.isEnabled, let stored = feeds[id], stored.token == token else { return false }
+        // Not a coordinator just now (a regroup, a topology refresh): next time.
+        guard let group = sonos.groups.first(where: { $0.coordinatorID == id }) else { return true }
+        guard let track = await sonos.getTrack(ip: group.ip),
+              let length = try? await sonos.getQueueTotal(group: group) else { return true }
+        // Shuffled, the speaker picks rows in any order, so the count after
+        // the playing one says nothing about when it runs out: the rest goes.
+        let shuffled = await sonos.playMode(ip: group.ip).isShuffleEnabled
+        guard !Task.isCancelled else { return false }
+        // Queue positions are 1-based, so this is the rows after the playing one.
+        let ahead = max(0, length - track.position)
+        guard shuffled || ahead < Self.feedLowWater else { return true }
+
+        // On the TV, a line-in or a station the queue waits underneath, and
+        // adding to it would put the speaker back on it.
+        guard let service = await sonos.playbackService(ip: group.ip), !Task.isCancelled else { return true }
+        guard service == .queue else { return true }
+        // Kept, so the add below doesn't point the speaker at its queue again.
+        group.playbackService = service
+        guard var current = await reconciled(stored, with: group) else {
+            guard !Task.isCancelled else { return false }
+            Self.log.notice("feed → \(group.nameWithCount, privacy: .public): the queue has changed; \(stored.pending.count) rows not sent")
+            return false
+        }
+        guard !Task.isCancelled else { return false }
+        guard !current.pending.isEmpty else { return false }
+
+        let batch = Array(current.pending.prefix(shuffled ? current.pending.count : Self.feedAhead - ahead))
+        do {
+            try await sonos.queue(contents: batch, group: group, position: .end)
+        } catch {
+            guard !Task.isCancelled else { return false }
+            Self.log.error("feed → \(group.nameWithCount, privacy: .public): failed: \(error.localizedDescription, privacy: .public)")
+            AlertService.shared.showAlert(with: "Some of the queue couldn't be added on \(group.nameWithCount)", imageName: "exclamationmark.triangle")
+            return false
+        }
+        guard !Task.isCancelled else { return false }
+        current.pending.removeFirst(batch.count)
+        current.lastSent = Self.carryKey(for: batch[batch.count - 1])
+        feeds[id] = current
+        Self.log.notice("feed → \(group.nameWithCount, privacy: .public): sent \(batch.count), \(current.pending.count) to go")
+        return !current.pending.isEmpty
+    }
+
+    /// `feed` brought up to date with `group`'s queue: where the queue ends
+    /// says how far the sending got, a send cut off part-way included. Nil
+    /// when it ends on anything else — a Play or an Add to Queue, from Cue or
+    /// another app, has made it someone else's queue.
+    private func reconciled(_ feed: Feed, with group: GroupRoom) async -> Feed? {
+        let sonos = SonosService.shared
+        guard let length = try? await sonos.getQueueTotal(group: group), length > 0,
+              let last = await sonos.getQueue(ip: group.ip, with: length - 1, total: 1).first else { return nil }
+        let key = Self.carryKey(for: last)
+        if key == feed.lastSent { return feed }
+        guard let index = feed.pending.firstIndex(where: { Self.carryKey(for: $0) == key }) else { return nil }
+        var feed = feed
+        feed.lastSent = key
+        feed.pending.removeFirst(index + 1)
+        return feed
     }
 
     // MARK: - The parked queue
