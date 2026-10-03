@@ -14,6 +14,10 @@ struct PlayableGridScreen: View {
     @Environment(Router.self) private var router
 
     @State private var isLoading: Bool = false
+    /// A page is on its way; no other is asked for meanwhile.
+    @State private var isLoadingMore = false
+    /// The last page added nothing: there's no more to ask for until a refresh.
+    @State private var reachedEnd = false
     @Binding var items: OrderedSet<PlayableContent>
 
     var action: ((Int) async -> ())? = nil
@@ -33,13 +37,7 @@ struct PlayableGridScreen: View {
             LazyVGrid(columns: adaptiveColumn, spacing: 16) {
                 ForEach(items) { item in
                     PlayableCardView(item: item)
-                        .task {
-                            if items.firstIndex(of: item) ?? 0 >= items.count - 1 {
-                                Task {
-                                    await action?(items.count)
-                                }
-                            }
-                        }
+                        .onAppear { loadMoreIfNeeded(after: item) }
                 }
             }
 
@@ -51,6 +49,7 @@ struct PlayableGridScreen: View {
             }
         }
         .refreshable {
+            reachedEnd = false
             await action?(0)
         }
         .miniPlayerOnScrollHandler()
@@ -68,6 +67,7 @@ struct PlayableGridScreen: View {
                 // on Mac/Catalyst), so deletes/creates made elsewhere can be pulled in.
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
+                        reachedEnd = false
                         Task { await action?(0) }
                     } label: {
                         Label("Refresh", systemImage: "arrow.clockwise")
@@ -91,6 +91,22 @@ struct PlayableGridScreen: View {
             isLoading = true
             await action?(0)
             isLoading = false
+        }
+    }
+}
+
+extension PlayableGridScreen {
+    /// Asks for the next page when the last tile appears, one page at a
+    /// time: each tile used to ask as it appeared, with nothing stopping a
+    /// second request for the same page while the first was on its way.
+    fileprivate func loadMoreIfNeeded(after item: PlayableContent) {
+        guard !isLoadingMore, !reachedEnd, items.last == item else { return }
+        isLoadingMore = true
+        let countBefore = items.count
+        Task {
+            await action?(items.count)
+            reachedEnd = items.count == countBefore
+            isLoadingMore = false
         }
     }
 }
