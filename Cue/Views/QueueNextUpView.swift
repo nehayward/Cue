@@ -27,8 +27,12 @@ private struct LocalNextUpView: View {
     private var playback: LocalPlaybackService { .shared }
 
     @State private var editMode: EditMode = .inactive
-    @State private var clearConfirmation = false
 
+    /// Kept small: it reads whether a station is playing, which follows the
+    /// current song, so it runs again on every skip. The rows, the header's
+    /// buttons and the scroll that follows the current song are views of
+    /// their own, each reading only what it shows — a skip used to rebuild
+    /// the whole 1,700-row list from here.
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 14) {
@@ -36,7 +40,7 @@ private struct LocalNextUpView: View {
                     .font(.title3.bold())
                 Spacer(minLength: 8)
                 if !playback.isPlayingStation {
-                    controls
+                    LocalNextUpControls(editMode: $editMode)
                 }
             }
             .padding(.horizontal, 16)
@@ -53,14 +57,21 @@ private struct LocalNextUpView: View {
                     .frame(maxWidth: .infinity)
                 Spacer()
             } else {
-                list
+                LocalQueueList(editMode: $editMode)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
+}
 
-    @ViewBuilder
-    private var controls: some View {
+/// Shuffle, repeat, and the edit and clear menu, for the header.
+private struct LocalNextUpControls: View {
+    private var playback: LocalPlaybackService { .shared }
+
+    @Binding var editMode: EditMode
+    @State private var clearConfirmation = false
+
+    var body: some View {
         Button {
             HapticManager.shared.fireHaptic(.selection)
             withAnimation(.easeInOut(duration: 0.35)) {
@@ -132,145 +143,174 @@ private struct LocalNextUpView: View {
             Text("The current song keeps playing.")
         }
     }
+}
 
-    /// A row's identity: the song, and which copy of it in the queue.
-    private struct RowID: Hashable {
-        let service: MusicService
-        let songID: String
-        let occurrence: Int
-    }
+/// A queue row's identity: the song, and which copy of it in the queue.
+///
+/// Not a string: rebuilt for every row whenever the queue changes, and
+/// describing the service enum into each one was a measurable part of a
+/// skip with a long queue open.
+private struct QueueRowID: Hashable {
+    let service: MusicService
+    let songID: String
+    let occurrence: Int
 
-    /// The queue's rows with an identity that follows the song rather than
-    /// its position: keyed by position, a dragged row and every row between
-    /// its old and new place changed identity, so the list swapped their
-    /// contents instead of sliding the one row. The same song queued twice
-    /// tells its copies apart by which occurrence each is.
-    ///
-    /// Not strings: rebuilt for every row on every song change, describing
-    /// the service enum into each one was a measurable part of a skip with a
-    /// long queue open.
-    private var rows: [(id: RowID, index: Int, item: PlayableContent)] {
-        var occurrences: [RowID: Int] = [:]
-        return playback.queue.enumerated().map { index, item in
-            let key = RowID(service: item.content.service, songID: item.content.id, occurrence: 0)
-            let occurrence = occurrences[key, default: 0]
-            occurrences[key] = occurrence + 1
-            return (RowID(service: key.service, songID: key.songID, occurrence: occurrence), index, item)
-        }
-    }
-
-    /// The current song's row, which the list opens on — counted from the
-    /// rows before it, without building all of them again.
-    private var currentRowID: RowID? {
+    /// The current song's row, counted from the rows before it rather than
+    /// by building all of them.
+    @MainActor static func current(in playback: LocalPlaybackService) -> QueueRowID? {
         let index = playback.currentIndex
         guard playback.queue.indices.contains(index) else { return nil }
         let content = playback.queue[index].content
         let occurrence = playback.queue[..<index].reduce(0) { count, item in
             item.content.id == content.id && item.content.service == content.service ? count + 1 : count
         }
-        return RowID(service: content.service, songID: content.id, occurrence: occurrence)
+        return QueueRowID(service: content.service, songID: content.id, occurrence: occurrence)
     }
+}
 
-    /// Opens on the current song, with what's played above it to scroll
-    /// back to, and follows it as the queue moves on. Not while editing: a
-    /// reorder shouldn't yank the list away. Near the end of a short queue
-    /// the list can't scroll the current song all the way up, so the played
-    /// ones above it fill the space.
-    ///
-    /// By row id through `ScrollViewReader`: `List` ignores
-    /// `ScrollPosition.scrollTo(id:)`, which only drives a `ScrollView`, and
-    /// this has to stay a `List` for swipe-to-remove and drag-to-reorder.
-    private var list: some View {
-        ScrollViewReader { proxy in
-            rowList
-                // After the first layout: scrolled in the same pass as the
-                // list appears, it stays at the top.
-                .task {
-                    guard let currentRowID else { return }
-                    proxy.scrollTo(currentRowID, anchor: .top)
-                }
-                .onChange(of: playback.currentIndex) {
-                    guard !editMode.isEditing, let currentRowID else { return }
-                    // A turn later: when the change came from a tap on a row,
-                    // the list is still handling that tap and drops a scroll
-                    // asked for in the same pass.
-                    Task { @MainActor in
-                        withAnimation(.snappy) { proxy.scrollTo(currentRowID, anchor: .top) }
-                    }
-                }
+/// The queue's rows. Reads the queue and nothing else, so a skip — which
+/// only moves `currentIndex` — leaves the list as it is; each row reads the
+/// current song itself (`LocalQueueRow`).
+private struct LocalQueueList: View {
+    private var playback: LocalPlaybackService { .shared }
+
+    @Binding var editMode: EditMode
+
+    /// The queue's rows with an identity that follows the song rather than
+    /// its position: keyed by position, a dragged row and every row between
+    /// its old and new place changed identity, so the list swapped their
+    /// contents instead of sliding the one row. The same song queued twice
+    /// tells its copies apart by which occurrence each is.
+    private var rows: [(id: QueueRowID, index: Int, item: PlayableContent)] {
+        var occurrences: [QueueRowID: Int] = [:]
+        return playback.queue.enumerated().map { index, item in
+            let key = QueueRowID(service: item.content.service, songID: item.content.id, occurrence: 0)
+            let occurrence = occurrences[key, default: 0]
+            occurrences[key] = occurrence + 1
+            return (QueueRowID(service: key.service, songID: key.songID, occurrence: occurrence), index, item)
         }
     }
 
-    private var rowList: some View {
-        List {
-            ForEach(rows, id: \.id) { row in
-                let index = row.index
-                let item = row.item
-                let isUpcoming = index > playback.currentIndex
-                QueueNextUpRow(
-                    item: item,
-                    isCurrent: index == playback.currentIndex
-                )
-                .opacity(index < playback.currentIndex ? 0.5 : 1)
-                .onTapGesture { playback.play(at: index) }
-                .accessibilityAddTraits(.isButton)
-                .accessibilityHint("Plays this song")
-                .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .moveDisabled(!isUpcoming)
-                .deleteDisabled(!isUpcoming)
-                .swipeActions(edge: .leading) {
-                    if index > playback.currentIndex + 1 {
+    var body: some View {
+        ScrollViewReader { proxy in
+            List {
+                ForEach(rows, id: \.id) { row in
+                    LocalQueueRow(index: row.index, item: row.item)
+                }
+                .onDelete { offsets in
+                    withAnimation { playback.removeFromQueue(at: offsets) }
+                }
+                .onMove { source, destination in
+                    withAnimation(.snappy) {
+                        playback.moveInQueue(from: source, to: destination)
+                    }
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .contentMargins(.bottom, 12, for: .scrollContent)
+            .environment(\.editMode, $editMode)
+            .background {
+                QueueScrollFollower(proxy: proxy, isEditing: editMode.isEditing)
+            }
+        }
+    }
+}
+
+/// Opens the list on the current song, with what's played above it to
+/// scroll back to, and follows it as the queue moves on. Not while editing:
+/// a reorder shouldn't yank the list away. Near the end of a short queue the
+/// list can't scroll the current song all the way up, so the played ones
+/// above it fill the space.
+///
+/// By row id through `ScrollViewReader`: `List` ignores
+/// `ScrollPosition.scrollTo(id:)`, which only drives a `ScrollView`, and
+/// this has to stay a `List` for swipe-to-remove and drag-to-reorder. A view
+/// of its own, so following the current song doesn't make the list read it.
+private struct QueueScrollFollower: View {
+    private var playback: LocalPlaybackService { .shared }
+
+    let proxy: ScrollViewProxy
+    let isEditing: Bool
+
+    var body: some View {
+        Color.clear
+            // After the first layout: scrolled in the same pass as the list
+            // appears, it stays at the top.
+            .task {
+                guard let row = QueueRowID.current(in: playback) else { return }
+                proxy.scrollTo(row, anchor: .top)
+            }
+            .onChange(of: playback.currentIndex) {
+                guard !isEditing, let row = QueueRowID.current(in: playback) else { return }
+                // A turn later: when the change came from a tap on a row,
+                // the list is still handling that tap and drops a scroll
+                // asked for in the same pass.
+                Task { @MainActor in
+                    withAnimation(.snappy) { proxy.scrollTo(row, anchor: .top) }
+                }
+            }
+    }
+}
+
+/// One queue row, with its swipes and menu. Reads the current song itself,
+/// so a skip redraws the rows on screen and nothing else.
+private struct LocalQueueRow: View {
+    private var playback: LocalPlaybackService { .shared }
+
+    let index: Int
+    let item: PlayableContent
+
+    var body: some View {
+        let current = playback.currentIndex
+        let isUpcoming = index > current
+        QueueNextUpRow(item: item, isCurrent: index == current)
+            .opacity(index < current ? 0.5 : 1)
+            .onTapGesture { playback.play(at: index) }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint("Plays this song")
+            .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .moveDisabled(!isUpcoming)
+            .deleteDisabled(!isUpcoming)
+            .swipeActions(edge: .leading) {
+                if index > current + 1 {
+                    Button {
+                        withAnimation { playback.moveToNext(at: index) }
+                    } label: {
+                        Label("Play Next", systemImage: "text.insert")
+                    }
+                    .tint(.accentColor)
+                }
+            }
+            // Any `swipeActions` turns off the Delete swipe `onDelete`
+            // would synthesize, so the trailing one is spelled out.
+            .swipeActions(edge: .trailing) {
+                if isUpcoming {
+                    Button(role: .destructive) {
+                        withAnimation { playback.removeFromQueue(at: [index]) }
+                    } label: {
+                        Label("Remove", systemImage: "xmark")
+                    }
+                }
+            }
+            .contextMenu {
+                if isUpcoming {
+                    if index > current + 1 {
                         Button {
                             withAnimation { playback.moveToNext(at: index) }
                         } label: {
                             Label("Play Next", systemImage: "text.insert")
                         }
-                        .tint(.accentColor)
                     }
-                }
-                // Any `swipeActions` turns off the Delete swipe `onDelete`
-                // would synthesize, so the trailing one is spelled out.
-                .swipeActions(edge: .trailing) {
-                    if isUpcoming {
-                        Button(role: .destructive) {
-                            withAnimation { playback.removeFromQueue(at: [index]) }
-                        } label: {
-                            Label("Remove", systemImage: "xmark")
-                        }
-                    }
-                }
-                .contextMenu {
-                    if isUpcoming {
-                        if index > playback.currentIndex + 1 {
-                            Button {
-                                withAnimation { playback.moveToNext(at: index) }
-                            } label: {
-                                Label("Play Next", systemImage: "text.insert")
-                            }
-                        }
-                        Button(role: .destructive) {
-                            withAnimation { playback.removeFromQueue(at: [index]) }
-                        } label: {
-                            Label("Remove", systemImage: "xmark")
-                        }
+                    Button(role: .destructive) {
+                        withAnimation { playback.removeFromQueue(at: [index]) }
+                    } label: {
+                        Label("Remove", systemImage: "xmark")
                     }
                 }
             }
-            .onDelete { offsets in
-                withAnimation { playback.removeFromQueue(at: offsets) }
-            }
-            .onMove { source, destination in
-                withAnimation(.snappy) {
-                    playback.moveInQueue(from: source, to: destination)
-                }
-            }
-        }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .contentMargins(.bottom, 12, for: .scrollContent)
-        .environment(\.editMode, $editMode)
     }
 }
 
