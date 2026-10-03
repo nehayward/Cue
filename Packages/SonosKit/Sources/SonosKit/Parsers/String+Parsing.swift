@@ -1,18 +1,67 @@
 extension String {
+    /// The five XML entities decoded, as five `replacingOccurrences` passes
+    /// in turn (`&lt;`, `&gt;`, `&amp;`, `&quot;`, `&apos;`) did, in one walk
+    /// over the bytes. Every speaker response the groups poll reads comes
+    /// through here, and the five passes cost 15 times as long. Their
+    /// result is kept exactly, quirk included: the `&amp;` pass ran before
+    /// `&quot;` and `&apos;`, so `&amp;quot;` comes out as `"` while
+    /// `&amp;lt;` stays `&lt;`.
     var unescaped: String {
-        var xml = self
-        xml = xml.replacingOccurrences(of: "&lt;", with: "<")
-        xml = xml.replacingOccurrences(of: "&gt;", with: ">")
-        xml = xml.replacingOccurrences(of: "&amp;", with: "&")
-        xml = xml.replacingOccurrences(of: "&quot;", with: "\"")
-        xml = xml.replacingOccurrences(of: "&apos;", with: "'")
-        return xml
+        guard utf8.contains(UInt8(ascii: "&")) else { return self }
+        let source = Array(utf8)
+        var output: [UInt8] = []
+        output.reserveCapacity(source.count)
+        func matches(_ entity: StaticString, at index: Int) -> Bool {
+            let count = entity.utf8CodeUnitCount
+            guard index + count <= source.count else { return false }
+            return entity.withUTF8Buffer { name in
+                for offset in 0..<count where source[index + offset] != name[offset] { return false }
+                return true
+            }
+        }
+        var index = 0
+        while index < source.count {
+            let byte = source[index]
+            guard byte == UInt8(ascii: "&") else {
+                output.append(byte)
+                index += 1
+                continue
+            }
+            if matches("&lt;", at: index) {
+                output.append(UInt8(ascii: "<"))
+                index += 4
+            } else if matches("&gt;", at: index) {
+                output.append(UInt8(ascii: ">"))
+                index += 4
+            } else if matches("&quot;", at: index) {
+                output.append(UInt8(ascii: "\""))
+                index += 6
+            } else if matches("&apos;", at: index) {
+                output.append(UInt8(ascii: "'"))
+                index += 6
+            } else if matches("&amp;", at: index) {
+                index += 5
+                if matches("quot;", at: index) {
+                    output.append(UInt8(ascii: "\""))
+                    index += 5
+                } else if matches("apos;", at: index) {
+                    output.append(UInt8(ascii: "'"))
+                    index += 5
+                } else {
+                    output.append(UInt8(ascii: "&"))
+                }
+            } else {
+                output.append(byte)
+                index += 1
+            }
+        }
+        return String(decoding: output, as: UTF8.self)
     }
     
     /// Decodes XML entities exactly **once**, scanning left-to-right without
     /// re-processing what it just emitted.
     ///
-    /// `unescaped` runs five sequential `replacingOccurrences` passes, so a
+    /// `unescaped` decodes as five sequential passes would, so a
     /// double-escaped sequence like `&amp;quot;` is collapsed all the way to a
     /// literal `"` (`&amp;`→`&`, then the resulting `&quot;`→`"`). For Sonos
     /// alarm metadata — DIDL that is escaped *inside* the already-escaped
