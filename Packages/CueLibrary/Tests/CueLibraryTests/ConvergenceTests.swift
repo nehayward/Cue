@@ -56,6 +56,9 @@ final class ConvergenceTests: XCTestCase {
                     devices[other] = merged
                     playlist = merged
                 }
+                // Edits keep the list in order without sorting it, so
+                // sorting it again must change nothing.
+                XCTAssertEqual(playlist.entries, SyncedList(elements: playlist.entries.elements, removed: playlist.entries.removed), "seed \(seed): out of order")
                 devices[device] = playlist
             }
 

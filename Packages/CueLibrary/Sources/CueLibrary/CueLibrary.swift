@@ -3,9 +3,12 @@ import Foundation
 /// Everything that's Cue's own and follows the person between devices:
 /// their playlists and their pins.
 ///
-/// This one value is what's saved on the device and what goes to the
-/// watch. iCloud carries the parts as separate records, one per playlist
-/// and one for the pins, and merges each with the same functions.
+/// This one value is what goes to the watch, and what tests merge. On the
+/// device and in iCloud each playlist is saved on its own, so an edit
+/// encodes only its own playlist: a 5,000-song playlist takes about 70 ms
+/// to encode, and a whole library of them far longer. iCloud carries one
+/// record per playlist and one for the pins, merged with the same
+/// functions.
 public struct CueLibrary: Codable, Equatable, Sendable {
     public private(set) var playlists: [String: CuePlaylist]
     /// When each deleted playlist was deleted, by id.
@@ -22,7 +25,10 @@ public struct CueLibrary: Codable, Equatable, Sendable {
 
     /// The last changed first: the Playlists screen's default order.
     public var recentPlaylists: [CuePlaylist] {
-        playlists.values.sorted { ($0.modifiedAt, $0.id) > ($1.modifiedAt, $1.id) }
+        playlists.values
+            .map { (playlist: $0, modifiedAt: $0.modifiedAt) }
+            .sorted { ($0.modifiedAt, $0.playlist.id) > ($1.modifiedAt, $1.playlist.id) }
+            .map(\.playlist)
     }
 
     public func playlist(id: String) -> CuePlaylist? {

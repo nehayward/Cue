@@ -17,7 +17,7 @@ needs SwiftData any more (see Why CloudKit, and not SwiftData).
 ## Status
 
 - [x] **Core model**: `Packages/CueLibrary` (branch `claude/cue-playlists-pins`).
-  Pure Foundation, with 42 tests that run under `swift test` on Linux,
+  Pure Foundation, with 43 tests that run under `swift test` on Linux,
   including a randomized test that three devices editing apart converge.
   Not yet linked into any target.
 - [ ] Everything below the model, one branch per session (see Phases).
@@ -49,7 +49,7 @@ needs SwiftData any more (see Why CloudKit, and not SwiftData).
 | `Stamped<Value>` | A last-writer-wins value: a playlist's name, notes and cover. |
 | `CuePlaylist` | `id`, name, notes, cover (automatic mosaic, one item's artwork, or a custom image) and `entries: SyncedList<Entry>`. Each entry has its own id, so duplicates are allowed. |
 | `CuePins` | `SyncedList<CuePin>` keyed by `CueItem.key`. |
-| `CueLibrary` | All playlists, playlist tombstones and the pins in one value: what's saved on the device and what goes to the watch. `CueLibraryCoding` packs it as JSON, LZFSE-compressed on Darwin, with a leading byte as in `WatchSyncMessage`. |
+| `CueLibrary` | All playlists, playlist tombstones and the pins in one value, for the watch and for merging. On the device and in iCloud each playlist is saved on its own (see Performance with SwiftUI). `CueLibraryCoding` packs it as JSON, LZFSE-compressed on Darwin, with a leading byte as in `WatchSyncMessage`. |
 
 ### Rules the model sets
 
@@ -75,7 +75,7 @@ Private database, one custom zone (`CueLibrary`):
 
 | Record type | Name | Fields |
 |-------------|------|--------|
-| `Playlist` | the playlist's UUID | `encryptedValues["payload"]`: the packed `CuePlaylist`. A payload over 800 KB goes in a `CKAsset` instead (about 6,000 songs). |
+| `Playlist` | the playlist's UUID | `encryptedValues["payload"]`: the packed `CuePlaylist`. A payload over 800 KB goes in a `CKAsset` instead, which takes roughly 15,000 songs: 5,000 songs pack to 227 KB with zlib, and LZFSE is about as tight. |
 | `Pins` | `pins` | `encryptedValues["payload"]`: the packed `CuePins` |
 | `PlaylistCover` (later) | `cover-<playlist id>` | `CKAsset`, a custom cover image |
 
@@ -100,13 +100,12 @@ How the sync engine is used:
   the model's "a later change beats a deletion".
 - **State**: `CKSyncEngine.State.Serialization` goes to
   `Application Support/CueLibrary/sync-state.json` on every
-  `.stateUpdate`. The library itself is
-  `Application Support/CueLibrary/library.json`, saved with a 300 ms
-  coalesce and atomically, the way `DownloadManager` saves its manifest.
+  `.stateUpdate`. The library is saved one playlist to a file (see
+  Performance with SwiftUI).
 - **Accounts**: with no iCloud account, everything works on this device
   and Settings says so. When someone signs in, the local library is
   uploaded and merged. Switching accounts moves the old library aside
-  (`library-<hash>.json`) instead of deleting it, and starts fresh.
+  (`CueLibrary-<hash>/`) instead of deleting it, and starts fresh.
 - **Encryption**: payloads go in `encryptedValues`, so they're end-to-end
   encrypted under Advanced Data Protection. Names live inside the payload,
   so nothing readable sits in an unencrypted field.
@@ -144,6 +143,54 @@ Setup that only the developer account can do:
 Cue already uses it (`CloudKeys`). It's 1 MB in total, shared by every key,
 and play history alone fills it (see Found on the way). It has no conflict
 information either. Pins would fit, but one sync path for both is simpler.
+
+## Performance with SwiftUI
+
+The model was measured in a release build, on a 5,000-song playlist and a
+library of 50 playlists of 2,000 songs (a Linux cloud VM; a recent iPhone
+or Mac is as fast or faster per core):
+
+| Operation | Time |
+|-----------|------|
+| Add, insert, move or remove one song | about 2 ms (in place); it grows with the playlist, so 0.2 ms at 500 songs |
+| Merge two copies of a playlist, one edit each | 13 ms |
+| `contains` (the "already in this playlist" hint), all 50 playlists | 1 ms |
+| `recentPlaylists`, 50 playlists | 0.3 ms |
+| `modifiedAt` | 0.006 ms |
+| Encode / decode one 5,000-song playlist (JSON) | 70 / 64 ms |
+| Encode the whole library (100,000 songs) | 1.5 s |
+
+So every edit is cheap enough for the main actor, and any encoding or
+decoding is not. That decides how the app holds it:
+
+- **One file per playlist**, never one file for the library.
+  `Application Support/CueLibrary/playlists/<id>.json` plus `index.json`
+  (each playlist's id, name, count, last change and cover references, and
+  the pins). An edit re-encodes only its own playlist. The `CueLibrary`
+  value is for the watch and for tests.
+- **Encoding happens off the main actor.** The store edits its value on the
+  main actor, then hands the `Sendable` copy to a disk actor that writes it
+  coalesced (300 ms) and atomically, as `DownloadManager` does.
+  `CKSyncEngine` builds its records on its own queue.
+- **Launch reads `index.json` only.** A playlist's file is decoded when it's
+  opened, or in the background when sync needs it.
+- **Observation stays narrow.** `CueLibraryStore` (`@Observable`) holds the
+  summaries the lists read (Cue Playlists, the Add to Playlist sheet,
+  CarPlay, the Mac menu) and the pins. Each open playlist gets a
+  `CuePlaylistModel` (`@Observable`) of its own, so moving a song redraws
+  that screen and its one summary row, not the pins shelf or other
+  playlists. A single `var library: CueLibrary` on the store would redraw
+  every view that reads any of it on every edit.
+- **Rows resolve once.** The playlist model keeps
+  `rows: [(entryID, PlayableContent, availability)]` and updates only the
+  rows an edit touches. Turning a `CueItem` into a `PlayableContent`
+  (artwork URL, availability) never happens in a `body`.
+- **`ForEach` goes by entry id**, which is stable across moves and
+  distinct for a song that's in twice. Going by `CueItem` or by offset
+  breaks duplicates and `onMove`'s animation. Row views take the row, not
+  the whole `CuePlaylist`.
+- **Not in a `body`**: `CuePlaylist.items` (it builds a new array each
+  time), `modifiedAt`, `recentPlaylists`. The store keeps what they'd give.
 
 ## Playing a Cue playlist
 
@@ -229,8 +276,10 @@ One branch per session; each says what "done" means.
   - SonosKit depends on it for `PlayableContent+CueItem.swift`, with tests
     in SonosKitTests: no token survives the round trip, and each service
     rebuilds a playable item.
-  - `Cue/Library/Cue/CueLibraryStore.swift`: `@Observable`, `.shared`,
-    `library.json`, saving coalesced.
+  - `Cue/Library/Cue/CueLibraryStore.swift` and `CuePlaylistModel.swift`,
+    shaped as Performance with SwiftUI says: summaries and pins in the
+    store, a model per open playlist, one file per playlist written off
+    the main actor.
   - `MusicService.cue`.
   - Done when: the conversion tests pass, and a playlist made in a debug
     screen survives relaunch.

@@ -53,16 +53,24 @@ public struct CuePlaylist: Codable, Equatable, Identifiable, Sendable {
         append(items, at: date)
     }
 
+    /// A new array each time it's read: lists go through
+    /// `entries.elements`, by entry id.
     public var items: [CueItem] { entries.elements.map(\.item) }
     public var count: Int { entries.count }
     public var isEmpty: Bool { entries.isEmpty }
 
     /// When anything in it last changed: the playlists list sorts by this.
+    /// It reads every entry, so a list of playlists works it out once each
+    /// (`CueLibrary.recentPlaylists`) rather than in a comparison.
     public var modifiedAt: Date {
-        let stamps = [createdAt, name.at, notes.at, cover.at]
-            + entries.elements.map(\.changedAt)
-            + entries.removed.values
-        return stamps.max() ?? createdAt
+        var latest = max(createdAt, name.at, notes.at, cover.at)
+        for entry in entries.elements where entry.changedAt > latest {
+            latest = entry.changedAt
+        }
+        for removedAt in entries.removed.values where removedAt > latest {
+            latest = removedAt
+        }
+        return latest
     }
 
     /// The pin, or a reference anywhere else, for this playlist.
@@ -76,7 +84,7 @@ public struct CuePlaylist: Codable, Equatable, Identifiable, Sendable {
 
     /// Whether it already has this song, for the "Already in playlist" hint.
     public func contains(_ item: CueItem) -> Bool {
-        entries.elements.contains { $0.item.key == item.key }
+        entries.elements.contains { $0.item.isSame(as: item) }
     }
 
     // MARK: - Editing

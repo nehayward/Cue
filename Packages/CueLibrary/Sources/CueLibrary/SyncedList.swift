@@ -152,6 +152,8 @@ public struct SyncedList<Element: SyncedListElement>: Codable, Equatable, Sendab
     /// change, and between two made at the same moment, the same one on
     /// every device.
     private static func isLater(_ element: Element, than known: Element) -> Bool {
+        // The usual case: both sides have the same version.
+        if element == known { return false }
         if element.changedAt != known.changedAt {
             return element.changedAt > known.changedAt
         }
@@ -196,8 +198,9 @@ public struct SyncedList<Element: SyncedListElement>: Codable, Equatable, Sendab
             placed[offset].order = keys[offset]
             placed[offset].changedAt = date
         }
+        // In order as it stands: the new keys all sit strictly between the
+        // neighbours, so there's nothing to sort.
         elements.replaceSubrange(index..<end, with: placed)
-        elements.sort(by: Self.inOrder)
     }
 
     /// Fresh keys for every element, in the order they stand.

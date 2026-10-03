@@ -91,6 +91,7 @@ The app is built around several Swift packages in `/Packages`:
 8. **CueLibrary** - Cue's own playlists and pins, the model only (pure Foundation, tested with `swift test`; not yet linked into a target). See `Ideas/cue-playlists-and-pins.md`
    - `CueItem` (a token-free reference to a song, album, playlist, artist or station in any service), `CuePlaylist`, `CuePins`, `CueLibrary` (all of it in one value, packed by `CueLibraryCoding`)
    - `SyncedList` and `OrderKey` (fractional index): ordered lists that merge edits made apart on several devices, per element, with dated tombstones. Only people's edits go into them; anything the app works out by itself stays on the device
+   - Edits are cheap enough for the main actor (about 2 ms at 5,000 songs); encoding isn't (about 70 ms for that playlist). Save one file per playlist off the main actor, and keep SwiftUI observation per playlist. See Performance with SwiftUI in the doc
 
 ### Main App Structure
 - **CueApp.swift** - Main app entry point with shared services

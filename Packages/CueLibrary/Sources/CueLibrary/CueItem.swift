@@ -98,6 +98,12 @@ public struct CueItem: Codable, Hashable, Sendable {
         [kind.rawValue, source.rawValue, server ?? "", id].joined(separator: "|")
     }
 
+    /// Whether `other` is the same thing: the same `key`, without building
+    /// two strings to find out.
+    public func isSame(as other: CueItem) -> Bool {
+        id == other.id && source == other.source && kind == other.kind && server == other.server
+    }
+
     private enum CodingKeys: String, CodingKey {
         case source, kind, id, server, title, subtitle, album, duration, isrc, artwork, extras
     }

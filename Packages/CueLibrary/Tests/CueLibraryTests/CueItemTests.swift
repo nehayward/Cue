@@ -41,6 +41,18 @@ final class CueItemTests: XCTestCase {
         let home = CueItem(source: .subsonic, kind: .song, id: "1", server: "me@home.example", title: "A")
         let work = CueItem(source: .subsonic, kind: .song, id: "1", server: "me@work.example", title: "A")
         XCTAssertNotEqual(home.key, work.key)
+        XCTAssertFalse(home.isSame(as: work))
+    }
+
+    func testIsSameAgreesWithTheKey() {
+        let song = CueItem(source: .plex, kind: .song, id: "7", title: "Seven")
+        var renamed = song
+        renamed.title = "Seven (Live)"
+        renamed.artwork = "/library/metadata/7/thumb/2"
+        XCTAssertTrue(song.isSame(as: renamed))
+        XCTAssertEqual(song.key, renamed.key)
+        XCTAssertFalse(song.isSame(as: CueItem(source: .plex, kind: .album, id: "7", title: "Seven")))
+        XCTAssertFalse(song.isSame(as: CueItem(source: .subsonic, kind: .song, id: "7", title: "Seven")))
     }
 
     func testEmptyExtrasAreLeftOutAndReadBackEmpty() throws {
