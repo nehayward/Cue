@@ -192,6 +192,11 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
         }
     }
     
+    func invalidateCredentials(for service: String) {
+        // Same mapping as `getCredentials(for service:)`.
+        invalidateCache(for: .soundcloud)
+    }
+
     func invalidateCache(for serviceType: SonosServiceType) {
         credentialsQueue.async(flags: .barrier) { [weak self] in
             self?.cachedCredentials.removeValue(forKey: serviceType)

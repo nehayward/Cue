@@ -122,6 +122,10 @@ final class MediaServerHandler {
                 let servers = MediaServerParser.parse(xmlString: services)
                 // Cache the media servers
                 KeychainManager.shared.saveMediaServers(householdId: zoneGroupState.houseHoldID, servers: servers)
+                // The speaker hands over each service's current token here.
+                // Without this, requests kept the token first read this launch
+                // and failed once it expired, until the app was relaunched.
+                KeychainTokenRefreshHandler.shared.invalidateCache()
                 // Plex belongs to Cue, not to a Sonos household: only borrow
                 // the household's Plex sign-in when Cue has none of its own.
                 // Overwriting it meant switching Sonos systems swapped in
