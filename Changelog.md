@@ -166,6 +166,21 @@ A header button in `PlayerView` (⇧⌘T), shown while a station plays, swaps th
 - On/off persists in `AppStorageKeys.liveTranscriptionEnabled`; the language per station in `liveTranscriptionLocales`, with `"*"` as the guess for a new station.
 - `NSSpeechRecognitionUsageDescription` added to the Cue, Mac and Vision targets.
 
+### Library album covers on the Mac
+The Apple Music library's Albums grid (and list) on Mac Catalyst showed the music-note placeholder for most albums. `AppleMusicBrowseService.libraryAlbums` pages through MusicKit and looks the rows up in the web API by id, but MusicKit's library ids are the device's own, not the web API's `l.…`, so nearly every row falls back to `Album.toPlayableLibraryAlbum`. Its cover is a `musickit://` URL. `unwrappingMusicKitArtwork` turns the ones that carry an `https` URL or an `aat` artwork-server path into `https`, which covers most of them on the iPhone, but on the Mac most carry neither, and Nuke's `DataLoader` (its own `URLSession` configuration) can't open the scheme.
+
+- `MusicKitLibraryArtwork` (SonosKit, main actor) keeps the MusicKit `Artwork` for a fallback row whose thumbnail or artwork URL isn't `http(s)`/`file`, by content id. `libraryAlbums` fills it.
+- `ContentArtworkView` draws those with MusicKit's `ArtworkImage`, Apple's supported way to draw `musickit://` artwork, sized from a `GeometryReader` and kept square. Every other cover still goes through the Nuke pipeline (now `pipelineArtwork`).
+
+### Artist pictures round on the Mac
+`ContentArtworkView` made artists round by clipping to a corner radius of `preferredSize / 2`. `preferredSize` is the pixel budget, not the drawn size: `PlayableContentView` draws the default 50 at 70pt on Mac Catalyst, so artists in lists and search came out as rounded squares. Artists are now clipped to `Circle()`, whatever the frame.
+
+### Subsonic: TLS errors on an http address
+Signing in with a LAN address such as `192.168.5.166:4533` (tried as `http`, since IP addresses aren't tried over HTTPS first) could end in "Couldn't connect securely. If the server doesn't use HTTPS, start the address with http://", which the address already did. Plain HTTP only meets TLS when the request is sent on to HTTPS, by the server or something in front of it.
+
+- `message(forConnectionError:requestedURL:)` takes the address that was asked for. For an `http` one it says the address sends Cue on to HTTPS and names where (the `URLError`'s `failingURL`, scheme, host and port only), and suggests the address the certificate is for or turning the redirect off.
+- A failed ping or login check logs the address tried and the `URLError` code and failing address under `dance.cue` / `subsonic`, without the token in the query, so a device capture shows which way it went.
+
 ---
 
 ## 2026.7

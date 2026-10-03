@@ -225,6 +225,29 @@ final class SubsonicTests: XCTestCase {
         )
     }
 
+    /// "Start the address with http://" only helps an HTTPS address. A TLS
+    /// failure on an http one was sent on to HTTPS, and says where.
+    func testSecureConnectionMessageFitsTheAddressTried() {
+        XCTAssertEqual(
+            SubsonicAPI.message(
+                forConnectionError: URLError(.secureConnectionFailed),
+                requestedURL: URL(string: "https://music.example.com/rest/ping")
+            ),
+            "Couldn't connect securely. If the server doesn't use HTTPS, start the address with http://."
+        )
+        let redirected = URLError(
+            .serverCertificateUntrusted,
+            userInfo: [NSURLErrorFailingURLErrorKey: URL(string: "https://192.168.1.20:4533/rest/ping?t=secret")!]
+        )
+        XCTAssertEqual(
+            SubsonicAPI.message(
+                forConnectionError: redirected,
+                requestedURL: URL(string: "http://192.168.1.20:4533/rest/ping")
+            ),
+            "This address sends Cue on to https://192.168.1.20:4533, and Cue can't trust that server's certificate. Use the address its certificate is for, or turn off the server's redirect to HTTPS."
+        )
+    }
+
     func testCoverArtURLScalesAndNilsOutForMissingID() {
         storeCredentials()
         XCTAssertNil(SubsonicAPI.coverArtURL(for: nil))

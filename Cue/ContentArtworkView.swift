@@ -114,6 +114,31 @@ struct ContentArtworkView: View {
 
     /// The image itself, clipped: what gets dragged.
     private var artwork: some View {
+        Group {
+            if let musicKitArtwork = MusicKitLibraryArtwork.artwork(for: content.content.id, replacing: artworkURL) {
+                // `ArtworkImage` draws at the size it's given, so it reads
+                // the space the row or tile offers, and stays square in it
+                // as the pipeline's image does.
+                GeometryReader { proxy in
+                    let side = min(proxy.size.width, proxy.size.height)
+                    if side > 0 {
+                        ArtworkImage(musicKitArtwork, width: side, height: side)
+                            .frame(width: proxy.size.width, height: proxy.size.height)
+                    }
+                }
+            } else {
+                pipelineArtwork
+            }
+        }
+        // A real circle, not a radius of half `preferredSize`: that's the
+        // pixel budget, not the drawn size, and a row on the Mac draws a 50
+        // budget at 70pt, which left artists as rounded squares.
+        .clipShape(isCircular ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: cornerRadius)))
+    }
+
+    /// The cover through the image pipeline: anything with an `http(s)` or
+    /// file URL.
+    private var pipelineArtwork: some View {
         LazyImage(request: artworkRequest) { state in
             if let image = state.image {
                 image
@@ -151,7 +176,6 @@ struct ContentArtworkView: View {
                 .foregroundStyle(.ultraThinMaterial)
         }
 #endif
-        .clipShape(.rect(cornerRadius: isCircular ? preferredSize / 2 : cornerRadius))
     }
 }
 

@@ -29,6 +29,9 @@
 - One speaker button on the player: the Play On button now carries the grouping menu too — with a speaker chosen, tap it to check the rooms you want playing together, uncheck one to drop it, or pick Everywhere or Ungroup All — so the second speaker button beside it is gone, and the menu no longer lists the current room's name twice
 - Improved Plex sign-in: it opens in Safari, so a saved password fills in, Sign in with Apple or Google works, and if you're already signed in to Plex in Safari you only approve Cue. The button shows when it's working, says what went wrong if Plex can't be reached, and offers Open in Browser Instead. Signing in again no longer adds another Cue to your Plex account's devices
 - Improved Subsonic setup: type just your server's name, like music.example.com, and Cue connects over HTTPS when the server has it. Errors now say what to fix — a wrong password, a server that can't be found, Local Network access, or an address that isn't a Subsonic server
+- Fixed Apple Music album covers missing from your library's Albums on Mac — most albums showed a music note in place of their artwork
+- Fixed artist pictures on Mac showing as rounded squares instead of circles
+- Clearer Subsonic sign-in error when your server sends Cue on to HTTPS with a certificate it can't trust: Cue now says where it was sent, rather than asking you to start the address with http:// when it already did
 
 # 2026.7
 

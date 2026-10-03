@@ -30,6 +30,7 @@ public final class SubsonicAPI: DirectStreamProvider {
 
     private let session: URLSession
     private let decoder = JSONDecoder()
+    private static let logger = Logger(subsystem: "dance.cue", category: "subsonic")
 
     /// The server address as the user typed it (e.g. "navidrome.local:4533"
     /// or "https://music.example.com"). A missing scheme defaults to `http`,
@@ -156,8 +157,22 @@ public final class SubsonicAPI: DirectStreamProvider {
             if body.isOK { return (.success, true) }
             return (.failure(Self.message(forServerError: body.error)), true)
         } catch {
-            return (.failure(Self.message(forConnectionError: error)), false)
+            Self.logger.error("Ping at \(Self.origin(of: url), privacy: .public) failed: \(Self.describe(error), privacy: .public)")
+            return (.failure(Self.message(forConnectionError: error, requestedURL: url)), false)
         }
+    }
+
+    /// Scheme, host and port: enough to tell which address failed, without
+    /// the login token in the query.
+    private static func origin(of url: URL?) -> String {
+        guard let url, let host = url.host else { return "unknown address" }
+        let port = url.port.map { ":\($0)" } ?? ""
+        return "\(url.scheme ?? "?")://\(host)\(port)"
+    }
+
+    private static func describe(_ error: Error) -> String {
+        guard let urlError = error as? URLError else { return String(describing: error) }
+        return "URLError \(urlError.code.rawValue) at \(origin(of: urlError.failingURL))"
     }
 
     /// What to say about an error the server returned, for the codes the
@@ -174,7 +189,9 @@ public final class SubsonicAPI: DirectStreamProvider {
     }
 
     /// What to say when the server couldn't be reached at all.
-    static func message(forConnectionError error: Error) -> String {
+    /// `requestedURL` is the address that was asked for, which tells a TLS
+    /// failure on an HTTPS address from one on a plain HTTP address.
+    static func message(forConnectionError error: Error, requestedURL: URL? = nil) -> String {
         guard let urlError = error as? URLError else { return error.localizedDescription }
         switch urlError.code {
         case .cannotFindHost, .dnsLookupFailed:
@@ -189,6 +206,13 @@ public final class SubsonicAPI: DirectStreamProvider {
              .serverCertificateHasBadDate,
              .serverCertificateNotYetValid,
              .serverCertificateHasUnknownRoot:
+            // Plain HTTP only meets TLS when the request is sent on to HTTPS,
+            // so "start the address with http://" can't help there. Name
+            // where it went: the address its certificate is for is the fix.
+            if requestedURL?.scheme?.lowercased() == "http" {
+                let target = urlError.failingURL.flatMap { $0.scheme?.lowercased() == "https" ? origin(of: $0) : nil } ?? "HTTPS"
+                return "This address sends Cue on to \(target), and Cue can't trust that server's certificate. Use the address its certificate is for, or turn off the server's redirect to HTTPS."
+            }
             return "Couldn't connect securely. If the server doesn't use HTTPS, start the address with http://."
         default:
             return urlError.localizedDescription
