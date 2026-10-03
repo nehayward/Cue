@@ -38,6 +38,8 @@ public final class LiveActivityFavoriteStore: @unchecked Sendable {
     public func set(_ isFavorite: Bool, for trackID: String) {
         lock.lock()
         defer { lock.unlock() }
+        // Unchanged: no write, and no update for every view reading this.
+        guard favorites[trackID] != isFavorite else { return }
         if favorites.count > 500 { favorites.removeAll() }
         favorites[trackID] = isFavorite
         defaults?.set(favorites, forKey: key)
