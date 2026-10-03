@@ -1,5 +1,5 @@
 import { appStoreUrl, site } from '../config.js';
-import { faq, features, handoff, hero, screens, services, spotlights } from '../content/home.js';
+import { beyondPhone, faq, features, handoff, hero, screens, services, spotlights } from '../content/home.js';
 import { brandMarks } from '../lib/brand-marks.js';
 import { html, icon, inline, raw } from '../lib/html.js';
 import { downloadButton, iphone, page } from '../lib/layout.js';
@@ -10,7 +10,7 @@ const structuredData = {
 	'@type': 'SoftwareApplication',
 	name: site.name,
 	description: site.description,
-	operatingSystem: 'iOS',
+	operatingSystem: 'iOS, watchOS',
 	applicationCategory: 'MultimediaApplication',
 	url: site.origin,
 	image: `${site.origin}/icon-512.png`,
@@ -88,6 +88,24 @@ const body = html`
 				<div class="spotlight-visual reveal" style="--glow: url('/${s.screen.file}')">${iphone(s.screen)}</div>
 			</section>`,
 	)}
+
+	<section class="section container" id="carplay-watch">
+		<div class="section-head reveal">
+			<h2>${beyondPhone.title}</h2>
+			<p>${beyondPhone.lede}</p>
+		</div>
+		<div class="platforms">
+			${beyondPhone.list.map(
+				(p) => html`
+					<article class="platform reveal">
+						<span class="card-icon">${icon(p.icon)}</span>
+						<h3>${p.name}</h3>
+						<p>${p.body}</p>
+						<ul>${p.points.map((point) => html`<li>${icon('check')}${point}</li>`)}</ul>
+					</article>`,
+			)}
+		</div>
+	</section>
 
 	<section class="section container" id="features">
 		<div class="section-head reveal">

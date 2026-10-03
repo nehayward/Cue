@@ -4,7 +4,7 @@
 // *italic* and [links](…); a line starting with "1. " or "- " starts a list.
 
 export const requirements = [
-	{ title: 'Device', body: 'iPhone.' },
+	{ title: 'Device', body: 'iPhone. Cue also works with CarPlay, and has an Apple Watch app for watchOS 10 or later.' },
 	{ title: 'Music', body: 'Apple Music, Plex, a Subsonic server, TuneIn, or your own files.' },
 	{ title: 'Sonos (optional)', body: 'Any S1 or S2 system, on the same network as your device.' },
 	{ title: 'Apple Music', body: 'Playing the Apple Music catalog needs an Apple Music subscription.' },
@@ -48,6 +48,26 @@ export const sections = [
 				id: 'households',
 				q: 'I have more than one Sonos system.',
 				a: 'Cue remembers every system it has connected to, S1 and S2 alike. Switch between them under **Settings ▸ Sonos ▸ Households**.',
+			},
+		],
+	},
+	{
+		title: 'CarPlay & Apple Watch',
+		items: [
+			{
+				id: 'carplay',
+				q: 'Does Cue work with CarPlay?',
+				a: 'Yes. Connect your iPhone to your car and open Cue on the car’s screen.\n- **Recents** — what you played last\n- **Library** — Apple Music, Plex, Subsonic and your files, starting with your playlists\n- **Downloads** — what’s on your iPhone, ready with no signal\n- **Radio** — local and trending TuneIn stations, and Apple Music radio\n\nNow Playing has Up Next, shuffle and repeat. In the car, music always plays from your iPhone, never on Sonos.',
+			},
+			{
+				id: 'apple-watch',
+				q: 'How do I put music on my Apple Watch?',
+				a: 'Cue on Apple Watch plays Plex and Subsonic songs downloaded to the watch, so you can leave your iPhone at home. Sign in to Plex or Subsonic in Cue on your iPhone first; the watch uses the same sign-ins.\n- **On your iPhone**, choose **Add to Apple Watch** from an album, playlist, artist or song’s menu.\n- **On your watch**, browse or search your library in Cue and add it there.\n\nThe watch downloads the songs from your server itself. To see or remove what’s on it, open **Settings ▸ Storage ▸ Apple Watch** on your iPhone. If Cue isn’t on your watch yet, open the Watch app on your iPhone and install it under **Available Apps**.\n\nApple Music doesn’t let other apps play its music on Apple Watch, so it stays on your iPhone.',
+			},
+			{
+				id: 'watch-downloads',
+				q: 'Downloads to my watch are slow.',
+				a: 'While your watch is connected to your iPhone over Bluetooth, watchOS sends its downloads through the phone, which is slow.\n1. Open **Downloads ▸ Fast Download** in Cue on your watch.\n2. Turn off Bluetooth in your iPhone’s **Settings** app. Control Center leaves the watch connected, so it has to be Settings.\n3. Keep Cue open on your watch. It downloads over its own Wi-Fi, and tells you if it’s still going through your iPhone.\n\nIf you leave the app, the rest of the songs keep downloading in the background, more slowly.',
 			},
 		],
 	},

@@ -6,7 +6,7 @@ export const hero = {
 	eyebrow: 'Music player · Sonos controller',
 	title: 'Your music.\nHere, or everywhere.',
 	lede: 'Cue plays Apple Music, Plex, Subsonic, radio and your own files on your iPhone — then hands the same queue to any Sonos speaker with one tap.',
-	platforms: 'For iPhone',
+	platforms: 'For iPhone, Apple Watch and CarPlay',
 };
 
 // "One queue, two places" — the idea that makes Cue different.
@@ -59,6 +59,27 @@ export const spotlights = [
 	},
 ];
 
+// Cue beyond the phone: two cards between the spotlights and the feature grid.
+// Both play on the device, never on Sonos.
+export const beyondPhone = {
+	title: 'In the car. On your wrist.',
+	lede: 'The same player goes where you go, with no speaker needed.',
+	list: [
+		{
+			icon: 'car',
+			name: 'CarPlay',
+			body: 'Your libraries, downloads and radio stations on the car’s screen. In the car, Cue always plays from your iPhone.',
+			points: ['Recents, Library, Downloads and Radio', 'Up Next, shuffle and repeat in Now Playing', 'Downloads that play with no signal'],
+		},
+		{
+			icon: 'watch',
+			name: 'Apple Watch',
+			body: 'Put Plex and Subsonic music on your watch and leave your iPhone at home. Browse and search your server right from your wrist.',
+			points: ['Add to Apple Watch from any album, playlist or song', 'Plays from the watch, with no iPhone nearby', 'Siri, Shortcuts, widgets and double tap'],
+		},
+	],
+};
+
 export const features = [
 	{ icon: 'search', title: 'Universal Search', body: 'Search several services at once and get one ranked list that forgives typos.' },
 	{ icon: 'wifi-off', title: 'Offline Mode', body: 'Download from Plex and Subsonic and keep listening on a plane or in a tunnel.' },
@@ -110,6 +131,6 @@ export const faq = [
 	},
 	{
 		q: 'Which devices does Cue run on?',
-		a: 'Cue is for iPhone.',
+		a: 'Cue is for iPhone, and works with CarPlay. It also has an Apple Watch app that plays Plex and Subsonic music downloaded to the watch, with no iPhone needed.',
 	},
 ];
