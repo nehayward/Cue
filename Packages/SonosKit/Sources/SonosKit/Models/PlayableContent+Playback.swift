@@ -21,7 +21,7 @@ public extension PlayableContent {
     /// file's own (`audioCodec`) — for the extension a download or cached
     /// copy is saved under, so the player reads it as what it is.
     var playbackFileExtension: String? {
-        guard content.type == .track else { return metadata?.audioCodec?.trimmingCharacters(in: .whitespaces).lowercased() }
+        guard content.type == .track else { return metadata?.audioCodec.map(StreamTranscoding.fileExtension(forCodec:)) }
         return DeviceStream.fileExtension(service: content.service, audioCodec: metadata?.audioCodec)
     }
 
@@ -57,7 +57,7 @@ public enum DeviceStream {
 
     public static func fileExtension(service: MusicService, audioCodec: String?) -> String? {
         let original = audioCodec?.trimmingCharacters(in: .whitespaces).lowercased()
-        guard isTranscodable(service) else { return original }
+        guard isTranscodable(service) else { return original.map(StreamTranscoding.fileExtension(forCodec:)) }
         return StreamTranscoding.fileExtension(for: .device, original: original)
     }
 

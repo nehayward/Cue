@@ -242,6 +242,12 @@ public final class SonosService {
     /// the list on it. Kept so the next change or `clearDevices` can cancel
     /// a read still waiting on a speaker that doesn't answer.
     @ObservationIgnored private var roomStateTask: Task<Void, Never>?
+    /// When `load` last asked each coordinator (by address) for its sleep
+    /// timer.
+    @ObservationIgnored private var sleepTimerCheckedAt: [String: ContinuousClock.Instant] = [:]
+    /// How long `load` leaves a speaker that has no sleep timer before
+    /// asking again.
+    private static let sleepTimerRecheck: Duration = .seconds(15)
     @ObservationIgnored private var hasAppliedGroupsCache = false
     @ObservationIgnored private var cachedIPVerified = false
     @ObservationIgnored private var attemptedTrackInfoUniques = Set<String>()
@@ -586,13 +592,23 @@ public final class SonosService {
         // Refresh sleepTimer for every active coordinator (including the
         // selected group). Placed above the selectedGroup branch so the
         // scattered early returns below can't skip it — sleepTimer is
-        // nil-gated, so retries every load until a coordinator resolves.
+        // nil-gated, so retries until a coordinator resolves.
+        //
+        // A speaker with no timer answers nil too, which read as "not asked
+        // yet": every room without one was asked again on every load, about
+        // six requests a second for a home of five. A room that said it has
+        // none is asked again after `sleepTimerRecheck`; the player asks for
+        // its own group's as it opens (`getSleepTimer(group:)`).
+        let now = ContinuousClock.now
         await withTaskGroup(of: Void.self) { [weak self] taskGroup in
             guard let self = self else { return }
             for group in groups where group.coordinatorRoom.state == .active && group.coordinatorRoom.sleepTimer == nil {
+                let ip = group.coordinatorRoom.ip
+                if let checked = sleepTimerCheckedAt[ip], now - checked < Self.sleepTimerRecheck { continue }
+                sleepTimerCheckedAt[ip] = now
                 taskGroup.addTask { [weak self] in
                     guard let self = self else { return }
-                    if let timer = await self.api.getSleepTimer(IP: group.coordinatorRoom.ip) {
+                    if let timer = await self.api.getSleepTimer(IP: ip) {
                         group.coordinatorRoom.sleepTimer = timer
                     }
                 }

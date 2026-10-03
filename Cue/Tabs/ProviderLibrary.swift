@@ -354,7 +354,7 @@ struct ProviderLibrary {
                 sortKey: "files.songs",
                 refreshAction: { await files.scan() },
                 searchAction: { query, offset in
-                    offset == 0 ? files.search(query: query).filter { $0.content.type == .track } : []
+                    offset == 0 ? await files.searchInBackground(query: query).filter { $0.content.type == .track } : []
                 },
                 loadingStatus: {
                     if files.isScanning {

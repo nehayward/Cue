@@ -1136,6 +1136,21 @@ public final class FilesLibraryService {
     }
 
     public func search(query: String) -> [PlayableContent] {
+        Self.matching(query, in: [artists, albums, playlists, songs])
+    }
+
+    /// `search(query:)` off the main thread. It runs up to three
+    /// locale-aware comparisons for every song, album, artist and playlist
+    /// in the folder, which for a library of thousands held up typing; the
+    /// lists are values, so it searches a copy.
+    public func searchInBackground(query: String) async -> [PlayableContent] {
+        let lists = [artists, albums, playlists, songs]
+        return await Task.detached(priority: .userInitiated) {
+            Self.matching(query, in: lists)
+        }.value
+    }
+
+    nonisolated private static func matching(_ query: String, in lists: [[PlayableContent]]) -> [PlayableContent] {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return [] }
         func matches(_ content: PlayableContent) -> Bool {
@@ -1143,7 +1158,7 @@ public final class FilesLibraryService {
                 || content.subtitle.localizedStandardContains(query)
                 || (content.metadata?.album?.localizedStandardContains(query) ?? false)
         }
-        return artists.filter(matches) + albums.filter(matches) + playlists.filter(matches) + songs.filter(matches)
+        return lists.flatMap { $0.filter(matches) }
     }
 
     // MARK: - Playlist editing

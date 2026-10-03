@@ -470,8 +470,7 @@ struct ArtistDetailView: View {
             do {
                 alertService.showAlertContent(with: radioContent, subtitle: "Radio")
                 try await sonosService.startRadio(content: radioContent, group: group)
-                playHistoryService.history.remove(radioContent)
-                playHistoryService.history.insert(radioContent, at: 0)
+                playHistoryService.record(radioContent)
             } catch {
                 alertService.showAlert(
                     with: "Please authorize \(artistContent.content.service.title) in Sonos",

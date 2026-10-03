@@ -13,16 +13,32 @@ struct OfflineSearchView: View {
     @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
 
+    /// The last search's answer, and the query it was for.
+    @State private var results: (artists: [OnDeviceLibrary.Group], albums: [OnDeviceLibrary.Group], songs: [PlayableContent]) = ([], [], [])
+    @State private var searchedQuery = ""
+
+    private struct SearchKey: Equatable {
+        let query: String
+        let changeToken: Int
+    }
+
     var body: some View {
-        // Read here so a download finishing or an index rebuilding re-runs
-        // the search; the library itself is static.
-        let _ = downloads.completed.count
-        let _ = apple.version
-        let _ = files.indexVersion
-        let results = OnDeviceLibrary.search(query)
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
 
         statusRow
+            // Searched here rather than in the body: the body runs again on
+            // every keystroke and every tick of a download's progress, and
+            // each run rebuilt and sorted the whole on-device library. This
+            // runs once the typing settles, and again when the songs here
+            // change — a download finishing, an index rebuilding.
+            .task(id: SearchKey(query: trimmed, changeToken: OnDeviceLibrary.changeToken)) {
+                if !trimmed.isEmpty, !searchedQuery.isEmpty {
+                    try? await Task.sleep(for: .milliseconds(150))
+                    guard !Task.isCancelled else { return }
+                }
+                results = OnDeviceLibrary.search(trimmed)
+                searchedQuery = trimmed
+            }
 
         if trimmed.isEmpty {
             if OnDeviceLibrary.isEmpty {
@@ -30,7 +46,7 @@ struct OfflineSearchView: View {
             } else {
                 librarySection
             }
-        } else if results.artists.isEmpty, results.albums.isEmpty, results.songs.isEmpty {
+        } else if searchedQuery == trimmed, results.artists.isEmpty, results.albums.isEmpty, results.songs.isEmpty {
             ContentUnavailableView.search(text: trimmed)
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
