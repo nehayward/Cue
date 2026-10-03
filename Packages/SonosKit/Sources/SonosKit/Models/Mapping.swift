@@ -1,6 +1,7 @@
 import Foundation
 import MusicKit
 import MusicSearchKit
+import os
 
 extension Int {
     /// "1 song" / "12 songs" for album row subtitles — the standard-vs-deluxe
@@ -8,11 +9,22 @@ extension Int {
     /// (and any future localization) comes from the inflection engine. Nil
     /// for zero counts (a zero means the service didn't report one), so
     /// callers drop the component instead of rendering "0 songs".
+    ///
+    /// Each count is inflected once: the inflection engine takes about half
+    /// a millisecond a call, and a page of 50 albums paid it 50 times on the
+    /// main thread, mostly for the same few counts.
     var songCountLabel: String? {
         guard self > 0 else { return nil }
-        return String(AttributedString(localized: "^[\(self) song](inflect: true)").characters)
+        if let label = songCountLabels.withLock({ $0[self] }) { return label }
+        let label = String(AttributedString(localized: "^[\(self) song](inflect: true)").characters)
+        songCountLabels.withLock { $0[self] = label }
+        return label
     }
 }
+
+/// `songCountLabel`'s answers, by count. Mapping runs on and off the main
+/// thread, hence the lock.
+private let songCountLabels = OSAllocatedUnfairLock(initialState: [Int: String]())
 
 extension PlayableContent {
     public var toRadio: PlayableContent {
