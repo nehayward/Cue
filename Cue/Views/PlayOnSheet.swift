@@ -283,9 +283,12 @@ struct PlayOnSheet: View {
 
     /// Every room in the group at once: Mute All / Unmute All, then the
     /// group's volume as a row like the rooms', which moves them all and
-    /// keeps the balance between them.
+    /// keeps the balance between them, then Sync, which levels them.
     private func allSpeakersRow(_ group: GroupRoom) -> some View {
         let isMuted = group.isMuted || group.rooms.allSatisfy(\.isMuted)
+        let isFixed = group.coordinatorRoom.isOutputFixed
+        let level = Int(group.groupVolume.rounded())
+        let isLevel = group.rooms.allSatisfy { Int($0.volume.rounded()) == level }
         return HStack(spacing: 10) {
             Button {
                 setAllMuted(!isMuted, in: group)
@@ -307,12 +310,28 @@ struct PlayOnSheet: View {
                 symbol: "hifispeaker.2.fill",
                 mark: .empty,
                 // A fixed-output coordinator ignores volume: nothing to drag.
-                level: group.coordinatorRoom.isOutputFixed ? nil : group.groupVolume / 100,
+                level: isFixed ? nil : group.groupVolume / 100,
                 isMuted: isMuted,
                 listIsSettled: listIsSettled,
                 onLevel: { volumes.set(group, to: $0 * 100) },
                 onAdjusting: { setAdjusting(Self.allSpeakersRowID, $0) }
             )
+
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                volumes.sync(group)
+            } label: {
+                Image(systemName: "equal")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
+            .glassButton()
+            // Nothing to level when every room is already there.
+            .disabled(isFixed || isLevel)
+            .accessibilityLabel("Sync Volumes")
+            .accessibilityHint("Sets every room to \(level) percent")
         }
     }
 
@@ -796,7 +815,7 @@ final class SpeakerVolumeWriter {
     /// `volume` is 0...100. A level the room already has does nothing: a
     /// drag reports the same level many times over, and the hold only
     /// starts with something to send.
-    func set(_ room: Room, to volume: Double) {
+    func set(_ room: Room, to volume: Double, unmuting: Bool = true) {
         let level = Self.level(volume)
         guard room.volume != level else { return }
         if !room.isEditingVolume {
@@ -805,7 +824,7 @@ final class SpeakerVolumeWriter {
         let ip = room.ip
         // Turning a muted room up means hearing it, as the other volume
         // sliders do.
-        if room.isMuted {
+        if unmuting, room.isMuted {
             room.isMuted = false
             Task { await SonosService.shared.setRoomMute(IP: ip, mute: false) }
         }
@@ -848,6 +867,18 @@ final class SpeakerVolumeWriter {
             guard let group else { return }
             group.isEditingVolume = false
             await SonosService.shared.updateRoomVolumes(for: group)
+        }
+    }
+
+    /// Sets every room in the group to the group's level — Sonos's group
+    /// volume is the rooms' average, so the group sounds about as loud
+    /// afterwards, only evenly. Mutes are left as they are: it's a level,
+    /// not a turn up. The same path as a drag, so each room holds its new
+    /// level against the poll and the group's snapshot is taken again.
+    func sync(_ group: GroupRoom) {
+        let level = group.groupVolume
+        for room in group.rooms {
+            set(room, to: level, unmuting: false)
         }
     }
 
