@@ -2,6 +2,14 @@
 
 On 2026-10-02 Cue got a performance pass on `claude/apple-queue-perf` (nehayward/Cue#3). Clic shares much of the same code. This note lists which commits help Clic and which don't.
 
+**Status: ported.** Everything in sections 1 and 2 (except the optional `1a9dba81`) is on Clic's branch `claude/cue-perf-port`, pushed and unmerged. It builds for the simulator and runs against the real speakers there. It hasn't been tried on a phone yet.
+
+Four later Cue commits went over as well, since they're in the shared packages:
+- `c52e61d2`: each album's "12 songs" label is worked out once.
+- `4ab6b7b3`: Subsonic links are signed from a sign-in read once.
+- `3275f499`: a speaker with no sleep timer is asked again every 15 s, not every poll. In idle Clic the time spent asking fell from 93 profile samples in 30 s to 6.
+- `c80026c6` + `d95c0780`: speaker responses are unescaped in one pass.
+
 **Checked against:** Clic `main` at `531c6b7d` (the checkout in iCloud `Active/Clic`). About half of the pass is about Cue playing on the device itself, which Clic doesn't do, so that part is skipped.
 
 **How to bring a commit over:** rename the app folder in the patch, then apply it.
