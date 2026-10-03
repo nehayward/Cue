@@ -83,9 +83,10 @@ final class CarPlayInterface: NSObject {
         // The car's Now Playing reads this app's own card; Apple Music needs
         // one there too (see `publishesAppleMusicCard`).
         LocalPlaybackService.shared.publishesAppleMusicCard = true
+        // No `upNextTitle`: with one the queue button is that word, and
+        // without it the car draws its own queue icon, as for Apple Music.
         let nowPlaying = CPNowPlayingTemplate.shared
         nowPlaying.add(self)
-        nowPlaying.upNextTitle = "Up Next"
 
         guard FeatureGate.shared.isAvailable(.carPlay) else {
             showUnavailable()
@@ -612,22 +613,29 @@ final class CarPlayInterface: NSObject {
         let player = LocalPlaybackService.shared
         let onDevice = PlaybackRoute.shared.destination == .device && player.isActive
         let nowPlaying = CPNowPlayingTemplate.shared
-        nowPlaying.isUpNextButtonEnabled = onDevice && !player.upNext.isEmpty
+        // Up whenever there's a queue of songs, on its last song too, as
+        // the Music app's is. A station alone has no queue to show.
+        nowPlaying.isUpNextButtonEnabled = onDevice && (!player.isPlayingStation || !player.upNext.isEmpty)
         nowPlaying.isAlbumArtistButtonEnabled = onDevice && player.source.map { player.canPlayContainerLocally($0) } == true
 
         var buttons: [CPNowPlayingButton] = []
         if onDevice, !player.isPlayingStation {
+            // A tap reaches these handlers only while the matching remote
+            // commands are enabled, which `LocalNowPlayingPresenter` sees
+            // to. Each moves on from the state the car shows (the
+            // commands' current type) rather than flipping the player's,
+            // so a tap that also arrives as the command can't undo itself.
             let shuffle = CPNowPlayingShuffleButton { _ in
                 MainActor.assumeIsolated {
-                    let player = LocalPlaybackService.shared
-                    player.setShuffle(!player.isShuffled)
+                    let shown = MPRemoteCommandCenter.shared().changeShuffleModeCommand.currentShuffleType
+                    LocalPlaybackService.shared.setShuffle(shown == .off)
                 }
             }
             shuffle.isSelected = player.isShuffled
             let repeatButton = CPNowPlayingRepeatButton { _ in
                 MainActor.assumeIsolated {
-                    let player = LocalPlaybackService.shared
-                    player.setRepeatMode(player.repeatMode.next)
+                    let shown = MPRemoteCommandCenter.shared().changeRepeatModeCommand.currentRepeatType
+                    LocalPlaybackService.shared.setRepeatMode(LocalPlaybackService.RepeatMode(shown).next)
                 }
             }
             repeatButton.isSelected = player.repeatMode != .off
@@ -636,11 +644,7 @@ final class CarPlayInterface: NSObject {
             // What the two buttons draw their state from.
             let commands = MPRemoteCommandCenter.shared()
             commands.changeShuffleModeCommand.currentShuffleType = player.isShuffled ? .items : .off
-            commands.changeRepeatModeCommand.currentRepeatType = switch player.repeatMode {
-            case .off: .off
-            case .all: .all
-            case .one: .one
-            }
+            commands.changeRepeatModeCommand.currentRepeatType = player.repeatMode.repeatType
         }
         nowPlaying.updateNowPlayingButtons(buttons)
     }
