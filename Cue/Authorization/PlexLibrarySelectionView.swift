@@ -174,9 +174,6 @@ struct PlexLibrarySelectionView: View {
                             }
                         }
                     }
-                    if UIApplication.shared.isRunningInTestFlightEnvironment() {
-                        LoggerView()
-                    }
                 }
             }
         } else {

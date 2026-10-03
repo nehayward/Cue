@@ -1160,7 +1160,7 @@ public final class MusicSearchService {
             let response = try await catalogResource.response()
             return response.items.first
         } catch {
-            print(error)
+            CueLog("apple").error("\(#function): \(error)")
         }
         
         return nil

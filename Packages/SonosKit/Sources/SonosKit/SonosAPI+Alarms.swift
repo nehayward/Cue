@@ -1,4 +1,5 @@
 import Foundation
+import MusicSearchKit
 
 extension SonosAPI {
     func editAlarm(IP: String, alarm: Alarm, content: PlayableContent?) async {
@@ -29,7 +30,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -55,7 +56,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -68,7 +69,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -96,7 +97,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -114,7 +115,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
             return nil
         }
 

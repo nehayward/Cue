@@ -1,7 +1,7 @@
 import Defaults
 import Foundation
+import MusicSearchKit
 import Observation
-import OSLog
 import SonosKit
 import SwiftUI
 
@@ -30,7 +30,7 @@ final class PlaybackRoute {
     static let shared = PlaybackRoute()
 
     /// `log stream --predicate 'subsystem == "dance.cue" AND category == "route"' --level debug`
-    private static let log = Logger(subsystem: "dance.cue", category: "route")
+    private static let log = CueLog("route")
 
     /// The stored destination, mirrored so views can observe it.
     private(set) var destination: PlayDestination
@@ -342,7 +342,7 @@ final class PlaybackRoute {
         // moved on from it by however long has passed since.
         let snapshotAt = ContinuousClock.now
         func step(_ what: String) {
-            print("[handoff] \(Int(Self.seconds(ContinuousClock.now - began) * 1000))ms \(what)")
+            Self.log.info("hand-off \(Int(Self.seconds(ContinuousClock.now - began) * 1000))ms: \(what)")
         }
         step("snapshot at \(String(format: "%.1f", snapshot.position))s, playing: \(snapshot.isPlaying)")
 
@@ -497,7 +497,7 @@ final class PlaybackRoute {
         }
         let total = Int(Self.seconds(ContinuousClock.now - began) * 1000)
         let startupText = startup.map { "\(Int($0 * 1000))ms" } ?? "-"
-        print("[handoff] → \(target.nameWithCount): started in \(total)ms (\(path)), play→playing \(startupText), estimate was \(Int(estimate * 1000))ms")
+        Self.log.notice("hand-off → \(target.nameWithCount): started in \(total)ms (\(path)), play→playing \(startupText), estimate was \(Int(estimate * 1000))ms")
 
         AlertService.shared.showAlertContent(
             with: first,

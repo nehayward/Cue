@@ -34,6 +34,7 @@ These rules apply to every session on the Mac (started with `Scripts/claude-remo
 - To check runtime behaviour, deploy with `Scripts/deploy-to-iphone.sh --logs [seconds]` (default 30), or relaunch without rebuilding with `Scripts/iphone-logs.sh [seconds]`. Ask the user to reproduce on the phone while it captures. It shows the last 200 lines; the full capture is in `build/device-console.log`. Set `CUE_LOG_FILTER=<text>` to see only matching lines. `print` and `Logger` output both appear.
 - When the user says the app crashed, run `Scripts/iphone-crashes.sh` (`--count N` for more) before reading code. It pulls Cue's newest crash report into `build/crashes` and prints the exception, the crash message and the crashed thread with Cue's frames symbolicated. If it says the phone's build doesn't match the local one, deploy again and ask the user to reproduce the crash.
 - For crashes in an extension, pass `--process Widgets` (or the extension's executable name).
+- To read what happened across earlier launches (or a crash) without reproducing it, run `Scripts/iphone-logfile.sh [lines]`. It copies Cue's own log files (every `CueLog` line, kept a week) into `build/device-logfile.log`; `CUE_LOG_FILTER` works here too.
 
 ## Build & Development Commands
 
@@ -67,6 +68,7 @@ The app is built around several Swift packages in `/Packages`:
 
 2. **MusicSearchKit** - Music service integrations (also linked into the watch app, which browses Plex and Subsonic with it). A dynamic framework: the iOS app gets it embedded through SonosKit, but the watch links it directly, so its target embeds it in its own Embed Frameworks phase
    - Apple Music, Spotify, Plex, Tidal, TuneIn, SoundCloud APIs
+   - `CueLog` and `LogStore`, Cue's logging (here because this is the one framework every process links once)
    - Authentication services for each platform
    - Search result parsing and models
 
@@ -127,6 +129,7 @@ The app is built around several Swift packages in `/Packages`:
 - **CloudStorage** for synced user preferences
 - **AppStorage** for local device settings
 - **Playback progress** is a running clock, not a ticking number: `Room.estimatedPlaybackPosition()` for a speaker, `LocalPlaybackService.progress` for this device. Draw it through VibesDS's `PlaybackTimeline` (redraws once per pixel, only while visible and playing), report positions through `Room.updatePlaybackPosition(_:)` / `noteProgress(_:)` rather than writing them, and move a speaker's position only through `SonosService.seek` / `next` / `previous`, which hold the bar until the speaker lands. Skips are instant and coalesced (`SonosService+TrackSkip.swift`). See `Docs/PlaybackProgress.md`
+- **Logging**: `CueLog("category")` (MusicSearchKit), never `print`. Each line goes to the system log (`dance.cue` subsystem) and to a week of log files on the device that Settings ▸ About ▸ Report a Problem emails to support. Interpolation is `os.Logger`'s; values are public by default and credentials are redacted. `debug` is only recorded in Debug builds or while Detailed Logging is on. See `Docs/Logging.md`
 - **Mac GPU cost**: on the Mac an animated SF Symbol swap or pulse, a `MeshGradient` whose colours change, or an animated swap of the whole player costs ~90 MB of GPU memory for ~2 s each time, so those are off there (`GroupMediaControlsView.animatesPlayPause`, `PlaybackIconView`, `VibeGaugeView`) and the player backdrop is a small CPU-drawn bitmap (`ArtworkMeshBackground`)
 
 ### Music Service Integration

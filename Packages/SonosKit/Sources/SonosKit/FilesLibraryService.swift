@@ -2,8 +2,8 @@ import AVFoundation
 import CryptoKit
 import Defaults
 import Foundation
+import MusicSearchKit
 import Observation
-import OSLog
 import SwiftUI
 
 /// One audio file in the picked folder, as read from its tags — or, where
@@ -274,7 +274,7 @@ public final class FilesLibraryService {
 
     // MARK: - Folder
 
-    private static let log = Logger(subsystem: "dance.cue", category: "files")
+    private static let log = CueLog("files")
 
     /// Keeps the picked folder. `url` is the security-scoped URL a document
     /// picker hands over; the bookmark is what survives a relaunch.

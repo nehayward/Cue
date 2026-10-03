@@ -1,5 +1,6 @@
 import CloudStorage
 import Foundation
+import MusicSearchKit
 import Network
 import os
 
@@ -160,8 +161,7 @@ final class SonosSystemDiscoverService {
     @ObservationIgnored private var api = SonosAPI()
     @ObservationIgnored private var browser: NWBrowser?
     @ObservationIgnored private let sonosBonjourServiceType = "_sonos._tcp"
-    @ObservationIgnored private var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
-                                        category: String(describing: SonosSystemDiscoverService.self))
+    @ObservationIgnored private let logger = CueLog("discovery")
     @ObservationIgnored private let cellularMonitor = NWPathMonitor()
     @ObservationIgnored private var cellularUpdateTask: Task<Void, Never>?
 
@@ -463,7 +463,7 @@ final class SonosSystemDiscoverService {
 
                     if let preferred = preferredHouseHold {
                         if householdID == preferred {
-                            logger.trace("Found preferred household: \(householdID) at IP: \(resultIP)")
+                            logger.notice("Found preferred household: \(householdID) at IP: \(resultIP)")
                             recordHousehold(id: householdID, ip: resultIP)
                             taskGroup.cancelAll()
                             return resultIP
@@ -471,7 +471,7 @@ final class SonosSystemDiscoverService {
                         if preferredFallback == nil { preferredFallback = (resultIP, householdID) }
                     } else {
                         // No preference set — adopt the first device found.
-                        logger.trace("No preferred household, using first found: \(householdID) at IP: \(resultIP)")
+                        logger.notice("No preferred household, using first found: \(householdID) at IP: \(resultIP)")
                         preferredHouseHold = householdID
                         recordHousehold(id: householdID, ip: resultIP)
                         taskGroup.cancelAll()
@@ -510,7 +510,7 @@ final class SonosSystemDiscoverService {
 
             // Use the preferred household's IP if we found it.
             if let (ip, id) = preferredFallback {
-                logger.trace("Returning preferred-household fallback IP: \(ip)")
+                logger.notice("Returning preferred-household fallback IP: \(ip)")
                 recordHousehold(id: id, ip: ip)
                 return ip
             }
@@ -520,7 +520,7 @@ final class SonosSystemDiscoverService {
             // Sonos system is available and update the preference so future
             // launches are fast again.
             if let (ip, id) = anyFallback {
-                logger.trace("Preferred household not found; widening to \(id) at \(ip)")
+                logger.notice("Preferred household not found; widening to \(id) at \(ip)")
                 preferredHouseHold = id
                 recordHousehold(id: id, ip: ip)
                 return ip
@@ -695,7 +695,7 @@ final class SonosSystemDiscoverService {
                         self.lock.withLock {
                             self.allIPs.insert(ip)
                         }
-                        self.logger.trace("Discovered Sonos IP: \(ip)")
+                        self.logger.debug("Discovered Sonos IP: \(ip)")
                     }
                 case .failed, .cancelled:
                     // Clean up failed connections
@@ -721,14 +721,14 @@ final class SonosSystemDiscoverService {
 
         switch newState {
         case .ready:
-            logger.trace("Browser ready. Starting browsing...")
+            logger.debug("Browser ready. Starting browsing...")
         case let .failed(error):
-            logger.trace("Browser failed with error: \(error)")
+            logger.error("Browser failed with error: \(error)")
             // Don't auto-restart - let the caller handle retry logic
         case let .waiting(error):
-            logger.trace("Browser waiting: \(error)")
+            logger.warning("Browser waiting: \(error)")
             if let description = error.errorUserInfo["NSDescription"] as? String, description == "PolicyDenied" {
-                logger.trace("Browser permission denied")
+                logger.error("Browser permission denied (Local Network)")
                 permissionsDenied = true
             }
         case .cancelled:
@@ -745,7 +745,7 @@ final class SonosSystemDiscoverService {
         // Convert the MAC address to data
         let macData = macAddress.split(separator: ":").compactMap { UInt8($0, radix: 16) }
         guard macData.count == 6 else {
-            print("Invalid MAC address")
+            logger.warning("Wake: invalid MAC address")
             return
         }
 
@@ -762,9 +762,9 @@ final class SonosSystemDiscoverService {
         connection.start(queue: .global())
         connection.send(content: packet, completion: .contentProcessed { error in
             if let error = error {
-                print("Failed to send magic packet: \(error)")
+                self.logger.error("Wake: failed to send magic packet: \(error)")
             } else {
-                print("Magic packet sent successfully")
+                self.logger.info("Wake: magic packet sent")
             }
             connection.cancel()
         })

@@ -2,8 +2,8 @@
 import CarPlay
 import Defaults
 import Foundation
+import MusicSearchKit
 import Nuke
-import OSLog
 import SonosKit
 import UIKit
 
@@ -16,7 +16,7 @@ import UIKit
 @MainActor
 enum CarPlayPlayback {
     /// `log stream --predicate 'subsystem == "dance.cue" AND category == "carplay"' --level debug`
-    private static let log = Logger(subsystem: "dance.cue", category: "carplay")
+    private static let log = CueLog("carplay")
 
     /// Plays `contents` from the top, containers expanded in place.
     static func play(_ contents: [PlayableContent], shuffle: Bool = false) async throws {

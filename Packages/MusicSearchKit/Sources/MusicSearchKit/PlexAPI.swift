@@ -1,6 +1,5 @@
 import Foundation
 import os
-import SwiftyBeaver
 
 @Observable
 public final class PlexAPI {
@@ -8,7 +7,7 @@ public final class PlexAPI {
     @ObservationIgnored private let session: URLSession
     @ObservationIgnored private let decoder: JSONDecoder
     @ObservationIgnored private let parser = PlexParser()
-    @ObservationIgnored private let logger = SwiftyBeaver.self
+    @ObservationIgnored private let logger = CueLog("plex")
 
     // MARK: - Connection cache
     // `plexServer`, `resolvedBaseURL`, and `resolvedBaseURLByServer` are read
@@ -125,21 +124,6 @@ public final class PlexAPI {
         self.decoder = decoder
         self.decoder.dateDecodingStrategy = .secondsSince1970
 
-        // Optimize logging configuration
-        let console = ConsoleDestination()
-        console.format = "$C$L$c $M" // Simplified format for console
-        
-        let file = FileDestination()
-        file.format = "$J"
-        file.logFileMaxSize = (1 * 1024 * 1024)
-        file.asynchronously = true // Async logging to avoid blocking
-        
-        // Only add destinations in debug builds to reduce overhead
-        #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.addDestination(console)
-        logger.addDestination(file)
-        #endif
-        
         self.librarySelectionID = UserDefaults.standard.string(forKey: "com.cue.plexServer.library")
         self.serverID = UserDefaults.standard.string(forKey: "com.cue.plexServer")
     }
@@ -318,13 +302,12 @@ public final class PlexAPI {
     public func search(for query: String, limit: Int = 50) async -> PlexResults? {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else {
-            logger.info("No server")
+            logger.warning("search: no Plex server signed in")
             return nil
         }
 
         guard var search = getBaseURL(for: plexServer)?.appending(path: "hubs/search") else {
-            logger.warning("Token: \(token)")
-            logger.warning("Plex invalid url \(plexServer.name)")
+            logger.warning("search: no address for \(plexServer.name)")
             return nil
         }
         
@@ -340,13 +323,13 @@ public final class PlexAPI {
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, _) = await loadData(for: request) else {
-            logger.warning("Search request failed \(String(describing: request.url?.absoluteString))")
+            logger.warning("search request failed: \(String(describing: request.url?.absoluteString))")
             return nil
         }
 
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
         let xml = String(decoding: data, as: UTF8.self)
-        logger.info("\(xml)")
+        logger.debug("\(xml)")
         #endif
         
         return parser.parseXML(xmlData: data, plexServer: plexServer, connectionPreference: connectionPreference, baseURL: getBaseURL(for: plexServer))
@@ -400,7 +383,7 @@ public final class PlexAPI {
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.info(plexServer)
+        logger.debug("\(plexServer)")
         #endif
 
         guard var playlistsURL = getBaseURL(for: plexServer)?.appending(path: "playlists") else { return [] }
@@ -450,7 +433,7 @@ public final class PlexAPI {
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.info(plexServer)
+        logger.debug("\(plexServer)")
         #endif
         
         // Get and cache music library section if needed
@@ -502,7 +485,7 @@ public final class PlexAPI {
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.info(plexServer)
+        logger.debug("\(plexServer)")
         #endif
         
         // Get and cache music library section if needed
@@ -552,7 +535,7 @@ public final class PlexAPI {
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.info(plexServer)
+        logger.debug("\(plexServer)")
         #endif
         
         // Get and cache music library section if needed
@@ -659,7 +642,7 @@ public final class PlexAPI {
                 .first { $0.type == "artist" }
             return musicSection?.key
         } catch {
-            logger.error(error)
+            logger.error("\(#function) failed: \(error)")
             return nil
         }
     }
@@ -746,20 +729,20 @@ public final class PlexAPI {
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.info(String(decoding: data, as: UTF8.self))
+        logger.debug("\(String(decoding: data, as: UTF8.self))")
         #endif
         
         do {
             let container = try decoder.decode(PlexContainer<PlexLibrarySectionContainer>.self, from: data)
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            logger.info(container)
+            logger.debug("\(container)")
             #endif
             let libraries = container.mediaContainer.Directory
                 .sorted(by: { $0.key < $1.key })
                 .filter { $0.type == "artist" }
             return libraries
         } catch {
-            logger.error(error)
+            logger.error("\(#function) failed: \(error)")
             return []
         }
     }
@@ -803,7 +786,7 @@ public final class PlexAPI {
             }
             return artists
         } catch {
-            logger.error(error)
+            logger.error("\(#function) failed: \(error)")
             return []
         }
     }
@@ -829,20 +812,20 @@ public final class PlexAPI {
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.info(String(decoding: data, as: UTF8.self))
+        logger.debug("\(String(decoding: data, as: UTF8.self))")
         #endif
         
         do {
             let container = try decoder.decode(PlexContainer<PlexLibrarySectionContainer>.self, from: data)
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            logger.info(container)
+            logger.debug("\(container)")
             #endif
             let libraries = container.mediaContainer.Directory
                 .sorted(by: { $0.key < $1.key })
                 .filter { $0.type == "artist" }
             return libraries
         } catch {
-            logger.error(error)
+            logger.error("\(#function) failed: \(error)")
             return []
         }
     }
@@ -879,7 +862,7 @@ public final class PlexAPI {
             )
         } catch {
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            print(error)
+            self.logger.error("\(#function) failed: \(error)")
             #endif
             return nil
         }
@@ -938,7 +921,7 @@ public final class PlexAPI {
             )
         } catch {
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            print(error)
+            self.logger.error("\(#function) failed: \(error)")
             #endif
             return nil
         }
@@ -990,7 +973,7 @@ public final class PlexAPI {
             )
         } catch {
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            print(error)
+            self.logger.error("\(#function) failed: \(error)")
             #endif
             return nil
         }
@@ -1036,7 +1019,7 @@ public final class PlexAPI {
             )
         } catch {
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            print(error)
+            self.logger.error("\(#function) failed: \(error)")
             #endif
             return nil
         }
@@ -1124,7 +1107,7 @@ public final class PlexAPI {
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
         let json = String(decoding: data, as: UTF8.self)
-        logger.info("\(json)")
+        logger.debug("\(json)")
         #endif
         
         do {
@@ -1167,8 +1150,8 @@ public final class PlexAPI {
             return enrichedHubs
         } catch {
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            print(String(decoding: data, as: UTF8.self))
-            print(error)
+            self.logger.error("\(#function) failed: \(error)")
+            self.logger.debug("\(String(decoding: data, as: UTF8.self))")
             #endif
             return nil
         }
@@ -1202,8 +1185,8 @@ public final class PlexAPI {
             return await enrichMetadata(metadata: container.metadata)
         } catch {
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            print(String(decoding: data, as: UTF8.self))
-            print(error)
+            self.logger.error("\(#function) failed: \(error)")
+            self.logger.debug("\(String(decoding: data, as: UTF8.self))")
             #endif
             return []
         }
@@ -1268,20 +1251,20 @@ public final class PlexAPI {
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
         let xml = String(decoding: data, as: UTF8.self)
-        logger.info("\(xml)")
+        logger.debug("\(xml)")
         #endif
         
         do {
             let plexServers = try decoder.decode([PlexServer].self, from: data)
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            logger.info(plexServers)
+            logger.debug("\(plexServers)")
             #endif
             
             return plexServers.filter { $0.accessToken != nil }
         } catch {
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            print(String(decoding: data, as: UTF8.self))
-            print(error)
+            self.logger.error("\(#function) failed: \(error)")
+            self.logger.debug("\(String(decoding: data, as: UTF8.self))")
             assertionFailure(String(decoding: data, as: UTF8.self))
             #endif
             return []
@@ -1427,7 +1410,7 @@ public final class PlexAPI {
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
         let xml = String(decoding: data, as: UTF8.self)
-        logger.info("\(xml)")
+        logger.debug("\(xml)")
         #endif
         
         do {
@@ -1435,8 +1418,8 @@ public final class PlexAPI {
             return response
         } catch {
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            print(String(decoding: data, as: UTF8.self))
-            print(error)
+            self.logger.error("\(#function) failed: \(error)")
+            self.logger.debug("\(String(decoding: data, as: UTF8.self))")
             assertionFailure(String(decoding: data, as: UTF8.self))
             #endif
             return nil

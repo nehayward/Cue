@@ -1,4 +1,5 @@
 import AVFoundation
+import MusicSearchKit
 import Speech
 
 /// The on-device speech model behind Live Transcription: Apple's
@@ -101,7 +102,7 @@ enum TranscriptionEngine {
                     await onResult(String(result.text.characters), result.isFinal)
                 }
             } catch {
-                print("Live Transcription:", error)
+                CueLog.liveTranscription.error("Transcription failed: \(error)")
             }
         } onCancel: {
             pump.cancel()

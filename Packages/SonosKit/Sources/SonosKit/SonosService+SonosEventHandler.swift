@@ -5,6 +5,7 @@
 //  Created by Nick Hayward on 9/25/25.
 //
 import Foundation
+import MusicSearchKit
 import Nuke
 
 extension SonosService: SonosEventHandler {
@@ -272,7 +273,7 @@ extension SonosService: SonosEventHandler {
     //    }
     
     public func onError(playerId: String, error: Error) {
-        print("Error for player \(playerId): \(error.localizedDescription)")
+        CueLog.sonos.error("Event error for player \(playerId): \(error.localizedDescription)")
     }
     
     // MARK: - Public Methods

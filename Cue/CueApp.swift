@@ -1089,11 +1089,11 @@ struct CueApp: App {
     private func handleScenePhase(_ scenePhase: ScenePhase) {
         switch scenePhase {
         case .active:
-            // Printed like the other two: without it a scene trace reads
+            // Logged like the other two: without it a scene trace reads
             // `Inactive … Monitoring!` with no way to tell whether the app came
             // back or something else restarted the pulse. That ambiguity is what
             // hid `stopMonitoringOffScreen`'s bug.
-            print("Active")
+            CueLog.app.info("Active")
             // Speakers are only looked for when Sonos is switched on: looking
             // is what puts up the Local Network permission prompt. Everything
             // after this block runs either way — it used to sit behind an
@@ -1144,7 +1144,7 @@ struct CueApp: App {
                 ReviewCoordinator.shared.requestReview()
             }
         case .inactive:
-            print("Inactive")
+            CueLog.app.info("Inactive")
 #if canImport(WidgetKit)
             if #available(visionOS 26.0, *) {
                 WidgetCenter.shared.reloadAllTimelines()
@@ -1155,7 +1155,7 @@ struct CueApp: App {
             }
             stopMonitoringOffScreen(scenePhase)
         case .background:
-            print("Background")
+            CueLog.app.info("Background")
             stopMonitoringOffScreen(scenePhase)
 #if targetEnvironment(macCatalyst)
             // Monitoring is now cancelled, so the cached model freezes. Poll
@@ -1639,6 +1639,9 @@ private struct PlaybackTransportControls: View {
 
 class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // First, so each launch in the log file opens with the version and
+        // the device it ran on.
+        LogStore.shared.beginSession(SupportReport.summary)
         #if targetEnvironment(macCatalyst)
         // macOS auto-injects "Start Dictation" and "Emoji & Symbols" into any Edit menu. Opt out so
         // ours carries only Undo/Redo. (AutoFill is removed via the menu builder.)

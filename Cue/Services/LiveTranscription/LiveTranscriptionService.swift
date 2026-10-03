@@ -1,8 +1,8 @@
 import AVFoundation
 import Defaults
 import Foundation
+import MusicSearchKit
 import Observation
-import OSLog
 import SonosKit
 
 /// Live Transcription: what's being said on the radio station playing,
@@ -287,7 +287,7 @@ final class LiveTranscriptionService {
                     self.receive(text, isFinal: isFinal)
                 }
             } catch {
-                Logger.liveTranscription.error("Transcriber failed: \(error.localizedDescription, privacy: .public)")
+                CueLog.liveTranscription.error("Transcriber failed: \(error.localizedDescription, privacy: .public)")
                 self?.listenFailed(error.localizedDescription, generation: generation)
             }
         }
@@ -323,7 +323,7 @@ final class LiveTranscriptionService {
                 self?.listenFailed("The station's stream ended.", generation: generation)
             } catch is CancellationError {
             } catch {
-                Logger.liveTranscription.error("Stream failed: \(error.localizedDescription, privacy: .public)")
+                CueLog.liveTranscription.error("Stream failed: \(error.localizedDescription, privacy: .public)")
                 self?.listenFailed(error.localizedDescription, generation: generation)
             }
         }

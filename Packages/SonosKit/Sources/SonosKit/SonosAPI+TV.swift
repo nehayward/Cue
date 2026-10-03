@@ -1,4 +1,5 @@
 import Foundation
+import MusicSearchKit
 
 extension SonosAPI {
     /// Reads an EQ type, keeping "the device said no" (a UPnP fault — `.unsupported`)
@@ -15,7 +16,7 @@ extension SonosAPI {
             throw SonosAPIError.failedLoading
         }
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-            print("GetEQ \(eq.rawValue) failed with \(httpResponse.statusCode)")
+            CueLog.sonos.error("GetEQ \(eq.rawValue) failed: HTTP \(httpResponse.statusCode)")
             throw SonosAPIError.unsupported
         }
         return data
@@ -33,7 +34,7 @@ extension SonosAPI {
             throw SonosAPIError.failedLoading
         }
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-            print("SetEQ \(eq.rawValue) failed with \(httpResponse.statusCode)")
+            CueLog.sonos.error("SetEQ \(eq.rawValue) failed: HTTP \(httpResponse.statusCode)")
             throw SonosAPIError.unsupported
         }
     }
@@ -84,7 +85,7 @@ extension SonosAPI {
 
         guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return false }
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-            print("Failed with \(httpResponse.statusCode)")
+            CueLog.sonos.error("\(#function) failed: HTTP \(httpResponse.statusCode)")
             throw SonosAPIError.failedLoading
         }
         let xml = String(decoding: data, as: UTF8.self)
@@ -100,7 +101,7 @@ extension SonosAPI {
 
         guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-            print("Failed with \(httpResponse.statusCode)")
+            CueLog.sonos.error("\(#function) failed: HTTP \(httpResponse.statusCode)")
             throw SonosAPIError.failedLoading
         }
     }
@@ -117,7 +118,7 @@ extension SonosAPI {
     func getAudioInputFormat(IP: String) async throws -> AudioInputFormat {
         guard let (data, response) = try await sendSoapRequest(ip: IP, action: "GetZoneInfo", arguments: [], endpoint: "DeviceProperties") else { return .unknown }
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-            print("Failed with \(httpResponse.statusCode)")
+            CueLog.sonos.error("\(#function) failed: HTTP \(httpResponse.statusCode)")
             throw SonosAPIError.failedLoading
         }
         let xml = String(decoding: data, as: UTF8.self)
@@ -133,7 +134,7 @@ extension SonosAPI {
         
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
+                CueLog.sonos.error("\(#function) failed")
             }
         }
     }

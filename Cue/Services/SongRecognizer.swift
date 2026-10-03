@@ -1,8 +1,8 @@
 import AVFoundation
 import Foundation
 import MusicKit
+import MusicSearchKit
 import Observation
-import os
 import ShazamKit
 import SonosKit
 
@@ -142,7 +142,7 @@ final class SongRecognizer {
         }
     }
 
-    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Cue", category: "SongRecognizer")
+    private static let logger = CueLog("SongRecognizer")
 
     private static func catalogSong(id: String?) async -> PlayableContent? {
         guard let id else { return nil }

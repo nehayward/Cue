@@ -1,5 +1,5 @@
 import Foundation
-import OSLog
+import MusicSearchKit
 import Network
 import Defaults
 
@@ -7,7 +7,7 @@ import Defaults
 /// It handles tasks like setting volume, getting track info, and other control actions.
 final class SonosAPI: NSObject {
     typealias OrderedKeys = [(key: String, value: Any)]
-    private let logger: Logger = Logger(subsystem: "com.sonos.nick", category: "SonosAPI")
+    private let logger = CueLog("sonos")
     lazy var session: URLSession = privateSession
     private lazy var queueSession: URLSession = queueSessionConfig
     /// Transport commands (play, pause, skip, track jump, seek) get their own
@@ -65,7 +65,7 @@ final class SonosAPI: NSObject {
 
         guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "SetVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
         }
     }
     
@@ -98,7 +98,7 @@ final class SonosAPI: NSObject {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
             return nil
         }
 
@@ -315,7 +315,7 @@ final class SonosAPI: NSObject {
         }
 
         guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
             return
         }
 
@@ -357,12 +357,12 @@ final class SonosAPI: NSObject {
             }
             return groups + vanishedZones
         } catch URLError.cannotConnectToHost {
-            print("Can't connect")
+            CueLog.sonos.error("\(#function): can\'t connect")
             throw SonosServiceError.sonosSystemNotFound
         } catch SonosServiceError.parseError(let xml) {
             throw SonosServiceError.parseError(xml)
         } catch {
-            print(#function, error.localizedDescription)
+            CueLog.sonos.error("\(#function): \(error.localizedDescription)")
             // Clear IP and try again.
             throw SonosServiceError.sonosSystemNotFound
         }
@@ -383,11 +383,11 @@ final class SonosAPI: NSObject {
             return System(zones: mappedZones, vanished: vanishedDevices, id: "")
 
         } catch URLError.cannotConnectToHost {
-            print("Can't connect")
+            CueLog.sonos.error("\(#function): can\'t connect")
             throw SonosServiceError.sonosSystemNotFound
         }
         catch {
-            print(#function, error.localizedDescription)
+            CueLog.sonos.error("\(#function): \(error.localizedDescription)")
             // Clear IP and try again.
             throw SonosServiceError.sonosSystemNotFound
         }
@@ -422,7 +422,7 @@ final class SonosAPI: NSObject {
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "RemoveAllTracksFromQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
+                CueLog.sonos.error("\(#function) failed")
             }
         }
     }
@@ -436,7 +436,7 @@ final class SonosAPI: NSObject {
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "RemoveTrackFromQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
+                CueLog.sonos.error("\(#function) failed")
             }
         }
     }
@@ -452,7 +452,7 @@ final class SonosAPI: NSObject {
 
         if let (_, response) = try? await sendSoapRequest(ip: group.ip, action: "ReorderTracksInQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
+                CueLog.sonos.error("\(#function) failed")
             }
         }
     }
@@ -468,7 +468,7 @@ final class SonosAPI: NSObject {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            logger.log("Failed to ungroup")
+            logger.error("Failed to ungroup")
         }
     }
 
@@ -484,7 +484,7 @@ final class SonosAPI: NSObject {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            logger.log("Failed to group")
+            logger.error("Failed to group")
         }
     }
     
@@ -507,7 +507,7 @@ final class SonosAPI: NSObject {
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-                print("Failed:", response)
+                CueLog.sonos.error("\(#function) failed: HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)")
                 return
             }
         }
@@ -584,7 +584,7 @@ final class SonosAPI: NSObject {
         if let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode != 200 {
             let body = String(decoding: data, as: UTF8.self)
             let errorCode = extractErrorCode(from: body)
-            print("ReplaceAllTracks failed (\(statusCode), upnp \(errorCode ?? "?")): \(body)")
+            CueLog.sonos.error("ReplaceAllTracks failed (\(statusCode), upnp \(errorCode ?? "?")): \(body)")
             throw SonosServiceError.cantPlayContent(upnpCode: errorCode)
         }
     }
@@ -602,7 +602,7 @@ final class SonosAPI: NSObject {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
                 let body = String(decoding: data, as: UTF8.self)
                 let errorCode = extractErrorCode(from: body)
-                print("startRadio failed (upnp \(errorCode ?? "?")): \(body)")
+                CueLog.sonos.error("startRadio failed (upnp \(errorCode ?? "?")): \(body)")
                 throw SonosServiceError.cantPlayContent(upnpCode: errorCode)
             }
         }
@@ -617,7 +617,7 @@ final class SonosAPI: NSObject {
             return nil
         }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
             return nil
         }
 
@@ -643,7 +643,7 @@ final class SonosAPI: NSObject {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
         }
 
         let xml = String(decoding: data, as: UTF8.self)
@@ -667,7 +667,7 @@ final class SonosAPI: NSObject {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
         }
 
         let xml = String(decoding: data, as: UTF8.self)
@@ -716,7 +716,7 @@ final class SonosAPI: NSObject {
             return
         }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -751,7 +751,7 @@ final class SonosAPI: NSObject {
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
+                CueLog.sonos.error("\(#function) failed")
             }
         }
     }
@@ -767,7 +767,7 @@ final class SonosAPI: NSObject {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
                 let body = String(decoding: data, as: UTF8.self)
                 let errorCode = extractErrorCode(from: body)
-                print("setAVTransportContent failed (upnp \(errorCode ?? "?")): \(body)")
+                CueLog.sonos.error("setAVTransportContent failed (upnp \(errorCode ?? "?")): \(body)")
                 throw SonosServiceError.cantPlayContent(upnpCode: errorCode)
             }
         }
@@ -782,7 +782,7 @@ final class SonosAPI: NSObject {
             return nil
         }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
             return nil
         }
 
@@ -803,7 +803,7 @@ final class SonosAPI: NSObject {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed \(#function)")
+            CueLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -818,7 +818,7 @@ final class SonosAPI: NSObject {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -832,7 +832,7 @@ final class SonosAPI: NSObject {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
             return nil
         }
 
@@ -878,7 +878,7 @@ final class SonosAPI: NSObject {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -918,7 +918,7 @@ final class SonosAPI: NSObject {
         
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
+                CueLog.sonos.error("\(#function) failed")
             }
         }
     }
@@ -940,7 +940,7 @@ final class SonosAPI: NSObject {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
         }
 
         let xml = String(decoding: data, as: UTF8.self)
@@ -957,7 +957,7 @@ final class SonosAPI: NSObject {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -966,7 +966,7 @@ final class SonosAPI: NSObject {
         let request = URLRequest(url: url)
         guard let (data, response) = try? await session.data(for: request) else { return nil }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+            CueLog.sonos.error("\(#function) failed")
         }
         
         do {
@@ -974,7 +974,7 @@ final class SonosAPI: NSObject {
             return discoveryInfo.device
         } catch {
             print(String(decoding: data, as: UTF8.self))
-            print("Error decoding JSON: \(error)")
+            CueLog.sonos.error("\(#function): couldn\'t decode JSON: \(error)")
         }
         
         return nil
@@ -1028,8 +1028,7 @@ final class SonosAPI: NSObject {
 //            }
 //            print("Cancelled:", request, body)
         } catch {
-            logger.error("\(request) Failed to \(#function)")
-            print(request, error.localizedDescription)
+            logger.error("\(action) to \(ip) failed: \(error.localizedDescription)")
             throw error
         }
         return nil
@@ -1073,8 +1072,7 @@ final class SonosAPI: NSObject {
 //            }
 //            print("Cancelled:", request, body)
         } catch {
-            logger.error("\(request) Failed to \(#function)")
-            print(request, error.localizedDescription)
+            logger.error("\(action) to \(ip) failed: \(error.localizedDescription)")
             throw error
         }
         return nil

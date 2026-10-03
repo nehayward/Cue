@@ -1,11 +1,11 @@
 #if os(iOS) && !targetEnvironment(macCatalyst)
 import AVFoundation
 import Foundation
-import OSLog
+import MusicSearchKit
 
 /// Only failures are logged. Taking the session is the whole feature, so a
 /// refusal is worth a breadcrumb; everything else is silent.
-private let logger = Logger(subsystem: "com.cue", category: "NowPlaying")
+private let logger = CueLog("NowPlaying")
 
 /// Holds an active `.playback` audio session playing silence, so iOS treats this
 /// app as the one producing audio.

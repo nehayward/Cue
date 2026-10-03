@@ -60,8 +60,6 @@ struct PreferenceScreen: View {
     @State private var cueMiniErrorMessage = ""
 #endif
     
-    @State private var isUploading = false
-    @State private var uploadSuccess = false
     @State private var cacheSize: Int = 0
     @State private var isClearing = false
     @State private var libraryCacheSize: Int = 0
@@ -827,6 +825,23 @@ struct PreferenceScreen: View {
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
+                    NavigationLink(destination: ReportProblemScreen()) {
+                        Label {
+                            Text("Report a Problem")
+                        } icon: {
+                            Image(systemName: "ladybug.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .padding(7)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.4, green: 0.8, blue: 0.45), Color(red: 0.2, green: 0.62, blue: 0.32)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                        }
+                    }
                     let message = "mailto:hi@cue.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(subscriptionService.userID)"
                     Label {
                         HStack {
@@ -1372,36 +1387,6 @@ struct PreferenceScreen: View {
         } header: {
             Text("Appearance")
                 .foregroundStyle(.primary)
-        }
-    }
-    
-    private func uploadLogs(text: String) async {
-        if text.isEmpty { return }
-        // Define the URL and request
-        guard let id =  UIDevice.current.identifierForVendor?.uuidString else { return }
-        guard let url = URL(string: "https://tight-night-3b05.nehayward.workers.dev/\(Date.now.ISO8601Format(.iso8601Date(timeZone: .current, dateSeparator: .omitted)))_\(id).txt") else {
-            fatalError("Invalid URL")
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "PUT"
-        request.addValue("Bearer cue6043", forHTTPHeaderField: "Authorization")
-        request.httpBody = text.data(using: .utf8)
-
-        // Perform the async URLSession call
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse {
-                print("Status Code: \(httpResponse.statusCode)")
-            }
-
-            // Handle the response data
-            if let responseData = String(data: data, encoding: .utf8) {
-                print("Response Data: \(responseData)")
-            }
-        } catch {
-            print("Request failed with error: \(error)")
         }
     }
 }

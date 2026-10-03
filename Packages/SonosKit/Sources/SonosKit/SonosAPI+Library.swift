@@ -1,4 +1,5 @@
 import Foundation
+import MusicSearchKit
 
 extension SonosAPI {
     func librarySearch(IP: String, query: String, filter: LibraryFilter = .track) async -> [PlayableContent] {
@@ -12,12 +13,12 @@ extension SonosAPI {
         ]
 
         guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else {
-            print("Failed to send request.")
+            CueLog.sonos.error("\(#function): request failed")
             return []
         }
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            print("Request failed with status code: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            CueLog.sonos.error("\(#function): HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)")
             return []
         }
 
@@ -38,12 +39,12 @@ extension SonosAPI {
         ]
 
         guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else {
-            print("Failed to send request.")
+            CueLog.sonos.error("\(#function): request failed")
             return []
         }
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            print("Request failed with status code: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            CueLog.sonos.error("\(#function): HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)")
             return []
         }
 
@@ -65,12 +66,12 @@ extension SonosAPI {
         ]
 
         guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else {
-            print("Failed to send request.")
+            CueLog.sonos.error("\(#function): request failed")
             return []
         }
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            print("Request failed with status code: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            CueLog.sonos.error("\(#function): HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)")
             return []
         }
 
@@ -92,12 +93,12 @@ extension SonosAPI {
         ]
 
         guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else {
-            print("Failed to send request.")
+            CueLog.sonos.error("\(#function): request failed")
             return []
         }
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            print("Request failed with status code: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            CueLog.sonos.error("\(#function): HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)")
             return []
         }
 
@@ -119,12 +120,12 @@ extension SonosAPI {
         ]
 
         guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else {
-            print("Failed to send request.")
+            CueLog.sonos.error("\(#function): request failed")
             return []
         }
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            print("Request failed with status code: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            CueLog.sonos.error("\(#function): HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)")
             return []
         }
 
@@ -181,12 +182,12 @@ extension SonosAPI {
         ]
 
         guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else {
-            print("Failed to send request.")
+            CueLog.sonos.error("\(#function): request failed")
             return []
         }
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            print("Request failed with status code: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            CueLog.sonos.error("\(#function): HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)")
             return []
         }
 
@@ -205,12 +206,12 @@ extension SonosAPI {
         ]
 
         guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else {
-            print("Failed to send request.")
+            CueLog.sonos.error("\(#function): request failed")
             return []
         }
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            print("Request failed with status code: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            CueLog.sonos.error("\(#function): HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)")
             return []
         }
 
@@ -224,12 +225,12 @@ extension SonosAPI {
         ]
 
         guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "RefreshShareIndex", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else {
-            print("Failed to send request.")
+            CueLog.sonos.error("\(#function): request failed")
             return
         }
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            print("Request failed with status code: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            CueLog.sonos.error("\(#function): HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)")
             return
         }
     }

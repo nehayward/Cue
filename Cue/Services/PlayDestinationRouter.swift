@@ -1,6 +1,6 @@
 import Defaults
 import Foundation
-import OSLog
+import MusicSearchKit
 import SonosKit
 import SwiftUI
 
@@ -20,7 +20,7 @@ enum PlayDestinationRouter {
     /// Every Play funnels through here now, so this is the one place worth
     /// tracing when something doesn't start.
     /// `log stream --predicate 'subsystem == "dance.cue" AND category == "route"' --level debug`
-    private static let log = Logger(subsystem: "dance.cue", category: "route")
+    private static let log = CueLog("route")
 
     /// Plays `content` at the remembered destination, falling back to the
     /// picker only when that destination genuinely can't take it.

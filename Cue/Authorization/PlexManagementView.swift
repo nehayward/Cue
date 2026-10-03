@@ -149,9 +149,6 @@ struct PlexManagementView: View {
                                     }
                                 }
                             }
-                            if UIApplication.shared.isRunningInTestFlightEnvironment() {
-                                LoggerView()
-                            }
                         }
                     }
                 }

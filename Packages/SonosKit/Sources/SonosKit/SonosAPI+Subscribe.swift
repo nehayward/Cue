@@ -1,9 +1,10 @@
 import Foundation
+import MusicSearchKit
 
 extension SonosAPI {
     func subscribeToSonos(port: Int, deviceIP: String, sonosIP: String) async throws {
         guard !deviceIP.isEmpty else {
-            print("❌ Cannot subscribe: Device IP not available")
+            CueLog.sonos.error("Can't subscribe to topology events: no speaker address")
             throw NSError(domain: "MediaServerHandler", code: -1, userInfo: [NSLocalizedDescriptionKey: "Device IP not available"])
         }
 
@@ -98,7 +99,7 @@ private actor TopologyEventSubscription {
         subscribedIP = sonosIP
         subscribedCallback = callback
         expiresAt = Date.now.addingTimeInterval(response.timeout)
-        print("✅ Subscribed to Sonos topology events. SID: \(response.sid ?? "-"), timeout: \(Int(response.timeout))s")
+        CueLog.sonos.info("Subscribed to topology events. SID: \(response.sid ?? "-"), timeout: \(Int(response.timeout))s")
         scheduleRenewal(session: session, port: port, deviceIP: deviceIP, sonosIP: sonosIP, after: response.timeout)
     }
 

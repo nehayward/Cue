@@ -1,4 +1,5 @@
 import Foundation
+import MusicSearchKit
 import SonosKit
 
 /// A job the continued-processing task (or, on the Mac, the watcher)
@@ -317,7 +318,7 @@ final class ContinuedDownloadTask {
         } catch {
             // No Live Activity, but nothing lost: the background session and
             // iCloud carry the downloads on their own.
-            print("Continued download task not accepted: \(error)")
+            CueLog("downloads").warning("Continued download task not accepted: \(error)")
             current = nil
         }
     }

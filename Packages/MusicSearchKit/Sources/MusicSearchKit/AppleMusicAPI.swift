@@ -1,6 +1,8 @@
 import Foundation
 import MusicKit
 
+private let appleLog = CueLog("apple")
+
 public final class AppleMusicAPI {
     public static var shared = AppleMusicAPI()
     public var appleMusicAuthorizationStatus: AppleMusicAuthorization = .denied
@@ -207,8 +209,8 @@ public final class AppleMusicAPI {
             print(appleUserPlaylistContainer.data.count)
             return appleUserPlaylistContainer
         } catch {
-            print(error)
-            print(String(decoding: response!.data, as: UTF8.self))
+            appleLog.error("\(#function) failed: \(error)")
+            appleLog.debug("\(String(decoding: response!.data, as: UTF8.self))")
             return nil
         }
     }
@@ -225,8 +227,8 @@ public final class AppleMusicAPI {
             let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
             return appleUserPlaylistContainer
         } catch {
-            print(error)
-            print(String(decoding: response!.data, as: UTF8.self))
+            appleLog.error("\(#function) failed: \(error)")
+            appleLog.debug("\(String(decoding: response!.data, as: UTF8.self))")
             return nil
         }
     }
@@ -242,8 +244,8 @@ public final class AppleMusicAPI {
             let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
             return appleUserPlaylistContainer
         } catch {
-            print(error)
-            print(String(decoding: response!.data, as: UTF8.self))
+            appleLog.error("\(#function) failed: \(error)")
+            appleLog.debug("\(String(decoding: response!.data, as: UTF8.self))")
             return nil
         }
     }
@@ -259,8 +261,8 @@ public final class AppleMusicAPI {
             let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
             return appleUserPlaylistContainer.data
         } catch {
-            print(error)
-            print(String(decoding: response!.data, as: UTF8.self))
+            appleLog.error("\(#function) failed: \(error)")
+            appleLog.debug("\(String(decoding: response!.data, as: UTF8.self))")
             return []
         }
     }
@@ -446,7 +448,7 @@ public final class AppleMusicAPI {
             let recentRadioStations = try decoder.decode(AppleLibraryContainer.self, from: data)
             return recentRadioStations
         } catch {
-            print("Error decoding radio stations: \(error)")
+            appleLog.error("Error decoding radio stations: \(error)")
             return nil
         }
     }
@@ -463,7 +465,7 @@ public final class AppleMusicAPI {
             let radioStations = try decoder.decode(AppleLibraryContainer.self, from: data)
             return radioStations
         } catch {
-            print(error)
+            appleLog.error("\(#function) failed: \(error)")
             return nil
         }
     }
@@ -481,7 +483,7 @@ public final class AppleMusicAPI {
         do {
             return try decoder.decode(AppleLibraryContainer.self, from: data)
         } catch {
-            print("Error decoding live radio stations: \(error)")
+            appleLog.error("Error decoding live radio stations: \(error)")
             return nil
         }
     }
@@ -501,7 +503,7 @@ public final class AppleMusicAPI {
             guard let stations = searchResponse.results.stations else { return nil }
             return AppleLibraryContainer(data: stations.data, meta: nil, next: stations.next)
         } catch {
-            print("Error decoding radio search: \(error)")
+            appleLog.error("Error decoding radio search: \(error)")
             return nil
         }
     }
@@ -579,8 +581,8 @@ public final class AppleMusicAPI {
                 next: recommendationsResponse.next
             )
         } catch {
-            print("Error decoding user recommendations: \(error)")
-            print("Response data: \(String(decoding: data, as: UTF8.self))")
+            appleLog.error("Error decoding user recommendations: \(error)")
+            appleLog.debug("Response data: \(String(decoding: data, as: UTF8.self))")
             return nil
         }
     }
@@ -668,7 +670,7 @@ public final class AppleMusicAPI {
             let libraryContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
             return libraryContainer
         } catch {
-            print(error)
+            appleLog.error("\(#function) failed: \(error)")
             return nil
         }
     }
@@ -711,7 +713,7 @@ public final class AppleMusicAPI {
             let libraryContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
             return libraryContainer
         } catch {
-            print(error)
+            appleLog.error("\(#function) failed: \(error)")
             return nil
         }
     }
@@ -728,7 +730,7 @@ public final class AppleMusicAPI {
             let appleUserPlaylistContainer = try decoder.decode(AppleLibrarySearchContainer.self, from: data)
             return appleUserPlaylistContainer
         } catch {
-            print(error)
+            appleLog.error("\(#function) failed: \(error)")
             return nil
         }
     }

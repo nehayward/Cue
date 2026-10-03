@@ -1,7 +1,6 @@
 import Foundation
 import MusicSearchKit
 import Observation
-import OSLog
 import SonosKit
 import WatchSync
 #if os(iOS) && !targetEnvironment(macCatalyst)
@@ -37,7 +36,7 @@ final class WatchSyncService {
     /// A watch is paired and has Cue on it, so music can be put there.
     var isAvailable: Bool { isPaired && isWatchAppInstalled }
 
-    @ObservationIgnored private let logger = Logger(subsystem: "dance.cue", category: "WatchSync")
+    @ObservationIgnored private let logger = CueLog("WatchSync")
     /// The session's delegate, kept alive here; nil where there's no
     /// WatchConnectivity.
     @ObservationIgnored private var relay: AnyObject?

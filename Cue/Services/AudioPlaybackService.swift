@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import MusicSearchKit
 import Observation
 #if os(iOS) || os(tvOS) || os(visionOS)
 import UIKit
@@ -197,7 +198,7 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
             // Notify others so any audio we ducked returns to full volume.
             try AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         } catch {
-            print(error)
+            CueLog.app.error("Audio session failed to deactivate: \(error)")
         }
     }
 

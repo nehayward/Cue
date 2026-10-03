@@ -2,8 +2,8 @@ import AVFoundation
 import Defaults
 import Foundation
 import MusicKit
+import MusicSearchKit
 import Observation
-import OSLog
 import SonosKit
 import UIKit
 
@@ -393,7 +393,7 @@ final class LocalPlaybackService {
     /// is asked for is still these songs.
     @ObservationIgnored private var preparedAppleRun: (start: Int, songIDs: [MusicItemID])?
 
-    private static let log = Logger(subsystem: "dance.cue", category: "localplayback")
+    private static let log = CueLog("localplayback")
     /// Debounces the queue's write to disk, for the same bursts as the cache.
     @ObservationIgnored private var queueSaveTask: Task<Void, Never>?
     /// True from a queue change until it has been written.
@@ -1779,7 +1779,7 @@ final class LocalPlaybackService {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
-            print(error)
+            Self.log.error("Audio session failed to activate: \(error)")
         }
 
         streamRun = Dictionary(uniqueKeysWithValues: rows.map { (ObjectIdentifier($0.item), $0.queueIndex) })

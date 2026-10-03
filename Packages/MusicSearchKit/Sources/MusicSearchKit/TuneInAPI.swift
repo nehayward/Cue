@@ -81,7 +81,7 @@ public final class TuneInAPI: Sendable {
                 }
                 return parser.parseStationDetails(xmlData: data)
             } catch {
-                print("Request failed: \(error.localizedDescription). Retry attempt \(currentRetry + 1) out of \(maxRetries).")
+                CueLog("tunein").warning("Request failed: \(error.localizedDescription). Retry \(currentRetry + 1) of \(maxRetries).")
                 currentRetry += 1
                 try? await Task.sleep(for: .milliseconds(200))// Wait for 2 seconds before retrying
             }

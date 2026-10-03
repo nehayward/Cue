@@ -499,13 +499,13 @@ public final class SonosService {
 
                     useCache = true
                 } catch SonosServiceError.permissionDenied {
-                    print("Permission")
+                    CueLog.sonos.error("Monitoring stopped: Local Network permission denied")
                     systemState.systemPermissionDenied = true
                     sonosPulse.cancel()
                 } catch SonosServiceError.parseError(let xml) {
                     parserError = xml
                     guard retry else {
-                        print("System not found")
+                        CueLog.sonos.error("Monitoring stopped: no Sonos system found")
                         systemState.systemNotFound = true
                         sonosPulse.cancel()
                         return
@@ -515,7 +515,7 @@ public final class SonosService {
                     retry = false
                 } catch SonosServiceError.sonosSystemNotFound {
                     guard retry else {
-                        print("System not found")
+                        CueLog.sonos.error("Monitoring stopped: no Sonos system found")
                         systemState.systemNotFound = true
                         sonosPulse.cancel()
                         return
@@ -524,9 +524,12 @@ public final class SonosService {
                     useCache = false
                     retry = false
                 } catch {
-                    print(error)
+                    // Stopping the monitor cancels the request in flight;
+                    // that isn't a failure.
+                    if !(error is CancellationError), (error as? URLError)?.code != .cancelled {
+                        CueLog.sonos.error("Monitoring stopped: \(error)")
+                    }
                     sonosPulse.cancel()
-                    print(#function, error)
                 }
             } while !Task.isCancelled
         }
@@ -3176,7 +3179,7 @@ public final class SonosService {
             }
             return group
         } catch {
-            print(error)
+            CueLog.sonos.error("\(#function): \(error)")
             return nil
         }
     }
