@@ -141,6 +141,9 @@ public enum AppStorageKeys {
     /// requires an active subscription, so an unsubscribed user with the default
     /// keeps Live Activities and nothing takes over their audio.
     public static let lockScreenNowPlaying = "\(Prefix.id).lockScreenNowPlaying"
+    /// Debug builds: draw every cover as the player's background gradient,
+    /// for App Store screenshots. Read through `ScreenshotArtwork.isEnabled`.
+    public static let screenshotArtwork = "\(Prefix.id).screenshotArtwork"
 }
 
 public extension UserDefaults {

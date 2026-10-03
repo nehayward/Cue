@@ -70,6 +70,7 @@ struct PreferenceScreen: View {
     
 #if DEBUG
     @State private var servers: [MediaServer] = []
+    @AppStorage(Defaults.AppStorageKeys.screenshotArtwork) private var screenshotArtwork: Bool = ScreenshotArtwork.isOnByDefault
 #endif
     
     var body: some View {
@@ -887,13 +888,20 @@ struct PreferenceScreen: View {
                 }
 
 #if DEBUG
-                Section("Debug") {
+                Section {
                     NavigationLink {
                         FeatureGateDebugView()
                             .withEnvironments()
                     } label: {
                         Label("Feature Gates", systemImage: "lock.open")
                     }
+                    Toggle(isOn: $screenshotArtwork) {
+                        Label("Screenshot Artwork", systemImage: "photo.artframe")
+                    }
+                } header: {
+                    Text("Debug")
+                } footer: {
+                    Text("Draws every cover as the player's background gradient, for App Store screenshots. Covers already on screen change when they load again.")
                 }
 #endif
             }

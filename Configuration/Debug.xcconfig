@@ -6,4 +6,7 @@ MAC_ENABLED = NO
 NAME = Cue
 PRODUCT_NAME = Cue
 ICON = AppIcon
+// Uncomment to start with Screenshot Artwork on: every cover drawn as the
+// player's background gradient, for App Store screenshots. Also a switch in
+// Settings > Debug, or the -ScreenshotArtwork launch argument.
 //SCREENSHOT = SCREENSHOT

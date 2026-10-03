@@ -224,12 +224,6 @@ struct ArtworkView: View {
                     }
             }
         }
-        #if DEBUG && SCREENSHOT
-        .overlay {
-            Rectangle()
-                .foregroundStyle(.ultraThinMaterial)
-        }
-        #endif
     }
 
     // The badge, rounded-corner clip, shadow, and alarm tracking are

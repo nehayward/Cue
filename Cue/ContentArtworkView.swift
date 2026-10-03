@@ -145,12 +145,6 @@ struct ContentArtworkView: View {
             }
         }
         .id(fetchedArtworkURL)
-#if DEBUG && SCREENSHOT
-        .overlay {
-            Rectangle()
-                .foregroundStyle(.ultraThinMaterial)
-        }
-#endif
         .clipShape(.rect(cornerRadius: isCircular ? preferredSize / 2 : cornerRadius))
     }
 }

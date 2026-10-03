@@ -24,7 +24,13 @@ final class AppBootstrapper {
     }
 
     private func configureNuke() {
-        let pipeline = ImagePipeline {
+#if DEBUG
+        // Screenshot Artwork (Settings ▸ Debug) swaps covers for gradients here.
+        let delegate = ScreenshotArtworkPipelineDelegate()
+#else
+        let delegate: (any ImagePipeline.Delegate)? = nil
+#endif
+        let pipeline = ImagePipeline(delegate: delegate) {
             let imageCache = ImageCache.shared
             // Sized to the device: a Mac window shows forty-odd album covers
             // at once, and at a fixed 50 MB the cache held fewer than that,
