@@ -246,6 +246,7 @@ public final class MusicSearchService {
         // rebuild itself as results came in or when the view re-rendered.
         var resultsByProvider: [MediaSearchService: [PlayableContent]] = [:]
 
+        await Self.$ranksMergedResults.withValue(isMultiServiceSearch) {
         await withTaskGroup(of: (MediaSearchService, [PlayableContent]?).self) { group in
             for provider in providers {
                 group.addTask { [weak self] in
@@ -326,6 +327,7 @@ public final class MusicSearchService {
                 }
             }
         }
+        }
 
         if Task.isCancelled { return false }
         if self.trimmedQuery != capturedQuery { return false }
@@ -345,12 +347,15 @@ public final class MusicSearchService {
             let mergedResults = MediaSearchService.allCases
                 .compactMap { resultsByProvider[$0] }
                 .flatMap { $0 }
-            self.results = SearchRanking.sort(
+            let ranked = await Self.ranked(
                 mergedResults,
                 query: capturedQuery,
                 recentlyPlayedIDs: recentlyPlayedIDs,
                 groupArtists: true
             )
+            // Ranked off the main thread: the query may have moved on.
+            if Task.isCancelled || self.trimmedQuery != capturedQuery { return false }
+            self.results = ranked
         }
 
         if let suggestionResults = await searchSuggestionTask.value {
@@ -898,7 +903,7 @@ public final class MusicSearchService {
 
         playableContent = await enrichSpotifyAlbums(playableContent)
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        return await sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     /// Spotify's search API returns simplified albums with no popularity and
@@ -1024,7 +1029,7 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: libResults)
         playableContent.append(contentsOf: appleResults)
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        return await sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     public func lookup(id: String) async throws -> Song? {
@@ -1341,7 +1346,7 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
         playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        return await sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     // MARK: - PLex
@@ -1376,7 +1381,7 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
         playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        return await sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     public func lookupPlexSong(with id: String) async -> PlayableContent? {
@@ -1497,7 +1502,7 @@ public final class MusicSearchService {
         let playableContent = results.map(\.toPlayable)
         // Ranking is safe here now that score ties preserve TuneIn's own
         // order — exact station-name matches float, the rest stay put.
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        return await sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     /// TuneIn stations matching `query`, ranked — the Radio tab's search.
@@ -1913,8 +1918,28 @@ public final class MusicSearchService {
         }
     }
 
-    func sortContentByIntelligentSearch(playableContent: [PlayableContent], query: String) -> [PlayableContent] {
-        SearchRanking.sort(playableContent, query: query, recentlyPlayedIDs: recentlyPlayedIDs)
+    func sortContentByIntelligentSearch(playableContent: [PlayableContent], query: String) async -> [PlayableContent] {
+        // Part of a merged search: the merged list is ranked once, whole,
+        // so ranking each provider's share first was work thrown away.
+        guard !Self.ranksMergedResults else { return playableContent }
+        return await Self.ranked(playableContent, query: query, recentlyPlayedIDs: recentlyPlayedIDs)
+    }
+
+    /// Set for the providers of a merged search (see `search(for:)`). Task
+    /// local, so a search elsewhere meanwhile — the Radio tab's — still ranks.
+    @TaskLocal static var ranksMergedResults = false
+
+    /// `SearchRanking.sort`, off the main thread: it normalizes every title
+    /// and subtitle several times over, for each of a few hundred results.
+    nonisolated static func ranked(
+        _ content: [PlayableContent],
+        query: String,
+        recentlyPlayedIDs: Set<String>,
+        groupArtists: Bool = false
+    ) async -> [PlayableContent] {
+        await Task.detached(priority: .userInitiated) {
+            SearchRanking.sort(content, query: query, recentlyPlayedIDs: recentlyPlayedIDs, groupArtists: groupArtists)
+        }.value
     }
 
     /// Returns `content` with its metadata's popularity set (preserving the
@@ -1992,7 +2017,7 @@ public final class MusicSearchService {
             )
         })
         
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        return await sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
     
     // SoundCloud track lookup
@@ -2110,7 +2135,7 @@ public final class MusicSearchService {
         content.append(contentsOf: await albums.map { createDeezerAlbumContent(from: $0) })
         content.append(contentsOf: await artists.map { createDeezerArtistContent(from: $0) })
         content.append(contentsOf: await playlists.map { createDeezerPlaylistContent(from: $0) })
-        return sortContentByIntelligentSearch(playableContent: content, query: query)
+        return await sortContentByIntelligentSearch(playableContent: content, query: query)
     }
 
     public func lookupDeezerTrack(with id: String) async -> PlayableContent? {
@@ -2493,7 +2518,7 @@ public final class MusicSearchService {
         let library = FilesLibraryService.shared
         guard library.isConfigured else { return [] }
         await library.scanIfNeeded()
-        return sortContentByIntelligentSearch(playableContent: library.search(query: query), query: query)
+        return await sortContentByIntelligentSearch(playableContent: library.search(query: query), query: query)
     }
 
     private func searchSubsonic(query: String) async -> [PlayableContent] {
@@ -2502,7 +2527,7 @@ public final class MusicSearchService {
         content.append(contentsOf: (result.song ?? []).map(\.toPlayable))
         content.append(contentsOf: (result.album ?? []).map(\.toPlayable))
         content.append(contentsOf: (result.artist ?? []).map(\.toPlayable))
-        return sortContentByIntelligentSearch(playableContent: content, query: query)
+        return await sortContentByIntelligentSearch(playableContent: content, query: query)
     }
 
     public func lookupSubsonicTrack(with id: String) async -> PlayableContent? {
