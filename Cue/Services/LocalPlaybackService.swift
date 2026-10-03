@@ -1324,19 +1324,26 @@ final class LocalPlaybackService {
 
     // MARK: - Arming runs
 
-    /// The last index of the contiguous same-backend run starting at `index`.
+    /// The last index of the contiguous same-backend run starting at `index`,
+    /// looking no further than an arm takes (`armSpan` rows): a run's player
+    /// starts with a window of it and the rest follows, so scanning to the
+    /// end of a 1,700-song run on every arm and skip was work thrown away.
     /// A station never joins a run: a live stream has no end for the player
     /// to advance past, so it plays alone and the next item waits for a skip.
     private func runEnd(from index: Int) -> Int {
         guard let kind = backendKind(for: queue[index]), !isStation(queue[index]) else { return index }
+        let limit = min(queue.count - 1, index + Self.armSpan - 1)
         var end = index
-        while end + 1 < queue.count,
+        while end < limit,
               backendKind(for: queue[end + 1]) == kind,
               !isStation(queue[end + 1]) {
             end += 1
         }
         return end
     }
+
+    /// The most rows an arm hands its player to start with.
+    private static let armSpan = max(streamWindow, appleWindow)
 
     /// Hands the run starting at `index` to its native player and starts it.
     ///
@@ -1349,7 +1356,18 @@ final class LocalPlaybackService {
         let token = playToken
         armingIndex = index
         defer { if playToken == token { armingIndex = nil } }
-        teardownRun()
+        // Straight back to a stream player: the audio session stays ours.
+        // Letting it go and taking it back on every Previous or long skip
+        // was a round trip to the audio server each way, and told other
+        // apps they could resume for the moment in between.
+        let keepsAudioSession = queue.indices.contains(index) && backendKind(for: queue[index]) == .stream
+        teardownRun(keepingAudioSession: keepsAudioSession)
+        // Unless nothing ended up playing on it.
+        defer {
+            if keepsAudioSession, playToken == token, backend != .stream {
+                releaseAudioSession()
+            }
+        }
         guard queue.indices.contains(index) else {
             stop()
             return
@@ -1587,7 +1605,7 @@ final class LocalPlaybackService {
 
     /// Silences whichever player is armed. Sets `backend` to nil first so the
     /// poll can't misread the teardown as a run ending.
-    private func teardownRun() {
+    private func teardownRun(keepingAudioSession: Bool = false) {
         let previous = backend
         // The stream run is ending into an Apple run that's already loaded:
         // keep the audio session rather than release it and take it straight
@@ -1631,11 +1649,17 @@ final class LocalPlaybackService {
             itemWatches = [:]
             nowPlayingCard.end()
             isPlayingLocalStream = false
-            // Hand the audio session back to whatever held it behind us (see
-            // `AudioSessionArbiter`), otherwise release it entirely.
-            if !handsToPreparedApple, !AudioSessionArbiter.shared.handBack() {
-                try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+            if !handsToPreparedApple, !keepingAudioSession {
+                releaseAudioSession()
             }
+        }
+    }
+
+    /// Hands the audio session back to whatever held it behind us (see
+    /// `AudioSessionArbiter`), otherwise releases it entirely.
+    private func releaseAudioSession() {
+        if !AudioSessionArbiter.shared.handBack() {
+            try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         }
     }
 
