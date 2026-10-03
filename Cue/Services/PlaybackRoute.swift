@@ -84,9 +84,13 @@ final class PlaybackRoute {
     /// With fewer than this left after the playing row, the speaker is
     /// topped back up to `feedAhead`, so about ten go at a time.
     private static let feedLowWater = 40
-    /// How often a speaker being fed is checked. Forty songs ahead is hours
-    /// of music, so a check only has to notice it getting closer.
+    /// How often a speaker being fed is checked, against its cached place:
+    /// nothing goes over the network unless that looks near the end.
     private static let feedInterval: Duration = .seconds(30)
+    /// How long a feed goes on the cached place alone before asking the
+    /// speaker, in case nothing is keeping that place current (a second
+    /// group playing in the background, which the socket doesn't follow).
+    private static let feedFallbackRead: Duration = .seconds(10 * 60)
 
     private init() {
         destination = Self.storedDestination
@@ -571,7 +575,8 @@ final class PlaybackRoute {
             return
         }
         guard !Task.isCancelled else { return }
-        startFeed(Array(rest.dropFirst(window.count)), after: last, on: target)
+        // The queue was replaced with `first` alone, and the window followed.
+        startFeed(Array(rest.dropFirst(window.count)), after: last, length: 1 + window.count, on: target)
     }
 
     private static func seconds(_ duration: Duration) -> TimeInterval {
@@ -803,12 +808,17 @@ final class PlaybackRoute {
     /// The rest of a queue carried to a speaker, sent as it plays toward it.
     ///
     /// Every row is its own AddURIToQueue round trip, so a long queue sent
-    /// whole kept the speaker busy for minutes after the first note, and
-    /// stopped wherever iOS suspended the app. A hand-off sends the playing
-    /// row and the `feedAhead` after it, and the feed keeps the speaker about
-    /// that far ahead while Cue runs. While Cue is suspended the speaker plays
-    /// on through what it has, and the feed catches up when Cue runs again;
-    /// quit, the speaker keeps what it was sent.
+    /// whole kept the speaker busy for minutes after the first note. A
+    /// hand-off sends the playing row and the `feedAhead` after it, and the
+    /// feed keeps the speaker about that far ahead.
+    ///
+    /// It runs as long as Cue does. In the background that's while
+    /// `NowPlayingSessionService` holds the Lock Screen card for a playing
+    /// speaker, whose silent audio keeps the app going (Cue Super, with the
+    /// phone's audio on its own speaker), and its socket keeps that speaker's
+    /// place current, so the checks cost nothing. Without the card the app is
+    /// suspended: the speaker plays on through what it has and the feed
+    /// catches up when Cue next runs. Quit, the speaker keeps what it was sent.
     private struct Feed {
         /// The rows not sent yet, in order.
         var pending: [PlayableContent]
@@ -817,15 +827,22 @@ final class PlaybackRoute {
         /// a Play or an Add to Queue since, from Cue or anywhere else, ends it
         /// on something else, and the feed stops.
         var lastSent: String
+        /// The queue's length at the last read or send, which the cached
+        /// place is measured against between reads. Rows added or removed
+        /// since only move the next read earlier or later.
+        var length: Int
+        /// When the speaker was last asked, for `feedFallbackRead`.
+        var checkedAt = ContinuousClock.now
         /// Tells a feed from one that replaced it on the same speaker.
         var token = 0
         var task: Task<Void, Never>?
     }
 
-    /// Feeds `pending` to `group` behind `last`, the last row it was sent.
-    private func startFeed(_ pending: [PlayableContent], after last: PlayableContent, on group: GroupRoom) {
+    /// Feeds `pending` to `group` behind `last`, the last row it was sent,
+    /// with `length` rows in its queue.
+    private func startFeed(_ pending: [PlayableContent], after last: PlayableContent, length: Int, on group: GroupRoom) {
         feeds.removeValue(forKey: group.coordinatorID)?.task?.cancel()
-        resumeFeed(Feed(pending: pending, lastSent: Self.carryKey(for: last)), on: group.coordinatorID)
+        resumeFeed(Feed(pending: pending, lastSent: Self.carryKey(for: last), length: length), on: group.coordinatorID)
     }
 
     /// Runs `feed` on the speaker `id`, unless something else feeds it by now.
@@ -868,16 +885,27 @@ final class PlaybackRoute {
     /// isn't the one carried any more.
     private func topUp(_ id: String, token: Int) async -> Bool {
         let sonos = SonosService.shared
-        guard sonos.isEnabled, let stored = feeds[id], stored.token == token else { return false }
+        guard sonos.isEnabled, var stored = feeds[id], stored.token == token else { return false }
         // Not a coordinator just now (a regroup, a topology refresh): next time.
         guard let group = sonos.groups.first(where: { $0.coordinatorID == id }) else { return true }
+        // The cached place first. The speaker is asked only when that looks
+        // near the end, or when it hasn't been asked for a while. Queue
+        // positions are 1-based, so this is the rows after the playing one.
+        let cachedAhead = stored.length - group.coordinatorRoom.track.position
+        guard cachedAhead < Self.feedLowWater || ContinuousClock.now - stored.checkedAt >= Self.feedFallbackRead else {
+            return true
+        }
+        stored.checkedAt = ContinuousClock.now
+        feeds[id] = stored
+
         guard let track = await sonos.getTrack(ip: group.ip),
               let length = try? await sonos.getQueueTotal(group: group) else { return true }
         // Shuffled, the speaker picks rows in any order, so the count after
         // the playing one says nothing about when it runs out: the rest goes.
         let shuffled = await sonos.playMode(ip: group.ip).isShuffleEnabled
         guard !Task.isCancelled else { return false }
-        // Queue positions are 1-based, so this is the rows after the playing one.
+        stored.length = length
+        feeds[id] = stored
         let ahead = max(0, length - track.position)
         guard shuffled || ahead < Self.feedLowWater else { return true }
 
@@ -907,6 +935,7 @@ final class PlaybackRoute {
         guard !Task.isCancelled else { return false }
         current.pending.removeFirst(batch.count)
         current.lastSent = Self.carryKey(for: batch[batch.count - 1])
+        current.length += batch.count
         feeds[id] = current
         Self.log.notice("feed → \(group.nameWithCount, privacy: .public): sent \(batch.count), \(current.pending.count) to go")
         return !current.pending.isEmpty
@@ -921,9 +950,10 @@ final class PlaybackRoute {
         guard let length = try? await sonos.getQueueTotal(group: group), length > 0,
               let last = await sonos.getQueue(ip: group.ip, with: length - 1, total: 1).first else { return nil }
         let key = Self.carryKey(for: last)
+        var feed = feed
+        feed.length = length
         if key == feed.lastSent { return feed }
         guard let index = feed.pending.firstIndex(where: { Self.carryKey(for: $0) == key }) else { return nil }
-        var feed = feed
         feed.lastSent = key
         feed.pending.removeFirst(index + 1)
         return feed
