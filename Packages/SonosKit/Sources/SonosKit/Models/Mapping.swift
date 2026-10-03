@@ -122,30 +122,10 @@ extension MusicKit.Track {
         var artworkURL = artwork?.url(width: 600, height: 600)
         var thumbnailURL = artwork?.url(width: 100, height: 100)
 
-        let pattern = "https%3A%2F%2F[^&]+"
-        let regex = try? NSRegularExpression(pattern: pattern)
-
-        func processURL(_ url: URL?) -> URL? {
-            guard let url = url,
-                  let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
-                  components.scheme?.lowercased() == "musickit",
-                  let regex = regex else {
-                return url
-            }
-
-            let nsString = url.absoluteString as NSString
-            let range = NSRange(location: 0, length: nsString.length)
-            
-            guard let match = regex.firstMatch(in: url.absoluteString, range: range) else {
-                return url
-            }
-
-            let encodedUrl = nsString.substring(with: match.range)
-            return URL(string: encodedUrl.removingPercentEncoding ?? "")
-        }
-
-        artworkURL = processURL(artworkURL)
-        thumbnailURL = processURL(thumbnailURL)
+        // The shared unwrapper: it looks at a `musickit://` URL only, where
+        // this compiled a regular expression for every track mapped.
+        artworkURL = unwrappingMusicKitArtwork(artworkURL)
+        thumbnailURL = unwrappingMusicKitArtwork(thumbnailURL)
 
         let previewURL: URL?
         switch self {
@@ -178,30 +158,10 @@ extension MusicKit.Track {
         var artworkURL = artwork?.url(width: 600, height: 600)
         var thumbnailURL = artwork?.url(width: 100, height: 100)
 
-        let pattern = "https%3A%2F%2F[^&]+"
-        let regex = try? NSRegularExpression(pattern: pattern)
-
-        func processURL(_ url: URL?) -> URL? {
-            guard let url = url,
-                  let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
-                  components.scheme?.lowercased() == "musickit",
-                  let regex = regex else {
-                return url
-            }
-
-            let nsString = url.absoluteString as NSString
-            let range = NSRange(location: 0, length: nsString.length)
-            
-            guard let match = regex.firstMatch(in: url.absoluteString, range: range) else {
-                return url
-            }
-
-            let encodedUrl = nsString.substring(with: match.range)
-            return URL(string: encodedUrl.removingPercentEncoding ?? "")
-        }
-
-        artworkURL = processURL(artworkURL)
-        thumbnailURL = processURL(thumbnailURL)
+        // The shared unwrapper: it looks at a `musickit://` URL only, where
+        // this compiled a regular expression for every track mapped.
+        artworkURL = unwrappingMusicKitArtwork(artworkURL)
+        thumbnailURL = unwrappingMusicKitArtwork(thumbnailURL)
 
         return PlayableContent(
             title: title,
@@ -225,30 +185,10 @@ extension Playlist {
         var artworkURL = artwork?.url(width: 600, height: 600)
         var thumbnailURL = artwork?.url(width: 100, height: 100)
 
-        let pattern = "https%3A%2F%2F[^&]+"
-        let regex = try? NSRegularExpression(pattern: pattern)
-
-        func processURL(_ url: URL?) -> URL? {
-            guard let url = url,
-                  let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
-                  components.scheme?.lowercased() == "musickit",
-                  let regex = regex else {
-                return url
-            }
-
-            let nsString = url.absoluteString as NSString
-            let range = NSRange(location: 0, length: nsString.length)
-            
-            guard let match = regex.firstMatch(in: url.absoluteString, range: range) else {
-                return url
-            }
-
-            let encodedUrl = nsString.substring(with: match.range)
-            return URL(string: encodedUrl.removingPercentEncoding ?? "")
-        }
-
-        artworkURL = processURL(artworkURL)
-        thumbnailURL = processURL(thumbnailURL)
+        // The shared unwrapper: it looks at a `musickit://` URL only, where
+        // this compiled a regular expression for every track mapped.
+        artworkURL = unwrappingMusicKitArtwork(artworkURL)
+        thumbnailURL = unwrappingMusicKitArtwork(thumbnailURL)
 
         return PlayableContent(
             title: name,
