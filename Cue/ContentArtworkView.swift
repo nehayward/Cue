@@ -61,11 +61,23 @@ struct ContentArtworkView: View {
     /// at `url`. Static so the Lock Screen card can ask for exactly what the
     /// player did, and be answered from the memory cache.
     static func artworkRequest(for content: PlayableContent, url: URL?, preferredSize: Double) -> ImageRequest {
-        var request = ImageRequest(url: url)
         // Whether the view resolved to the full-size `artwork` rather than
         // the thumbnail: part of the cache key.
         let usesFullSizeArtwork = preferredSize != 50 && content.artwork != nil
-        request.imageID = usesFullSizeArtwork ? "\(content.imageKey)#full" : content.imageKey
+        var url = url
+        var tier = usesFullSizeArtwork ? "#full" : ""
+        // A grid tile or card asks the server for its own size rather than
+        // the player's 1200 px — about seven times the pixels a 150 pt tile
+        // shows, transcoded, sent and downsampled for every album in a grid.
+        // Keyed by that size: Nuke caches the download by `imageID`, and a
+        // smaller copy under `#full` would come back soft in the player.
+        if usesFullSizeArtwork, let full = url,
+           let (resized, size) = serverResized(full, toFit: maxPixelSize(for: preferredSize)) {
+            url = resized
+            tier = "#\(size)"
+        }
+        var request = ImageRequest(url: url)
+        request.imageID = content.imageKey + tier
         // Decode no bigger than the view shows. Plex (and Subsonic, and a
         // local folder) hand back the original embedded cover, which is often
         // 1500–3000px — 9 to 36 MB once decoded, for a 50pt row. Nuke's
@@ -74,6 +86,31 @@ struct ContentArtworkView: View {
         // so a row's thumbnail never satisfies the player's request.
         request.thumbnail = ImageRequest.ThumbnailOptions(maxPixelSize: maxPixelSize(for: preferredSize))
         return request
+    }
+
+    /// The sizes asked of servers that resize covers themselves.
+    private static let serverSizes = [300, 600, 1200]
+
+    /// `url` asking its server for the smallest of `serverSizes` that fits
+    /// `pixels`, and that size, when it's below the 1200 px the full-size
+    /// artwork asks for and the server resizes on its side: Plex's
+    /// transcoder (`width`/`height`) or Subsonic's `getCoverArt` (`size`).
+    /// Nil leaves the URL as it is.
+    private static func serverResized(_ url: URL, toFit pixels: Float) -> (URL, Int)? {
+        guard let size = serverSizes.first(where: { Float($0) >= pixels }), size < 1200,
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let items = components.queryItems else { return nil }
+        let names: Set<String>
+        if components.path.hasSuffix("/photo/:/transcode") {
+            names = ["width", "height"]
+        } else if components.path.hasSuffix("getCoverArt") || components.path.hasSuffix("getCoverArt.view") {
+            names = ["size"]
+        } else {
+            return nil
+        }
+        guard items.contains(where: { names.contains($0.name) }) else { return nil }
+        components.queryItems = items.map { names.contains($0.name) ? URLQueryItem(name: $0.name, value: "\(size)") : $0 }
+        return components.url.map { ($0, size) }
     }
 
     /// What the device player's cover asks for (`PlayerView`).
