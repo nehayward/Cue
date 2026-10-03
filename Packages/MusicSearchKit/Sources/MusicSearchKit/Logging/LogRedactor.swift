@@ -14,13 +14,6 @@ import Foundation
 enum LogRedactor {
     static let placeholder = "<redacted>"
 
-    /// Cheap substrings that every rule needs one of. Most lines have none,
-    /// and skip the regular expressions altogether.
-    private static let triggers = [
-        "token", "password", "passwd", "secret", "key", "bearer",
-        "?t=", "&t=", "?s=", "&s=", "?p=", "&p=", ";t=", ";s=", ";p="
-    ]
-
     private static let rules: [(pattern: NSRegularExpression, template: String)] = [
         // Query items with short names that would be too broad on their own:
         // Subsonic's token, salt and password.
@@ -34,14 +27,62 @@ enum LogRedactor {
     ].map { (try! NSRegularExpression(pattern: $0.0), $0.1) }
 
     static func redact(_ text: String) -> String {
-        guard triggers.contains(where: { text.range(of: $0, options: .caseInsensitive) != nil }) else {
-            return text
-        }
+        guard mightContainSecret(text) else { return text }
         var result = text
         for rule in rules {
             let range = NSRange(result.startIndex..., in: result)
             result = rule.pattern.stringByReplacingMatches(in: result, range: range, withTemplate: rule.template)
         }
         return result
+    }
+
+    /// Whether any rule could match: one pass over the bytes looking for
+    /// what each needs (`?t=`, `bearer`, `token`, `passw`, `secret`,
+    /// `apikey`, `api_key`). This runs on the thread that logs, often the
+    /// main one, so it has to be cheap. Most lines have none of them and
+    /// never reach the regular expressions, which cost tens of microseconds.
+    static func mightContainSecret(_ text: String) -> Bool {
+        var text = text
+        return text.withUTF8 { bytes in
+            for index in bytes.indices {
+                switch lowercased(bytes[index]) {
+                case UInt8(ascii: "?"), UInt8(ascii: "&"), UInt8(ascii: ";"):
+                    if index + 2 < bytes.count, bytes[index + 2] == UInt8(ascii: "=") {
+                        switch bytes[index + 1] {
+                        case UInt8(ascii: "t"), UInt8(ascii: "s"), UInt8(ascii: "p"): return true
+                        default: break
+                        }
+                    }
+                case UInt8(ascii: "t"):
+                    if matches("token", in: bytes, at: index) { return true }
+                case UInt8(ascii: "p"):
+                    if matches("passw", in: bytes, at: index) { return true }
+                case UInt8(ascii: "s"):
+                    if matches("secret", in: bytes, at: index) { return true }
+                case UInt8(ascii: "b"):
+                    if matches("bearer", in: bytes, at: index) { return true }
+                case UInt8(ascii: "a"):
+                    if matches("apikey", in: bytes, at: index) || matches("api_key", in: bytes, at: index) { return true }
+                default:
+                    break
+                }
+            }
+            return false
+        }
+    }
+
+    /// Whether `word` (lowercase ASCII) starts at `start`, ignoring case.
+    private static func matches(_ word: StaticString, in bytes: UnsafeBufferPointer<UInt8>, at start: Int) -> Bool {
+        let count = word.utf8CodeUnitCount
+        guard start + count <= bytes.count else { return false }
+        let word = word.utf8Start
+        for offset in 0..<count where lowercased(bytes[start + offset]) != word[offset] {
+            return false
+        }
+        return true
+    }
+
+    private static func lowercased(_ byte: UInt8) -> UInt8 {
+        (UInt8(ascii: "A")...UInt8(ascii: "Z")).contains(byte) ? byte | 0x20 : byte
     }
 }

@@ -31,15 +31,41 @@ public struct LogMessage: ExpressibleByStringInterpolation, Sendable {
             text += literal
         }
 
+        // The same four overloads as the standard library's
+        // `DefaultStringInterpolation`: strings and numbers write themselves
+        // straight in, and only other values go through
+        // `String(describing:)`, which is several times slower.
+
+        public mutating func appendInterpolation<Value>(_ value: Value) where Value: TextOutputStreamable, Value: CustomStringConvertible {
+            value.write(to: &text)
+        }
+
+        public mutating func appendInterpolation<Value: TextOutputStreamable>(_ value: Value) {
+            value.write(to: &text)
+        }
+
+        public mutating func appendInterpolation<Value: CustomStringConvertible>(_ value: Value) {
+            text += value.description
+        }
+
         public mutating func appendInterpolation<Value>(_ value: Value) {
             text += String(describing: value)
         }
 
+        public mutating func appendInterpolation<Value>(_ value: Value, privacy: LogPrivacy) where Value: TextOutputStreamable, Value: CustomStringConvertible {
+            if privacy == .public { appendInterpolation(value) } else { appendLiteral("<private>") }
+        }
+
+        public mutating func appendInterpolation<Value: TextOutputStreamable>(_ value: Value, privacy: LogPrivacy) {
+            if privacy == .public { appendInterpolation(value) } else { appendLiteral("<private>") }
+        }
+
+        public mutating func appendInterpolation<Value: CustomStringConvertible>(_ value: Value, privacy: LogPrivacy) {
+            if privacy == .public { appendInterpolation(value) } else { appendLiteral("<private>") }
+        }
+
         public mutating func appendInterpolation<Value>(_ value: Value, privacy: LogPrivacy) {
-            switch privacy {
-            case .public: text += String(describing: value)
-            case .private: text += "<private>"
-            }
+            if privacy == .public { appendInterpolation(value) } else { appendLiteral("<private>") }
         }
     }
 }

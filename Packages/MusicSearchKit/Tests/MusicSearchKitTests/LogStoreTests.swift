@@ -72,6 +72,18 @@ final class LogStoreTests: XCTestCase {
         XCTAssertEqual(LogRedactor.redact("password=hunter2&next=1"), "password=<redacted>&next=1")
     }
 
+    func testTheQuickCheckIgnoresCase() {
+        XCTAssertEqual(LogRedactor.redact("apiKey: abc"), "apiKey: <redacted>")
+        XCTAssertEqual(LogRedactor.redact("API_KEY=abc"), "API_KEY=<redacted>")
+        XCTAssertEqual(LogRedactor.redact("SECRET=abc"), "SECRET=<redacted>")
+        XCTAssertEqual(LogRedactor.redact("x-plex-TOKEN: abc"), "x-plex-TOKEN: <redacted>")
+        XCTAssertTrue(LogRedactor.mightContainSecret("…?t=abc"))
+        XCTAssertFalse(LogRedactor.mightContainSecret("route → Kitchen: carrying 12 items"))
+        // Ends early without reading past the last byte.
+        XCTAssertFalse(LogRedactor.mightContainSecret("tok"))
+        XCTAssertFalse(LogRedactor.mightContainSecret("?t"))
+    }
+
     func testOrdinaryLinesAreLeftAlone() {
         let lines = [
             "route → Kitchen + 1: carrying 12 items from device at 34s",
