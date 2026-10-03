@@ -12,7 +12,8 @@ private struct VolumeViewRepresentable: UIViewRepresentable {
 }
 
 private struct HardwareVolumeControlModifier: ViewModifier {
-    let group: GroupRoom
+    /// Nil leaves the buttons to this device's own volume.
+    let group: GroupRoom?
     @Environment(SonosService.self) private var sonosService
     @Environment(FeatureGate.self) private var featureGate
     // Defaults to true — see `AppStorageKeys`. The literal has to match the
@@ -56,20 +57,20 @@ private struct HardwareVolumeControlModifier: ViewModifier {
     /// by coordinator id at time of use, so a topology change replacing the
     /// `GroupRoom` instance doesn't orphan the bridge.
     private var claimKey: String? {
-        guard enabled else { return nil }
+        guard enabled, let group else { return nil }
         return "\(group.coordinatorID)|\(HardwareVolumeService.shared.owner == .session)"
     }
 
     func body(content: Content) -> some View {
         content
             .background {
-                if enabled {
+                if enabled, group != nil {
                     VolumeViewRepresentable(view: volumeView)
                         .frame(width: 1, height: 1)
                 }
             }
             .task(id: claimKey) {
-                if enabled {
+                if enabled, let group {
                     HardwareVolumeService.shared.start(
                         group: group,
                         sonosService: sonosService,
@@ -86,7 +87,10 @@ private struct HardwareVolumeControlModifier: ViewModifier {
 }
 
 extension View {
-    func hardwareVolumeControl(group: GroupRoom) -> some View {
+    /// The hardware volume buttons move `group` while this view is up. Nil
+    /// gives them back to this device, so a view that follows the route can
+    /// keep the one modifier whichever way it points.
+    func hardwareVolumeControl(group: GroupRoom?) -> some View {
         modifier(HardwareVolumeControlModifier(group: group))
     }
 }
@@ -95,6 +99,6 @@ import SonosKit
 import SwiftUI
 
 extension View {
-    func hardwareVolumeControl(group: GroupRoom) -> some View { self }
+    func hardwareVolumeControl(group: GroupRoom?) -> some View { self }
 }
 #endif

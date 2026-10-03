@@ -101,7 +101,7 @@ final class LiveTranscriptionService {
     /// Whether a station is what the player is showing — on this device or
     /// the speaker the route points at. The player's button shows only then.
     static var isStationPlaying: Bool {
-        if let group = PlaybackRoute.shared.group {
+        if let group = PlaybackRoute.shared.presentedGroup {
             return group.coordinatorRoom.isPlayingRadio
         }
         return LocalPlaybackService.shared.isPlayingStation

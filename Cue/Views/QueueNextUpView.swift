@@ -7,11 +7,14 @@ import SwiftUI
 ///
 /// Sits beside the tab content the same way the bottom accessory does, and
 /// follows the same route, so the two never disagree about what "next" means.
+/// The presented route, like the player: while a hand-off carries the queue
+/// to a speaker, this keeps showing the queue being carried rather than the
+/// speaker's old one.
 struct QueueNextUpView: View {
     private var route: PlaybackRoute { .shared }
 
     var body: some View {
-        if let group = route.group {
+        if let group = route.presentedGroup {
             GroupNextUpView(group: group)
         } else {
             LocalNextUpView()

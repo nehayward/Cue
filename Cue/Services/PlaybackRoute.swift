@@ -1,5 +1,6 @@
 import Defaults
 import Foundation
+import Nuke
 import Observation
 import OSLog
 import SonosKit
@@ -24,6 +25,12 @@ import SwiftUI
 /// Views read `destination` and `group` off `shared` rather than the
 /// environment: the tab bar accessory and the Next Up panel are hosted
 /// outside what `withEnvironments()` installs.
+///
+/// The player surfaces draw `presented`, a `PlaybackController`, rather than
+/// branching on `group` themselves. It is the route, except while a switch
+/// is carrying a queue across: then it stays on the source — which is what
+/// is still being heard — until the target is playing the same song, so the
+/// player never shows the speaker's last track, or an empty one, in between.
 @MainActor
 @Observable
 final class PlaybackRoute {
@@ -49,6 +56,43 @@ final class PlaybackRoute {
     @ObservationIgnored private var switchToken = 0
 
     @ObservationIgnored private var observers: [Task<Void, Never>] = []
+
+    /// The source the player keeps showing while a hand-off carries its
+    /// queue to `destination` — see `presented`. Nil when the player shows
+    /// the route as it stands.
+    private(set) var hold: Hold?
+
+    struct Hold: Equatable {
+        /// What the player shows meanwhile.
+        let source: PlayDestination
+        /// Whether the source was playing when the switch was made. The
+        /// source is paused on the way out, and the transport keeps reading
+        /// as it did rather than flicking to Play and back.
+        let wasPlaying: Bool
+        /// Seconds into the song when the switch was made, and when that
+        /// was. The target picks the song up from here, run on by however
+        /// long the hand-off took, so the bars run on from here too rather
+        /// than stopping with the source.
+        let position: TimeInterval
+        let since: Date
+
+        /// Where the song is at `date`, as far as the hand-off goes.
+        func position(at date: Date) -> TimeInterval {
+            guard wasPlaying else { return position }
+            return position + max(date.timeIntervalSince(since), 0)
+        }
+    }
+
+    /// Waits for the target to show the carried song, then lets the hold go.
+    @ObservationIgnored private var holdRelease: Task<Void, Never>?
+    /// Lets a hold go however the hand-off is doing, so a speaker that
+    /// never answers can't leave the player on the source.
+    @ObservationIgnored private var holdWatchdog: Task<Void, Never>?
+    /// The longest a hold lasts.
+    private static let holdTimeout: Duration = .seconds(12)
+    /// How long the player waits, once the target is playing, for it to name
+    /// the carried song and have its cover.
+    private static let holdSettleLimit: Duration = .seconds(3)
 
     /// Each speaker's transport source, read when the Play On menu opened,
     /// keyed by coordinator. Lets a hand-off picked from that menu skip the
@@ -110,6 +154,46 @@ final class PlaybackRoute {
         return SonosService.shared.groups.first { $0.coordinatorID == id }
     }
 
+    // MARK: - Controllers
+
+    /// What plays at the route: where transport, the queue and the volume go.
+    var controller: any PlaybackController {
+        controller(for: destination)
+    }
+
+    /// The route the player surfaces show: the source while a hand-off holds
+    /// it (see `hold`), else the route itself.
+    var presentedDestination: PlayDestination {
+        hold?.source ?? destination
+    }
+
+    /// What the player, the mini player and the queue panel draw, and what
+    /// their controls act on.
+    var presented: any PlaybackController {
+        controller(for: presentedDestination)
+    }
+
+    /// The group `presented` is, for the extras only a speaker has.
+    var presentedGroup: GroupRoom? {
+        presented.group
+    }
+
+    /// A hand-off is under way and the player is holding on its source.
+    var isHolding: Bool {
+        hold != nil
+    }
+
+    /// The controller for `destination`. A speaker that isn't among the
+    /// groups — not found yet at launch, or gone — reads as this device, as
+    /// the player always has: there is nothing of the speaker's to show.
+    func controller(for destination: PlayDestination) -> any PlaybackController {
+        guard let id = destination.groupID,
+              SonosService.shared.groups.contains(where: { $0.coordinatorID == id }) else {
+            return LocalPlaybackService.shared
+        }
+        return SonosGroupController(coordinatorID: id)
+    }
+
     // MARK: - Switching
 
     /// Points playback at `target` and carries whatever is playing across.
@@ -132,6 +216,10 @@ final class PlaybackRoute {
         // still there under a speaker route, and mustn't be carried onto the
         // next speaker chosen in place of that speaker's own queue.
         let fromDevice = destination == .device
+        // What the player shows now, and whether to keep showing it through
+        // the hand-off: only when a queue will actually come across.
+        let shown = presented
+        let holds = carrying && shown.destination != target && hasSomethingToCarry(to: target)
         let targetGroup: GroupRoom?
         switch target {
         case .device:
@@ -150,6 +238,7 @@ final class PlaybackRoute {
             handoffTask?.cancel()
             switchToken += 1
             isSwitching = false
+            endHold()
             if fromDevice {
                 LocalPlaybackService.shared.park()
             }
@@ -161,11 +250,19 @@ final class PlaybackRoute {
         switchToken += 1
         let token = switchToken
         isSwitching = true
+        beginHold(holds ? Hold(source: shown.destination, wasPlaying: shown.isPlaying, position: shown.position(), since: .now) : nil)
         handoffTask = Task { [weak self] in
             guard let self else { return }
             defer {
                 if self.switchToken == token {
                     self.isSwitching = false
+                    // Nothing came across — nothing to carry, or a failure
+                    // put the route back — so the player shows the route as
+                    // it now stands. A hand-off that landed has passed the
+                    // hold to `releaseHold(whenShowing:on:)` already.
+                    if self.holdRelease == nil {
+                        self.endHold()
+                    }
                 }
             }
             if let targetGroup {
@@ -252,6 +349,99 @@ final class PlaybackRoute {
         guard let source, destination == target, !Task.isCancelled else { return }
         Self.log.notice("route: hand-off failed, back to \(source.groupID ?? "device", privacy: .public)")
         remember(source)
+    }
+
+    // MARK: - Holding the player on the source
+
+    /// Starts showing `hold` in the route's place, or stops holding.
+    ///
+    /// Bounded by `holdTimeout`: past it the player shows the route as it
+    /// stands, whatever the hand-off is doing — a speaker that never answers
+    /// shouldn't leave the player showing a source that has gone quiet.
+    private func beginHold(_ new: Hold?) {
+        endHold()
+        guard let new else { return }
+        hold = new
+        let token = switchToken
+        holdWatchdog = Task { [weak self] in
+            try? await Task.sleep(for: Self.holdTimeout)
+            guard !Task.isCancelled, let self, self.switchToken == token, self.hold != nil else { return }
+            Self.log.notice("route: hand-off still running at the hold's limit; the player follows the route")
+            self.endHold()
+        }
+    }
+
+    private func endHold() {
+        holdRelease?.cancel()
+        holdRelease = nil
+        holdWatchdog?.cancel()
+        holdWatchdog = nil
+        if hold != nil {
+            hold = nil
+        }
+    }
+
+    /// Lets the player go over to `target` once the speaker names the
+    /// carried song and its cover is in memory, so the swap lands on the
+    /// same song, already drawn — not on the speaker's last track, or on an
+    /// empty cover while this one loads. A speaker reports the new item a
+    /// beat after it starts it, and the item's artwork a beat after that.
+    ///
+    /// Bounded by `holdSettleLimit`: a speaker that names the song another
+    /// way, or a cover that won't load, still lets go. Unstructured, so the
+    /// tail filling in behind the first song doesn't wait on it.
+    private func releaseHold(whenShowing item: PlayableContent, on target: GroupRoom) {
+        guard hold != nil else { return }
+        let token = switchToken
+        let coordinatorID = target.coordinatorID
+        holdRelease?.cancel()
+        holdRelease = Task { [weak self] in
+            let sonos = SonosService.shared
+            let deadline = ContinuousClock.now.advanced(by: Self.holdSettleLimit)
+            // The socket brings the new item when something is listening;
+            // with the player closed nothing may be, so after a moment the
+            // track is read once.
+            let refreshAt = ContinuousClock.now.advanced(by: .seconds(1))
+            var refreshed = false
+            var warmed: Set<URL> = []
+            while ContinuousClock.now < deadline, !Task.isCancelled {
+                guard let group = sonos.groups.first(where: { $0.coordinatorID == coordinatorID }) else { break }
+                let track = group.coordinatorRoom.track
+                if Self.track(track, isShowing: item) {
+                    // No URL yet is the cover still on its way rather than a
+                    // song without one; the deadline covers the second case.
+                    if let url = track.artworkURL, let request = track.playerArtworkRequest {
+                        if ImagePipeline.shared.cache.cachedImage(for: request, caches: .memory) != nil {
+                            break
+                        }
+                        // The request `ArtworkView` makes, so the cover lands
+                        // in the entry the player reads on its first frame.
+                        if warmed.insert(url).inserted {
+                            Task { _ = try? await ImagePipeline.shared.image(for: request) }
+                        }
+                    }
+                } else if !refreshed, ContinuousClock.now >= refreshAt {
+                    refreshed = true
+                    try? await sonos.updateTrackInformation(for: [group])
+                    continue
+                }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            guard !Task.isCancelled, let self, self.switchToken == token else { return }
+            self.holdRelease = nil
+            self.endHold()
+        }
+    }
+
+    /// Whether the speaker's `track` is `item`: by title, which survives the
+    /// trip through any service, or by the id the item went out with.
+    private static func track(_ track: Track, isShowing item: PlayableContent) -> Bool {
+        guard !track.isEmpty, !track.isSkipPreview else { return false }
+        if !item.title.isEmpty, track.song.localizedCaseInsensitiveCompare(item.title) == .orderedSame {
+            return true
+        }
+        let id = item.content.id
+        return !id.isEmpty && track.trackID.contains(id)
     }
 
     // MARK: - Snapshots
@@ -509,6 +699,7 @@ final class PlaybackRoute {
         // tail fills in behind it, and a further switch cancels that.
         guard !Task.isCancelled else { return }
         isSwitching = false
+        releaseHold(whenShowing: first, on: target)
 
         let rest = Array(items.dropFirst())
         guard !rest.isEmpty else { return }
@@ -579,6 +770,11 @@ final class PlaybackRoute {
         if let index = parkedIndex(matching: snapshot) {
             snapshot.position = await stop(source, holding: snapshot)
             guard !Task.isCancelled else { return }
+            // The player comes over now, in the same turn as the resume
+            // below moves the queue to this track (nothing suspends between
+            // the two), so its first frame on this device is the song the
+            // speaker stopped on, not the parked one.
+            endHold()
             Self.log.notice("route → device: picking the parked queue back up at \(index) from \(source.nameWithCount, privacy: .public) at \(Int(snapshot.position))s")
             do {
                 try await playback.resume(at: index, from: snapshot.position)
@@ -626,6 +822,9 @@ final class PlaybackRoute {
 
         snapshot.position = await stop(source, holding: snapshot)
         guard !Task.isCancelled else { return }
+        // As in the parked case: the play below replaces the queue before
+        // it first suspends, so the player comes over onto this song.
+        endHold()
         Self.log.notice("route → device: carrying \(snapshot.items.count - firstIndex) items from \(source.nameWithCount, privacy: .public) at \(Int(snapshot.position))s")
 
         // The position is the current track's; with that one dropped the
