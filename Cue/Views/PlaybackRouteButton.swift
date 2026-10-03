@@ -54,6 +54,7 @@ private struct SonosRouteButton: View {
     private var route: PlaybackRoute { .shared }
 
     @State private var isPresented = false
+    @Namespace private var transition
 
     var body: some View {
         Button {
@@ -65,8 +66,13 @@ private struct SonosRouteButton: View {
                 .accessibilityLabel("Play On")
                 .accessibilityValue(route.group?.nameWithCount ?? "This Device")
         }
+        // The sheet grows out of the button and shrinks back into it,
+        // rather than sliding up from the bottom edge, far from where the
+        // tap was.
+        .zoomSource(.playOn, in: transition)
         .sheet(isPresented: $isPresented) {
             PlayOnSheet()
+                .zoomTransition(from: .playOn, in: transition)
         }
     }
 }

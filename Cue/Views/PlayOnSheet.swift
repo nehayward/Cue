@@ -37,7 +37,7 @@ struct PlayOnSheet: View {
     @State private var listIsSettled = true
     /// The row being dragged for volume; the list doesn't scroll meanwhile.
     @State private var adjustingRowID: String?
-    @State private var roomVolumes = RoomVolumeWriter()
+    @State private var volumes = SpeakerVolumeWriter()
     /// The sheet's height once the rows have been measured; see `fit`.
     @State private var sheetHeight: CGFloat?
 
@@ -91,15 +91,22 @@ struct PlayOnSheet: View {
                 .padding(.bottom, 8)
         }
         .playOnBar(edge: .bottom) {
-            if let group = route.group, activeRooms.count > 1 {
-                groupingBar(GroupMembership(group: group))
+            if let group = route.group, showsGroupingBar {
+                VStack(spacing: 12) {
+                    groupingButtons(GroupMembership(group: group))
+                    if showsAllSpeakers {
+                        allSpeakersVolume(group)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
         }
         // One height, fitted to the rooms, as the system's picker does. With
         // a taller one to grow to, a swipe up grew the sheet before it
         // scrolled the list, and the list stopped short at the buttons with
         // nothing to say it went on.
-        .presentationDetents([.height(sheetHeight ?? estimatedSheetHeight)])
+        .presentationDetents([.height(sheetHeight ?? openingSheetHeight)])
         .presentationContentInteraction(.scrolls)
         .presentationDragIndicator(.visible)
         .sheet(item: $pending) { pending in
@@ -120,12 +127,36 @@ struct PlayOnSheet: View {
 
     // MARK: - Height
 
-    /// The first guess, before the list has been measured: the header, a
-    /// row for this device and each room, and the buttons on a speaker.
+    /// Everywhere and Ungroup All: on a speaker, with another room to group.
+    private var showsGroupingBar: Bool {
+        route.group != nil && activeRooms.count > 1
+    }
+
+    /// The group's own volume and mute, under the buttons: with more than
+    /// one room in it, so it isn't the one room's row again.
+    private var showsAllSpeakers: Bool {
+        (route.group?.rooms.count ?? 0) > 1
+    }
+
+    /// What decides the height, as `FittedSheetHeights` files it.
+    private var layout: String {
+        "\(activeRooms.count + 1)-\(showsGroupingBar ? 1 : 0)-\(showsAllSpeakers ? 1 : 0)"
+    }
+
+    /// The height to open at: what this layout fitted to last time, so the
+    /// sheet zooms out of the button at its size instead of changing size
+    /// once it's up. A guess the first time.
+    private var openingSheetHeight: CGFloat {
+        min(FittedSheetHeights.height(for: layout) ?? estimatedSheetHeight, Self.tallestSheet)
+    }
+
+    /// The header, a row for this device and each room, and the buttons and
+    /// group volume on a speaker, at the default text size.
     private var estimatedSheetHeight: CGFloat {
         let rows = CGFloat(activeRooms.count + 1)
-        let buttons: CGFloat = route.group != nil && activeRooms.count > 1 ? 72 : 0
-        return min(110 + rows * 68 + 16 + buttons, Self.tallestSheet)
+        let buttons: CGFloat = showsGroupingBar ? 68 : 0
+        let allSpeakers: CGFloat = showsAllSpeakers ? 70 : 0
+        return min(106 + rows * 68 + buttons + allSpeakers, Self.tallestSheet)
     }
 
     /// Grows or shrinks the sheet by what the rows need, up to about where
@@ -133,12 +164,13 @@ struct PlayOnSheet: View {
     /// against the sheet as it is, so whatever the header, buttons and safe
     /// area take comes out of the sum without being known.
     private func fit(overflow: CGFloat) {
-        let current = sheetHeight ?? estimatedSheetHeight
+        let current = sheetHeight ?? openingSheetHeight
         // A point to spare, so rounding never leaves the list a hair too
         // long to sit still.
         let target = min(max(current + overflow + 1, Self.shortestSheet), Self.tallestSheet)
         guard abs(target - current) > 0.5 else { return }
         sheetHeight = target
+        FittedSheetHeights.remember(target, for: layout)
     }
 
     private static let shortestSheet: CGFloat = 240
@@ -156,7 +188,7 @@ struct PlayOnSheet: View {
     private var deviceRow: some View {
         let volume = DeviceVolume.shared
         return VolumeRouteRow(
-            title: "This Device",
+            title: String(localized: "This Device"),
             symbol: Self.deviceSymbol,
             mark: route.destination == .device ? .checkmark : .empty,
             // While a speaker holds the system volume, the device's own
@@ -200,7 +232,7 @@ struct PlayOnSheet: View {
             isMuted: room.isMuted,
             listIsSettled: listIsSettled,
             onTap: { tap(room, membership: membership) },
-            onLevel: { roomVolumes.set(room, to: $0 * 100) },
+            onLevel: { volumes.set(room, to: $0 * 100) },
             onAdjusting: { setAdjusting(room.id, $0) }
         )
     }
@@ -221,7 +253,7 @@ struct PlayOnSheet: View {
         return Text("With \(others.formatted(.list(type: .and)))")
     }
 
-    private func groupingBar(_ membership: GroupMembership) -> some View {
+    private func groupingButtons(_ membership: GroupMembership) -> some View {
         HStack(spacing: 12) {
             Button {
                 membership.groupEverywhere()
@@ -244,8 +276,42 @@ struct PlayOnSheet: View {
         .font(.subheadline.weight(.semibold))
         .buttonBorderShape(.capsule)
         .controlSize(.large)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 16)
+    }
+
+    /// Every room in the group at once: Mute All / Unmute All, then the
+    /// group's volume as a row like the rooms', which moves them all and
+    /// keeps the balance between them.
+    private func allSpeakersVolume(_ group: GroupRoom) -> some View {
+        let isMuted = group.isMuted || group.rooms.allSatisfy(\.isMuted)
+        return HStack(spacing: 10) {
+            Button {
+                setAllMuted(!isMuted, in: group)
+            } label: {
+                // No symbol transition: on the Mac each animated swap costs
+                // GPU memory (see CLAUDE.md).
+                Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
+            .glassButton()
+            .accessibilityLabel(isMuted ? "Unmute All" : "Mute All")
+
+            VolumeRouteRow(
+                title: String(localized: "All Speakers"),
+                subtitle: Text(group.nameWithCount),
+                symbol: "hifispeaker.2.fill",
+                mark: .empty,
+                // A fixed-output coordinator ignores volume: nothing to drag.
+                level: group.coordinatorRoom.isOutputFixed ? nil : group.groupVolume / 100,
+                isMuted: isMuted,
+                // Not in the list: there's no scroll to tell it from.
+                listIsSettled: true,
+                onLevel: { volumes.set(group, to: $0 * 100) },
+                onAdjusting: { _ in }
+            )
+        }
     }
 
     // MARK: - Actions
@@ -281,6 +347,17 @@ struct PlayOnSheet: View {
         }
     }
 
+    /// Sonos's group mute mutes or unmutes every room in it. Shown at once
+    /// on the rooms too; the poll confirms it.
+    private func setAllMuted(_ mute: Bool, in group: GroupRoom) {
+        HapticManager.shared.fireHaptic(.selection)
+        group.isMuted = mute
+        for room in group.rooms where room.isMuted != mute {
+            room.isMuted = mute
+        }
+        Task { await sonosService.setGroupMute(group: group, mute: mute) }
+    }
+
     private func setAdjusting(_ id: String, _ isAdjusting: Bool) {
         if isAdjusting {
             adjustingRowID = id
@@ -306,6 +383,27 @@ struct PlayOnSheet: View {
 #else
         return UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone"
 #endif
+    }
+}
+
+/// The Play On sheet's fitted heights, by layout (`PlayOnSheet.layout`),
+/// kept across launches. The rows are only measured once the sheet is up,
+/// and a sheet that changed size then looked like it had stumbled out of
+/// the button.
+private enum FittedSheetHeights {
+    private static var key: String { AppStorageKeys.playOnSheetHeights }
+
+    static func height(for layout: String) -> CGFloat? {
+        guard let stored = UserDefaults.standard.dictionary(forKey: key)?[layout] as? Double else { return nil }
+        return CGFloat(stored)
+    }
+
+    static func remember(_ height: CGFloat, for layout: String) {
+        var all = UserDefaults.standard.dictionary(forKey: key) as? [String: Double] ?? [:]
+        let value = Double(height)
+        guard all[layout] != value else { return }
+        all[layout] = value
+        UserDefaults.standard.set(all, forKey: key)
     }
 }
 
@@ -434,7 +532,8 @@ struct VolumeRouteRow: View {
     var isMuted = false
     /// False while the list is moving: a touch that lands then only stops it.
     let listIsSettled: Bool
-    let onTap: () -> Void
+    /// `nil` for a row that's only a volume, with nowhere to route to.
+    var onTap: (() -> Void)? = nil
     let onLevel: (Double) -> Void
     /// A volume drag started (`true`) or ended (`false`).
     let onAdjusting: (Bool) -> Void
@@ -516,8 +615,8 @@ struct VolumeRouteRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
         .accessibilityValue(accessibilityValue)
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-        .accessibilityAction { onTap() }
+        .accessibilityAddTraits(accessibilityTraits)
+        .accessibilityAction { onTap?() }
         .accessibilityAdjustableAction { direction in
             guard let level else { return }
             switch direction {
@@ -577,6 +676,11 @@ struct VolumeRouteRow: View {
         }
     }
 
+    private var accessibilityTraits: AccessibilityTraits {
+        guard onTap != nil else { return [] }
+        return isSelected ? [.isButton, .isSelected] : .isButton
+    }
+
     private var accessibilityValue: String {
         var parts: [String] = []
         if let level {
@@ -629,85 +733,133 @@ struct VolumeRouteRow: View {
         } else if finished?.axis == nil, !(finished?.beganWhileScrolling ?? !listIsSettled) {
             // Never moved far enough to pick a way: a tap — unless it landed
             // on a list still moving, where all it did was stop it.
-            onTap()
+            onTap?()
         }
     }
 }
 
-// MARK: - Room volume
+// MARK: - Volume
 
-/// Sends a room's level while its row is dragged: to the model at once, so
-/// the fill keeps up with the finger, and to the speaker at most every
-/// `interval`, always the latest level and never a repeat. Each request is a
-/// SOAP round trip, and one per drag tick queued up behind the finger.
+/// Sends a room's or a group's level while its row is dragged: to the model
+/// at once, so the fill keeps up with the finger, and to the speaker at most
+/// every `interval`, always the latest level and never a repeat. Each request
+/// is a SOAP round trip, and one per drag tick queued up behind the finger.
 ///
-/// Holds the room's `isEditingVolume` until a moment after the last write —
-/// the speaker reports the levels the drag passed through, and a poll's read
-/// of one would pull the fill back under the finger. Then it re-takes the
-/// group's volume snapshot, so a later group change keeps the new balance,
-/// and reads the group's level for the player's slider.
+/// Holds `isEditingVolume` until a moment after the last write — the speaker
+/// reports the levels the drag passed through, and a poll's read of one would
+/// pull the fill back under the finger. Then it settles what the change moved
+/// elsewhere: a room's change moves its group's level, so the group's volume
+/// snapshot is taken again (a later group change keeps the new balance) and
+/// its level read for the player's slider; a group's change moves every
+/// room, so their levels are read again.
 ///
 /// Its tasks keep it alive past the sheet closing, so the hold is always let
 /// go.
 @MainActor
-final class RoomVolumeWriter {
-    private var pending: [String: (ip: String, volume: Int)] = [:]
+final class SpeakerVolumeWriter {
+    private var pending: [String: Int] = [:]
     private var writers: [String: Task<Void, Never>] = [:]
     private var releases: [String: Task<Void, Never>] = [:]
 
     private static let interval: Duration = .milliseconds(80)
-    private static let hold: Duration = .milliseconds(1500)
+    private static let editingHold: Duration = .milliseconds(1500)
 
     /// `volume` is 0...100. A level the room already has does nothing: a
     /// drag reports the same level many times over, and the hold only
     /// starts with something to send.
     func set(_ room: Room, to volume: Double) {
-        let level = min(100, max(0, volume.rounded()))
+        let level = Self.level(volume)
         guard room.volume != level else { return }
-        releases.removeValue(forKey: room.id)?.cancel()
         if !room.isEditingVolume {
             room.isEditingVolume = true
         }
+        let ip = room.ip
         // Turning a muted room up means hearing it, as the other volume
         // sliders do.
         if room.isMuted {
             room.isMuted = false
-            let ip = room.ip
             Task { await SonosService.shared.setRoomMute(IP: ip, mute: false) }
         }
         room.volume = level
-        pending[room.id] = (room.ip, Int(level))
-        startWriting(room)
+        write(Int(level), key: room.id) { volume in
+            await SonosService.shared.setDeviceVolume(ip: ip, volume: volume)
+        } drained: {
+        } settle: { [weak room] in
+            guard let room else { return }
+            room.isEditingVolume = false
+            await Self.settleGroupVolume(around: room)
+        }
     }
 
-    /// One write loop per room, while there's a level waiting. It hands the
-    /// room to `release` once it runs dry.
-    private func startWriting(_ room: Room) {
-        let id = room.id
-        guard writers[id] == nil else { return }
-        writers[id] = Task {
-            while let next = pending.removeValue(forKey: id) {
-                await SonosService.shared.setDeviceVolume(ip: next.ip, volume: next.volume)
+    /// `volume` is 0...100; the speaker spreads it over the rooms in
+    /// proportion, as the player's group slider does.
+    func set(_ group: GroupRoom, to volume: Double) {
+        let level = Self.level(volume)
+        guard group.groupVolume != level else { return }
+        if !group.isEditingVolume {
+            group.isEditingVolume = true
+        }
+        if group.isMuted || group.rooms.contains(where: \.isMuted) {
+            group.isMuted = false
+            for room in group.rooms where room.isMuted {
+                room.isMuted = false
+            }
+            Task { await SonosService.shared.setGroupMute(group: group, mute: false) }
+        }
+        group.groupVolume = level
+        let ip = group.ip
+        write(Int(level), key: "group:" + group.coordinatorID) { volume in
+            await SonosService.shared.setGroupVolume(ip: ip, volume: volume)
+        } drained: { [weak group] in
+            // The rooms' rows follow whenever the finger rests, not only
+            // after the hold.
+            guard let group else { return }
+            await SonosService.shared.updateRoomVolumes(for: group)
+        } settle: { [weak group] in
+            guard let group else { return }
+            group.isEditingVolume = false
+            await SonosService.shared.updateRoomVolumes(for: group)
+        }
+    }
+
+    private static func level(_ volume: Double) -> Double {
+        min(100, max(0, volume.rounded()))
+    }
+
+    /// One write loop per speaker, while there's a level waiting. It hands
+    /// the speaker to the hold once it runs dry.
+    private func write(
+        _ volume: Int,
+        key: String,
+        send: @escaping (Int) async -> Void,
+        drained: @escaping () async -> Void,
+        settle: @escaping () async -> Void
+    ) {
+        releases.removeValue(forKey: key)?.cancel()
+        pending[key] = volume
+        guard writers[key] == nil else { return }
+        writers[key] = Task {
+            while let next = pending.removeValue(forKey: key) {
+                await send(next)
                 try? await Task.sleep(for: Self.interval)
             }
-            writers[id] = nil
-            release(room)
+            writers[key] = nil
+            hold(key, then: settle)
+            await drained()
         }
     }
 
-    private func release(_ room: Room) {
-        let id = room.id
-        releases[id]?.cancel()
-        releases[id] = Task {
-            try? await Task.sleep(for: Self.hold)
+    private func hold(_ key: String, then settle: @escaping () async -> Void) {
+        releases[key]?.cancel()
+        releases[key] = Task {
+            try? await Task.sleep(for: Self.editingHold)
             guard !Task.isCancelled else { return }
-            releases[id] = nil
-            room.isEditingVolume = false
-            await settleGroupVolume(around: room)
+            releases[key] = nil
+            await settle()
         }
     }
 
-    private func settleGroupVolume(around room: Room) async {
+    private static func settleGroupVolume(around room: Room) async {
         let sonos = SonosService.shared
         guard let group = sonos.groups.first(where: { group in group.rooms.contains { $0.id == room.id } }) else { return }
         if group.rooms.count > 1 {
