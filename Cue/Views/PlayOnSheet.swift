@@ -38,6 +38,8 @@ struct PlayOnSheet: View {
     /// The row being dragged for volume; the list doesn't scroll meanwhile.
     @State private var adjustingRowID: String?
     @State private var roomVolumes = RoomVolumeWriter()
+    /// The sheet's height once the rows have been measured; see `fit`.
+    @State private var sheetHeight: CGFloat?
 
     private static let deviceRowID = "device"
 
@@ -46,40 +48,59 @@ struct PlayOnSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        ScrollView {
+            VStack(spacing: 10) {
+                deviceRow
+                speakerRows
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
+        }
+        .scrollDisabled(adjustingRowID != nil)
+        .scrollBounceBehavior(.basedOnSize)
+        // With more rooms than fit, the indicator shows on open that the
+        // list goes on; with nothing to scroll, nothing shows.
+        .scrollIndicatorsFlash(onAppear: true)
+        .onScrollPhaseChange { _, phase in
+            switch phase {
+            case .idle:
+                listIsSettled = true
+            case .tracking:
+                // A finger landing. Says nothing yet, and mustn't clear
+                // a fling it is about to catch.
+                break
+            default:
+                listIsSettled = false
+            }
+        }
+        // How much longer the rows are than the room they have between the
+        // header and the buttons; negative when there's room to spare.
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            let visible = geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
+            return geometry.contentSize.height - visible
+        } action: { _, overflow in
+            fit(overflow: overflow)
+        }
+        // Bars rather than a stack around the list, so the rows scroll under
+        // them and the system softens the edge they pass under.
+        .playOnBar(edge: .top) {
             PlayOnHeader()
                 .padding(.horizontal, 24)
                 .padding(.top, 28)
-                .padding(.bottom, 16)
-
-            ScrollView {
-                VStack(spacing: 10) {
-                    deviceRow
-                    speakerRows
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
-            }
-            .scrollDisabled(adjustingRowID != nil)
-            .scrollBounceBehavior(.basedOnSize)
-            .onScrollPhaseChange { _, phase in
-                switch phase {
-                case .idle:
-                    listIsSettled = true
-                case .tracking:
-                    // A finger landing. Says nothing yet, and mustn't clear
-                    // a fling it is about to catch.
-                    break
-                default:
-                    listIsSettled = false
-                }
-            }
-
+                .padding(.bottom, 8)
+        }
+        .playOnBar(edge: .bottom) {
             if let group = route.group, activeRooms.count > 1 {
                 groupingBar(GroupMembership(group: group))
             }
         }
-        .presentationDetents([.medium, .large])
+        // One height, fitted to the rooms, as the system's picker does. With
+        // a taller one to grow to, a swipe up grew the sheet before it
+        // scrolled the list, and the list stopped short at the buttons with
+        // nothing to say it went on.
+        .presentationDetents([.height(sheetHeight ?? estimatedSheetHeight)])
+        .presentationContentInteraction(.scrolls)
         .presentationDragIndicator(.visible)
         .sheet(item: $pending) { pending in
             RouteTransferPrompt(target: pending.target) { carrying in
@@ -95,6 +116,39 @@ struct PlayOnSheet: View {
                 route.prefetchTargets()
             }
         }
+    }
+
+    // MARK: - Height
+
+    /// The first guess, before the list has been measured: the header, a
+    /// row for this device and each room, and the buttons on a speaker.
+    private var estimatedSheetHeight: CGFloat {
+        let rows = CGFloat(activeRooms.count + 1)
+        let buttons: CGFloat = route.group != nil && activeRooms.count > 1 ? 72 : 0
+        return min(110 + rows * 68 + 16 + buttons, Self.tallestSheet)
+    }
+
+    /// Grows or shrinks the sheet by what the rows need, up to about where
+    /// the system's large sheet stops; past that, the list scrolls. Measured
+    /// against the sheet as it is, so whatever the header, buttons and safe
+    /// area take comes out of the sum without being known.
+    private func fit(overflow: CGFloat) {
+        let current = sheetHeight ?? estimatedSheetHeight
+        // A point to spare, so rounding never leaves the list a hair too
+        // long to sit still.
+        let target = min(max(current + overflow + 1, Self.shortestSheet), Self.tallestSheet)
+        guard abs(target - current) > 0.5 else { return }
+        sheetHeight = target
+    }
+
+    private static let shortestSheet: CGFloat = 240
+
+    private static var tallestSheet: CGFloat {
+        let windows = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+        guard let window = windows.first(where: \.isKeyWindow) ?? windows.first else { return 640 }
+        return window.bounds.height - window.safeAreaInsets.top - 16
     }
 
     // MARK: - Rows
@@ -191,8 +245,7 @@ struct PlayOnSheet: View {
         .buttonBorderShape(.capsule)
         .controlSize(.large)
         .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 12)
+        .padding(.bottom, 16)
     }
 
     // MARK: - Actions
@@ -253,6 +306,19 @@ struct PlayOnSheet: View {
 #else
         return UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone"
 #endif
+    }
+}
+
+private extension View {
+    /// A bar the list scrolls under. On iOS 26 the system softens the list's
+    /// edge beneath it, the sign that there's more; before, a plain inset.
+    @ViewBuilder
+    func playOnBar<Content: View>(edge: VerticalEdge, @ViewBuilder content: () -> Content) -> some View {
+        if #available(iOS 26.0, macOS 26.0, visionOS 26.0, *) {
+            safeAreaBar(edge: edge, spacing: 0, content: content)
+        } else {
+            safeAreaInset(edge: edge, spacing: 0, content: content)
+        }
     }
 }
 
