@@ -34,6 +34,10 @@ struct ArtworkMeshBackground: View {
     @State private var imageKey: String?
     /// The player `image` was made for.
     @State private var imageSourceID: String?
+    /// When the gradient last changed, so skips in quick succession swap it
+    /// rather than stacking one 0.8 s crossfade on another — each a
+    /// full-screen layer kept alive under the blur until it finishes.
+    @State private var lastChange: Date = .distantPast
 
     nonisolated private static let grid = 4
     /// Output size in pixels. The interpolated field is smooth, so a small
@@ -86,7 +90,10 @@ struct ArtworkMeshBackground: View {
     private func set(_ new: UIImage?, key: String?, animated: Bool) {
         imageSourceID = sourceID
         guard key != imageKey else { return }
-        if animated {
+        let now = Date.now
+        let isQuickSkip = now.timeIntervalSince(lastChange) < 1
+        lastChange = now
+        if animated, !isQuickSkip {
             withAnimation(.smooth(duration: 0.8)) {
                 image = new
                 imageKey = key

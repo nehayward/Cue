@@ -34,12 +34,6 @@ struct ContentArtworkView: View {
         (content.content.service == .library || content.content.service == .apple)
     }
     
-    /// Whether this instance resolved to the full-size `artwork` rather than
-    /// the thumbnail. Part of the cache key below.
-    private var usesFullSizeArtwork: Bool {
-        preferredSize != 50 && content.artwork != nil
-    }
-
     private var artworkURL: URL? {
         if preferredSize != 50, let artwork = content.artwork {
             return artwork
@@ -60,7 +54,17 @@ struct ContentArtworkView: View {
     // the item alone let the row's already-cached thumbnail satisfy the
     // player's request — the big artwork came back visibly soft.
     private var artworkRequest: ImageRequest {
-        var request = ImageRequest(url: artworkURL)
+        Self.artworkRequest(for: content, url: artworkURL, preferredSize: preferredSize)
+    }
+
+    /// The request a view `preferredSize` wide makes for `content`'s artwork
+    /// at `url`. Static so the Lock Screen card can ask for exactly what the
+    /// player did, and be answered from the memory cache.
+    static func artworkRequest(for content: PlayableContent, url: URL?, preferredSize: Double) -> ImageRequest {
+        var request = ImageRequest(url: url)
+        // Whether the view resolved to the full-size `artwork` rather than
+        // the thumbnail: part of the cache key.
+        let usesFullSizeArtwork = preferredSize != 50 && content.artwork != nil
         request.imageID = usesFullSizeArtwork ? "\(content.imageKey)#full" : content.imageKey
         // Decode no bigger than the view shows. Plex (and Subsonic, and a
         // local folder) hand back the original embedded cover, which is often
@@ -68,8 +72,21 @@ struct ContentArtworkView: View {
         // thumbnail path downsamples inside ImageIO, so the full bitmap is
         // never materialized, and the pixel size is part of its cache key,
         // so a row's thumbnail never satisfies the player's request.
-        request.thumbnail = ImageRequest.ThumbnailOptions(maxPixelSize: Self.maxPixelSize(for: preferredSize))
+        request.thumbnail = ImageRequest.ThumbnailOptions(maxPixelSize: maxPixelSize(for: preferredSize))
         return request
+    }
+
+    /// What the device player's cover asks for (`PlayerView`).
+    static let playerPreferredSize: Double = 600
+
+    private static let prefetcher = ImagePrefetcher(destination: .memoryCache)
+
+    /// Decodes `content`'s player cover into the memory cache ahead of time,
+    /// in place of whatever was being fetched before.
+    static func prefetchPlayerArtwork(for content: PlayableContent) {
+        guard let url = content.artwork ?? content.thumbnail else { return }
+        prefetcher.stopPrefetching()
+        prefetcher.startPrefetching(with: [artworkRequest(for: content, url: url, preferredSize: playerPreferredSize)])
     }
 
     /// The most pixels worth decoding for a view `points` wide: enough for a
