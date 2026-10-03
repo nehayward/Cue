@@ -2700,10 +2700,13 @@ final class LocalPlaybackService {
     /// Writes where the queue is — index, progress, duration, repeat mode.
     /// A handful of scalars in the defaults, cheap enough to write on every
     /// index change.
-    private func savePosition() {
+    private func savePosition(waitUntilDone: Bool = false) {
         guard !isRestoring, !queue.isEmpty else { return }
         savedProgress = progress
-        LocalQueueStore.save(position: .init(index: currentIndex, progress: progress, duration: duration, repeatMode: repeatMode, isShuffled: isShuffled))
+        LocalQueueStore.save(
+            position: .init(index: currentIndex, progress: progress, duration: duration, repeatMode: repeatMode, isShuffled: isShuffled),
+            waitUntilDone: waitUntilDone
+        )
     }
 
     /// Writes where the queued tracks were played from, so the player still
@@ -2733,7 +2736,7 @@ final class LocalPlaybackService {
             // pending on the store's queue would be left half done.
             LocalQueueStore.save(queue: queue, waitUntilDone: true)
         }
-        savePosition()
+        savePosition(waitUntilDone: true)
     }
 
     /// A player's clock as a number the rest of the app can use.
@@ -2852,10 +2855,10 @@ private extension Array {
     }
 }
 
-/// The device queue and its position, kept across launches. The queue goes
-/// in a file in Application Support beside the song cache — it can run to
-/// thousands of rows — and the position, which changes far more often, in
-/// the defaults as a few scalars. An empty queue clears both.
+/// The device queue and its position, kept across launches, in files in
+/// Application Support beside the song cache: the queue can run to
+/// thousands of rows, and the position changes every few seconds of
+/// playback. An empty queue clears both.
 ///
 /// Queue writes go through one serial queue, in order, so a slow write of
 /// an older copy can't land on top of a newer one.
@@ -2894,6 +2897,16 @@ private enum LocalQueueStore {
         queueURL?.deletingLastPathComponent().appendingPathComponent("LocalQueueUnshuffled.json")
     }
 
+    /// Beside the queue. The position used to be kept in the defaults, and
+    /// every write there re-ran each view that reads a stored setting
+    /// (`@AppStorage`): the app's root, Browse, Search and their rows, every
+    /// five seconds of playback.
+    private static var positionURL: URL? {
+        queueURL?.deletingLastPathComponent().appendingPathComponent("LocalQueuePosition.json")
+    }
+
+    /// Where the position was kept before `positionURL`: read when there's
+    /// no file yet, so an update doesn't lose the spot.
     private static var positionKey: String { AppStorageKeys.localQueuePosition }
     /// One row, so it sits in the defaults beside the position rather than
     /// in the queue file — which stays a bare `[PlayableContent]`, readable
@@ -2903,7 +2916,7 @@ private enum LocalQueueStore {
     static func load() -> Saved? {
         guard let queueURL, let data = try? Data(contentsOf: queueURL),
               let queue = try? JSONDecoder().decode([PlayableContent].self, from: data) else { return nil }
-        let position = UserDefaults.standard.data(forKey: positionKey)
+        let position = (positionURL.flatMap { try? Data(contentsOf: $0) } ?? UserDefaults.standard.data(forKey: positionKey))
             .flatMap { try? JSONDecoder().decode(Position.self, from: $0) }
             ?? Position(index: 0, progress: 0, duration: 0, repeatMode: .off)
         let origins = UserDefaults.standard.data(forKey: sourceKey)
@@ -2939,9 +2952,17 @@ private enum LocalQueueStore {
         }
     }
 
-    static func save(position: Position) {
-        guard let data = try? JSONEncoder().encode(position) else { return }
-        UserDefaults.standard.set(data, forKey: positionKey)
+    /// Written on the same serial queue as the queue file, in order.
+    static func save(position: Position, waitUntilDone: Bool = false) {
+        let work: @Sendable () -> Void = {
+            guard let url = Self.positionURL, let data = try? JSONEncoder().encode(position) else { return }
+            try? data.write(to: url, options: .atomic)
+        }
+        if waitUntilDone {
+            io.sync(execute: work)
+        } else {
+            io.async(execute: work)
+        }
     }
 
     static func save(origins: [String: PlayableContent]) {
@@ -2993,6 +3014,9 @@ private enum LocalQueueStore {
         }
         if let unshuffledURL {
             try? FileManager.default.removeItem(at: unshuffledURL)
+        }
+        if let positionURL {
+            try? FileManager.default.removeItem(at: positionURL)
         }
         UserDefaults.standard.removeObject(forKey: positionKey)
         UserDefaults.standard.removeObject(forKey: sourceKey)
