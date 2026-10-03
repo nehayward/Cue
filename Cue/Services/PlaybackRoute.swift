@@ -807,10 +807,12 @@ final class PlaybackRoute {
 
     /// The rest of a queue carried to a speaker, sent as it plays toward it.
     ///
-    /// Every row is its own AddURIToQueue round trip, so a long queue sent
-    /// whole kept the speaker busy for minutes after the first note. A
-    /// hand-off sends the playing row and the `feedAhead` after it, and the
-    /// feed keeps the speaker about that far ahead.
+    /// Every row takes the speaker its own while to add, so a long queue sent
+    /// whole kept it busy for minutes after the first note. The time is the
+    /// speaker's, not the round trip's: AddMultipleURIsToQueue, sixteen rows
+    /// a call, was only about 10% faster. So a hand-off sends the playing row
+    /// and the `feedAhead` after it, and the feed keeps the speaker about
+    /// that far ahead.
     ///
     /// It runs as long as Cue does. In the background that's while
     /// `NowPlayingSessionService` holds the Lock Screen card for a playing
