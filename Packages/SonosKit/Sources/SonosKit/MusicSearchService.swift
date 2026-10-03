@@ -2518,7 +2518,7 @@ public final class MusicSearchService {
         let library = FilesLibraryService.shared
         guard library.isConfigured else { return [] }
         await library.scanIfNeeded()
-        return await sortContentByIntelligentSearch(playableContent: library.search(query: query), query: query)
+        return await sortContentByIntelligentSearch(playableContent: library.searchInBackground(query: query), query: query)
     }
 
     private func searchSubsonic(query: String) async -> [PlayableContent] {
