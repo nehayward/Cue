@@ -45,6 +45,7 @@ final class CarPlayInterface: NSObject {
 
     private var isConnected = false
     private var radioTask: Task<Void, Never>?
+    /// The Library tab's playlists while they load; nil once they're in.
     private var libraryTask: Task<Void, Never>?
     /// The providers the Library tab was last filled from. The player's
     /// changes, which come often, don't fetch the playlists again; a
@@ -117,6 +118,7 @@ final class CarPlayInterface: NSObject {
         CPNowPlayingTemplate.shared.remove(self)
         radioTask?.cancel()
         libraryTask?.cancel()
+        libraryTask = nil
     }
 
     /// Radio last: a car with room for fewer tabs leaves it out first, and
@@ -279,9 +281,12 @@ final class CarPlayInterface: NSObject {
             libraryTemplate.emptyViewTitleVariants = ["Nothing to Browse"]
             libraryTemplate.emptyViewSubtitleVariants = ["Set up Apple Music, Plex, Subsonic or a Files folder in Cue on your iPhone."]
         }
-        guard refresh || services != libraryServices else { return }
+        // A load still under way for the same providers is left to finish:
+        // picking the tab again mustn't start a slow server over.
+        guard services != libraryServices || (refresh && libraryTask == nil) else { return }
         libraryServices = services
         libraryTask?.cancel()
+        libraryTask = nil
 
         guard !services.isEmpty else {
             libraryTemplate.showsSpinnerWhileEmpty = false
@@ -290,13 +295,21 @@ final class CarPlayInterface: NSObject {
             return
         }
         let collections = CarPlayLibrary.libraryCollections(for: services)
-        if libraryTemplate.sections.isEmpty {
+        // An empty tab fills in as each provider answers. One already
+        // filled keeps its rows until they've all answered, so a refresh
+        // doesn't drop the slower providers' playlists for a moment.
+        let fillsAsTheyCome = libraryTemplate.sections.isEmpty
+        if fillsAsTheyCome {
             libraryTemplate.showsSpinnerWhileEmpty = true
             libraryTemplate.headerGridButtons = collectionButtons(collections)
         }
         libraryTask = Task { [weak self] in
-            let shelves = await CarPlayLibrary.shelves(.playlists, from: services)
+            let shelves = await CarPlayLibrary.shelves(.playlists, from: services) { soFar in
+                guard fillsAsTheyCome else { return }
+                self?.fillLibrary(playlists: soFar, collections: collections)
+            }
             guard let self, !Task.isCancelled else { return }
+            self.libraryTask = nil
             self.fillLibrary(playlists: shelves, collections: collections)
         }
     }
@@ -345,20 +358,25 @@ final class CarPlayInterface: NSObject {
     }
 
     /// Recently Added or Albums from every provider the Library tab browses.
-    /// Opens at once on a spinner, as a listing does.
+    /// Opens at once on a spinner, as a listing does, and fills in as each
+    /// provider answers.
     private func pushCollection(_ collection: ProviderCollection) {
         let services = CarPlayLibrary.libraryServices()
         let template = CPListTemplate(title: collection.title, sections: [])
         template.showsSpinnerWhileEmpty = true
         push(template)
         Task { [weak self, weak template] in
-            let shelves = await CarPlayLibrary.shelves(collection, from: services)
-            guard let self, let template else { return }
+            await CarPlayLibrary.shelves(collection, from: services) { shelves in
+                guard let self, let template else { return }
+                template.updateSections(self.shelfSections(shelves))
+                self.updatePlayingIndicators()
+            }
+            // Every shelf went up as it arrived; all that's left is the
+            // spinner, and what to say when nothing came.
+            guard let template else { return }
             template.showsSpinnerWhileEmpty = false
             template.emptyViewTitleVariants = ["Nothing Here"]
             template.emptyViewSubtitleVariants = ["Nothing here can play on this iPhone."]
-            template.updateSections(Array(self.shelfSections(shelves).prefix(CPListTemplate.maximumSectionCount)))
-            self.updatePlayingIndicators()
         }
     }
 
@@ -788,10 +806,13 @@ final class CarPlayInterface: NSObject {
         ]
     }
 
-    /// A button pinned above a list (`headerGridButtons`). System symbols
-    /// only: custom ones don't draw there on iOS 27 (FB24806621).
+    /// A button pinned above a list (`headerGridButtons`). Plain system
+    /// symbols only: custom images don't draw there on iOS 27
+    /// (FB24806621), and a symbol recoloured for the car's look
+    /// (`CarPlayArtwork.symbol`) counts as one: the buttons came up as
+    /// bare titles.
     private func gridButton(titleVariants: [String], systemImage: String, _ action: @escaping @MainActor () -> Void) -> CPGridButton {
-        let image = CarPlayArtwork.symbol(systemImage) ?? UIImage()
+        let image = UIImage(systemName: systemImage) ?? UIImage()
         return CPGridButton(titleVariants: titleVariants, image: image) { _ in
             MainActor.assumeIsolated {
                 action()
