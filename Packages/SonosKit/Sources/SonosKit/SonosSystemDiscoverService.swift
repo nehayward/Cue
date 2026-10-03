@@ -1,6 +1,6 @@
 import CloudStorage
+import DanceLogger
 import Foundation
-import MusicSearchKit
 import Network
 import os
 
@@ -161,7 +161,7 @@ final class SonosSystemDiscoverService {
     @ObservationIgnored private var api = SonosAPI()
     @ObservationIgnored private var browser: NWBrowser?
     @ObservationIgnored private let sonosBonjourServiceType = "_sonos._tcp"
-    @ObservationIgnored private let logger = CueLog("discovery")
+    @ObservationIgnored private let logger = DanceLog("discovery")
     @ObservationIgnored private let cellularMonitor = NWPathMonitor()
     @ObservationIgnored private var cellularUpdateTask: Task<Void, Never>?
 

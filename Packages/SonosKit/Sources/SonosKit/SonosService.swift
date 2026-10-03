@@ -1,3 +1,4 @@
+import DanceLogger
 import Foundation
 import OrderedCollections
 import MusicSearchKit
@@ -499,13 +500,13 @@ public final class SonosService {
 
                     useCache = true
                 } catch SonosServiceError.permissionDenied {
-                    CueLog.sonos.error("Monitoring stopped: Local Network permission denied")
+                    DanceLog.sonos.error("Monitoring stopped: Local Network permission denied")
                     systemState.systemPermissionDenied = true
                     sonosPulse.cancel()
                 } catch SonosServiceError.parseError(let xml) {
                     parserError = xml
                     guard retry else {
-                        CueLog.sonos.error("Monitoring stopped: no Sonos system found")
+                        DanceLog.sonos.error("Monitoring stopped: no Sonos system found")
                         systemState.systemNotFound = true
                         sonosPulse.cancel()
                         return
@@ -515,7 +516,7 @@ public final class SonosService {
                     retry = false
                 } catch SonosServiceError.sonosSystemNotFound {
                     guard retry else {
-                        CueLog.sonos.error("Monitoring stopped: no Sonos system found")
+                        DanceLog.sonos.error("Monitoring stopped: no Sonos system found")
                         systemState.systemNotFound = true
                         sonosPulse.cancel()
                         return
@@ -527,7 +528,7 @@ public final class SonosService {
                     // Stopping the monitor cancels the request in flight;
                     // that isn't a failure.
                     if !(error is CancellationError), (error as? URLError)?.code != .cancelled {
-                        CueLog.sonos.error("Monitoring stopped: \(error)")
+                        DanceLog.sonos.error("Monitoring stopped: \(error)")
                     }
                     sonosPulse.cancel()
                 }
@@ -3179,7 +3180,7 @@ public final class SonosService {
             }
             return group
         } catch {
-            CueLog.sonos.error("\(#function): \(error)")
+            DanceLog.sonos.error("\(#function): \(error)")
             return nil
         }
     }

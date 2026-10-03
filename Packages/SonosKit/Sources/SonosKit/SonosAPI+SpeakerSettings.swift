@@ -1,6 +1,6 @@
 
+import DanceLogger
 import Foundation
-import MusicSearchKit
 
 extension SonosAPI {
     func getBass(ipAddress: String) async -> Int? {
@@ -10,7 +10,7 @@ extension SonosAPI {
 
         guard let (data, response) = try? await sendSoapRequest(ip: ipAddress, action: "GetBass", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return nil }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
             return nil
         }
 
@@ -25,7 +25,7 @@ extension SonosAPI {
 
         guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "SetBass", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -36,7 +36,7 @@ extension SonosAPI {
 
         guard let (data, response) = try? await sendSoapRequest(ip: ipAddress, action: "GetTreble", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return nil }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
             return nil
         }
 
@@ -51,7 +51,7 @@ extension SonosAPI {
 
         guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "SetTreble", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -63,7 +63,7 @@ extension SonosAPI {
 
         guard let (data, response) = try? await sendSoapRequest(ip: ipAddress, action: "GetLoudness", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return nil }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
             return nil
         }
 
@@ -80,7 +80,7 @@ extension SonosAPI {
 
         guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "SetLoudness", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -91,7 +91,7 @@ extension SonosAPI {
 
         guard let (data, response) = try? await sendSoapRequest(ip: ipAddress, action: "GetRoomCalibrationStatus", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return nil }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
             return nil
         }
 
@@ -106,7 +106,7 @@ extension SonosAPI {
 
         guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "ResetBasicEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
     }
 }

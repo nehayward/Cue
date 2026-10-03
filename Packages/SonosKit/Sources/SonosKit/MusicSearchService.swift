@@ -1,3 +1,4 @@
+import DanceLogger
 import Foundation
 import MusicKit
 import MusicSearchKit
@@ -1160,7 +1161,7 @@ public final class MusicSearchService {
             let response = try await catalogResource.response()
             return response.items.first
         } catch {
-            CueLog("apple").error("\(#function): \(error)")
+            DanceLog("apple").error("\(#function): \(error)")
         }
         
         return nil

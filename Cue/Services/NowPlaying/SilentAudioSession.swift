@@ -1,11 +1,11 @@
 #if os(iOS) && !targetEnvironment(macCatalyst)
 import AVFoundation
+import DanceLogger
 import Foundation
-import MusicSearchKit
 
 /// Only failures are logged. Taking the session is the whole feature, so a
 /// refusal is worth a breadcrumb; everything else is silent.
-private let logger = CueLog("NowPlaying")
+private let logger = DanceLog("NowPlaying")
 
 /// Holds an active `.playback` audio session playing silence, so iOS treats this
 /// app as the one producing audio.

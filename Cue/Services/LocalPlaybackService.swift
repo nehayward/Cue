@@ -1,8 +1,8 @@
 import AVFoundation
+import DanceLogger
 import Defaults
 import Foundation
 import MusicKit
-import MusicSearchKit
 import Observation
 import SonosKit
 import UIKit
@@ -393,7 +393,7 @@ final class LocalPlaybackService {
     /// is asked for is still these songs.
     @ObservationIgnored private var preparedAppleRun: (start: Int, songIDs: [MusicItemID])?
 
-    private static let log = CueLog("localplayback")
+    private static let log = DanceLog("localplayback")
     /// Debounces the queue's write to disk, for the same bursts as the cache.
     @ObservationIgnored private var queueSaveTask: Task<Void, Never>?
     /// True from a queue change until it has been written.

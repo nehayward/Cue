@@ -1,4 +1,5 @@
 import Analytics
+import DanceLogger
 import Defaults
 import Nuke
 import CloudStorage
@@ -1093,7 +1094,7 @@ struct CueApp: App {
             // `Inactive … Monitoring!` with no way to tell whether the app came
             // back or something else restarted the pulse. That ambiguity is what
             // hid `stopMonitoringOffScreen`'s bug.
-            CueLog.app.info("Active")
+            DanceLog.app.info("Active")
             // Speakers are only looked for when Sonos is switched on: looking
             // is what puts up the Local Network permission prompt. Everything
             // after this block runs either way — it used to sit behind an
@@ -1144,7 +1145,7 @@ struct CueApp: App {
                 ReviewCoordinator.shared.requestReview()
             }
         case .inactive:
-            CueLog.app.info("Inactive")
+            DanceLog.app.info("Inactive")
 #if canImport(WidgetKit)
             if #available(visionOS 26.0, *) {
                 WidgetCenter.shared.reloadAllTimelines()
@@ -1155,7 +1156,7 @@ struct CueApp: App {
             }
             stopMonitoringOffScreen(scenePhase)
         case .background:
-            CueLog.app.info("Background")
+            DanceLog.app.info("Background")
             stopMonitoringOffScreen(scenePhase)
 #if targetEnvironment(macCatalyst)
             // Monitoring is now cancelled, so the cached model freezes. Poll
@@ -1641,7 +1642,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         // First, so each launch in the log file opens with the version and
         // the device it ran on.
-        LogStore.shared.beginSession(SupportReport.summary)
+        DanceLogStore.shared.beginSession(SupportReport.summary)
         #if targetEnvironment(macCatalyst)
         // macOS auto-injects "Start Dictation" and "Emoji & Symbols" into any Edit menu. Opt out so
         // ours carries only Undo/Redo. (AutoFill is removed via the menu builder.)

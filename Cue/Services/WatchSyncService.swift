@@ -1,3 +1,4 @@
+import DanceLogger
 import Foundation
 import MusicSearchKit
 import Observation
@@ -36,7 +37,7 @@ final class WatchSyncService {
     /// A watch is paired and has Cue on it, so music can be put there.
     var isAvailable: Bool { isPaired && isWatchAppInstalled }
 
-    @ObservationIgnored private let logger = CueLog("WatchSync")
+    @ObservationIgnored private let logger = DanceLog("WatchSync")
     /// The session's delegate, kept alive here; nil where there's no
     /// WatchConnectivity.
     @ObservationIgnored private var relay: AnyObject?

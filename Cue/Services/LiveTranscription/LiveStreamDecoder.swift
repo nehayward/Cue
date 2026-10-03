@@ -1,6 +1,6 @@
 import AudioToolbox
 import AVFoundation
-import MusicSearchKit
+import DanceLogger
 
 /// Plays a live radio stream into PCM, without a speaker: the station's
 /// bytes are read straight off the network, split into MP3 or AAC frames by
@@ -29,7 +29,7 @@ enum LiveStreamDecoder {
             throw DecodeError(message: "The station's stream answered with an error (\(status)).")
         }
         let parser = try StreamParser(fileType: fileType(mimeType: response.mimeType, url: url), onBuffer: onBuffer)
-        CueLog.liveTranscription.info("Decoding \(url.absoluteString, privacy: .public) (\(response.mimeType ?? "no type", privacy: .public))")
+        DanceLog.liveTranscription.info("Decoding \(url.absoluteString, privacy: .public) (\(response.mimeType ?? "no type", privacy: .public))")
 
         var chunk = [UInt8]()
         chunk.reserveCapacity(chunkSize)
@@ -157,7 +157,7 @@ private final class StreamParser {
         maximumPacketSize = max(packetSize, 2048)
         compressedFormat = compressed
         self.converter = converter
-        CueLog.liveTranscription.info("Stream format: \(description.mSampleRate) Hz, \(description.mChannelsPerFrame) ch")
+        DanceLog.liveTranscription.info("Stream format: \(description.mSampleRate) Hz, \(description.mChannelsPerFrame) ch")
     }
 
     /// Decodes one run of packets the parser found.
@@ -195,7 +195,7 @@ private final class StreamParser {
             return input
         }
         if status == .error {
-            CueLog.liveTranscription.error("Decode failed: \(error?.localizedDescription ?? "unknown", privacy: .public)")
+            DanceLog.liveTranscription.error("Decode failed: \(error?.localizedDescription ?? "unknown", privacy: .public)")
             return
         }
         if output.frameLength > 0 {
@@ -204,6 +204,6 @@ private final class StreamParser {
     }
 }
 
-extension CueLog {
-    static let liveTranscription = CueLog("LiveTranscription")
+extension DanceLog {
+    static let liveTranscription = DanceLog("LiveTranscription")
 }

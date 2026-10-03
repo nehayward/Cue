@@ -1,8 +1,8 @@
 import AVFoundation
 import CryptoKit
+import DanceLogger
 import Defaults
 import Foundation
-import MusicSearchKit
 import Observation
 import SwiftUI
 
@@ -274,7 +274,7 @@ public final class FilesLibraryService {
 
     // MARK: - Folder
 
-    private static let log = CueLog("files")
+    private static let log = DanceLog("files")
 
     /// Keeps the picked folder. `url` is the security-scoped URL a document
     /// picker hands over; the bookmark is what survives a relaunch.

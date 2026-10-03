@@ -1,7 +1,7 @@
 import AVFoundation
+import DanceLogger
 import Defaults
 import Foundation
-import MusicSearchKit
 import Observation
 import SonosKit
 
@@ -287,7 +287,7 @@ final class LiveTranscriptionService {
                     self.receive(text, isFinal: isFinal)
                 }
             } catch {
-                CueLog.liveTranscription.error("Transcriber failed: \(error.localizedDescription, privacy: .public)")
+                DanceLog.liveTranscription.error("Transcriber failed: \(error.localizedDescription, privacy: .public)")
                 self?.listenFailed(error.localizedDescription, generation: generation)
             }
         }
@@ -323,7 +323,7 @@ final class LiveTranscriptionService {
                 self?.listenFailed("The station's stream ended.", generation: generation)
             } catch is CancellationError {
             } catch {
-                CueLog.liveTranscription.error("Stream failed: \(error.localizedDescription, privacy: .public)")
+                DanceLog.liveTranscription.error("Stream failed: \(error.localizedDescription, privacy: .public)")
                 self?.listenFailed(error.localizedDescription, generation: generation)
             }
         }

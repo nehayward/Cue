@@ -2,21 +2,21 @@ import Foundation
 
 /// Takes sign-in secrets out of a log line before it is written anywhere.
 ///
-/// Log files leave the device as email attachments, and stream URLs carry
-/// their credentials: Plex's `X-Plex-Token`, Subsonic's `t` (token), `s`
+/// Log files leave the device as bug-report attachments, and URLs often carry
+/// credentials: Plex's `X-Plex-Token`, the Subsonic API's `t` (token), `s`
 /// (salt) and `p` (password) query items. Lines that print a URL, a request
-/// or a server response would hand those to whoever reads the email, so the
+/// or a server response would hand those to whoever reads the report, so the
 /// values are swapped for `<redacted>` and the rest of the line is kept.
 ///
 /// It errs on the side of hiding: any `…token`, `…password`, `…secret` or
 /// `…apikey` followed by `=` or `:` loses its value, so a debug line like
 /// `playToken=3` reads `playToken=<redacted>`.
-enum LogRedactor {
+enum Redactor {
     static let placeholder = "<redacted>"
 
     private static let rules: [(pattern: NSRegularExpression, template: String)] = [
         // Query items with short names that would be too broad on their own:
-        // Subsonic's token, salt and password.
+        // the Subsonic API's token, salt and password.
         (#"([?&;][tsp]=)[^&;\s"'<>#]+"#, "$1\(placeholder)"),
         // `Authorization: Bearer abc`.
         (#"(?i)(\bbearer\s+)[A-Za-z0-9._~+/=-]+"#, "$1\(placeholder)"),

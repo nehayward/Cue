@@ -1,3 +1,4 @@
+import DanceLogger
 import Foundation
 import os
 
@@ -7,7 +8,7 @@ public final class PlexAPI {
     @ObservationIgnored private let session: URLSession
     @ObservationIgnored private let decoder: JSONDecoder
     @ObservationIgnored private let parser = PlexParser()
-    @ObservationIgnored private let logger = CueLog("plex")
+    @ObservationIgnored private let logger = DanceLog("plex")
 
     // MARK: - Connection cache
     // `plexServer`, `resolvedBaseURL`, and `resolvedBaseURLByServer` are read

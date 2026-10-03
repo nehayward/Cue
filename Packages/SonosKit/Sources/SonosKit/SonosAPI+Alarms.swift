@@ -1,5 +1,5 @@
+import DanceLogger
 import Foundation
-import MusicSearchKit
 
 extension SonosAPI {
     func editAlarm(IP: String, alarm: Alarm, content: PlayableContent?) async {
@@ -30,7 +30,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -56,7 +56,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -69,7 +69,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -97,7 +97,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -115,7 +115,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
             return nil
         }
 

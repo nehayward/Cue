@@ -1,5 +1,5 @@
+import DanceLogger
 import Foundation
-import MusicSearchKit
 
 extension SonosAPI {
     func sonosPlaylists(IP: String) async -> [PlayableContent] {
@@ -17,7 +17,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
 
         let xml = String(decoding: data, as: UTF8.self)
@@ -47,7 +47,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
 
         let xml = String(decoding: data, as: UTF8.self)
@@ -64,7 +64,7 @@ extension SonosAPI {
         guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "DestroyObject", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else { return }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -83,7 +83,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
 
         let xml = String(decoding: data, as: UTF8.self)
@@ -108,7 +108,7 @@ extension SonosAPI {
         }
         
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
     }
 
@@ -126,7 +126,7 @@ extension SonosAPI {
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "ReorderTracksInSavedQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
-                CueLog.sonos.error("\(#function) failed")
+                DanceLog.sonos.error("\(#function) failed")
             }
         }
     }
@@ -145,7 +145,7 @@ extension SonosAPI {
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "ReorderTracksInSavedQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
-                CueLog.sonos.error("\(#function) failed")
+                DanceLog.sonos.error("\(#function) failed")
             }
         }
     }
@@ -159,7 +159,7 @@ extension SonosAPI {
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SaveQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
-                CueLog.sonos.error("\(#function) failed")
+                DanceLog.sonos.error("\(#function) failed")
             }
         }
     }
@@ -174,7 +174,7 @@ extension SonosAPI {
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "CreateSavedQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
-                CueLog.sonos.error("\(#function) failed")
+                DanceLog.sonos.error("\(#function) failed")
             }
         }
     }
@@ -193,7 +193,7 @@ extension SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            CueLog.sonos.error("\(#function) failed")
+            DanceLog.sonos.error("\(#function) failed")
         }
     }
 }

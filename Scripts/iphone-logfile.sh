@@ -1,6 +1,7 @@
 #!/bin/bash
-# Pull Cue's log file off the iPhone: the same log Settings ▸ Report a
-# Problem attaches to its email, without relaunching the app.
+# Pull Cue's log files (written by DanceLogger) off the iPhone: the same log
+# Settings ▸ Report a Problem attaches to its email, without relaunching the
+# app.
 #
 #   Scripts/iphone-logfile.sh          # show the last 200 lines
 #   Scripts/iphone-logfile.sh 1000     # show the last 1000 lines
@@ -35,12 +36,12 @@ xcrun devicectl device copy from \
 	--device "$UDID" \
 	--domain-type appDataContainer \
 	--domain-identifier "$BUNDLE_ID" \
-	--source Library/Logs/Cue \
+	--source Library/Logs/DanceLogger \
 	--destination "$DIR" >/dev/null \
 	|| fail "Couldn't copy the log files. Is a development build of Cue installed on $NAME?"
 
 # The names sort by when each file started.
-FILES="$(find "$DIR" -type f -name 'Cue-*.log' | sort)"
+FILES="$(find "$DIR" -type f -name 'log-*.log' | sort)"
 [ -n "$FILES" ] || fail "Cue hasn't written a log file on $NAME yet."
 # shellcheck disable=SC2086
 cat $FILES >"$LOG"

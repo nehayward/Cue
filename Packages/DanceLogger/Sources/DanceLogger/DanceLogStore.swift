@@ -1,28 +1,29 @@
 import Foundation
 
-/// The log file on the device: every `CueLog` line, kept for a week, plain
-/// text a person can read, and what Report a Problem attaches to its email.
+/// The log files on the device: every `DanceLog` line, kept for a week,
+/// plain text a person can read, ready to read back, show or attach to a
+/// bug report (`exportFile(header:title:limit:)`).
 ///
 /// The system log is the better tool at a desk, but on someone else's phone
 /// it's out of reach, it forgets a process once it exits, and it drops most
-/// of what isn't an error. So `CueLog` writes here as well.
+/// of what isn't an error. So `DanceLog` writes here as well.
 ///
-/// The files are `Library/Logs/Cue/Cue-<start time>.log`, one or more a
-/// day: a new one starts when the day changes or the current one passes
-/// `maxFileSize`, and a launch carries on today's last file while it has
-/// room. Files older than `retention` go, and the oldest go while the folder
-/// is over `maxTotalSize`. A line looks like
+/// The files are `Library/Logs/DanceLogger/log-<start time>.log` in the
+/// app's container, one or more a day: a new one starts when the day changes
+/// or the current one passes `maxFileSize`, and a launch carries on today's
+/// last file while it has room. Files older than `retention` go, and the
+/// oldest go while the folder is over `maxTotalSize`. A line looks like
 ///
 ///     2026-10-03 14:22:05.123 ERROR [route] route → Kitchen: replace failed: …
 ///
-/// with the time in the device's own time zone, and each launch opens with
-/// a banner naming the app version and the device (`beginSession(_:)`).
+/// with the time in the device's own time zone, and each launch can open
+/// with a banner naming the app version and the device (`beginSession(_:)`).
 ///
 /// Lines are written in order on a background queue, straight to the file
 /// with no buffer of their own, so what was logged before a crash is there
 /// after it.
-public final class LogStore: @unchecked Sendable {
-    public static let shared = LogStore()
+public final class DanceLogStore: @unchecked Sendable {
+    public static let shared = DanceLogStore()
 
     public let directory: URL
     let maxFileSize: Int
@@ -32,20 +33,20 @@ public final class LogStore: @unchecked Sendable {
     let maxMessageLength = 8_000
     private let defaults: UserDefaults
 
-    private let queue = DispatchQueue(label: "dance.cue.log", qos: .utility)
+    private let queue = DispatchQueue(label: "DanceLogger.store", qos: .utility)
 
     // Only touched on `queue`.
     private var handle: FileHandle?
     private var handleDay: String?
     private var handleSize = 0
-    private let lineFormatter = LogStore.formatter("yyyy-MM-dd HH:mm:ss.SSS")
-    private let dayFormatter = LogStore.formatter("yyyy-MM-dd")
-    private let fileFormatter = LogStore.formatter("yyyy-MM-dd-HHmmss-SSS")
+    private let lineFormatter = DanceLogStore.formatter("yyyy-MM-dd HH:mm:ss.SSS")
+    private let dayFormatter = DanceLogStore.formatter("yyyy-MM-dd")
+    private let fileFormatter = DanceLogStore.formatter("yyyy-MM-dd-HHmmss-SSS")
 
     init(
         directory: URL? = nil,
-        maxFileSize: Int = LogStore.defaultMaxFileSize,
-        maxTotalSize: Int = LogStore.defaultMaxTotalSize,
+        maxFileSize: Int = DanceLogStore.defaultMaxFileSize,
+        maxTotalSize: Int = DanceLogStore.defaultMaxTotalSize,
         retention: TimeInterval = 7 * 24 * 60 * 60,
         defaults: UserDefaults = .standard
     ) {
@@ -60,9 +61,7 @@ public final class LogStore: @unchecked Sendable {
         try? handle?.close()
     }
 
-    // The watch logs too (it browses Plex and Subsonic through this
-    // framework), but has little room and no way yet to send a report, so it
-    // keeps far less.
+    // A watch has little room, so it keeps far less.
     #if os(watchOS)
     static let defaultMaxFileSize = 256 * 1024
     static let defaultMaxTotalSize = 1024 * 1024
@@ -71,15 +70,18 @@ public final class LogStore: @unchecked Sendable {
     static let defaultMaxTotalSize = 20 * 1024 * 1024
     #endif
 
-    /// `Library/Logs/Cue`. On the Mac that is where Console.app looks for an
-    /// app's logs; on iOS it is kept out of backups (`prepareDirectory`).
+    /// `Library/Logs/DanceLogger`. On the Mac that is where Console.app looks
+    /// for an app's logs; it is kept out of backups (`prepareDirectory`).
     private static var defaultDirectory: URL {
         let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         return library
             .appendingPathComponent("Logs", isDirectory: true)
-            .appendingPathComponent("Cue", isDirectory: true)
+            .appendingPathComponent("DanceLogger", isDirectory: true)
     }
+
+    /// Every log file's name starts with this, then the time it started.
+    static let filePrefix = "log-"
 
     private static func formatter(_ format: String) -> DateFormatter {
         let formatter = DateFormatter()
@@ -93,7 +95,7 @@ public final class LogStore: @unchecked Sendable {
 
     /// Until when Detailed Logging is on, as seconds since the reference
     /// date. A time rather than a switch, so it can't be left on for good.
-    public static let detailedUntilKey = "dance.cue.log.detailedUntil"
+    public static let detailedUntilKey = "DanceLogger.detailedUntil"
 
     /// How long Detailed Logging stays on once switched on.
     public static let detailedDuration: TimeInterval = 24 * 60 * 60
@@ -143,13 +145,13 @@ public final class LogStore: @unchecked Sendable {
         }
     }
 
-    func append(level: LogLevel, category: String, message: String, at date: Date = .now) {
+    func append(level: DanceLog.Level, category: String, message: String, at date: Date = .now) {
         queue.async {
             self.write(self.line(level: level, category: category, message: message, at: date), at: date)
         }
     }
 
-    private func line(level: LogLevel, category: String, message: String, at date: Date) -> String {
+    private func line(level: DanceLog.Level, category: String, message: String, at date: Date) -> String {
         var message = message
         if message.count > maxMessageLength {
             let cut = message.count - maxMessageLength
@@ -191,7 +193,7 @@ public final class LogStore: @unchecked Sendable {
 
         var url: URL?
         var size = 0
-        if isFirstOfLaunch, let last = logFiles().last, last.lastPathComponent.hasPrefix("Cue-\(day)-") {
+        if isFirstOfLaunch, let last = logFiles().last, last.lastPathComponent.hasPrefix("\(Self.filePrefix)\(day)-") {
             let lastSize = Self.size(of: last)
             if lastSize < maxFileSize {
                 url = last
@@ -217,11 +219,11 @@ public final class LogStore: @unchecked Sendable {
     private func newFile(startingAt date: Date) -> URL? {
         let newest = logFiles().last?.lastPathComponent ?? ""
         var stamp = date
-        var url = directory.appendingPathComponent("Cue-\(fileFormatter.string(from: stamp)).log")
+        var url = directory.appendingPathComponent("\(Self.filePrefix)\(fileFormatter.string(from: stamp)).log")
         var attempts = 0
         while url.lastPathComponent <= newest, attempts < 1_000 {
             stamp.addTimeInterval(0.001)
-            url = directory.appendingPathComponent("Cue-\(fileFormatter.string(from: stamp)).log")
+            url = directory.appendingPathComponent("\(Self.filePrefix)\(fileFormatter.string(from: stamp)).log")
             attempts += 1
         }
         // Only if the clock went back further than that: never write over a file.
@@ -268,7 +270,7 @@ public final class LogStore: @unchecked Sendable {
     public func logFiles() -> [URL] {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
         return names
-            .filter { $0.hasPrefix("Cue-") && $0.hasSuffix(".log") }
+            .filter { $0.hasPrefix(Self.filePrefix) && $0.hasSuffix(".log") }
             .sorted()
             .map { directory.appendingPathComponent($0) }
     }
@@ -309,17 +311,24 @@ public final class LogStore: @unchecked Sendable {
     }
 
     /// Writes `header`, a blank line and the recent log to a text file named
-    /// for now, ready to attach or share, and returns where it is. The file
-    /// sits in the temporary folder and replaces the one made before it.
-    public func exportFile(header: String, limit: Int = 4 * 1024 * 1024) throws -> URL {
+    /// `<title> Log <now>.txt`, ready to attach or share, and returns where it
+    /// is. The file sits in the temporary folder and replaces the one made
+    /// before it.
+    public func exportFile(header: String, title: String = DanceLogStore.appName, limit: Int = 4 * 1024 * 1024) throws -> URL {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("Log Export", isDirectory: true)
         try? FileManager.default.removeItem(at: folder)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let name = "Cue Log \(Self.formatter("yyyy-MM-dd HHmm").string(from: .now)).txt"
+        let name = "\(title) Log \(Self.formatter("yyyy-MM-dd HHmm").string(from: .now)).txt"
         let url = folder.appendingPathComponent(name)
         let text = header + "\n\n" + recentText(limit: limit)
         try Data(text.utf8).write(to: url, options: .atomic)
         return url
+    }
+
+    /// The app's name as the Home Screen shows it, for the exported file's.
+    public static var appName: String {
+        let info = Bundle.main.infoDictionary
+        return info?["CFBundleDisplayName"] as? String ?? info?["CFBundleName"] as? String ?? "App"
     }
 
     /// Deletes every log file. The next line starts a new one.
@@ -353,33 +362,33 @@ public final class LogStore: @unchecked Sendable {
 
 // MARK: - Entries
 
-/// One line of the log file, read back for the in-app viewer.
-public struct LogEntry: Identifiable, Sendable {
-    public let id: Int
-    /// `yyyy-MM-dd HH:mm:ss.SSS`, as written.
-    public let timestamp: String
-    /// Nil for a launch banner or a line the file didn't write itself.
-    public let level: LogLevel?
-    public let category: String
-    public let message: String
+public extension DanceLogStore {
+    /// One line of the log, read back to show it.
+    struct Entry: Identifiable, Sendable {
+        public let id: Int
+        /// `yyyy-MM-dd HH:mm:ss.SSS`, as written.
+        public let timestamp: String
+        /// Nil for a launch banner or a line the store didn't write itself.
+        public let level: DanceLog.Level?
+        public let category: String
+        public let message: String
 
-    public var isLaunch: Bool { level == nil && message.hasPrefix("──── ") }
-}
+        public var isLaunch: Bool { level == nil && message.hasPrefix("──── ") }
+    }
 
-public extension LogStore {
     private static let entryPattern = try! NSRegularExpression(
         pattern: #"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) ([A-Z]+) *\[([^\]]*)\] (.*)$"#
     )
 
     /// Splits log text into entries, oldest first. A message's later lines
     /// (indented in the file) stay with it.
-    static func entries(in text: String) -> [LogEntry] {
-        var entries: [LogEntry] = []
-        var pending: (timestamp: String, level: LogLevel?, category: String, lines: [Substring])?
+    static func entries(in text: String) -> [Entry] {
+        var entries: [Entry] = []
+        var pending: (timestamp: String, level: DanceLog.Level?, category: String, lines: [Substring])?
 
         func finish() {
             guard let entry = pending else { return }
-            entries.append(LogEntry(
+            entries.append(Entry(
                 id: entries.count,
                 timestamp: entry.timestamp,
                 level: entry.level,
@@ -404,7 +413,7 @@ public extension LogStore {
                let message = Range(match.range(at: 4), in: string) {
                 pending = (
                     String(string[timestamp]),
-                    LogLevel(label: String(string[label])),
+                    DanceLog.Level(label: String(string[label])),
                     String(string[category]),
                     [string[message]]
                 )

@@ -1,5 +1,5 @@
 import AVFoundation
-import MusicSearchKit
+import DanceLogger
 import Speech
 
 /// The on-device speech model behind Live Transcription: Apple's
@@ -102,7 +102,7 @@ enum TranscriptionEngine {
                     await onResult(String(result.text.characters), result.isFinal)
                 }
             } catch {
-                CueLog.liveTranscription.error("Transcription failed: \(error)")
+                DanceLog.liveTranscription.error("Transcription failed: \(error)")
             }
         } onCancel: {
             pump.cancel()

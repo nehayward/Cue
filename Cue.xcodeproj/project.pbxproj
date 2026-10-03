@@ -49,6 +49,8 @@
 		CA7C00010000000000000015 /* WatchSync in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000005 /* WatchSync */; };
 		CA7C00010000000000000016 /* MusicSearchKit in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000006 /* MusicSearchKit */; };
 		CA7C00010000000000000020 /* MusicSearchKit in Embed Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000006 /* MusicSearchKit */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		DA7C00010000000000000002 /* DanceLogger in Frameworks */ = {isa = PBXBuildFile; productRef = DA7C00010000000000000001 /* DanceLogger */; };
+		DA7C00010000000000000003 /* DanceLogger in Embed Frameworks */ = {isa = PBXBuildFile; productRef = DA7C00010000000000000001 /* DanceLogger */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		CA7C00010000000000000030 /* WatchSync in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000031 /* WatchSync */; };
 		E90F315E2BC4829500884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315D2BC4829500884EA5 /* Analytics */; };
 		E90F31602BC48ADD00884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315F2BC48ADD00884EA5 /* Analytics */; };
@@ -194,6 +196,7 @@
 			dstSubfolderSpec = 10;
 			files = (
 				CA7C00010000000000000020 /* MusicSearchKit in Embed Frameworks */,
+				DA7C00010000000000000003 /* DanceLogger in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -730,6 +733,7 @@
 			files = (
 				CA7C00010000000000000015 /* WatchSync in Frameworks */,
 				CA7C00010000000000000016 /* MusicSearchKit in Frameworks */,
+				DA7C00010000000000000002 /* DanceLogger in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1115,6 +1119,7 @@
 			packageProductDependencies = (
 				CA7C00010000000000000005 /* WatchSync */,
 				CA7C00010000000000000006 /* MusicSearchKit */,
+				DA7C00010000000000000001 /* DanceLogger */,
 			);
 			productName = "Cue Watch";
 			productReference = E9C03AFC2A586F5E00FB9118 /* Cue Watch.app */;
@@ -2995,6 +3000,10 @@
 		CA7C00010000000000000006 /* MusicSearchKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MusicSearchKit;
+		};
+		DA7C00010000000000000001 /* DanceLogger */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DanceLogger;
 		};
 		CA7C00010000000000000031 /* WatchSync */ = {
 			isa = XCSwiftPackageProductDependency;

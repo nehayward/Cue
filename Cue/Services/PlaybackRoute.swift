@@ -1,6 +1,6 @@
+import DanceLogger
 import Defaults
 import Foundation
-import MusicSearchKit
 import Observation
 import SonosKit
 import SwiftUI
@@ -30,7 +30,7 @@ final class PlaybackRoute {
     static let shared = PlaybackRoute()
 
     /// `log stream --predicate 'subsystem == "dance.cue" AND category == "route"' --level debug`
-    private static let log = CueLog("route")
+    private static let log = DanceLog("route")
 
     /// The stored destination, mirrored so views can observe it.
     private(set) var destination: PlayDestination

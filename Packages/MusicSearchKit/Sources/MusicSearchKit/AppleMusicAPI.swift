@@ -1,7 +1,8 @@
+import DanceLogger
 import Foundation
 import MusicKit
 
-private let appleLog = CueLog("apple")
+private let appleLog = DanceLog("apple")
 
 public final class AppleMusicAPI {
     public static var shared = AppleMusicAPI()

@@ -1,4 +1,4 @@
-import MusicSearchKit
+import DanceLogger
 import SwiftUI
 
 /// Report a Problem ▸ View Log: the log file on this device, newest line
@@ -7,12 +7,12 @@ import SwiftUI
 /// would otherwise need Xcode.
 struct LogViewerScreen: View {
     /// Newest first.
-    @State private var entries: [LogEntry] = []
+    @State private var entries: [DanceLogStore.Entry] = []
     @State private var isLoading = true
     @State private var searchText = ""
     @State private var problemsOnly = false
 
-    private var shownEntries: [LogEntry] {
+    private var shownEntries: [DanceLogStore.Entry] {
         entries.filter { entry in
             if problemsOnly, (entry.level ?? .info) < .warning {
                 return false
@@ -70,14 +70,14 @@ struct LogViewerScreen: View {
 
     private func load() async {
         entries = await Task.detached(priority: .userInitiated) {
-            Array(LogStore.entries(in: LogStore.shared.recentText()).reversed())
+            Array(DanceLogStore.entries(in: DanceLogStore.shared.recentText()).reversed())
         }.value
         isLoading = false
     }
 }
 
 private struct LogEntryRow: View {
-    let entry: LogEntry
+    let entry: DanceLogStore.Entry
 
     var body: some View {
         if entry.isLaunch {

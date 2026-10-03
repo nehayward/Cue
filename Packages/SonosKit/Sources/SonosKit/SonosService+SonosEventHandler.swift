@@ -4,8 +4,8 @@
 //
 //  Created by Nick Hayward on 9/25/25.
 //
+import DanceLogger
 import Foundation
-import MusicSearchKit
 import Nuke
 
 extension SonosService: SonosEventHandler {
@@ -273,7 +273,7 @@ extension SonosService: SonosEventHandler {
     //    }
     
     public func onError(playerId: String, error: Error) {
-        CueLog.sonos.error("Event error for player \(playerId): \(error.localizedDescription)")
+        DanceLog.sonos.error("Event error for player \(playerId): \(error.localizedDescription)")
     }
     
     // MARK: - Public Methods

@@ -1,16 +1,16 @@
-@testable import MusicSearchKit
+@testable import DanceLogger
 import XCTest
 
-final class LogStoreTests: XCTestCase {
+final class DanceLoggerTests: XCTestCase {
 
     private var directory: URL!
     private var defaults: UserDefaults!
-    private let suiteName = "LogStoreTests"
+    private let suiteName = "DanceLoggerTests"
 
     override func setUp() {
         super.setUp()
         directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("LogStoreTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("DanceLoggerTests-\(UUID().uuidString)", isDirectory: true)
         defaults = UserDefaults(suiteName: suiteName)
         defaults.removePersistentDomain(forName: suiteName)
     }
@@ -21,21 +21,21 @@ final class LogStoreTests: XCTestCase {
         super.tearDown()
     }
 
-    private func makeStore(maxFileSize: Int = 1024 * 1024, maxTotalSize: Int = 10 * 1024 * 1024) -> LogStore {
-        LogStore(directory: directory, maxFileSize: maxFileSize, maxTotalSize: maxTotalSize, defaults: defaults)
+    private func makeStore(maxFileSize: Int = 1024 * 1024, maxTotalSize: Int = 10 * 1024 * 1024) -> DanceLogStore {
+        DanceLogStore(directory: directory, maxFileSize: maxFileSize, maxTotalSize: maxTotalSize, defaults: defaults)
     }
 
     // MARK: - Messages
 
     func testInterpolationDescribesValues() {
         let count = 3
-        let message: LogMessage = "carrying \(count) items from \("device", privacy: .public) at \(1.5)s"
+        let message: DanceLog.Message = "carrying \(count) items from \("device", privacy: .public) at \(1.5)s"
         XCTAssertEqual(message.text, "carrying 3 items from device at 1.5s")
     }
 
     func testPrivateValuesAreHidden() {
         let name = "Jo"
-        let message: LogMessage = "signed in as \(name, privacy: .private)"
+        let message: DanceLog.Message = "signed in as \(name, privacy: .private)"
         XCTAssertEqual(message.text, "signed in as <private>")
     }
 
@@ -44,7 +44,7 @@ final class LogStoreTests: XCTestCase {
     func testPlexTokenInURLIsRedacted() {
         let line = "GET http://plex.local:32400/library/parts/1/file.flac?download=1&X-Plex-Token=abc123XYZ failed"
         XCTAssertEqual(
-            LogRedactor.redact(line),
+            Redactor.redact(line),
             "GET http://plex.local:32400/library/parts/1/file.flac?download=1&X-Plex-Token=<redacted> failed"
         )
     }
@@ -52,36 +52,36 @@ final class LogStoreTests: XCTestCase {
     func testSubsonicCredentialsAreRedacted() {
         let line = "https://music.example.com/rest/stream?id=42&u=nick&t=26719a1196d2a940705a59634eb18eab&s=c19b2d&v=1.16.1&c=Cue"
         XCTAssertEqual(
-            LogRedactor.redact(line),
+            Redactor.redact(line),
             "https://music.example.com/rest/stream?id=42&u=nick&t=<redacted>&s=<redacted>&v=1.16.1&c=Cue"
         )
-        XCTAssertEqual(LogRedactor.redact("ping?u=nick&p=enc:6869"), "ping?u=nick&p=<redacted>")
+        XCTAssertEqual(Redactor.redact("ping?u=nick&p=enc:6869"), "ping?u=nick&p=<redacted>")
     }
 
     func testHeadersAndBodiesAreRedacted() {
-        XCTAssertEqual(LogRedactor.redact("Authorization: Bearer eyJhbGciOi.abc-def"), "Authorization: Bearer <redacted>")
-        XCTAssertEqual(LogRedactor.redact("Token: abc123"), "Token: <redacted>")
+        XCTAssertEqual(Redactor.redact("Authorization: Bearer eyJhbGciOi.abc-def"), "Authorization: Bearer <redacted>")
+        XCTAssertEqual(Redactor.redact("Token: abc123"), "Token: <redacted>")
         XCTAssertEqual(
-            LogRedactor.redact(#"<Server name="Den" accessToken="s3cr3t" owned="1">"#),
+            Redactor.redact(#"<Server name="Den" accessToken="s3cr3t" owned="1">"#),
             #"<Server name="Den" accessToken="<redacted>" owned="1">"#
         )
         XCTAssertEqual(
-            LogRedactor.redact(#"{"authToken":"abc","id":3}"#),
+            Redactor.redact(#"{"authToken":"abc","id":3}"#),
             #"{"authToken":"<redacted>","id":3}"#
         )
-        XCTAssertEqual(LogRedactor.redact("password=hunter2&next=1"), "password=<redacted>&next=1")
+        XCTAssertEqual(Redactor.redact("password=hunter2&next=1"), "password=<redacted>&next=1")
     }
 
     func testTheQuickCheckIgnoresCase() {
-        XCTAssertEqual(LogRedactor.redact("apiKey: abc"), "apiKey: <redacted>")
-        XCTAssertEqual(LogRedactor.redact("API_KEY=abc"), "API_KEY=<redacted>")
-        XCTAssertEqual(LogRedactor.redact("SECRET=abc"), "SECRET=<redacted>")
-        XCTAssertEqual(LogRedactor.redact("x-plex-TOKEN: abc"), "x-plex-TOKEN: <redacted>")
-        XCTAssertTrue(LogRedactor.mightContainSecret("…?t=abc"))
-        XCTAssertFalse(LogRedactor.mightContainSecret("route → Kitchen: carrying 12 items"))
+        XCTAssertEqual(Redactor.redact("apiKey: abc"), "apiKey: <redacted>")
+        XCTAssertEqual(Redactor.redact("API_KEY=abc"), "API_KEY=<redacted>")
+        XCTAssertEqual(Redactor.redact("SECRET=abc"), "SECRET=<redacted>")
+        XCTAssertEqual(Redactor.redact("x-plex-TOKEN: abc"), "x-plex-TOKEN: <redacted>")
+        XCTAssertTrue(Redactor.mightContainSecret("…?t=abc"))
+        XCTAssertFalse(Redactor.mightContainSecret("route → Kitchen: carrying 12 items"))
         // Ends early without reading past the last byte.
-        XCTAssertFalse(LogRedactor.mightContainSecret("tok"))
-        XCTAssertFalse(LogRedactor.mightContainSecret("?t"))
+        XCTAssertFalse(Redactor.mightContainSecret("tok"))
+        XCTAssertFalse(Redactor.mightContainSecret("?t"))
     }
 
     func testOrdinaryLinesAreLeftAlone() {
@@ -92,7 +92,7 @@ final class LogStoreTests: XCTestCase {
             "keyboard shortcut pressed",
         ]
         for line in lines {
-            XCTAssertEqual(LogRedactor.redact(line), line)
+            XCTAssertEqual(Redactor.redact(line), line)
         }
     }
 
@@ -119,7 +119,7 @@ final class LogStoreTests: XCTestCase {
         store.append(level: .notice, category: "route", message: "switched")
         store.append(level: .warning, category: "plex", message: "retrying\n<xml/>")
 
-        let entries = LogStore.entries(in: store.recentText())
+        let entries = DanceLogStore.entries(in: store.recentText())
         XCTAssertEqual(entries.count, 3)
         XCTAssertTrue(entries[0].isLaunch)
         XCTAssertTrue(entries[0].message.contains("Cue 2026.6 (100)"))
@@ -147,7 +147,7 @@ final class LogStoreTests: XCTestCase {
         let files = store.logFiles()
         XCTAssertGreaterThan(files.count, 1)
         // Nothing is lost across the files, and they read back in order.
-        let messages = LogStore.entries(in: store.recentText()).map(\.message)
+        let messages = DanceLogStore.entries(in: store.recentText()).map(\.message)
         XCTAssertEqual(messages.count, 20)
         XCTAssertTrue(messages[0].hasPrefix("line 0 "))
         XCTAssertTrue(messages[19].hasPrefix("line 19 "))
@@ -159,7 +159,7 @@ final class LogStoreTests: XCTestCase {
             store.append(level: .info, category: "test", message: "line \(index) " + String(repeating: "x", count: 40))
         }
         XCTAssertLessThanOrEqual(store.totalSize(), 1_000 + 300)
-        let messages = LogStore.entries(in: store.recentText()).map(\.message)
+        let messages = DanceLogStore.entries(in: store.recentText()).map(\.message)
         XCTAssertTrue(messages.last?.hasPrefix("line 59 ") ?? false)
         XCTAssertFalse(messages.contains { $0.hasPrefix("line 0 ") })
     }
@@ -171,7 +171,7 @@ final class LogStoreTests: XCTestCase {
         }
         let text = store.recentText(limit: 500)
         XCTAssertTrue(text.hasPrefix("… (earlier lines left out)\n"))
-        let messages = LogStore.entries(in: text).compactMap { $0.level == nil ? nil : $0.message }
+        let messages = DanceLogStore.entries(in: text).compactMap { $0.level == nil ? nil : $0.message }
         XCTAssertEqual(messages.last, "line 99")
         XCTAssertFalse(messages.contains("line 0"))
         // Cut at a line, not inside one.
@@ -181,10 +181,11 @@ final class LogStoreTests: XCTestCase {
     func testExportStartsWithTheHeader() throws {
         let store = makeStore()
         store.append(level: .error, category: "sonos", message: "group load failed")
-        let url = try store.exportFile(header: "Cue Support Report")
+        let url = try store.exportFile(header: "Problem Report", title: "Cue")
         let text = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertTrue(text.hasPrefix("Cue Support Report\n\n"))
+        XCTAssertTrue(text.hasPrefix("Problem Report\n\n"))
         XCTAssertTrue(text.contains("[sonos] group load failed"))
+        XCTAssertTrue(url.lastPathComponent.hasPrefix("Cue Log "))
         XCTAssertEqual(url.pathExtension, "txt")
     }
 
@@ -194,7 +195,7 @@ final class LogStoreTests: XCTestCase {
         store.clear()
         XCTAssertTrue(store.logFiles().isEmpty)
         store.append(level: .info, category: "test", message: "after")
-        XCTAssertEqual(LogStore.entries(in: store.recentText()).map(\.message), ["after"])
+        XCTAssertEqual(DanceLogStore.entries(in: store.recentText()).map(\.message), ["after"])
     }
 
     // MARK: - Detailed Logging
@@ -205,7 +206,7 @@ final class LogStoreTests: XCTestCase {
         store.isDetailed = true
         XCTAssertTrue(store.isDetailed)
         let until = try? XCTUnwrap(store.detailedUntil)
-        XCTAssertEqual(until?.timeIntervalSinceNow ?? 0, LogStore.detailedDuration, accuracy: 5)
+        XCTAssertEqual(until?.timeIntervalSinceNow ?? 0, DanceLogStore.detailedDuration, accuracy: 5)
 
         store.detailedUntil = .now.addingTimeInterval(-1)
         XCTAssertFalse(store.isDetailed)

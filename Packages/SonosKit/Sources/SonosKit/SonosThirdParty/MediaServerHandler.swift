@@ -5,10 +5,10 @@
 //  Created by Nick Hayward on 1/4/25.
 //
 
+import DanceLogger
 import FlyingFox
 import Foundation
 #if canImport(UIKit)
-import MusicSearchKit
 import UIKit
 #endif
 import Network
@@ -46,7 +46,7 @@ final class MediaServerHandler {
             deviceIP = ip
             print("📱 Device IP: \(ip)")
         } else {
-            CueLog.sonos.error("Media server: couldn\'t get this device\'s IP address")
+            DanceLog.sonos.error("Media server: couldn\'t get this device\'s IP address")
         }
     }
     
@@ -144,7 +144,7 @@ final class MediaServerHandler {
                 // Start the server
                 try await server.run()
             } catch {
-                CueLog.sonos.error("Media server error: \(error)")
+                DanceLog.sonos.error("Media server error: \(error)")
                 throw error
             }
         }
@@ -159,7 +159,7 @@ final class MediaServerHandler {
                     await onServerListening?(ip)
                 }
             } catch {
-                CueLog.sonos.error("Media server: no listening address")
+                DanceLog.sonos.error("Media server: no listening address")
                 throw error
             }
         }

@@ -1,4 +1,5 @@
 import CoreTransferable
+import DanceLogger
 import MusicSearchKit
 import SonosKit
 import SubscriptionKit
@@ -71,7 +72,7 @@ enum SupportReport {
         let sonos = SonosService.shared
         let route = PlaybackRoute.shared
         let offline = OfflineMode.shared
-        let store = LogStore.shared
+        let store = DanceLogStore.shared
         let services = MediaSearchService.supported
             .filter { CoreFeatures.shared.isEnabled($0) }
             .map(\.title)
@@ -142,7 +143,7 @@ enum SupportReport {
     static func makeFile() async throws -> URL {
         let header = header()
         return try await Task.detached(priority: .userInitiated) {
-            try LogStore.shared.exportFile(header: header)
+            try DanceLogStore.shared.exportFile(header: header, title: "Cue")
         }.value
     }
 }

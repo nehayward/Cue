@@ -1,4 +1,4 @@
-import MusicSearchKit
+import DanceLogger
 import SwiftUI
 
 /// Settings ▸ Report a Problem: an email to support with Cue's log
@@ -6,11 +6,11 @@ import SwiftUI
 /// and the switch that makes it record more.
 ///
 /// The attachment is one plain-text file: a header with the state of the
-/// app (`SupportReport.header()`), then the last few days of `LogStore`.
+/// app (`SupportReport.header()`), then the last few days of `DanceLogStore`.
 struct ReportProblemScreen: View {
     @State private var mailDraft: MailDraft?
     @State private var isPreparingEmail = false
-    @State private var detailedUntil: Date? = LogStore.shared.detailedUntil
+    @State private var detailedUntil: Date? = DanceLogStore.shared.detailedUntil
     @State private var logSize: Int?
     @State private var isConfirmingClear = false
     @State private var failure: String?
@@ -94,7 +94,7 @@ struct ReportProblemScreen: View {
         #if canImport(MessageUI)
         .sheet(item: $mailDraft) { draft in
             MailComposeView(draft: draft) { result in
-                CueLog.app.notice("Report a Problem: email \(result.logDescription)")
+                DanceLog.app.notice("Report a Problem: email \(result.logDescription)")
                 mailDraft = nil
             }
             .ignoresSafeArea()
@@ -130,9 +130,9 @@ struct ReportProblemScreen: View {
         Binding {
             isDetailed
         } set: { isOn in
-            LogStore.shared.isDetailed = isOn
-            detailedUntil = LogStore.shared.detailedUntil
-            CueLog.app.notice("Detailed Logging \(isOn ? "on" : "off")")
+            DanceLogStore.shared.isDetailed = isOn
+            detailedUntil = DanceLogStore.shared.detailedUntil
+            DanceLog.app.notice("Detailed Logging \(isOn ? "on" : "off")")
         }
     }
 
@@ -152,7 +152,7 @@ struct ReportProblemScreen: View {
     private func composeEmail() async {
         isPreparingEmail = true
         defer { isPreparingEmail = false }
-        CueLog.app.notice("Report a Problem: preparing an email")
+        DanceLog.app.notice("Report a Problem: preparing an email")
         do {
             let url = try await SupportReport.makeFile()
             let data = try Data(contentsOf: url)
@@ -163,20 +163,20 @@ struct ReportProblemScreen: View {
                 attachments: [.init(data: data, mimeType: "text/plain", fileName: url.lastPathComponent)]
             )
         } catch {
-            CueLog.app.error("Report a Problem: couldn't write the log file: \(error)")
+            DanceLog.app.error("Report a Problem: couldn't write the log file: \(error)")
             failure = error.localizedDescription
         }
     }
 
     private func clearLog() {
-        LogStore.shared.clear()
-        CueLog.app.notice("Log cleared")
+        DanceLogStore.shared.clear()
+        DanceLog.app.notice("Log cleared")
         Task { await refreshLogSize() }
     }
 
     private func refreshLogSize() async {
         logSize = await Task.detached(priority: .utility) {
-            LogStore.shared.totalSize()
+            DanceLogStore.shared.totalSize()
         }.value
     }
 }

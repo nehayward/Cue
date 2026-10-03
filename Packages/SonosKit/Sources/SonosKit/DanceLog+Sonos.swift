@@ -1,7 +1,7 @@
-import MusicSearchKit
+import DanceLogger
 
-extension CueLog {
+extension DanceLog {
     /// Cue's calls to the speakers — UPnP requests, event subscriptions,
     /// the local media server — and what came back.
-    static let sonos = CueLog("sonos")
+    static let sonos = DanceLog("sonos")
 }

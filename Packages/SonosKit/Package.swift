@@ -15,7 +15,8 @@ let package = Package(
         .package(url: "https://github.com/nonstrict-hq/CloudStorage", from: "0.4.0"),
         .package(url: "https://github.com/swhitty/FlyingFox.git", .upToNextMajor(from: "0.23.0")),
         .package(path: "../MusicSearchKit"),
-        .package(path: "../Defaults")
+        .package(path: "../Defaults"),
+        .package(path: "../DanceLogger")
     ],
     targets: [
         .target(
@@ -23,6 +24,7 @@ let package = Package(
             dependencies: [
                 "CloudStorage",
                 "MusicSearchKit",
+                "DanceLogger",
                 "FlyingFox",
                 "Defaults",
                 .product(name: "Collections", package: "swift-collections")
