@@ -198,7 +198,7 @@ struct MusicPlaybackView: View {
         .buttonStyle(.plain)
         .zoomSource(.miniPlayer, in: zoomNamespace)
 
-        if controller.isActive {
+        if item != nil || controller.isPlaying {
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 Task { await controller.togglePlayback() }
@@ -212,7 +212,8 @@ struct MusicPlaybackView: View {
             .accessibilityLabel(isPlaying ? "Pause" : "Play")
             .disabled(hold != nil)
 
-            if placement != .inline {
+            // A live station on this device has nothing to skip to.
+            if placement != .inline, controller.showsNext {
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     Task {

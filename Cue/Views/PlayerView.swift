@@ -44,7 +44,6 @@ struct PlayerView: View {
     @State private var shouldFade: Bool = false
 
     private var playback: LocalPlaybackService { .shared }
-    private var sonosService: SonosService { .shared }
     private var route: PlaybackRoute { .shared }
 
     /// What the player draws and its controls act on.
@@ -164,12 +163,16 @@ struct PlayerView: View {
             QueueNextUpView()
         }
         .background { backdrop }
-        // The speaker's socket, sleep timer, play mode and hardware volume;
-        // a drop on the screen plays wherever the route points. The route's
-        // group rather than the one on screen: a switch to a speaker opens
-        // its socket at once, which is what brings the carried song's
-        // report in for the player to go over on.
-        .modifier(PlayerSessionModifier(coordinatorID: route.group?.coordinatorID, shouldFade: $shouldFade))
+        // The speaker's socket, sleep timer and play mode, and a drop on the
+        // screen, follow the route: a switch to a speaker opens its socket
+        // at once, which is what brings the carried song's report in for the
+        // player to go over on. The hardware volume follows what's on
+        // screen, so the buttons move the slider being shown.
+        .modifier(PlayerSessionModifier(
+            coordinatorID: route.group?.coordinatorID,
+            shownCoordinatorID: group?.coordinatorID,
+            shouldFade: $shouldFade
+        ))
         .fontDesign(.rounded)
         .environment(router)
         .withEnvironments()
@@ -591,7 +594,11 @@ private struct ClearNavigationBackground<Backdrop: View>: ViewModifier {
 /// Branching on the group here put the whole player in one of two
 /// branches, so every route change built it again from scratch.
 private struct PlayerSessionModifier: ViewModifier {
+    /// The route's speaker.
     let coordinatorID: String?
+    /// The speaker on screen, which differs from the route's while a
+    /// hand-off holds the player on its source.
+    let shownCoordinatorID: String?
     @Binding var shouldFade: Bool
 
     private var sonosService: SonosService { .shared }
@@ -602,11 +609,15 @@ private struct PlayerSessionModifier: ViewModifier {
         coordinatorID.flatMap { id in sonosService.groups.first { $0.coordinatorID == id } }
     }
 
+    private var shownGroup: GroupRoom? {
+        shownCoordinatorID.flatMap { id in sonosService.groups.first { $0.coordinatorID == id } }
+    }
+
     func body(content: Content) -> some View {
         content
             // Anything dropped on the screen plays where the route points.
             .dropDestinationPlay(onGroupOrDevice: group)
-            .hardwareVolumeControl(group: group)
+            .hardwareVolumeControl(group: shownGroup)
             .modifier(GroupScenePhaseSyncModifier(coordinatorID: coordinatorID))
             .task(id: coordinatorID) {
                 guard let group = self.group else { return }
@@ -832,6 +843,9 @@ private struct PlayerScrubber: View {
     /// True while a finger is on the bar. `VibeSlider` reports `true` on
     /// every movement, not only the first touch.
     @State private var isScrubbing = false
+    /// The source the drag began on, which its end goes to: the one on
+    /// screen can change under a finger.
+    @State private var scrubController: (any PlaybackController)?
     /// The bar's width, which sets how often it's worth redrawing.
     @State private var barWidth: CGFloat = 0
 
@@ -919,23 +933,51 @@ private struct PlayerScrubber: View {
         .frame(maxWidth: .infinity)
         .frame(height: 60)
         .opacity(controller.duration.isZero ? 0 : 1)
+        // A new source under the finger, or a hand-off taking the bar away
+        // (it disables, and the slider may never report the drag's end).
+        .onChange(of: route.presentedDestination) {
+            cancelScrubbing()
+        }
+        .onChange(of: route.isHolding) { _, isHolding in
+            if isHolding {
+                cancelScrubbing()
+            }
+        }
     }
 
     private func scrubbingChanged(_ isEditing: Bool, on controller: any PlaybackController) {
         if isEditing {
             guard !isScrubbing else { return }
             isScrubbing = true
+            scrubController = controller
             controller.beginScrubbing()
         } else {
             guard isScrubbing else { return }
             isScrubbing = false
             let target = scrubPosition
+            let owner = scrubController ?? controller
+            scrubController = nil
             Task { @MainActor in
-                await controller.endScrubbing(at: target)
+                await owner.endScrubbing(at: target)
                 // A new drag since has its own position.
                 if !isScrubbing {
                     scrubPosition = nil
                 }
+            }
+        }
+    }
+
+    /// Calls a drag off without a seek, letting go of the source it began
+    /// on — which otherwise kept ignoring the speaker's reports.
+    private func cancelScrubbing() {
+        guard isScrubbing || scrubPosition != nil else { return }
+        let owner = scrubController
+        isScrubbing = false
+        scrubController = nil
+        scrubPosition = nil
+        if let owner {
+            Task { @MainActor in
+                await owner.endScrubbing(at: nil)
             }
         }
     }

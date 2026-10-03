@@ -42,6 +42,11 @@ private struct HardwareVolumeControlModifier: ViewModifier {
             && featureGate.isAvailable(.hardwareVolumeButtons)
     }
 
+    /// This modifier holds the bridge. Only then does it let go: with no
+    /// group, or on leaving, it mustn't stop a bridge another player screen
+    /// started — the speaker player under this one, say.
+    @State private var isHoldingBridge = false
+
     @State private var volumeView: MPVolumeView = {
         let v = MPVolumeView()
         v.alpha = 0.0001
@@ -71,17 +76,20 @@ private struct HardwareVolumeControlModifier: ViewModifier {
             }
             .task(id: claimKey) {
                 if enabled, let group {
-                    HardwareVolumeService.shared.start(
+                    isHoldingBridge = HardwareVolumeService.shared.start(
                         group: group,
                         sonosService: sonosService,
                         volumeView: volumeView
                     )
-                } else {
+                } else if isHoldingBridge {
                     HardwareVolumeService.shared.stop()
+                    isHoldingBridge = false
                 }
             }
             .onDisappear {
+                guard isHoldingBridge else { return }
                 HardwareVolumeService.shared.stop()
+                isHoldingBridge = false
             }
     }
 }

@@ -69,16 +69,18 @@ final class PlaybackRoute {
         /// source is paused on the way out, and the transport keeps reading
         /// as it did rather than flicking to Play and back.
         let wasPlaying: Bool
-        /// Seconds into the song when the switch was made, and when that
-        /// was. The target picks the song up from here, run on by however
-        /// long the hand-off took, so the bars run on from here too rather
-        /// than stopping with the source.
-        let position: TimeInterval
-        let since: Date
+        /// The bars' clock while the hold lasts, which the hand-off keeps
+        /// in step with what's heard (see `setHoldClock(_:running:)`):
+        /// seconds into the song as of `since`, running from there while
+        /// either end is playing. The source is paused on its way out, so
+        /// its own clock would stop the bars short of the target's.
+        var position: TimeInterval
+        var since: Date
+        var isClockRunning: Bool
 
         /// Where the song is at `date`, as far as the hand-off goes.
         func position(at date: Date) -> TimeInterval {
-            guard wasPlaying else { return position }
+            guard isClockRunning else { return position }
             return position + max(date.timeIntervalSince(since), 0)
         }
     }
@@ -88,8 +90,13 @@ final class PlaybackRoute {
     /// Lets a hold go however the hand-off is doing, so a speaker that
     /// never answers can't leave the player on the source.
     @ObservationIgnored private var holdWatchdog: Task<Void, Never>?
-    /// The longest a hold lasts.
+    /// The longest a hold lasts once the source has stopped: past it the
+    /// player follows the route, however the target is doing.
     private static let holdTimeout: Duration = .seconds(12)
+    /// The longest it lasts at all. The source is still playing until the
+    /// hand-off stops it, and the hold is right to show it meanwhile, but its
+    /// transport rests; a hand-off stuck on the network shouldn't keep it.
+    private static let holdLimit: Duration = .seconds(30)
     /// How long the player waits, once the target is playing, for it to name
     /// the carried song and have its cover.
     private static let holdSettleLimit: Duration = .seconds(3)
@@ -250,7 +257,16 @@ final class PlaybackRoute {
         switchToken += 1
         let token = switchToken
         isSwitching = true
-        beginHold(holds ? Hold(source: shown.destination, wasPlaying: shown.isPlaying, position: shown.position(), since: .now) : nil)
+        // A switch made during another's hold keeps that one: its source is
+        // already on its way out, so a fresh read of it would say paused.
+        let newHold = hold ?? Hold(
+            source: shown.destination,
+            wasPlaying: shown.isPlaying,
+            position: shown.position(),
+            since: .now,
+            isClockRunning: shown.isPlaying
+        )
+        beginHold(holds ? newHold : nil)
         handoffTask = Task { [weak self] in
             guard let self else { return }
             defer {
@@ -355,20 +371,40 @@ final class PlaybackRoute {
 
     /// Starts showing `hold` in the route's place, or stops holding.
     ///
-    /// Bounded by `holdTimeout`: past it the player shows the route as it
-    /// stands, whatever the hand-off is doing — a speaker that never answers
-    /// shouldn't leave the player showing a source that has gone quiet.
+    /// Bounded by `holdLimit` from here, and by `holdTimeout` from when the
+    /// source stops (`armHoldWatchdog(after:)`): past either the player shows
+    /// the route as it stands, whatever the hand-off is doing — a speaker
+    /// that never answers shouldn't leave the player showing a source that
+    /// has gone quiet.
     private func beginHold(_ new: Hold?) {
         endHold()
         guard let new else { return }
         hold = new
+        armHoldWatchdog(after: Self.holdLimit)
+    }
+
+    /// (Re)starts the hold's limit, `after` from now.
+    private func armHoldWatchdog(after limit: Duration) {
+        guard hold != nil else { return }
+        holdWatchdog?.cancel()
         let token = switchToken
         holdWatchdog = Task { [weak self] in
-            try? await Task.sleep(for: Self.holdTimeout)
+            try? await Task.sleep(for: limit)
             guard !Task.isCancelled, let self, self.switchToken == token, self.hold != nil else { return }
             Self.log.notice("route: hand-off still running at the hold's limit; the player follows the route")
             self.endHold()
         }
+    }
+
+    /// Keeps the bars in step with what's heard while the hold lasts: stopped
+    /// at `position` while neither end is playing, running from it once the
+    /// target is. The play button keeps reading as the source did.
+    private func setHoldClock(_ position: TimeInterval, running: Bool) {
+        guard var hold else { return }
+        hold.position = position
+        hold.since = .now
+        hold.isClockRunning = running
+        self.hold = hold
     }
 
     private func endHold() {
@@ -431,6 +467,16 @@ final class PlaybackRoute {
             self.holdRelease = nil
             self.endHold()
         }
+    }
+
+    /// The speaker has stopped at `position` and this device is about to arm
+    /// the song there: the bars wait at that spot, and the hold's limit runs
+    /// from now. The hold ends once the device is going (see the callers):
+    /// arming starts the clock at 0:00 and goes through a moment of not
+    /// playing, which the player shouldn't show.
+    private func holdUntilDeviceStarts(at position: TimeInterval) {
+        setHoldClock(position, running: false)
+        armHoldWatchdog(after: Self.holdTimeout)
     }
 
     /// Whether the speaker's `track` is `item`: by title, which survives the
@@ -558,6 +604,9 @@ final class PlaybackRoute {
             } else if let source {
                 await sonos.pause(ip: source.ip)
             }
+            // Nothing is heard from the source any more; the hold now waits
+            // only on the target.
+            armHoldWatchdog(after: Self.holdTimeout)
             step("source stopped")
         }
 
@@ -578,6 +627,7 @@ final class PlaybackRoute {
         // speaker source keeps playing until the target has started.
         if !overlap, fromDevice {
             await stopSource()
+            setHoldClock(snapshot.position, running: false)
         }
 
         // The cached transport can be stale in the same way as above, and a
@@ -622,6 +672,8 @@ final class PlaybackRoute {
                         } else {
                             step("speaker not playing after 4s")
                         }
+                        // The speaker started at `offset` just now.
+                        setHoldClock(offset, running: true)
                         // Speaker heard (or given up on): the source goes, even
                         // if a newer switch is on its way — leaving both
                         // playing would be the worse outcome.
@@ -637,11 +689,13 @@ final class PlaybackRoute {
                         offset = snapshot.position + Self.seconds(ContinuousClock.now - snapshotAt)
                     }
                     await stopSource()
+                    setHoldClock(offset, running: false)
                     await sonos.play(ip: target.ip)
                     let settled = await sonos.waitUntilSettled(ip: target.ip)
                     step("fallback: settled as \(settled)")
                     guard !Task.isCancelled else { return }
                     await sonos.seek(to: offset * 1000, on: target)
+                    setHoldClock(offset, running: snapshot.isPlaying)
                     step("fallback: seeked to \(String(format: "%.1f", offset))s")
                     if !snapshot.isPlaying {
                         await sonos.pause(ip: target.ip)
@@ -655,6 +709,7 @@ final class PlaybackRoute {
                 // behind it while it plays. One call for the lot meant the
                 // first note waited on every AddURIToQueue round trip.
                 try await sonos.queue(contents: [first], group: target, position: .replace, startIndex: 0)
+                setHoldClock(0, running: snapshot.isPlaying)
                 step("queued and started from the top")
                 if !snapshot.isPlaying {
                     await sonos.pause(ip: target.ip)
@@ -770,11 +825,7 @@ final class PlaybackRoute {
         if let index = parkedIndex(matching: snapshot) {
             snapshot.position = await stop(source, holding: snapshot)
             guard !Task.isCancelled else { return }
-            // The player comes over now, in the same turn as the resume
-            // below moves the queue to this track (nothing suspends between
-            // the two), so its first frame on this device is the song the
-            // speaker stopped on, not the parked one.
-            endHold()
+            holdUntilDeviceStarts(at: snapshot.position)
             Self.log.notice("route → device: picking the parked queue back up at \(index) from \(source.nameWithCount, privacy: .public) at \(Int(snapshot.position))s")
             do {
                 try await playback.resume(at: index, from: snapshot.position)
@@ -790,6 +841,10 @@ final class PlaybackRoute {
             if !snapshot.isPlaying {
                 playback.pause()
             }
+            // Armed and going: the player comes over onto the song the
+            // speaker stopped on, at its spot. Before the arm, the device was
+            // still on the parked track, or at 0:00 while it loaded.
+            endHold()
             if let current = playback.nowPlaying {
                 AlertService.shared.showAlertContent(
                     with: current,
@@ -822,9 +877,7 @@ final class PlaybackRoute {
 
         snapshot.position = await stop(source, holding: snapshot)
         guard !Task.isCancelled else { return }
-        // As in the parked case: the play below replaces the queue before
-        // it first suspends, so the player comes over onto this song.
-        endHold()
+        holdUntilDeviceStarts(at: snapshot.position)
         Self.log.notice("route → device: carrying \(snapshot.items.count - firstIndex) items from \(source.nameWithCount, privacy: .public) at \(Int(snapshot.position))s")
 
         // The position is the current track's; with that one dropped the
@@ -847,6 +900,8 @@ final class PlaybackRoute {
         if !snapshot.isPlaying {
             playback.pause()
         }
+        // As in the parked case: armed, so the player comes over.
+        endHold()
 
         AlertService.shared.showAlertContent(
             with: first,

@@ -66,8 +66,8 @@ protocol PlaybackController: AnyObject {
     /// A finger went down on the scrubber: reports stop moving the position
     /// until `endScrubbing(at:)`.
     func beginScrubbing()
-    /// The finger came up, at `seconds` — nil for a touch that never moved
-    /// the bar, which seeks nowhere.
+    /// The finger came up, at `seconds`; nil seeks nowhere — a drag called
+    /// off because the source changed under it.
     func endScrubbing(at seconds: TimeInterval?) async
 
     // MARK: Play mode
@@ -163,7 +163,9 @@ final class SonosGroupController: PlaybackController {
     var name: String { group?.nameWithCount ?? "Speaker" }
 
     var nowPlayingDisplay: PlayableContent? { track?.toPlayable }
-    var isActive: Bool { track != nil || (room?.isPlaying ?? false) }
+    /// Always, for a speaker that's there: Play goes to it whatever it
+    /// reports — a paused line-in can have no track at all.
+    var isActive: Bool { group != nil }
     var isPlaying: Bool { room?.isPlaying ?? false }
     var isLoading: Bool { room?.isTransitioning ?? false }
     var duration: TimeInterval { (room?.track.duration ?? 0) / 1000 }
