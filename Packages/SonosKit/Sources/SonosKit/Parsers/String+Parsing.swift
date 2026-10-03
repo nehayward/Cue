@@ -2,62 +2,69 @@ extension String {
     /// The five XML entities decoded, as five `replacingOccurrences` passes
     /// in turn (`&lt;`, `&gt;`, `&amp;`, `&quot;`, `&apos;`) did, in one walk
     /// over the bytes. Every speaker response the groups poll reads comes
-    /// through here, and the five passes cost 15 times as long. Their
-    /// result is kept exactly, quirk included: the `&amp;` pass ran before
-    /// `&quot;` and `&apos;`, so `&amp;quot;` comes out as `"` while
-    /// `&amp;lt;` stays `&lt;`.
+    /// through here, and the five passes took 12 times as long (more than
+    /// twice as long in a debug build). Their result is kept exactly, quirk
+    /// included: the `&amp;` pass ran before `&quot;` and `&apos;`, so
+    /// `&amp;quot;` comes out as `"` while `&amp;lt;` stays `&lt;`.
+    ///
+    /// Plain byte comparisons rather than a helper matching names from
+    /// arrays: that version was faster optimized but three times slower
+    /// than the passes in a debug build.
     var unescaped: String {
         guard utf8.contains(UInt8(ascii: "&")) else { return self }
-        let source = Array(utf8)
-        var output: [UInt8] = []
-        output.reserveCapacity(source.count)
-        func matches(_ entity: StaticString, at index: Int) -> Bool {
-            let count = entity.utf8CodeUnitCount
-            guard index + count <= source.count else { return false }
-            return entity.withUTF8Buffer { name in
-                for offset in 0..<count where source[index + offset] != name[offset] { return false }
-                return true
+        var source = self
+        return source.withUTF8 { bytes in
+            let count = bytes.count
+            let ampersand = UInt8(ascii: "&")
+            // The byte at `index`, or 0 past the end.
+            func at(_ index: Int) -> UInt8 { index < count ? bytes[index] : 0 }
+            // Whether `a`, `b`, `c`, then `d` if given, then ";" come next,
+            // from `index`.
+            func spells(_ a: Character, _ b: Character, _ c: Character, _ d: Character?, at index: Int) -> Bool {
+                at(index) == a.asciiValue && at(index + 1) == b.asciiValue && at(index + 2) == c.asciiValue
+                    && (d == nil || at(index + 3) == d?.asciiValue)
+                    && at(index + (d == nil ? 3 : 4)) == UInt8(ascii: ";")
             }
-        }
-        var index = 0
-        while index < source.count {
-            let byte = source[index]
-            guard byte == UInt8(ascii: "&") else {
-                output.append(byte)
-                index += 1
-                continue
-            }
-            if matches("&lt;", at: index) {
-                output.append(UInt8(ascii: "<"))
-                index += 4
-            } else if matches("&gt;", at: index) {
-                output.append(UInt8(ascii: ">"))
-                index += 4
-            } else if matches("&quot;", at: index) {
-                output.append(UInt8(ascii: "\""))
-                index += 6
-            } else if matches("&apos;", at: index) {
-                output.append(UInt8(ascii: "'"))
-                index += 6
-            } else if matches("&amp;", at: index) {
-                index += 5
-                if matches("quot;", at: index) {
-                    output.append(UInt8(ascii: "\""))
-                    index += 5
-                } else if matches("apos;", at: index) {
-                    output.append(UInt8(ascii: "'"))
-                    index += 5
-                } else {
-                    output.append(UInt8(ascii: "&"))
+            // Decoding only ever shortens the text.
+            return String(unsafeUninitializedCapacity: count) { output in
+                var index = 0
+                var written = 0
+                while index < count {
+                    let byte = bytes[index]
+                    index += 1
+                    guard byte == ampersand else {
+                        output[written] = byte
+                        written += 1
+                        continue
+                    }
+                    var decoded = byte
+                    if at(index + 1) == UInt8(ascii: "t"), at(index + 2) == UInt8(ascii: ";"),
+                       at(index) == UInt8(ascii: "l") || at(index) == UInt8(ascii: "g") {
+                        decoded = at(index) == UInt8(ascii: "l") ? UInt8(ascii: "<") : UInt8(ascii: ">")
+                        index += 3
+                    } else {
+                        // `&amp;` was decoded before `&quot;` and `&apos;`, so
+                        // one of those right after it decodes too.
+                        let isAmp = spells("a", "m", "p", nil, at: index)
+                        let name = isAmp ? index + 4 : index
+                        if spells("q", "u", "o", "t", at: name) {
+                            decoded = UInt8(ascii: "\"")
+                            index = name + 5
+                        } else if spells("a", "p", "o", "s", at: name) {
+                            decoded = UInt8(ascii: "'")
+                            index = name + 5
+                        } else {
+                            index = name
+                        }
+                    }
+                    output[written] = decoded
+                    written += 1
                 }
-            } else {
-                output.append(byte)
-                index += 1
+                return written
             }
         }
-        return String(decoding: output, as: UTF8.self)
     }
-    
+
     /// Decodes XML entities exactly **once**, scanning left-to-right without
     /// re-processing what it just emitted.
     ///
