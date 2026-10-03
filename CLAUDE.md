@@ -137,6 +137,7 @@ The app is built around several Swift packages in `/Packages`:
 
 ### Sonos Integration
 - Sonos is opt-in in the iOS/Mac app: `SonosService.isEnabled` (asked in onboarding by `SonosQuestionStep`; changed later in Settings ▸ Sonos ▸ Use Sonos Speakers; while it is off the Play On button is the system AirPlay picker). While it is off, monitoring and group loads never touch the network, so no Local Network prompt appears. Hide speaker-only UI behind `sonosService.isEnabled`, and make sure a play action never ends in the speaker picker while it is off
+- The Play On button (`PlaybackRouteButton`) opens `PlayOnSheet`, laid out like the system AirPlay picker: This Device and every active room, each row its own volume slider (`VolumeRouteRow`). A sideways drag sets that row's volume (rooms through `RoomVolumeWriter`, throttled, holding `isEditingVolume`); a tap routes there, or on a speaker adds or drops the room (`GroupMembership`, shared with the press-and-hold group menu). A row decides sideways vs. scroll in its first 8 pt, the list stops scrolling during a volume drag, and a touch that lands on a moving list (`onScrollPhaseChange`) only stops it
 - Real-time device discovery and monitoring
 - XML parsing for Sonos API responses
 - Group management and speaker coordination
