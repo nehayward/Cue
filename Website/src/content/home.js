@@ -6,7 +6,12 @@ export const hero = {
 	eyebrow: 'Music player · Sonos controller',
 	title: 'Your music.\nHere, or everywhere.',
 	lede: 'Cue plays Apple Music, Plex, Subsonic, radio and your own files on your iPhone — then hands the same queue to any Sonos speaker with one tap.',
-	platforms: 'For iPhone, Apple Watch and CarPlay',
+	// Shown under the buttons, each with its device glyph from src/lib/icon-paths.js.
+	devices: [
+		{ icon: 'iphone', name: 'iPhone' },
+		{ icon: 'apple-watch', name: 'Apple Watch' },
+		{ icon: 'carplay', name: 'CarPlay' },
+	],
 };
 
 // "One queue, two places" — the idea that makes Cue different.
@@ -66,13 +71,13 @@ export const beyondPhone = {
 	lede: 'The same player goes where you go, with no speaker needed.',
 	list: [
 		{
-			icon: 'car',
+			icon: 'carplay',
 			name: 'CarPlay',
 			body: 'Your libraries, downloads and radio stations on the car’s screen. In the car, Cue always plays from your iPhone.',
 			points: ['Recents, Library, Downloads and Radio', 'Up Next, shuffle and repeat in Now Playing', 'Downloads that play with no signal'],
 		},
 		{
-			icon: 'watch',
+			icon: 'apple-watch',
 			name: 'Apple Watch',
 			body: 'Put Plex and Subsonic music on your watch and leave your iPhone at home. Browse and search your server right from your wrist.',
 			points: ['Add to Apple Watch from any album, playlist or song', 'Plays from the watch, with no iPhone nearby', 'Siri, Shortcuts, widgets and double tap'],

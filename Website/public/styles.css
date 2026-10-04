@@ -233,8 +233,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 @media (max-width: 959px) {
 	.hero-copy { text-align: center; }
 	.hero-copy .lede { margin-inline: auto; }
-	.hero-copy .actions { justify-content: center; }
+	.hero-copy .actions, .hero-copy .devices { justify-content: center; }
 }
+.devices { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; }
+.devices li { display: inline-flex; align-items: center; gap: 0.35rem; }
 
 .hero-visual { display: flex; justify-content: center; }
 

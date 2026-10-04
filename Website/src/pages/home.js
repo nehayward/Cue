@@ -29,7 +29,7 @@ const body = html`
 				${downloadButton()}
 				<a class="btn btn-ghost btn-large" href="#features">See what it does ${icon('arrow-right')}</a>
 			</div>
-			<p class="fine">${hero.platforms}</p>
+			<ul class="fine devices" aria-label="Works on">${hero.devices.map((d) => html`<li>${icon(d.icon)}${d.name}</li>`)}</ul>
 		</div>
 		<div class="hero-visual">
 			<div class="hero-phones" style="--glow: url('/${screens[0].file}')">
