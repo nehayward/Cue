@@ -1495,8 +1495,13 @@ public final class PlexAPI {
     ///
     /// Speaker playback isn't affected: Plex hands Sonos its own stream via
     /// the Plex music service, whose quality is set on the Plex server.
-    public static func playbackStreamURL(from directURL: URL, ratingKey: String) -> URL {
-        playbackStreamURL(from: directURL, ratingKey: ratingKey, format: StreamTranscoding.format(for: .device), bitrate: StreamTranscoding.bitrate)
+    ///
+    /// `session` and `client` name who is fetching: a transcode started
+    /// under the same session ends the one already running, so the app's
+    /// playback cache and downloads fetch under names of their own rather
+    /// than end the player's stream of the same song.
+    public static func playbackStreamURL(from directURL: URL, ratingKey: String, session: String = "cue", client: String = "Cue") -> URL {
+        playbackStreamURL(from: directURL, ratingKey: ratingKey, format: StreamTranscoding.format(for: .device), bitrate: StreamTranscoding.bitrate, session: session, client: client)
     }
 
     /// The same, transcoded to `format` at `bitrate` whatever the Streaming

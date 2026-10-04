@@ -81,7 +81,7 @@ final class DownloadManager {
         /// keeps its URL: its resume data belongs to that request.
         mutating func applyStreamingQuality() {
             guard resumeData == nil, let sourceURL, DeviceStream.isTranscodable(service) else { return }
-            let refreshed = DeviceStream.url(service: service, contentID: contentID, sourceURL: sourceURL, audioCodec: audioCodec)
+            let refreshed = DeviceStream.url(service: service, contentID: contentID, sourceURL: sourceURL, audioCodec: audioCodec, for: .download)
             guard refreshed != url else { return }
             url = refreshed
             fileExtension = DeviceStream.fileExtension(service: service, audioCodec: audioCodec) ?? fileExtension
@@ -493,7 +493,9 @@ final class DownloadManager {
     private func queue(_ item: PlayableContent) {
         // The stream as the transcoding setting delivers it to this device —
         // a download made under "MP3, 128 kbps" is that, and saved as .mp3.
-        guard canDownload(item), let url = item.playbackStreamURL else { return }
+        // Under its own Plex session, so it can't end the player's stream
+        // of the same song.
+        guard canDownload(item), let url = item.deviceStreamURL(for: .download) else { return }
         let key = Self.key(for: item)
         if let existing = items[key] {
             if existing.state == .completed || existing.isActive { return }

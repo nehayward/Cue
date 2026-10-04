@@ -106,6 +106,19 @@ final class StreamTranscodingTests: XCTestCase {
         )
     }
 
+    /// A fetch under another session and client — the playback cache's or
+    /// a download's — at the quality the setting asks for.
+    func testPlexPlaybackURLTakesASessionAndClient() throws {
+        StreamTranscoding.format = .mp3
+        StreamTranscoding.bitrate = 128
+        let url = PlexAPI.playbackStreamURL(from: directURL, ratingKey: "9876", session: "cue-cache", client: "Cue-Cache")
+        let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        let items = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+        XCTAssertEqual(items["session"], "cue-cache-9876")
+        XCTAssertEqual(items["X-Plex-Client-Identifier"], "Cue-Cache")
+        XCTAssertEqual(items["musicBitrate"], "128")
+    }
+
     /// No rating key, no transcode: the direct file still plays.
     func testPlexPlaybackURLNeedsARatingKey() {
         StreamTranscoding.format = .mp3

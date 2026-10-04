@@ -29,6 +29,14 @@ Songs played on this device never reached the server: nothing called Subsonic's 
 - Plex: `:/timeline` reports `playing` every 10 s, `paused` on a pause and `stopped` when the song is left. The server counts the play itself from those reports, the same as for its own players, so there is no separate scrobble call to double-count.
 - Best effort: a report that fails (offline, a download played away from home) is dropped, not queued. Songs sent to a Sonos speaker are still not reported. The speaker fetches the Subsonic stream itself, and Plex on Sonos goes through Sonos.
 
+### "Couldn't play" when skipping quickly through Plex songs
+With Streaming Quality set to MP3 or Opus, pressing Next quickly through Plex songs on this device showed "Couldn't play" for a song that played fine when you went back to it.
+
+- Cause: the player and the playback cache fetched the song under the same Plex transcode session (`cue-<ratingKey>`, client `Cue`). Plex ends a running transcode when another starts under its session. Skipping past what the cache had fetched landed the player on a song the cache asked for about half a second later, which ended the player's stream before it loaded. Going back played the copy the cache had just finished.
+- `DeviceStream.Reader` (SonosKit) names who opens a device stream: `.player` keeps `cue` / `Cue`, `.cache` runs as `cue-cache` / `Cue-Cache` and `.download` as `cue-download` / `Cue-Download`. `PlaybackCache.fetch` and `DownloadManager` use `deviceStreamURL(for:)`, the same way the watch already uses names of its own. Subsonic and Original streams are unchanged, since they have no transcode session.
+- The poll now logs the failed player item's error and its underlying error (`localplayback` category), so a device log shows why a stream failed.
+- Tests: `DeviceStreamTests` (SonosKit) and `StreamTranscodingTests.testPlexPlaybackURLTakesASessionAndClient`.
+
 ### Shorter hand-offs between runs on this device
 Within a same-service run the native player joins songs itself. The gaps were at the run boundaries:
 

@@ -245,7 +245,10 @@ final class PlaybackCache {
 
     private func fetch(_ item: PlayableContent) {
         let key = DownloadManager.key(for: item)
-        guard !inFlight.contains(key), let url = item.playbackStreamURL else { return }
+        // Under the cache's own Plex session: the player may be streaming
+        // this very song, and a transcode started under its session would
+        // end that stream.
+        guard !inFlight.contains(key), let url = item.deviceStreamURL(for: .cache) else { return }
         if let entry = entries[key],
            FileManager.default.fileExists(atPath: Self.fileURL(key: key, fileExtension: entry.fileExtension).path) {
             return

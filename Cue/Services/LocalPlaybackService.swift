@@ -2144,8 +2144,14 @@ final class LocalPlaybackService {
             // to the next item — with nothing after it, `currentItem` goes
             // nil and the next poll ends the run.
             if current.status == .failed {
-                if let queueIndex = streamRun[ObjectIdentifier(current)],
-                   let item = queue[safe: queueIndex] {
+                // Why, for the device log: a stream the server broke off
+                // reads as a lost connection or an unparsable response under
+                // AVFoundation's own error.
+                let failedIndex = streamRun[ObjectIdentifier(current)]
+                let error = current.error as NSError?
+                let underlying = error?.userInfo[NSUnderlyingErrorKey] as? NSError
+                Self.log.error("stream item at \(failedIndex ?? -1) failed: \(error?.domain ?? "", privacy: .public) \(error?.code ?? 0), underlying \(underlying?.domain ?? "", privacy: .public) \(underlying?.code ?? 0) \(underlying?.localizedDescription ?? "", privacy: .public)")
+                if let failedIndex, let item = queue[safe: failedIndex] {
                     AlertService.shared.showAlert(with: "Couldn't play “\(item.title)”", imageName: "exclamationmark.triangle")
                 }
                 streamPlayer.advanceToNextItem()
