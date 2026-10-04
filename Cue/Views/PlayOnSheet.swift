@@ -36,6 +36,9 @@ struct PlayOnSheet: View {
     @State private var listIsSettled = true
     /// The row being dragged for volume; the list doesn't scroll meanwhile.
     @State private var adjustingRowID: String?
+    /// True when every row fits above the buttons, so there's nothing to
+    /// scroll and every drag up or down is the sheet's.
+    @State private var listFits = true
     @State private var volumes = SpeakerVolumeWriter()
     /// The sheet's height once the rows have been measured; see `fit`.
     @State private var sheetHeight: CGFloat?
@@ -89,7 +92,9 @@ struct PlayOnSheet: View {
             .padding(.top, 8)
             .padding(.bottom, 16)
         }
-        .scrollDisabled(adjustingRowID != nil)
+        // `basedOnSize` alone measures against the whole list, Everywhere /
+        // Ungroup All included, so a list that fit above them still moved.
+        .scrollDisabled(listFits || adjustingRowID != nil)
         .scrollBounceBehavior(.basedOnSize)
         // With more rooms than fit, the indicator shows on open that the
         // list goes on; with nothing to scroll, nothing shows.
@@ -112,6 +117,7 @@ struct PlayOnSheet: View {
             let visible = geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
             return geometry.contentSize.height - visible
         } action: { _, overflow in
+            listFits = overflow <= 0
             fit(overflow: overflow)
         }
         // A bar rather than a stack under the list, so the rows scroll under
@@ -245,7 +251,6 @@ struct PlayOnSheet: View {
     /// playback is: what its own group is playing, or who it's grouped with.
     /// Those are what a tap on it would take over.
     private func note(for room: Room) -> Text? {
-        if room.isMuted { return Text("Muted") }
         guard let group = sonosService.groups.first(where: { group in group.rooms.contains { $0.id == room.id } }),
               group.coordinatorID != route.destination.groupID else { return nil }
         let track = group.coordinatorRoom.track
@@ -262,8 +267,13 @@ struct PlayOnSheet: View {
             Button {
                 membership.groupEverywhere()
             } label: {
-                Label("Everywhere", systemImage: "hifispeaker.2.fill")
-                    .frame(maxWidth: .infinity)
+                Label {
+                    Text("Everywhere")
+                } icon: {
+                    // Every room, counted the way All Speakers counts its own.
+                    SpeakerCountIcon(count: membership.activeRooms.count, height: 18)
+                }
+                .frame(maxWidth: .infinity)
             }
             .glassButton()
             .disabled(membership.allGrouped)
@@ -593,6 +603,17 @@ struct VolumeRouteRow: View {
                 }
             }
             .frame(width: 30, height: 24)
+            // Muted reads on the speaker itself, struck through the way SF
+            // Symbols strike one, rather than as a line of text.
+            .overlay {
+                if isMuted {
+                    MutedSlash()
+                }
+            }
+            .padding(6)
+            .compositingGroup()
+            .padding(-6)
+            .opacity(isMuted ? 0.6 : 1)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
@@ -664,8 +685,28 @@ struct VolumeRouteRow: View {
                         .animation(isAdjusting ? nil : .smooth, value: level)
                 }
             }
+            .overlay(alignment: .leading) {
+                if let level {
+                    grip(at: level)
+                }
+            }
             .clipShape(.capsule)
     }
+
+    /// A short bar at the fill's edge, the sign the row slides. At zero
+    /// there's no fill to say so, and the row looked like a plain button;
+    /// the bar then waits at the start, clear of the rounded end.
+    private func grip(at level: Double) -> some View {
+        let edge = width * min(1, max(0, level))
+        let x = min(max(edge, Self.gripInset), max(Self.gripInset, width - Self.gripInset))
+        return Capsule()
+            .fill(Color.primary.opacity(isAdjusting ? 0.6 : 0.3))
+            .frame(width: 3, height: 20)
+            .offset(x: x - 1.5)
+            .animation(isAdjusting ? nil : .smooth, value: level)
+    }
+
+    private static let gripInset: CGFloat = 12
 
     private var fillOpacity: Double {
         let base = isSelected ? 0.22 : 0.12
@@ -745,10 +786,11 @@ struct VolumeRouteRow: View {
 /// is cleared out of the badge, which keeps it legible in light and dark.
 private struct SpeakerCountIcon: View {
     let count: Int
+    /// The speaker's height; the badge scales with it.
+    var height: CGFloat = 22
 
-    private let height: CGFloat = 22
-    private let badgeHeight: CGFloat = 13
-    private let gap: CGFloat = 1.5
+    private var badgeHeight: CGFloat { (height * 0.6).rounded() }
+    private var gap: CGFloat { max(1, height * 0.07) }
 
     /// Round for one digit, a capsule for two.
     private var badgeWidth: CGFloat { count > 9 ? badgeHeight + 6 : badgeHeight }
@@ -767,7 +809,7 @@ private struct SpeakerCountIcon: View {
                         Capsule()
                             .frame(width: badgeWidth, height: badgeHeight)
                         Text(count, format: .number)
-                            .font(.system(size: 9, weight: .heavy, design: .rounded))
+                            .font(.system(size: badgeHeight * 0.7, weight: .heavy, design: .rounded))
                             .monospacedDigit()
                             .blendMode(.destinationOut)
                     }
@@ -781,6 +823,24 @@ private struct SpeakerCountIcon: View {
             .compositingGroup()
             .padding(-10)
             .accessibilityHidden(true)
+    }
+}
+
+/// The slash a muted row's icon is struck with, drawn the way SF Symbols
+/// draw theirs: top left to bottom right, with a cut either side so it
+/// stands clear of the glyph. Lives in the icon's compositing group, so the
+/// cut goes through to the row behind.
+private struct MutedSlash: View {
+    var body: some View {
+        ZStack {
+            Capsule()
+                .frame(width: 6, height: 32)
+                .blendMode(.destinationOut)
+            Capsule()
+                .frame(width: 2.5, height: 30)
+        }
+        .rotationEffect(.degrees(-45))
+        .accessibilityHidden(true)
     }
 }
 
