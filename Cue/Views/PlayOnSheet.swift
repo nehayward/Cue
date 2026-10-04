@@ -133,10 +133,11 @@ struct PlayOnSheet: View {
         route.group != nil && activeRooms.count > 1
     }
 
-    /// The group's own volume and mute, at the head of the rooms: with more
-    /// than one room in it, so it isn't the one room's row again.
+    /// The group's own volume and mute, at the head of the rooms, whenever
+    /// playback is on a speaker. With one room it repeats that room's level,
+    /// but the row stays put as rooms join, and only its badge counts them.
     private var showsAllSpeakers: Bool {
-        (route.group?.rooms.count ?? 0) > 1
+        route.group != nil
     }
 
     /// What decides the height, as `FittedSheetHeights` files it.
@@ -189,7 +190,7 @@ struct PlayOnSheet: View {
         let volume = DeviceVolume.shared
         return VolumeRouteRow(
             title: String(localized: "This Device"),
-            symbol: Self.deviceSymbol,
+            icon: .symbol(Self.deviceSymbol),
             mark: route.destination == .device ? .checkmark : .empty,
             // While a speaker holds the system volume, the device's own
             // level isn't the one the buttons move: no fill to drag.
@@ -229,7 +230,7 @@ struct PlayOnSheet: View {
         return VolumeRouteRow(
             title: room.name,
             subtitle: note(for: room),
-            symbol: room.isSoundbar ? "tv.and.hifispeaker.fill" : "hifispeaker.fill",
+            icon: .symbol(room.isSoundbar ? "tv.and.hifispeaker.fill" : "hifispeaker.fill"),
             mark: mark,
             level: room.volume / 100,
             isMuted: room.isMuted,
@@ -307,7 +308,7 @@ struct PlayOnSheet: View {
             VolumeRouteRow(
                 title: String(localized: "All Speakers"),
                 subtitle: Text(group.nameWithCount),
-                symbol: "hifispeaker.2.fill",
+                icon: .speakers(group.rooms.count),
                 mark: .empty,
                 // A fixed-output coordinator ignores volume: nothing to drag.
                 level: isFixed ? nil : group.groupVolume / 100,
@@ -321,7 +322,7 @@ struct PlayOnSheet: View {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 volumes.sync(group)
             } label: {
-                Image(systemName: "equal")
+                Image(systemName: "arrow.triangle.2.circlepath")
                     .font(.body.weight(.semibold))
                     .frame(width: 28, height: 28)
             }
@@ -529,6 +530,13 @@ private struct PlayOnHeader: View {
 /// landed, with a SwiftUI drag, and a pull down on the rows no longer closed
 /// the sheet.
 struct VolumeRouteRow: View {
+    enum Icon {
+        case symbol(String)
+        /// A speaker with a badge counting the rooms it stands for, shown
+        /// once there's more than one.
+        case speakers(Int)
+    }
+
     enum Mark {
         /// Nothing trailing: a route to switch to.
         case empty
@@ -540,7 +548,7 @@ struct VolumeRouteRow: View {
 
     let title: String
     var subtitle: Text? = nil
-    let symbol: String
+    let icon: Icon
     let mark: Mark
     /// 0...1, or `nil` where there's no level to set from here.
     let level: Double?
@@ -572,12 +580,19 @@ struct VolumeRouteRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            // Fitted into one box: the two-speaker and TV glyphs are wider
-            // than the rest and ran into the name.
-            Image(systemName: symbol)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 30, height: 24)
+            // One box for every row's icon, so the names line up and the
+            // wide TV glyph doesn't run into its name.
+            Group {
+                switch icon {
+                case let .symbol(name):
+                    Image(systemName: name)
+                        .resizable()
+                        .scaledToFit()
+                case let .speakers(count):
+                    SpeakerCountIcon(count: count)
+                }
+            }
+            .frame(width: 30, height: 24)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
@@ -718,6 +733,54 @@ struct VolumeRouteRow: View {
         guard startLevel != nil else { return }
         startLevel = nil
         onAdjusting(false)
+    }
+}
+
+/// A room's speaker with a badge at its top right counting the rooms, cut
+/// out of the speaker the way the system cuts a badge out of an app icon.
+/// No badge for one: it's then just a speaker, like the rooms below it.
+///
+/// One compositing group, so the cuts go through to whatever is behind the
+/// row: the speaker is cleared a little wider than the badge, and the count
+/// is cleared out of the badge, which keeps it legible in light and dark.
+private struct SpeakerCountIcon: View {
+    let count: Int
+
+    private let height: CGFloat = 22
+    private let badgeHeight: CGFloat = 13
+    private let gap: CGFloat = 1.5
+
+    /// Round for one digit, a capsule for two.
+    private var badgeWidth: CGFloat { count > 9 ? badgeHeight + 6 : badgeHeight }
+
+    var body: some View {
+        Image(systemName: "hifispeaker.fill")
+            .resizable()
+            .scaledToFit()
+            .frame(height: height)
+            .overlay(alignment: .topTrailing) {
+                if count > 1 {
+                    ZStack {
+                        Capsule()
+                            .frame(width: badgeWidth + gap * 2, height: badgeHeight + gap * 2)
+                            .blendMode(.destinationOut)
+                        Capsule()
+                            .frame(width: badgeWidth, height: badgeHeight)
+                        Text(count, format: .number)
+                            .font(.system(size: 9, weight: .heavy, design: .rounded))
+                            .monospacedDigit()
+                            .blendMode(.destinationOut)
+                    }
+                    // Centred just inside the speaker's corner.
+                    .offset(x: (badgeWidth + gap * 2) / 2 - 1, y: 1 - (badgeHeight + gap * 2) / 2)
+                }
+            }
+            // Room around the speaker inside the group, so the badge that
+            // hangs past its corner is composited too, then given back.
+            .padding(10)
+            .compositingGroup()
+            .padding(-10)
+            .accessibilityHidden(true)
     }
 }
 
