@@ -166,6 +166,15 @@ A header button in `PlayerView` (⇧⌘T), shown while a station plays, swaps th
 - On/off persists in `AppStorageKeys.liveTranscriptionEnabled`; the language per station in `liveTranscriptionLocales`, with `"*"` as the guess for a new station.
 - `NSSpeechRecognitionUsageDescription` added to the Cue, Mac and Vision targets.
 
+### Services signed out or not loading until relaunch (ported from Clic)
+- `SonosService.onServerListening` re-reads the household and device ids from a speaker on every activation. `SonosAPI.getHouseHoldID` returns `""` when the read fails (common right after resuming), and that was saved, so every account looked up by household (SoundCloud, Deezer, Pandora, Sonos Radio) came back nil until a relaunch. `KeychainTokenRefreshHandler` now ignores empty ids and falls back to the household the speakers last sent accounts for (`lastMediaServerHouseholdId`). `getHouseHoldID` caches each speaker's id for 10 minutes.
+- Credentials were cached on first read and never dropped when ZoneGroupState brought new tokens. `MediaServerHandler` hands the speakers' accounts to `KeychainTokenRefreshHandler.mediaServersSaved(householdId:servers:)`, which keeps each household's list in memory behind an `OSAllocatedUnfairLock`. `SoundCloudAPI` re-reads and retries once on 401 via `TokenRefreshHandler.invalidateCredentials(for:)`.
+- A failed SMAPI token refresh kept the dead session token. `PandoraAPI` and `SonosRadioAPI` now share `SMAPILoginSession`, which falls back to the stored token.
+- One `server(for:in:)` picks a service's account, and `getCredentials(for: String)` maps the name instead of always returning SoundCloud's account.
+
+### Browse services after switching mid-load (ported from Clic)
+- Switching Browse services cancels the old screen's `.task`, and its cancelled requests come back empty. `SonosRadioBrowseService` set `hasLoaded`, `PandoraBrowseService` set `lastLoaded`, and `SoundCloudBrowseService` reported "not authenticated"; they now return on `Task.isCancelled` without recording anything. `DeezerBrowseService` and `SubsonicBrowseService` no longer write a cancelled load's empty lists over loaded ones.
+
 ---
 
 ## 2026.7
