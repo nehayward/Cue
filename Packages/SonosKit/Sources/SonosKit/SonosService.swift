@@ -915,7 +915,6 @@ public final class SonosService {
     public func setPrimaryServer(for server: MediaServer) async {
         guard let primaryKey = KeychainTokenRefreshHandler.shared.getKey(for: server.type) else { return }
         KeychainTokenRefreshHandler.shared.primaryServer?[primaryKey] = server.id
-        KeychainTokenRefreshHandler.shared.setCredentials(for: server)
     }
     
     /// Resolves the SMAPI endpoint for a Sonos service id (e.g. "303" for Sonos
