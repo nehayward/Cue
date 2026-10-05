@@ -37,10 +37,15 @@ struct PlayOnSheet: View {
     /// False from the moment the list starts moving until it comes to rest.
     @State private var listIsSettled = true
     /// True when every row fits above the buttons, so there's nothing to
-    /// scroll and every drag up or down is the sheet's. False
-    /// until measured: the measure only reports changes, and a list that
-    /// never changed size mustn't be stuck unable to scroll.
+    /// scroll and every drag up or down is the sheet's.
     @State private var listFits = false
+    /// The rows' own height, and the room the sheet gives them between the
+    /// header and the buttons. Measured apart, with `onGeometryChange`,
+    /// which reports the first value as well as every change: the scroll
+    /// geometry's change callback skipped the first, so a sheet that opened
+    /// at the wrong height and then held still was never refitted.
+    @State private var rowsHeight: CGFloat = 0
+    @State private var roomForRows: CGFloat = 0
     @State private var volumes = SpeakerVolumeWriter()
     /// The sheet's height once the rows have been measured; see `fit`.
     @State private var sheetHeight: CGFloat?
@@ -90,6 +95,17 @@ struct PlayOnSheet: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 16)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                rowsHeight = $0
+                refit()
+            }
+        }
+        // Inside the buttons' bar, so the safe area it reports takes them out.
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.height - proxy.safeAreaInsets.top - proxy.safeAreaInsets.bottom
+        } action: {
+            roomForRows = $0
+            refit()
         }
         // Off outright when the rows fit, so every vertical drag is the
         // sheet's. A volume drag needs nothing here: the list's pan waits
@@ -110,16 +126,6 @@ struct PlayOnSheet: View {
             default:
                 listIsSettled = false
             }
-        }
-        // How much longer the rows are than the room they have above the
-        // buttons; negative when there's room to spare.
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            let visible = geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
-            return geometry.contentSize.height - visible
-        } action: { _, overflow in
-            // Half a point for rounding.
-            listFits = overflow <= 0.5
-            fit(overflow: overflow)
         }
         // A bar rather than a stack under the list, so the rows scroll under
         // it and the system softens the edge they pass under: the sign
@@ -162,6 +168,16 @@ struct PlayOnSheet: View {
     private var estimatedSheetHeight: CGFloat {
         let buttons: CGFloat = showsGroupingBar ? 68 : 0
         return min(106 + CGFloat(rowCount) * 68 + buttons, Self.tallestSheet)
+    }
+
+    /// Fits the sheet to how much longer the rows are than their room
+    /// (negative when there's room to spare), once both are measured.
+    private func refit() {
+        guard rowsHeight > 0, roomForRows > 0 else { return }
+        let overflow = rowsHeight - roomForRows
+        // Half a point for rounding.
+        listFits = overflow <= 0.5
+        fit(overflow: overflow)
     }
 
     /// Grows or shrinks the sheet by what the rows need, up to about where
@@ -680,9 +696,11 @@ struct VolumeRouteRow: View {
                     MutedSlash()
                 }
             }
-            .padding(6)
+            // As much room as the count badge hangs past the icon, so the
+            // group can't clip it.
+            .padding(10)
             .compositingGroup()
-            .padding(-6)
+            .padding(-10)
             .opacity(isMuted ? 0.6 : 1)
 
             VStack(alignment: .leading, spacing: 1) {
