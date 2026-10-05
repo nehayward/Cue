@@ -37,15 +37,12 @@ struct PlayOnScreen: View {
     @State private var pending: PendingSwitch?
     /// False from the moment the list starts moving until it comes to rest.
     @State private var listIsSettled = true
-    /// The row being dragged for volume; the list doesn't scroll meanwhile.
-    @State private var adjustingRowID: String?
     /// True when every row fits above the buttons, so there's nothing to
-    /// scroll and every drag up or down is the pull that closes it.
-    @State private var listFits = true
+    /// scroll and every drag up or down is the pull that closes it. False
+    /// until measured: the measure only reports changes, and a list that
+    /// never changed size mustn't be stuck unable to scroll.
+    @State private var listFits = false
     @State private var volumes = SpeakerVolumeWriter()
-
-    private static let deviceRowID = "device"
-    private static let allSpeakersRowID = "all speakers"
 
     private var activeRooms: [Room] {
         sonosService.sortedRooms.filter { $0.state == .active }
@@ -88,9 +85,10 @@ struct PlayOnScreen: View {
             .padding(.top, 8)
             .padding(.bottom, 16)
         }
-        // `basedOnSize` alone measures against the whole list, Everywhere /
-        // Ungroup All included, so a list that fit above them still moved.
-        .scrollDisabled(listFits || adjustingRowID != nil)
+        // Off outright when the rows fit, so every vertical drag is the pull
+        // that closes. A volume drag needs nothing here: the list's pan waits
+        // for `SidewaysPan` to fail, so it can't scroll while one runs.
+        .scrollDisabled(listFits)
         .scrollBounceBehavior(.basedOnSize)
         // With more rooms than fit, the indicator shows on open that the
         // list goes on; with nothing to scroll, nothing shows.
@@ -135,28 +133,16 @@ struct PlayOnScreen: View {
         route.group != nil && activeRooms.count > 1
     }
 
-    /// The group's own volume and mute, at the head of the rooms, whenever
-    /// playback is on a speaker. With one room it repeats that room's level,
-    /// but the row stays put as rooms join, and only its badge counts them.
-    private var showsAllSpeakers: Bool {
-        route.group != nil
-    }
-
     // MARK: - Rows
 
+    // Each row is its own view and reads its own room, so a level changing
+    // (a drag tick, the poll) redraws that row, not the whole screen.
+
     private var deviceRow: some View {
-        let volume = DeviceVolume.shared
-        return VolumeRouteRow(
-            title: String(localized: "This Device"),
-            icon: .symbol(Self.deviceSymbol),
-            mark: route.destination == .device ? .checkmark : .empty,
-            // While a speaker holds the system volume, the device's own
-            // level isn't the one the buttons move: no fill to drag.
-            level: volume.isAvailable ? volume.level : nil,
+        DeviceRow(
+            isCurrent: route.destination == .device,
             listIsSettled: listIsSettled,
-            onTap: { select(.device) },
-            onLevel: { volume.set($0) },
-            onAdjusting: { setAdjusting(Self.deviceRowID, $0) }
+            onSelect: { select(.device) }
         )
     }
 
@@ -169,68 +155,27 @@ struct PlayOnScreen: View {
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 24)
         } else {
-            let membership = route.group.map { GroupMembership(group: $0) }
-            if let group = route.group, showsAllSpeakers {
-                allSpeakersRow(group)
-            }
-            ForEach(rooms) { room in
-                roomRow(room, membership: membership)
-            }
-        }
-    }
-
-    private func roomRow(_ room: Room, membership: GroupMembership?) -> some View {
-        let mark: VolumeRouteRow.Mark = if let membership {
-            membership.isMember(room) ? .checkedCircle : .circle
-        } else {
-            .empty
-        }
-        return VolumeRouteRow(
-            title: room.name,
-            subtitle: note(for: room),
-            icon: .symbol(room.isSoundbar ? "tv.and.hifispeaker.fill" : "hifispeaker.fill"),
-            mark: mark,
-            level: room.volume / 100,
-            isMuted: room.isMuted,
-            listIsSettled: listIsSettled,
-            onTap: { tap(room, membership: membership) },
-            onLevel: { volumes.set(room, to: $0 * 100) },
-            onAdjusting: { setAdjusting(room.id, $0) }
-        )
-        .contextMenu {
-            Button {
-                HapticManager.shared.fireHaptic(.selection)
-                let mute = !room.isMuted
-                Task { await sonosService.setRoomMute(room: room, mute: mute) }
-            } label: {
-                Label(
-                    room.isMuted ? "Unmute" : "Mute",
-                    systemImage: room.isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill"
+            // Whenever playback is on a speaker. With one room it repeats
+            // that room's level, but the row stays put as rooms join, and
+            // only its badge counts them.
+            if let group = route.group {
+                AllSpeakersRow(
+                    group: group,
+                    volumes: volumes,
+                    listIsSettled: listIsSettled
                 )
             }
-            if let membership, membership.isMember(room), membership.group.rooms.count > 1 {
-                Button {
-                    membership.playOnly(room)
-                } label: {
-                    Label("Play Only Here", systemImage: "hifispeaker.fill")
-                }
+            let membership = route.group.map { GroupMembership(group: $0) }
+            ForEach(rooms) { room in
+                RoomRow(
+                    room: room,
+                    membership: membership,
+                    volumes: volumes,
+                    listIsSettled: listIsSettled,
+                    onSelect: select
+                )
             }
         }
-    }
-
-    /// The line under a room's name, for a room that isn't part of where
-    /// playback is: what its own group is playing, or who it's grouped with.
-    /// Those are what a tap on it would take over.
-    private func note(for room: Room) -> Text? {
-        guard let group = sonosService.groups.first(where: { group in group.rooms.contains { $0.id == room.id } }),
-              group.coordinatorID != route.destination.groupID else { return nil }
-        let track = group.coordinatorRoom.track
-        if group.coordinatorRoom.isPlaying, !track.isEmpty {
-            return Text("\(Image(systemName: "play.fill")) \(track.song)")
-        }
-        let others = group.rooms.filter { $0.id != room.id }.map(\.name)
-        guard !others.isEmpty else { return nil }
-        return Text("With \(others.formatted(.list(type: .and)))")
     }
 
     private func groupingButtons(_ membership: GroupMembership) -> some View {
@@ -263,69 +208,7 @@ struct PlayOnScreen: View {
         .controlSize(.large)
     }
 
-    /// Every room in the group at once: Mute All / Unmute All, then the
-    /// group's volume as a row like the rooms', which moves them all and
-    /// keeps the balance between them, then Sync, which levels them.
-    private func allSpeakersRow(_ group: GroupRoom) -> some View {
-        let isMuted = group.isMuted || group.rooms.allSatisfy(\.isMuted)
-        let isFixed = group.coordinatorRoom.isOutputFixed
-        let level = Int(group.groupVolume.rounded())
-        let isLevel = group.rooms.allSatisfy { Int($0.volume.rounded()) == level }
-        return HStack(spacing: 10) {
-            Button {
-                setAllMuted(!isMuted, in: group)
-            } label: {
-                // No symbol transition: on the Mac each animated swap costs
-                // GPU memory (see CLAUDE.md).
-                Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                    .font(.body.weight(.semibold))
-                    .frame(width: 28, height: 28)
-            }
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
-            .glassButton()
-            .accessibilityLabel(isMuted ? "Unmute All" : "Mute All")
-
-            VolumeRouteRow(
-                title: String(localized: "All Speakers"),
-                subtitle: Text(group.nameWithCount),
-                icon: .speakers(group.rooms.count),
-                mark: .empty,
-                // A fixed-output coordinator ignores volume: nothing to drag.
-                level: isFixed ? nil : group.groupVolume / 100,
-                isMuted: isMuted,
-                listIsSettled: listIsSettled,
-                onLevel: { volumes.set(group, to: $0 * 100) },
-                onAdjusting: { setAdjusting(Self.allSpeakersRowID, $0) }
-            )
-
-            Button {
-                HapticManager.shared.fireHaptic(.buttonPress)
-                volumes.sync(group)
-            } label: {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.body.weight(.semibold))
-                    .frame(width: 28, height: 28)
-            }
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
-            .glassButton()
-            // Nothing to level when every room is already there.
-            .disabled(isFixed || isLevel)
-            .accessibilityLabel("Sync Volumes")
-            .accessibilityHint("Sets every room to \(level) percent")
-        }
-    }
-
     // MARK: - Actions
-
-    private func tap(_ room: Room, membership: GroupMembership?) {
-        if let membership {
-            membership.toggle(room)
-        } else if let group = sonosService.groups.first(where: { group in group.rooms.contains { $0.id == room.id } }) {
-            select(.group(group.coordinatorID))
-        }
-    }
 
     private func select(_ target: PlayDestination) {
         guard target != route.destination else { return }
@@ -350,25 +233,6 @@ struct PlayOnScreen: View {
         }
     }
 
-    /// Sonos's group mute mutes or unmutes every room in it. Shown at once
-    /// on the rooms too; the poll confirms it.
-    private func setAllMuted(_ mute: Bool, in group: GroupRoom) {
-        HapticManager.shared.fireHaptic(.selection)
-        group.isMuted = mute
-        for room in group.rooms where room.isMuted != mute {
-            room.isMuted = mute
-        }
-        Task { await sonosService.setGroupMute(group: group, mute: mute) }
-    }
-
-    private func setAdjusting(_ id: String, _ isAdjusting: Bool) {
-        if isAdjusting {
-            adjustingRowID = id
-        } else if adjustingRowID == id {
-            adjustingRowID = nil
-        }
-    }
-
     /// The monitor keeps every room's level current, but only while it runs;
     /// one read on open means no row starts out at a stale level.
     private func refreshRoomVolumes() async {
@@ -377,8 +241,33 @@ struct PlayOnScreen: View {
             await sonos.updateRoomVolumes(for: group)
         }
     }
+}
 
-    private static var deviceSymbol: String {
+// MARK: - The rows
+
+/// This device, with its own volume while it's what the buttons move.
+private struct DeviceRow: View {
+    let isCurrent: Bool
+    let listIsSettled: Bool
+    let onSelect: () -> Void
+
+    private var volume: DeviceVolume { .shared }
+
+    var body: some View {
+        VolumeRouteRow(
+            title: String(localized: "This Device"),
+            icon: .symbol(Self.symbol),
+            mark: isCurrent ? .checkmark : .empty,
+            // While a speaker holds the system volume, the device's own
+            // level isn't the one the buttons move: no fill to drag.
+            level: volume.isAvailable ? volume.level : nil,
+            listIsSettled: listIsSettled,
+            onTap: onSelect,
+            onLevel: { volume.set($0) }
+        )
+    }
+
+    private static var symbol: String {
 #if os(visionOS)
         return "visionpro"
 #elseif targetEnvironment(macCatalyst)
@@ -386,6 +275,154 @@ struct PlayOnScreen: View {
 #else
         return UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone"
 #endif
+    }
+}
+
+/// Every room in the group at once: Mute All / Unmute All, then the group's
+/// volume as a row like the rooms', which moves them all and keeps the
+/// balance between them, then Sync, which levels them.
+private struct AllSpeakersRow: View {
+    let group: GroupRoom
+    let volumes: SpeakerVolumeWriter
+    let listIsSettled: Bool
+
+    var body: some View {
+        let isMuted = group.isMuted || group.rooms.allSatisfy(\.isMuted)
+        let isFixed = group.coordinatorRoom.isOutputFixed
+        let level = Int(group.groupVolume.rounded())
+        let isLevel = group.rooms.allSatisfy { Int($0.volume.rounded()) == level }
+        HStack(spacing: 10) {
+            Button {
+                setAllMuted(!isMuted)
+            } label: {
+                // No symbol transition: on the Mac each animated swap costs
+                // GPU memory (see CLAUDE.md).
+                Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
+            .glassButton()
+            .accessibilityLabel(isMuted ? "Unmute All" : "Mute All")
+
+            VolumeRouteRow(
+                title: String(localized: "All Speakers"),
+                subtitle: Text(group.nameWithCount),
+                icon: .speakers(group.rooms.count),
+                mark: .empty,
+                // A fixed-output coordinator ignores volume: nothing to drag.
+                level: isFixed ? nil : group.groupVolume / 100,
+                isMuted: isMuted,
+                listIsSettled: listIsSettled,
+                onLevel: { volumes.set(group, to: $0 * 100) }
+            )
+
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                volumes.sync(group)
+            } label: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
+            .glassButton()
+            // Nothing to level when every room is already there.
+            .disabled(isFixed || isLevel)
+            .accessibilityLabel("Sync Volumes")
+            .accessibilityHint("Sets every room to \(level) percent")
+        }
+    }
+
+    /// Sonos's group mute mutes or unmutes every room in it. Shown at once
+    /// on the rooms too; the poll confirms it.
+    private func setAllMuted(_ mute: Bool) {
+        HapticManager.shared.fireHaptic(.selection)
+        group.isMuted = mute
+        for room in group.rooms where room.isMuted != mute {
+            room.isMuted = mute
+        }
+        Task { await SonosService.shared.setGroupMute(group: group, mute: mute) }
+    }
+}
+
+/// One room: a tap routes there or, on a speaker, adds or drops it; a long
+/// press mutes it alone, or keeps playback there and lets the others go.
+private struct RoomRow: View {
+    let room: Room
+    /// The group playback is on, or `nil` on this device.
+    let membership: GroupMembership?
+    let volumes: SpeakerVolumeWriter
+    let listIsSettled: Bool
+    let onSelect: (PlayDestination) -> Void
+
+    private var sonosService: SonosService { .shared }
+
+    var body: some View {
+        VolumeRouteRow(
+            title: room.name,
+            subtitle: note,
+            icon: .symbol(room.isSoundbar ? "tv.and.hifispeaker.fill" : "hifispeaker.fill"),
+            mark: mark,
+            level: room.volume / 100,
+            isMuted: room.isMuted,
+            listIsSettled: listIsSettled,
+            onTap: tap,
+            onLevel: { volumes.set(room, to: $0 * 100) }
+        )
+        .contextMenu {
+            Button {
+                HapticManager.shared.fireHaptic(.selection)
+                let mute = !room.isMuted
+                Task { await sonosService.setRoomMute(room: room, mute: mute) }
+            } label: {
+                Label(
+                    room.isMuted ? "Unmute" : "Mute",
+                    systemImage: room.isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill"
+                )
+            }
+            if let membership, membership.isMember(room), membership.group.rooms.count > 1 {
+                Button {
+                    membership.playOnly(room)
+                } label: {
+                    Label("Play Only Here", systemImage: "hifispeaker.fill")
+                }
+            }
+        }
+    }
+
+    private var mark: VolumeRouteRow.Mark {
+        guard let membership else { return .empty }
+        return membership.isMember(room) ? .checkedCircle : .circle
+    }
+
+    /// The group the room is in now, which may not be the one playback is on.
+    private var ownGroup: GroupRoom? {
+        sonosService.groups.first { group in group.rooms.contains { $0.id == room.id } }
+    }
+
+    /// The line under the name, for a room that isn't part of where playback
+    /// is: what its own group is playing, or who it's grouped with. Those are
+    /// what a tap on it would take over.
+    private var note: Text? {
+        guard let group = ownGroup, group.coordinatorID != membership?.group.coordinatorID else { return nil }
+        let track = group.coordinatorRoom.track
+        if group.coordinatorRoom.isPlaying, !track.isEmpty {
+            return Text("\(Image(systemName: "play.fill")) \(track.song)")
+        }
+        let others = group.rooms.filter { $0.id != room.id }.map(\.name)
+        guard !others.isEmpty else { return nil }
+        return Text("With \(others.formatted(.list(type: .and)))")
+    }
+
+    private func tap() {
+        if let membership {
+            membership.toggle(room)
+        } else if let group = ownGroup {
+            onSelect(.group(group.coordinatorID))
+        }
     }
 }
 
@@ -552,8 +589,6 @@ struct VolumeRouteRow: View {
     /// `nil` for a row that's only a volume, with nowhere to route to.
     var onTap: (() -> Void)? = nil
     let onLevel: (Double) -> Void
-    /// A volume drag started (`true`) or ended (`false`).
-    let onAdjusting: (Bool) -> Void
 
     /// The level when the volume drag began; `nil` when there isn't one.
     @State private var startLevel: Double?
@@ -725,7 +760,6 @@ struct VolumeRouteRow: View {
     private func beginAdjusting() {
         guard let level else { return }
         startLevel = level
-        onAdjusting(true)
     }
 
     /// `translation` is how far the finger has gone sideways since the drag
@@ -736,9 +770,7 @@ struct VolumeRouteRow: View {
     }
 
     private func endAdjusting() {
-        guard startLevel != nil else { return }
         startLevel = nil
-        onAdjusting(false)
     }
 }
 
