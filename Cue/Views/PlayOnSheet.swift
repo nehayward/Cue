@@ -690,17 +690,24 @@ struct VolumeRouteRow: View {
             }
             .frame(width: 30, height: 24)
             // Muted reads on the speaker itself, struck through the way SF
-            // Symbols strike one, rather than as a line of text.
-            .overlay {
+            // Symbols strike one, rather than as a line of text: a gap cut
+            // either side of the slash, then the slash.
+            .mask {
                 if isMuted {
-                    MutedSlash()
+                    SlashCut().fill(style: FillStyle(eoFill: true))
+                } else {
+                    // Wider than the icon, so a count badge that hangs past
+                    // its corner isn't clipped.
+                    Rectangle().padding(-12)
                 }
             }
-            // As much room as the count badge hangs past the icon, so the
-            // group can't clip it.
-            .padding(10)
-            .compositingGroup()
-            .padding(-10)
+            .overlay {
+                if isMuted {
+                    Capsule()
+                        .frame(width: 2.5, height: 30)
+                        .rotationEffect(.degrees(-45))
+                }
+            }
             .opacity(isMuted ? 0.6 : 1)
 
             VStack(alignment: .leading, spacing: 1) {
@@ -847,9 +854,11 @@ struct VolumeRouteRow: View {
 /// out of the speaker the way the system cuts a badge out of an app icon.
 /// No badge for one: it's then just a speaker, like the rooms below it.
 ///
-/// One compositing group, so the cuts go through to whatever is behind the
-/// row: the speaker is cleared a little wider than the badge, and the count
-/// is cleared out of the badge, which keeps it legible in light and dark.
+/// The cut is a mask, not a blend: an even-odd path over the speaker with a
+/// hole a little wider than the badge, then the badge drawn on top, its
+/// count in the background's colour. Blending the cut out (`destinationOut`)
+/// only erased what shared its compositing group, and the overlay and offset
+/// the badge needs put it in a group of its own: the hole never cut through.
 private struct SpeakerCountIcon: View {
     let count: Int
     /// The speaker's height; the badge scales with it.
@@ -866,47 +875,60 @@ private struct SpeakerCountIcon: View {
             .resizable()
             .scaledToFit()
             .frame(height: height)
-            .overlay(alignment: .topTrailing) {
+            .mask {
                 if count > 1 {
-                    ZStack {
-                        Capsule()
-                            .frame(width: badgeWidth + gap * 2, height: badgeHeight + gap * 2)
-                            .blendMode(.destinationOut)
-                        Capsule()
-                            .frame(width: badgeWidth, height: badgeHeight)
-                        Text(count, format: .number)
-                            .font(.system(size: badgeHeight * 0.7, weight: .heavy, design: .rounded))
-                            .monospacedDigit()
-                            .blendMode(.destinationOut)
-                    }
-                    // Centred just inside the speaker's corner.
-                    .offset(x: (badgeWidth + gap * 2) / 2 - 1, y: 1 - (badgeHeight + gap * 2) / 2)
+                    BadgeCut(size: CGSize(width: badgeWidth + gap * 2, height: badgeHeight + gap * 2))
+                        .fill(style: FillStyle(eoFill: true))
+                } else {
+                    Rectangle()
                 }
             }
-            // Room around the speaker inside the group, so the badge that
-            // hangs past its corner is composited too, then given back.
-            .padding(10)
-            .compositingGroup()
-            .padding(-10)
+            .overlay(alignment: .topTrailing) {
+                if count > 1 {
+                    Text(count, format: .number)
+                        .font(.system(size: badgeHeight * 0.7, weight: .heavy, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.background)
+                        .frame(width: badgeWidth, height: badgeHeight)
+                        .background(.foreground, in: .capsule)
+                        // Centred just inside the speaker's corner, where
+                        // `BadgeCut` makes its hole.
+                        .offset(x: badgeWidth / 2 - 1, y: 1 - badgeHeight / 2)
+                }
+            }
             .accessibilityHidden(true)
     }
 }
 
-/// The slash a muted row's icon is struck with, drawn the way SF Symbols
-/// draw theirs: top left to bottom right, with a cut either side so it
-/// stands clear of the glyph. Lives in the icon's compositing group, so the
-/// cut goes through to the row behind.
-private struct MutedSlash: View {
-    var body: some View {
-        ZStack {
-            Capsule()
-                .frame(width: 6, height: 32)
-                .blendMode(.destinationOut)
-            Capsule()
-                .frame(width: 2.5, height: 30)
-        }
-        .rotationEffect(.degrees(-45))
-        .accessibilityHidden(true)
+/// Everything around a view, less a capsule of `size` centred just inside its
+/// top right corner: filled even-odd, a mask that leaves a hole there.
+private struct BadgeCut: Shape {
+    let size: CGSize
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path(rect.insetBy(dx: -12, dy: -12))
+        let hole = CGRect(
+            x: rect.maxX - 1 - size.width / 2,
+            y: rect.minY + 1 - size.height / 2,
+            width: size.width,
+            height: size.height
+        )
+        path.addRoundedRect(in: hole, cornerSize: CGSize(width: size.height / 2, height: size.height / 2))
+        return path
+    }
+}
+
+/// Everything around a view, less a band through its middle from top left to
+/// bottom right: filled even-odd, the gap either side of a muted icon's slash.
+private struct SlashCut: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path(rect.insetBy(dx: -12, dy: -12))
+        let band = CGRect(x: rect.midX - 3, y: rect.midY - 16, width: 6, height: 32)
+        let turn = CGAffineTransform(translationX: rect.midX, y: rect.midY)
+            .rotated(by: -.pi / 4)
+            .translatedBy(x: -rect.midX, y: -rect.midY)
+        path.addRoundedRect(in: band, cornerSize: CGSize(width: 3, height: 3), transform: turn)
+        return path
     }
 }
 
