@@ -60,6 +60,30 @@ in Cue on an iPhone against seven rooms.
   meanwhile (found by `coordinatorRoom.id`) with its rooms untoggleable, and
   dedupes row ids. Cue's sheet has the same gap.
 
+## To fix in Cue: the sheet pops in instead of sliding up
+
+Seen in Clic, and Cue's `PlayOnSheet.refit()` is the same code. The first
+open of a layout (no height remembered for that room count, bar and so on)
+comes up at `estimatedSheetHeight`. The rows are measured once they're on
+screen, and `refit()` then animates `sheetHeight`, which changes the detent
+while the sheet is still sliding (or zooming) up. That cuts the
+presentation short and the sheet pops into place. `openingSheetHeight` can
+also move under it mid-slide: it reads the remembered height for the
+current `layout`, which changes if the groups are still loading or once
+`refit()` remembers a new height.
+
+The fix in Clic (`adcb4e4` on `claude/port-play-on-clic-fht48n`):
+- Pin the opening height (`sheetHeight = openingSheetHeight` in `onAppear`
+  and on the first `refit`).
+- Hold any fit the rows ask for until the sheet is up (`isUp`, set by a
+  `.task` after 500 ms), then animate to it.
+- Remember the measured height at once, so the next open of that layout
+  comes up at the right size and doesn't resize at all.
+
+Copy `pinOpeningHeight()`, `resize(to:)` and the `isUp` / `heldHeight`
+state from Clic's `PlayOnSheet.swift`. Check it against the zoom
+transition, which takes longer than a plain slide.
+
 ## What Clic was missing that Cue's sheet assumes
 
 - **No `PlaybackRoute` and no This Device.** Clic only plays on speakers. Drop
