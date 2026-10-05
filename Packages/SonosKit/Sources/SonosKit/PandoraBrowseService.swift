@@ -63,6 +63,11 @@ public final class PandoraBrowseService {
         }
 
         let fresh = await loadSections()
+        // Switching to another service mid-load cancels the screen's task, and
+        // the cancelled requests come back empty. Recording that as a fresh
+        // load kept Pandora on "Couldn't load" until it went stale; leave it
+        // unloaded so the next visit tries again.
+        guard !Task.isCancelled else { return }
         if !fresh.isEmpty {
             sections = fresh
             MemoryFileCache.shared.save(fresh, forKey: Self.cacheKey)

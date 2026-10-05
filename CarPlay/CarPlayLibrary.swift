@@ -87,20 +87,38 @@ enum CarPlayLibrary {
     /// `collection` from each of `services` that has it, loaded side by side
     /// and narrowed to what this device can play. A provider with nothing
     /// to show is left out.
-    static func shelves(_ collection: ProviderCollection, from services: [MediaSearchService]) async -> [Shelf] {
-        let loads = services.compactMap { service -> (MediaSearchService, Task<[PlayableContent], Never>)? in
+    ///
+    /// `arrived` gets the shelves so far, in the services' order, each time
+    /// a provider answers with something: a server that's slow or out of
+    /// reach (a home Plex server, away from home) holds up only its own
+    /// shelf, not the whole list.
+    @discardableResult
+    static func shelves(
+        _ collection: ProviderCollection,
+        from services: [MediaSearchService],
+        arrived: ([Shelf]) -> Void = { _ in }
+    ) async -> [Shelf] {
+        // Started outside the group, so a list given up on (the car gone,
+        // the providers changed) doesn't cut a request off halfway: the
+        // providers keep what they fetched for the next time.
+        let loads = services.enumerated().compactMap { index, service -> (Int, Task<[PlayableContent], Never>)? in
             guard let load = loader(collection, for: service) else { return nil }
-            return (service, Task { await load() })
+            return (index, Task { await load() })
         }
         let player = LocalPlaybackService.shared
-        var shelves: [Shelf] = []
-        for (service, load) in loads {
-            let items = await load.value.filter { player.canPlayAnywhereLocally($0) }
-            if !items.isEmpty {
-                shelves.append(Shelf(title: service.title, items: items))
+        var found: [Int: Shelf] = [:]
+        await withTaskGroup(of: (Int, [PlayableContent]).self) { group in
+            for (index, load) in loads {
+                group.addTask { (index, await load.value) }
+            }
+            for await (index, items) in group {
+                let playable = items.filter { player.canPlayAnywhereLocally($0) }
+                guard !playable.isEmpty, !Task.isCancelled else { continue }
+                found[index] = Shelf(title: services[index].title, items: playable)
+                arrived(found.keys.sorted().compactMap { found[$0] })
             }
         }
-        return shelves
+        return found.keys.sorted().compactMap { found[$0] }
     }
 
     /// Switched on in Services and set up far enough to browse. Apple Music
