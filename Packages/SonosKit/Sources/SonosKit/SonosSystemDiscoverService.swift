@@ -2,6 +2,9 @@ import CloudStorage
 import Foundation
 import Network
 import os
+#if os(iOS) && !targetEnvironment(macCatalyst)
+import UIKit
+#endif
 
 extension NWBrowser.State {
     var debugDescription: String {
@@ -76,7 +79,25 @@ class SonosStorageIP: ObservableObject {
 final class SonosSystemDiscoverService {
     var isSearching: Bool = false
     var currentWakes: Set<String> = []
+    /// True while this device has no Wi‑Fi or wired network, only cellular
+    /// (or nothing). Speakers are only ever on the local network, so they
+    /// can't be reached then. Leaving Wi‑Fi counts after `cellularGrace`.
     var isCellular: Bool = false
+    /// Called on the main actor when `isCellular` changes.
+    @ObservationIgnored var onCellularChange: (@MainActor (Bool) -> Void)?
+    /// Whether the first path has been read. That one counts at once.
+    @ObservationIgnored private var hasReadPath = false
+    /// When Wi‑Fi went, while the grace runs. Kept across path updates, so
+    /// a cellular path changing again doesn't start the grace over.
+    @ObservationIgnored private var leftLocalNetworkAt: ContinuousClock.Instant?
+    /// When the app last came back to the foreground. A suspended app reads
+    /// no paths, so one read on the way back may have changed long before.
+    @ObservationIgnored private var resumedAt: ContinuousClock.Instant?
+    @ObservationIgnored private var foregroundTask: Task<Void, Never>?
+    /// How long Wi‑Fi has to stay gone before it counts. It drops for a
+    /// moment at the edge of its range or while roaming, and the speakers
+    /// shouldn't leave the screen and come back each time.
+    private static let cellularGrace: Duration = .seconds(5)
     var preferredHouseHold: String? {
         get {
             UserDefaults.standard.string(forKey: "cue.household")
@@ -201,15 +222,57 @@ final class SonosSystemDiscoverService {
                 .contains(where: localInterfaceTypes.contains)
             self?.cellularUpdateTask?.cancel()
             self?.cellularUpdateTask = Task { @MainActor [weak self] in
-                self?.isCellular = !hasLocalInterface
+                await self?.updateCellular(!hasLocalInterface)
             }
         }
         cellularMonitor.start(queue: DispatchQueue(label: "CellularMonitor"))
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        foregroundTask = Task { @MainActor [weak self] in
+            for await _ in NotificationCenter.default.notifications(named: UIApplication.willEnterForegroundNotification) {
+                self?.appResumed()
+            }
+        }
+        #endif
+    }
+
+    /// Back from the background. A path read now counts at once, and so
+    /// does one read on the way back that is waiting out the grace.
+    @MainActor
+    private func appResumed() {
+        resumedAt = ContinuousClock.now
+        guard leftLocalNetworkAt != nil, !isCellular else { return }
+        cellularUpdateTask?.cancel()
+        cellularUpdateTask = Task { @MainActor [weak self] in
+            await self?.updateCellular(true)
+        }
+    }
+
+    /// Wi‑Fi coming back counts at once. Leaving it counts once it has
+    /// been gone for `cellularGrace`, unless the app has only just come
+    /// back to the foreground; a newer path cancels the wait.
+    @MainActor
+    private func updateCellular(_ cellular: Bool) async {
+        if !cellular {
+            leftLocalNetworkAt = nil
+        } else if hasReadPath, !isCellular {
+            let left = leftLocalNetworkAt ?? ContinuousClock.now
+            leftLocalNetworkAt = left
+            let justResumed = resumedAt.map { ContinuousClock.now - $0 < Self.cellularGrace } ?? false
+            if !justResumed {
+                try? await Task.sleep(until: left + Self.cellularGrace, clock: .continuous)
+                guard !Task.isCancelled else { return }
+            }
+        }
+        hasReadPath = true
+        guard cellular != isCellular else { return }
+        isCellular = cellular
+        onCellularChange?(cellular)
     }
 
     deinit {
         stopBrowsing()
         cellularUpdateTask?.cancel()
+        foregroundTask?.cancel()
         cellularMonitor.cancel()
         lock.withLock {
             connections.forEach { $0?.cancel() }

@@ -139,12 +139,18 @@ final class PlaybackRoute {
                 }
             })
         }
+        observers.append(Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(named: SonosService.availabilityDidChange) {
+                self?.speakersCameOrWent()
+            }
+        })
     }
 
-    /// The remembered destination, or this device while Sonos is switched
-    /// off: a speaker remembered from before then can't be reached.
+    /// The remembered destination, or this device while no speaker can be
+    /// reached: Sonos switched off, or the phone on cellular. The speaker
+    /// stays remembered for when they're back.
     private static var storedDestination: PlayDestination {
-        guard SonosService.shared.isEnabled else { return .device }
+        guard SonosService.shared.isAvailable else { return .device }
         return PlayDestination.remembered ?? .device
     }
 
@@ -154,7 +160,22 @@ final class PlaybackRoute {
         let stored = Self.storedDestination
         if stored != destination {
             destination = stored
+            // The play call sites short-circuit to this; see `remember`.
+            SelectedGroupService.shared.group = group
         }
+    }
+
+    /// The phone left Wi‑Fi or came back to it. Away, the route reads as
+    /// this device. Back, it returns to the remembered speaker, unless this
+    /// device is playing: then it stays here, rather than the player
+    /// jumping to a speaker that isn't playing what's heard.
+    private func speakersCameOrWent() {
+        if SonosService.shared.isAvailable, destination == .device,
+           LocalPlaybackService.shared.isPlaying, PlayDestination.remembered?.groupID != nil {
+            Self.log.notice("speakers back, but this device is playing: staying here")
+            PlayDestination.device.remember()
+        }
+        refresh()
     }
 
     /// The live group for a speaker destination. `nil` for the device, and
@@ -311,7 +332,7 @@ final class PlaybackRoute {
     /// finds no fresh read makes its own.
     func prefetchTargets() {
         let sonos = SonosService.shared
-        guard sonos.isEnabled else { return }
+        guard sonos.isAvailable else { return }
         let targets = sonos.groups
             .filter { $0.coordinatorID != destination.groupID }
             .map { (id: $0.coordinatorID, ip: $0.ip) }

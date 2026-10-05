@@ -301,7 +301,7 @@ struct ArtistDetailView: View {
                     }
 
                     // Sonos playlists only.
-                    if sonosService.isEnabled {
+                    if sonosService.isAvailable {
                         AddTracksToPlaylistMenu(tracks: tracks)
                     }
                 }

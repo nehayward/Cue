@@ -83,7 +83,13 @@ public final class SonosService {
         }
     }
 
-    @ObservationIgnored private lazy var sonosSystemDiscoverService = SonosSystemDiscoverService()
+    @ObservationIgnored private lazy var sonosSystemDiscoverService: SonosSystemDiscoverService = {
+        let service = SonosSystemDiscoverService()
+        service.onCellularChange = { [weak self] isCellular in
+            self?.localNetworkChanged(isCellular: isCellular)
+        }
+        return service
+    }()
     @ObservationIgnored lazy var api = SonosAPI()
     @ObservationIgnored private lazy var mediaServerHandler = MediaServerHandler()
 
@@ -98,6 +104,33 @@ public final class SonosService {
     public var lastKnownIP: String { sonosSystemDiscoverService.cachedIP }
     public var state: String { sonosSystemDiscoverService.lastKnownState }
     public var isCellular: Bool { sonosSystemDiscoverService.isCellular }
+
+    /// Whether speakers can be reached from here: Sonos is on and this device
+    /// is on Wi‑Fi or Ethernet. Speakers are only ever on the local network,
+    /// so on cellular alone there are none to show or play to. Gate speaker
+    /// UI and routing on this; `isEnabled` is the setting.
+    public var isAvailable: Bool { isEnabled && !isCellular }
+
+    /// Posted on the main actor when `isAvailable` changes because this
+    /// device left Wi‑Fi for cellular, or came back.
+    public static let availabilityDidChange = Notification.Name("SonosService.availabilityDidChange")
+
+    /// Off Wi‑Fi the groups on hand are the last ones seen, and nothing can
+    /// reach them, so they're put away as if Sonos were off. Back on Wi‑Fi
+    /// they're looked for again.
+    @MainActor
+    private func localNetworkChanged(isCellular: Bool) {
+        guard isEnabled else { return }
+        if isCellular {
+            clearDevices()
+        }
+        NotificationCenter.default.post(name: Self.availabilityDidChange, object: self)
+        if !isCellular {
+            // The cached IP may belong to another network by now.
+            invalidateVerifiedConnection()
+            monitor()
+        }
+    }
 
     @MainActor
     public func clearDevices() {

@@ -53,9 +53,9 @@ enum PlayDestinationRouter {
         queue: @escaping (GroupRoom, QueuePosition) async throws -> Void
     ) async {
         guard let first = contents.first else { return }
-        // A speaker remembered from before Sonos was switched off is not a
-        // destination any more.
-        let destination = SonosService.shared.isEnabled ? (PlayDestination.remembered ?? .device) : .device
+        // A speaker remembered from before Sonos was switched off, or from
+        // before the phone left Wi‑Fi, is not a destination now.
+        let destination = SonosService.shared.isAvailable ? (PlayDestination.remembered ?? .device) : .device
         log.notice("play \(String(describing: first.content.service), privacy: .public)/\(String(describing: first.content.type), privacy: .public) id=\(first.content.id, privacy: .public) count=\(contents.count) position=\(position.linkValue, privacy: .public) destination=\(String(describing: destination), privacy: .public)")
 
         // No network, or Offline Mode: there is no speaker to reach, so
@@ -145,7 +145,7 @@ enum PlayDestinationRouter {
     /// radio, grouping — that have no local equivalent to fall back on. `nil` means the caller
     /// still has to ask.
     static var rememberedGroup: GroupRoom? {
-        guard SonosService.shared.isEnabled else { return nil }
+        guard SonosService.shared.isAvailable else { return nil }
         guard let id = PlayDestination.remembered?.groupID else { return nil }
         return SonosService.shared.groups.first { $0.coordinatorID == id }
     }
@@ -162,10 +162,11 @@ enum PlayDestinationRouter {
         position: QueuePosition,
         queue: @escaping (GroupRoom, QueuePosition) async throws -> Void
     ) {
-        // With Sonos switched off there is no speaker to offer, and a picker
-        // with nothing in it is a dead end. Say so instead.
-        guard SonosService.shared.isEnabled else {
-            log.notice("no destination can take this — Sonos is off")
+        // With Sonos switched off, or the phone on cellular, there is no
+        // speaker to offer, and a picker with nothing in it is a dead end.
+        // Say so instead.
+        guard SonosService.shared.isAvailable else {
+            log.notice("no destination can take this — no speaker in reach")
             AlertService.shared.showAlert(with: "This can't play on this device", imageName: "exclamationmark.triangle")
             return
         }
