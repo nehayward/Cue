@@ -272,13 +272,17 @@ struct LargePlayerView: View {
                     }
                 }
                
-                #if !os(visionOS)
-                if #available(iOS 26.0, visionOS 26.0, *) {
-                    ToolbarSpacer(.fixed)
-                }
-                #endif
-                ToolbarItem {
-                    LikeButtonView(group: group)
+                // Only while the button has something to draw: an item
+                // around an empty one still draws its glass circle, blank.
+                if LikeButtonView.isShown(for: group.coordinatorRoom.track.musicService) {
+                    #if !os(visionOS)
+                    if #available(iOS 26.0, visionOS 26.0, *) {
+                        ToolbarSpacer(.fixed)
+                    }
+                    #endif
+                    ToolbarItem {
+                        LikeButtonView(group: group)
+                    }
                 }
                 if showsEllipsisToolbarItem {
                     #if !os(visionOS)

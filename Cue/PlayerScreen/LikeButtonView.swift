@@ -58,6 +58,13 @@ struct LikeButtonView: View {
         return favorited == (cached > 0) ? cached : (favorited ? 10 : 0)
     }
 
+    /// Whether the button draws anything for a song from `service`: a heart
+    /// or star where the service keeps favorites, thumbs for Pandora. For any
+    /// other service it's empty, so a toolbar leaves its item out.
+    static func isShown(for service: MusicService) -> Bool {
+        service.supportsFavoriteTrack || service == .pandora
+    }
+
     var body: some View {
         switch service {
         case .plex:
