@@ -176,6 +176,19 @@ A header button in `PlayerView` (⇧⌘T), shown while a station plays, swaps th
 ### Browse services after switching mid-load (ported from Clic)
 - Switching Browse services cancels the old screen's `.task`, and its cancelled requests come back empty. `SonosRadioBrowseService` set `hasLoaded`, `PandoraBrowseService` set `lastLoaded`, and `SoundCloudBrowseService` reported "not authenticated"; they now return on `Task.isCancelled` without recording anything. `DeezerBrowseService` and `SubsonicBrowseService` no longer write a cancelled load's empty lists over loaded ones.
 
+### Play On sheet
+The Play On button opens `PlayOnSheet` (nehayward/Cue#5) instead of a menu: AirPlay-style, This Device and every active room, each row its own volume slider. Ported to Clic afterwards, and Clic's fixes came back (`Ideas/clic-port-play-on.md`).
+
+- Rows (`VolumeRouteRow`) are volume sliders through `SpeakerVolumeWriter` (model at once, speaker at most every 80 ms, `isEditingVolume` held 1.5 s past the last write), with `VolumeHaptics` ticking per percent from the drag. Groups collapse into one `GroupRow` until playback settles on them; `GroupBar` holds Everywhere / Ungroup All, All Speakers and Sync. Regrouping is `GroupMembership`, shared with the press-and-hold group menu.
+- SonosKit: `Room.holdMute` / `GroupRoom.holdMute` show a mute at once and the poll skips it for 2.5 s (`isMuteHeld`), so a read that left before the change landed no longer flips it back.
+- Height: the sum of the measured header, rows, bar and bottom inset (`refit()`), remembered per layout (`AppStorageKeys.playOnSheetHeights`), and pinned until the sheet has zoomed up (`isUp`, 500 ms). A detent that changed mid-zoom cut the presentation short and the sheet popped in on a layout's first open.
+- `GroupMembership` follows a promoted coordinator only once a group stands under it: `smartGroup` leaves the group under the old id with the promoted room at its head, and SonosKit holds topology reads for 3.5 s after grouping. `isSettled` is false until then, so rooms can't be toggled onto the room that just left, and row ids are de-duplicated meanwhile.
+
+### Sideways pan and long press to mute
+- `SidewaysPan` moved from the sheet into VibesDS: a `UIPanGestureRecognizer` through `UIGestureRecognizerRepresentable` (iOS 18) that only begins on a mostly sideways motion and that every other pan waits for. `sidewaysPan(...)` falls back to a SwiftUI drag with a 16 pt dead zone before iOS 18 (VibesDS supports iOS 17).
+- `VibeSlider` uses it on iOS 18 for `delayDrag` sliders (the ones in lists), retiring their dead zone; the player's sliders keep the SwiftUI drag that starts on touch-down.
+- `VibeSlider(onLongPress:)`: a `SliderLongPress` beside the pan, or on the SwiftUI path a 500 ms timer that holds the edit until the finger moves 4 pt, so a held touch never edits (and unmutes). `VolumeControlView`, `RoomVolumeView` and `VolumeControlRoomView` mute or unmute with it, holding the mute against the poll; on Catalyst a right-click context menu does the same.
+
 ---
 
 ## 2026.7
