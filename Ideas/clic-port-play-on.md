@@ -42,6 +42,24 @@ in Cue on an iPhone against seven rooms.
   `VolumeHaptics` with `VolumeRouteRow.adjust`, `GroupBar` (Everywhere, All
   Speakers, Sync), the masks and `AppStorageKeys.playOnSheetHeights`.
 
+### Since then, on the same Clic branch
+
+- **It replaced `GroupScreen`.** Every group button opens it (the player's,
+  the speaker list's, TV mode's, `clic://group`). The header has a close
+  button on a sheet and a ••• menu with Sort By and New Scene, and the saved
+  scenes are the last row of the list. At regular width the player shows it
+  as a popover; off the iPhone it's a fixed frame at the fitted height,
+  since detents are ignored there.
+- **`VibeSlider` drags with `SidewaysPan`** on iOS 18, except touch-down
+  sliders, and takes an `onLongPress` (held still half a second; the touch
+  then never edits). The volume views mute with it. Worth bringing back to
+  Cue's VibesDS: it retires `delayDrag` there too.
+- **A regroup still landing.** After dropping the coordinator, SonosKit
+  holds topology reads for 3.5 s and `smartGroup` keeps the group under its
+  old id with the promoted room at its head. The sheet keeps that group open
+  meanwhile (found by `coordinatorRoom.id`) with its rooms untoggleable, and
+  dedupes row ids. Cue's sheet has the same gap.
+
 ## What Clic was missing that Cue's sheet assumes
 
 - **No `PlaybackRoute` and no This Device.** Clic only plays on speakers. Drop
