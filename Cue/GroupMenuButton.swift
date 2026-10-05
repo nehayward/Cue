@@ -128,18 +128,21 @@ struct GroupMembership {
     /// topology reads for 3.5 s after grouping; a route or a player pointed
     /// at the new id meanwhile found no group. Under the old id the group is
     /// still there, with the promoted room at its head.
+    ///
+    /// Whether to follow is decided once the wait is over: only the route
+    /// or the player still on the old group goes, so a different choice made
+    /// meanwhile isn't pulled back.
     private static func follow(from coordinatorID: String, to newCoordinatorID: String) {
         guard newCoordinatorID != coordinatorID else { return }
-        let followsRoute = PlaybackRoute.shared.destination == .group(coordinatorID)
         Task { @MainActor in
             let deadline = ContinuousClock.now + .seconds(6)
             while ContinuousClock.now < deadline,
                   !SonosService.shared.groups.contains(where: { $0.coordinatorID == newCoordinatorID }) {
                 try? await Task.sleep(for: .milliseconds(100))
             }
-            if followsRoute {
+            if PlaybackRoute.shared.destination == .group(coordinatorID) {
                 PlaybackRoute.shared.follow(groupID: newCoordinatorID)
-            } else {
+            } else if Router.main.selectedID == coordinatorID {
                 Router.main.selectedID = newCoordinatorID
                 Router.main.navigate(to: .player(groupID: newCoordinatorID))
             }

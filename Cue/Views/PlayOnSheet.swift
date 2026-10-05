@@ -105,6 +105,7 @@ struct PlayOnSheet: View {
         .task {
             // About as long as the zoom up takes.
             try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
             isUp = true
             if let height = heldHeight {
                 heldHeight = nil

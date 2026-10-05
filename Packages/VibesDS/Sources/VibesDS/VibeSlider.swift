@@ -30,7 +30,11 @@ public struct VibeSlider: View {
     /// Where the SwiftUI drag's touch is, while `onLongPress` is set.
     @State private var press: Press = .idle
     @State private var pressTimer: Task<Void, Never>?
-    private var isDragging: Bool { isDragGestureActive || isHolding }
+    /// A press held still (or one that became the long press) isn't a drag,
+    /// so the value doesn't rise and the fill doesn't darken under it.
+    private var isDragging: Bool {
+        isHolding || (isDragGestureActive && press != .holding && press != .longPressed)
+    }
 
     /// A touch on the SwiftUI path when the slider has a long press: it
     /// isn't an edit until it moves past the slop, and once the long press
@@ -137,6 +141,13 @@ public struct VibeSlider: View {
             // without animation.
             Task { @MainActor in animatesValue = true }
         }
+        // A slider taken away under a held finger mustn't fire its long
+        // press later for a row that's gone.
+        .onDisappear {
+            if press != .idle {
+                finishPress()
+            }
+        }
         .onChange(of: isDragGestureActive) { _, active in
             guard !active, press != .idle else { return }
             // A drag the system took away (a scroll claiming it, a sheet
@@ -230,10 +241,13 @@ public struct VibeSlider: View {
         if #available(iOS 18.0, *) {
             if !delayDrag {
                 swiftUIDragHandling(content)
-            } else if let onLongPress, isEnabled {
+            } else if let onLongPress {
+                // Enabled through the recognizer rather than by swapping this
+                // branch, so a press under way when the slider is disabled is
+                // cancelled (and `isLongPressing` cleared), not torn out.
                 content
                     .gesture(sidewaysDrag)
-                    .gesture(SliderLongPress(onBegan: {
+                    .gesture(SliderLongPress(isEnabled: isEnabled, onBegan: {
                         isLongPressing = true
                         onLongPress()
                     }, onEnded: {
@@ -297,7 +311,9 @@ public struct VibeSlider: View {
     }
     
     private func handleDragChanged(_ gesture: DragGesture.Value) {
-        guard waitsForLongPress else {
+        // A touch that started on the long-press path stays on it, even if
+        // the slider stops waiting for one partway through.
+        guard press != .idle || waitsForLongPress else {
             onEditingChanged(true)
             moveValue(by: gesture.translation.width)
             return
@@ -322,7 +338,7 @@ public struct VibeSlider: View {
     }
     
     private func handleDragEnded(_ gesture: DragGesture.Value) {
-        guard waitsForLongPress else {
+        guard press != .idle || waitsForLongPress else {
 #if targetEnvironment(macCatalyst) || os(macOS)
             if gesture.translation.width == 0.0, width > 0 {
                 value = math.value(atFraction: gesture.location.x / width)
@@ -560,6 +576,7 @@ public struct VibeSliderTV: View {
 /// it, and once the pan has begun the press can't.
 @available(iOS 18.0, *)
 private struct SliderLongPress: UIGestureRecognizerRepresentable {
+    var isEnabled = true
     let onBegan: () -> Void
     /// The press lifted, or was taken away.
     let onEnded: () -> Void
@@ -569,6 +586,10 @@ private struct SliderLongPress: UIGestureRecognizerRepresentable {
         press.minimumPressDuration = 0.5
         press.allowableMovement = 10
         return press
+    }
+
+    func updateUIGestureRecognizer(_ recognizer: UILongPressGestureRecognizer, context: Context) {
+        recognizer.isEnabled = isEnabled
     }
 
     func handleUIGestureRecognizerAction(_ recognizer: UILongPressGestureRecognizer, context: Context) {
