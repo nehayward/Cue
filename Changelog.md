@@ -189,6 +189,11 @@ The Play On button opens `PlayOnSheet` (nehayward/Cue#5) instead of a menu: AirP
 - `VibeSlider` uses it on iOS 18 for `delayDrag` sliders (the ones in lists), retiring their dead zone; the player's sliders keep the SwiftUI drag that starts on touch-down.
 - `VibeSlider(onLongPress:)`: a `SliderLongPress` beside the pan, or on the SwiftUI path a 500 ms timer that holds the edit until the finger moves 4 pt, so a held touch never edits (and unmutes). `VolumeControlView`, `RoomVolumeView` and `VolumeControlRoomView` mute or unmute with it, holding the mute against the poll; on Catalyst a right-click context menu does the same.
 
+### Play On on the Mac, and the speaker list's title
+- `hoverEffect` does nothing under Catalyst, so on the Mac Play On's rows (`VolumeRouteRow.trackOpacity`) and bar buttons (`BarCircleButton.circleStyle`) lighten under the pointer with `onHover`.
+- `ZoneView`'s song title sets `.font(.body)`: it took the List's row font, which a selected sidebar row emphasizes, and turned bold.
+- From review: a regroup's follow is decided once the wait is over (the route, or the player, moves only if still on the old group). In `VibeSlider`, a touch that started on the long-press path stays on it, a press held still doesn't read as a drag, a slider removed under a held finger cancels its press (`onDisappear`), and `SliderLongPress` takes `isEnabled` through its recognizer. The sheet's height task stops if the sheet closed within the wait.
+
 ---
 
 ## 2026.7
