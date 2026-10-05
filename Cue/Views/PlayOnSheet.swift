@@ -824,6 +824,52 @@ struct VolumeRouteRow: View {
     private static let ticks = 100.0
 
     var body: some View {
+        Group {
+            if let onTap {
+                // A button, for its pressed look, keyboard focus on iPad and
+                // the Mac, the pointer's hover, and the button VoiceOver
+                // reads. A sideways drag can't also press it: `SidewaysPan`
+                // cancels the touch the moment it begins.
+                Button {
+                    // A tap that only stopped the list moving isn't a choice.
+                    guard listIsSettled else { return }
+                    onTap()
+                } label: {
+                    content
+                }
+                .buttonStyle(RouteRowButtonStyle())
+            } else {
+                content
+            }
+        }
+        .contentShape(.contextMenuPreview, .capsule)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .scaleEffect(isAdjusting ? 1.02 : 1)
+        .animation(.snappy(duration: 0.2), value: isAdjusting)
+        .gesture(
+            SidewaysPan(
+                isEnabled: level != nil,
+                onBegan: beginAdjusting,
+                onChanged: adjust,
+                onEnded: endAdjusting
+            )
+        )
+        // One element: the name (and the line under it) as the label, the
+        // button's trait and tap from the button itself.
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(accessibilityValue)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityAdjustableAction { direction in
+            guard let level else { return }
+            switch direction {
+            case .increment: onLevel(min(1, level + Self.accessibilityStep))
+            case .decrement: onLevel(max(0, level - Self.accessibilityStep))
+            @unknown default: break
+            }
+        }
+    }
+
+    private var content: some View {
         HStack(spacing: 14) {
             // One box for every row's icon, so the names line up and the
             // wide TV glyph doesn't run into its name.
@@ -858,6 +904,8 @@ struct VolumeRouteRow: View {
             // with the glass's own vibrancy.
             .foregroundStyle(isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
             .animation(.smooth(duration: 0.3), value: isMuted)
+            // Said in the value instead ("Muted").
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
@@ -873,43 +921,15 @@ struct VolumeRouteRow: View {
 
             Spacer(minLength: 8)
 
+            // Said in the value and the selected trait instead.
             accessory
                 .frame(minWidth: 28, alignment: .trailing)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, 18)
         .frame(maxWidth: .infinity, minHeight: 58)
         .background { track }
         .contentShape(.capsule)
-        .contentShape(.contextMenuPreview, .capsule)
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-        .scaleEffect(isAdjusting ? 1.02 : 1)
-        .animation(.snappy(duration: 0.2), value: isAdjusting)
-        .onTapGesture {
-            // A tap that only stopped the list moving isn't a choice.
-            guard listIsSettled else { return }
-            onTap?()
-        }
-        .gesture(
-            SidewaysPan(
-                isEnabled: level != nil,
-                onBegan: beginAdjusting,
-                onChanged: adjust,
-                onEnded: endAdjusting
-            )
-        )
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(title)
-        .accessibilityValue(accessibilityValue)
-        .accessibilityAddTraits(accessibilityTraits)
-        .accessibilityAction { onTap?() }
-        .accessibilityAdjustableAction { direction in
-            guard let level else { return }
-            switch direction {
-            case .increment: onLevel(min(1, level + Self.accessibilityStep))
-            case .decrement: onLevel(max(0, level - Self.accessibilityStep))
-            @unknown default: break
-            }
-        }
     }
 
     // MARK: Drawing
@@ -959,11 +979,6 @@ struct VolumeRouteRow: View {
                     .foregroundStyle(.tint)
             }
         }
-    }
-
-    private var accessibilityTraits: AccessibilityTraits {
-        guard onTap != nil else { return [] }
-        return isSelected ? [.isButton, .isSelected] : .isButton
     }
 
     private var accessibilityValue: String {
@@ -1046,6 +1061,18 @@ private enum VolumeHaptics {
         bumper.impactOccurred()
         bumper.prepare()
 #endif
+    }
+}
+
+/// A route row's pressed look: it gives a little under the finger, and the
+/// pointer lights it on iPad and the Mac.
+private struct RouteRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+            .contentShape(.hoverEffect, .capsule)
+            .hoverEffect(.highlight)
     }
 }
 
