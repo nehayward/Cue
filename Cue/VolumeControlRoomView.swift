@@ -49,7 +49,25 @@ struct VolumeControlRoomView: View {
                         try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
                         room.isEditingVolume = isEditing
                     }
+                } onLongPress: {
+                    toggleMute()
                 }
+                .accessibilityAction(named: room.isMuted ? "Unmute" : "Mute") {
+                    toggleMute()
+                }
+#if targetEnvironment(macCatalyst)
+                // The Mac's long press: a right click.
+                .contextMenu {
+                    Button {
+                        toggleMute()
+                    } label: {
+                        Label(
+                            room.isMuted ? "Unmute" : "Mute",
+                            systemImage: room.isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill"
+                        )
+                    }
+                }
+#endif
                 .accessibilityLabel("\(room.name) Volume")
                 .accessibilityValue("\(Int(room.volume.rounded())) percent\(room.isMuted ? ", muted" : "")")
                 
@@ -85,6 +103,15 @@ struct VolumeControlRoomView: View {
         .fontDesign(.rounded)
         .animation(.interactiveSpring, value: room.isMuted)
         .frame(height: 48)
+    }
+
+    /// A long press on the slider: mutes the room, or unmutes it.
+    /// `setRoomMute` shows it at once and holds it against the poll.
+    @MainActor
+    private func toggleMute() {
+        HapticManager.shared.fireHaptic(.buttonPress)
+        let mute = !room.isMuted
+        Task { await sonosService.setRoomMute(room: room, mute: mute) }
     }
 
     private func updateVolume(volume: Double) {
