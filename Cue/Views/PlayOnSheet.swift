@@ -2,10 +2,9 @@ import Defaults
 import SonosKit
 import SwiftUI
 
-/// Where playback goes, and how loud each place is: the full-screen cover
-/// behind the Play On button while Sonos is on. It zooms out of the button,
-/// over the cover's colours as the player draws them, and a pull down or the
-/// close button puts it back.
+/// Where playback goes, and how loud each place is: the sheet behind the Play
+/// On button while Sonos is on. It zooms out of the button, one height
+/// fitted to its rooms, and a pull down puts it back.
 ///
 /// Laid out like the system's AirPlay picker: what's playing on top, then This
 /// Device and every active room. Each row is its own volume slider — the fill
@@ -23,9 +22,9 @@ import SwiftUI
 /// The rows sit in a scroll view, under a header that isn't part of it, and
 /// a sideways drag is the only one a row takes (`SidewaysPan`): up and down
 /// belong to the list and, from the header or the top of the list, to the
-/// pull that closes it. A tap that lands while the list is still moving only
-/// stops it; it never regroups.
-struct PlayOnScreen: View {
+/// sheet's pull to dismiss. A tap that lands while the list is still moving
+/// only stops it; it never regroups.
+struct PlayOnSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     /// Singletons, not the environment: the button that presents this sits in
@@ -38,11 +37,13 @@ struct PlayOnScreen: View {
     /// False from the moment the list starts moving until it comes to rest.
     @State private var listIsSettled = true
     /// True when every row fits above the buttons, so there's nothing to
-    /// scroll and every drag up or down is the pull that closes it. False
+    /// scroll and every drag up or down is the sheet's. False
     /// until measured: the measure only reports changes, and a list that
     /// never changed size mustn't be stuck unable to scroll.
     @State private var listFits = false
     @State private var volumes = SpeakerVolumeWriter()
+    /// The sheet's height once the rows have been measured; see `fit`.
+    @State private var sheetHeight: CGFloat?
 
     private var activeRooms: [Room] {
         sonosService.sortedRooms.filter { $0.state == .active }
@@ -50,15 +51,20 @@ struct PlayOnScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Outside the list, so a pull down on it always closes.
+            // Outside the list, so a pull down on it is always the sheet's.
             PlayOnHeader()
                 .padding(.horizontal, 24)
-                .padding(.top, 12)
+                .padding(.top, 28)
                 .padding(.bottom, 8)
 
             roomList
         }
-        .background { PlayOnBackdrop() }
+        // One height, fitted to the rooms, as the system's picker does. With
+        // a taller one to grow to, a swipe up grew the sheet before it
+        // scrolled the list, and the list stopped short at the buttons with
+        // nothing to say it went on.
+        .presentationDetents([.height(sheetHeight ?? openingSheetHeight)])
+        .presentationDragIndicator(.visible)
         .sheet(item: $pending) { pending in
             RouteTransferPrompt(target: pending.target) { carrying in
                 self.pending = nil
@@ -85,8 +91,8 @@ struct PlayOnScreen: View {
             .padding(.top, 8)
             .padding(.bottom, 16)
         }
-        // Off outright when the rows fit, so every vertical drag is the pull
-        // that closes. A volume drag needs nothing here: the list's pan waits
+        // Off outright when the rows fit, so every vertical drag is the
+        // sheet's. A volume drag needs nothing here: the list's pan waits
         // for `SidewaysPan` to fail, so it can't scroll while one runs.
         .scrollDisabled(listFits)
         .scrollBounceBehavior(.basedOnSize)
@@ -113,6 +119,7 @@ struct PlayOnScreen: View {
         } action: { _, overflow in
             // Half a point for rounding.
             listFits = overflow <= 0.5
+            fit(overflow: overflow)
         }
         // A bar rather than a stack under the list, so the rows scroll under
         // it and the system softens the edge they pass under: the sign
@@ -126,17 +133,65 @@ struct PlayOnScreen: View {
         }
     }
 
-    // MARK: - Layout
+    // MARK: - Height
 
     /// Everywhere and Ungroup All: on a speaker, with another room to group.
     private var showsGroupingBar: Bool {
         route.group != nil && activeRooms.count > 1
     }
 
+    /// This device, All Speakers on a speaker, and every room.
+    private var rowCount: Int {
+        activeRooms.count + 1 + (route.group != nil ? 1 : 0)
+    }
+
+    /// What decides the height, as `FittedSheetHeights` files it.
+    private var layout: String {
+        "rows \(rowCount), buttons \(showsGroupingBar ? 1 : 0)"
+    }
+
+    /// The height to open at: what this layout fitted to last time, so the
+    /// sheet zooms out of the button at its size instead of changing size
+    /// once it's up. A guess the first time.
+    private var openingSheetHeight: CGFloat {
+        min(FittedSheetHeights.height(for: layout) ?? estimatedSheetHeight, Self.tallestSheet)
+    }
+
+    /// The header, the rows and the buttons on a speaker, at the default
+    /// text size.
+    private var estimatedSheetHeight: CGFloat {
+        let buttons: CGFloat = showsGroupingBar ? 68 : 0
+        return min(106 + CGFloat(rowCount) * 68 + buttons, Self.tallestSheet)
+    }
+
+    /// Grows or shrinks the sheet by what the rows need, up to about where
+    /// the system's large sheet stops; past that, the list scrolls. Measured
+    /// against the sheet as it is, so whatever the header, buttons and safe
+    /// area take comes out of the sum without being known.
+    private func fit(overflow: CGFloat) {
+        let current = sheetHeight ?? openingSheetHeight
+        // A point to spare, so rounding never leaves the list a hair too
+        // long to sit still.
+        let target = min(max(current + overflow + 1, Self.shortestSheet), Self.tallestSheet)
+        guard abs(target - current) > 0.5 else { return }
+        sheetHeight = target
+        FittedSheetHeights.remember(target, for: layout)
+    }
+
+    private static let shortestSheet: CGFloat = 240
+
+    private static var tallestSheet: CGFloat {
+        let windows = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+        guard let window = windows.first(where: \.isKeyWindow) ?? windows.first else { return 640 }
+        return window.bounds.height - window.safeAreaInsets.top - 16
+    }
+
     // MARK: - Rows
 
     // Each row is its own view and reads its own room, so a level changing
-    // (a drag tick, the poll) redraws that row, not the whole screen.
+    // (a drag tick, the poll) redraws that row, not the whole sheet.
 
     private var deviceRow: some View {
         DeviceRow(
@@ -426,6 +481,27 @@ private struct RoomRow: View {
     }
 }
 
+/// The Play On sheet's fitted heights, by layout (`PlayOnSheet.layout`),
+/// kept across launches. The rows are only measured once the sheet is up,
+/// and a sheet that changed size then looked like it had stumbled out of
+/// the button.
+private enum FittedSheetHeights {
+    private static var key: String { AppStorageKeys.playOnSheetHeights }
+
+    static func height(for layout: String) -> CGFloat? {
+        guard let stored = UserDefaults.standard.dictionary(forKey: key)?[layout] as? Double else { return nil }
+        return CGFloat(stored)
+    }
+
+    static func remember(_ height: CGFloat, for layout: String) {
+        var all = UserDefaults.standard.dictionary(forKey: key) as? [String: Double] ?? [:]
+        let value = Double(height)
+        guard all[layout] != value else { return }
+        all[layout] = value
+        UserDefaults.standard.set(all, forKey: key)
+    }
+}
+
 private extension View {
     /// A bar the list scrolls under. On iOS 26 the system softens the list's
     /// edge beneath it, the sign that there's more; before, a plain inset.
@@ -436,33 +512,6 @@ private extension View {
         } else {
             safeAreaInset(edge: edge, spacing: 0, content: content)
         }
-    }
-}
-
-// MARK: - Backdrop
-
-/// The player's own backdrop — the cover's colours under a thin material —
-/// for whatever plays where the route points, so the screen reads as part of
-/// the player it came from. Plain when nothing is playing.
-private struct PlayOnBackdrop: View {
-    private var route: PlaybackRoute { .shared }
-
-    var body: some View {
-        ZStack {
-            Color(.systemBackground)
-            if let group = route.group {
-                GroupPlayerBackgroundView(group: group)
-            } else if let content = LocalPlaybackService.shared.nowPlayingDisplay {
-                ZStack {
-                    ArtworkMeshBackground(content: content)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    BlurView()
-                }
-                .scaleEffect(1.3)
-            }
-        }
-        .allowsHitTesting(false)
-        .ignoresSafeArea()
     }
 }
 
@@ -526,8 +575,9 @@ private struct PlayOnHeader: View {
                 ProgressView()
             }
 
-            // A pull down closes it too, but a full-screen cover wants a way
-            // out you can see, and the Mac has no pull.
+#if targetEnvironment(macCatalyst)
+            // A Mac sheet has no pull to close it, and a click outside
+            // doesn't either.
             Button {
                 dismiss()
             } label: {
@@ -539,6 +589,7 @@ private struct PlayOnHeader: View {
             .glassButton()
             .keyboardShortcut(.cancelAction)
             .accessibilityLabel("Close")
+#endif
         }
     }
 
@@ -552,12 +603,12 @@ private struct PlayOnHeader: View {
 
 // MARK: - Row
 
-/// One row of the Play On screen: a destination that is also its own volume
+/// One row of the Play On sheet: a destination that is also its own volume
 /// slider, the way the system's AirPlay picker draws one.
 ///
 /// A tap routes; a sideways drag sets the volume, through `SidewaysPan`,
 /// which never starts on a drag up or down. Those go on to the list and the
-/// pull that closes the screen untouched. The first version caught every
+/// sheet's pull to dismiss untouched. The first version caught every
 /// touch the moment it landed, with a SwiftUI drag, and a pull down on the
 /// rows closed nothing.
 struct VolumeRouteRow: View {
@@ -844,7 +895,7 @@ private struct MutedSlash: View {
 /// A pan that only ever starts sideways.
 ///
 /// One that sets off up or down fails at once, so the list's scroll and the
-/// pull that closes the screen get every vertical drag as if the row weren't
+/// sheet's pull to dismiss get every vertical drag as if the row weren't
 /// there. Their pans wait for it to fail, the few points it takes to tell,
 /// so a sideways drag is never a scroll or a dismiss as well. UIKit rather
 /// than a SwiftUI drag: only a recognizer can decline to begin, where a
@@ -895,7 +946,7 @@ struct SidewaysPan: UIGestureRecognizerRepresentable {
             return abs(motion.x) > abs(motion.y)
         }
 
-        /// The list's pan and the closing pull's: any other pan the touch could
+        /// The list's pan and the sheet's: any other pan the touch could
         /// start.
         func gestureRecognizer(
             _ recognizer: UIGestureRecognizer,
@@ -921,7 +972,7 @@ struct SidewaysPan: UIGestureRecognizerRepresentable {
 /// its level read for the player's slider; a group's change moves every
 /// room, so their levels are read again.
 ///
-/// Its tasks keep it alive past the screen closing, so the hold is always let
+/// Its tasks keep it alive past the sheet closing, so the hold is always let
 /// go.
 @MainActor
 final class SpeakerVolumeWriter {
@@ -1053,7 +1104,7 @@ final class SpeakerVolumeWriter {
 
 #Preview {
     Text("Player")
-        .fullScreenCover(isPresented: .constant(true)) {
-            PlayOnScreen()
+        .sheet(isPresented: .constant(true)) {
+            PlayOnSheet()
         }
 }

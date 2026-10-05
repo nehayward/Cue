@@ -5,7 +5,7 @@ import VibesDS
 /// What regrouping `group` does: a room toggled in or out of it, every room
 /// brought into it, or every other room let go.
 ///
-/// Shared by `GroupMenuItems` and the Play On screen, so the two can't drift.
+/// Shared by `GroupMenuItems` and the Play On sheet, so the two can't drift.
 /// The rules mirror `GroupScreen`'s exactly: membership changes go through
 /// `smartGroup` with the same diff, the last room can't leave its own group,
 /// and when the change promotes a new coordinator the player follows it —
