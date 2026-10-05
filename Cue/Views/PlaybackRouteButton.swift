@@ -23,7 +23,8 @@ import SwiftUI
 /// or drops it, the same rules the press-and-hold group menu uses. Leaving the
 /// speakers altogether is This Device.
 ///
-/// With Sonos off it is the system AirPlay button instead.
+/// With Sonos off, or on cellular where no speaker can be reached, it is the
+/// system AirPlay button instead.
 struct PlaybackRouteButton: View {
     /// Read off the singleton rather than the environment: this sits in the tab
     /// bar accessory, which is hosted outside the tab content and so isn't
@@ -32,12 +33,12 @@ struct PlaybackRouteButton: View {
 
     var body: some View {
         VStack {
-            if sonosService.isEnabled {
+            if sonosService.isAvailable {
                 SonosRouteButton()
             } else {
-                // With Sonos off the only routes are the system's, so the
-                // button is the system's AirPlay picker itself. Speakers are
-                // switched on in Settings ▸ Sonos.
+                // With Sonos off, or away from Wi‑Fi, the only routes are the
+                // system's, so the button is the system's AirPlay picker
+                // itself. Speakers are switched on in Settings ▸ Sonos.
                 AirPlayRoutePicker()
                     .frame(width: 30, height: 30)
                     .accessibilityLabel("AirPlay")

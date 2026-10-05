@@ -60,7 +60,7 @@ struct AddToPlaylistSheet: View {
     }
 
     static func hasSonosPlaylists(for content: PlayableContent) -> Bool {
-        SonosService.shared.isEnabled && !content.content.service.playsOnDeviceOnly
+        SonosService.shared.isAvailable && !content.content.service.playsOnDeviceOnly
     }
 
     /// Whether the sheet has anything to offer. Menus check this before

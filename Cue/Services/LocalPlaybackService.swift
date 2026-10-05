@@ -154,6 +154,7 @@ final class LocalPlaybackService {
             // clock, so time spent paused doesn't count.
             if oldValue { progressAnchor = runningProgress(at: .now) }
             progressAnchoredAt = .now
+            if isPlaying { PlaybackRoute.shared.deviceStartedPlaying() }
         }
     }
     private(set) var isLoading = false

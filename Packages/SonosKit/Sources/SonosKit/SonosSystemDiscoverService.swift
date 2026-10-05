@@ -2,6 +2,9 @@ import CloudStorage
 import Foundation
 import Network
 import os
+#if os(iOS) && !targetEnvironment(macCatalyst)
+import UIKit
+#endif
 
 extension NWBrowser.State {
     var debugDescription: String {
@@ -76,7 +79,28 @@ class SonosStorageIP: ObservableObject {
 final class SonosSystemDiscoverService {
     var isSearching: Bool = false
     var currentWakes: Set<String> = []
+    /// True while this device has no Wi‑Fi or wired network, only cellular
+    /// (or nothing). Speakers are only ever on the local network, so they
+    /// can't be reached then. Set on the main actor; see `pathChanged`.
     var isCellular: Bool = false
+    /// Called on the main actor when `isCellular` changes. Set at init,
+    /// before the first path can arrive.
+    @ObservationIgnored private let onCellularChange: (@MainActor (Bool) -> Void)?
+    /// Whether a path has been read yet. The first one counts at once.
+    @ObservationIgnored private var hasReadPath = false
+    /// Waits out `cellularGrace` before a loss of Wi‑Fi counts.
+    @ObservationIgnored private var graceTask: Task<Void, Never>?
+    /// When the app last came back to the foreground.
+    @ObservationIgnored private var resumedAt: ContinuousClock.Instant?
+    @ObservationIgnored private var foregroundTask: Task<Void, Never>?
+    /// How long Wi‑Fi has to stay gone before it counts. It drops for a
+    /// moment at the edge of its range or while roaming, and the speakers
+    /// shouldn't leave the screen and come back each time.
+    private static let cellularGrace: Duration = .seconds(5)
+    /// A path read this soon after coming back to the foreground counts at
+    /// once. A suspended app reads no paths, so that one may have changed
+    /// long before, and waiting would show speakers that have gone.
+    private static let resumeWindow: Duration = .seconds(2)
     var preferredHouseHold: String? {
         get {
             UserDefaults.standard.string(forKey: "cue.household")
@@ -163,7 +187,6 @@ final class SonosSystemDiscoverService {
     @ObservationIgnored private var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                                         category: String(describing: SonosSystemDiscoverService.self))
     @ObservationIgnored private let cellularMonitor = NWPathMonitor()
-    @ObservationIgnored private var cellularUpdateTask: Task<Void, Never>?
 
     private let lock = OSAllocatedUnfairLock()
     private var permissionsDenied: Bool = false
@@ -179,7 +202,8 @@ final class SonosSystemDiscoverService {
     var lastKnownIP: String = ""
     var lastKnownState: String = ""
 
-    init() {
+    init(onCellularChange: (@MainActor (Bool) -> Void)? = nil) {
+        self.onCellularChange = onCellularChange
         cellularMonitor.pathUpdateHandler = { [weak self] path in
             // Determine whether a local-network interface (Wi-Fi or wired
             // Ethernet) is available, rather than asking whether the cellular
@@ -199,17 +223,78 @@ final class SonosSystemDiscoverService {
             let hasLocalInterface = path.availableInterfaces
                 .map(\.type)
                 .contains(where: localInterfaceTypes.contains)
-            self?.cellularUpdateTask?.cancel()
-            self?.cellularUpdateTask = Task { @MainActor [weak self] in
-                self?.isCellular = !hasLocalInterface
+            // Delivered on the main queue (see `start` below).
+            MainActor.assumeIsolated {
+                self?.pathChanged(hasLocalInterface: hasLocalInterface)
             }
         }
-        cellularMonitor.start(queue: DispatchQueue(label: "CellularMonitor"))
+        // The main queue, so paths are handled in order on the actor that
+        // reads `isCellular`, with no hop that could reorder them.
+        cellularMonitor.start(queue: .main)
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        foregroundTask = Task { @MainActor [weak self] in
+            for await _ in NotificationCenter.default.notifications(named: UIApplication.willEnterForegroundNotification) {
+                self?.appResumed()
+            }
+        }
+        #endif
+    }
+
+    /// Wi‑Fi coming back counts at once. So does losing it on the first
+    /// path, or just after the app came back to the foreground. Otherwise
+    /// it counts once it has been gone for `cellularGrace`; further paths
+    /// without Wi‑Fi meanwhile don't start the wait over.
+    @MainActor
+    private func pathChanged(hasLocalInterface: Bool) {
+        let isFirstPath = !hasReadPath
+        hasReadPath = true
+        if hasLocalInterface {
+            endGrace()
+            setCellular(false)
+            return
+        }
+        guard !isCellular, graceTask == nil else { return }
+        let justResumed = resumedAt.map { ContinuousClock.now - $0 < Self.resumeWindow } ?? false
+        if isFirstPath || justResumed {
+            setCellular(true)
+            return
+        }
+        graceTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.cellularGrace)
+            guard !Task.isCancelled else { return }
+            self?.graceTask = nil
+            self?.setCellular(true)
+        }
+    }
+
+    /// Back from the background. A path read on the way back, before this,
+    /// may be waiting out the grace; it changed while the app was
+    /// suspended, so it counts now.
+    @MainActor
+    private func appResumed() {
+        resumedAt = ContinuousClock.now
+        guard graceTask != nil else { return }
+        endGrace()
+        setCellular(true)
+    }
+
+    @MainActor
+    private func endGrace() {
+        graceTask?.cancel()
+        graceTask = nil
+    }
+
+    @MainActor
+    private func setCellular(_ cellular: Bool) {
+        guard cellular != isCellular else { return }
+        isCellular = cellular
+        onCellularChange?(cellular)
     }
 
     deinit {
         stopBrowsing()
-        cellularUpdateTask?.cancel()
+        graceTask?.cancel()
+        foregroundTask?.cancel()
         cellularMonitor.cancel()
         lock.withLock {
             connections.forEach { $0?.cancel() }

@@ -16,9 +16,10 @@ struct AddToLastPlaylistButton: View {
     private var lastPlaylist: LastPlaylist? {
         guard let last = LastPlaylist.current else { return nil }
         // A Sonos playlist can't hold a file from this device, and can't be
-        // reached at all while Sonos is switched off.
+        // reached at all while Sonos is switched off or the phone is on
+        // cellular.
         if last.service == .library {
-            return sonosService.isEnabled && !itemToAdd.content.service.playsOnDeviceOnly ? last : nil
+            return sonosService.isAvailable && !itemToAdd.content.service.playsOnDeviceOnly ? last : nil
         }
         guard last.service == itemToAdd.content.service,
               [.track, .libraryTrack].contains(itemToAdd.content.type) else { return nil }

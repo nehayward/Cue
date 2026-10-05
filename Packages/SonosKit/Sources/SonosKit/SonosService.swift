@@ -83,7 +83,9 @@ public final class SonosService {
         }
     }
 
-    @ObservationIgnored private lazy var sonosSystemDiscoverService = SonosSystemDiscoverService()
+    @ObservationIgnored private lazy var sonosSystemDiscoverService: SonosSystemDiscoverService = SonosSystemDiscoverService { [weak self] isCellular in
+        self?.localNetworkChanged(isCellular: isCellular)
+    }
     @ObservationIgnored lazy var api = SonosAPI()
     @ObservationIgnored private lazy var mediaServerHandler = MediaServerHandler()
 
@@ -98,6 +100,29 @@ public final class SonosService {
     public var lastKnownIP: String { sonosSystemDiscoverService.cachedIP }
     public var state: String { sonosSystemDiscoverService.lastKnownState }
     public var isCellular: Bool { sonosSystemDiscoverService.isCellular }
+
+    /// Whether speakers can be reached from here: Sonos is on and this device
+    /// is on Wi‑Fi or Ethernet. Speakers are only ever on the local network,
+    /// so on cellular alone there are none to show or play to. Observable, so
+    /// anything derived from it follows by itself. Gate speaker UI and
+    /// routing on this; `isEnabled` is the setting.
+    public var isAvailable: Bool { isEnabled && !isCellular }
+
+    /// Off Wi‑Fi the groups on hand are the last ones seen, and nothing can
+    /// reach them, so they're put away as if Sonos were off (`clearDevices`
+    /// also drops the verified IP). Back on Wi‑Fi they're looked for again.
+    /// A poll begun on cellular has stopped by then: requests to a speaker
+    /// fail at once without Wi‑Fi (`SonosAPI` sessions don't use cellular
+    /// or wait for a connection), and a failed poll cancels itself.
+    @MainActor
+    private func localNetworkChanged(isCellular: Bool) {
+        guard isEnabled else { return }
+        if isCellular {
+            clearDevices()
+        } else {
+            monitor()
+        }
+    }
 
     @MainActor
     public func clearDevices() {

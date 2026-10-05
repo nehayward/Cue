@@ -3,8 +3,9 @@ import SonosKit
 import SwiftUI
 
 /// Where playback goes, and how loud each place is: the sheet behind the Play
-/// On button while Sonos is on. It zooms out of the button, one height
-/// fitted to its rooms, and a pull down puts it back.
+/// On button while speakers can be reached (`SonosService.isAvailable`). It
+/// zooms out of the button, one height fitted to its rooms, and a pull down
+/// puts it back.
 ///
 /// Laid out like the system's AirPlay picker: what's playing on top, then This
 /// Device and every active room. Each row is its own volume slider — the fill

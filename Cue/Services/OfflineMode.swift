@@ -59,7 +59,10 @@ final class OfflineMode {
     /// moves. The speaker isn't restored when the mode ends: the user
     /// picks one again when there is one to pick.
     private func routeToDeviceIfOffline() {
-        guard isActive, PlaybackRoute.shared.destination != .device else { return }
+        // The choice, not the route: on cellular the route already reads as
+        // this device while a speaker is still chosen, and it would come
+        // back with Wi‑Fi though Offline Mode is still on.
+        guard isActive, PlaybackRoute.shared.chosen != .device else { return }
         PlaybackRoute.shared.switchTo(.device)
     }
 }
