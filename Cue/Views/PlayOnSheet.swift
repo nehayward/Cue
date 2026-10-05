@@ -929,7 +929,9 @@ struct VolumeRouteRow: View {
         .padding(.horizontal, 18)
         .frame(maxWidth: .infinity, minHeight: 58)
         .background { track }
-        .contentShape(.capsule)
+        // The whole row takes a touch, not just the capsule: the rounded
+        // ends left their corners dead, and a tap there did nothing.
+        .contentShape(.rect)
     }
 
     // MARK: Drawing
@@ -1071,6 +1073,11 @@ private struct RouteRowButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+            // Hit-tested outside the scale, so the row doesn't shrink out
+            // from under a finger near its edge: one that landed in the
+            // outer few points was outside by the time it lifted, and the
+            // tap was lost.
+            .contentShape(.rect)
             .contentShape(.hoverEffect, .capsule)
             .hoverEffect(.highlight)
     }
@@ -1292,6 +1299,11 @@ final class SpeakerVolumeWriter {
     private var writers: [String: Task<Void, Never>] = [:]
     private var releases: [String: Task<Void, Never>] = [:]
 
+    /// Each group's level and its rooms' when a drag of the group began, so
+    /// the rooms' rows can follow it in proportion. Kept until the hold
+    /// ends, so a drag picked up again goes on from the same start.
+    private var groupDragStarts: [String: (level: Double, rooms: [String: Double])] = [:]
+
     private static let interval: Duration = .milliseconds(80)
     private static let editingHold: Duration = .milliseconds(1500)
 
@@ -1312,13 +1324,25 @@ final class SpeakerVolumeWriter {
             Task { await SonosService.shared.setRoomMute(IP: ip, mute: false) }
         }
         room.volume = level
+        // All Speakers follows at once: Sonos's group volume is its rooms'
+        // average. Held against the poll, like the room, until the speaker
+        // says what it made of it.
+        if let group = Self.group(of: room) {
+            if !group.isEditingVolume {
+                group.isEditingVolume = true
+            }
+            let average = (group.rooms.map(\.volume).reduce(0, +) / Double(max(1, group.rooms.count))).rounded()
+            if group.groupVolume != average {
+                group.groupVolume = average
+            }
+        }
         write(Int(level), key: room.id) { volume in
             await SonosService.shared.setDeviceVolume(ip: ip, volume: volume)
         } drained: {
-        } settle: { [weak room] in
-            guard let room else { return }
+        } settle: { [weak self, weak room] in
+            guard let self, let room else { return }
             room.isEditingVolume = false
-            await Self.settleGroupVolume(around: room)
+            await settleGroupVolume(around: room)
         }
     }
 
@@ -1337,18 +1361,37 @@ final class SpeakerVolumeWriter {
             }
             Task { await SonosService.shared.setGroupMute(group: group, mute: false) }
         }
+        let key = "group:" + group.coordinatorID
+        let start = groupDragStarts[key] ?? (
+            level: group.groupVolume,
+            rooms: Dictionary(group.rooms.map { ($0.id, $0.volume) }, uniquingKeysWith: { first, _ in first })
+        )
+        groupDragStarts[key] = start
         group.groupVolume = level
+        // The rooms follow at once, in proportion from where they were, as
+        // the speaker moves them; held against the poll until the speaker's
+        // own levels are read after the hold.
+        for room in group.rooms {
+            let from = start.rooms[room.id] ?? room.volume
+            let estimate = Self.level(start.level > 0 ? from * level / start.level : level)
+            if !room.isEditingVolume {
+                room.isEditingVolume = true
+            }
+            if room.volume != estimate {
+                room.volume = estimate
+            }
+        }
         let ip = group.ip
-        write(Int(level), key: "group:" + group.coordinatorID) { volume in
+        write(Int(level), key: key) { volume in
             await SonosService.shared.setGroupVolume(ip: ip, volume: volume)
-        } drained: { [weak group] in
-            // The rooms' rows follow whenever the finger rests, not only
-            // after the hold.
-            guard let group else { return }
-            await SonosService.shared.updateRoomVolumes(for: group)
-        } settle: { [weak group] in
-            guard let group else { return }
+        } drained: {
+        } settle: { [weak self, weak group] in
+            guard let self, let group else { return }
+            groupDragStarts[key] = nil
             group.isEditingVolume = false
+            for room in group.rooms {
+                room.isEditingVolume = false
+            }
             await SonosService.shared.updateRoomVolumes(for: group)
         }
     }
@@ -1375,8 +1418,8 @@ final class SpeakerVolumeWriter {
         _ volume: Int,
         key: String,
         send: @escaping (Int) async -> Void,
-        drained: @escaping () async -> Void,
-        settle: @escaping () async -> Void
+        drained: @escaping @MainActor () async -> Void,
+        settle: @escaping @MainActor () async -> Void
     ) {
         releases.removeValue(forKey: key)?.cancel()
         pending[key] = volume
@@ -1392,7 +1435,7 @@ final class SpeakerVolumeWriter {
         }
     }
 
-    private func hold(_ key: String, then settle: @escaping () async -> Void) {
+    private func hold(_ key: String, then settle: @escaping @MainActor () async -> Void) {
         releases[key]?.cancel()
         releases[key] = Task {
             try? await Task.sleep(for: Self.editingHold)
@@ -1402,15 +1445,26 @@ final class SpeakerVolumeWriter {
         }
     }
 
-    private static func settleGroupVolume(around room: Room) async {
+    private static func group(of room: Room) -> GroupRoom? {
+        SonosService.shared.groups.first { group in group.rooms.contains { $0.id == room.id } }
+    }
+
+    /// After a room's hold: re-takes the group's snapshot, so a later group
+    /// change keeps the new balance, and once no room in it is still being
+    /// set (and the group isn't being dragged itself), lets the speaker's
+    /// own group level replace the average shown meanwhile.
+    private func settleGroupVolume(around room: Room) async {
         let sonos = SonosService.shared
-        guard let group = sonos.groups.first(where: { group in group.rooms.contains { $0.id == room.id } }) else { return }
+        guard let group = Self.group(of: room) else { return }
         if group.rooms.count > 1 {
             await sonos.snapShotGroup(ip: group.ip)
         }
-        if let volume = try? await sonos.getGroupVolume(ip: group.ip), !group.isEditingVolume, group.groupVolume != volume {
+        guard !group.rooms.contains(where: \.isEditingVolume),
+              groupDragStarts["group:" + group.coordinatorID] == nil else { return }
+        if let volume = try? await sonos.getGroupVolume(ip: group.ip), group.groupVolume != volume {
             group.groupVolume = volume
         }
+        group.isEditingVolume = false
     }
 }
 
