@@ -101,12 +101,12 @@ final class PlaybackRoute {
     /// the carried song and have its cover.
     private static let holdSettleLimit: Duration = .seconds(3)
 
-    /// Each speaker's transport source, read when the Play On menu opened,
-    /// keyed by coordinator. Lets a hand-off picked from that menu skip the
+    /// Each speaker's transport source, read when the Play On sheet opened,
+    /// keyed by coordinator. Lets a hand-off picked from that sheet skip the
     /// read it would otherwise make before the first note.
     @ObservationIgnored private var prefetched: [String: (service: PlaybackService, at: Date)] = [:]
     @ObservationIgnored private var prefetchTask: Task<Void, Never>?
-    /// Long enough to cover reading the menu and tapping; short enough that
+    /// Long enough to cover reading the sheet and tapping; short enough that
     /// a speaker someone has since put on the radio isn't taken as still on
     /// its queue.
     private static let prefetchLifetime: TimeInterval = 10
@@ -291,7 +291,7 @@ final class PlaybackRoute {
 
     /// Reads every other speaker's transport source ahead of a pick, so the
     /// hand-off to whichever is chosen starts with its first real call. Run
-    /// when the Play On menu opens; nothing waits on it, and a hand-off that
+    /// when the Play On sheet opens; nothing waits on it, and a hand-off that
     /// finds no fresh read makes its own.
     func prefetchTargets() {
         let sonos = SonosService.shared
@@ -316,7 +316,7 @@ final class PlaybackRoute {
         }
     }
 
-    /// The menu-time read for `group` if it's still fresh, used once: the
+    /// The sheet-time read for `group` if it's still fresh, used once: the
     /// hand-off is about to change the speaker's source itself.
     private func takePrefetched(_ group: GroupRoom) -> PlaybackService? {
         guard let entry = prefetched.removeValue(forKey: group.coordinatorID),

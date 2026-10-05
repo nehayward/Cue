@@ -915,7 +915,6 @@ public final class SonosService {
     public func setPrimaryServer(for server: MediaServer) async {
         guard let primaryKey = KeychainTokenRefreshHandler.shared.getKey(for: server.type) else { return }
         KeychainTokenRefreshHandler.shared.primaryServer?[primaryKey] = server.id
-        KeychainTokenRefreshHandler.shared.setCredentials(for: server)
     }
     
     /// Resolves the SMAPI endpoint for a Sonos service id (e.g. "303" for Sonos
@@ -1186,7 +1185,7 @@ public final class SonosService {
                     group.addTask { @MainActor [weak self] in
                         if room.state != .active { return }
                         guard let self else { return }
-                        if let isMuted = await api.getRoomMute(IP: room.ip), room.isMuted != isMuted {
+                        if let isMuted = await api.getRoomMute(IP: room.ip), !room.isMuteHeld, room.isMuted != isMuted {
                             room.isMuted = isMuted
                         }
                     }
@@ -1294,7 +1293,7 @@ public final class SonosService {
                 group.addTask { @MainActor [weak self] in
                     guard let self else { return }
                     if roomGroup.coordinatorRoom.state == .active, let isMuted = await self.isMuted(for: roomGroup) {
-                        if roomGroup.isMuted != isMuted {
+                        if !roomGroup.isMuteHeld, roomGroup.isMuted != isMuted {
                             roomGroup.isMuted = isMuted
                         }
                     }
@@ -1783,7 +1782,7 @@ public final class SonosService {
 
     @MainActor
     public func setRoomMute(room: Room, mute: Bool) async {
-        room.isMuted = mute
+        room.holdMute(mute)
         await api.setRoomMute(IP: room.ip, mute: mute)
     }
     

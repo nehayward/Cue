@@ -12,6 +12,20 @@ public final class Room: Identifiable, @unchecked Sendable {
     public let satChannelMap: String?
     public var volume: Double = 0
     public var isMuted: Bool = false
+
+    /// Until when a mute Cue just set holds against the poll. A read that
+    /// left before the change landed would otherwise put the old state back.
+    @ObservationIgnored public private(set) var muteHeldUntil: Date = .distantPast
+    public var isMuteHeld: Bool { muteHeldUntil > .now }
+
+    /// Shows `mute` at once and keeps the poll from undoing it while the
+    /// speaker catches up.
+    public func holdMute(_ mute: Bool) {
+        muteHeldUntil = .now.addingTimeInterval(2.5)
+        if isMuted != mute {
+            isMuted = mute
+        }
+    }
     public var isPlaying: Bool = false {
         didSet {
             guard isPlaying != oldValue else { return }

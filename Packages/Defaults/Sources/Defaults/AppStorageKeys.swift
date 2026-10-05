@@ -94,6 +94,10 @@ public enum AppStorageKeys {
     /// playing: `"ask"`, `"always"` (carry the queue across) or `"never"`
     /// (only change where the next Play goes). Asks when unset.
     public static let routeQueueTransfer = "\(Prefix.id).routeQueueTransfer"
+    /// The Play On sheet's fitted height from earlier opens — `[layout:
+    /// points]` — so it opens at its height rather than growing to it once
+    /// the rows are measured.
+    public static let playOnSheetHeights = "\(Prefix.id).playOnSheetHeights"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
     public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
     public static let lastPlaylistService = "\(Prefix.id).lastPlaylistService"

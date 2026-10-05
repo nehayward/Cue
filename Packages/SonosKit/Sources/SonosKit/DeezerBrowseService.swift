@@ -24,14 +24,17 @@ public final class DeezerBrowseService {
         isAuthenticated = await musicSearchService.isDeezerAuthenticated
         guard isAuthenticated else { return }
 
+        // A load cancelled by switching to another service gets empty lists
+        // back; writing them over what's loaded blanked the screen until the
+        // next visit. Only a load that finished replaces them.
         await withTaskGroup(of: Void.self) { group in
             group.addTask { [self] in
                 let playlists = await self.musicSearchService.deezerUserPlaylists()
-                await MainActor.run { self.userPlaylists = OrderedSet(playlists) }
+                await MainActor.run { if !Task.isCancelled { self.userPlaylists = OrderedSet(playlists) } }
             }
             group.addTask { [self] in
                 let history = await self.musicSearchService.deezerUserHistory()
-                await MainActor.run { self.recentlyPlayed = history }
+                await MainActor.run { if !Task.isCancelled { self.recentlyPlayed = history } }
             }
         }
     }

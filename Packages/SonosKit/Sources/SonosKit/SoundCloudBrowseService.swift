@@ -42,6 +42,12 @@ public final class SoundCloudBrowseService {
         hasMoreTracks = true
 
         let result = await musicSearchService.getSoundCloudLikedTracks(cursor: nil)
+        // Cancelled by switching to another service: the empty result says
+        // nothing about the account, so don't report it as signed out.
+        guard !Task.isCancelled else {
+            isLoadingTracks = false
+            return
+        }
 
         if result.tracks.isEmpty {
             self.error = "SoundCloud not authenticated. Please connect your SoundCloud account in settings."
@@ -116,6 +122,10 @@ public final class SoundCloudBrowseService {
         hasMorePlaylists = true
 
         let result = await musicSearchService.getSoundCloudLikedPlaylists(cursor: nil)
+        guard !Task.isCancelled else {
+            isLoadingPlaylists = false
+            return
+        }
 
         if result.playlists.isEmpty {
             hasMorePlaylists = false

@@ -17,12 +17,11 @@ import SwiftUI
 /// small prompt asks, since sometimes the point of switching is to leave the
 /// speaker's own queue alone.
 ///
-/// On a speaker it is the group button too. The menu then lists every room
-/// as a toggle on the group's membership — check several to play there
-/// together, uncheck one to drop it — with Everywhere and Ungroup All under
-/// them, the same rows the press-and-hold group menu shows. Switching to a
-/// different room outright is a check and an uncheck; leaving the speakers
-/// altogether is This Device.
+/// The button opens `PlayOnSheet`, laid out like the system's AirPlay
+/// picker: This Device and every room, each row its own volume slider. On a
+/// speaker it is the group button too — a tap on a room adds it to the group
+/// or drops it, the same rules the press-and-hold group menu uses. Leaving the
+/// speakers altogether is This Device.
 ///
 /// With Sonos off it is the system AirPlay button instead.
 struct PlaybackRouteButton: View {
@@ -34,7 +33,7 @@ struct PlaybackRouteButton: View {
     var body: some View {
         VStack {
             if sonosService.isEnabled {
-                SonosRouteMenu()
+                SonosRouteButton()
             } else {
                 // With Sonos off the only routes are the system's, so the
                 // button is the system's AirPlay picker itself. Speakers are
@@ -50,33 +49,16 @@ struct PlaybackRouteButton: View {
     }
 }
 
-/// The Play On menu while Sonos is on: This Device, then the speakers — or,
-/// on a speaker, that group's rooms as toggles.
-private struct SonosRouteMenu: View {
-    private var sonosService: SonosService { .shared }
+/// The Play On button while Sonos is on: opens `PlayOnSheet`.
+private struct SonosRouteButton: View {
     private var route: PlaybackRoute { .shared }
 
-    /// A switch waiting on the prompt's answer.
-    @State private var pending: PendingSwitch?
+    @State private var isPresented = false
+    @Namespace private var transition
 
     var body: some View {
-        Menu {
-            Button {
-                select(.device)
-            } label: {
-                Label("This Device", systemImage: "iphone.radiowaves.left.and.right")
-                if route.destination == .device {
-                    Image(systemName: "checkmark")
-                }
-            }
-
-            if let group = route.group {
-                // On a speaker the rooms are toggles on this group, so the
-                // list reads once: no group list above a room list.
-                GroupMenuItems(group: group)
-            } else {
-                SpeakerMenuItems(onSelect: select)
-            }
+        Button {
+            isPresented = true
         } label: {
             // Cue's own speaker-with-arrow symbol rather than the AirPlay
             // glyph: the route is Cue's, not AirPlay's.
@@ -84,54 +66,13 @@ private struct SonosRouteMenu: View {
                 .accessibilityLabel("Play On")
                 .accessibilityValue(route.group?.nameWithCount ?? "This Device")
         }
-        .menuIndicator(.hidden)
-        .sheet(item: $pending) { pending in
-            RouteTransferPrompt(target: pending.target) { carrying in
-                self.pending = nil
-                route.switchTo(pending.target, carrying: carrying)
-            }
-        }
-    }
-
-    private func select(_ target: PlayDestination) {
-        if target == .device, !FeatureGate.shared.unlock(.onDevicePlayback) { return }
-        HapticManager.shared.fireHaptic(.selection)
-        let preference = QueueTransferPreference.current
-        if preference == .ask, route.hasSomethingToCarry(to: target) {
-            pending = PendingSwitch(target: target)
-        } else {
-            route.switchTo(target, carrying: preference != .never)
-        }
-    }
-}
-
-/// Every speaker group to switch to, for when playback is on this device.
-/// `@Observable` tracks the `sorted` access, so the list stays live.
-private struct SpeakerMenuItems: View {
-    let onSelect: (PlayDestination) -> Void
-
-    private var sonosService: SonosService { .shared }
-
-    var body: some View {
-        let groups = sonosService.sorted
-        if groups.isEmpty {
-            Text(sonosService.isSearching ? "Looking for speakers…" : "No speakers found")
-        } else {
-            Section("Speakers") {
-                ForEach(groups) { group in
-                    Button {
-                        onSelect(.group(group.coordinatorID))
-                    } label: {
-                        Label(
-                            group.nameWithCount,
-                            systemImage: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"
-                        )
-                    }
-                }
-            }
-            // Menu content appears as the menu opens, which is the head
-            // start: the pick's hand-off can skip a read.
-            .onAppear { PlaybackRoute.shared.prefetchTargets() }
+        // The sheet grows out of the button and shrinks back into it,
+        // rather than sliding up from the bottom edge, far from where the
+        // tap was.
+        .zoomSource(.playOn, in: transition)
+        .sheet(isPresented: $isPresented) {
+            PlayOnSheet()
+                .zoomTransition(from: .playOn, in: transition)
         }
     }
 }
@@ -151,7 +92,7 @@ private struct AirPlayRoutePicker: UIViewRepresentable {
     func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }
 
-private struct PendingSwitch: Identifiable {
+struct PendingSwitch: Identifiable {
     let target: PlayDestination
     var id: String { target.groupID ?? "device" }
 }
@@ -159,7 +100,7 @@ private struct PendingSwitch: Identifiable {
 /// The small sheet a route switch asks from: move what's playing along, or
 /// only change where playback goes. "Don't ask again" writes the answer to
 /// the setting (Settings › Playback), so the prompt is one tap to retire.
-private struct RouteTransferPrompt: View {
+struct RouteTransferPrompt: View {
     let target: PlayDestination
     let onChoose: (_ carrying: Bool) -> Void
 

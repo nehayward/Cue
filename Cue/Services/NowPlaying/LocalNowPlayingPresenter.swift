@@ -158,6 +158,10 @@ final class LocalNowPlayingPresenter {
         let center = MPRemoteCommandCenter.shared()
         center.nextTrackCommand.isEnabled = snapshot.canSkip
         center.changePlaybackPositionCommand.isEnabled = snapshot.duration > 0
+        // The Sonos mirror switches these off for its card; this card is
+        // back, and so are they.
+        center.changeShuffleModeCommand.isEnabled = true
+        center.changeRepeatModeCommand.isEnabled = true
 
         published = snapshot
         publishedElapsed = max(0, elapsed)
@@ -220,6 +224,8 @@ final class LocalNowPlayingPresenter {
         center.nextTrackCommand.isEnabled = true
         center.previousTrackCommand.isEnabled = true
         center.changePlaybackPositionCommand.isEnabled = true
+        center.changeShuffleModeCommand.isEnabled = true
+        center.changeRepeatModeCommand.isEnabled = true
 
         func add(_ command: MPRemoteCommand, _ action: @escaping @MainActor (LocalPlaybackService, MPRemoteCommandEvent) -> MPRemoteCommandHandlerStatus) {
             let token = command.addTarget { [weak self] event in
@@ -256,6 +262,20 @@ final class LocalNowPlayingPresenter {
             player.seek(to: event.positionTime)
             return .success
         }
+        // A car's shuffle and repeat buttons (`CarPlayInterface`) take a tap
+        // only while these commands are there to take one: without them the
+        // buttons drew but did nothing. Siri and accessories send them as
+        // they are. A station has neither.
+        add(center.changeShuffleModeCommand) { player, event in
+            guard let event = event as? MPChangeShuffleModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+            player.setShuffle(event.shuffleType != .off)
+            return .success
+        }
+        add(center.changeRepeatModeCommand) { player, event in
+            guard let event = event as? MPChangeRepeatModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+            player.setRepeatMode(LocalPlaybackService.RepeatMode(event.repeatType))
+            return .success
+        }
     }
 
     private func unregisterCommands() {
@@ -263,5 +283,25 @@ final class LocalNowPlayingPresenter {
             command.removeTarget(token)
         }
         commandTokens = []
+    }
+}
+
+extension LocalPlaybackService.RepeatMode {
+    /// From the system's repeat type, as a remote command or a car states it.
+    init(_ type: MPRepeatType) {
+        switch type {
+        case .one: self = .one
+        case .all: self = .all
+        default: self = .off
+        }
+    }
+
+    /// As the system's remote commands state it.
+    var repeatType: MPRepeatType {
+        switch self {
+        case .off: .off
+        case .all: .all
+        case .one: .one
+        }
     }
 }
