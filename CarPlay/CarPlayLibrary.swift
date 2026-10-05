@@ -76,10 +76,10 @@ enum CarPlayLibrary {
         return MediaSearchService.supported.filter(isReady)
     }
 
-    /// The Library tab's buttons, in order, that at least one of `services`
-    /// can fill. Playlists fill the tab itself.
-    static func libraryCollections(for services: [MediaSearchService]) -> [ProviderCollection] {
-        [ProviderCollection.recentlyAdded, .albums].filter { collection in
+    /// The Library tab's sections, in order, that at least one of
+    /// `services` can fill. Playlists first: the tab opens on them.
+    static func librarySections(for services: [MediaSearchService]) -> [ProviderCollection] {
+        [ProviderCollection.playlists, .recentlyAdded, .albums].filter { collection in
             services.contains { loader(collection, for: $0) != nil }
         }
     }

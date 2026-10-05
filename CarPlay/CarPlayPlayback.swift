@@ -92,7 +92,8 @@ enum CarPlayArtwork {
     /// Comfortably over `CPListItem.maximumImageSize` on any car's screen;
     /// the system scales it down.
     static let rowWidth: CGFloat = 120
-    /// For the cards of an image row, and the details header's thumbnail.
+    /// For the cards and squares of an image row, and the details header's
+    /// thumbnail.
     static let cardWidth: CGFloat = 400
 
     /// The car's screen, for its light or dark look (see `symbol(_:)`).
@@ -132,20 +133,46 @@ enum CarPlayArtwork {
         placeholder(for: content) ?? symbol("music.note") ?? UIImage()
     }
 
-    /// A system symbol in white on a dark screen and black on a light one.
-    /// The car tints the tab bar's symbols but draws a row's as it gets
-    /// them, and a plain symbol is black. Both looks go in the image's
-    /// asset, for the car to switch as it goes from day to night; the one
-    /// handed over is the screen's look now.
-    ///
-    /// Not for the buttons pinned above a list: on iOS 27 they draw only a
-    /// plain system symbol (see `gridButton`).
+    /// A system symbol in white on a dark screen and black on a light one
+    /// (`looks`). The car tints the tab bar's symbols but draws a row's as
+    /// it gets them, and a plain symbol is black.
     static func symbol(_ name: String) -> UIImage? {
         guard let symbol = UIImage(systemName: name) else { return nil }
+        return looks { color in symbol.withTintColor(color, renderingMode: .alwaysOriginal) }
+    }
+
+    /// A tile's symbol (`CarPlayInterface.tileRow`), drawn whole in the
+    /// middle of a square the size the car draws a tile's image at. The car
+    /// resizes what it's given to that square, which would stretch a symbol
+    /// that isn't square (most aren't), and a bare symbol fills it edge to
+    /// edge. White and black, as `symbol(_:)`.
+    static func tile(_ name: String) -> UIImage {
+        let maximum = CPListImageRowItemCondensedElement.maximumImageSize
+        let side = min(maximum.width, maximum.height) > 0 ? min(maximum.width, maximum.height) : 44
+        let configuration = UIImage.SymbolConfiguration(pointSize: side / 2, weight: .medium)
+        guard let symbol = UIImage(systemName: name, withConfiguration: configuration) else { return UIImage() }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = max(screen?.carTraitCollection.displayScale ?? 2, 1)
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format)
+        // A little over half the square, whichever way the symbol is longer.
+        let fit = min(1, side * 0.6 / max(symbol.size.width, symbol.size.height, 1))
+        let size = CGSize(width: symbol.size.width * fit, height: symbol.size.height * fit)
+        let frame = CGRect(x: (side - size.width) / 2, y: (side - size.height) / 2, width: size.width, height: size.height)
+        return looks { color in
+            renderer.image { _ in
+                symbol.withTintColor(color, renderingMode: .alwaysOriginal).draw(in: frame)
+            }
+        }
+    }
+
+    /// An image in black for a light screen and white for a dark one, both
+    /// in its asset, for the car to switch as it goes from day to night; the
+    /// one handed over is the screen's look now.
+    private static func looks(_ draw: (UIColor) -> UIImage) -> UIImage {
         let dark = UITraitCollection(userInterfaceStyle: .dark)
         let asset = UIImageAsset()
-        asset.register(symbol.withTintColor(.black, renderingMode: .alwaysOriginal), with: UITraitCollection(userInterfaceStyle: .light))
-        asset.register(symbol.withTintColor(.white, renderingMode: .alwaysOriginal), with: dark)
+        asset.register(draw(.black), with: UITraitCollection(userInterfaceStyle: .light))
+        asset.register(draw(.white), with: dark)
         return asset.image(with: screen?.carTraitCollection ?? dark)
     }
 }
