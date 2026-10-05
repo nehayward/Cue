@@ -187,12 +187,8 @@ final class SonosGroupController: PlaybackController {
     var canScrub: Bool { group?.availableActions.contains(.scrubbable) ?? false }
 
     func togglePlayback() async {
-        guard let room else { return }
-        if room.isPlaying {
-            await sonos.pause(ip: room.ip)
-        } else {
-            await sonos.play(ip: room.ip)
-        }
+        guard let group else { return }
+        await sonos.togglePlayPause(for: group)
     }
 
     /// Instant and coalesced: the new song shows at once, and the speaker's
@@ -276,5 +272,75 @@ final class SonosGroupController: PlaybackController {
     func cancelSleepTimer() async {
         guard let group else { return }
         await sonos.stopSleepTimer(group: group)
+    }
+}
+
+// MARK: - Held through a hand-off
+
+/// The source while a hand-off holds the player on it (`PlaybackRoute.hold`):
+/// the song it was playing and everything about it, with the hold's word on
+/// playing and position — the source is paused on its way out, and the
+/// target picks the song up where the hold's clock says — and nothing to
+/// press. A command now would only race the hand-off: the source is coming
+/// down and the target isn't up.
+///
+/// So the views draw a hand-off without knowing about one: the transport
+/// greys out, the play button pulses, and the bars run on.
+@MainActor
+final class HeldPlaybackController: PlaybackController {
+    let source: any PlaybackController
+    let hold: PlaybackRoute.Hold
+
+    init(source: any PlaybackController, hold: PlaybackRoute.Hold) {
+        self.source = source
+        self.hold = hold
+    }
+
+    var destination: PlayDestination { source.destination }
+    var group: GroupRoom? { source.group }
+    var name: String { source.name }
+
+    var nowPlayingDisplay: PlayableContent? { source.nowPlayingDisplay }
+    /// Nothing to act on until the hand-off lands.
+    var isActive: Bool { false }
+    var isPlaying: Bool { hold.wasPlaying }
+    var isLoading: Bool { true }
+    var duration: TimeInterval { source.duration }
+    var isClockRunning: Bool { hold.isClockRunning }
+
+    func position(at date: Date) -> TimeInterval {
+        hold.position(at: date)
+    }
+
+    var audioQuality: SonosTrackQuality? { source.audioQuality }
+
+    var showsPrevious: Bool { source.showsPrevious }
+    var canGoBack: Bool { false }
+    var showsNext: Bool { source.showsNext }
+    var hasNext: Bool { false }
+    var canScrub: Bool { false }
+
+    func togglePlayback() async {}
+    func next() async {}
+    func previous() async {}
+    func seek(to seconds: TimeInterval) async {}
+    func beginScrubbing() {}
+    func endScrubbing(at seconds: TimeInterval?) async {}
+
+    var isShuffled: Bool { source.isShuffled }
+    var repeatMode: LocalPlaybackService.RepeatMode { source.repeatMode }
+    func setShuffle(_ on: Bool) async {}
+    func setRepeatMode(_ mode: LocalPlaybackService.RepeatMode) async {}
+
+    var queuePosition: Int { source.queuePosition }
+    var queueCount: Int { source.queueCount }
+
+    var sleepTimerEndDate: Date? { source.sleepTimerEndDate }
+    var sleepsAtEndOfTrack: Bool { source.sleepsAtEndOfTrack }
+
+    /// A sleep timer is the source's own, and calling it off doesn't touch
+    /// the hand-off.
+    func cancelSleepTimer() async {
+        await source.cancelSleepTimer()
     }
 }

@@ -112,15 +112,13 @@ struct MusicPlaybackView: View {
     /// The progress line for what's on screen, in seconds whichever it is.
     @ViewBuilder
     private var progressLine: some View {
+        // Through a hand-off, the hold's clock (`HeldPlaybackController`).
         let controller = route.presented
-        // Through a hand-off, from where the switch was made: the source is
-        // paused on its way out, and the target picks up from there.
-        let hold = route.hold
         if controller.nowPlayingDisplay != nil {
             MiniPlayerProgressLine(
                 duration: controller.duration,
-                isRunning: hold?.wasPlaying ?? controller.isClockRunning,
-                position: { hold?.position(at: .now) ?? controller.position() }
+                isRunning: controller.isClockRunning,
+                position: { controller.position() }
             )
         }
     }
@@ -155,9 +153,9 @@ struct MusicPlaybackView: View {
         let group = controller.group
         let item = controller.nowPlayingDisplay
         // While a hand-off holds the row on its source, the source is on its
-        // way out: the buttons rest and Play reads as it did.
-        let hold = route.hold
-        let isPlaying = hold?.wasPlaying ?? controller.isPlaying
+        // way out: the buttons rest and Play reads as it did
+        // (`HeldPlaybackController`).
+        let isPlaying = controller.isPlaying
 
         Button {
             showPlayer.toggle()
@@ -165,7 +163,7 @@ struct MusicPlaybackView: View {
             HStack(spacing: 12) {
                 // A switch with nothing to carry across has nothing to keep
                 // on screen meanwhile.
-                if group != nil, route.isSwitching, hold == nil {
+                if group != nil, route.isSwitching, !route.isHolding {
                     ProgressView()
                         .frame(width: 40, height: 40)
                 } else if let item {
@@ -205,12 +203,12 @@ struct MusicPlaybackView: View {
             } label: {
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                     .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
-                    .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && (hold != nil || controller.isLoading))
+                    .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && controller.isLoading)
             }
             .buttonStyle(.plain)
             .font(.title3)
             .accessibilityLabel(isPlaying ? "Pause" : "Play")
-            .disabled(hold != nil)
+            .disabled(!controller.isActive)
 
             // A live station on this device has nothing to skip to.
             if placement != .inline, controller.showsNext {
@@ -230,7 +228,7 @@ struct MusicPlaybackView: View {
                 .buttonStyle(.plain)
                 .font(.title3)
                 .accessibilityLabel("Next")
-                .disabled(!controller.hasNext || hold != nil)
+                .disabled(!controller.hasNext)
             }
         }
     }

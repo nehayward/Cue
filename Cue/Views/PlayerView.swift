@@ -166,11 +166,11 @@ struct PlayerView: View {
         // The speaker's socket, sleep timer and play mode, and a drop on the
         // screen, follow the route: a switch to a speaker opens its socket
         // at once, which is what brings the carried song's report in for the
-        // player to go over on. The hardware volume follows what's on
-        // screen, so the buttons move the slider being shown.
+        // player to go over on. The hardware volume follows what's heard:
+        // the source through a hand-off until it stops, then the target.
         .modifier(PlayerSessionModifier(
             coordinatorID: route.group?.coordinatorID,
-            shownCoordinatorID: group?.coordinatorID,
+            volumeCoordinatorID: route.audibleGroup?.coordinatorID,
             shouldFade: $shouldFade
         ))
         .fontDesign(.rounded)
@@ -429,6 +429,7 @@ struct PlayerView: View {
         }
         LocalPlayerMenuView(item: item, showArtworkOnly: $showArtworkOnly)
             .tint(.primary)
+            .disabled(route.isHolding)
     }
 
     // MARK: - Toolbar
@@ -475,11 +476,14 @@ struct PlayerView: View {
             }
             // A speaker's menu has its own extras — grouping, EQ, the TV —
             // so the two stay separate views in the one slot.
+            // Both rest through a hand-off: their shuffle, repeat and play
+            // actions would act on the source on its way out.
             if let group {
                 LikeButtonView(group: group)
                 MenuInfoView(group: group, showArtworkOnly: $showArtworkOnly)
                     .tint(.primary)
                     .modifier(GroupRefreshOnForegroundModifier())
+                    .disabled(route.isHolding)
             } else if let item = playback.nowPlaying {
                 localNavigationButtons(item)
             }
@@ -596,9 +600,9 @@ private struct ClearNavigationBackground<Backdrop: View>: ViewModifier {
 private struct PlayerSessionModifier: ViewModifier {
     /// The route's speaker.
     let coordinatorID: String?
-    /// The speaker on screen, which differs from the route's while a
-    /// hand-off holds the player on its source.
-    let shownCoordinatorID: String?
+    /// The speaker the hardware volume buttons move: the one being heard,
+    /// which through a hand-off is the source's until it stops.
+    let volumeCoordinatorID: String?
     @Binding var shouldFade: Bool
 
     private var sonosService: SonosService { .shared }
@@ -609,15 +613,15 @@ private struct PlayerSessionModifier: ViewModifier {
         coordinatorID.flatMap { id in sonosService.groups.first { $0.coordinatorID == id } }
     }
 
-    private var shownGroup: GroupRoom? {
-        shownCoordinatorID.flatMap { id in sonosService.groups.first { $0.coordinatorID == id } }
+    private var volumeGroup: GroupRoom? {
+        volumeCoordinatorID.flatMap { id in sonosService.groups.first { $0.coordinatorID == id } }
     }
 
     func body(content: Content) -> some View {
         content
             // Anything dropped on the screen plays where the route points.
             .dropDestinationPlay(onGroupOrDevice: group)
-            .hardwareVolumeControl(group: shownGroup)
+            .hardwareVolumeControl(group: volumeGroup)
             .modifier(GroupScenePhaseSyncModifier(coordinatorID: coordinatorID))
             .task(id: coordinatorID) {
                 guard let group = self.group else { return }
@@ -864,23 +868,21 @@ private struct PlayerScrubber: View {
     }
 
     var body: some View {
+        // Through a hand-off, the hold's clock: the source is paused on its
+        // way out, and the bar follows what's heard (`HeldPlaybackController`).
         let controller = route.presented
         let duration = range(of: controller)
-        // While a hand-off holds the player, the source is paused on its way
-        // out; the bar runs on from where the switch was made, as the target
-        // will (see `PlaybackRoute.Hold`).
-        let hold = route.hold
         // Paused under a finger, while nothing plays, and off screen (see
         // `PlaybackTimeline`). A seek or a new song lands at once rather than
         // sweeping, hence no value animation.
         PlaybackTimeline(
-            isRunning: (hold?.wasPlaying ?? controller.isClockRunning) && scrubPosition == nil,
+            isRunning: controller.isClockRunning && scrubPosition == nil,
             minimumInterval: ProgressRedraw.interval(
                 forDuration: duration * 1000,
                 length: barWidth,
                 scale: displayScale
             ),
-            position: { clamped(scrubPosition ?? hold?.position(at: .now) ?? controller.position(), to: duration) }
+            position: { clamped(scrubPosition ?? controller.position(), to: duration) }
         ) { position in
             VStack(spacing: 0) {
                 VibeSlider(
@@ -901,9 +903,9 @@ private struct PlayerScrubber: View {
                 .foregroundStyle(.primary)
                 .accessibilityLabel("Playback Position")
                 .accessibilityValue(Duration.seconds(position).formatted(.time(pattern: .minuteSecond)))
-                // Nothing to seek while a hand-off holds the player on its
-                // source, which is on its way out.
-                .disabled(!controller.canScrub || route.isHolding)
+                // Nothing to seek on a live stream, or while a hand-off holds
+                // the player on its source.
+                .disabled(!controller.canScrub)
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
 
                 HStack {
@@ -1013,12 +1015,13 @@ private struct PlayerTransportView: View {
     }
 
     var body: some View {
+        // Through a hand-off, the source as it was, with nothing to press
+        // (`HeldPlaybackController`).
         let controller = route.presented
-        let hold = route.hold
-        let isPlaying = hold?.wasPlaying ?? controller.isPlaying
+        let isPlaying = controller.isPlaying
         // A load that's over in a moment doesn't pulse; one that keeps the
         // song waiting does (see `sustainedPulse`).
-        let isLoading = hold != nil || controller.isLoading
+        let isLoading = controller.isLoading
 
         HStack {
             if controller.showsPrevious {
@@ -1079,9 +1082,9 @@ private struct PlayerTransportView: View {
         }
         .frame(maxWidth: controller.showsNext ? (isProminent ? 320 : 300) : nil)
         .padding(.horizontal, isProminent ? 36 : 60)
-        // Nothing loaded: there, so the player keeps its shape, but nothing
-        // to press. Nor while a hand-off holds it.
-        .disabled(!controller.isActive || hold != nil)
+        // Nothing loaded, or a hand-off holding the player: there, so the
+        // player keeps its shape, but nothing to press.
+        .disabled(!controller.isActive)
     }
 
     /// Skips on whatever is on screen. Instant on both: this device moves at
@@ -1393,39 +1396,15 @@ private struct PlayerBottomToolbarView: View {
     }
 }
 
-/// The queue gauge for what's on screen: how far through the queue
-/// playback is, with the position in the middle — this device's queue, or
-/// the speaker's while it plays from its queue. Also the mini player's
-/// queue toggle on iPad.
+/// The queue gauge for what's on screen: this device's queue, or the
+/// speaker's while it plays from its queue. Also the mini player's queue
+/// toggle on iPad.
 struct PresentedQueueIconView: View {
     private var route: PlaybackRoute { .shared }
 
-    @ScaledMetric(relativeTo: .caption2) private var iconSize: CGFloat = 24
-
     var body: some View {
         let controller = route.presented
-        let position = controller.queuePosition
-        VibeGaugeView(value: Double(position),
-                      total: Double(controller.queueCount),
-                      color: .primary,
-                      lineWidth: 2)
-        .overlay {
-            // Four digits don't fit inside the gauge: past 999 the ring is
-            // shown alone.
-            if position < 1000 {
-                Text(position, format: .number)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                    .padding(.horizontal, 4)
-                    .allowsTightening(true)
-                    .font(.caption2.monospacedDigit())
-                    .contentTransition(.numericText())
-            }
-        }
-        .animation(.spring, value: position)
-        .fontDesign(.rounded)
-        .frame(width: iconSize, height: iconSize)
-        .accessibilityLabel("Up Next")
+        QueueIconView(position: controller.queuePosition, total: controller.queueCount)
     }
 }
 

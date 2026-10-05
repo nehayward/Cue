@@ -14,11 +14,17 @@ struct QueueNextUpView: View {
     private var route: PlaybackRoute { .shared }
 
     var body: some View {
-        if let group = route.presentedGroup {
-            GroupNextUpView(group: group)
-        } else {
-            LocalNextUpView()
+        Group {
+            if let group = route.presentedGroup {
+                GroupNextUpView(group: group)
+            } else {
+                LocalNextUpView()
+            }
         }
+        // Through a hand-off the rows are the source's, on their way out: a
+        // tap or an edit would play or change a queue the hand-off has
+        // already carried.
+        .disabled(route.isHolding)
     }
 }
 

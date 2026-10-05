@@ -77,6 +77,9 @@ final class PlaybackRoute {
         var position: TimeInterval
         var since: Date
         var isClockRunning: Bool
+        /// The hand-off has stopped the source: from here nothing is heard
+        /// from it, and the volume buttons go to the target.
+        var sourceStopped = false
 
         /// Where the song is at `date`, as far as the hand-off goes.
         func position(at date: Date) -> TimeInterval {
@@ -90,6 +93,8 @@ final class PlaybackRoute {
     /// Lets a hold go however the hand-off is doing, so a speaker that
     /// never answers can't leave the player on the source.
     @ObservationIgnored private var holdWatchdog: Task<Void, Never>?
+    /// `holdLimit` from when the hold began: no re-arming goes past it.
+    @ObservationIgnored private var holdDeadline: ContinuousClock.Instant?
     /// The longest a hold lasts once the source has stopped: past it the
     /// player follows the route, however the target is doing.
     private static let holdTimeout: Duration = .seconds(12)
@@ -175,9 +180,12 @@ final class PlaybackRoute {
     }
 
     /// What the player, the mini player and the queue panel draw, and what
-    /// their controls act on.
+    /// their controls act on. While a hand-off holds the player, the source
+    /// as `HeldPlaybackController` sees it: the song it was playing, the
+    /// hold's word on playing and position, and nothing to press.
     var presented: any PlaybackController {
-        controller(for: presentedDestination)
+        guard let hold else { return controller(for: destination) }
+        return HeldPlaybackController(source: controller(for: hold.source), hold: hold)
     }
 
     /// The group `presented` is, for the extras only a speaker has.
@@ -188,6 +196,14 @@ final class PlaybackRoute {
     /// A hand-off is under way and the player is holding on its source.
     var isHolding: Bool {
         hold != nil
+    }
+
+    /// The group being heard, where the hardware volume buttons go: the held
+    /// source until the hand-off stops it, the route's from then on. Nil
+    /// for this device.
+    var audibleGroup: GroupRoom? {
+        guard let hold, !hold.sourceStopped else { return group }
+        return controller(for: hold.source).group
     }
 
     /// The controller for `destination`. A speaker that isn't among the
@@ -376,35 +392,65 @@ final class PlaybackRoute {
     /// the route as it stands, whatever the hand-off is doing — a speaker
     /// that never answers shouldn't leave the player showing a source that
     /// has gone quiet.
+    ///
+    /// A switch made during another's hold passes that hold back in, and
+    /// keeps its deadline.
     private func beginHold(_ new: Hold?) {
+        let deadline = new != nil && new == hold ? holdDeadline : nil
         endHold()
         guard let new else { return }
         hold = new
+        holdDeadline = deadline ?? ContinuousClock.now.advanced(by: Self.holdLimit)
         armHoldWatchdog(after: Self.holdLimit)
     }
 
-    /// (Re)starts the hold's limit, `after` from now.
+    /// (Re)starts the hold's limit, `after` from now but never past
+    /// `holdDeadline`.
     private func armHoldWatchdog(after limit: Duration) {
         guard hold != nil else { return }
         holdWatchdog?.cancel()
+        var deadline = ContinuousClock.now.advanced(by: limit)
+        if let holdDeadline, holdDeadline < deadline {
+            deadline = holdDeadline
+        }
         let token = switchToken
         holdWatchdog = Task { [weak self] in
-            try? await Task.sleep(for: limit)
+            try? await Task.sleep(until: deadline, clock: .continuous)
             guard !Task.isCancelled, let self, self.switchToken == token, self.hold != nil else { return }
             Self.log.notice("route: hand-off still running at the hold's limit; the player follows the route")
             self.endHold()
         }
     }
 
+    // The hand-off's own calls on the hold. Each is a no-op once a newer
+    // switch has cancelled the hand-off: the hold then belongs to that
+    // switch, which may have taken it over (see `switchTo`).
+
     /// Keeps the bars in step with what's heard while the hold lasts: stopped
     /// at `position` while neither end is playing, running from it once the
     /// target is. The play button keeps reading as the source did.
     private func setHoldClock(_ position: TimeInterval, running: Bool) {
-        guard var hold else { return }
+        guard !Task.isCancelled, var hold else { return }
         hold.position = position
         hold.since = .now
         hold.isClockRunning = running
         self.hold = hold
+    }
+
+    /// The hand-off has stopped the source: nothing is heard from it any
+    /// more, so the volume buttons go to the target, and the hold now waits
+    /// only on the target, for `holdTimeout` at most.
+    private func noteSourceStopped() {
+        guard !Task.isCancelled, var hold else { return }
+        hold.sourceStopped = true
+        self.hold = hold
+        armHoldWatchdog(after: Self.holdTimeout)
+    }
+
+    /// The hand-off is done with the hold: the player follows the route.
+    private func handOffEndsHold() {
+        guard !Task.isCancelled else { return }
+        endHold()
     }
 
     private func endHold() {
@@ -412,6 +458,7 @@ final class PlaybackRoute {
         holdRelease = nil
         holdWatchdog?.cancel()
         holdWatchdog = nil
+        holdDeadline = nil
         if hold != nil {
             hold = nil
         }
@@ -427,7 +474,7 @@ final class PlaybackRoute {
     /// way, or a cover that won't load, still lets go. Unstructured, so the
     /// tail filling in behind the first song doesn't wait on it.
     private func releaseHold(whenShowing item: PlayableContent, on target: GroupRoom) {
-        guard hold != nil else { return }
+        guard !Task.isCancelled, hold != nil else { return }
         let token = switchToken
         let coordinatorID = target.coordinatorID
         holdRelease?.cancel()
@@ -476,18 +523,39 @@ final class PlaybackRoute {
     /// playing, which the player shouldn't show.
     private func holdUntilDeviceStarts(at position: TimeInterval) {
         setHoldClock(position, running: false)
-        armHoldWatchdog(after: Self.holdTimeout)
+        noteSourceStopped()
     }
 
     /// Whether the speaker's `track` is `item`: by title, which survives the
-    /// trip through any service, or by the id the item went out with.
+    /// trip through any service, or by the id the item went out with — as a
+    /// whole part of the track's id, so a short Plex or Subsonic id can't
+    /// match the middle of the previous track's.
     private static func track(_ track: Track, isShowing item: PlayableContent) -> Bool {
         guard !track.isEmpty, !track.isSkipPreview else { return false }
         if !item.title.isEmpty, track.song.localizedCaseInsensitiveCompare(item.title) == .orderedSame {
             return true
         }
         let id = item.content.id
-        return !id.isEmpty && track.trackID.contains(id)
+        return !id.isEmpty && contains(track.trackID, wholePart: id)
+    }
+
+    /// Whether `part` occurs in `string` with no letter or digit either side.
+    private static func contains(_ string: String, wholePart part: String) -> Bool {
+        func isEdge(_ character: Character?) -> Bool {
+            guard let character else { return true }
+            return !(character.isLetter || character.isNumber)
+        }
+        var searchStart = string.startIndex
+        while searchStart < string.endIndex,
+              let found = string.range(of: part, range: searchStart..<string.endIndex) {
+            let before = found.lowerBound > string.startIndex ? string[string.index(before: found.lowerBound)] : nil
+            let after = found.upperBound < string.endIndex ? string[found.upperBound] : nil
+            if isEdge(before), isEdge(after) {
+                return true
+            }
+            searchStart = string.index(after: found.lowerBound)
+        }
+        return false
     }
 
     // MARK: - Snapshots
@@ -604,9 +672,7 @@ final class PlaybackRoute {
             } else if let source {
                 await sonos.pause(ip: source.ip)
             }
-            // Nothing is heard from the source any more; the hold now waits
-            // only on the target.
-            armHoldWatchdog(after: Self.holdTimeout)
+            noteSourceStopped()
             step("source stopped")
         }
 
@@ -844,7 +910,7 @@ final class PlaybackRoute {
             // Armed and going: the player comes over onto the song the
             // speaker stopped on, at its spot. Before the arm, the device was
             // still on the parked track, or at 0:00 while it loaded.
-            endHold()
+            handOffEndsHold()
             if let current = playback.nowPlaying {
                 AlertService.shared.showAlertContent(
                     with: current,
@@ -901,7 +967,7 @@ final class PlaybackRoute {
             playback.pause()
         }
         // As in the parked case: armed, so the player comes over.
-        endHold()
+        handOffEndsHold()
 
         AlertService.shared.showAlertContent(
             with: first,

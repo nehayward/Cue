@@ -127,11 +127,13 @@ Measured at the start of this work:
   `presented` stays on the source until the target is playing the same
   song with its cover in the player's cache entry (`PlaybackRoute.hold`,
   `releaseHold(whenShowing:on:)`), so the player carries on with the song
-  instead of showing the speaker's last track, then jumping. The transport
-  rests meanwhile, the bar follows what's heard (running through an
-  overlap, waiting while neither end plays), and the route label reads
-  "Moving to …". Speaker → phone goes over once the phone is armed. Ends
-  12 s after the source stops, 30 s at most.
+  instead of showing the speaker's last track, then jumping. Held,
+  `presented` is a `HeldPlaybackController` (the source's song, the hold's
+  clock, no commands), so the views need no special cases: the transport
+  rests, the bar follows what's heard (running through an overlap, waiting
+  while neither end plays), and the route label reads "Moving to …". The
+  queue panel and the player's menus rest too. Speaker → phone goes over
+  once the phone is armed. Ends 12 s after the source stops, 30 s at most.
   Left: `LargePlayerView.swift` / `ContainerLargePlayerView.swift` (the
   speaker-list player), `Queue/QueueScreen.swift`, the two queue panels
   (`LocalNextUpView` / `GroupNextUpView`), `VolumeMultiControlView`,
