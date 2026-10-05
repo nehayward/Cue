@@ -1,6 +1,7 @@
 import Defaults
 import SonosKit
 import SwiftUI
+import VibesDS
 
 /// Where playback goes, and how loud each place is: the sheet behind the Play
 /// On button while Sonos is on. It zooms out of the button, one height
@@ -54,6 +55,14 @@ struct PlayOnSheet: View {
     @State private var isFullHeight = false
     /// The sheet's height once the rows have been measured; see `refit`.
     @State private var sheetHeight: CGFloat?
+    /// False until the sheet has finished coming up. Its height can't move
+    /// before then: a detent that changes while the sheet is still zooming
+    /// up cuts the presentation short, and it popped into place instead.
+    /// That was the first open of a layout, before its height was
+    /// remembered, when the measured rows always disagreed with the guess.
+    @State private var isUp = false
+    /// The height the rows asked for while the sheet was still coming up.
+    @State private var heldHeight: CGFloat?
 
     private var activeRooms: [Room] {
         sonosService.sortedRooms.filter { $0.state == .active }
@@ -90,6 +99,16 @@ struct PlayOnSheet: View {
             RouteTransferPrompt(target: pending.target) { carrying in
                 self.pending = nil
                 route.switchTo(pending.target, carrying: carrying)
+            }
+        }
+        .onAppear(perform: pinOpeningHeight)
+        .task {
+            // About as long as the zoom up takes.
+            try? await Task.sleep(for: .milliseconds(500))
+            isUp = true
+            if let height = heldHeight {
+                heldHeight = nil
+                resize(to: height)
             }
         }
         .task { await refreshRoomVolumes() }
@@ -211,9 +230,31 @@ struct PlayOnSheet: View {
         let needed = headerHeight + rowsHeight + bar + bottomInset + 1
         listFits = needed <= Self.tallestSheet
         let target = min(max(needed, Self.shortestSheet), Self.tallestSheet)
+        guard isUp else {
+            // Fitted once it's up; remembered now, so the next open of this
+            // layout comes up at the right height and doesn't resize at all.
+            pinOpeningHeight()
+            heldHeight = target
+            FittedSheetHeights.remember(target, for: layout)
+            return
+        }
+        resize(to: target)
+    }
+
+    /// Holds the height the sheet is coming up at. `openingSheetHeight`
+    /// reads the remembered height for the current layout, and both can
+    /// change while the sheet zooms up (the groups still loading, `refit`
+    /// remembering a new height); left loose, the detent moved under it.
+    private func pinOpeningHeight() {
+        if sheetHeight == nil {
+            sheetHeight = openingSheetHeight
+        }
+    }
+
+    /// Grows or shrinks with the rows, as a group opens out into its rooms.
+    private func resize(to target: CGFloat) {
         let current = sheetHeight ?? openingSheetHeight
         guard abs(target - current) > 0.5 else { return }
-        // Grows with the rows as a group opens out into its rooms.
         withAnimation(.smooth(duration: 0.35)) {
             sheetHeight = target
         }
@@ -260,19 +301,24 @@ struct PlayOnSheet: View {
             return rooms.map(SpeakerItem.room)
         }
         var items: [SpeakerItem] = []
+        // Every id given out, so a moment where two groups claim a room (a
+        // regroup still landing) can't give `ForEach` the same id twice.
         var seen = Set<String>()
+        func add(_ item: SpeakerItem) {
+            if seen.insert(item.id).inserted {
+                items.append(item)
+            }
+        }
         for room in rooms {
             guard let group = sonosService.groups.first(where: { $0.rooms.contains { $0.id == room.id } }) else {
-                items.append(.room(room))
+                add(.room(room))
                 continue
             }
             let members = rooms.filter { member in group.rooms.contains { $0.id == member.id } }
             if members.count > 1 {
-                if seen.insert(group.coordinatorID).inserted {
-                    items.append(.group(group, rooms: members))
-                }
+                add(.group(group, rooms: members))
             } else {
-                items.append(.room(room))
+                add(.room(room))
             }
         }
         return items
@@ -286,7 +332,11 @@ struct PlayOnSheet: View {
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 24)
         } else {
-            let membership = expandedGroup.map { GroupMembership(group: $0) }
+            let openGroup = expandedGroup
+            // None while a regroup that dropped the coordinator is still
+            // landing (`GroupMembership.isSettled`): rooms toggled then
+            // would be grouped onto the room that just left.
+            let rules = openGroup.map { GroupMembership(group: $0) }.flatMap { $0.isSettled ? $0 : nil }
             ForEach(speakerItems) { item in
                 switch item {
                 case let .group(group, rooms):
@@ -302,7 +352,8 @@ struct PlayOnSheet: View {
                 case let .room(room):
                     RoomRow(
                         room: room,
-                        membership: membership,
+                        openGroup: openGroup,
+                        membership: rules,
                         volumes: volumes,
                         listIsSettled: listIsSettled,
                         onSelect: select
@@ -527,7 +578,9 @@ private enum SpeakerItem: Identifiable {
     var id: String {
         switch self {
         case let .group(group, _):
-            group.coordinatorID
+            // The room at its head: the same as its id, except while a
+            // regroup that promoted a new coordinator is still landing.
+            group.coordinatorRoom.id
         case let .room(room):
             room.id
         }
@@ -587,6 +640,8 @@ private enum GroupNote {
 private struct RoomRow: View {
     let room: Room
     /// The group playback is on, or `nil` on this device.
+    let openGroup: GroupRoom?
+    /// Its rules, or `nil` until it has settled under its own coordinator.
     let membership: GroupMembership?
     let volumes: SpeakerVolumeWriter
     let listIsSettled: Bool
@@ -628,8 +683,8 @@ private struct RoomRow: View {
     }
 
     private var mark: VolumeRouteRow.Mark {
-        guard let membership else { return .empty }
-        return membership.isMember(room) ? .checkedCircle : .circle
+        guard let openGroup else { return .empty }
+        return openGroup.rooms.contains { $0.id == room.id } ? .checkedCircle : .circle
     }
 
     /// The group the room is in now, which may not be the one playback is on.
@@ -641,7 +696,7 @@ private struct RoomRow: View {
     /// is: what its own group is playing, or who it's grouped with. Those are
     /// what a tap on it would take over.
     private var note: Text? {
-        guard let group = ownGroup, group.coordinatorID != membership?.group.coordinatorID else { return nil }
+        guard let group = ownGroup, group !== openGroup else { return nil }
         if let note = GroupNote.text(for: group) {
             return note
         }
@@ -650,10 +705,11 @@ private struct RoomRow: View {
         return Text("With \(others.formatted(.list(type: .and)))")
     }
 
+    /// While the group playback is on is still settling, a tap waits.
     private func tap() {
         if let membership {
             membership.toggle(room)
-        } else if let group = ownGroup {
+        } else if openGroup == nil, let group = ownGroup {
             onSelect(.group(group.coordinatorID))
         }
     }
@@ -846,13 +902,12 @@ struct VolumeRouteRow: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .scaleEffect(isAdjusting ? 1.02 : 1)
         .animation(.snappy(duration: 0.2), value: isAdjusting)
-        .gesture(
-            SidewaysPan(
-                isEnabled: level != nil,
-                onBegan: beginAdjusting,
-                onChanged: adjust,
-                onEnded: endAdjusting
-            )
+        // `SidewaysPan`, from VibesDS.
+        .sidewaysPan(
+            isEnabled: level != nil,
+            onBegan: beginAdjusting,
+            onChanged: adjust,
+            onEnded: endAdjusting
         )
         // One element: the name (and the line under it) as the label, the
         // button's trait and tap from the button itself.
@@ -1208,71 +1263,6 @@ private struct SlashLine: Shape {
         CGAffineTransform(translationX: rect.midX, y: rect.midY)
             .rotated(by: -.pi / 4)
             .translatedBy(x: -rect.midX, y: -rect.midY)
-    }
-}
-
-/// A pan that only ever starts sideways.
-///
-/// One that sets off up or down fails at once, so the list's scroll and the
-/// sheet's pull to dismiss get every vertical drag as if the row weren't
-/// there. Their pans wait for it to fail, the few points it takes to tell,
-/// so a sideways drag is never a scroll or a dismiss as well. UIKit rather
-/// than a SwiftUI drag: only a recognizer can decline to begin, where a
-/// SwiftUI gesture takes the touch first and decides after.
-struct SidewaysPan: UIGestureRecognizerRepresentable {
-    var isEnabled = true
-    let onBegan: () -> Void
-    /// Points moved sideways since it began.
-    let onChanged: (CGFloat) -> Void
-    let onEnded: () -> Void
-
-    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
-        Coordinator()
-    }
-
-    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
-        let pan = UIPanGestureRecognizer()
-        pan.maximumNumberOfTouches = 1
-        pan.delegate = context.coordinator
-        return pan
-    }
-
-    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) {
-        recognizer.isEnabled = isEnabled
-    }
-
-    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
-        switch recognizer.state {
-        case .began:
-            // Measured from here, not from where the finger landed: the few
-            // points it took to tell the direction shouldn't jump the level.
-            recognizer.setTranslation(.zero, in: recognizer.view)
-            onBegan()
-        case .changed:
-            onChanged(recognizer.translation(in: recognizer.view).x)
-        case .ended, .cancelled, .failed:
-            onEnded()
-        default:
-            break
-        }
-    }
-
-    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
-        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
-            guard let pan = recognizer as? UIPanGestureRecognizer else { return true }
-            let moved = pan.translation(in: pan.view)
-            let motion = moved == .zero ? pan.velocity(in: pan.view) : moved
-            return abs(motion.x) > abs(motion.y)
-        }
-
-        /// The list's pan and the sheet's: any other pan the touch could
-        /// start.
-        func gestureRecognizer(
-            _ recognizer: UIGestureRecognizer,
-            shouldBeRequiredToFailBy other: UIGestureRecognizer
-        ) -> Bool {
-            other is UIPanGestureRecognizer && other !== recognizer
-        }
     }
 }
 

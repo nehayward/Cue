@@ -62,6 +62,8 @@ in Cue on an iPhone against seven rooms.
 
 ## To fix in Cue: the sheet pops in instead of sliding up
 
+**Done in Cue** on `claude/port-play-on-clic-fht48n`, with `SidewaysPan` moved into VibesDS, `VibeSlider`'s sideways pan (list sliders) and long press to mute, and the regroup wait (`GroupMembership.isSettled`). Not yet built.
+
 Seen in Clic, and Cue's `PlayOnSheet.refit()` is the same code. The first
 open of a layout (no height remembered for that room count, bar and so on)
 comes up at `estimatedSheetHeight`. The rows are measured once they're on
