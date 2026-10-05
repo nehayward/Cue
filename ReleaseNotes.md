@@ -35,6 +35,7 @@
 - Fixed Browse sections staying empty after switching between music services quickly
 - Volume sliders in the speaker lists follow your finger as soon as you drag sideways, while swipes up and down always scroll
 - Fixed a muted room or group flickering back to unmuted for a moment after you muted it
+- Fixed the song title turning bold when its room is selected in the speaker list on iPad and Mac
 
 # 2026.7
 

@@ -532,6 +532,15 @@ private struct BarCircleButton<Icon: View>: View {
     @ViewBuilder let icon: () -> Icon
 
     @Environment(\.isEnabled) private var isEnabled
+    /// The pointer is over it, on the Mac (see `VolumeRouteRow.isHovered`).
+    @State private var isHovered = false
+
+    private var circleStyle: AnyShapeStyle {
+        if isOn {
+            return AnyShapeStyle(.tint)
+        }
+        return isHovered && isEnabled ? AnyShapeStyle(.fill.secondary) : AnyShapeStyle(.fill.tertiary)
+    }
 
     var body: some View {
         Button(action: action) {
@@ -541,7 +550,8 @@ private struct BarCircleButton<Icon: View>: View {
                     .foregroundStyle(isOn ? Color.white : Color.primary)
                     .background {
                         Circle()
-                            .fill(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.fill.tertiary))
+                            .fill(circleStyle)
+                            .brightness(isOn && isHovered ? 0.08 : 0)
                     }
                     .opacity(isEnabled ? 1 : 0.4)
                     .alignmentGuide(.barCircleCenter) { $0[VerticalAlignment.center] }
@@ -554,6 +564,13 @@ private struct BarCircleButton<Icon: View>: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
+#if targetEnvironment(macCatalyst)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+#endif
     }
 }
 
@@ -866,6 +883,10 @@ struct VolumeRouteRow: View {
     /// The level when the volume drag began; `nil` when there isn't one.
     @State private var startLevel: Double?
     @State private var width: CGFloat = 0
+    /// The pointer is over the row. Drawn by hand on the Mac, where
+    /// `hoverEffect` does nothing; the iPad's pointer lights the row through
+    /// `RouteRowButtonStyle`'s `.highlight`.
+    @State private var isHovered = false
 
     private static let accessibilityStep = 0.05
 
@@ -900,6 +921,13 @@ struct VolumeRouteRow: View {
             }
         }
         .contentShape(.contextMenuPreview, .capsule)
+#if targetEnvironment(macCatalyst)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+#endif
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .scaleEffect(isAdjusting ? 1.02 : 1)
         .animation(.snappy(duration: 0.2), value: isAdjusting)
@@ -994,7 +1022,7 @@ struct VolumeRouteRow: View {
 
     private var track: some View {
         Capsule()
-            .fill(Color.primary.opacity(isSelected ? 0.14 : 0.06))
+            .fill(Color.primary.opacity(trackOpacity))
             .overlay(alignment: .leading) {
                 if let level {
                     Rectangle()
@@ -1006,6 +1034,11 @@ struct VolumeRouteRow: View {
                 }
             }
             .clipShape(.capsule)
+    }
+
+    /// A step lighter under the Mac's pointer.
+    private var trackOpacity: Double {
+        (isSelected ? 0.14 : 0.06) + (isHovered ? 0.06 : 0)
     }
 
     private var fillOpacity: Double {

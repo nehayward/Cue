@@ -129,6 +129,7 @@ The app is built around several Swift packages in `/Packages`:
 - **CloudStorage** for synced user preferences
 - **AppStorage** for local device settings
 - **Playback progress** is a running clock, not a ticking number: `Room.estimatedPlaybackPosition()` for a speaker, `LocalPlaybackService.progress` for this device. Draw it through VibesDS's `PlaybackTimeline` (redraws once per pixel, only while visible and playing), report positions through `Room.updatePlaybackPosition(_:)` / `noteProgress(_:)` rather than writing them, and move a speaker's position only through `SonosService.seek` / `next` / `previous`, which hold the bar until the speaker lands. Skips are instant and coalesced (`SonosService+TrackSkip.swift`). See `Docs/PlaybackProgress.md`
+- **Hover on the Mac**: `hoverEffect` does nothing under Catalyst (it's the iPad pointer's), so anything that should light under the pointer does it by hand with `onHover` behind `#if targetEnvironment(macCatalyst)` (Play On's rows and bar buttons)
 - **Mac GPU cost**: on the Mac an animated SF Symbol swap or pulse, a `MeshGradient` whose colours change, or an animated swap of the whole player costs ~90 MB of GPU memory for ~2 s each time, so those are off there (`GroupMediaControlsView.animatesPlayPause`, `PlaybackIconView`, `VibeGaugeView`) and the player backdrop is a small CPU-drawn bitmap (`ArtworkMeshBackground`)
 
 ### Music Service Integration
