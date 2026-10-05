@@ -30,6 +30,9 @@ struct PlayableContentRowView: View {
     var hideArtwork: Bool = false
     var hideDetails: Bool = false
     var hideContentType: Bool = false
+    /// Name only, on up to two lines, for rows whose subtitle would be the
+    /// same on every one — "Radio" under each station on the Radio tab.
+    var hideSubtitle: Bool = false
     var index: Int? = nil
     var dismissOnComplete: Bool = false
     var total: Int = 1
@@ -119,7 +122,7 @@ struct PlayableContentRowView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(item.title)
-                            .lineLimit(1)
+                            .lineLimit(hideSubtitle ? 2 : 1)
                         Spacer(minLength: 0)
                         DownloadStateBadge(item: item)
                         if item.metadata?.isExplicit == true {
@@ -127,11 +130,16 @@ struct PlayableContentRowView: View {
                         }
                     }
                     
-                    Text(subtitleText)
-                        .lineLimit(1)
-                        .opacity(0.80)
-                        .font(.caption)
+                    if !hideSubtitle {
+                        Text(subtitleText)
+                            .lineLimit(1)
+                            .opacity(0.80)
+                            .font(.caption)
+                    }
                 }
+                // A second line of name can reach the row's edge; keep it
+                // off the tinted background's.
+                .padding(.trailing, hideSubtitle ? 8 : 0)
             }
             .fontDesign(.rounded)
             .contentShape(.rect)
