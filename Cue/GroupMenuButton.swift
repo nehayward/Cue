@@ -5,7 +5,7 @@ import VibesDS
 /// What regrouping `group` does: a room toggled in or out of it, every room
 /// brought into it, or every other room let go.
 ///
-/// Shared by `GroupMenuItems` and the Play On sheet, so the two can't drift.
+/// Shared by `GroupMenuItems` and the Play On screen, so the two can't drift.
 /// The rules mirror `GroupScreen`'s exactly: membership changes go through
 /// `smartGroup` with the same diff, the last room can't leave its own group,
 /// and when the change promotes a new coordinator the player follows it —
@@ -67,6 +67,36 @@ struct GroupMembership {
     func ungroupAll() {
         HapticManager.shared.fireHaptic(.buttonPress)
         regroup(to: [group.coordinatorRoom])
+    }
+
+    /// Lets every other room go, so playback carries on in `room` alone.
+    ///
+    /// In two steps when `room` isn't the coordinator: the others first,
+    /// keeping the coordinator so playback stays put, then the coordinator,
+    /// which hands playback to the one room left. `smartGroup` promotes the
+    /// first room still there when the coordinator goes, so taking them all
+    /// at once could promote a room the same call then drops.
+    func playOnly(_ room: Room) {
+        guard isMember(room), group.rooms.count > 1 else { return }
+        HapticManager.shared.fireHaptic(.buttonPress)
+        let original = group.rooms
+        let coordinator = group.coordinatorRoom
+        let coordinatorID = group.coordinatorID
+        Task {
+            if room.id == coordinatorID {
+                _ = await sonosService.smartGroup(rooms: [room], oldRooms: original, to: group)
+                return
+            }
+            if original.count > 2 {
+                _ = await sonosService.smartGroup(rooms: [coordinator, room], oldRooms: original, to: group)
+            }
+            guard let newCoordinatorID = await sonosService.smartGroup(
+                rooms: [room],
+                oldRooms: [coordinator, room],
+                to: group
+            ) else { return }
+            Self.follow(from: coordinatorID, to: newCoordinatorID)
+        }
     }
 
     /// Same flow as `GroupScreen.addGroup`: `smartGroup` diffs `members`

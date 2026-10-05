@@ -17,7 +17,7 @@ import SwiftUI
 /// small prompt asks, since sometimes the point of switching is to leave the
 /// speaker's own queue alone.
 ///
-/// The button opens `PlayOnSheet`, laid out like the system's AirPlay
+/// The button opens `PlayOnScreen`, laid out like the system's AirPlay
 /// picker: This Device and every room, each row its own volume slider. On a
 /// speaker it is the group button too — a tap on a room adds it to the group
 /// or drops it, the same rules the press-and-hold group menu uses. Leaving the
@@ -49,7 +49,7 @@ struct PlaybackRouteButton: View {
     }
 }
 
-/// The Play On button while Sonos is on: opens `PlayOnSheet`.
+/// The Play On button while Sonos is on: opens `PlayOnScreen`.
 private struct SonosRouteButton: View {
     private var route: PlaybackRoute { .shared }
 
@@ -66,12 +66,13 @@ private struct SonosRouteButton: View {
                 .accessibilityLabel("Play On")
                 .accessibilityValue(route.group?.nameWithCount ?? "This Device")
         }
-        // The sheet grows out of the button and shrinks back into it,
+        // The screen grows out of the button and shrinks back into it,
         // rather than sliding up from the bottom edge, far from where the
-        // tap was.
+        // tap was. Full screen rather than a sheet: the rooms and their
+        // volumes get the room, and the zoom brings a pull down to close.
         .zoomSource(.playOn, in: transition)
-        .sheet(isPresented: $isPresented) {
-            PlayOnSheet()
+        .fullScreenCover(isPresented: $isPresented) {
+            PlayOnScreen()
                 .zoomTransition(from: .playOn, in: transition)
         }
     }
