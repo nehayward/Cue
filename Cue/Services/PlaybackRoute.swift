@@ -161,8 +161,6 @@ final class PlaybackRoute {
         let stored = Self.storedChoice
         if stored != chosen {
             chosen = stored
-            // The play call sites short-circuit to this; see `remember`.
-            SelectedGroupService.shared.group = group
         }
     }
 

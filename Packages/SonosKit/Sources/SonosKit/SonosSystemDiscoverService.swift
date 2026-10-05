@@ -83,8 +83,9 @@ final class SonosSystemDiscoverService {
     /// (or nothing). Speakers are only ever on the local network, so they
     /// can't be reached then. Set on the main actor; see `pathChanged`.
     var isCellular: Bool = false
-    /// Called on the main actor when `isCellular` changes.
-    @ObservationIgnored var onCellularChange: (@MainActor (Bool) -> Void)?
+    /// Called on the main actor when `isCellular` changes. Set at init,
+    /// before the first path can arrive.
+    @ObservationIgnored private let onCellularChange: (@MainActor (Bool) -> Void)?
     /// Whether a path has been read yet. The first one counts at once.
     @ObservationIgnored private var hasReadPath = false
     /// Waits out `cellularGrace` before a loss of Wi‑Fi counts.
@@ -201,7 +202,8 @@ final class SonosSystemDiscoverService {
     var lastKnownIP: String = ""
     var lastKnownState: String = ""
 
-    init() {
+    init(onCellularChange: (@MainActor (Bool) -> Void)? = nil) {
+        self.onCellularChange = onCellularChange
         cellularMonitor.pathUpdateHandler = { [weak self] path in
             // Determine whether a local-network interface (Wi-Fi or wired
             // Ethernet) is available, rather than asking whether the cellular

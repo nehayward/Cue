@@ -1027,7 +1027,9 @@ struct PreferenceScreen: View {
         Binding(
             get: { sonosService.isEnabled },
             set: { enabled in
-                if !enabled, PlaybackRoute.shared.destination != .device {
+                // The choice, not the route, which already reads as this
+                // device on cellular while a speaker is still chosen.
+                if !enabled, PlaybackRoute.shared.chosen != .device {
                     PlaybackRoute.shared.switchTo(.device, carrying: false)
                 }
                 withAnimation {
