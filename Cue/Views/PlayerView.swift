@@ -1167,19 +1167,18 @@ private struct PlayerBottomToolbarView: View {
                 // The speaker it plays on, on its own line under the route
                 // picker. Laid out here rather than in the picker's label:
                 // iOS flattens a Menu's label, and an overlay on the Menu
-                // gets clipped by the button behind it.
-                HStack(spacing: 0) {
-                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
-                    Text(routeName ?? " ")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: .infinity)
-                        .opacity(routeName == nil ? 0 : 1)
-                        .accessibilityHidden(true)
-                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
-                }
+                // gets clipped by the button behind it. The whole row's width,
+                // centred under the button: nothing else is on this line, and
+                // a third of it cut most group names short.
+                Text(routeName ?? " ")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity)
+                    .opacity(routeName == nil ? 0 : 1)
+                    .accessibilityHidden(true)
             }
             .padding(.top, 14)
             .padding(.bottom, UIDevice.current.userInterfaceIdiom == .phone ? 0 : 14)

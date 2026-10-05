@@ -1186,7 +1186,7 @@ public final class SonosService {
                     group.addTask { @MainActor [weak self] in
                         if room.state != .active { return }
                         guard let self else { return }
-                        if let isMuted = await api.getRoomMute(IP: room.ip), room.isMuted != isMuted {
+                        if let isMuted = await api.getRoomMute(IP: room.ip), !room.isMuteHeld, room.isMuted != isMuted {
                             room.isMuted = isMuted
                         }
                     }
@@ -1294,7 +1294,7 @@ public final class SonosService {
                 group.addTask { @MainActor [weak self] in
                     guard let self else { return }
                     if roomGroup.coordinatorRoom.state == .active, let isMuted = await self.isMuted(for: roomGroup) {
-                        if roomGroup.isMuted != isMuted {
+                        if !roomGroup.isMuteHeld, roomGroup.isMuted != isMuted {
                             roomGroup.isMuted = isMuted
                         }
                     }
@@ -1783,7 +1783,7 @@ public final class SonosService {
 
     @MainActor
     public func setRoomMute(room: Room, mute: Bool) async {
-        room.isMuted = mute
+        room.holdMute(mute)
         await api.setRoomMute(IP: room.ip, mute: mute)
     }
     

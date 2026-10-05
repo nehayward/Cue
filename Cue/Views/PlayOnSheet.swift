@@ -39,15 +39,20 @@ struct PlayOnSheet: View {
     /// True when every row fits above the buttons, so there's nothing to
     /// scroll and every drag up or down is the sheet's.
     @State private var listFits = false
-    /// The rows' own height, and the room the sheet gives them between the
-    /// header and the buttons. Measured apart, with `onGeometryChange`,
-    /// which reports the first value as well as every change: the scroll
-    /// geometry's change callback skipped the first, so a sheet that opened
-    /// at the wrong height and then held still was never refitted.
+    /// The parts the sheet's height adds up from: the header, the rows, the
+    /// buttons' bar and the safe area under it. Each is measured on its own,
+    /// with `onGeometryChange`, which reports the first value as well as
+    /// every change. None depends on the sheet's height, so a measure taken
+    /// mid-presentation, while the sheet is still zooming out of the button
+    /// at some other size, can't throw the fit (it used to open full height).
+    @State private var headerHeight: CGFloat = 0
     @State private var rowsHeight: CGFloat = 0
-    @State private var roomForRows: CGFloat = 0
+    @State private var barHeight: CGFloat = 0
+    @State private var bottomInset: CGFloat = 0
     @State private var volumes = SpeakerVolumeWriter()
-    /// The sheet's height once the rows have been measured; see `fit`.
+    /// Pulled up to the large detent rather than at its fitted height.
+    @State private var isFullHeight = false
+    /// The sheet's height once the rows have been measured; see `refit`.
     @State private var sheetHeight: CGFloat?
 
     private var activeRooms: [Room] {
@@ -61,14 +66,25 @@ struct PlayOnSheet: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 28)
                 .padding(.bottom, 8)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                    headerHeight = $0
+                    refit()
+                }
 
             roomList
+            groupBar
         }
-        // One height, fitted to the rooms, as the system's picker does. With
-        // a taller one to grow to, a swipe up grew the sheet before it
-        // scrolled the list, and the list stopped short at the buttons with
-        // nothing to say it went on.
-        .presentationDetents([.height(sheetHeight ?? openingSheetHeight)])
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: {
+            bottomInset = $0
+            refit()
+        }
+        // Opens fitted to the rooms, as the system's picker does, and a swipe
+        // up still takes it to full height. The binding keeps it fitted as
+        // the fit changes, unless it's been pulled up.
+        .presentationDetents([fittedDetent, .large], selection: Binding(
+            get: { isFullHeight ? .large : fittedDetent },
+            set: { isFullHeight = $0 == .large }
+        ))
         .presentationDragIndicator(.visible)
         .sheet(item: $pending) { pending in
             RouteTransferPrompt(target: pending.target) { carrying in
@@ -92,6 +108,7 @@ struct PlayOnSheet: View {
                 deviceRow
                 speakerRows
             }
+            .animation(.smooth(duration: 0.35), value: expandedGroup?.coordinatorID)
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 16)
@@ -99,13 +116,6 @@ struct PlayOnSheet: View {
                 rowsHeight = $0
                 refit()
             }
-        }
-        // Inside the buttons' bar, so the safe area it reports takes them out.
-        .onGeometryChange(for: CGFloat.self) { proxy in
-            proxy.size.height - proxy.safeAreaInsets.top - proxy.safeAreaInsets.bottom
-        } action: {
-            roomForRows = $0
-            refit()
         }
         // Off outright when the rows fit, so every vertical drag is the
         // sheet's. A volume drag needs nothing here: the list's pan waits
@@ -127,33 +137,54 @@ struct PlayOnSheet: View {
                 listIsSettled = false
             }
         }
-        // A bar rather than a stack under the list, so the rows scroll under
-        // it and the system softens the edge they pass under: the sign
+        // While it scrolls, the rows fade out above the bar: the sign
         // there's more.
-        .playOnBar(edge: .bottom) {
-            if let group = route.group, showsGroupingBar {
-                groupingButtons(GroupMembership(group: group))
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
+        .mask {
+            VStack(spacing: 0) {
+                Color.black
+                LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
+                    .frame(height: listFits ? 0 : 24)
             }
+        }
+    }
+
+    /// Under the list rather than over it: rows passing beneath showed
+    /// through its circles and the badges' cut-outs.
+    @ViewBuilder
+    private var groupBar: some View {
+        if let group = expandedGroup {
+            GroupBar(group: group, volumes: volumes, listIsSettled: listIsSettled)
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
+                .padding(.bottom, 16)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                    barHeight = $0
+                    refit()
+                }
+                .transition(.opacity)
         }
     }
 
     // MARK: - Height
 
-    /// Everywhere and Ungroup All: on a speaker, with another room to group.
+    /// The group's volume, Sync and Everywhere: once playback is on a speaker.
     private var showsGroupingBar: Bool {
-        route.group != nil && activeRooms.count > 1
+        expandedGroup != nil
     }
 
-    /// This device, All Speakers on a speaker, and every room.
+    /// This device and the rows under it: All Speakers and every room on a
+    /// speaker, a row per group elsewhere.
     private var rowCount: Int {
-        activeRooms.count + 1 + (route.group != nil ? 1 : 0)
+        1 + (activeRooms.isEmpty ? 1 : speakerItems.count)
     }
 
     /// What decides the height, as `FittedSheetHeights` files it.
     private var layout: String {
         "rows \(rowCount), buttons \(showsGroupingBar ? 1 : 0)"
+    }
+
+    private var fittedDetent: PresentationDetent {
+        .height(sheetHeight ?? openingSheetHeight)
     }
 
     /// The height to open at: what this layout fitted to last time, so the
@@ -166,31 +197,26 @@ struct PlayOnSheet: View {
     /// The header, the rows and the buttons on a speaker, at the default
     /// text size.
     private var estimatedSheetHeight: CGFloat {
-        let buttons: CGFloat = showsGroupingBar ? 68 : 0
+        let buttons: CGFloat = showsGroupingBar ? 96 : 0
         return min(106 + CGFloat(rowCount) * 68 + buttons, Self.tallestSheet)
     }
 
-    /// Fits the sheet to how much longer the rows are than their room
-    /// (negative when there's room to spare), once both are measured.
+    /// Fits the sheet to its parts, once the rows are measured: up to about
+    /// where the system's large sheet stops, and past that the list scrolls.
     private func refit() {
-        guard rowsHeight > 0, roomForRows > 0 else { return }
-        let overflow = rowsHeight - roomForRows
-        // Half a point for rounding.
-        listFits = overflow <= 0.5
-        fit(overflow: overflow)
-    }
-
-    /// Grows or shrinks the sheet by what the rows need, up to about where
-    /// the system's large sheet stops; past that, the list scrolls. Measured
-    /// against the sheet as it is, so whatever the header, buttons and safe
-    /// area take comes out of the sum without being known.
-    private func fit(overflow: CGFloat) {
-        let current = sheetHeight ?? openingSheetHeight
+        guard rowsHeight > 0, headerHeight > 0 else { return }
+        let bar = showsGroupingBar ? barHeight : 0
         // A point to spare, so rounding never leaves the list a hair too
         // long to sit still.
-        let target = min(max(current + overflow + 1, Self.shortestSheet), Self.tallestSheet)
+        let needed = headerHeight + rowsHeight + bar + bottomInset + 1
+        listFits = needed <= Self.tallestSheet
+        let target = min(max(needed, Self.shortestSheet), Self.tallestSheet)
+        let current = sheetHeight ?? openingSheetHeight
         guard abs(target - current) > 0.5 else { return }
-        sheetHeight = target
+        // Grows with the rows as a group opens out into its rooms.
+        withAnimation(.smooth(duration: 0.35)) {
+            sheetHeight = target
+        }
         FittedSheetHeights.remember(target, for: layout)
     }
 
@@ -217,66 +243,74 @@ struct PlayOnSheet: View {
         )
     }
 
+    /// The group playback is on once it's settled there. Until then, and on
+    /// this device, each group is one row: a tap takes the whole group, so
+    /// the row says so, and it opens out into its rooms once the hand-off
+    /// lands rather than the moment it's tapped.
+    private var expandedGroup: GroupRoom? {
+        route.isSwitching ? nil : route.group
+    }
+
+    /// The rows under This Device, in order. A collapsed group shares its
+    /// coordinator's id, so it turns into that room's row and the other
+    /// rooms spill out around it.
+    private var speakerItems: [SpeakerItem] {
+        let rooms = activeRooms
+        if let group = expandedGroup {
+            return rooms.map(SpeakerItem.room)
+        }
+        var items: [SpeakerItem] = []
+        var seen = Set<String>()
+        for room in rooms {
+            guard let group = sonosService.groups.first(where: { $0.rooms.contains { $0.id == room.id } }) else {
+                items.append(.room(room))
+                continue
+            }
+            let members = rooms.filter { member in group.rooms.contains { $0.id == member.id } }
+            if members.count > 1 {
+                if seen.insert(group.coordinatorID).inserted {
+                    items.append(.group(group, rooms: members))
+                }
+            } else {
+                items.append(.room(room))
+            }
+        }
+        return items
+    }
+
     @ViewBuilder
     private var speakerRows: some View {
-        let rooms = activeRooms
-        if rooms.isEmpty {
+        if activeRooms.isEmpty {
             Text(sonosService.isSearching ? "Looking for speakers…" : "No speakers found")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 24)
         } else {
-            // Whenever playback is on a speaker. With one room it repeats
-            // that room's level, but the row stays put as rooms join, and
-            // only its badge counts them.
-            if let group = route.group {
-                AllSpeakersRow(
-                    group: group,
-                    volumes: volumes,
-                    listIsSettled: listIsSettled
-                )
-            }
-            let membership = route.group.map { GroupMembership(group: $0) }
-            ForEach(rooms) { room in
-                RoomRow(
-                    room: room,
-                    membership: membership,
-                    volumes: volumes,
-                    listIsSettled: listIsSettled,
-                    onSelect: select
-                )
-            }
-        }
-    }
-
-    private func groupingButtons(_ membership: GroupMembership) -> some View {
-        HStack(spacing: 12) {
-            Button {
-                membership.groupEverywhere()
-            } label: {
-                Label {
-                    Text("Everywhere")
-                } icon: {
-                    // Every room, counted the way All Speakers counts its own.
-                    SpeakerCountIcon(count: membership.activeRooms.count, height: 18)
+            let membership = expandedGroup.map { GroupMembership(group: $0) }
+            ForEach(speakerItems) { item in
+                switch item {
+                case let .group(group, rooms):
+                    GroupRow(
+                        group: group,
+                        rooms: rooms,
+                        isCurrent: route.destination.groupID == group.coordinatorID,
+                        volumes: volumes,
+                        listIsSettled: listIsSettled,
+                        onSelect: select
+                    )
+                    .transition(.opacity)
+                case let .room(room):
+                    RoomRow(
+                        room: room,
+                        membership: membership,
+                        volumes: volumes,
+                        listIsSettled: listIsSettled,
+                        onSelect: select
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
                 }
-                .frame(maxWidth: .infinity)
             }
-            .glassButton()
-            .disabled(membership.allGrouped)
-
-            Button {
-                membership.ungroupAll()
-            } label: {
-                Label("Ungroup All", systemImage: "hifispeaker.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .glassButton()
-            .disabled(!membership.canUngroup)
         }
-        .font(.subheadline.weight(.semibold))
-        .buttonBorderShape(.capsule)
-        .controlSize(.large)
     }
 
     // MARK: - Actions
@@ -349,33 +383,42 @@ private struct DeviceRow: View {
     }
 }
 
-/// Every room in the group at once: Mute All / Unmute All, then the group's
-/// volume as a row like the rooms', which moves them all and keeps the
-/// balance between them, then Sync, which levels them.
-private struct AllSpeakersRow: View {
+/// The bar under the rooms once playback is on a speaker: Everywhere (a
+/// toggle that groups every room, or ungroups them once they all are), the
+/// group's volume, and Sync. A press on the volume mutes them all.
+private struct GroupBar: View {
     let group: GroupRoom
     let volumes: SpeakerVolumeWriter
     let listIsSettled: Bool
 
     var body: some View {
+        let membership = GroupMembership(group: group)
+        let isEverywhere = membership.allGrouped
         let isMuted = group.isMuted || group.rooms.allSatisfy(\.isMuted)
         let isFixed = group.coordinatorRoom.isOutputFixed
         let level = Int(group.groupVolume.rounded())
         let isLevel = group.rooms.allSatisfy { Int($0.volume.rounded()) == level }
-        HStack(spacing: 10) {
-            Button {
-                setAllMuted(!isMuted)
-            } label: {
-                // No symbol transition: on the Mac each animated swap costs
-                // GPU memory (see CLAUDE.md).
-                Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                    .font(.body.weight(.semibold))
-                    .frame(width: 28, height: 28)
+        HStack(alignment: .barCircleCenter, spacing: 12) {
+            if membership.activeRooms.count > 1 {
+                BarCircleButton(title: isEverywhere ? "Ungroup All" : "Everywhere", isOn: isEverywhere) {
+                    if isEverywhere {
+                        membership.ungroupAll()
+                    } else {
+                        membership.groupEverywhere()
+                    }
+                } icon: {
+                    // Every room, counted the way the volume counts its own.
+                    SpeakerCountIcon(
+                        count: membership.activeRooms.count,
+                        height: 22,
+                        badge: isEverywhere ? .white : .accentColor
+                    )
+                }
+                .disabled(isEverywhere && !membership.canUngroup)
+                .accessibilityLabel("Everywhere")
+                .accessibilityValue(isEverywhere ? "On" : "Off")
+                .accessibilityAddTraits(.isToggle)
             }
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
-            .glassButton()
-            .accessibilityLabel(isMuted ? "Unmute All" : "Mute All")
 
             VolumeRouteRow(
                 title: String(localized: "All Speakers"),
@@ -388,18 +431,28 @@ private struct AllSpeakersRow: View {
                 listIsSettled: listIsSettled,
                 onLevel: { volumes.set(group, to: $0 * 100) }
             )
+            .alignmentGuide(.barCircleCenter) { $0[VerticalAlignment.center] }
+            .contextMenu {
+                Button {
+                    setAllMuted(!isMuted)
+                } label: {
+                    Label(
+                        isMuted ? "Unmute All" : "Mute All",
+                        systemImage: isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill"
+                    )
+                }
+            }
+            .accessibilityAction(named: isMuted ? "Unmute All" : "Mute All") {
+                setAllMuted(!isMuted)
+            }
 
-            Button {
+            BarCircleButton(title: "Sync", isOn: false) {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 volumes.sync(group)
-            } label: {
+            } icon: {
                 Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.body.weight(.semibold))
-                    .frame(width: 28, height: 28)
+                    .font(.title3.weight(.semibold))
             }
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
-            .glassButton()
             // Nothing to level when every room is already there.
             .disabled(isFixed || isLevel)
             .accessibilityLabel("Sync Volumes")
@@ -411,11 +464,121 @@ private struct AllSpeakersRow: View {
     /// on the rooms too; the poll confirms it.
     private func setAllMuted(_ mute: Bool) {
         HapticManager.shared.fireHaptic(.selection)
-        group.isMuted = mute
+        group.holdMute(mute)
         for room in group.rooms where room.isMuted != mute {
-            room.isMuted = mute
+            room.holdMute(mute)
         }
         Task { await SonosService.shared.setGroupMute(group: group, mute: mute) }
+    }
+}
+
+/// A round button with its name underneath, filled with the tint while on.
+private struct BarCircleButton<Icon: View>: View {
+    let title: LocalizedStringKey
+    let isOn: Bool
+    let action: () -> Void
+    @ViewBuilder let icon: () -> Icon
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                icon()
+                    .frame(width: 56, height: 56)
+                    .foregroundStyle(isOn ? Color.white : Color.primary)
+                    .background {
+                        Circle()
+                            .fill(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.fill.tertiary))
+                    }
+                    .opacity(isEnabled ? 1 : 0.4)
+                    .alignmentGuide(.barCircleCenter) { $0[VerticalAlignment.center] }
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private extension VerticalAlignment {
+    /// Lines the bar's circles up with the middle of the volume, their
+    /// names hanging below.
+    enum BarCircleCenter: AlignmentID {
+        static func defaultValue(in context: ViewDimensions) -> CGFloat {
+            context[VerticalAlignment.center]
+        }
+    }
+
+    static let barCircleCenter = VerticalAlignment(BarCircleCenter.self)
+}
+
+/// What a row under This Device stands for.
+private enum SpeakerItem: Identifiable {
+    /// Two or more rooms grouped together, shown as one until playback
+    /// settles on them.
+    case group(GroupRoom, rooms: [Room])
+    case room(Room)
+
+    var id: String {
+        switch self {
+        case let .group(group, _):
+            group.coordinatorID
+        case let .room(room):
+            room.id
+        }
+    }
+}
+
+/// A group of rooms as one destination: a tap takes the whole group, a
+/// drag sets its volume, and the line under it says what it's playing.
+private struct GroupRow: View {
+    let group: GroupRoom
+    /// Its active rooms.
+    let rooms: [Room]
+    /// Playback is on its way here.
+    let isCurrent: Bool
+    let volumes: SpeakerVolumeWriter
+    let listIsSettled: Bool
+    let onSelect: (PlayDestination) -> Void
+
+    var body: some View {
+        VolumeRouteRow(
+            title: group.nameWithCount,
+            subtitle: GroupNote.text(for: group) ?? Text(rooms.map(\.name).formatted(.list(type: .and))),
+            icon: .speakers(rooms.count),
+            mark: isCurrent ? .checkmark : .empty,
+            // A fixed-output coordinator ignores volume: nothing to drag.
+            level: group.coordinatorRoom.isOutputFixed ? nil : level / 100,
+            isMuted: group.isMuted || rooms.allSatisfy(\.isMuted),
+            listIsSettled: listIsSettled,
+            onTap: { onSelect(.group(group.coordinatorID)) },
+            onLevel: { volumes.set(group, to: $0 * 100) }
+        )
+    }
+
+    /// The group's own level while it's being set; otherwise the rooms'
+    /// average, which the sheet reads fresh on open — a group playback
+    /// isn't on may not have had its own level read.
+    private var level: Double {
+        guard !group.isEditingVolume, !rooms.isEmpty else { return group.groupVolume }
+        return rooms.map(\.volume).reduce(0, +) / Double(rooms.count)
+    }
+}
+
+/// The line under a room or group playback isn't on: what it's playing,
+/// or what it has paused.
+private enum GroupNote {
+    @MainActor
+    static func text(for group: GroupRoom) -> Text? {
+        let track = group.coordinatorRoom.track
+        guard !track.isEmpty else { return nil }
+        let symbol = group.coordinatorRoom.isPlaying ? "play.fill" : "pause.fill"
+        return Text("\(Image(systemName: symbol)) \(track.song)")
     }
 }
 
@@ -479,9 +642,8 @@ private struct RoomRow: View {
     /// what a tap on it would take over.
     private var note: Text? {
         guard let group = ownGroup, group.coordinatorID != membership?.group.coordinatorID else { return nil }
-        let track = group.coordinatorRoom.track
-        if group.coordinatorRoom.isPlaying, !track.isEmpty {
-            return Text("\(Image(systemName: "play.fill")) \(track.song)")
+        if let note = GroupNote.text(for: group) {
+            return note
         }
         let others = group.rooms.filter { $0.id != room.id }.map(\.name)
         guard !others.isEmpty else { return nil }
@@ -515,19 +677,6 @@ private enum FittedSheetHeights {
         guard all[layout] != value else { return }
         all[layout] = value
         UserDefaults.standard.set(all, forKey: key)
-    }
-}
-
-private extension View {
-    /// A bar the list scrolls under. On iOS 26 the system softens the list's
-    /// edge beneath it, the sign that there's more; before, a plain inset.
-    @ViewBuilder
-    func playOnBar<Content: View>(edge: VerticalEdge, @ViewBuilder content: () -> Content) -> some View {
-        if #available(iOS 26.0, macOS 26.0, visionOS 26.0, *) {
-            safeAreaBar(edge: edge, spacing: 0, content: content)
-        } else {
-            safeAreaInset(edge: edge, spacing: 0, content: content)
-        }
     }
 }
 
@@ -666,13 +815,13 @@ struct VolumeRouteRow: View {
     private var isAdjusting: Bool { startLevel != nil }
     private var isSelected: Bool { mark == .checkmark || mark == .checkedCircle }
 
-    /// 0 or 1 while a drag holds the level at that end, for the haptic.
-    private var edge: Int? {
-        guard isAdjusting, let level else { return nil }
-        if level <= 0 { return 0 }
-        if level >= 1 { return 1 }
-        return nil
-    }
+    /// The percent a drag last ticked at. A plain reference, not state:
+    /// it changes every tick and nothing draws from it.
+    @State private var lastTick = TickMark()
+
+    /// Steps of the drag that each get a tick: one per percent, the speaker's
+    /// own unit of volume.
+    private static let ticks = 100.0
 
     var body: some View {
         HStack(spacing: 14) {
@@ -692,23 +841,23 @@ struct VolumeRouteRow: View {
             // Muted reads on the speaker itself, struck through the way SF
             // Symbols strike one, rather than as a line of text: a gap cut
             // either side of the slash, then the slash.
+            //
+            // Both are drawn as far as `slash` says, 0 to 1 from the top
+            // left, so muting draws the slash on and unmuting takes it back.
+            // The mask reaches past the icon, so a count badge that hangs
+            // past its corner isn't clipped.
             .mask {
-                if isMuted {
-                    SlashCut().fill(style: FillStyle(eoFill: true))
-                } else {
-                    // Wider than the icon, so a count badge that hangs past
-                    // its corner isn't clipped.
-                    Rectangle().padding(-12)
-                }
+                SlashCut(progress: isMuted ? 1 : 0).fill(style: FillStyle(eoFill: true))
             }
             .overlay {
-                if isMuted {
-                    Capsule()
-                        .frame(width: 2.5, height: 30)
-                        .rotationEffect(.degrees(-45))
-                }
+                SlashLine(progress: isMuted ? 1 : 0)
             }
-            .opacity(isMuted ? 0.6 : 1)
+            // Dimmed as well, with the system's tertiary style rather than
+            // an opacity: on the glass sheet a faded white icon still came
+            // out at full white, while the hierarchical styles are drawn
+            // with the glass's own vibrancy.
+            .foregroundStyle(isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+            .animation(.smooth(duration: 0.3), value: isMuted)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
@@ -748,9 +897,6 @@ struct VolumeRouteRow: View {
                 onEnded: endAdjusting
             )
         )
-#if !os(visionOS)
-        .sensoryFeedback(.impact(weight: .light), trigger: edge) { _, new in new != nil }
-#endif
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
         .accessibilityValue(accessibilityValue)
@@ -836,13 +982,30 @@ struct VolumeRouteRow: View {
     private func beginAdjusting() {
         guard let level else { return }
         startLevel = level
+        lastTick.value = Int((level * Self.ticks).rounded())
+        VolumeHaptics.prepare()
     }
 
     /// `translation` is how far the finger has gone sideways since the drag
     /// began; the whole row's width is the whole range.
+    ///
+    /// The haptics fire from here, off the drag itself, rather than from a
+    /// `sensoryFeedback` watching the level: that waited on the row to
+    /// redraw with the speaker's level, and skipped steps a fast drag passed.
     private func adjust(_ translation: CGFloat) {
         guard let startLevel, width > 0 else { return }
-        onLevel(min(1, max(0, startLevel + translation / width)))
+        let next = min(1, max(0, startLevel + translation / width))
+        let tick = Int((next * Self.ticks).rounded())
+        if tick != lastTick.value {
+            lastTick.value = tick
+            // A firmer bump at either end, a tick on the way.
+            if next <= 0 || next >= 1 {
+                VolumeHaptics.edge()
+            } else {
+                VolumeHaptics.tick()
+            }
+        }
+        onLevel(next)
     }
 
     private func endAdjusting() {
@@ -850,21 +1013,60 @@ struct VolumeRouteRow: View {
     }
 }
 
+/// Holds the last ticked step across a drag's redraws without causing any.
+private final class TickMark {
+    var value: Int?
+}
+
+/// The volume drag's haptics: a light tick per step, a firmer bump at
+/// either end. One shared pair of generators, prepared when a drag begins.
+@MainActor
+private enum VolumeHaptics {
+#if !os(visionOS)
+    private static let ticker = UISelectionFeedbackGenerator()
+    private static let bumper = UIImpactFeedbackGenerator(style: .medium)
+#endif
+
+    static func prepare() {
+#if !os(visionOS)
+        ticker.prepare()
+        bumper.prepare()
+#endif
+    }
+
+    static func tick() {
+#if !os(visionOS)
+        ticker.selectionChanged()
+        ticker.prepare()
+#endif
+    }
+
+    static func edge() {
+#if !os(visionOS)
+        bumper.impactOccurred()
+        bumper.prepare()
+#endif
+    }
+}
+
 /// A room's speaker with a badge at its top right counting the rooms, cut
 /// out of the speaker the way the system cuts a badge out of an app icon.
 /// No badge for one: it's then just a speaker, like the rooms below it.
 ///
-/// The cut is a mask, not a blend: an even-odd path over the speaker with a
-/// hole a little wider than the badge, then the badge drawn on top, its
-/// count in the background's colour. Blending the cut out (`destinationOut`)
-/// only erased what shared its compositing group, and the overlay and offset
-/// the badge needs put it in a group of its own: the hole never cut through.
+/// The cuts are masks, not blends: an even-odd path over the speaker with a
+/// hole a little wider than the badge, then the badge, the accent with its
+/// count masked out of it so whatever is behind the row shows through.
+/// Blending them out (`destinationOut`) only erased what shared their
+/// compositing group, and the overlay and offset the badge needs put it in
+/// a group of its own: the hole never cut through.
 private struct SpeakerCountIcon: View {
     let count: Int
     /// The speaker's height; the badge scales with it.
     var height: CGFloat = 22
+    /// White on a circle already filled with the accent.
+    var badge: Color = .accentColor
 
-    private var badgeHeight: CGFloat { (height * 0.6).rounded() }
+    private var badgeHeight: CGFloat { (height * 0.68).rounded() }
     private var gap: CGFloat { max(1, height * 0.07) }
 
     /// Round for one digit, a capsule for two.
@@ -885,12 +1087,22 @@ private struct SpeakerCountIcon: View {
             }
             .overlay(alignment: .topTrailing) {
                 if count > 1 {
-                    Text(count, format: .number)
-                        .font(.system(size: badgeHeight * 0.7, weight: .heavy, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(.background)
+                    Capsule()
+                        .fill(badge)
                         .frame(width: badgeWidth, height: badgeHeight)
-                        .background(.foreground, in: .capsule)
+                        // The count cut out: white keeps the badge, the
+                        // black digits take it away.
+                        .mask {
+                            ZStack {
+                                Color.white
+                                Text(count, format: .number)
+                                    .font(.system(size: badgeHeight * 0.72, weight: .heavy, design: .rounded))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.black)
+                            }
+                            .compositingGroup()
+                            .luminanceToAlpha()
+                        }
                         // Centred just inside the speaker's corner, where
                         // `BadgeCut` makes its hole.
                         .offset(x: badgeWidth / 2 - 1, y: 1 - badgeHeight / 2)
@@ -919,16 +1131,49 @@ private struct BadgeCut: Shape {
 }
 
 /// Everything around a view, less a band through its middle from top left to
-/// bottom right: filled even-odd, the gap either side of a muted icon's slash.
+/// bottom right, as far along as `progress`: filled even-odd, the gap either
+/// side of a muted icon's slash. Nothing cut at 0.
 private struct SlashCut: Shape {
+    var progress: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
     func path(in rect: CGRect) -> Path {
         var path = Path(rect.insetBy(dx: -12, dy: -12))
-        let band = CGRect(x: rect.midX - 3, y: rect.midY - 16, width: 6, height: 32)
-        let turn = CGAffineTransform(translationX: rect.midX, y: rect.midY)
+        guard progress > 0 else { return path }
+        let band = CGRect(x: rect.midX - 3, y: rect.midY - 16, width: 6, height: 32 * progress)
+        path.addRoundedRect(in: band, cornerSize: CGSize(width: 3, height: 3), transform: SlashLine.turn(in: rect))
+        return path
+    }
+}
+
+/// A muted icon's slash, from top left to bottom right, as far along as
+/// `progress`, in the gap `SlashCut` makes for it.
+private struct SlashLine: Shape {
+    var progress: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        guard progress > 0 else { return Path() }
+        let line = CGRect(x: rect.midX - 1.25, y: rect.midY - 15, width: 2.5, height: 30 * progress)
+        var path = Path()
+        path.addRoundedRect(in: line, cornerSize: CGSize(width: 1.25, height: 1.25), transform: Self.turn(in: rect))
+        return path
+    }
+
+    /// A vertical band through the middle, turned to run top left to bottom
+    /// right; its top end lands top left.
+    static func turn(in rect: CGRect) -> CGAffineTransform {
+        CGAffineTransform(translationX: rect.midX, y: rect.midY)
             .rotated(by: -.pi / 4)
             .translatedBy(x: -rect.midX, y: -rect.midY)
-        path.addRoundedRect(in: band, cornerSize: CGSize(width: 3, height: 3), transform: turn)
-        return path
     }
 }
 
@@ -1036,7 +1281,7 @@ final class SpeakerVolumeWriter {
         // Turning a muted room up means hearing it, as the other volume
         // sliders do.
         if unmuting, room.isMuted {
-            room.isMuted = false
+            room.holdMute(false)
             Task { await SonosService.shared.setRoomMute(IP: ip, mute: false) }
         }
         room.volume = level
@@ -1059,9 +1304,9 @@ final class SpeakerVolumeWriter {
             group.isEditingVolume = true
         }
         if group.isMuted || group.rooms.contains(where: \.isMuted) {
-            group.isMuted = false
+            group.holdMute(false)
             for room in group.rooms where room.isMuted {
-                room.isMuted = false
+                room.holdMute(false)
             }
             Task { await SonosService.shared.setGroupMute(group: group, mute: false) }
         }
