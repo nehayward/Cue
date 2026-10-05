@@ -41,6 +41,26 @@ final class MusicServiceIdentificationTests: XCTestCase {
         XCTAssertEqual(service, .plex)
     }
 
+    /// A Plex song whose id has another number where Clic's own ids carry 3
+    /// is still Plex by its sid, and keeps the whole id for the rating lookup.
+    func testPlexIdentifiedBySidWithoutThreeHeuristic() {
+        let (service, id) = parser.parse(xml: "", trackURI: "x-sonosapi-hls-static:10036020b9c7c12bf5f64e85a1a12a53f4e74f69%3A5%3A67890%3Atrack?sid=212&flags=8232&sn=9")
+        XCTAssertEqual(service, .plex)
+        XCTAssertEqual(id, "10036020b9c7c12bf5f64e85a1a12a53f4e74f69:5:67890")
+    }
+
+    /// The Plex account in the DIDL metadata identifies it without a sid.
+    func testPlexIdentifiedByServiceAccount() {
+        let (service, _) = parser.parse(xml: "SA_RINCON54279_X_#Svc54279-0-Token", trackURI: "x-sonosapi-hls-static:10036020b9c7c12bf5f64e85a1a12a53f4e74f69%3A5%3A67890%3Atrack")
+        XCTAssertEqual(service, .plex)
+    }
+
+    /// `sid=212` must not claim a longer service id that starts with 212.
+    func testPlexSidDoesNotMatchLongerIDs() {
+        let (service, _) = parser.parse(xml: "", trackURI: "x-sonos-http:track%3A12345.mp3?sid=2120&flags=8224")
+        XCTAssertNotEqual(service, .plex)
+    }
+
     /// Sonos Radio shares the `x-sonosapi-radio:` shape and sits next to
     /// Pandora in the same ordering, so pin it too.
     func testSonosRadioStationURI() {

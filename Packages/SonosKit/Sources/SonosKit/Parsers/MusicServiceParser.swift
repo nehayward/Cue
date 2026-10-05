@@ -125,6 +125,15 @@ public final class MusicServiceParser {
             return .pandora
         }
 
+        // Plex's sid and account name it outright. The `:3:` check below
+        // only knows one shape of Plex id, and a Plex song it missed fell
+        // through to `.unknown`, losing its heart and its rating.
+        // `sid=212` must not match a longer id such as `sid=2120`.
+        if uri.range(of: "sid=212(?![0-9])", options: [.regularExpression, .caseInsensitive]) != nil
+            || xml?.contains("Svc54279") == true {
+            return .plex
+        }
+
         // Subsonic tracks are plain HTTP hits on the server's REST stream
         // endpoint. Checked before the positional `:3:` Plex heuristic so a
         // server address containing that shape can't flip the player to Plex.

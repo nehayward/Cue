@@ -2033,9 +2033,10 @@ public final class MusicSearchService {
 
     private func plexRatingKey(from trackID: String) -> String? {
         let decoded = trackID.removingPercentEncoding ?? trackID
-        // Format: clientID:3:ratingKey
-        guard let separatorRange = decoded.range(of: ":3:") else { return nil }
-        return String(decoded[separatorRange.upperBound...])
+        // Format: clientID:3:ratingKey. Read past any number in the middle,
+        // not only 3, the same shape `MusicServiceParser` takes the id in.
+        guard let match = decoded.firstMatch(of: #/:\d+:(\d+)/#) else { return nil }
+        return String(match.1)
     }
     
     public func getSoundCloudLikedPlaylists(cursor: String? = nil) async -> (playlists: [PlayableContent], nextCursor: String?) {
