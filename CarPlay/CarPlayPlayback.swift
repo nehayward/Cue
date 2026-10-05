@@ -133,10 +133,13 @@ enum CarPlayArtwork {
     }
 
     /// A system symbol in white on a dark screen and black on a light one.
-    /// The car tints the tab bar's symbols but draws a row's or a button's
-    /// as it gets them, and a plain symbol is black. Both looks go in the
-    /// image's asset, for the car to switch as it goes from day to night;
-    /// the one handed over is the screen's look now.
+    /// The car tints the tab bar's symbols but draws a row's as it gets
+    /// them, and a plain symbol is black. Both looks go in the image's
+    /// asset, for the car to switch as it goes from day to night; the one
+    /// handed over is the screen's look now.
+    ///
+    /// Not for the buttons pinned above a list: on iOS 27 they draw only a
+    /// plain system symbol (see `gridButton`).
     static func symbol(_ name: String) -> UIImage? {
         guard let symbol = UIImage(systemName: name) else { return nil }
         let dark = UITraitCollection(userInterfaceStyle: .dark)

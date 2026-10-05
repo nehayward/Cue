@@ -138,7 +138,7 @@ bridge or lifecycle to manage.
 
 | Where | Redraw rate |
 |---|---|
-| Player bar (`GroupPlaybackScrubber`, `LocalPlaybackScrubber`) | Once per pixel of progress (`ProgressRedraw.interval`: song length ÷ bar pixels, 1/30 s – 1 s). ~0.17 s for a 3-minute song on a phone. |
+| Player bar (`PlayerScrubber`, `GroupPlaybackScrubber`) | Once per pixel of progress (`ProgressRedraw.interval`: song length ÷ bar pixels, 1/30 s – 1 s). ~0.17 s for a 3-minute song on a phone. |
 | TV player bar (display-only) | 0.25 s |
 | Play-button rings (`MiniPlayerView`, `MediaControlsView`) | 1 s |
 | Mini player line (`MiniPlayerProgressLine` in `CueApp.swift`) | Once per pixel, as the player bar |
@@ -182,7 +182,7 @@ From Instruments SwiftUI traces on device (iPhone, five speakers):
 |---|---|
 | Model | `Packages/SonosKit/Sources/SonosKit/Models/Room.swift`, `Models/PlaybackStatus.swift` |
 | Service | `SonosService.swift` (`seek`, `next`, `previous`, sweeps, `adoptGroups`), `SonosService+SonosEventHandler.swift`, `SonosAPI.swift`, `Parsers/XMLParserSonos.swift` |
-| Views | `Packages/VibesDS/Sources/VibesDS/PlaybackTimeline.swift`, `Icons/SustainedPulse.swift`, `Icons/PlaybackIconView.swift`, `Cue/LargePlayerView.swift` (`GroupPlaybackScrubber`), `Cue/Views/PlayerView.swift` (`LocalPlaybackScrubber`), `Cue/CueApp.swift` (`MiniPlayerProgressLine`), `Cue/MediaControlsView.swift`, `Cue/Search/MiniPlayerView.swift`, `Cue/ArtworkBadgeView.swift`, `TV/TVPlayerView.swift` |
+| Views | `Packages/VibesDS/Sources/VibesDS/PlaybackTimeline.swift`, `Icons/SustainedPulse.swift`, `Icons/PlaybackIconView.swift`, `Cue/LargePlayerView.swift` (`GroupPlaybackScrubber`), `Cue/Views/PlayerView.swift` (`PlayerScrubber`, through `PlaybackController` for the device and a speaker alike), `Cue/CueApp.swift` (`MiniPlayerProgressLine`), `Cue/MediaControlsView.swift`, `Cue/Search/MiniPlayerView.swift`, `Cue/ArtworkBadgeView.swift`, `TV/TVPlayerView.swift` |
 | Callers | `Cue/Services/NowPlaying/NowPlayingSessionService.swift`, `Cue/LiveActivityManager.swift`, `Cue/CueApp.swift`, `Cue/Services/PlaybackRoute.swift`, `Widgets/ControlWidgets/PlaybackControlWidget.swift` |
 | This device | `Cue/Services/LocalPlaybackService.swift` (`progress`, `estimatedProgress(at:)`, `noteProgress(_:)`) |
 | Tests | `Packages/SonosKit/Tests/SonosKitTests/RoomPlaybackPositionTests.swift` |

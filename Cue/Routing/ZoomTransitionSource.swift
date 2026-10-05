@@ -15,6 +15,9 @@ public enum ZoomTransitionSource: Hashable {
     /// One album's cover in a grid, by the album's id. Opens
     /// `MediaDetailView`, which grows out of the tile that was tapped.
     case album(String)
+    /// The Play On button. Opens `PlayOnSheet`, which morphs out of it the
+    /// way the system's AirPlay picker grows out of its button.
+    case playOn
 }
 
 extension EnvironmentValues {

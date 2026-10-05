@@ -19,6 +19,13 @@ public protocol TokenRefreshHandler {
     func handleTokenRefresh(householdId: String, token: String, key: String) async throws
     func getCredentials() async throws -> Credentials?
     func getCredentials(for service: String) async throws -> Credentials?
+    /// Drops any in-memory copy of `service`'s credentials, so the next
+    /// `getCredentials(for:)` reads the stored (possibly newer) token.
+    func invalidateCredentials(for service: String)
+}
+
+public extension TokenRefreshHandler {
+    func invalidateCredentials(for service: String) {}
 }
 
 public struct SpotifyTokenRefreshResponse {

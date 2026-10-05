@@ -342,8 +342,14 @@ final class NowPlayingSessionService {
     }
 
     /// The route points at this device and its player has something queued.
+    /// Also while a switch to a speaker is still playing on the phone (the
+    /// overlap, see `PlaybackRoute.hold`): the phone is what's heard, so its
+    /// own card stays up until it parks.
     private var isPlayingOnDevice: Bool {
-        PlaybackRoute.shared.destination == .device && LocalPlaybackService.shared.isActive
+        let route = PlaybackRoute.shared
+        let local = LocalPlaybackService.shared
+        guard local.isActive else { return false }
+        return route.destination == .device || (route.presentedDestination == .device && local.isPlaying)
     }
 
     /// The group the card mirrors. iOS has exactly one Now Playing app and one
