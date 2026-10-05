@@ -39,8 +39,18 @@ final class PlaybackRoute {
     /// `log stream --predicate 'subsystem == "dance.cue" AND category == "route"' --level debug`
     private static let log = Logger(subsystem: "dance.cue", category: "route")
 
-    /// The stored destination, mirrored so views can observe it.
-    private(set) var destination: PlayDestination
+    /// The destination last chosen, mirrored from `PlayDestination.remembered`
+    /// so views can observe it. Kept while no speaker can be reached, for
+    /// when one can again.
+    private(set) var chosen: PlayDestination
+
+    /// Where playback goes now: the choice, or this device while no speaker
+    /// can be reached (Sonos switched off, or the phone on cellular).
+    /// Derived rather than stored, so it follows `SonosService.isAvailable`
+    /// by itself, and every view reading it with it.
+    var destination: PlayDestination {
+        SonosService.shared.isAvailable ? chosen : .device
+    }
 
     /// True from a switch until the target has started playing. The tail of a
     /// long queue keeps filling in after this clears; the accessory shows it,
@@ -127,7 +137,7 @@ final class PlaybackRoute {
     private static let overlapTailGuard: TimeInterval = 8
 
     private init() {
-        destination = Self.storedDestination
+        chosen = Self.storedChoice
         // Anything else that writes the destination shows up here: the group
         // picker's Play writes it directly, and the share extension writes it
         // between launches. Same shape as `HardwareVolumeService`'s route
@@ -139,43 +149,33 @@ final class PlaybackRoute {
                 }
             })
         }
-        observers.append(Task { [weak self] in
-            for await _ in NotificationCenter.default.notifications(named: SonosService.availabilityDidChange) {
-                self?.speakersCameOrWent()
-            }
-        })
     }
 
-    /// The remembered destination, or this device while no speaker can be
-    /// reached: Sonos switched off, or the phone on cellular. The speaker
-    /// stays remembered for when they're back.
-    private static var storedDestination: PlayDestination {
-        guard SonosService.shared.isAvailable else { return .device }
-        return PlayDestination.remembered ?? .device
+    private static var storedChoice: PlayDestination {
+        PlayDestination.remembered ?? .device
     }
 
-    /// Re-reads the stored destination. Only writes when it changed, so the
+    /// Re-reads the stored choice. Only writes when it changed, so the
     /// (frequent) defaults notification doesn't churn observers.
     func refresh() {
-        let stored = Self.storedDestination
-        if stored != destination {
-            destination = stored
+        let stored = Self.storedChoice
+        if stored != chosen {
+            chosen = stored
             // The play call sites short-circuit to this; see `remember`.
             SelectedGroupService.shared.group = group
         }
     }
 
-    /// The phone left Wi‑Fi or came back to it. Away, the route reads as
-    /// this device. Back, it returns to the remembered speaker, unless this
-    /// device is playing: then it stays here, rather than the player
-    /// jumping to a speaker that isn't playing what's heard.
-    private func speakersCameOrWent() {
-        if SonosService.shared.isAvailable, destination == .device,
-           LocalPlaybackService.shared.isPlaying, PlayDestination.remembered?.groupID != nil {
-            Self.log.notice("speakers back, but this device is playing: staying here")
-            PlayDestination.device.remember()
-        }
-        refresh()
+    /// This device started playing. With no speaker in reach the route
+    /// already reads as this device; playing here makes it the choice too,
+    /// so the speaker chosen before doesn't take the route back when it's in
+    /// reach again, from under what's playing here. Called by
+    /// `LocalPlaybackService` itself, so it holds whichever way the play
+    /// began: Cue, CarPlay, the Lock Screen or Siri.
+    func deviceStartedPlaying() {
+        guard chosen != .device, !SonosService.shared.isAvailable else { return }
+        Self.log.notice("route: playing here with no speaker in reach, so this device is the choice")
+        remember(.device)
     }
 
     /// The live group for a speaker destination. `nil` for the device, and
@@ -252,7 +252,13 @@ final class PlaybackRoute {
     /// rather than left playing under a speaker the player now shows; a
     /// speaker being left is left alone, playing its own queue.
     func switchTo(_ target: PlayDestination, carrying: Bool = true) {
-        guard target != destination else { return }
+        guard target != destination else {
+            // With no speaker in reach the route reads as this device
+            // whatever was chosen, so there is nothing to move; choosing it
+            // only stops the speaker taking the route back later.
+            if target != chosen { remember(target) }
+            return
+        }
 
         let source = group
         // Whether the phone is what's playing now. Decided by the route, not
@@ -385,7 +391,7 @@ final class PlaybackRoute {
     }
 
     private func remember(_ target: PlayDestination) {
-        destination = target
+        chosen = target
         target.remember()
         // The play call sites short-circuit to this when it holds a group, so
         // it has to agree with the route or a stale group outranks the device.
