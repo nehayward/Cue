@@ -99,7 +99,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .text-center { text-align: center; }
 
 .section-head { max-width: 40rem; margin: 0 auto clamp(2rem, 5vw, 3.5rem); text-align: center; }
-.section-head h2 { font-size: clamp(2rem, 4.5vw, 3rem); }
+.section-head h2 { font-size: clamp(2rem, 4.5vw, 3rem); text-wrap: balance; }
 .section-head p { margin-top: 0.75rem; color: var(--muted); font-size: clamp(1.05rem, 1.6vw, 1.2rem); }
 
 /* ── Type ───────────────────────────────────────────────────────────────── */
@@ -233,8 +233,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 @media (max-width: 959px) {
 	.hero-copy { text-align: center; }
 	.hero-copy .lede { margin-inline: auto; }
-	.hero-copy .actions { justify-content: center; }
+	.hero-copy .actions, .hero-copy .devices { justify-content: center; }
 }
+.devices { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; }
+.devices li { display: inline-flex; align-items: center; gap: 0.35rem; }
 
 .hero-visual { display: flex; justify-content: center; }
 
@@ -641,14 +643,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 /* ── Self-hosted ────────────────────────────────────────────────────────── */
 
-.servers { display: grid; gap: 1rem; }
-@media (min-width: 760px) { .servers { grid-template-columns: 1fr 1fr; } }
-.server { padding: 2rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
-.server h2 { margin-top: 1.25rem; font-size: 1.6rem; }
-.server > p { margin-top: 0.5rem; color: var(--muted); }
-.server ul { margin-top: 1.25rem; display: grid; gap: 0.6rem; }
-.server li { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.95rem; }
-.server li .icon { margin-top: 0.2em; color: var(--accent); }
+/* .platforms (CarPlay and Apple Watch on the home page) shares these cards. */
+.servers, .platforms { display: grid; gap: 1rem; }
+@media (min-width: 760px) { .servers, .platforms { grid-template-columns: 1fr 1fr; } }
+.server, .platform { padding: 2rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.server h2, .platform h3 { margin-top: 1.25rem; font-size: 1.6rem; }
+.server > p, .platform > p { margin-top: 0.5rem; color: var(--muted); }
+.server ul, .platform ul { margin-top: 1.25rem; display: grid; gap: 0.6rem; }
+.server li, .platform li { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.95rem; }
+.server li .icon, .platform li .icon { margin-top: 0.2em; color: var(--accent); }
 
 @media (min-width: 1024px) { .feature-grid.two { grid-template-columns: repeat(2, 1fr); } }
 

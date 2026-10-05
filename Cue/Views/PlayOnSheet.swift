@@ -761,16 +761,13 @@ private struct PlayOnHeader: View {
     @Environment(\.dismiss) private var dismiss
 
     private var route: PlaybackRoute { .shared }
-    private var playback: LocalPlaybackService { .shared }
 
     /// The speaker's track on a group, this device's display item otherwise
-    /// (a station reads as the song on air, as it does in the player).
+    /// (a station reads as the song on air, as it does in the player). What
+    /// the player shows, so through a hand-off it's the song being carried
+    /// rather than the speaker's last one (see `PlaybackRoute.presented`).
     private var item: PlayableContent? {
-        if let group = route.group {
-            let track = group.coordinatorRoom.track
-            return track.isEmpty ? nil : track.toPlayable
-        }
-        return playback.nowPlayingDisplay
+        route.presented.nowPlayingDisplay
     }
 
     var body: some View {
