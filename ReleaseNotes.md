@@ -13,6 +13,8 @@
 - Offline Mode: With no network — on a plane, in a tunnel — Home (Browse on iPhone) shows just what's on this device: your Plex and Subsonic downloads and the songs of your Files folder that are here, with Play and Shuffle for the lot, and everything plays on this device. Switch it on yourself from Home or Settings ▸ Storage to stay with your downloads while you still have a connection
 - Streaming Quality: Have your Plex or Subsonic server convert songs to MP3 or Opus at a bitrate you choose, under Settings ▸ Services — smaller over cellular or a slow connection home. Applies to songs played and downloaded on this device and to Subsonic songs sent to your speakers, which get MP3 in place of Opus since Sonos players can't play it
 - Live Transcription: While a radio station plays, tap the captions button on the player (⇧⌘T on Mac) to see what's being said, written out live by a model that runs entirely on your device (iOS 26 and later). Works for TuneIn stations on this device, and for TuneIn and internet radio stations playing on your Sonos speakers. Pick any supported language — it downloads the first time — and Cue remembers it for each station. The switch stays how you left it between launches
+- Play On: The Play On button opens a sheet laid out like AirPlay — this device and every room, each with its own volume you set by sliding across it. Tap a room to play there or, on a speaker, to add or drop it, with Everywhere, All Speakers and Sync along the bottom
+- Long press to mute: Hold a speaker's volume slider still for a moment to mute or unmute that room or group (right-click on Mac)
 
 –– Bug Fixes & Improvements ––
 - Smoother changes between songs from different services on this device: Cue starts the next song the moment the last one ends, and looks up Apple Music songs ahead of time, so there's barely a pause going from your server to Apple Music and back
@@ -31,6 +33,9 @@
 - Improved Subsonic setup: type just your server's name, like music.example.com, and Cue connects over HTTPS when the server has it. Errors now say what to fix — a wrong password, a server that can't be found, Local Network access, or an address that isn't a Subsonic server
 - Fixed SoundCloud, Deezer, Pandora and Sonos Radio sometimes showing as signed out or not loading until Cue was force quit
 - Fixed Browse sections staying empty after switching between music services quickly
+- Volume sliders in the speaker lists follow your finger as soon as you drag sideways, while swipes up and down always scroll
+- Fixed a muted room or group flickering back to unmuted for a moment after you muted it
+- Fixed the song title turning bold when its room is selected in the speaker list on iPad and Mac
 
 # 2026.7
 

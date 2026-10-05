@@ -13,6 +13,9 @@ struct ZoneView: View {
                 .tint(.secondary)
                 .lineLimit(1, reservesSpace: true)
             Text(song)
+                // Its own font: left to the List's, a selected sidebar row
+                // turned the title bold.
+                .font(.body)
                 .foregroundStyle(.primary)
                 .tint(.primary)
                 .lineLimit(1, reservesSpace: true)

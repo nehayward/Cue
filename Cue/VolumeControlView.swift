@@ -61,7 +61,25 @@ struct VolumeControlView: View {
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
                     group.isEditingVolume = isEditing
                 }
+            } onLongPress: {
+                toggleMute()
             }
+            .accessibilityAction(named: group.isMuted ? "Unmute" : "Mute") {
+                toggleMute()
+            }
+#if targetEnvironment(macCatalyst)
+            // The Mac's long press: a right click.
+            .contextMenu {
+                Button {
+                    toggleMute()
+                } label: {
+                    Label(
+                        group.isMuted ? "Unmute" : "Mute",
+                        systemImage: group.isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill"
+                    )
+                }
+            }
+#endif
             .accessibilityLabel("Volume")
             .accessibilityValue(group.coordinatorRoom.isOutputFixed ? "Fixed" : "\(Int(group.groupVolume.rounded())) percent\(group.isMuted ? ", muted" : "")")
             .opacity(group.coordinatorRoom.isOutputFixed ? 0 : 1)
@@ -113,6 +131,22 @@ struct VolumeControlView: View {
         .animation(.spring, value: group.isMuted)
         .tint(.primary)
         .disabled(group.coordinatorRoom.isOutputFixed)
+    }
+
+    /// A long press on the slider: mutes the whole group, or unmutes it.
+    /// Sonos's group mute moves every room, so they're shown muted at once
+    /// too, and held against the poll until the speakers catch up.
+    @MainActor
+    private func toggleMute() {
+        HapticManager.shared.fireHaptic(.buttonPress)
+        let mute = !group.isMuted
+        withAnimation {
+            group.holdMute(mute)
+            for room in group.rooms where room.isMuted != mute {
+                room.holdMute(mute)
+            }
+        }
+        Task { await SonosService.shared.setGroupMute(group: group, mute: mute) }
     }
 
     /// Sends the drag's level to the speaker, at most one request at a time.
