@@ -17,6 +17,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         _ templateApplicationScene: CPTemplateApplicationScene,
         didConnect interfaceController: CPInterfaceController
     ) {
+        CarConnection.sceneConnected(true)
         let interface = CarPlayInterface(interfaceController: interfaceController)
         self.interface = interface
         interface.start()
@@ -28,6 +29,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
     ) {
         interface?.stop()
         interface = nil
+        CarConnection.sceneConnected(false)
     }
 
     /// The configuration for a scene CarPlay is connecting, or nil for any

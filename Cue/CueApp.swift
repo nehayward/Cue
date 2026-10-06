@@ -1598,6 +1598,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // call `monitor()`, which is what would put up the Local Network
         // prompt on a device that has never seen a speaker.
         SonosService.shared.loadEnabledPreference()
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        // In a car, speakers are put away and not looked for; known before
+        // the first `monitor()` for the same reason.
+        CarConnection.start()
+        #endif
         // RevenueCat, analytics, remote flags and the image pipeline. Before
         // any view body: `Purchases.shared` is a fatal error until
         // `Purchases.configure` has run, and Preferences reads it for the
