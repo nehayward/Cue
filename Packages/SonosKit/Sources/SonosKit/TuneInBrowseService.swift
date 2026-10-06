@@ -110,6 +110,17 @@ public final class TuneInBrowseService {
         Self.entries(from: await api.browse(page))
     }
 
+    /// The stations TuneIn counts as local to a point, for the Radio map's
+    /// Search This Area. Not cached: the map keeps what it found.
+    public func stations(nearLatitude latitude: Double, longitude: Double) async -> [PlayableContent] {
+        Self.stations(in: await api.browse(.nearby(latitude: latitude, longitude: longitude)))
+    }
+
+    /// Where a station is, for the Radio map. See `TuneInAPI.place(for:)`.
+    public func place(for stationID: String) async -> TuneInPlace? {
+        await api.place(for: stationID)
+    }
+
     private nonisolated static func cached<T: Codable>(_ type: T.Type, key: String) async -> T? {
         MemoryFileCache.shared.load(forKey: key, as: type)
     }

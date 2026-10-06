@@ -5,7 +5,7 @@ import SwiftUI
 
 /// The Radio tab: stations that play on this device as well as on a
 /// speaker. That rule picks the sources — TuneIn (the stations near the
-/// user, what's trending, and the rest of its directory) and Apple Music's
+/// user, also on a map, what's trending, and the rest of its directory) and Apple Music's
 /// live and personal stations — each only while its provider is switched
 /// on in Services. Sonos Radio and Sonos favorites are speaker-only, so
 /// they stay on Browse and Search. Typing in the field searches the same
@@ -16,6 +16,7 @@ struct RadioScreen: View {
     @Environment(TuneInBrowseService.self) private var tuneInBrowseService
     @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.zoomNamespace) private var zoomNamespace
 
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
@@ -24,6 +25,7 @@ struct RadioScreen: View {
     @State private var router = Router()
     @State private var query = ""
     @State private var search = RadioSearch()
+    @State private var radioMap = RadioMap.shared
 
     private var showsTuneIn: Bool { coreFeatures.isEnabled(.tuneIn) }
     /// Apple's stations load on open, so they wait for an authorization the
@@ -75,6 +77,12 @@ struct RadioScreen: View {
             .task {
                 await load(refreshing: false)
             }
+            // Apart from `load`, so a pull to refresh doesn't wait on every
+            // station's place; once placed, a station isn't asked again.
+            .task(id: tuneInBrowseService.localStations.map(\.id)) {
+                guard showsTuneIn else { return }
+                await radioMap.locate(tuneInBrowseService.localStations)
+            }
             .refreshable {
                 await load(refreshing: true)
             }
@@ -120,6 +128,7 @@ struct RadioScreen: View {
                     action: { offset in offset == 0 ? local : [] }
                 )
             )
+            mapSection(local)
         }
         if !trending.isEmpty {
             RadioStationsSection(
@@ -157,6 +166,29 @@ struct RadioScreen: View {
         .listRowInsets(.default)
         .listRowSeparator(.hidden)
         .listSectionSeparator(.hidden)
+    }
+
+    /// The local stations on a map, once any has a place (or while the
+    /// first are being placed). The tile opens the full map.
+    @ViewBuilder
+    private func mapSection(_ local: [PlayableContent]) -> some View {
+        let stations = radioMap.mapped(local)
+        if !stations.isEmpty || radioMap.isLocating {
+            Section {
+                RadioSectionHeader(title: "Radio Map", caption: "TuneIn")
+
+                Button {
+                    router.navigate(to: .radioMap(zoomSource: zoomNamespace == nil ? nil : .radioMap))
+                } label: {
+                    RadioMapTile(stations: stations, isLocating: radioMap.isLocating)
+                }
+                .buttonStyle(.plain)
+                .modifier(RadioMapZoomSource(namespace: zoomNamespace))
+            }
+            .listRowInsets(.default)
+            .listRowSeparator(.hidden)
+            .listSectionSeparator(.hidden)
+        }
     }
 
     @ViewBuilder
@@ -279,6 +311,21 @@ struct RadioScreen: View {
                     await appleMusicBrowseService.updateRadioStations(offset: 0)
                 }
             }
+        }
+    }
+}
+
+/// Marks the map tile as what the full map zooms out of, where the app
+/// has a zoom namespace (not in previews).
+private struct RadioMapZoomSource: ViewModifier {
+    let namespace: Namespace.ID?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let namespace {
+            content.zoomSource(.radioMap, in: namespace)
+        } else {
+            content
         }
     }
 }

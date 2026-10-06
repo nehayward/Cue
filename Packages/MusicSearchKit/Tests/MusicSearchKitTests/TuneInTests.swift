@@ -53,6 +53,66 @@ final class TuneInTests: XCTestCase {
         XCTAssertEqual(TuneInBrowsePage.id("g22").url.absoluteString, "https://opml.radiotime.com/Browse.ashx?id=g22")
     }
 
+    func testNearbyPageAsksForTheLocalPageAtAPoint() throws {
+        let url = TuneInBrowsePage.nearby(latitude: 47.60621, longitude: -122.33207).url
+        let items = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+        XCTAssertEqual(items.first { $0.name == "c" }?.value, "local")
+        XCTAssertEqual(items.first { $0.name == "latlon" }?.value, "47.6062,-122.3321")
+    }
+
+    func testDescribedStationPlace() throws {
+        let xml = """
+        <opml version="1"><head><status>200</status></head><body>
+        <outline type="object" text="KEXP"><station>
+        <guide_id>s32500</guide_id><name>KEXP</name>
+        <location>Seattle, WA</location>
+        <latlon>47.6062,-122.3321</latlon>
+        </station></outline>
+        </body></opml>
+        """
+        let place = try XCTUnwrap(TuneInParser().parsePlace(xmlData: Data(xml.utf8)))
+        XCTAssertEqual(place.location, "Seattle, WA")
+        XCTAssertEqual(place.latitude, 47.6062)
+        XCTAssertEqual(place.longitude, -122.3321)
+    }
+
+    func testDescribedStationWithoutAPointKeepsItsLocation() throws {
+        let xml = """
+        <opml version="1"><body><outline type="object" text="X"><station>
+        <guide_id>s1</guide_id><location>Istanbul, Turkey</location><latlon></latlon>
+        </station></outline></body></opml>
+        """
+        let place = try XCTUnwrap(TuneInParser().parsePlace(xmlData: Data(xml.utf8)))
+        XCTAssertEqual(place.location, "Istanbul, Turkey")
+        XCTAssertNil(place.coordinate)
+    }
+
+    func testAnErrorPageIsNoPlace() {
+        let xml = """
+        <opml version="1"><head><status>404</status><fault>Invalid method</fault></head><body> </body></opml>
+        """
+        XCTAssertNil(TuneInParser().parsePlace(xmlData: Data(xml.utf8)))
+    }
+
+    func testLatLonReading() throws {
+        let comma = try XCTUnwrap(TuneInPlace.coordinate(fromLatLon: "47.6062,-122.3321"))
+        XCTAssertEqual(comma.latitude, 47.6062)
+        XCTAssertEqual(comma.longitude, -122.3321)
+
+        let spaced = try XCTUnwrap(TuneInPlace.coordinate(fromLatLon: " -33.87 ; 151.21 "))
+        XCTAssertEqual(spaced.latitude, -33.87)
+        XCTAssertEqual(spaced.longitude, 151.21)
+
+        // Longitude first still lands on the same point.
+        let swapped = try XCTUnwrap(TuneInPlace.coordinate(fromLatLon: "-122.3321,47.6062"))
+        XCTAssertEqual(swapped.latitude, 47.6062)
+
+        XCTAssertNil(TuneInPlace.coordinate(fromLatLon: "0,0"))
+        XCTAssertNil(TuneInPlace.coordinate(fromLatLon: "47.6"))
+        XCTAssertNil(TuneInPlace.coordinate(fromLatLon: "200,300"))
+        XCTAssertNil(TuneInPlace.coordinate(fromLatLon: ""))
+    }
+
     func testStreamResponsePrefersPlainAudioThenReliability() throws {
         let json = """
         { "head": { "status": "200" }, "body": [
