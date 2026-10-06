@@ -168,27 +168,24 @@ struct RadioScreen: View {
         .listSectionSeparator(.hidden)
     }
 
-    /// The local stations on a map, once any has a place (or while the
-    /// first are being placed). The tile opens the full map.
-    @ViewBuilder
+    /// The local stations on a map. The tile opens the full map. It stays
+    /// while there are local stations, placed or not, so the map pushed
+    /// from it always has it to zoom back into.
     private func mapSection(_ local: [PlayableContent]) -> some View {
-        let stations = radioMap.mapped(local)
-        if !stations.isEmpty || radioMap.isLocating {
-            Section {
-                RadioSectionHeader(title: "Radio Map", caption: "TuneIn")
+        Section {
+            RadioSectionHeader(title: "Radio Map", caption: "TuneIn")
 
-                Button {
-                    router.navigate(to: .radioMap(zoomSource: zoomNamespace == nil ? nil : .radioMap))
-                } label: {
-                    RadioMapTile(stations: stations, isLocating: radioMap.isLocating)
-                }
-                .buttonStyle(.plain)
-                .modifier(RadioMapZoomSource(namespace: zoomNamespace))
+            Button {
+                router.navigate(to: .radioMap(zoomSource: zoomNamespace == nil ? nil : .radioMap))
+            } label: {
+                RadioMapTile(stations: radioMap.mapped(local), isLocating: radioMap.isLocating)
             }
-            .listRowInsets(.default)
-            .listRowSeparator(.hidden)
-            .listSectionSeparator(.hidden)
+            .buttonStyle(.plain)
+            .modifier(RadioMapZoomSource(namespace: zoomNamespace))
         }
+        .listRowInsets(.default)
+        .listRowSeparator(.hidden)
+        .listSectionSeparator(.hidden)
     }
 
     @ViewBuilder

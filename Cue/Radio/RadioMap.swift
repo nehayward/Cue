@@ -99,6 +99,15 @@ final class RadioMap {
         pendingCount += ids.count
         Self.log.debug("locating \(ids.count) stations")
 
+        // Unstructured, so the lookups outlive the view task that asked:
+        // pushing the map from its tile ends the Radio tab's task, and the
+        // map's own `locate` skips what's in flight.
+        await Task {
+            await lookUp(ids)
+        }.value
+    }
+
+    private func lookUp(_ ids: [String]) async {
         let tuneIn = TuneInBrowseService.shared
         await withTaskGroup(of: (String, TuneInPlace?).self) { group in
             var next = 0
@@ -139,33 +148,57 @@ final class RadioMap {
     }
 
     /// Keeps what a description said. No answer at all (offline, turned
-    /// away) keeps nothing, so the station is asked again next time.
+    /// away, or a place name the map couldn't be asked about) keeps
+    /// nothing, so the station is asked again next time.
     private func record(_ found: TuneInPlace?, for id: String) async {
-        if let found {
-            var place = Place(latitude: found.latitude, longitude: found.longitude, location: found.location, checked: .now)
-            if found.coordinate == nil, let location = found.location, let point = await geocode(location) {
+        defer {
+            inFlight.remove(id)
+            pendingCount -= 1
+        }
+        guard let found else { return }
+        var place = Place(latitude: found.latitude, longitude: found.longitude, location: found.location, checked: .now)
+        if found.coordinate == nil, let location = found.location {
+            switch await geocode(location) {
+            case let .found(point):
                 place.latitude = point.latitude
                 place.longitude = point.longitude
+            case .nowhere:
+                break
+            case .failed:
+                return
             }
-            places[id] = place
         }
-        inFlight.remove(id)
-        pendingCount -= 1
+        places[id] = place
     }
 
-    private func geocode(_ location: String) async -> Point? {
+    private enum Geocoded {
+        case found(Point)
+        /// The map knows no such place.
+        case nowhere
+        /// Offline, throttled, or no geocoder on this system: ask again.
+        case failed
+    }
+
+    private func geocode(_ location: String) async -> Geocoded {
         if let known = geocoded[location] {
-            return known
+            return known.map(Geocoded.found) ?? .nowhere
         }
-        var point: Point?
-        if #available(iOS 26.0, macOS 26.0, visionOS 26.0, *),
-           let request = MKGeocodingRequest(addressString: location),
-           let item = try? await request.mapItems.first {
-            let coordinate = item.location.coordinate
-            point = Point(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        guard #available(iOS 26.0, macOS 26.0, visionOS 26.0, *),
+              let request = MKGeocodingRequest(addressString: location) else { return .failed }
+        let point: Point?
+        do {
+            point = try await request.mapItems.first.map { item in
+                Point(latitude: item.location.coordinate.latitude, longitude: item.location.coordinate.longitude)
+            }
+        } catch let error as MKError where error.code == .placemarkNotFound {
+            point = nil
+        } catch {
+            Self.log.debug("geocoding failed: \(error.localizedDescription, privacy: .public)")
+            return .failed
         }
+        // Only a real answer is kept, found or not.
         geocoded[location] = .some(point)
-        return point
+        return point.map(Geocoded.found) ?? .nowhere
     }
 
     // MARK: - Store
@@ -216,8 +249,8 @@ final class RadioMap {
     }
 
     /// The region that shows every one of `stations`, with room around
-    /// them for their pins.
-    static func region(fitting stations: [RadioMapStation]) -> MKCoordinateRegion? {
+    /// them for their pins, and no closer in than `minimumSpan` degrees.
+    static func region(fitting stations: [RadioMapStation], minimumSpan: Double = 0.15) -> MKCoordinateRegion? {
         guard let first = stations.first else { return nil }
         var minLatitude = first.latitude, maxLatitude = first.latitude
         var minLongitude = first.longitude, maxLongitude = first.longitude
@@ -232,11 +265,11 @@ final class RadioMap {
                 latitude: (minLatitude + maxLatitude) / 2,
                 longitude: (minLongitude + maxLongitude) / 2
             ),
-            // Half again the stations' spread, and never closer in than a
+            // Half again the stations' spread. The default floor is about a
             // town, so one station isn't shown street by street.
             span: MKCoordinateSpan(
-                latitudeDelta: min(170, max(0.15, (maxLatitude - minLatitude) * 1.5)),
-                longitudeDelta: min(360, max(0.15, (maxLongitude - minLongitude) * 1.5))
+                latitudeDelta: min(170, max(minimumSpan, (maxLatitude - minLatitude) * 1.5)),
+                longitudeDelta: min(360, max(minimumSpan, (maxLongitude - minLongitude) * 1.5))
             )
         )
     }

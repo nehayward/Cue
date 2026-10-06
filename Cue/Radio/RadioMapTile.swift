@@ -37,10 +37,10 @@ struct RadioMapTile: View {
                 Annotation(cluster.title, coordinate: cluster.coordinate, anchor: .center) {
                     RadioMapPin(cluster: cluster, size: Self.pinSize)
                 }
+                .annotationTitles(.hidden)
             }
         }
         .mapStyle(.standard(emphasis: .muted, pointsOfInterest: .excludingAll))
-        .annotationTitles(.hidden)
         .onMapCameraChange(frequency: .onEnd) { context in
             visibleRegion = context.region
         }
@@ -100,7 +100,7 @@ struct RadioMapTile: View {
 
     private var captionText: String {
         switch stations.count {
-        case 0: "Finding Stations…"
+        case 0: isLocating ? "Finding Stations…" : "No Stations Placed Yet"
         case 1: "1 Station"
         default: "\(stations.count) Stations"
         }

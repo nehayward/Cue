@@ -11,7 +11,7 @@ struct RadioMapScreen: View {
     @State private var radioMap = RadioMap.shared
     @State private var tuneIn = TuneInBrowseService.shared
 
-    @State private var position: MapCameraPosition
+    @State private var position: MapCameraPosition = .automatic
     @State private var visibleRegion: MKCoordinateRegion?
     @State private var size: CGSize = .zero
     /// The pin last tapped, as it was then: its card stays put while the
@@ -19,16 +19,9 @@ struct RadioMapScreen: View {
     @State private var selected: RadioMapCluster?
     /// Whether the map has been set on the stations near you, which waits
     /// for the first of them to be placed when none were yet.
-    @State private var hasFramed: Bool
+    @State private var hasFramed = false
 
     private static let pinSize: CGFloat = 40
-
-    /// Opens on the view the tile shows, so the zoom lands on the same map.
-    init() {
-        let framing = Self.nearYouRegion(RadioMap.shared.mapped(TuneInBrowseService.shared.localStations))
-        _position = State(initialValue: framing.map { MapCameraPosition.region($0) } ?? .automatic)
-        _hasFramed = State(initialValue: framing != nil)
-    }
 
     private var localStations: [RadioMapStation] {
         radioMap.mapped(tuneIn.localStations)
@@ -58,10 +51,10 @@ struct RadioMapScreen: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel(cluster.accessibilityLabel)
                 }
+                .annotationTitles(.hidden)
             }
         }
         .mapStyle(.standard(emphasis: .muted, pointsOfInterest: .excludingAll))
-        .annotationTitles(.hidden)
         .mapControls {
             MapCompass()
             MapScaleView()
@@ -104,6 +97,15 @@ struct RadioMapScreen: View {
                 .disabled(localStations.isEmpty)
             }
         }
+        .onAppear {
+            // The view the tile shows, so the zoom lands on the same map.
+            // Here rather than in `init`, which the screen that pushes this
+            // runs in its body, so reading the places there would redraw
+            // that screen with every station placed.
+            guard !hasFramed, let region = Self.nearYouRegion(localStations) else { return }
+            hasFramed = true
+            position = .region(region)
+        }
         .task {
             await radioMap.locate(tuneIn.localStations)
         }
@@ -122,8 +124,13 @@ struct RadioMapScreen: View {
         return cluster.stations.contains { $0.id == selected.id }
     }
 
+    /// Zooms in on a pin whose stations zooming would pull apart; opens the
+    /// card for the rest. A pin of stations a little way apart, already as
+    /// close in as their fit goes, opens too, or the tap would do nothing.
     private func open(_ cluster: RadioMapCluster) {
-        if cluster.stations.count > 1, !cluster.isOnePlace, let region = RadioMap.region(fitting: cluster.stations) {
+        if cluster.stations.count > 1, !cluster.isOnePlace,
+           let region = RadioMap.region(fitting: cluster.stations, minimumSpan: 0.01),
+           visibleRegion.map({ Self.isCloser(region, than: $0) }) ?? true {
             withAnimation(.smooth) {
                 selected = nil
                 position = .region(region)
@@ -133,6 +140,11 @@ struct RadioMapScreen: View {
                 selected = cluster
             }
         }
+    }
+
+    private static func isCloser(_ region: MKCoordinateRegion, than visible: MKCoordinateRegion) -> Bool {
+        region.span.latitudeDelta < visible.span.latitudeDelta * 0.8
+            && region.span.longitudeDelta < visible.span.longitudeDelta * 0.8
     }
 
     private func frameNearYou() {
