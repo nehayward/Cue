@@ -130,6 +130,13 @@ struct PlayerView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(.interactiveSpring, value: showArtworkOnly)
+            // The next song's cover, decoded before Next is pressed, so a
+            // skip shows it at once instead of a placeholder first.
+            .onChange(of: playback.currentIndex, initial: true) {
+                let next = playback.currentIndex + 1
+                guard group == nil, playback.queue.indices.contains(next) else { return }
+                ContentArtworkView.prefetchPlayerArtwork(for: playback.queue[next])
+            }
             // A change of source is never animated: the sections carry on
             // with what the new one reads, in place. On the Mac an animated
             // swap of the whole player cost a fixed ~90 MB of GPU memory for
@@ -277,7 +284,7 @@ struct PlayerView: View {
             ArtworkView(group: group, isDraggable: isArtworkDraggable, showBadge: true, shouldFade: artworkShouldFade)
                 .transition(.opacity)
         } else if let item = playback.nowPlayingDisplay {
-            ContentArtworkView(content: item, showMusicSource: true, preferredSize: 600, cornerRadius: 8, isDraggable: isArtworkDraggable)
+            ContentArtworkView(content: item, showMusicSource: true, preferredSize: ContentArtworkView.playerPreferredSize, cornerRadius: 8, isDraggable: isArtworkDraggable)
                 .shadow(radius: 2)
                 .transition(.opacity)
         } else {
@@ -1471,7 +1478,7 @@ private struct LocalPlayerMenuView: View {
                 }
                 .menuActionDismissBehavior(.disabled)
                 .tint(playback.isShuffled ? .accent : .secondary)
-                .disabled(!playback.isShuffled && playback.upNext.count < 2)
+                .disabled(!playback.isShuffled && playback.upNextCount < 2)
 
                 Button {
                     HapticManager.shared.fireHaptic(.selection)

@@ -21,6 +21,8 @@ final class FavoriteRatingCache {
     }
 
     func set(_ rating: Double, for id: String) {
+        // Unchanged: no update for every row reading the ratings.
+        guard ratings[id] != rating else { return }
         if ratings.count > 500 { ratings.removeAll() }
         ratings[id] = rating
     }

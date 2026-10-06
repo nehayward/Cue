@@ -102,7 +102,21 @@ public enum StreamTranscoding {
     /// Feeds the extension hint Sonos classifies by, the DIDL MIME type, and
     /// the extension a download or cached copy is saved under.
     public static func fileExtension(for destination: Destination, original: String?) -> String? {
-        format(for: destination).fileExtension ?? original
+        format(for: destination).fileExtension ?? original.map(fileExtension(forCodec:))
+    }
+
+    /// The file extension for a file of `codec`, as servers name the codec.
+    /// The player opens a saved file by its container, and some codecs come
+    /// in a container named otherwise: ALAC and AAC are MP4 (`.m4a`). A
+    /// Lossless Plex song saved as `.alac` wouldn't open at all
+    /// (AVFoundation -11828, "Cannot Open"). Anything else is its own name.
+    public static func fileExtension(forCodec codec: String) -> String {
+        switch codec.trimmingCharacters(in: .whitespaces).lowercased() {
+        case "alac", "aac", "he-aac", "aac_latm": "m4a"
+        case "vorbis": "ogg"
+        case "pcm": "wav"
+        case let other: other
+        }
     }
 }
 
@@ -137,7 +151,9 @@ public enum ConvertedStream {
             }
         }
         let codec = audioCodec?.trimmingCharacters(in: .whitespaces).lowercased() ?? ""
-        let original = codec.isEmpty || codec.count > 5 ? sourceURL.pathExtension.lowercased() : codec
+        let original = codec.isEmpty || codec.count > 5
+            ? sourceURL.pathExtension.lowercased()
+            : StreamTranscoding.fileExtension(forCodec: codec)
         guard let converted else {
             return (sourceURL, original.isEmpty ? "mp3" : original)
         }

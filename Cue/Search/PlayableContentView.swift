@@ -70,10 +70,6 @@ struct PlayableContentView: View {
         return audioService.isPreviewing(url)
     }
 
-    private var previewProgress: Double {
-        guard audioService.duration > 0 else { return 0 }
-        return min(1, audioService.playbackProgress / audioService.duration)
-    }
     
     var body: some View {
 //        let _ = Self._printChanges()
@@ -208,11 +204,7 @@ struct PlayableContentView: View {
                 // _UICollectionViewFeedbackLoopDebugger on iOS 26) — and the
                 // 2pt row-bottom bar never meets a safe-area edge anyway.
                 if isPreviewing {
-                    Rectangle()
-                        .foregroundStyle(.accent.gradient)
-                        .frame(height: 2)
-                        .scaleEffect(x: previewProgress, anchor: .leading)
-                        .animation(.linear(duration: 0.3), value: previewProgress)
+                    PreviewProgressBar()
                 }
             }
         }
@@ -312,5 +304,26 @@ struct PlayableContentView: View {
         default:
             return 20
         }
+    }
+}
+
+/// A playing preview's progress, along the bottom of its row. A view of its
+/// own so only it redraws as the preview plays: read in the row, the
+/// progress re-ran the whole row — artwork, menu, swipe actions — 30 times a
+/// second.
+struct PreviewProgressBar: View {
+    @State private var audioService = AudioPlaybackService.shared
+
+    private var progress: Double {
+        guard audioService.duration > 0 else { return 0 }
+        return min(1, audioService.playbackProgress / audioService.duration)
+    }
+
+    var body: some View {
+        Rectangle()
+            .foregroundStyle(.accent.gradient)
+            .frame(height: 2)
+            .scaleEffect(x: progress, anchor: .leading)
+            .animation(.linear(duration: 0.3), value: progress)
     }
 }

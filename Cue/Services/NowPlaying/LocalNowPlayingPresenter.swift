@@ -176,9 +176,11 @@ final class LocalNowPlayingPresenter {
         (info?[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String)?.hasPrefix(Self.identifierPrefix) ?? false
     }
 
-    /// Through the shared Nuke pipeline under the same key the artwork views
-    /// use, so the image is usually already decoded; file URLs from the
-    /// Files folder and the download cache load the same way.
+    /// Through the shared Nuke pipeline with the player cover's own request,
+    /// so the image is usually already decoded; file URLs from the Files
+    /// folder and the download cache load the same way. Its own request (a
+    /// resize to 500 px) had a key of its own: every song was decoded again
+    /// at full size, then scaled.
     private func loadArtwork(from url: URL?, item: PlayableContent?) {
         artworkTask?.cancel()
         publishedArtworkURL = url
@@ -187,10 +189,10 @@ final class LocalNowPlayingPresenter {
             MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyArtwork] = nil
             return
         }
-        var request = ImageRequest(url: url, processors: [.resize(width: 500)], priority: .high)
-        if let item {
-            request.imageID = item.imageKey
-        }
+        var request = item.map {
+            ContentArtworkView.artworkRequest(for: $0, url: url, preferredSize: ContentArtworkView.playerPreferredSize)
+        } ?? ImageRequest(url: url, processors: [.resize(width: 500)])
+        request.priority = .high
         if let cached = ImagePipeline.shared.cache.cachedImage(for: request)?.image {
             attach(artwork: cached, for: url)
             return
