@@ -91,6 +91,7 @@ final class LiveActivityManager: LiveActivityManageable {
                 continue
             }
 
+            let trackReadAt = ContinuousClock.now
             async let track = sonosService.getTrack(ip: group.coordinatorRoom.ip)
             async let playbackInfo = sonosService.getPlaybackInfo(ip: group.coordinatorRoom.ip)
             async let groupVolume = sonosService.getGroupVolume(ip: group.coordinatorRoom.ip)
@@ -99,15 +100,24 @@ final class LiveActivityManager: LiveActivityManageable {
             // One unreachable speaker shouldn't stop the remaining activities
             // from refreshing.
             guard let info = try? await (track, playbackInfo, groupVolume, isMuted) else { continue }
-            if let track = info.0 {
-                if group.coordinatorRoom.track.trackID == track.trackID, !group.isEditingPlayback {
+            // Mid-skip the model already shows where the presses are headed;
+            // this read may still be of the song being left.
+            if let track = info.0, await !sonosService.skipHoldsTrack(on: group, read: track, at: trackReadAt) {
+                // A skip preview carries the real song's id but none of its
+                // metadata, so it's replaced rather than kept.
+                let isShownTrack = group.coordinatorRoom.track.trackID == track.trackID
+                    && !group.coordinatorRoom.track.isSkipPreview
+                if isShownTrack, !group.isEditingPlayback {
                     group.coordinatorRoom.updatePlaybackPosition(track.playbackPosition)
-                } else if group.coordinatorRoom.track.trackID != track.trackID {
+                } else if !isShownTrack {
                     group.coordinatorRoom.track = track
                     group.coordinatorRoom.updatePlaybackPosition(track.playbackPosition)
                 }
             }
-            group.coordinatorRoom.setPlaying(info.1 == .playing, source: .poll)
+            // A failed read says nothing about whether it's playing.
+            if info.1 != .unknown {
+                group.coordinatorRoom.setPlaying(info.1 == .playing, source: .poll)
+            }
             group.groupVolume = info.2
             group.isMuted = info.3 ?? false
             

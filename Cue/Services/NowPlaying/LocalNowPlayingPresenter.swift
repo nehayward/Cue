@@ -11,6 +11,11 @@ import UIKit
 /// artwork and timeline, and the transport commands, for as long as a run
 /// is armed.
 ///
+/// While CarPlay is connected it publishes Apple Music runs as well. On
+/// iOS 27 the car's Now Playing screen reads this app's own client rather
+/// than MusicKit's, so Apple Music needs a card here to show up there at
+/// all (`LocalPlaybackService.publishesAppleMusicCard`).
+///
 /// The Sonos mirror (`NowPlayingSessionService`) stands down while local
 /// audio plays, and on its way out it clears the card. The presenter notices
 /// its card is gone on the next poll and puts it back, so the two hand off
@@ -32,6 +37,9 @@ final class LocalNowPlayingPresenter {
 
     private var published: Snapshot?
     private var publishedElapsed: TimeInterval = 0
+    /// When `publishedElapsed` was stated, for where the system's clock
+    /// should be now.
+    private var publishedAt = Date.distantPast
     private var commandTokens: [(MPRemoteCommand, Any)] = []
     private var artworkTask: Task<Void, Never>?
     private var publishedArtworkURL: URL?
@@ -72,7 +80,22 @@ final class LocalNowPlayingPresenter {
     /// its length changed, or when the card isn't ours any more; the
     /// elapsed time is left to the system's own clock between publishes,
     /// which is smoother than pushing a number twice a second.
-    func update(item: PlayableContent?, isPlaying: Bool, duration: TimeInterval, elapsed: TimeInterval, canSkip: Bool) {
+    ///
+    /// `restatesClock` publishes about once a second while playing, for a
+    /// card the system won't run the clock on. That's Apple Music's in a
+    /// car: iOS reads a card as playing only while this process makes the
+    /// sound (`playbackState` is macOS-only), MusicKit's player makes it
+    /// out of process, and on iOS 27 the car reads this card all the same
+    /// (FB24840951) — so it froze at the last publish. Stepping beats
+    /// standing still; the car's play/pause glyph stays wrong regardless.
+    func update(
+        item: PlayableContent?,
+        isPlaying: Bool,
+        duration: TimeInterval,
+        elapsed: TimeInterval,
+        canSkip: Bool,
+        restatesClock: Bool = false
+    ) {
         guard let item else { return }
         let snapshot = Snapshot(
             identity: item.content.id,
@@ -85,18 +108,26 @@ final class LocalNowPlayingPresenter {
             canSkip: canSkip
         )
         let cardIsOurs = isOurs(MPNowPlayingInfoCenter.default().nowPlayingInfo)
-        // A stall or a hiccup can leave the system's clock well off; a
-        // drift past a couple of seconds is worth a republish.
-        let drifted = abs(elapsed - publishedElapsed) > 2 && !isPlaying
-        guard snapshot != published || !cardIsOurs || drifted else { return }
+        // A stall or a hiccup can leave the system's clock well off, and so
+        // can a seek this player never saw (MusicKit's own card takes
+        // those for Apple Music); a drift past a couple of seconds is worth
+        // a republish. The clock runs on from the last publish while
+        // playing and stands still while paused.
+        let expected = published?.isPlaying == true
+            ? publishedElapsed + Date.now.timeIntervalSince(publishedAt)
+            : publishedElapsed
+        let drifted = abs(elapsed - expected) > 2
+        // The poll runs twice a second; just under one lets every other
+        // tick through, whatever the timer's jitter.
+        let restate = restatesClock && isPlaying && Date.now.timeIntervalSince(publishedAt) >= 0.9
+        guard snapshot != published || !cardIsOurs || drifted || restate else { return }
         publish(snapshot, elapsed: elapsed, item: item)
     }
 
     /// A seek moves the timeline; the card has to know now.
     func noteSeek(elapsed: TimeInterval) {
         guard let published, let player else { return }
-        publish(published, elapsed: elapsed, item: player.nowPlaying)
-        publishedElapsed = elapsed
+        publish(published, elapsed: elapsed, item: player.nowPlayingDisplay)
     }
 
     // MARK: - Publishing
@@ -127,9 +158,14 @@ final class LocalNowPlayingPresenter {
         let center = MPRemoteCommandCenter.shared()
         center.nextTrackCommand.isEnabled = snapshot.canSkip
         center.changePlaybackPositionCommand.isEnabled = snapshot.duration > 0
+        // The Sonos mirror switches these off for its card; this card is
+        // back, and so are they.
+        center.changeShuffleModeCommand.isEnabled = true
+        center.changeRepeatModeCommand.isEnabled = true
 
         published = snapshot
-        publishedElapsed = elapsed
+        publishedElapsed = max(0, elapsed)
+        publishedAt = .now
 
         if publishedArtworkURL != snapshot.artworkURL {
             loadArtwork(from: snapshot.artworkURL, item: item)
@@ -188,6 +224,8 @@ final class LocalNowPlayingPresenter {
         center.nextTrackCommand.isEnabled = true
         center.previousTrackCommand.isEnabled = true
         center.changePlaybackPositionCommand.isEnabled = true
+        center.changeShuffleModeCommand.isEnabled = true
+        center.changeRepeatModeCommand.isEnabled = true
 
         func add(_ command: MPRemoteCommand, _ action: @escaping @MainActor (LocalPlaybackService, MPRemoteCommandEvent) -> MPRemoteCommandHandlerStatus) {
             let token = command.addTarget { [weak self] event in
@@ -224,6 +262,20 @@ final class LocalNowPlayingPresenter {
             player.seek(to: event.positionTime)
             return .success
         }
+        // A car's shuffle and repeat buttons (`CarPlayInterface`) take a tap
+        // only while these commands are there to take one: without them the
+        // buttons drew but did nothing. Siri and accessories send them as
+        // they are. A station has neither.
+        add(center.changeShuffleModeCommand) { player, event in
+            guard let event = event as? MPChangeShuffleModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+            player.setShuffle(event.shuffleType != .off)
+            return .success
+        }
+        add(center.changeRepeatModeCommand) { player, event in
+            guard let event = event as? MPChangeRepeatModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+            player.setRepeatMode(LocalPlaybackService.RepeatMode(event.repeatType))
+            return .success
+        }
     }
 
     private func unregisterCommands() {
@@ -231,5 +283,25 @@ final class LocalNowPlayingPresenter {
             command.removeTarget(token)
         }
         commandTokens = []
+    }
+}
+
+extension LocalPlaybackService.RepeatMode {
+    /// From the system's repeat type, as a remote command or a car states it.
+    init(_ type: MPRepeatType) {
+        switch type {
+        case .one: self = .one
+        case .all: self = .all
+        default: self = .off
+        }
+    }
+
+    /// As the system's remote commands state it.
+    var repeatType: MPRepeatType {
+        switch self {
+        case .off: .off
+        case .all: .all
+        case .one: .one
+        }
     }
 }

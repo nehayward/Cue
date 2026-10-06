@@ -5,6 +5,7 @@
 //  Created by Nick Hayward on 9/25/25.
 //
 import Foundation
+import Nuke
 
 extension SonosService: SonosEventHandler {
     // MARK: - SonosEventHandler Implementation
@@ -36,23 +37,32 @@ extension SonosService: SonosEventHandler {
         // whenever the poll wasn't running to correct it (i.e. backgrounded,
         // exactly when the Lock Screen card is the only thing showing).
         // `SonosMiniService` skips the same state for the same reason.
+        //
+        // It does mean the song has stopped moving, though, so it's recorded
+        // as transitioning: the progress clock holds until PLAYING rather than
+        // counting through the buffering and being pulled back afterwards.
+        // Written only on change: an @Observable setter notifies every
+        // observer even when the value is the same.
+        let room = group.coordinatorRoom
         switch playbackState.playbackState {
         case "PLAYBACK_STATE_PLAYING":
+            if room.isTransitioning { room.isTransitioning = false }
             setIsPlaying(true, on: group)
         case "PLAYBACK_STATE_PAUSED", "PLAYBACK_STATE_IDLE":
+            if room.isTransitioning { room.isTransitioning = false }
             setIsPlaying(false, on: group)
+        case "PLAYBACK_STATE_BUFFERING", "PLAYBACK_STATE_TRANSITIONING":
+            if !room.isTransitioning { room.isTransitioning = true }
         default:
-            // BUFFERING, TRANSITIONING, or a state this build doesn't know:
-            // keep whatever we had rather than guessing.
+            // A state this build doesn't know: keep whatever we had rather
+            // than guessing.
             break
         }
 
-        // Only correct real drift: the position ticks continuously and every
-        // write invalidates each progress-bar consumer.
-        let position = TimeInterval(playbackState.positionMillis)
-        if abs(group.coordinatorRoom.playbackPosition - position) > 1000 {
-            group.coordinatorRoom.updatePlaybackPosition(position)
-        }
+        // `updatePlaybackPosition` decides what's worth writing: it drops a
+        // report the running estimate already agrees with, and it's how an
+        // in-flight seek learns it landed.
+        room.updatePlaybackPosition(TimeInterval(playbackState.positionMillis))
 
         notifyLiveUpdate(for: group)
     }
@@ -93,6 +103,17 @@ extension SonosService: SonosEventHandler {
             if let track = metadata.currentItem?.track {
                 groups[index].audioQuality = track.quality
                 groups[index].coordinatorRoom.container = metadata.container
+                // What a next press can show before the speaker has moved —
+                // cover included, so it's loaded before anyone presses.
+                if let next = metadata.nextItem?.track, let name = track.name, !name.isEmpty {
+                    liveNextItems[playerId] = LiveNextItem(currentName: name, next: next)
+                } else {
+                    liveNextItems.removeValue(forKey: playerId)
+                }
+                if let next = metadata.nextItem?.track,
+                   let request = Track(skipPreviewOf: next, musicService: groups[index].coordinatorRoom.track.musicService, position: 0)?.playerArtworkRequest {
+                    Self.artworkPrefetcher.startPrefetching(with: [request])
+                }
                 // The socket carries the *new* song before the poll notices.
                 // Prefer the catalog object id; fall back to the name for
                 // sources that don't carry one (radio track announcements).
@@ -103,6 +124,7 @@ extension SonosService: SonosEventHandler {
                 )
             } else {
                 groups[index].coordinatorRoom.container = nil
+                liveNextItems.removeValue(forKey: playerId)
             }
         }
     }
@@ -169,6 +191,9 @@ extension SonosService: SonosEventHandler {
             // it. That also lets the loop stop early when the pulse gets there
             // first, instead of re-reading against its own result.
             let outgoing = group.coordinatorRoom.track.unique
+            // A skip preview shares the real song's `unique`, so the real song
+            // replacing it counts as having moved on too.
+            let outgoingIsPreview = group.coordinatorRoom.track.isSkipPreview
 
             for _ in 0..<Self.trackRefreshAttempts {
                 try? await Task.sleep(for: Self.trackRefreshDelay)
@@ -181,7 +206,8 @@ extension SonosService: SonosEventHandler {
                 // pushing too, so notify either way — but only keep asking
                 // while the transport is still on the outgoing item.
                 self.notifyLiveUpdate(for: group)
-                if group.coordinatorRoom.track.unique != outgoing { return }
+                if group.coordinatorRoom.track.unique != outgoing
+                    || outgoingIsPreview && !group.coordinatorRoom.track.isSkipPreview { return }
             }
         }
     }

@@ -7,15 +7,24 @@ import SwiftUI
 ///
 /// Sits beside the tab content the same way the bottom accessory does, and
 /// follows the same route, so the two never disagree about what "next" means.
+/// The presented route, like the player: while a hand-off carries the queue
+/// to a speaker, this keeps showing the queue being carried rather than the
+/// speaker's old one.
 struct QueueNextUpView: View {
     private var route: PlaybackRoute { .shared }
 
     var body: some View {
-        if let group = route.group {
-            GroupNextUpView(group: group)
-        } else {
-            LocalNextUpView()
+        Group {
+            if let group = route.presentedGroup {
+                GroupNextUpView(group: group)
+            } else {
+                LocalNextUpView()
+            }
         }
+        // Through a hand-off the rows are the source's, on their way out: a
+        // tap or an edit would play or change a queue the hand-off has
+        // already carried.
+        .disabled(route.isHolding)
     }
 }
 
@@ -57,32 +66,27 @@ private struct LocalNextUpView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .confirmationDialog("Clear Up Next", isPresented: $clearConfirmation, titleVisibility: .hidden) {
-            Button("Clear Up Next", role: .destructive) {
-                HapticManager.shared.fireHaptic(.buttonPress)
-                withAnimation {
-                    playback.clearUpNext()
-                    editMode = .inactive
-                }
-            }
-        } message: {
-            Text("The current song keeps playing.")
-        }
     }
 
     @ViewBuilder
     private var controls: some View {
         Button {
-            HapticManager.shared.fireHaptic(.buttonPress)
+            HapticManager.shared.fireHaptic(.selection)
             withAnimation(.easeInOut(duration: 0.35)) {
-                playback.shuffleUpNext()
+                playback.setShuffle(!playback.isShuffled)
             }
         } label: {
-            Label("Shuffle Up Next", systemImage: "shuffle")
+            Label("Shuffle", systemImage: "shuffle")
                 .labelStyle(.iconOnly)
         }
-        .disabled(playback.upNext.count < 2)
-        .help("Shuffle Up Next")
+        // On or off at a glance, the way Repeat beside it reads. Untinted,
+        // it drew in the accent colour and looked on all the time.
+        .tint(playback.isShuffled ? Color.accentColor : Color.secondary)
+        .foregroundStyle(playback.isShuffled ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+        .accessibilityValue(playback.isShuffled ? "On" : "Off")
+        // Off stays reachable with nothing left to shuffle.
+        .disabled(!playback.isShuffled && playback.upNext.count < 2)
+        .help(playback.isShuffled ? "Shuffle On" : "Shuffle Off")
 
         Button {
             HapticManager.shared.fireHaptic(.selection)
@@ -122,11 +126,72 @@ private struct LocalNextUpView: View {
         .menuIndicator(.hidden)
         .accessibilityLabel("Queue Options")
         .help("Queue Options")
+        // On the menu, so the confirmation points at the button it came
+        // from. On the whole panel it floated over the artwork, aimed at the
+        // sheet's grabber.
+        .confirmationDialog("Clear Up Next", isPresented: $clearConfirmation, titleVisibility: .hidden) {
+            Button("Clear Up Next", role: .destructive) {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                withAnimation {
+                    playback.clearUpNext()
+                    editMode = .inactive
+                }
+            }
+        } message: {
+            Text("The current song keeps playing.")
+        }
     }
 
+    /// The queue's rows with an identity that follows the song rather than
+    /// its position: keyed by position, a dragged row and every row between
+    /// its old and new place changed identity, so the list swapped their
+    /// contents instead of sliding the one row. The same song queued twice
+    /// tells its copies apart by which occurrence each is.
+    private var rows: [(id: String, index: Int, item: PlayableContent)] {
+        var occurrences: [String: Int] = [:]
+        return playback.queue.enumerated().map { index, item in
+            let key = "\(item.content.service)/\(item.content.id)"
+            let occurrence = occurrences[key, default: 0]
+            occurrences[key] = occurrence + 1
+            return ("\(key)#\(occurrence)", index, item)
+        }
+    }
+
+    /// The current song's row, which the list opens on.
+    private var currentRowID: String? {
+        rows.first { $0.index == playback.currentIndex }?.id
+    }
+
+    /// Opens on the current song, with what's played above it to scroll
+    /// back to, and follows it as the queue moves on. Not while editing: a
+    /// reorder shouldn't yank the list away. Near the end of a short queue
+    /// the list can't scroll the current song all the way up, so the played
+    /// ones above it fill the space.
+    ///
+    /// By row id through `ScrollViewReader`: `List` ignores
+    /// `ScrollPosition.scrollTo(id:)`, which only drives a `ScrollView`, and
+    /// this has to stay a `List` for swipe-to-remove and drag-to-reorder.
     private var list: some View {
+        ScrollViewReader { proxy in
+            rowList
+                // After the first layout: scrolled in the same pass as the
+                // list appears, it stays at the top.
+                .task {
+                    guard let currentRowID else { return }
+                    proxy.scrollTo(currentRowID, anchor: .top)
+                }
+                .onChange(of: playback.currentIndex) {
+                    guard !editMode.isEditing, let currentRowID else { return }
+                    withAnimation(.snappy) { proxy.scrollTo(currentRowID, anchor: .top) }
+                }
+        }
+    }
+
+    private var rowList: some View {
         List {
-            ForEach(Array(playback.queue.enumerated()), id: \.offset) { index, item in
+            ForEach(rows, id: \.id) { row in
+                let index = row.index
+                let item = row.item
                 let isUpcoming = index > playback.currentIndex
                 QueueNextUpRow(
                     item: item,
@@ -183,7 +248,9 @@ private struct LocalNextUpView: View {
                 withAnimation { playback.removeFromQueue(at: offsets) }
             }
             .onMove { source, destination in
-                playback.moveInQueue(from: source, to: destination)
+                withAnimation(.snappy) {
+                    playback.moveInQueue(from: source, to: destination)
+                }
             }
         }
         .listStyle(.plain)
@@ -201,6 +268,8 @@ private struct GroupNextUpView: View {
 
     @State private var isLoading = false
     @State private var clearConfirmation = false
+    /// Where the list is scrolled, by row offset.
+    @State private var position = ScrollPosition(idType: Int.self)
 
     /// The current row is only meaningful while the speaker plays from its
     /// queue; on radio or TV the list is what would play if it went back.
@@ -253,8 +322,19 @@ private struct GroupNextUpView: View {
                             .accessibilityHint("Plays this song")
                         }
                     }
+                    .scrollTargetLayout()
                     .padding(.horizontal, 8)
                     .padding(.bottom, 12)
+                }
+                // Opens on the current song, as the device's list does, and
+                // follows it — including once the queue has loaded.
+                .scrollPosition($position, anchor: .top)
+                .onAppear {
+                    if let currentOffset { position.scrollTo(id: currentOffset, anchor: .top) }
+                }
+                .onChange(of: currentOffset) {
+                    guard let currentOffset else { return }
+                    withAnimation(.snappy) { position.scrollTo(id: currentOffset, anchor: .top) }
                 }
                 .opacity(isQueueActive ? 1 : 0.6)
             }
@@ -337,6 +417,13 @@ private struct GroupNextUpView: View {
                 }
             }
         }
+    }
+
+    /// The current song's place in the loaded queue, while the speaker plays
+    /// from it.
+    private var currentOffset: Int? {
+        guard isQueueActive else { return nil }
+        return group.coordinatorRoom.queue.firstIndex { group.isNowPlaying($0) }
     }
 
     /// Sets the mode optimistically, then reloads: shuffling reorders the

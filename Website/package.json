@@ -1,0 +1,14 @@
+{
+	"name": "cue-site",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "wrangler dev --live-reload",
+		"deploy": "wrangler deploy",
+		"test": "node --test",
+		"tail": "wrangler tail"
+	},
+	"devDependencies": {
+		"wrangler": "^4.146.0"
+	}
+}

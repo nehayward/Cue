@@ -178,6 +178,53 @@ final class SubsonicTests: XCTestCase {
         XCTAssertNil(SubsonicAPI.normalizedAddress("   "))
     }
 
+    /// A bare public name is tried over HTTPS before HTTP.
+    func testCandidateAddressesTryHTTPSFirstForPublicNames() {
+        XCTAssertEqual(
+            SubsonicAPI.candidateAddresses(for: "music.example.com"),
+            ["https://music.example.com", "http://music.example.com"]
+        )
+        XCTAssertEqual(
+            SubsonicAPI.candidateAddresses(for: "music.example.com:4533/navidrome/app/#/login"),
+            ["https://music.example.com:4533/navidrome", "http://music.example.com:4533/navidrome"]
+        )
+    }
+
+    /// Home-network names, IP addresses and a typed scheme are used as given.
+    func testCandidateAddressesKeepLocalAndExplicitAddresses() {
+        XCTAssertEqual(SubsonicAPI.candidateAddresses(for: "nas.local:4533"), ["http://nas.local:4533"])
+        XCTAssertEqual(SubsonicAPI.candidateAddresses(for: "192.168.1.20:4533"), ["http://192.168.1.20:4533"])
+        XCTAssertEqual(SubsonicAPI.candidateAddresses(for: "localhost:4533"), ["http://localhost:4533"])
+        XCTAssertEqual(SubsonicAPI.candidateAddresses(for: "http://music.example.com"), ["http://music.example.com"])
+        XCTAssertEqual(SubsonicAPI.candidateAddresses(for: "https://music.example.com/"), ["https://music.example.com"])
+        XCTAssertEqual(SubsonicAPI.candidateAddresses(for: "  "), [])
+    }
+
+    func testLooksPublic() {
+        XCTAssertTrue(SubsonicAPI.looksPublic(host: "music.example.com"))
+        XCTAssertTrue(SubsonicAPI.looksPublic(host: "nas.tail1234.ts.net"))
+        XCTAssertFalse(SubsonicAPI.looksPublic(host: "nas"))
+        XCTAssertFalse(SubsonicAPI.looksPublic(host: "NAS.LOCAL"))
+        XCTAssertFalse(SubsonicAPI.looksPublic(host: "nas.home.arpa"))
+        XCTAssertFalse(SubsonicAPI.looksPublic(host: "10.0.0.2"))
+        XCTAssertFalse(SubsonicAPI.looksPublic(host: "fe80::1"))
+    }
+
+    func testLoginErrorMessages() {
+        XCTAssertEqual(
+            SubsonicAPI.message(forServerError: SubsonicError(code: 40, message: "Wrong username or password")),
+            "Wrong username or password."
+        )
+        XCTAssertEqual(
+            SubsonicAPI.message(forServerError: SubsonicError(code: 70, message: "Not found")),
+            "Not found"
+        )
+        XCTAssertEqual(
+            SubsonicAPI.message(forConnectionError: URLError(.cannotFindHost)),
+            "Couldn't find that server. Check the address."
+        )
+    }
+
     func testCoverArtURLScalesAndNilsOutForMissingID() {
         storeCredentials()
         XCTAssertNil(SubsonicAPI.coverArtURL(for: nil))

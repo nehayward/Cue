@@ -93,7 +93,7 @@ struct PlaybackControlValueProvider: AppIntentControlValueProvider {
         // real state instead of flashing the wrong one.
         var status = await SonosService.shared.getPlaybackInfo(ip: ip)
         var attempts = 0
-        while status == .transitioning, attempts < 3 {
+        while status == .transitioning || status == .unknown, attempts < 3 {
             try? await Task.sleep(for: .milliseconds(100))
             status = await SonosService.shared.getPlaybackInfo(ip: ip)
             attempts += 1

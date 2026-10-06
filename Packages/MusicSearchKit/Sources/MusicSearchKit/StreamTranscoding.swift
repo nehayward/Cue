@@ -105,3 +105,50 @@ public enum StreamTranscoding {
         format(for: destination).fileExtension ?? original
     }
 }
+
+/// A Plex or Subsonic song's stream at a format and bitrate of its own,
+/// whatever the Streaming Quality setting says — for the Apple Watch, which
+/// has a quality of its own. Plex conversions run under a client of their
+/// own (`plexClient`), so they never end a transcode the iPhone is playing,
+/// and two under different clients never end each other.
+public enum ConvertedStream {
+    public enum Service: String, Sendable {
+        case plex, subsonic
+    }
+
+    /// The stream, and the suffix it arrives with. When no converted stream
+    /// can be built (no sign-in to sign it with, no Plex rating key), the
+    /// original file, under its own suffix.
+    public static func stream(
+        service: Service,
+        contentID: String,
+        sourceURL: URL,
+        audioCodec: String?,
+        format: StreamTranscoding.Format,
+        bitrate: Int,
+        plexClient: String = "Cue-Watch"
+    ) -> (url: URL, fileExtension: String) {
+        let converted: URL? = switch service {
+        case .subsonic:
+            SubsonicAPI.streamURL(for: contentID, fileExtension: audioCodec, format: format, bitrate: bitrate)
+        case .plex:
+            plexRatingKey(contentID: contentID).map {
+                PlexAPI.playbackStreamURL(from: sourceURL, ratingKey: $0, format: format, bitrate: bitrate, session: "cue-watch", client: plexClient)
+            }
+        }
+        let codec = audioCodec?.trimmingCharacters(in: .whitespaces).lowercased() ?? ""
+        let original = codec.isEmpty || codec.count > 5 ? sourceURL.pathExtension.lowercased() : codec
+        guard let converted else {
+            return (sourceURL, original.isEmpty ? "mp3" : original)
+        }
+        let suffix = format.fileExtension ?? (original.isEmpty ? "mp3" : original)
+        return (converted, suffix)
+    }
+
+    /// A Plex track's `ratingKey`: the last segment of its Sonos-style id
+    /// (`<machine>%3A3%3A<ratingKey>`).
+    public static func plexRatingKey(contentID: String) -> String? {
+        let key = (contentID.removingPercentEncoding ?? contentID).components(separatedBy: ":").last ?? ""
+        return key.isEmpty ? nil : key
+    }
+}

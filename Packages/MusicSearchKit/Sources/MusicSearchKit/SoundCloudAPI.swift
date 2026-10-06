@@ -305,6 +305,17 @@ public final class SoundCloudAPI {
     }
     
     private func authorizedRequestWithDirectToken<T: Decodable>(_ url: URL, method: String = "GET") async throws -> T {
+        do {
+            return try await sendWithDirectToken(url, method: method)
+        } catch AuthError.invalidToken {
+            // The cached token may be older than the one the speaker last
+            // handed over; read the stored one and try once more.
+            tokenRefreshHandler?.invalidateCredentials(for: "SoundCloud")
+            return try await sendWithDirectToken(url, method: method)
+        }
+    }
+
+    private func sendWithDirectToken<T: Decodable>(_ url: URL, method: String) async throws -> T {
         // Try to get direct SoundCloud OAuth token from keychain
         if let directToken = try? await tokenRefreshHandler?.getCredentials(for: "SoundCloud") {
             var request = URLRequest(url: url)

@@ -22,6 +22,20 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     }
     public var playMode: PlayMode = .normal
     public var isMuted: Bool = false
+
+    /// Until when a mute Cue just set holds against the poll. A read that
+    /// left before the change landed would otherwise put the old state back.
+    @ObservationIgnored public private(set) var muteHeldUntil: Date = .distantPast
+    public var isMuteHeld: Bool { muteHeldUntil > .now }
+
+    /// Shows `mute` at once and keeps the poll from undoing it while the
+    /// speaker catches up.
+    public func holdMute(_ mute: Bool) {
+        muteHeldUntil = .now.addingTimeInterval(2.5)
+        if isMuted != mute {
+            isMuted = mute
+        }
+    }
     public var ip: String { coordinatorRoom.ip }
     public var isEditingVolume: Bool = false
     public var isEditingPlayback: Bool = false
@@ -61,6 +75,20 @@ extension GroupRoom {
     /// Ignores volatile state like track, playback, battery, name.
     public var topologyKey: String {
         "\(coordinatorID):\(rooms.map(\.id).sorted().joined(separator: ","))"
+    }
+
+    /// `topologyKey` plus each room's state and address: what decides whether a
+    /// fresh parse replaces the stored groups. A speaker alone in its group has
+    /// the same `topologyKey` whether Sonos lists it as a member or under
+    /// VanishedDevices, so comparing topology alone kept a vanished speaker
+    /// `.active` (and polled until every request timed out), and kept one that
+    /// came back stuck inactive.
+    public var adoptionKey: String {
+        let members = rooms
+            .sorted { $0.id < $1.id }
+            .map { "\($0.id)@\($0.ip)=\($0.state)" }
+            .joined(separator: ",")
+        return "\(coordinatorID):\(members)"
     }
 
     public var nameWithCount: String {

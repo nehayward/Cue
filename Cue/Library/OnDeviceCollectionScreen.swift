@@ -5,22 +5,26 @@ import SwiftUI
 /// The on-device library's Albums or Artists page: what's here, grouped,
 /// with a local search and sort. A row opens the songs of that album or
 /// artist that are on the device — no server is asked — with a Play All
-/// that queues just those.
+/// that queues just those. Narrowed to one provider's songs from its
+/// Downloaded page; everything for Offline Mode.
 struct OnDeviceCollectionScreen: View {
     let collection: OnDeviceCollection
+    var service: MusicService? = nil
 
     @State private var downloads = DownloadManager.shared
+    @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
     @State private var searchText = ""
     @State private var sort: OnDeviceLibrary.GroupSort = .title
     @State private var isDescending = false
 
     var body: some View {
-        // Read here so a download finishing or the Files index rebuilding
-        // re-runs the grouping; the library itself is static.
+        // Read here so a download finishing or an index rebuilding re-runs
+        // the grouping; the library itself is static.
         _ = downloads.completed.count
+        _ = apple.version
         _ = files.indexVersion
-        let groups = OnDeviceLibrary.groups(collection, matching: searchText, sortedBy: sort, descending: isDescending)
+        let groups = OnDeviceLibrary.groups(collection, matching: searchText, sortedBy: sort, descending: isDescending, in: service)
         let isSearching = !searchText.trimmingCharacters(in: .whitespaces).isEmpty
 
         return List {
@@ -39,12 +43,15 @@ struct OnDeviceCollectionScreen: View {
                     ContentUnavailableView {
                         Label("Nothing on This Device", systemImage: "arrow.down.circle")
                     } description: {
-                        Text("Download Plex or Subsonic songs from their menus, or keep a Files folder on this device, and they'll be here when you're offline.")
+                        Text(OnDeviceLibrary.emptyDescription(for: service))
                     }
                 }
             }
         }
         .searchable(text: $searchText, prompt: "Search \(collection.title)")
+        .onAppear {
+            apple.refreshIfNeeded()
+        }
         .miniPlayerOnScrollHandler()
         .navigationTitle(collection.title)
         .navigationBarTitleDisplayMode(.inline)

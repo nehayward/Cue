@@ -21,7 +21,8 @@ struct ContainerDownloadButton: View {
                 Menu {
                     let counts = manager.trackCounts(forContainer: DownloadManager.containerKey(for: item))
                     Label(counts.total == 1 ? "1 song on this device" : "\(counts.total) songs on this device", systemImage: "arrow.down.circle.fill")
-                    Button(role: .destructive) {
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
                         manager.removeDownload(contentsOf: item)
                         alertService.showAlertContent(with: item, subtitle: "Removed from this device", symbolName: "trash")
                     } label: {

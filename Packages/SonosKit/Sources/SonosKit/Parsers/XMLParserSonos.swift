@@ -223,7 +223,7 @@ final class XMLParserSonos {
 
     func parsePlaybackInfo(xml: String) -> PlaybackStatus {
         guard let value = try? parseValue(xml: xml, named: "CurrentTransportState") else {
-            return .transitioning
+            return .unknown
         }
         
         if value == "PLAYING" {

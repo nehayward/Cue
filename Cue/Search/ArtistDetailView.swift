@@ -301,7 +301,7 @@ struct ArtistDetailView: View {
                     }
 
                     // Sonos playlists only.
-                    if sonosService.isEnabled {
+                    if sonosService.isAvailable {
                         AddTracksToPlaylistMenu(tracks: tracks)
                     }
                 }
@@ -574,7 +574,7 @@ struct ArtistDetailView: View {
 
         switch (playableContent.content.type, playableContent.content.service) {
         case (.artist, .apple):
-            await loadAppleArtist()
+            await loadAppleArtist(id: playableContent.content.id)
         case (.libraryArtist, .apple):
             await loadAppleLibraryArtist()
         case (.artist, .spotify):
@@ -583,6 +583,15 @@ struct ArtistDetailView: View {
             await loadAppleTrackArtist()
         case (.libraryTrack, .apple):
             await loadAppleLibraryTrackArtist()
+            // The library song's catalog link goes through the web API's
+            // library ids, which a song from MusicKit doesn't have.
+            if artistContent == nil {
+                await loadAppleArtist(named: playableContent.metadata?.artist)
+            }
+        case (.libraryAlbum, .apple):
+            // The artist line on a library album. The album carries only the
+            // artist's name, so it's found in the catalog by that.
+            await loadAppleArtist(named: playableContent.metadata?.artist)
         case (.track, .spotify):
             await loadSpotifyTrackArtist()
         case (.album, .apple):
@@ -639,20 +648,27 @@ struct ArtistDetailView: View {
 
     // MARK: - Apple Music Loading
     
-    private func loadAppleArtist() async {
+    /// The catalog artist `id`. `false` when the catalog has no such artist,
+    /// so a library artist can fall back to what the library holds.
+    @discardableResult
+    private func loadAppleArtist(id: String) async -> Bool {
         guard let artist: Artist = try? await MusicSearchService.shared.lookup(
-            id: playableContent.content.id
-        ) else { return }
+            id: id
+        ) else { return false }
         
-        guard let topTracks = artist.topSongs, let artistAlbums = artist.albums else { return }
+        guard let topTracks = artist.topSongs, let artistAlbums = artist.albums else { return false }
         
         tracks = topTracks.map(\.toPlayable)
         albums = sortAlbumsByYear(artistAlbums.map(\.toPlayable).filter { !($0.metadata?.isSingle ?? false) })
         artworkURL = artist.artwork?.url(width: 500, height: 500)
         
+        // The artist itself is in hand from here: whatever else fails, the
+        // page shows it.
+        artistContent = artist.toPlayable
+
         guard let allArtist: Artist = try? await MusicSearchService.shared.artistCatalog(
-            id: playableContent.content.id
-        ) else { return }
+            id: id
+        ) else { return true }
         
         latestRelease = allArtist.latestRelease?.toPlayable
         
@@ -664,13 +680,22 @@ struct ArtistDetailView: View {
         artistContent = artist.toPlayable
         
         if let all: [PlayableContent] = try? await MusicSearchService.shared.allAlbums(
-            id: playableContent.content.id
+            id: id
         ) {
             allAlbums = all
         }
+        return true
     }
     
     private func loadAppleLibraryArtist() async {
+        // The Apple Music artist, when the catalog has one: top songs, every
+        // album, the latest release — not just the few albums in the
+        // library, which is all this page could show before and often
+        // didn't load at all.
+        if let catalogID = await catalogArtistID(), await loadAppleArtist(id: catalogID) {
+            return
+        }
+
         if let url = await MusicSearchService.shared.appleLibraryArtistArtwork(name: playableContent.title, size: 500) {
             artworkURL = url
         }
@@ -682,6 +707,31 @@ struct ArtistDetailView: View {
         artistContent = playableContent
     }
     
+    /// The catalog id behind a library artist: the library's own link to
+    /// the catalog, else an artist of exactly that name in a catalog search.
+    private func catalogArtistID() async -> String? {
+        if let linked = await MusicSearchService.shared.appleLibraryArtistLookup(id: playableContent.content.id)?.data.first?.id {
+            return linked
+        }
+        return await catalogArtistID(named: playableContent.title)
+    }
+
+    /// An Apple Music artist named exactly `name`, from a catalog search.
+    private func catalogArtistID(named name: String) async -> String? {
+        var request = MusicCatalogSearchRequest(term: name, types: [Artist.self])
+        request.limit = 5
+        guard let results = try? await request.response() else { return nil }
+        let wanted = name.lowercased()
+        return results.artists.first { $0.name.lowercased() == wanted }?.id.rawValue
+    }
+
+    /// The Apple Music artist called `name`, for library items that carry
+    /// only a name.
+    private func loadAppleArtist(named name: String?) async {
+        guard let name, !name.isEmpty, let id = await catalogArtistID(named: name) else { return }
+        await loadAppleArtist(id: id)
+    }
+
     private func loadAppleTrackArtist() async {
         guard let song: Song = try? await MusicSearchService.shared.lookup(
             id: playableContent.content.id

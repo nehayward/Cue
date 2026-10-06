@@ -102,6 +102,16 @@ public final class AppleMusicBrowseService {
     public func updateUsersRecentPlayed(offset: Int = 0, limit: Int? = nil) async {
         guard let container = try? await apple.lookupUsersRecentPlayed(offset: offset) else { return }
         let newUsersRecents = container.data.compactMap(\.toPlayable)
+        // The first page is the newest: it goes in front, so something just
+        // played moves to the top. Merged in place, an album already in the
+        // list kept its old position and anything new went to the end, so
+        // the row never looked like it changed.
+        guard offset > 0 else {
+            var fresh = OrderedSet(newUsersRecents)
+            fresh.append(contentsOf: usersRecents)
+            usersRecents = fresh
+            return
+        }
         for newUsersRecent in newUsersRecents {
             usersRecents.updateOrAppend(newUsersRecent)
         }
@@ -110,6 +120,13 @@ public final class AppleMusicBrowseService {
     public func updateUsersRecentAddedTracks(offset: Int = 0, limit: Int? = nil) async {
         guard let container = try? await apple.lookupUsersRecentAddedTracks(offset: offset, limit: limit) else { return }
         let newUsersRecentsTracks = container.data.compactMap(\.toPlayable)
+        // Newest first, for the same reason as Recently Played.
+        guard offset > 0 else {
+            var fresh = OrderedSet(newUsersRecentsTracks)
+            fresh.append(contentsOf: usersRecentsAdded)
+            usersRecentsAdded = fresh
+            return
+        }
         for newUsersRecentsTrack in newUsersRecentsTracks {
             usersRecentsAdded.updateOrAppend(newUsersRecentsTrack)
         }
@@ -163,8 +180,23 @@ public final class AppleMusicBrowseService {
     }
 
     public func albumLookup(id: String) async -> [PlayableContent] {
-        guard let container = try? await apple.lookupUsersLibraryAlbum(id: id) else { return [] }
-        return container.data.compactMap(\.toPlayable)
+        if let container = try? await apple.lookupUsersLibraryAlbum(id: id) {
+            let tracks = container.data.compactMap(\.toPlayable)
+            if !tracks.isEmpty { return tracks }
+        }
+        // The Albums list pages through MusicKit, whose library ids are the
+        // device's own (a long number) rather than the web API's `l.…`, so
+        // the web API knows none of them and the album opened empty. Ask
+        // MusicKit for the album it named.
+        var request = MusicLibraryRequest<Album>()
+        request.filter(matching: \.id, equalTo: MusicItemID(id))
+        guard let album = try? await request.response().items.first,
+              let detailed = try? await album.with([.tracks]),
+              let tracks = detailed.tracks else { return [] }
+        return tracks.compactMap { track in
+            guard case let .song(song) = track else { return nil }
+            return song.toPlayableLibraryTrack
+        }
     }
 
     public func updateRecommendedAlbums(offset: Int = 0, limit: Int = 25) async {

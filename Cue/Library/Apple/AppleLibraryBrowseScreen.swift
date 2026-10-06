@@ -45,6 +45,12 @@ struct AppleLibraryBrowseScreen: View {
             }
             .withAppRouter()
             .toolbar {
+                // The gear every provider's browse screen has; this one was
+                // missed when they got it.
+                ToolbarItem(placement: .topBarLeading) {
+                    SettingsToolbarButton()
+                        .environment(router)
+                }
 #if !os(visionOS)
                 if #available(iOS 26.0, visionOS 26.0, *) {
                     ToolbarSpacer(.fixed)
@@ -121,7 +127,14 @@ struct AppleLibraryBrowseScreen: View {
             })) {
                 Label("Songs", systemImage: "music.note")
             }
-            
+
+        case .downloaded:
+            // The songs the Music app has downloaded; Cue lists and plays
+            // them, and the Music app is where they're added and removed.
+            NavigationLink(value: RouterDestination.downloaded(service: .apple)) {
+                Label("Downloaded", systemImage: "arrow.down.circle")
+            }
+
         case .playlistFolders:
             NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlist Folders", items: $appleMusicBrowseService.userPlaylistFolders, action: { offset in
                 await appleMusicBrowseService.updateUsersApplePlaylistFolders(offset: offset)

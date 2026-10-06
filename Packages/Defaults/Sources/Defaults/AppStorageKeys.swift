@@ -4,7 +4,7 @@ public enum AppStorageKeys {
     /// Whether Cue looks for Sonos speakers at all. Cue is a player first,
     /// and looking for speakers is what puts up the Local Network prompt, so
     /// a new install starts with this off. It is turned on from Settings ▸
-    /// Sonos or the Play On menu. Read and written through
+    /// Sonos (or onboarding). Read and written through
     /// `SonosService.isEnabled`, never directly: unset is decided there, and
     /// only the iOS and Mac app reads this key at all.
     public static let sonosEnabled = "\(Prefix.id).sonosEnabled"
@@ -94,6 +94,10 @@ public enum AppStorageKeys {
     /// playing: `"ask"`, `"always"` (carry the queue across) or `"never"`
     /// (only change where the next Play goes). Asks when unset.
     public static let routeQueueTransfer = "\(Prefix.id).routeQueueTransfer"
+    /// The Play On sheet's fitted height from earlier opens — `[layout:
+    /// points]` — so it opens at its height rather than growing to it once
+    /// the rows are measured.
+    public static let playOnSheetHeights = "\(Prefix.id).playOnSheetHeights"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
     public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
     public static let lastPlaylistService = "\(Prefix.id).lastPlaylistService"

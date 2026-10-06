@@ -164,6 +164,44 @@ public final class PlexAPI {
         return (200...299).contains(http.statusCode)
     }
 
+    /// What a timeline report says the player is doing.
+    public enum TimelineState: String, Sendable {
+        case playing
+        case paused
+        case stopped
+    }
+
+    /// Reports where this device is in a track, the way Plex's own players
+    /// do: the server shows it under Now Playing while it is `playing` or
+    /// `paused`, and counts the play — play count, Recently Played, last
+    /// played — once a report puts it past the server's played threshold.
+    /// Send one every few seconds while playing, on every pause, and a
+    /// `stopped` when the track is left, wherever it got to.
+    @discardableResult
+    public func reportTimeline(ratingKey: String, state: TimelineState, time: TimeInterval, duration: TimeInterval) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              var timelineURL = getBaseURL(for: plexServer)?.appending(path: ":/timeline") else {
+            return false
+        }
+        timelineURL.append(queryItems: [
+            URLQueryItem(name: "ratingKey", value: ratingKey),
+            URLQueryItem(name: "key", value: "/library/metadata/\(ratingKey)"),
+            URLQueryItem(name: "state", value: state.rawValue),
+            URLQueryItem(name: "time", value: "\(Int(max(0, time) * 1000))"),
+            URLQueryItem(name: "duration", value: "\(Int(max(0, duration) * 1000))")
+        ])
+        var request = URLRequest(url: timelineURL)
+        request.timeoutInterval = 10
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Product")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+        guard let (_, response) = await loadData(for: request),
+              let http = response as? HTTPURLResponse else { return false }
+        return (200...299).contains(http.statusCode)
+    }
+
     public func getTrackRating(ratingKey: String) async -> Double? {
         guard let song = await lookupPlexSong(key: ratingKey) else { return nil }
         return song.metadata?.first?.userRating
@@ -1458,7 +1496,15 @@ public final class PlexAPI {
     /// Speaker playback isn't affected: Plex hands Sonos its own stream via
     /// the Plex music service, whose quality is set on the Plex server.
     public static func playbackStreamURL(from directURL: URL, ratingKey: String) -> URL {
-        let format = StreamTranscoding.format(for: .device)
+        playbackStreamURL(from: directURL, ratingKey: ratingKey, format: StreamTranscoding.format(for: .device), bitrate: StreamTranscoding.bitrate)
+    }
+
+    /// The same, transcoded to `format` at `bitrate` whatever the Streaming
+    /// Quality setting says — for a device with a quality of its own (the
+    /// Apple Watch). Its transcode session and client are named apart
+    /// (`session`, `client`), so Plex doesn't take it for this iPhone's and
+    /// end one for the other.
+    public static func playbackStreamURL(from directURL: URL, ratingKey: String, format: StreamTranscoding.Format, bitrate: Int, session: String = "cue", client: String = "Cue") -> URL {
         guard let codec = format.codec,
               let container = plexContainer(for: format),
               var components = URLComponents(url: directURL, resolvingAgainstBaseURL: false),
@@ -1475,9 +1521,9 @@ public final class PlexAPI {
             URLQueryItem(name: "directPlay", value: "0"),
             URLQueryItem(name: "directStream", value: "0"),
             URLQueryItem(name: "audioCodec", value: codec),
-            URLQueryItem(name: "musicBitrate", value: "\(StreamTranscoding.bitrate)"),
-            URLQueryItem(name: "session", value: "cue-\(ratingKey)"),
-            URLQueryItem(name: "X-Plex-Client-Identifier", value: "Cue"),
+            URLQueryItem(name: "musicBitrate", value: "\(bitrate)"),
+            URLQueryItem(name: "session", value: "\(session)-\(ratingKey)"),
+            URLQueryItem(name: "X-Plex-Client-Identifier", value: client),
             URLQueryItem(name: "X-Plex-Product", value: "Cue"),
             URLQueryItem(name: "X-Plex-Platform", value: "Generic"),
             URLQueryItem(name: "X-Plex-Client-Profile-Extra", value: target)

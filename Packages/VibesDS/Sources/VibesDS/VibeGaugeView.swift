@@ -13,6 +13,18 @@ public struct VibeGaugeView: View {
         self.lineWidth = lineWidth
     }
 
+    /// No animation on the Mac. The play buttons' rings (one per playing room
+    /// in the sidebar) redraw from a running clock once a second, and each
+    /// redraw started a spring: a steady animation in the main window for a
+    /// step of under a pixel, where any animated redraw is a GPU-memory risk.
+    private var progressAnimation: Animation? {
+        #if targetEnvironment(macCatalyst)
+        nil
+        #else
+        .spring
+        #endif
+    }
+
     public var body: some View {
         ZStack {
             // Explicit alpha on the concrete color rather than the hierarchical
@@ -37,7 +49,7 @@ public struct VibeGaugeView: View {
                         )
                     )
                     .rotationEffect(.degrees(-90))
-                    .animation(.spring, value: value)
+                    .animation(progressAnimation, value: value)
             }
         }
     }

@@ -27,6 +27,9 @@ struct PlayableCardView: View {
     /// is decoded no bigger than this needs, so a wall of 130pt tiles
     /// doesn't hold a 1200px bitmap for every one of them.
     var artworkSize: Double = 200
+    /// The artwork-only tile's corner rounding: none for a wall of tiles
+    /// that touch, some for tiles set apart, as the Radio tab's are.
+    var artworkCornerRadius: CGFloat = 0
     /// Set by a grid that has marked this card as a zoom source, so the
     /// album screen it opens grows out of the card. The grid applies the
     /// `matchedTransitionSource` itself; this only tells the push about it.
@@ -48,6 +51,7 @@ struct PlayableCardView: View {
                     content
                 }
                 .buttonStyle(.plain)
+                .contentShape(.contextMenuPreview, .rect(cornerRadius: artworkCornerRadius))
                 .contextMenu {
                     PlayableMenuView(item: item)
                 }
@@ -95,8 +99,10 @@ struct PlayableCardView: View {
                     )
                     .scaledToFill()
                 }
-                .clipped()
-                .contentShape(.rect)
+                .clipShape(.rect(cornerRadius: artworkCornerRadius))
+                .contentShape(.rect(cornerRadius: artworkCornerRadius))
+                // Nothing written on the tile, so VoiceOver reads the name.
+                .accessibilityLabel(item.title)
         } else {
             card
         }
@@ -127,7 +133,9 @@ struct PlayableCardView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 20)
             } else {
-                ContentArtworkView(content: item, showMusicSource: false, preferredSize: 500)
+                // Cards top out at 200pt in the grid and ~250pt in the three-up rows;
+                // 500 decoded ~1000px bitmaps for every visible card.
+                ContentArtworkView(content: item, showMusicSource: false, preferredSize: 250)
                     .aspectRatio(contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 VStack(alignment: .leading) {

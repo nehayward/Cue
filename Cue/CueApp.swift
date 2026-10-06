@@ -18,7 +18,12 @@ import WidgetKit
 
 /// Tab bar accessory mini player for wherever the route points: this device,
 /// or the Sonos group chosen in the route button. Tapping the track opens the
-/// matching full player; the trailing controls act in place.
+/// player; the trailing controls act in place.
+///
+/// One row for either, read through `PlaybackRoute.presented` like the
+/// player: a route switch changes what it reads, and while a hand-off
+/// carries the queue across it stays on the song being carried, with where
+/// it's going under the title.
 struct MusicPlaybackView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -33,7 +38,6 @@ struct MusicPlaybackView: View {
     /// `fullScreenCover` — is declared up there now.
     let zoomNamespace: Namespace.ID
 
-    private var playback: LocalPlaybackService { .shared }
     /// Singletons rather than the environment: the accessory is hosted
     /// outside what `withEnvironments()` installs on the tab content.
     private var route: PlaybackRoute { .shared }
@@ -41,11 +45,7 @@ struct MusicPlaybackView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if let group = route.group {
-                groupContent(group)
-            } else {
-                deviceContent
-            }
+            nowPlayingContent
 
             // Always present, playing or not: the route is set ahead of Play,
             // which is the whole point of it no longer asking.
@@ -65,21 +65,15 @@ struct MusicPlaybackView: View {
                     }
                 } label: {
                     // The player's queue gauge: how far through the queue
-                    // playback is, where the route points.
-                    Group {
-                        if let group = route.group {
-                            QueueIconView(group: group)
-                        } else {
-                            LocalQueueIconView()
-                        }
-                    }
-                    .font(.title3)
-                    // Shown: a soft accent disc behind the gauge rather
-                    // than the gauge itself in accent, so its number stays
-                    // easy to read.
-                    .padding(5)
-                    .background(Color("Accent").opacity(showQueue ? 0.25 : 0), in: .circle)
-                    .contentShape(.circle)
+                    // playback is, for what's on screen.
+                    PresentedQueueIconView()
+                        .font(.title3)
+                        // Shown: a soft accent disc behind the gauge rather
+                        // than the gauge itself in accent, so its number stays
+                        // easy to read.
+                        .padding(5)
+                        .background(Color("Accent").opacity(showQueue ? 0.25 : 0), in: .circle)
+                        .contentShape(.circle)
                 }
                 .buttonStyle(.plain)
                 .animation(.snappy, value: showQueue)
@@ -115,123 +109,78 @@ struct MusicPlaybackView: View {
         progressSpansFullWidth && placement != .inline
     }
 
-    /// The progress line for whatever is playing: the speaker's track when a
-    /// group holds the route, this device's otherwise.
+    /// The progress line for what's on screen, in seconds whichever it is.
     @ViewBuilder
     private var progressLine: some View {
-        if let group = route.group {
-            let room = group.coordinatorRoom
-            if !room.track.isEmpty {
-                MiniPlayerProgressLine(
-                    position: room.playbackPosition,
-                    duration: room.track.duration,
-                    isPlaying: room.isPlaying,
-                    unitsPerSecond: 1000
-                )
-            }
-        } else if playback.nowPlayingDisplay != nil {
-            MiniPlayerProgressLine(position: playback.progress, duration: playback.duration, isPlaying: playback.isPlaying)
+        // Through a hand-off, the hold's clock (`HeldPlaybackController`).
+        let controller = route.presented
+        if controller.nowPlayingDisplay != nil {
+            MiniPlayerProgressLine(
+                duration: controller.duration,
+                isRunning: controller.isClockRunning,
+                position: { controller.position() }
+            )
         }
     }
 
-    // MARK: - This device
+    /// Under the title: where a hand-off is taking the song while it runs,
+    /// else the speaker's name for a speaker and the artist here.
+    private func subtitle(for item: PlayableContent?, on group: GroupRoom?) -> String? {
+        if route.isHolding {
+            return "Moving to \(route.group?.nameWithCount ?? "This Device")…"
+        }
+        if let group {
+            return group.nameWithCount
+        }
+        return item?.subtitle
+    }
 
+    /// The glyph in the cover's place with nothing playing.
+    private func idleSymbol(for group: GroupRoom?) -> String {
+        guard let group else { return "iphone.radiowaves.left.and.right" }
+        return group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"
+    }
+
+    // MARK: - Now playing
+
+    /// The track and its transport. The display item, not the queue row: a
+    /// station reads as the song on air here just as it does in the player.
+    /// `GroupRoom` is `@Observable`, so a speaker's pushed track and playing
+    /// state redraw this in place.
     @ViewBuilder
-    private var deviceContent: some View {
+    private var nowPlayingContent: some View {
+        let controller = route.presented
+        let group = controller.group
+        let item = controller.nowPlayingDisplay
+        // While a hand-off holds the row on its source, the source is on its
+        // way out: the buttons rest and Play reads as it did
+        // (`HeldPlaybackController`).
+        let isPlaying = controller.isPlaying
+
         Button {
             showPlayer.toggle()
         } label: {
             HStack(spacing: 12) {
-                // The display item, not the queue row: a station reads
-                // as the song on air here just as it does in the player.
-                if let item = playback.nowPlayingDisplay {
+                // A switch with nothing to carry across has nothing to keep
+                // on screen meanwhile.
+                if group != nil, route.isSwitching, !route.isHolding {
+                    ProgressView()
+                        .frame(width: 40, height: 40)
+                } else if let item {
                     ContentArtworkView(content: item, showMusicSource: false)
                         .frame(width: 40, height: 40)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                    VStack(alignment: .leading) {
-                        Text(item.title)
-                            .font(.callout.bold())
-                            .lineLimit(1)
-                        if placement != .inline {
-                            Text(item.subtitle)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                            if !progressSpansFullWidth {
-                                progressLine
-                            }
-                        }
-                    }
                 } else {
-                    Image(systemName: "iphone.radiowaves.left.and.right")
-                        .foregroundStyle(.secondary)
-                    Text("Not Playing")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-            .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .zoomSource(.miniPlayer, in: zoomNamespace)
-
-        if playback.isActive {
-            Button {
-                playback.togglePlayback()
-            } label: {
-                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                    .contentTransition(.symbolEffect(.replace))
-            }
-            .buttonStyle(.plain)
-            .font(.title3)
-            .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
-
-            if placement != .inline {
-                Button {
-                    playback.next()
-                } label: {
-                    Image(systemName: "forward.fill")
-                }
-                .buttonStyle(.plain)
-                .font(.title3)
-                .accessibilityLabel("Next")
-            }
-        }
-    }
-
-    // MARK: - A speaker
-
-    /// The same row for a Sonos group: its current track, and transport that
-    /// acts on the speaker. `GroupRoom` is `@Observable`, so the pushed track
-    /// and playing state redraw this in place.
-    @ViewBuilder
-    private func groupContent(_ group: GroupRoom) -> some View {
-        let room = group.coordinatorRoom
-        let track = room.track
-
-        Button {
-            showPlayer.toggle()
-        } label: {
-            HStack(spacing: 12) {
-                if route.isSwitching {
-                    ProgressView()
-                        .frame(width: 40, height: 40)
-                } else if !track.isEmpty {
-                    ContentArtworkView(content: track.toPlayable, showMusicSource: false)
-                        .frame(width: 40, height: 40)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                } else {
-                    Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
+                    Image(systemName: idleSymbol(for: group))
                         .foregroundStyle(.secondary)
                 }
                 VStack(alignment: .leading) {
-                    Text(track.isEmpty ? "Not Playing" : track.song)
-                        .font(track.isEmpty ? .callout : .callout.bold())
-                        .foregroundStyle(track.isEmpty ? .secondary : .primary)
+                    Text(item?.title ?? "Not Playing")
+                        .font(item == nil ? .callout : .callout.bold())
+                        .foregroundStyle(item == nil ? .secondary : .primary)
                         .lineLimit(1)
-                    if placement != .inline {
-                        Text(group.nameWithCount)
+                    if placement != .inline, let line = subtitle(for: item, on: group) {
+                        Text(line)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -247,28 +196,31 @@ struct MusicPlaybackView: View {
         .buttonStyle(.plain)
         .zoomSource(.miniPlayer, in: zoomNamespace)
 
-        if !track.isEmpty {
+        if item != nil || controller.isPlaying {
             Button {
-                Task {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    await sonosService.togglePlayPause(for: group)
-                }
+                HapticManager.shared.fireHaptic(.buttonPress)
+                Task { await controller.togglePlayback() }
             } label: {
-                Image(systemName: room.isPlaying ? "pause.fill" : "play.fill")
-                    .contentTransition(.symbolEffect(.replace))
-                    .symbolEffect(.pulse, isActive: room.isTransitioning)
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
+                    .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && controller.isLoading)
             }
             .buttonStyle(.plain)
             .font(.title3)
-            .accessibilityLabel(room.isPlaying ? "Pause" : "Play")
+            .accessibilityLabel(isPlaying ? "Pause" : "Play")
+            .disabled(!controller.isActive)
 
-            if placement != .inline {
+            // A live station on this device has nothing to skip to.
+            if placement != .inline, controller.showsNext {
                 Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
                     Task {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        room.playbackPosition = 0
-                        await sonosService.next(ip: group.ip)
-                        try? await sonosService.updateGroups(from: [group])
+                        await controller.next()
+                        // Nothing may be listening to the speaker with the
+                        // player closed; this brings the new song in.
+                        if let group = controller.group {
+                            try? await sonosService.updateGroups(from: [group])
+                        }
                     }
                 } label: {
                     Image(systemName: "forward.fill")
@@ -276,7 +228,7 @@ struct MusicPlaybackView: View {
                 .buttonStyle(.plain)
                 .font(.title3)
                 .accessibilityLabel("Next")
-                .disabled(!group.availableActions.contains(.next))
+                .disabled(!controller.hasNext)
             }
         }
     }
@@ -319,6 +271,10 @@ struct CueApp: App {
     @AppStorage("CueMiniEnabled") private var isMenuBarAppEnabled: Bool = true
     @AppStorage(AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
+    /// True at launch and while Cue is in the background, so Quick Launch
+    /// opens the player once per return rather than after every Control
+    /// Center pull or notification, which pass through `.inactive`.
+    @State private var quickLaunchPending = true
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
     @AppStorage(AppStorageKeys.savedGroupID) private var savedGroupID: String?
 
@@ -681,6 +637,12 @@ struct CueApp: App {
             .onChange(of: colorScheme, initial: true) { _, preference in
                 preference.apply()
             }
+            // Quick Launch's own hook. `handleScenePhase`, which used to run
+            // it, isn't attached to this scene (it went with the old launch
+            // block), so the setting did nothing.
+            .onChange(of: scenePhase, initial: true) { _, phase in
+                quickLaunch(on: phase)
+            }
             .onOpenURL(perform: handle)
             .onAppear {
                 coreFeatures.restoreDeviceServicesOnce()
@@ -959,7 +921,7 @@ struct CueApp: App {
 //                    Task {
 //                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
 //                            HapticManager.shared.fireHaptic(.selection)
-//                            let newPosition = group.coordinatorRoom.playbackPosition + 15000
+//                            let newPosition = group.coordinatorRoom.estimatedPlaybackPosition() + 15000
 //                            await sonosService.seek(to: newPosition, on: group)
 //                        }
 //                    }
@@ -973,7 +935,7 @@ struct CueApp: App {
 //                    Task {
 //                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
 //                            HapticManager.shared.fireHaptic(.selection)
-//                            let newPosition = max(0, group.coordinatorRoom.playbackPosition - 15000)
+//                            let newPosition = max(0, group.coordinatorRoom.estimatedPlaybackPosition() - 15000)
 //                            await sonosService.seek(to: newPosition, on: group)
 //                        }
 //                    }
@@ -1111,16 +1073,6 @@ struct CueApp: App {
                     sonosService.onServerListening()
                 }
             
-                if speedLaunchNowPlaying {
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(200))
-                        if sonosService.groups.isEmpty {
-                            try? await sonosService.updateGroups()
-                        }
-                        handle(URL(string: "cue://playing")!)
-                    }
-                }
-            
                 if FeatureGate.shared.isAvailable(.liveActivities) {
                     Task {
                         for group in sonosService.groups {
@@ -1208,6 +1160,31 @@ struct CueApp: App {
         sonosService.watcher.cancel()
     }
 
+    /// Settings ▸ Quick Launch: opens the player when Cue launches or comes
+    /// back from the background.
+    @MainActor
+    private func quickLaunch(on phase: ScenePhase) {
+        switch phase {
+        case .background:
+            quickLaunchPending = true
+        case .active:
+            guard quickLaunchPending else { return }
+            quickLaunchPending = false
+            guard speedLaunchNowPlaying, !isOnboarding else { return }
+            openNowPlaying()
+        default:
+            break
+        }
+    }
+
+    /// Opens the player. It shows whatever the route points at — this
+    /// device's queue or the speaker last chosen — so there's nothing to pick
+    /// here, and with nothing queued it's the empty player, controls and all.
+    @MainActor
+    private func openNowPlaying() {
+        router.isPlayerPresented = true
+    }
+
     @MainActor
     private func handle(_ url: URL) {
         Task {
@@ -1219,10 +1196,7 @@ struct CueApp: App {
             }
             
             if components.host?.lowercased() == "playing" {
-                guard let group = await sonosService.firstPlayingGroup() else {
-                    return
-                }
-                router.selectedID = group.coordinatorID
+                openNowPlaying()
                 return
             }
             
@@ -1471,73 +1445,57 @@ private struct AdaptiveTabViewStyle: ViewModifier {
 /// the ratio is drawn. A live stream reports no duration, so the line keeps
 /// its height but stays hidden rather than showing an empty track.
 ///
-/// The reported position only moves about once a second (the device poller,
-/// a speaker's poll or event), which stepped the fill visibly. So while
-/// playing, the line runs its own clock off the last reported value, redrawn
-/// every frame by a `TimelineView`, and re-anchors whenever a new report
-/// lands.
+/// Drawn from a running estimate (`Room.estimatedPlaybackPosition()` for a
+/// speaker, `LocalPlaybackService.progress` for this device) through
+/// `PlaybackTimeline`, so it redraws once per pixel of progress and only
+/// while it's on screen, the scene is visible and playback is moving. It used
+/// to run its own clock on every frame of a `TimelineView` that kept going
+/// behind the Lock Screen, since the audio session keeps the app alive there.
 private struct MiniPlayerProgressLine: View {
-    let position: TimeInterval
     let duration: TimeInterval
-    let isPlaying: Bool
+    /// Whether the position is moving on its own right now.
+    let isRunning: Bool
     /// How many of the caller's units pass per second of playback: `1` for
     /// seconds, `1000` for milliseconds.
     var unitsPerSecond: Double = 1
+    /// Where playback is now, read on every redraw.
+    let position: () -> TimeInterval
 
-    @State private var anchorPosition: TimeInterval = 0
-    @State private var anchorDate: Date = .now
+    @Environment(\.displayScale) private var displayScale
+    @State private var width: CGFloat = 0
 
     private var hasDuration: Bool {
         duration.isFinite && duration > 0
     }
 
-    private func fraction(at date: Date) -> CGFloat {
-        guard hasDuration, anchorPosition.isFinite else { return 0 }
-        let elapsed = isPlaying ? max(0, date.timeIntervalSince(anchorDate)) * unitsPerSecond : 0
-        return CGFloat(min(max((anchorPosition + elapsed) / duration, 0), 1))
+    private func fraction(of position: TimeInterval) -> CGFloat {
+        guard hasDuration, position.isFinite else { return 0 }
+        return CGFloat(min(max(position / duration, 0), 1))
     }
 
     var body: some View {
-        TimelineView(.animation(paused: !isPlaying || !hasDuration)) { context in
-            let fraction = fraction(at: context.date)
-            GeometryReader { proxy in
-                Capsule()
-                    .fill(.secondary.opacity(0.3))
-                    .overlay(alignment: .leading) {
-                        Capsule()
-                            .fill(.primary)
-                            .frame(width: proxy.size.width * fraction)
-                    }
-            }
+        PlaybackTimeline(
+            isRunning: isRunning && hasDuration,
+            minimumInterval: ProgressRedraw.interval(
+                forDuration: duration / unitsPerSecond * 1000,
+                length: width,
+                scale: displayScale
+            ),
+            position: position
+        ) { position in
+            Capsule()
+                .fill(.secondary.opacity(0.3))
+                .overlay(alignment: .leading) {
+                    Capsule()
+                        .fill(.primary)
+                        .frame(width: width * fraction(of: position))
+                }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .frame(height: 3)
         .padding(.top, 2)
         .opacity(hasDuration ? 1 : 0)
-        .onAppear { anchor(at: position) }
-        .onChange(of: position) { reanchor(wasPlaying: isPlaying) }
-        .onChange(of: isPlaying) { wasPlaying, _ in reanchor(wasPlaying: wasPlaying) }
         .accessibilityHidden(true)
-    }
-
-    /// `wasPlaying` is the state the clock was running under up to now, so
-    /// a pause freezes the line where it was drawn rather than on the last
-    /// report, which is up to a second old.
-    private func reanchor(wasPlaying: Bool) {
-        guard wasPlaying, hasDuration else {
-            anchor(at: position)
-            return
-        }
-        let estimate = anchorPosition + max(0, Date.now.timeIntervalSince(anchorDate)) * unitsPerSecond
-        // A report landing a little behind the running estimate is poll
-        // latency, not a rewind — taking it would tick the fill backwards.
-        // A real jump (a seek, a new track) is far bigger than this.
-        let lag = estimate - position
-        anchor(at: lag > 0 && lag < 1.5 * unitsPerSecond ? estimate : position)
-    }
-
-    private func anchor(at value: TimeInterval) {
-        anchorPosition = value
-        anchorDate = .now
     }
 }
 
@@ -1592,7 +1550,6 @@ private struct PlaybackTransportControls: View {
                 Task {
                     guard let group = selectedGroup else { return }
                     HapticManager.shared.fireHaptic(.selection)
-                    group.coordinatorRoom.playbackPosition = 0
                     router.beginSkipWindow()
                     await sonosService.next(ip: group.coordinatorRoom.ip)
                 }
@@ -1653,6 +1610,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // The continued-processing task's launch handler has to be in place
         // before a download batch submits it.
         ContinuedDownloadTask.shared.register()
+        // Early, so a status the watch sent while Cue was closed, and the
+        // end of a library transfer, are delivered.
+        WatchSyncService.shared.activate()
         // A Files scan gets the same card: progress on the Lock Screen and
         // the app kept running until it's done. The pass that reads the
         // tags of songs still in iCloud follows the scan on the same card,
@@ -1691,6 +1651,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
        configurationForConnecting connectingSceneSession: UISceneSession,
        options: UIScene.ConnectionOptions
      ) -> UISceneConfiguration {
+#if os(iOS) && !targetEnvironment(macCatalyst)
+         // The car's screen gets its own delegate. Every scene used to get
+         // `CueSceneDelegate`, which is a window delegate and can't drive
+         // CarPlay's templates.
+         if let carPlay = CarPlaySceneDelegate.configuration(for: connectingSceneSession) {
+             return carPlay
+         }
+#endif
          if let shortcutItem = options.shortcutItem {
              if shortcutItem.type == "com.cue.search" {
                  Task { @MainActor in

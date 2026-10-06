@@ -14,6 +14,17 @@ public struct PlaybackIconView: View {
         self.isTransitioning = isTransitioning
     }
 
+    /// No symbol animation on the Mac, matching the large player's button: each
+    /// animated SF Symbol swap or pulse made macOS allocate a fixed ~90 MB of
+    /// GPU memory for ~2 s.
+    private var animatesSymbol: Bool {
+        #if targetEnvironment(macCatalyst)
+        false
+        #else
+        true
+        #endif
+    }
+
     public var body: some View {
         VibeGaugeView(value: value, total: total, color: isPlaying ? Color.primary : Color.secondary, lineWidth: 2.5)
             .overlay(alignment: .center) {
@@ -21,8 +32,8 @@ public struct PlaybackIconView: View {
                     .resizable()
                     .scaledToFit()
                     .foregroundStyle(isPlaying ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color.secondary))
-                    .contentTransition(.symbolEffect(.replace))
-                    .symbolEffect(.pulse, isActive: isTransitioning)
+                    .contentTransition(animatesSymbol ? .symbolEffect(.replace) : .identity)
+                    .sustainedPulse(isActive: animatesSymbol && isTransitioning)
                     .frame(width: 12, height: 12, alignment: .center)
                     .padding(.leading, !isPlaying ? 2 : 0)
             }

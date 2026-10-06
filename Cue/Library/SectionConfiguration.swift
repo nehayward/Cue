@@ -7,6 +7,7 @@ enum AppleLibrarySection: String, Codable, CaseIterable {
     case artists
     case albums
     case songs
+    case downloaded
     case playlistFolders
     case playlists
     case recentlyPlayed
@@ -125,10 +126,44 @@ final class SectionConfigurationStore<SectionID: Codable & Hashable & CaseIterab
         // Try to load from UserDefaults, otherwise use default
         if let data = UserDefaults.standard.data(forKey: key),
            let decoded = try? JSONDecoder().decode(SectionConfiguration<SectionID>.self, from: data) {
-            self.configuration = decoded
+            self.configuration = Self.addingNewSections(to: decoded, defaults: defaultSections)
         } else {
             self.configuration = SectionConfiguration(defaultSections: defaultSections)
         }
+    }
+
+    /// A saved configuration with any section added since it was saved
+    /// appended, visible, in its default place relative to the sections
+    /// after it. Without this a section new to the app never showed for
+    /// anyone who had reordered the screen: `orderedSections()` only lists
+    /// what the saved copy names.
+    private static func addingNewSections(
+        to saved: SectionConfiguration<SectionID>,
+        defaults: [(section: SectionID, title: String, subtitle: String?)]
+    ) -> SectionConfiguration<SectionID> {
+        let known = Set(saved.sections.map(\.id))
+        let missing = defaults.filter { !known.contains($0.section.rawValue) }
+        guard !missing.isEmpty else { return saved }
+
+        var configuration = saved
+        var ordered = saved.sections.sorted { $0.order < $1.order }
+        for item in missing {
+            // After the default that precedes it, so Downloaded lands under
+            // Songs the way it does for a fresh install; at the end when
+            // no earlier default is in the saved list.
+            let defaultIndex = defaults.firstIndex { $0.section == item.section } ?? 0
+            let predecessors = defaults[..<defaultIndex].map { $0.section.rawValue }
+            let insertAt = ordered.lastIndex { predecessors.contains($0.id) }.map { $0 + 1 } ?? ordered.count
+            ordered.insert(
+                SectionConfiguration<SectionID>.SectionItem(id: item.section.rawValue, isVisible: true, title: item.title, subtitle: item.subtitle),
+                at: insertAt
+            )
+        }
+        for index in ordered.indices {
+            ordered[index].order = index
+        }
+        configuration.sections = ordered
+        return configuration
     }
     
     private func save() {
@@ -152,6 +187,7 @@ final class SectionConfigurationStores {
             (.artists, "Artists", "Apple Music"),
             (.albums, "Albums", "Apple Music"),
             (.songs, "Songs", "Apple Music"),
+            (.downloaded, "Downloaded", "Apple Music"),
             (.playlistFolders, "Playlist Folders", "Apple Music"),
             (.playlists, "Playlists", "Apple Music"),
             (.recentlyPlayed, "Recently Played", "Apple Music"),

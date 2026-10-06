@@ -15,6 +15,7 @@ struct RadioScreen: View {
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService
     @Environment(TuneInBrowseService.self) private var tuneInBrowseService
     @Environment(CoreFeatures.self) private var coreFeatures
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
@@ -87,13 +88,15 @@ struct RadioScreen: View {
 
     // MARK: - Browse
 
+    /// Apple's covers first, the tab's most recognisable stations; then
+    /// TuneIn's rows, ending on its directory, the way into everything else.
     @ViewBuilder
     private var browseSections: some View {
-        if showsTuneIn {
-            tuneInSections
-        }
         if showsApple {
             appleSections
+        }
+        if showsTuneIn {
+            tuneInSections
         }
         if tuneInBrowseService.isLoading, isEmpty {
             loadingRow
@@ -136,13 +139,20 @@ struct RadioScreen: View {
         }
 
         Section {
-            ForEach(TuneInDirectoryPage.allCases) { page in
-                NavigationLink(value: RouterDestination.tuneInBrowse(title: page.title, url: page.page.url)) {
-                    Label(page.title, systemImage: page.systemImage)
+            RadioSectionHeader(title: "Browse", caption: "TuneIn")
+
+            LazyVGrid(columns: RadioGrid.columns(sizeClass == .compact ? 2 : 4), spacing: RadioGrid.spacing) {
+                // Plain buttons, as the station rows are: several links in
+                // one list row each take their own tap only when styled.
+                ForEach(TuneInDirectoryPage.allCases) { page in
+                    Button {
+                        router.navigate(to: .tuneInBrowse(title: page.title, url: page.page.url))
+                    } label: {
+                        TuneInDirectoryTile(page: page)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-        } header: {
-            Text("Browse TuneIn")
         }
         .listRowInsets(.default)
         .listRowSeparator(.hidden)
@@ -155,9 +165,9 @@ struct RadioScreen: View {
         if !stations.isEmpty {
             RadioStationsSection(
                 title: "Apple Music Radio",
-                caption: "Apple Music",
                 items: stations,
-                seeAll: .playableList(title: "Apple Music Radio", showSectionIndex: false, action: { offset in offset == 0 ? stations : [] })
+                seeAll: .playableList(title: "Apple Music Radio", showSectionIndex: false, action: { offset in offset == 0 ? stations : [] }),
+                style: .artwork
             )
         }
     }
@@ -273,7 +283,32 @@ struct RadioScreen: View {
     }
 }
 
-/// The top of TuneIn's directory, as the rows under "Browse TuneIn".
+/// One of the top pages of TuneIn's directory, as a tile the same height
+/// as the station rows above it.
+private struct TuneInDirectoryTile: View {
+    let page: TuneInDirectoryPage
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: page.systemImage)
+                .font(.title3)
+                .foregroundStyle(.tint)
+                // One width for every symbol, so the names line up.
+                .frame(width: 30)
+            Text(page.title)
+                .fontWeight(.medium)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .frame(minHeight: 50)
+        .background(.fill.tertiary, in: .rect(cornerRadius: RadioGrid.cornerRadius))
+        .contentShape(.rect(cornerRadius: RadioGrid.cornerRadius))
+    }
+}
+
+/// The top of TuneIn's directory, as the tiles under "Browse".
 private enum TuneInDirectoryPage: CaseIterable, Identifiable {
     case music
     case sports

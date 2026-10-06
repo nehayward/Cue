@@ -13,4 +13,8 @@ Feature ideas and design notes for future development.
 - [User Playlists](user-playlists.md) — Cue-native playlists with sharing via export/import link
 - [Super Day](super-day.md) — Free 24-hour pass to Cue Super, once a month, granted as a RevenueCat promotional entitlement
 - [Radio: Local Stations & More Sources](radio-local-stations.md) — Live-stream playback, location-accurate local radio, Radio Browser as a source
+- [Port to Clic: Apple Music library fixes](clic-port-apple-library.md) — Recently Played order, library album covers and songs, library artists opening the Apple Music artist
+- [Port from Clic: services signing out](clic-port-service-sign-in.md) — SoundCloud, Deezer, Pandora and Sonos Radio showing as signed out or not loading until relaunch; same bugs are in Cue's SonosKit
 - [Device-First Services](device-first-services.md) — Every service must play on the device and on Sonos; audit and removal plan for the ones that don't (Spotify, Tidal, Deezer, SoundCloud, Pandora, Sonos Radio)
+- [Website (cue.dance)](website.md) — Launch checklist, screenshots wanted, and app-side follow-ups for the site in `Website/`
+- [Lock Screen Suggestions](lock-screen-suggestions.md) — Cue's plays in the Lock Screen's artwork row above Now Playing, through `INPlayMediaIntent` donations

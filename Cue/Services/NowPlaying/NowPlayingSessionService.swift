@@ -236,12 +236,12 @@ final class NowPlayingSessionService {
         Preferences(nowPlaying: isPreferenceOn, volumeBridge: isVolumeBridgeEnabled)
     }
 
-    /// Unset means on — this is the default Lock Screen surface for Super. The
-    /// subscription half of `isEnabled` is what keeps that from running for
-    /// everyone.
-    private var isPreferenceOn: Bool {
-        UserDefaults.standard.lockScreenNowPlayingEnabled
-    }
+    /// Always on: the Lock Screen setting is gone and Now Playing is the only
+    /// surface while Live Activities are off. The subscription half of
+    /// `isEnabled` is what keeps that from running for everyone. Read
+    /// `UserDefaults.standard.lockScreenNowPlayingEnabled` here again if the
+    /// choice comes back.
+    private var isPreferenceOn: Bool { true }
 
     /// **Use iPhone Volume Buttons**, on when unset — the same switch the
     /// player screen's `hardwareVolumeControl` modifier reads.
@@ -331,10 +331,25 @@ final class NowPlayingSessionService {
     /// feature off and put Live Activities back.
     /// Also off while the on-device player has a stream run armed: iOS
     /// shows one Now Playing app, and that player publishes its own card.
+    /// And off while the route points at this device and it has a queue,
+    /// whichever backend plays it: Apple Music publishes its own card, and a
+    /// mirror left up held the hardware volume for the speaker, so the
+    /// buttons moved the group while the phone's own slider sat greyed out.
     /// Read inside `evaluate()`'s observation, so the mirror comes back the
     /// moment local playback ends.
     private var canMirror: Bool {
-        isEnabled && !isRouteExternal && !LocalPlaybackService.shared.isPlayingLocalStream
+        isEnabled && !isRouteExternal && !LocalPlaybackService.shared.isPlayingLocalStream && !isPlayingOnDevice
+    }
+
+    /// The route points at this device and its player has something queued.
+    /// Also while a switch to a speaker is still playing on the phone (the
+    /// overlap, see `PlaybackRoute.hold`): the phone is what's heard, so its
+    /// own card stays up until it parks.
+    private var isPlayingOnDevice: Bool {
+        let route = PlaybackRoute.shared
+        let local = LocalPlaybackService.shared
+        guard local.isActive else { return false }
+        return route.destination == .device || (route.presentedDestination == .device && local.isPlaying)
     }
 
     /// The group the card mirrors. iOS has exactly one Now Playing app and one
@@ -830,11 +845,11 @@ final class NowPlayingSessionService {
 
         // A new song is a new timeline, so the anchor's numbers no longer mean
         // anything. Without this the anchor keeps interpolating across the
-        // boundary: skipping tracks writes `playbackPosition = 0` optimistically,
-        // the new track then reports ~0 as well, and "the model didn't move" is
-        // read as "keep counting" — so a song that just started shows several
-        // seconds in. It only self-corrected when the new position happened to
-        // differ from the last one seen.
+        // boundary: a skip puts `playbackPosition` at 0 straight away
+        // (`Room.beginSkip`), the new track then reports ~0 as well, and "the
+        // model didn't move" is read as "keep counting" — so a song that just
+        // started shows several seconds in. It only self-corrected when the new
+        // position happened to differ from the last one seen.
         if anchoredTrackUnique != track.unique {
             anchoredTrackUnique = track.unique
             positionAnchor.reset()
@@ -928,16 +943,6 @@ final class NowPlayingSessionService {
 
     /// Loads through the shared Nuke pipeline, so the image is usually already
     /// in memory from the player screen.
-    /// Mirrors `ArtworkView.imageIDKey` — album, else track name, else id, else
-    /// the URL — so both surfaces name the same cache entry.
-    private func artworkCacheKey(for track: Track) -> String {
-        let service = String(describing: track.musicService)
-        if !track.album.isEmpty { return "\(track.album).\(service).player" }
-        if !track.name.isEmpty { return "\(track.name).\(service).player" }
-        if !track.trackID.isEmpty { return track.trackID + ".player" }
-        return (track.artworkURL?.absoluteString ?? "") + ".player"
-    }
-
     private func loadArtwork(from url: URL?, track: Track) {
         artworkTask?.cancel()
         publishedArtworkURL = url
@@ -948,18 +953,11 @@ final class NowPlayingSessionService {
             return
         }
 
-        // Same key and processor as `ArtworkView`, so this hits the entry the
-        // player screen populated rather than downloading and decoding a second
-        // copy of the same image on every track change.
-        var request = ImageRequest(
-            url: url,
-            processors: [.resize(width: 500)],
-            priority: .high
-        )
-        // `imageID`, not `userInfo[.imageIdKey]`: Nuke 13 stopped reading that
-        // key, so passing it there compiles and silently keys the request on
-        // its URL — which is exactly the second download this avoids.
-        request.imageID = artworkCacheKey(for: track)
+        // The player's own request, so this hits the entry the player screen
+        // (and the skip prefetch) populated rather than downloading and
+        // decoding a second copy of the same image on every track change.
+        // `url` is this track's `artworkURL`, so the two always agree.
+        guard let request = track.playerArtworkRequest else { return }
         if let cached = ImagePipeline.shared.cache.cachedImage(for: request)?.image {
             attach(artwork: cached, for: url)
             return
@@ -1018,28 +1016,19 @@ final class NowPlayingSessionService {
         }))
         commandTokens.append((center.nextTrackCommand, center.nextTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform { service, group in
-                    group.coordinatorRoom.playbackPosition = 0
-                    await service.next(ip: group.ip)
-                } ?? .commandFailed
+                self?.perform { service, group in await service.next(ip: group.ip) } ?? .commandFailed
             }
         }))
         commandTokens.append((center.previousTrackCommand, center.previousTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform { service, group in
-                    group.coordinatorRoom.playbackPosition = 0
-                    await service.previous(ip: group.ip)
-                } ?? .commandFailed
+                self?.perform { service, group in await service.previous(ip: group.ip) } ?? .commandFailed
             }
         }))
         commandTokens.append((center.changePlaybackPositionCommand, center.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             let milliseconds = event.positionTime * 1000
             return MainActor.assumeIsolated {
-                self?.perform { service, group in
-                    group.coordinatorRoom.updatePlaybackPosition(milliseconds)
-                    await service.seek(to: milliseconds, on: group)
-                } ?? .commandFailed
+                self?.perform { service, group in await service.seek(to: milliseconds, on: group) } ?? .commandFailed
             }
         }))
 

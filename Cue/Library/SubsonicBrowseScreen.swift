@@ -69,6 +69,12 @@ struct SubsonicBrowseScreen: View {
                     .listRowInsets(.default)
                     .listRowSeparator(.hidden)
 
+                    NavigationLink(value: RouterDestination.downloaded(service: .subsonic)) {
+                        Label("Downloaded", systemImage: "arrow.down.circle")
+                    }
+                    .listRowInsets(.default)
+                    .listRowSeparator(.hidden)
+
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Recently Added",
                         showSectionIndex: false,
