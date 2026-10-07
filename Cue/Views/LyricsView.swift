@@ -127,7 +127,10 @@ private struct SyncedLyricsView: View {
     var body: some View {
         let controller = route.presented
         let clock = LyricsClock(isRunning: controller.isClockRunning)
-        let lead = controller.group == nil ? Self.deviceLead : Self.speakerLead
+        // Only while the clock runs: the lead makes up for sound still on
+        // its way, and there's none while paused — with it, a paused song
+        // showed the line after the one it stopped on.
+        let lead = !clock.isRunning ? 0 : controller.group == nil ? Self.deviceLead : Self.speakerLead
         PlaybackTimeline(
             isRunning: clock.isRunning,
             minimumInterval: 0.1,
