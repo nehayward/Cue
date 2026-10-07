@@ -7,22 +7,30 @@ import UIKit
 /// The app's toast: a capsule at the top of the screen with the alert's
 /// artwork, text and symbol.
 ///
-/// Where its host reaches the top of an upright iPhone with a Dynamic Island
-/// (the tabs, the player), it grows out of the island the way a Live
-/// Activity expands: a black capsule that starts inside the island's
+/// On an upright iPhone with a Dynamic Island it grows out of the island the
+/// way a Live Activity expands: a black capsule that starts inside the island's
 /// outline, where the island hides it, opens out across the screen with its
 /// content below the island, and closes back into it when it goes. The
 /// status bar steps aside meanwhile, as it does for the island's own. Cue
 /// can't draw in the island itself (the system owns it), but black over
 /// black reads as one shape.
 ///
-/// Everywhere else (a sheet, landscape, an iPhone without an island, iPad,
-/// the Mac) it's a glass capsule that drops in from the top edge.
+/// Everywhere else (landscape, an iPhone without an island, iPad, the Mac,
+/// a Mac or visionOS sheet) it's a glass capsule that drops in from the top
+/// edge.
 ///
-/// Several screens host one (`withAlert()`); only the one that appeared last
-/// draws it (`AlertService.frontHost`), so a sheet's doesn't show it a second
-/// time over the screen behind.
+/// On iOS it's in a window of its own over each scene (`AlertWindow`), so
+/// it's always at the top of the screen. On the Mac and visionOS screens host
+/// it (`withAlert()`), and only the one that joined a window last draws it
+/// (`AlertService.frontHost`), so a sheet's doesn't show it a second time
+/// over the screen behind.
 struct AlertView: View {
+    /// In the alert's own window (iOS) rather than over a screen.
+    var inWindow = false
+    /// Where the capsule is, in the window's coordinates, for the alert's
+    /// window to take touches there and nowhere else.
+    var onCapsuleFrame: ((CGRect) -> Void)? = nil
+
     @Environment(AlertService.self) private var alertService
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -37,7 +45,7 @@ struct AlertView: View {
     var body: some View {
         let island = DynamicIsland.frame(in: host.frame)
         ZStack(alignment: .top) {
-            if alert.isShowing, alertService.frontHost == id {
+            if alert.isShowing, inWindow || alertService.frontHost == id {
                 if let island {
                     islandCapsule(island)
                 } else {
@@ -60,15 +68,17 @@ struct AlertView: View {
         // player came up could stay in line, and the player's host never
         // drew the alert.
         .background(alignment: .topLeading) {
-            HostWindowProbe { isInWindow in
-                if isInWindow {
-                    alertService.addHost(id)
-                } else {
-                    alertService.removeHost(id)
+            if !inWindow {
+                HostWindowProbe { isInWindow in
+                    if isInWindow {
+                        alertService.addHost(id)
+                    } else {
+                        alertService.removeHost(id)
+                    }
                 }
+                .frame(width: 1, height: 1)
+                .allowsHitTesting(false)
             }
-            .frame(width: 1, height: 1)
-            .allowsHitTesting(false)
         }
 #if DEBUG
         .onChange(of: alert.isShowing) { _, isShowing in
@@ -102,6 +112,7 @@ private extension AlertView {
         .frame(width: min(host.frame.width - 2 * island.minY, 440))
         .environment(\.colorScheme, .dark)
         .contentShape(.capsule)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { onCapsuleFrame?($0) }
         .modifier(AlertInteraction(alertService: alertService, drag: $drag))
         .transition(AnyTransition.modifier(
             active: IslandMorph(outline: outline, phase: reduceMotion ? .faded : .closed),
@@ -121,6 +132,7 @@ private extension AlertView {
             .padding(.vertical, 10)
             .alertGlass(interactive: alert.handleTap != nil)
             .contentShape(.capsule)
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { onCapsuleFrame?($0) }
             .modifier(AlertInteraction(alertService: alertService, drag: $drag))
             .frame(maxWidth: 440)
             .transition(
@@ -370,7 +382,9 @@ private extension View {
     let alertService = AlertService()
     Text("Cue")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .withAlert()
+        .overlay(alignment: .top) {
+            AlertView()
+        }
         .environment(alertService)
         .onAppear {
             alertService.showActionAlert(with: "Downloads Are Full", subtitle: "Tap for Cue Super", imageName: "arrow.down.circle", delay: .seconds(60)) {}

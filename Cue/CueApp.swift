@@ -603,6 +603,9 @@ struct CueApp: App {
             .modifier(WindowQueuePanel())
             .withEnvironments()
             .environment(\.zoomNamespace, zoomNamespace)
+            // The alert's own window over this scene, above every sheet and
+            // cover (iOS; the Mac's screens host it with `withAlert()`).
+            .alertWindow()
             // Presented from the `TabView`, not from inside the tab bar
             // accessory. The system re-hosts that accessory when its placement
             // changes or the scene returns to the foreground, and a

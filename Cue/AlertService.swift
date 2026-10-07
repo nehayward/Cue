@@ -8,10 +8,13 @@ public final class AlertService: @unchecked Sendable {
     public static var shared = AlertService()
     var alert = Alert()
     private var alertTask: Task<Void, Error>?
-    /// The alert's hosts in a window (`withAlert()`), in the order they
-    /// joined. Only the latest draws it, so a sheet with its own host
-    /// doesn't show it a second time over the screen it covers.
+    /// The alert's hosts in a window (`withAlert()`, the Mac and visionOS),
+    /// in the order they joined. Only the latest draws it, so a sheet with
+    /// its own host doesn't show it a second time over the screen it covers.
     private var hosts: [UUID] = []
+    /// Told just before the alert comes up (true) and just after it goes
+    /// (false): the alert's own window (`AlertWindowController`, iOS).
+    @ObservationIgnored private var presenters: [@MainActor (Bool) -> Void] = []
 
     var frontHost: UUID? { hosts.last }
 
@@ -26,6 +29,11 @@ public final class AlertService: @unchecked Sendable {
         hosts.removeAll { $0 == id }
     }
 
+    @MainActor
+    func addPresenter(_ presenter: @escaping @MainActor (Bool) -> Void) {
+        presenters.append(presenter)
+    }
+
     /// Puts the alert away now, as a swipe up does.
     @MainActor
     func dismiss() {
@@ -37,7 +45,7 @@ public final class AlertService: @unchecked Sendable {
         alertTask?.cancel()
         alert.handleTap = nil
         alert.isLoading = false
-        alert.isShowing = false
+        setShowing(false, animated: false)
         alert.text = text
         showAlert(show: false)
         alert.content = nil
@@ -195,10 +203,27 @@ public final class AlertService: @unchecked Sendable {
         showAlert(show: true)
     }
 
+    @MainActor
     private func showAlert(show: Bool) {
-        withAnimation { [weak self] in
-            guard let self else { return }
+        setShowing(show, animated: true)
+    }
+
+    /// Every change to `alert.isShowing` comes through here, so the alert's
+    /// own window hears of it: it shows itself before the alert comes up,
+    /// so the capsule's entrance is drawn, and puts itself away after.
+    @MainActor
+    private func setShowing(_ show: Bool, animated: Bool) {
+        let wasShowing = alert.isShowing
+        if show, !wasShowing {
+            presenters.forEach { $0(true) }
+        }
+        if animated {
+            withAnimation { alert.isShowing = show }
+        } else {
             alert.isShowing = show
+        }
+        if !show, wasShowing {
+            presenters.forEach { $0(false) }
         }
     }
 }
@@ -221,8 +246,14 @@ public final class Alert: Equatable {
 }
 
 extension View {
+    /// Hosts the alert over this screen on the Mac and visionOS. On iOS it
+    /// has a window of its own instead (`alertWindow()`), so this does
+    /// nothing there.
     @ViewBuilder
     func withAlert(enabled: Bool = true) -> some View {
+#if os(iOS) && !targetEnvironment(macCatalyst)
+        self
+#else
         if enabled {
             overlay(alignment: .top) {
                 AlertView()
@@ -230,5 +261,6 @@ extension View {
         } else {
             self
         }
+#endif
     }
 }
