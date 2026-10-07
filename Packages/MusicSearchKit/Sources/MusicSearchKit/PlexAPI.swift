@@ -236,27 +236,22 @@ public final class PlexAPI {
         let streams = container.lyricStreams
         log.info("plex \(ratingKey, privacy: .public): \(streams.count, privacy: .public) lyric streams \(streams.map { "\($0.format ?? $0.codec ?? "?")\($0.timed ? " timed" : "") \($0.provider ?? "")" }.joined(separator: ", "), privacy: .public)")
         let ordered = streams.filter(\.isLikelyTimed) + streams.filter { !$0.isLikelyTimed }
+        // An agent's lyrics come from LyricFind, through Plex, which limits
+        // how often a server may ask: a check of 150 songs, a few requests
+        // each, shut it off after five. So one request a song — the timed
+        // stream if there is one, asked for the one way that works — and
+        // none while it rests after refusals, since asking then only keeps
+        // it shut. A sidecar is a file on the server, free to ask for.
+        let hasAgent = streams.contains(where: \.isAgent)
+        let pausedUntil = hasAgent ? Self.lyricFindCooldown.pausedUntil() : nil
+        if let pausedUntil {
+            log.info("plex \(ratingKey, privacy: .public): LyricFind paused until \(pausedUntil.formatted(date: .omitted, time: .shortened), privacy: .public)")
+        }
+        let agent = pausedUntil == nil ? ordered.first { $0.isAgent && $0.key != nil } : nil
         var unreachable = false
-        var askedAgent = false
-        var agentPaused = false
-        for stream in ordered {
+        for stream in ordered where !stream.isAgent || stream.key == agent?.key {
             guard let key = stream.key else { continue }
-            if stream.isAgent, let until = Self.lyricFindCooldown.pausedUntil() {
-                // Refused lately: asking again only keeps it shut.
-                log.info("plex \(ratingKey, privacy: .public): LyricFind paused until \(until.formatted(date: .omitted, time: .shortened), privacy: .public)")
-                agentPaused = true
-                continue
-            }
-            // An agent's lyrics come from LyricFind, through Plex, which
-            // limits how often a server may ask: a check of 150 songs, a few
-            // requests each, shut it off after five. So one request a song —
-            // the timed stream if there is one, asked for the one way that
-            // works. A sidecar is a file on the server, free to ask for.
-            if stream.isAgent {
-                guard !askedAgent else { continue }
-                askedAgent = true
-            }
-            let url = (getBaseURL(for: plexServer) ?? baseURL).appending(path: key.trimmingPrefix("/"))
+            let url = baseURL.appending(path: key.trimmingPrefix("/"))
             // Plex's own apps ask for a stream rendered (`format=xml`): an
             // agent's lyrics (LyricFind) aren't a file on the server, which
             // fetches them when asked, and a bare request for one is a 404.
@@ -291,7 +286,7 @@ public final class PlexAPI {
             }
         }
         if unreachable { throw LyricsLookupError("Plex unreachable") }
-        if agentPaused { throw LyricsLookupError("LyricFind paused") }
+        if pausedUntil != nil { throw LyricsLookupError("LyricFind paused") }
         // Listed but none would load: the server couldn't fetch them (an
         // agent's lyrics come from LyricFind when asked, which fails at
         // times), not a song without lyrics.

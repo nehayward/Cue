@@ -191,13 +191,16 @@ final class LyricsService {
                 let (lyrics, serviceFailed) = try await Self.find(item, duration: duration, lookUpOnline: lookUpOnline)
                 let entry = LyricsStore.Entry(lyrics: lyrics, lookedOnline: lookUpOnline, storedAt: .now, isProvisional: serviceFailed)
                 memory[key] = entry
+                Self.log.info("\(item.title, privacy: .public): \(lyrics.map { "\($0.source.rawValue), \($0.isSynced ? "timed" : "plain"), \($0.lines.count) lines" } ?? "none", privacy: .public)")
+                // On screen first, then on disk: kept even if the song has
+                // moved on meanwhile.
+                if !Task.isCancelled, self.key == key {
+                    state = lyrics.map(State.loaded) ?? .none
+                    origin = .lookup
+                }
                 if !serviceFailed {
                     await store.store(entry, for: key)
                 }
-                guard !Task.isCancelled, self.key == key else { return }
-                state = lyrics.map(State.loaded) ?? .none
-                origin = .lookup
-                Self.log.info("\(item.title, privacy: .public): \(lyrics.map { "\($0.source.rawValue), \($0.isSynced ? "timed" : "plain"), \($0.lines.count) lines" } ?? "none", privacy: .public)")
             } catch {
                 guard !Task.isCancelled, self.key == key else { return }
                 failedAt = .now
