@@ -262,7 +262,16 @@ extension Room {
         guard isClockRunning else {
             // Writing the same number still invalidates every view reading
             // it — for a paused room that was every poll.
-            if newValue != playbackPosition { playbackPosition = newValue }
+            //
+            // A poll reads whole seconds, rounded down; the socket reads the
+            // same position to the millisecond. Paused, they took turns —
+            // 1:48.65 from the socket, 1:48 from the next poll — so a time
+            // rounded to the second, and the lyrics' fill, flickered between
+            // them. A whole second that's what's held, rounded down, says
+            // nothing new.
+            let isHeldRoundedDown = newValue.truncatingRemainder(dividingBy: 1000) == 0
+                && playbackPosition >= newValue && playbackPosition < newValue + 1000
+            if newValue != playbackPosition, !isHeldRoundedDown { playbackPosition = newValue }
             return
         }
         guard abs(newValue - position(at: now, running: true)) >= Self.reportTolerance else { return }

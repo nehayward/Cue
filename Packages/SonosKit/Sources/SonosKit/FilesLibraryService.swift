@@ -1077,6 +1077,16 @@ public final class FilesLibraryService {
     public func album(id: String) -> PlayableContent? { catalog.albumsByID[id] }
     public func artist(id: String) -> PlayableContent? { catalog.artistsByID[id] }
 
+    /// The song's lyrics as its files hold them (`FilesLyrics`), read off
+    /// the main actor; `nil` for a song not in the folder or without any.
+    public func lyrics(trackID: String) async -> String? {
+        guard let track = catalog.tracksByID[trackID], let folderURL else { return nil }
+        let url = folderURL.appendingPathComponent(track.relativePath)
+        return await Task.detached(priority: .userInitiated) {
+            await FilesLyrics.read(at: url)
+        }.value
+    }
+
     public func playlist(id: String) -> PlayableContent? {
         id == Self.allSongsID ? allSongsContainer : catalog.playlistsByID[id]
     }
