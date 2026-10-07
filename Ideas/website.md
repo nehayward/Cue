@@ -5,7 +5,7 @@ is in `Website/README.md`; this note is the to-do list.
 
 ## Before going live
 
-- [ ] **Deploy.** `cd Website && make install && make deploy`. `wrangler.toml`
+- [x] **Deploy.** `cd Website && make install && make deploy`. `wrangler.toml`
   makes cue.dance a Workers custom domain, so Cloudflare creates the DNS
   record and certificate on the first deploy (the apex had no record, so a
   plain route would never have answered). Afterwards check `/`, `/help`,
@@ -14,7 +14,9 @@ is in `Website/README.md`; this note is the to-do list.
   drafted from the code: Mixpanel (anonymous ID, no songs or searches),
   RevenueCat, Cloudflare logs, no cookies on the site.
 - [ ] **Confirm `hi@cue.dance` receives mail.** It's the only contact on the
-  site, in Help, the press kit and the footer.
+  site, in Help, the press kit and the footer. Email Routing is on for
+  cue.dance and forwards it to the same inbox as hi@clic.dance; send it a
+  test message.
 - [ ] **Delete the duplicate screenshots** in `Website/public/press/`
   (`Screenshot … 3.42.05 PM.png`, `… 3.42.42 PM.png`). They're near-copies of
   Radio and Plex Library and get uploaded with every deploy.
