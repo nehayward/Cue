@@ -226,7 +226,15 @@ enum TagText {
     /// dropped; nil when nothing readable is left.
     static func string(_ data: Data, encoding: String.Encoding) -> String? {
         var bytes = data
-        while let last = bytes.last, last == 0 { bytes.removeLast() }
+        if [.utf16, .utf16LittleEndian, .utf16BigEndian].contains(encoding) {
+            // Whole code units only: a byte at a time took the zero half
+            // of a last letter like "d" (64 00) and lost the letter.
+            while bytes.count >= 2, bytes[bytes.endIndex - 1] == 0, bytes[bytes.endIndex - 2] == 0 {
+                bytes.removeLast(2)
+            }
+        } else {
+            while let last = bytes.last, last == 0 { bytes.removeLast() }
+        }
         guard !bytes.isEmpty else { return nil }
         let decoded = String(data: bytes, encoding: encoding)
             ?? String(data: bytes, encoding: .isoLatin1)
