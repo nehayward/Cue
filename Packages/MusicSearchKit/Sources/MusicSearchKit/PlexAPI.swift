@@ -210,8 +210,8 @@ public final class PlexAPI {
     /// line by line; a sidecar's with the file itself.
     ///
     /// `nil` when the server answered and the track has none; throws when
-    /// the server couldn't be asked, so a passing fault isn't taken for
-    /// "no lyrics".
+    /// the server couldn't be asked, or listed lyrics it couldn't serve, so
+    /// a passing fault isn't taken for "no lyrics".
     public func lyrics(ratingKey: String) async throws -> Lyrics? {
         let log = LyricsLookupError.log
         guard let plexServer = await getPlexServer(), let baseURL = getBaseURL(for: plexServer) else {
@@ -267,6 +267,10 @@ public final class PlexAPI {
             }
         }
         if unreachable { throw LyricsLookupError("Plex unreachable") }
+        // Listed but none would load: the server couldn't fetch them (an
+        // agent's lyrics come from LyricFind when asked, which fails at
+        // times), not a song without lyrics.
+        if !streams.isEmpty { throw LyricsLookupError("Plex lyric streams didn't load") }
         return nil
     }
 

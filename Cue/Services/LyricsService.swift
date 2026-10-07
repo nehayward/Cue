@@ -280,8 +280,9 @@ actor LyricsStore {
 
     /// Bumped when what's kept changes meaning. 2: an answer found while
     /// the song's own server couldn't be asked is no longer kept, so the
-    /// first version's may hide a server's lyrics behind LRCLIB's.
-    private static let version = 2
+    /// first version's may hide a server's lyrics behind LRCLIB's. 3: nor
+    /// is one found while Plex listed lyrics it couldn't serve.
+    private static let version = 3
 
     private let root: URL?
     private let directory: URL?
