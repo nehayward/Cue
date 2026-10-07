@@ -40,6 +40,10 @@ final class AlertWindowController {
         root.view.backgroundColor = .clear
         root.appWindow = { [weak self] in self?.appWindow }
         window.rootViewController = root
+        // Laid out once now, so even the first alert comes in animated,
+        // into a view that's already there.
+        window.isHidden = false
+        window.layoutIfNeeded()
         window.isHidden = true
 
         AlertService.shared.addPresenter { [weak self] isComing in
