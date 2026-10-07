@@ -69,7 +69,9 @@ enum LyricsAudit {
             Router.main.isPlayerPresented = true
             log.info("playing \(items.count) songs with lyrics on")
             // Then on to the next, whose lyrics the prefetch should have
-            // ready: `origin` says where the shown ones came from.
+            // ready: `origin` says where the shown ones came from. One song
+            // just plays, for watching the lyrics.
+            guard items.count > 1 else { return }
             try? await Task.sleep(for: .seconds(12))
             await LocalPlaybackService.shared.next()
             try? await Task.sleep(for: .seconds(2))

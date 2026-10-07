@@ -284,8 +284,7 @@ struct PlayerView: View {
                 .opacity(isArtworkVisible || isLyrics ? 1 : 0)
                 .animation(.interactiveSpring, value: isArtworkVisible)
                 .onTapGesture {
-                    guard isLyrics else { return }
-                    withAnimation(.lyricsSwitch) { showLyrics = false }
+                    if isLyrics { showLyrics = false }
                 }
 
             if isLyrics {
@@ -293,7 +292,7 @@ struct PlayerView: View {
                     item: controller.nowPlayingDisplay,
                     isFullScreen: lyricsControlsHidden,
                     onToggleFullScreen: toggleLyricsControls,
-                    onShowCover: { withAnimation(.lyricsSwitch) { showLyrics = false } }
+                    onShowCover: { showLyrics = false }
                 )
                 .padding(.top, 4)
                 .transition(.lyricsSwitch)
@@ -1726,4 +1725,28 @@ private struct PlayerBackdrop: View {
         .allowsHitTesting(false)
         .ignoresSafeArea()
     }
+}
+
+private extension Animation {
+    /// Lyrics on and off, whatever switched them: quick and settled, with
+    /// no overshoot.
+    static let lyricsSwitch: Animation = .snappy(duration: 0.3)
+}
+
+private extension AnyTransition {
+    /// Text that swaps as lyrics go on or off — the title lines under the
+    /// cover, the title beside the thumbnail. What leaves is gone in a
+    /// tenth of a second; what comes waits until the cover has mostly
+    /// moved, so the two never cross and the cover never passes over words.
+    static let lyricsSwitch: AnyTransition = .asymmetric(
+        insertion: .opacity.animation(.easeOut(duration: 0.18).delay(0.15)),
+        removal: .opacity.animation(.easeIn(duration: 0.1))
+    )
+
+    /// The full-screen lyrics themselves: the same timing, rising a little
+    /// into place as they come.
+    static let lyricsBody: AnyTransition = .asymmetric(
+        insertion: .opacity.combined(with: .offset(y: 24)).animation(.easeOut(duration: 0.22).delay(0.15)),
+        removal: .opacity.animation(.easeIn(duration: 0.1))
+    )
 }
