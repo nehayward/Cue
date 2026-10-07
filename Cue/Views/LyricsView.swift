@@ -342,11 +342,15 @@ private struct LyricLineRow: View, Equatable {
                 .accessibilityLabel("Instrumental")
         } else if isCurrent {
             // Filled through as it's sung: by its words when they're timed,
-            // at a singing pace when only the line is. Drawn over a hidden
-            // copy that holds its place, so a frame's fill redraws the line
-            // alone: as the line itself, each frame's renderer had the text
-            // measured again and every line laid out, scrolled and checked
-            // for visibility — two fifths of the main thread on an iPhone SE.
+            // at a singing pace when only the line is.
+#if targetEnvironment(macCatalyst)
+            LyricFill(line: line, nextStart: nextStart, clock: clock)
+#else
+            // Drawn over a hidden copy that holds its place, so a frame's
+            // fill redraws the line alone: as the line itself, each frame's
+            // renderer had the text measured again and every line laid out,
+            // scrolled and checked for visibility — two fifths of the main
+            // thread on an iPhone SE.
             Text(line.text)
                 .hidden()
                 .overlay(alignment: .topLeading) {
@@ -355,6 +359,7 @@ private struct LyricLineRow: View, Equatable {
                             .textRenderer(LyricFillRenderer(progress: line.progress(at: position, nextStart: nextStart)))
                     }
                 }
+#endif
         } else {
             Text(line.text)
                 .foregroundStyle(.tertiary)
@@ -412,22 +417,9 @@ private struct LyricFillRenderer: TextRenderer {
     /// The row the front is in: bright up to `sung` glyphs, fading out
     /// across the feather before it.
     private func drawFront(of row: Text.Layout.Line, sung: Double, in ctx: GraphicsContext) {
+        guard let front = frontEdge(in: glyphSpans(of: row), sung: sung) else { return }
         let bounds = row.typographicBounds.rect
-        let isRightToLeft = row.first?.layoutDirection == .rightToLeft
-        // Each glyph's span measured the way the row reads: from its left
-        // edge for left-to-right text, from its right for Arabic or Hebrew.
-        let spans: [ClosedRange<CGFloat>] = row.flatMap { $0 }
-            .map { slice -> ClosedRange<CGFloat> in
-                let glyph = slice.typographicBounds.rect
-                return isRightToLeft
-                    ? (bounds.maxX - glyph.maxX)...(bounds.maxX - glyph.minX)
-                    : (glyph.minX - bounds.minX)...(glyph.maxX - bounds.minX)
-            }
-            .sorted { $0.lowerBound < $1.lowerBound }
-        let whole = Int(sung)
-        guard spans.indices.contains(whole) else { return }
-        let span = spans[whole]
-        let front = span.lowerBound + (span.upperBound - span.lowerBound) * (sung - Double(whole))
+        let isRightToLeft = row.isRightToLeft
         let solidEnd = max(0, front - feather)
 
         // Tall enough for accents and descenders past the type's bounds.
@@ -451,6 +443,149 @@ private struct LyricFillRenderer: TextRenderer {
         }
     }
 }
+
+private extension Text.Layout.Line {
+    var isRightToLeft: Bool { first?.layoutDirection == .rightToLeft }
+}
+
+/// Each glyph's span along a row of a wrapped line, in order, measured the
+/// way the row reads: from its left edge for left-to-right text, from its
+/// right for Arabic or Hebrew.
+private func glyphSpans(of row: Text.Layout.Line) -> [ClosedRange<CGFloat>] {
+    let bounds = row.typographicBounds.rect
+    return row.flatMap { $0 }
+        .map { slice -> ClosedRange<CGFloat> in
+            let glyph = slice.typographicBounds.rect
+            return row.isRightToLeft
+                ? (bounds.maxX - glyph.maxX)...(bounds.maxX - glyph.minX)
+                : (glyph.minX - bounds.minX)...(glyph.maxX - bounds.minX)
+        }
+        .sorted { $0.lowerBound < $1.lowerBound }
+}
+
+/// How far along a row the fill's front is, `sung` glyphs in; `nil` past
+/// its last.
+private func frontEdge(in spans: [ClosedRange<CGFloat>], sung: Double) -> CGFloat? {
+    let whole = Int(sung)
+    guard spans.indices.contains(whole) else { return nil }
+    let span = spans[whole]
+    return span.lowerBound + (span.upperBound - span.lowerBound) * (sung - Double(whole))
+}
+
+#if targetEnvironment(macCatalyst)
+/// The line being sung on the Mac: drawn twice, dim and bright, with the
+/// bright copy showing through a bar per row that slides as the line is
+/// sung, so a frame moves the bars and draws no text. Text drawn again every
+/// frame (`LyricFillRenderer`) runs SwiftUI's GPU renderer on the Mac,
+/// holding ~90 MB of GPU memory while a line fills; on an iPhone SE the mask
+/// cost the render server two fifths more than the renderer, so it's the
+/// Mac's alone. The rows come from the dim copy's layout (`Text.LayoutKey`).
+private struct LyricFill: View {
+    let line: Lyrics.Line
+    let nextStart: TimeInterval?
+    let clock: LyricsClock
+
+    var body: some View {
+        Text(line.text)
+            .foregroundStyle(.tertiary)
+            .overlayPreferenceValue(Text.LayoutKey.self) { layouts in
+                GeometryReader { proxy in
+                    let rows = layouts.first.map { FillRow.rows(of: $0.layout, at: proxy[$0.origin]) } ?? []
+                    Text(line.text)
+                        .mask(alignment: .topLeading) {
+                            PlaybackTimeline(isRunning: clock.isRunning, minimumInterval: 1.0 / 60, position: { clock.position() }) { position in
+                                FillBars(rows: rows, progress: line.progress(at: position, nextStart: nextStart))
+                            }
+                        }
+                        .accessibilityHidden(true)
+                }
+            }
+    }
+}
+
+/// A row of the line being sung, as the Mac's fill needs it.
+private struct FillRow {
+    /// The row's strip of the line: its type's bounds, out to halfway to
+    /// the rows beside it (and a little past the first and last, for
+    /// accents and descenders), so one row's bar never shows another's.
+    var band: CGRect
+    var isRightToLeft: Bool
+    var spans: [ClosedRange<CGFloat>]
+
+    static func rows(of layout: Text.Layout, at origin: CGPoint) -> [FillRow] {
+        let bounds = layout.map { $0.typographicBounds.rect.offsetBy(dx: origin.x, dy: origin.y) }
+        return layout.indices.map { index in
+            let rect = bounds[index]
+            let top = index == 0 ? rect.minY - rect.height * 0.3 : (bounds[index - 1].maxY + rect.minY) / 2
+            let bottom = index == bounds.count - 1 ? rect.maxY + rect.height * 0.3 : (rect.maxY + bounds[index + 1].minY) / 2
+            return FillRow(
+                band: CGRect(x: rect.minX - 2, y: top, width: rect.width + 4, height: bottom - top),
+                isRightToLeft: layout[index].isRightToLeft,
+                spans: glyphSpans(of: layout[index])
+            )
+        }
+    }
+}
+
+/// The mask over the bright copy: a solid bar per row, its soft front edge
+/// at how far the row has been sung.
+private struct FillBars: View {
+    let rows: [FillRow]
+    let progress: Double
+    /// How wide the fading front of the fill is.
+    var feather: CGFloat = 22
+
+    var body: some View {
+        let fronts = fronts()
+        ZStack(alignment: .topLeading) {
+            ForEach(rows.indices, id: \.self) { index in
+                bar(rows[index], front: fronts[index])
+            }
+        }
+    }
+
+    /// One row's bar, placed to show the row up to `front` the way it
+    /// reads, fading out over the `feather` before it.
+    private func bar(_ row: FillRow, front: CGFloat) -> some View {
+        let solid = Color.black.frame(width: row.band.width)
+        let edge = LinearGradient(
+            colors: [.black, .clear],
+            startPoint: row.isRightToLeft ? .trailing : .leading,
+            endPoint: row.isRightToLeft ? .leading : .trailing
+        )
+        .frame(width: feather)
+        return HStack(spacing: 0) {
+            if row.isRightToLeft {
+                edge
+                solid
+            } else {
+                solid
+                edge
+            }
+        }
+        .frame(height: row.band.height)
+        .offset(
+            x: row.isRightToLeft ? row.band.maxX - front : row.band.minX - row.band.width - feather + front,
+            y: row.band.minY
+        )
+    }
+
+    /// How far into each row's band the front is: past its end, feather and
+    /// all, for a row sung, 0 for one not yet.
+    private func fronts() -> [CGFloat] {
+        let total = rows.reduce(0) { $0 + $1.spans.count }
+        var sung = max(0, min(1, progress)) * Double(total)
+        return rows.map { row in
+            let glyphs = Double(row.spans.count)
+            defer { sung = max(0, sung - glyphs) }
+            if sung >= glyphs { return row.band.width + feather }
+            guard sung > 0, let front = frontEdge(in: row.spans, sung: sung) else { return 0 }
+            // The band starts 2 points before the row.
+            return front + 2
+        }
+    }
+}
+#endif
 
 // MARK: - Plain
 
