@@ -1,4 +1,5 @@
 import Foundation
+import SWXMLHash
 
 /// A track's metadata read only as far as its lyric streams
 /// (`streamType` 4): one per set of lyrics the server holds for it, from a
@@ -143,6 +144,41 @@ struct PlexLyricsContainer: Decodable {
             }
         }
         return nil
+    }
+}
+
+extension PlexLyricsContainer {
+    /// The same lines from the XML a lyric stream answers with
+    /// `format=xml`, the way Plex's own apps ask for an agent's lyrics.
+    init?(xml data: Data) {
+        let xml = XMLHash.parse(data)
+        let bodies = xml["MediaContainer"]["Lyrics"].all.map { lyrics in
+            Body(line: lyrics["Line"].all.map { line in
+                Line(
+                    startOffset: line.value(ofAttribute: "startOffset"),
+                    endOffset: line.value(ofAttribute: "endOffset"),
+                    span: line["Span"].all.map { span in
+                        Span(startOffset: span.value(ofAttribute: "startOffset"), text: span.value(ofAttribute: "text"))
+                    }
+                )
+            })
+        }
+        guard !bodies.isEmpty else { return nil }
+        self.init(mediaContainer: Container(lyrics: bodies))
+    }
+
+    /// Whatever a lyric stream answered: JSON or XML lines (an agent's,
+    /// rendered), or the file itself (a sidecar's LRC or text).
+    static func lyrics(fromStream body: Data, credit: String?) -> Lyrics? {
+        let first = body.first { !Character(UnicodeScalar($0)).isWhitespace }
+        if first == UInt8(ascii: "{") {
+            return (try? JSONDecoder().decode(PlexLyricsContainer.self, from: body))?.lyrics(credit: credit)
+        }
+        if first == UInt8(ascii: "<") {
+            return PlexLyricsContainer(xml: body)?.lyrics(credit: credit)
+        }
+        guard let text = String(data: body, encoding: .utf8) ?? String(data: body, encoding: .isoLatin1) else { return nil }
+        return Lyrics.parse(text, source: .plex, credit: credit)
     }
 }
 

@@ -22,7 +22,11 @@ import SonosKit
 /// (Caches), so a song seen before has its lyrics at once and offline; a
 /// song with none is asked again after a few days, since LRCLIB grows. A
 /// lookup that got no answer at all — offline, a server down — isn't
-/// kept, and is tried again the next time the player asks.
+/// kept, and is tried again the next time the player asks. Nor is LRCLIB's
+/// answer for a song whose own server couldn't be asked: it's shown, kept
+/// in memory for a few minutes, and the server is asked again after that,
+/// so a Plex server that was slow to answer once doesn't lose its
+/// LyricFind lyrics to LRCLIB for good.
 ///
 /// Stations have no lyrics here: their clock is the station's, not the
 /// song's, so nothing could follow it.
@@ -67,6 +71,9 @@ final class LyricsService {
 
     /// How long a lookup that found nothing is believed.
     static let noneLifetime: TimeInterval = 3 * 24 * 60 * 60
+    /// How long an answer found while the song's own server couldn't be
+    /// asked stands before the server is asked again.
+    static let provisionalLifetime: TimeInterval = 5 * 60
     /// How soon a lookup that failed may be tried again.
     static let retryInterval: TimeInterval = 20
     /// How long a song with no length yet is given to report one before
@@ -137,6 +144,7 @@ final class LyricsService {
         state = .loading
         origin = nil
         isWaitingForDuration = duration <= 0
+        Self.log.info("\(item.title, privacy: .public): looking up \(String(describing: item.content.service), privacy: .public) \(item.content.id, privacy: .public), \(Int(duration), privacy: .public) s")
         task = Task { [store] in
             if let entry = await store.entry(for: key), entry.isUsable(lookUpOnline: lookUpOnline) {
                 guard !Task.isCancelled, self.key == key else { return }
@@ -152,10 +160,12 @@ final class LyricsService {
             }
             isWaitingForDuration = false
             do {
-                let lyrics = try await Self.find(item, duration: duration, lookUpOnline: lookUpOnline)
-                let entry = LyricsStore.Entry(lyrics: lyrics, lookedOnline: lookUpOnline, storedAt: .now)
+                let (lyrics, serviceFailed) = try await Self.find(item, duration: duration, lookUpOnline: lookUpOnline)
+                let entry = LyricsStore.Entry(lyrics: lyrics, lookedOnline: lookUpOnline, storedAt: .now, isProvisional: serviceFailed)
                 memory[key] = entry
-                await store.store(entry, for: key)
+                if !serviceFailed {
+                    await store.store(entry, for: key)
+                }
                 guard !Task.isCancelled, self.key == key else { return }
                 state = lyrics.map(State.loaded) ?? .none
                 origin = .lookup
@@ -177,15 +187,23 @@ final class LyricsService {
 
     // MARK: - Finding
 
-    /// The service's own lyrics, then LRCLIB's. Throws only when nothing
-    /// could be asked: a service's own miss can't be told from its server
-    /// being away, so it's LRCLIB's answer that counts.
-    private static func find(_ item: PlayableContent, duration: TimeInterval, lookUpOnline: Bool) async throws -> Lyrics? {
-        let own = await serviceLyrics(for: item)
-        if let own, own.isSynced || own.isInstrumental {
-            return own
+    /// The service's own lyrics, then LRCLIB's, and whether the service
+    /// couldn't be asked (so the answer is only provisional). Throws only
+    /// when nothing could be asked at all.
+    private static func find(_ item: PlayableContent, duration: TimeInterval, lookUpOnline: Bool) async throws -> (Lyrics?, serviceFailed: Bool) {
+        var own: Lyrics?
+        var serviceFailed = false
+        do {
+            own = try await serviceLyrics(for: item)
+            log.info("\(item.title, privacy: .public): \(String(describing: item.content.service), privacy: .public) has \(own.map { $0.isSynced ? "timed" : "plain" } ?? "none", privacy: .public)")
+        } catch {
+            serviceFailed = true
+            log.info("\(item.title, privacy: .public): \(String(describing: item.content.service), privacy: .public) couldn't be asked: \(String(describing: error), privacy: .public)")
         }
-        guard lookUpOnline else { return own }
+        if let own, own.isSynced || own.isInstrumental {
+            return (own, false)
+        }
+        guard lookUpOnline else { return (own, serviceFailed) }
         do {
             let online = try await LRCLibAPI.lyrics(
                 title: item.title,
@@ -194,19 +212,24 @@ final class LyricsService {
                 duration: duration > 0 ? duration : nil
             )
             if let online, online.isSynced || own == nil {
-                return online
+                return (online, serviceFailed)
             }
         } catch {
             if own == nil { throw error }
         }
-        return own
+        return (own, serviceFailed)
     }
 
-    private static func serviceLyrics(for item: PlayableContent) async -> Lyrics? {
+    /// The song's own server's lyrics: `nil` when it answered with none,
+    /// throwing when it couldn't be asked.
+    private static func serviceLyrics(for item: PlayableContent) async throws -> Lyrics? {
         switch item.content.service {
         case .plex:
-            guard let ratingKey = item.plexRatingKey else { return nil }
-            return await PlexAPI.shared.lyrics(ratingKey: ratingKey)
+            guard let ratingKey = item.plexRatingKey else {
+                log.info("\(item.title, privacy: .public): no Plex rating key in \(item.content.id, privacy: .public)")
+                return nil
+            }
+            return try await PlexAPI.shared.lyrics(ratingKey: ratingKey)
         case .subsonic:
             guard SubsonicAPI.shared.isConfigured else { return nil }
             return await SubsonicAPI.shared.lyrics(
@@ -232,11 +255,18 @@ actor LyricsStore {
         /// LRCLIB was asked, so a miss is a miss everywhere.
         let lookedOnline: Bool
         let storedAt: Date
+        /// Found while the song's own server couldn't be asked: kept in
+        /// memory only, and only for a few minutes.
+        var isProvisional = false
 
         /// Still the answer: found lyrics last, unless LRCLIB's while
         /// looking online is now off; a miss lasts a few days, and only
-        /// while it covers everywhere that's now looked.
+        /// while it covers everywhere that's now looked; a provisional
+        /// answer, a few minutes.
         func isUsable(lookUpOnline: Bool) -> Bool {
+            if isProvisional, Date.now.timeIntervalSince(storedAt) > LyricsService.provisionalLifetime {
+                return false
+            }
             if let lyrics {
                 return lookUpOnline || lyrics.source != .lrclib
             }
@@ -248,13 +278,20 @@ actor LyricsStore {
     /// Past this many songs, the ones used longest ago go.
     private static let limit = 2000
 
+    /// Bumped when what's kept changes meaning. 2: an answer found while
+    /// the song's own server couldn't be asked is no longer kept, so the
+    /// first version's may hide a server's lyrics behind LRCLIB's.
+    private static let version = 2
+
+    private let root: URL?
     private let directory: URL?
     private var isPrepared = false
     private var storedSinceTrim = 0
 
     init() {
-        directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+        root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
             .appendingPathComponent("Lyrics", isDirectory: true)
+        directory = root?.appendingPathComponent("\(Self.version)", isDirectory: true)
     }
 
     func entry(for key: String) -> Entry? {
@@ -281,6 +318,12 @@ actor LyricsStore {
         guard !isPrepared, let directory else { return }
         isPrepared = true
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        // Earlier versions' files, and their folders.
+        if let root, let items = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) {
+            for item in items where item.lastPathComponent != directory.lastPathComponent {
+                try? FileManager.default.removeItem(at: item)
+            }
+        }
         trim()
     }
 

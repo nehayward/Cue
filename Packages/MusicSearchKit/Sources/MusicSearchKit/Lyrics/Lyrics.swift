@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 /// A song's words, timed or not, from wherever they were found: the song's
 /// own server (Plex, Subsonic), the file itself, or LRCLIB.
@@ -117,6 +118,19 @@ public struct Lyrics: Codable, Equatable, Sendable {
     public func nextStart(after index: Int) -> TimeInterval? {
         lines.indices.contains(index + 1) ? lines[index + 1].start : nil
     }
+}
+
+/// A lyrics source that couldn't be asked — unreachable, or an error from
+/// the server — as against one that answered with none.
+public struct LyricsLookupError: Error, CustomStringConvertible {
+    public let description: String
+
+    public init(_ description: String) {
+        self.description = description
+    }
+
+    /// Where lyrics lookups log, in whichever app they run.
+    static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "MusicSearchKit", category: "lyrics")
 }
 
 // MARK: - Progress through a line

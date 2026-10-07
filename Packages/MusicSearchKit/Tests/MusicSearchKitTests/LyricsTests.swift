@@ -150,6 +150,29 @@ final class LyricsTests: XCTestCase {
         XCTAssertEqual(line.progress(at: 10.5, nextStart: 11), 0.5, accuracy: 0.0001)
     }
 
+    func testPlexAgentLyricsXML() throws {
+        let xml = Data("""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <MediaContainer size="1"><Lyrics timed="1" provider="com.plexapp.agents.lyricfind">
+          <Line startOffset="1200" endOffset="3000"><Span startOffset="1200" text="Like the legend "/><Span startOffset="2000" text="of the phoenix"/></Line>
+          <Line startOffset="4000"/>
+          <Line startOffset="6500"><Span text="All ends with beginnings"/></Line>
+        </Lyrics></MediaContainer>
+        """.utf8)
+        let lyrics = try XCTUnwrap(PlexLyricsContainer.lyrics(fromStream: xml, credit: "LyricFind"))
+        XCTAssertTrue(lyrics.isSynced)
+        XCTAssertEqual(lyrics.lines.map(\.text), ["Like the legend of the phoenix", "", "All ends with beginnings"])
+        XCTAssertEqual(lyrics.lines.map { $0.start! }, [1.2, 4, 6.5], accuracy: 0.0001)
+        XCTAssertEqual(lyrics.lines.first?.words?.map(\.text), ["Like the legend ", "of the phoenix"])
+        XCTAssertEqual(lyrics.credit, "LyricFind")
+    }
+
+    func testPlexStreamThatIsAnLRCFile() throws {
+        let lyrics = try XCTUnwrap(PlexLyricsContainer.lyrics(fromStream: Data("[00:01.00]One\n[00:02.00]Two".utf8), credit: nil))
+        XCTAssertEqual(lyrics.lines.map(\.text), ["One", "Two"])
+        XCTAssertEqual(lyrics.source, .plex)
+    }
+
     func testPlexSpansBecomeWords() throws {
         let container = try JSONDecoder().decode(PlexLyricsContainer.self, from: Data("""
         {"MediaContainer": {"Lyrics": [{"Line": [

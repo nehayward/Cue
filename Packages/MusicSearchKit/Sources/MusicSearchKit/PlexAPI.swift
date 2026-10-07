@@ -208,30 +208,65 @@ public final class PlexAPI {
     /// `.lrc` or `.txt` beside the file, or the lyrics agent's, which needs
     /// Plex Pass), timed ones first. An agent's stream answers in JSON,
     /// line by line; a sidecar's with the file itself.
-    public func lyrics(ratingKey: String) async -> Lyrics? {
-        guard let plexServer = await getPlexServer(),
-              let baseURL = getBaseURL(for: plexServer),
-              let request = await authorizedRequest(from: baseURL.appending(path: "library/metadata/\(ratingKey)")),
-              let (data, _) = await loadData(for: request),
-              let container = try? decoder.decode(PlexLyricStreamsContainer.self, from: data) else {
+    ///
+    /// `nil` when the server answered and the track has none; throws when
+    /// the server couldn't be asked, so a passing fault isn't taken for
+    /// "no lyrics".
+    public func lyrics(ratingKey: String) async throws -> Lyrics? {
+        let log = LyricsLookupError.log
+        guard let plexServer = await getPlexServer(), let baseURL = getBaseURL(for: plexServer) else {
+            log.info("plex \(ratingKey, privacy: .public): no server")
+            throw LyricsLookupError("no Plex server")
+        }
+        guard let request = await authorizedRequest(from: baseURL.appending(path: "library/metadata/\(ratingKey)")),
+              let (data, response) = await loadData(for: request) else {
+            log.info("plex \(ratingKey, privacy: .public): metadata unreachable")
+            throw LyricsLookupError("Plex unreachable")
+        }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 200
+        guard status == 200 else {
+            log.info("plex \(ratingKey, privacy: .public): metadata answered \(status, privacy: .public)")
+            if status == 404 { return nil }
+            throw LyricsLookupError("Plex answered \(status)")
+        }
+        guard let container = try? decoder.decode(PlexLyricStreamsContainer.self, from: data) else {
+            log.info("plex \(ratingKey, privacy: .public): metadata didn't decode")
             return nil
         }
         let streams = container.lyricStreams
+        log.info("plex \(ratingKey, privacy: .public): \(streams.count, privacy: .public) lyric streams \(streams.map { "\($0.format ?? $0.codec ?? "?")\($0.timed ? " timed" : "") \($0.provider ?? "")" }.joined(separator: ", "), privacy: .public)")
         let ordered = streams.filter(\.isLikelyTimed) + streams.filter { !$0.isLikelyTimed }
+        var unreachable = false
         for stream in ordered {
-            guard let key = stream.key,
-                  let request = await authorizedRequest(from: (getBaseURL(for: plexServer) ?? baseURL).appending(path: key.trimmingPrefix("/"))),
-                  let (body, response) = await loadData(for: request),
-                  (response as? HTTPURLResponse)?.statusCode ?? 200 == 200 else { continue }
-            if body.first(where: { !Character(UnicodeScalar($0)).isWhitespace }) == UInt8(ascii: "{") {
-                if let lyrics = (try? decoder.decode(PlexLyricsContainer.self, from: body))?.lyrics(credit: stream.credit) {
+            guard let key = stream.key else { continue }
+            let url = (getBaseURL(for: plexServer) ?? baseURL).appending(path: key.trimmingPrefix("/"))
+            // Plex's own apps ask for a stream rendered (`format=xml`): an
+            // agent's lyrics (LyricFind) aren't a file on the server, which
+            // fetches them when asked, and a bare request for one is a 404.
+            // A sidecar's stream answers either way.
+            let attempts = [
+                url.appending(queryItems: [
+                    URLQueryItem(name: "format", value: "xml"),
+                    URLQueryItem(name: "includeInlineAttribution", value: "1")
+                ]),
+                url
+            ]
+            for attempt in attempts {
+                guard let request = await authorizedRequest(from: attempt),
+                      let (body, response) = await loadData(for: request) else {
+                    unreachable = true
+                    continue
+                }
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 200
+                let preview = String(decoding: body.prefix(60), as: UTF8.self).replacingOccurrences(of: "\n", with: " ")
+                log.info("plex \(ratingKey, privacy: .public): \(key, privacy: .public)\(attempt.query.map { "?" + $0 } ?? "", privacy: .public) answered \(status, privacy: .public): \(preview, privacy: .public)")
+                guard status == 200 else { continue }
+                if let lyrics = PlexLyricsContainer.lyrics(fromStream: body, credit: stream.credit) {
                     return lyrics
                 }
-            } else if let text = String(data: body, encoding: .utf8) ?? String(data: body, encoding: .isoLatin1),
-                      let lyrics = Lyrics.parse(text, source: .plex, credit: stream.credit) {
-                return lyrics
             }
         }
+        if unreachable { throw LyricsLookupError("Plex unreachable") }
         return nil
     }
 
