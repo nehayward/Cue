@@ -234,6 +234,11 @@ struct LocalDownloadMenuSection: View {
     static func download(_ item: PlayableContent, alertService: AlertService) async {
         let manager = DownloadManager.shared
         let result = await manager.download(contentsOf: item)
+        guard !result.couldNotLoad else {
+            let server = item.content.service == .plex ? "Plex" : "the server"
+            alertService.showAlertContent(with: item, subtitle: "Couldn't reach \(server). Try again.", symbolName: "exclamationmark.triangle")
+            return
+        }
         switch (result.queued, result.heldBack) {
         case (0, 0):
             if manager.isDownloaded(contentsOf: item) {

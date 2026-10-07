@@ -32,6 +32,9 @@
 - Fixed SoundCloud, Deezer, Pandora and Sonos Radio sometimes showing as signed out or not loading until Cue was force quit
 - Fixed Browse sections staying empty after switching between music services quickly
 - Improved downloaded albums and playlists: remove a song you don't want and the rest stay on your device as the album, still marked downloaded and removable in one go. The album's download button offers the removed songs again, and downloading one of them on its own puts it back
+- More reliable album and playlist downloads from Plex and Subsonic: songs your server turns away while it's busy are tried again by themselves instead of failing, a download that stalls is picked back up, and closing Cue part-way no longer leaves songs stuck for minutes. Downloads left over when you reopen Cue keep going at full speed after you leave it, with their progress on the Lock Screen Big playlists start at once instead of freezing the app, and a playlist whose list couldn't be fetched in full is never marked downloaded with songs missing
+- Fixed downloads at an MP3 or Opus Streaming Quality sometimes saving a few seconds of a song as the whole thing, or failing with "cannot parse response". Songs already saved that way are fetched again
+- Removing a downloaded album no longer takes the songs it shares with another downloaded album or playlist
 
 # 2026.7
 

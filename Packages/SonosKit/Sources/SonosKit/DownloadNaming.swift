@@ -48,3 +48,69 @@ public enum DownloadNaming {
         return min(1, max(0, Double(received) / Double(expected)))
     }
 }
+
+/// Checks on what a download brings, pure so the download manager and its
+/// tests share them.
+public enum DownloadChecks {
+    /// The least a converted song can weigh: half what `seconds` at the
+    /// bitrate its URL asks for (`musicBitrate` on Plex, `maxBitRate` on
+    /// Subsonic) comes to — Opus runs under its target on quiet passages.
+    /// A conversion arrives with no length, so one the server broke off
+    /// ends like a whole one; anything lighter was cut short. Nil when the
+    /// URL asks for no bitrate (the original file, which comes with its
+    /// length) or the song's length isn't known.
+    public static func minimumConvertedSize(seconds: Double?, url: URL) -> Int64? {
+        guard let seconds, seconds > 5,
+              let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
+              let kbps = query.first(where: { ["musicBitrate", "maxBitRate"].contains($0.name) })?.value.flatMap(Int.init),
+              kbps > 0 else { return nil }
+        return Int64(seconds * Double(kbps) * 125 / 2)
+    }
+
+    /// The same Plex conversion asked for as `client`, or any other URL as
+    /// it is. Plex ends a transcode when the same client starts another,
+    /// so conversions that run together each need a client of their own.
+    public static func plexConversion(_ url: URL, client: String) -> URL {
+        guard url.path.contains("/transcode/universal/"),
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        components.queryItems = components.queryItems?.map { item in
+            item.name == "X-Plex-Client-Identifier" ? URLQueryItem(name: item.name, value: client) : item
+        }
+        return components.url ?? url
+    }
+
+    /// The Plex client a URL asks as, if any.
+    public static func plexClient(in url: URL) -> String? {
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+            .first { $0.name == "X-Plex-Client-Identifier" }?.value
+    }
+}
+
+/// Every item of a list a server hands over a page at a time, or nil if a
+/// page fails — for a download, which would otherwise remember a list cut
+/// short as the whole thing.
+public enum PagedList {
+    /// `page(offset)` answers a page and, where the server says, the
+    /// list's total, or nil when it fails. The total says when to stop, so
+    /// no page past the end is asked for (Plex answers one with nothing
+    /// that decodes, which would read as a failure); with no total, a
+    /// short page is the end, and an empty one always is.
+    public static func all<Item>(
+        pageSize: Int,
+        maxPages: Int = 200,
+        page: (Int) async -> (items: [Item], total: Int?)?
+    ) async -> [Item]? {
+        var items: [Item] = []
+        var total: Int?
+        for _ in 0 ..< maxPages {
+            guard let answer = await page(items.count) else { return nil }
+            total = total ?? answer.total
+            items += answer.items
+            let done = answer.items.isEmpty
+                || items.count >= total ?? .max
+                || (total == nil && answer.items.count < pageSize)
+            if done { break }
+        }
+        return items
+    }
+}

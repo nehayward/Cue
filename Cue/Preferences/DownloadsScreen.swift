@@ -91,7 +91,7 @@ struct DownloadsScreen: View {
                         }
                         Divider()
                         Button(role: .destructive) {
-                            active.forEach { manager.cancel(key: $0.key) }
+                            manager.cancel(keys: active.map(\.key))
                         } label: {
                             Label("Cancel All", systemImage: "xmark.circle")
                         }

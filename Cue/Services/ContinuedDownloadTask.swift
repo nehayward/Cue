@@ -52,9 +52,9 @@ private final class DownloadBatch: ContinuedWork {
     func expire() {
         expired = true
         let manager = DownloadManager.shared
-        for key in keys where manager.items[key]?.state != .waiting {
-            manager.pause(key: key)
-        }
+        manager.pause(keys: keys.filter { key in
+            manager.items[key].map { !manager.waitsForNetwork($0) } ?? false
+        })
     }
 
     /// Where the batch stands, from the manager's entries and the folder's
@@ -77,6 +77,12 @@ private final class DownloadBatch: ContinuedWork {
                 continue
             }
             switch item.state {
+            case .queued where manager.waitsForNetwork(item):
+                // In line on a network it may not use: waiting, as one on
+                // the session would be.
+                reading.settled += 1
+                reading.waiting += 1
+                reading.units += 100
             case .completed:
                 reading.settled += 1
                 reading.completed += 1
@@ -212,9 +218,11 @@ private final class LibraryBatch: ContinuedWork {
 
 #if os(iOS) && !targetEnvironment(macCatalyst)
 import BackgroundTasks
+import OSLog
 
 /// Keeps a batch of downloads going, and visible, after the app leaves the
-/// foreground: a `BGContinuedProcessingTask` submitted from the user's tap.
+/// foreground: a `BGContinuedProcessingTask` submitted from the user's tap,
+/// or when Cue comes to the front with downloads left over from before.
 /// The system shows its title and progress in a Live Activity, where the
 /// person can also cancel it, and keeps the app running to drive it.
 ///
@@ -239,6 +247,13 @@ final class ContinuedDownloadTask {
     private var registered = false
     private var current: (any ContinuedWork)?
     private var currentTask: BGContinuedProcessingTask?
+    private static let log = Logger(subsystem: "dance.cue", category: "downloads")
+
+    /// Whether a task is keeping the app running now, so work can go on
+    /// in the background as it does in front.
+    var keepsAppRunning: Bool {
+        currentTask != nil && current?.expired == false
+    }
 
     /// Registers the launch handler. Cheap, idempotent, and required
     /// before a submission; the app delegate calls it at launch.
@@ -312,12 +327,22 @@ final class ContinuedDownloadTask {
         // Queue rather than fail: if the system is busy the task waits its
         // turn, and the transfers are already under way regardless.
         request.strategy = .queue
+        #if DEBUG
+        // `-DownloadAuditNoCard YES`: as if the system turned the task
+        // down, to see downloads go on with Cue suspended.
+        if UserDefaults.standard.bool(forKey: "DownloadAuditNoCard") {
+            Self.log.info("Continued task skipped (DownloadAuditNoCard)")
+            current = nil
+            return
+        }
+        #endif
         do {
             try BGTaskScheduler.shared.submit(request)
+            Self.log.info("Continued task submitted: \(work.title, privacy: .public), \(work.total) items")
         } catch {
             // No Live Activity, but nothing lost: the background session and
             // iCloud carry the downloads on their own.
-            print("Continued download task not accepted: \(error)")
+            Self.log.error("Continued task not accepted: \(error.localizedDescription, privacy: .public)")
             current = nil
         }
     }
@@ -328,9 +353,11 @@ final class ContinuedDownloadTask {
             return
         }
         currentTask = task
+        Self.log.info("Continued task running: \(work.title, privacy: .public)")
         task.progress.totalUnitCount = Int64(max(1, work.total) * 100)
         task.expirationHandler = {
             Task { @MainActor in
+                Self.log.error("Continued task expired: \(work.title, privacy: .public) at \(work.measure().subtitle, privacy: .public)")
                 work.expire()
             }
         }
@@ -361,6 +388,7 @@ final class ContinuedDownloadTask {
             current = nil
             currentTask = nil
         }
+        Self.log.info("Continued task done: \(work.title, privacy: .public), \(work.measure().subtitle, privacy: .public), expired \(work.expired)")
         task.setTaskCompleted(success: settled && !work.expired)
     }
 }
@@ -377,6 +405,9 @@ final class ContinuedDownloadTask {
 
     private var current: (any ContinuedWork)?
     private var watcher: Task<Void, Never>?
+
+    /// The app keeps running on its own here.
+    var keepsAppRunning: Bool { true }
 
     func register() {}
 
