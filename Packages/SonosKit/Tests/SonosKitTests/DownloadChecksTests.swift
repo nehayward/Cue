@@ -37,10 +37,21 @@ final class DownloadChecksTests: XCTestCase {
     func testAConversionIsAskedForUnderTheGivenClientAndNothingElseChanges() {
         let moved = DownloadChecks.plexConversion(conversion, client: "Cue-Download-2")
         XCTAssertEqual(DownloadChecks.plexClient(in: moved), "Cue-Download-2")
-        let before = URLComponents(url: conversion, resolvingAgainstBaseURL: false)!.queryItems!.filter { $0.name != "X-Plex-Client-Identifier" }
-        let after = URLComponents(url: moved, resolvingAgainstBaseURL: false)!.queryItems!.filter { $0.name != "X-Plex-Client-Identifier" }
+        let renamed: Set = ["X-Plex-Client-Identifier", "session"]
+        let before = URLComponents(url: conversion, resolvingAgainstBaseURL: false)!.queryItems!.filter { !renamed.contains($0.name) }
+        let after = URLComponents(url: moved, resolvingAgainstBaseURL: false)!.queryItems!.filter { !renamed.contains($0.name) }
         XCTAssertEqual(before, after)
         XCTAssertEqual(moved.path, conversion.path)
+    }
+
+    /// The player transcodes the same song as `cue-<ratingKey>`; a download
+    /// in that session could end it.
+    func testAConversionRunsInASessionApartFromThePlayers() {
+        let moved = DownloadChecks.plexConversion(conversion, client: "Cue-Download")
+        let session = URLComponents(url: moved, resolvingAgainstBaseURL: false)!.queryItems!.first { $0.name == "session" }?.value
+        XCTAssertEqual(session, "cue-download-2163")
+        // Made again for each fresh start, so asking twice changes nothing more.
+        XCTAssertEqual(DownloadChecks.plexConversion(moved, client: "Cue-Download"), moved)
     }
 
     func testTheOriginalFileKeepsItsURL() {

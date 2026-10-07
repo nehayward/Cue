@@ -67,14 +67,27 @@ public enum DownloadChecks {
         return Int64(seconds * Double(kbps) * 125 / 2)
     }
 
-    /// The same Plex conversion asked for as `client`, or any other URL as
+    /// The same Plex conversion asked for as `client`, in a transcode
+    /// session of its own (`cue-download-<ratingKey>`), or any other URL as
     /// it is. Plex ends a transcode when the same client starts another,
-    /// so conversions that run together each need a client of their own.
+    /// so conversions that run together each need a client of their own;
+    /// and a request in a session that's already transcoding replaces that
+    /// transcode, so a download in the player's (`cue-<ratingKey>`) could
+    /// end the song playing.
     public static func plexConversion(_ url: URL, client: String) -> URL {
         guard url.path.contains("/transcode/universal/"),
               var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        let ratingKey = components.queryItems?.first { $0.name == "path" }?.value
+            .flatMap { path in path.split(separator: "/").last.map { String($0) } }
         components.queryItems = components.queryItems?.map { item in
-            item.name == "X-Plex-Client-Identifier" ? URLQueryItem(name: item.name, value: client) : item
+            switch item.name {
+            case "X-Plex-Client-Identifier":
+                return URLQueryItem(name: item.name, value: client)
+            case "session":
+                return ratingKey.map { URLQueryItem(name: item.name, value: "cue-download-\($0)") } ?? item
+            default:
+                return item
+            }
         }
         return components.url ?? url
     }

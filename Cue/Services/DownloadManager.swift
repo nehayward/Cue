@@ -196,9 +196,10 @@ final class DownloadManager {
     @ObservationIgnored private var settleTask: Task<Void, Never>?
     /// Automatic retries waiting their turn, by key (`retryAutomatically`).
     @ObservationIgnored private var retryTasks: [String: Task<Void, Never>] = [:]
-    /// Downloads whose session task this launch took over from an earlier
-    /// one; restarted on their own task once the app is active.
-    @ObservationIgnored private var adoptedKeys: Set<String> = []
+    /// Session tasks this launch took over from an earlier one, by key;
+    /// each download is moved to a task of its own once it runs with the
+    /// app active (`restartAdoptedTasks`).
+    @ObservationIgnored private var adoptedTasks: [String: Int] = [:]
     /// What each running task had received at the watchdog's last look,
     /// and since when, by task.
     @ObservationIgnored private var lastMovement: [Int: (bytes: Int64, since: Date)] = [:]
@@ -231,7 +232,6 @@ final class DownloadManager {
         relay.manager = self
         adoptLegacyPlexDownloads()
         reconcileWithDisk()
-        repairCutShortDownloads()
         trimContainers()
         reattachSessionTasks()
         pathMonitor.pathUpdateHandler = { [weak self] path in
@@ -1023,12 +1023,18 @@ final class DownloadManager {
     /// then landed whole, and the last one never did. The same transfer
     /// on a task of this launch's own finished in two seconds. So each one
     /// is moved, keeping what it has.
+    ///
+    /// One waiting for a network isn't moving yet, so it keeps its place
+    /// here and is moved when it runs (`networkDidChange`); one paused,
+    /// finished, gone or already on a new task is forgotten.
     private func restartAdoptedTasks() {
-        guard !adoptedKeys.isEmpty, UIApplication.shared.applicationState == .active else { return }
-        let keys = adoptedKeys
-        adoptedKeys = []
-        Self.log.info("Restarting \(keys.count) downloads taken over from the last launch")
-        keys.forEach(restartTask)
+        adoptedTasks = adoptedTasks.filter { taskIDs[$0.key] == $0.value }
+        guard !adoptedTasks.isEmpty, UIApplication.shared.applicationState == .active else { return }
+        let running = adoptedTasks.keys.filter { items[$0]?.state == .downloading }
+        guard !running.isEmpty else { return }
+        running.forEach { adoptedTasks[$0] = nil }
+        Self.log.info("Restarting \(running.count) downloads taken over from the last launch")
+        running.forEach(restartTask)
     }
 
     /// Restarts any transfer that has had an answer from the server but
@@ -1137,6 +1143,8 @@ final class DownloadManager {
             }
         }
 
+        repairCutShortDownloads()
+
         // A usable network is back: retry what the network made fail, and
         // make sure what's running has a task — the session may have
         // dropped one while the app wasn't looking.
@@ -1152,6 +1160,8 @@ final class DownloadManager {
         if !first, !resumed.isEmpty {
             ensureSessionTasks(for: resumed)
         }
+        // Taken over from the last launch and waiting until now.
+        restartAdoptedTasks()
         scheduleSave()
         // Unless this is the launch report, when nothing the person did is
         // running yet and the reattach already accounts for it.
@@ -1290,22 +1300,39 @@ final class DownloadManager {
         items[key] = entry
     }
 
-    /// A file landed. Taken from whichever task brought it — it's the song
-    /// either way — and any other task for the key is let go.
-    fileprivate func didFinish(key: String, task identifier: Int, fileSize: Int64?, lengthKnown: Bool) {
-        guard var entry = items[key] else { return }
+    /// A file landed at `file`. Taken from whichever task brought it — it's
+    /// the song either way — and any other task for the key is let go. The
+    /// file is read here rather than when it landed: another task's report
+    /// may have removed it since.
+    fileprivate func didFinish(key: String, task identifier: Int, file: URL, lengthKnown: Bool) {
+        // Cancelled or removed meanwhile, or made again in another format:
+        // no download is waiting for this file, and one left behind would
+        // be taken for the song by the next download of it.
+        guard var entry = items[key], file == Self.fileURL(key: key, fileExtension: entry.fileExtension) else {
+            try? FileManager.default.removeItem(at: file)
+            return
+        }
+        // A straggler: the song is in place already.
+        guard entry.state != .completed else { return }
+        // This task's own file was let go for one another task brought,
+        // which turned out cut short and is gone: fetched again.
+        guard let fileSize = Self.size(of: file) else {
+            Self.log.error("Landed with no file: \(entry.title, privacy: .public)")
+            didFail(key: key, task: identifier, error: CutShort(), resumeData: nil)
+            return
+        }
         // A conversion comes with no length, so one the server broke off
         // ends like a whole one: Plex ending a transcode left 64 KB of a
         // song, saved as the song. Too small for its length and bitrate,
         // it's thrown away and fetched again.
-        if !lengthKnown, entry.state != .completed, let fileSize, let minimum = Self.minimumSize(of: entry), fileSize < minimum {
+        if !lengthKnown, let minimum = Self.minimumSize(of: entry), fileSize < minimum {
             Self.log.error("Cut short: \(entry.title, privacy: .public) \(fileSize) bytes, expected at least \(minimum)")
-            try? FileManager.default.removeItem(at: Self.fileURL(key: key, fileExtension: entry.fileExtension))
+            try? FileManager.default.removeItem(at: file)
             didFail(key: key, task: identifier, error: CutShort(), resumeData: nil)
             return
         }
         taskIDs[key] = nil
-        Self.log.info("Finished \(entry.title, privacy: .public) [\(key, privacy: .public)] \(fileSize ?? -1) bytes")
+        Self.log.info("Finished \(entry.title, privacy: .public) [\(key, privacy: .public)] \(fileSize) bytes")
         entry.state = .completed
         entry.bytesReceived = entry.bytesExpected
         entry.fileSize = fileSize
@@ -1470,7 +1497,7 @@ final class DownloadManager {
                 if entry.isActive {
                     if let identifier = carried[entry.key], self.taskIDs[entry.key] == nil {
                         self.taskIDs[entry.key] = identifier
-                        self.adoptedKeys.insert(entry.key)
+                        self.adoptedTasks[entry.key] = identifier
                         var updated = entry
                         updated.state = self.mayUse(entry) ? .downloading : .waiting
                         self.items[entry.key] = updated
@@ -1510,6 +1537,14 @@ final class DownloadManager {
         for entry in items.values where entry.state != .completed {
             let url = Self.fileURL(key: entry.key, fileExtension: entry.fileExtension)
             if let size = Self.size(of: url) {
+                // Nothing says whether it came with its length, so it's
+                // weighed like a conversion (see `didFinish`); one too
+                // small is fetched again.
+                if let minimum = Self.minimumSize(of: entry), size < minimum {
+                    Self.log.error("Found cut short: \(entry.title, privacy: .public) \(size) bytes")
+                    try? FileManager.default.removeItem(at: url)
+                    continue
+                }
                 var updated = entry
                 updated.state = .completed
                 updated.fileSize = size
@@ -1519,10 +1554,18 @@ final class DownloadManager {
         }
     }
 
-    /// Converted songs an earlier build kept though the server had broken
+    /// Plex conversions an earlier build kept though the server had broken
     /// them off part-way (see `didFinish`): thrown away and fetched again.
+    /// Once, and on Wi‑Fi, so a song is never deleted where it can't be
+    /// fetched again. Plex's only: it's the server that ended conversions,
+    /// while a Subsonic server sends a song it holds at a lower bitrate
+    /// than asked for as it is, which the size check would take for cut
+    /// short on every pass.
     private func repairCutShortDownloads() {
-        for entry in items.values where entry.state == .completed {
+        let defaults = UserDefaults.standard
+        guard network == .unmetered, !defaults.bool(forKey: AppStorageKeys.downloadsCutShortRepaired) else { return }
+        defaults.set(true, forKey: AppStorageKeys.downloadsCutShortRepaired)
+        for entry in items.values where entry.state == .completed && entry.url.path.contains("/transcode/universal/") {
             guard let size = entry.fileSize, let minimum = Self.minimumSize(of: entry), size < minimum else { continue }
             Self.log.error("Fetching again, cut short: \(entry.title, privacy: .public) \(size) bytes")
             try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
@@ -1696,11 +1739,11 @@ private final class DownloadSessionRelay: NSObject, URLSessionDownloadDelegate, 
         let destination = DownloadManager.fileURL(key: key, fileExtension: fileExtension)
         // The song is here already, from the task that brought it first: a
         // straggler for the same song mustn't put whatever it brought in
-        // its place.
+        // its place. That file's length is the other task's to vouch for,
+        // so it's weighed like a conversion's.
         if FileManager.default.fileExists(atPath: destination.path) {
-            let size = DownloadManager.size(of: destination)
             Task { @MainActor in
-                self.manager?.didFinish(key: key, task: identifier, fileSize: size, lengthKnown: true)
+                self.manager?.didFinish(key: key, task: identifier, file: destination, lengthKnown: false)
             }
             return
         }
@@ -1717,10 +1760,9 @@ private final class DownloadSessionRelay: NSObject, URLSessionDownloadDelegate, 
             }
             return
         }
-        let size = DownloadManager.size(of: destination)
         let lengthKnown = (downloadTask.response?.expectedContentLength ?? -1) > 0
         Task { @MainActor in
-            self.manager?.didFinish(key: key, task: identifier, fileSize: size, lengthKnown: lengthKnown)
+            self.manager?.didFinish(key: key, task: identifier, file: destination, lengthKnown: lengthKnown)
         }
     }
 

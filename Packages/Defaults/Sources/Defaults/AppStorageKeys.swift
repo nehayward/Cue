@@ -26,6 +26,9 @@ public enum AppStorageKeys {
     /// Whether the download manager may fetch over cellular data. Off when
     /// unset: a whole album on a phone plan is a surprise nobody asked for.
     public static let downloadsOverCellular = "\(Prefix.id).downloadsOverCellular"
+    /// Whether the download manager has looked for Plex conversions an
+    /// earlier build kept cut short — done once (`repairCutShortDownloads`).
+    public static let downloadsCutShortRepaired = "\(Prefix.id).downloadsCutShortRepaired"
     /// How Plex and Subsonic hand audio over — the original file, or
     /// transcoded on the server to MP3 or Opus (`"original"`, `"mp3"`,
     /// `"opus"`) — and the bitrate cap in kbit/s for a transcode. Read by
