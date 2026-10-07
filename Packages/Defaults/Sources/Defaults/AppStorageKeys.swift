@@ -95,8 +95,8 @@ public enum AppStorageKeys {
     /// so the toggle holds from song to song and across launches.
     public static let lyricsShown = "\(Prefix.id).lyricsShown"
     /// Whether a song whose own service has no timed lyrics is looked up
-    /// on LRCLIB (sending its title, artist, album and length). On unless
-    /// turned off.
+    /// on LRCLIB (sending its title, artist, album and length). Off unless
+    /// turned on.
     public static let lyricsOnlineLookup = "\(Prefix.id).lyricsOnlineLookup"
     public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"

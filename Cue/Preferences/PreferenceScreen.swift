@@ -35,7 +35,7 @@ struct PreferenceScreen: View {
     @AppStorage(Defaults.AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     @AppStorage(Defaults.AppStorageKeys.routeQueueTransfer) private var routeQueueTransfer: QueueTransferPreference = .ask
-    @AppStorage(Defaults.AppStorageKeys.lyricsOnlineLookup) private var lyricsOnlineLookup: Bool = true
+    @AppStorage(Defaults.AppStorageKeys.lyricsOnlineLookup) private var lyricsOnlineLookup: Bool = false
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
