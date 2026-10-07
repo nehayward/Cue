@@ -461,7 +461,8 @@ private struct LyricLineRow: View {
 
 /// Draws a line of lyrics dim, then bright up to how much has been sung,
 /// line by line of the wrapped text — so a line that wraps fills its first
-/// row before its second, the way it's read — with a soft front edge.
+/// row before its second, the way it's read, and right to left for Arabic
+/// or Hebrew — with a soft front edge.
 /// `progress` is a fraction of the characters, taken as glyphs.
 @available(iOS 18.0, macCatalyst 18.0, visionOS 2.0, *)
 private struct LyricFillRenderer: TextRenderer {
@@ -486,30 +487,47 @@ private struct LyricFillRenderer: TextRenderer {
             dim.draw(line)
             guard remaining > 0 else { continue }
 
+            // Distances are measured the way the line reads: from its left
+            // edge for left-to-right text, from its right for Arabic or
+            // Hebrew, whose fill runs leftward.
             let bounds = line.typographicBounds.rect
-            var front = bounds.minX
-            var isWhole = true
-            glyphs: for run in line {
+            let isRightToLeft = line.first?.layoutDirection == .rightToLeft
+            var spans: [(start: CGFloat, end: CGFloat)] = []
+            for run in line {
                 for slice in run {
                     let glyph = slice.typographicBounds.rect
-                    if remaining >= 1 {
-                        front = glyph.maxX
-                        remaining -= 1
+                    if isRightToLeft {
+                        spans.append((start: bounds.maxX - glyph.maxX, end: bounds.maxX - glyph.minX))
                     } else {
-                        front = glyph.minX + glyph.width * remaining
-                        remaining = 0
-                        isWhole = false
-                        break glyphs
+                        spans.append((start: glyph.minX - bounds.minX, end: glyph.maxX - bounds.minX))
                     }
+                }
+            }
+            spans.sort { $0.start < $1.start }
+            var front: CGFloat = 0
+            var isWhole = true
+            for span in spans {
+                if remaining >= 1 {
+                    front = span.end
+                    remaining -= 1
+                } else {
+                    front = span.start + (span.end - span.start) * remaining
+                    remaining = 0
+                    isWhole = false
+                    break
                 }
             }
 
             // Tall enough for accents and descenders past the type's bounds.
             let band = bounds.insetBy(dx: -2, dy: -bounds.height * 0.3)
-            let solidEnd = isWhole ? front + 2 : max(bounds.minX, front - feather)
-            if solidEnd > band.minX {
+            func rect(from start: CGFloat, to end: CGFloat) -> CGRect {
+                let x = isRightToLeft ? bounds.maxX - end : bounds.minX + start
+                return CGRect(x: x, y: band.minY, width: end - start, height: band.height)
+            }
+            let solidEnd = isWhole ? front + 2 : max(0, front - feather)
+            if solidEnd > 0 {
                 var lit = ctx
-                lit.clip(to: Path(CGRect(x: band.minX, y: band.minY, width: solidEnd - band.minX, height: band.height)))
+                lit.clip(to: Path(rect(from: -2, to: solidEnd)))
                 lit.draw(line)
             }
             guard !isWhole, front > solidEnd else { continue }
@@ -520,7 +538,8 @@ private struct LyricFillRenderer: TextRenderer {
             for index in 0..<steps {
                 var lit = ctx
                 lit.opacity = 1 - (Double(index) + 0.5) / Double(steps)
-                lit.clip(to: Path(CGRect(x: solidEnd + step * CGFloat(index), y: band.minY, width: step, height: band.height)))
+                let start = solidEnd + step * CGFloat(index)
+                lit.clip(to: Path(rect(from: start, to: start + step)))
                 lit.draw(line)
             }
         }

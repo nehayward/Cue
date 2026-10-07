@@ -150,6 +150,30 @@ final class LyricsTests: XCTestCase {
         XCTAssertEqual(line.progress(at: 10.5, nextStart: 11), 0.5, accuracy: 0.0001)
     }
 
+    func testLyricFindCooldownAfterThreeRefusalsRunning() {
+        let cooldown = PlexAPI.LyricFindCooldown()
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        // One song's refusal is the song's.
+        XCTAssertEqual(cooldown.refused(at: now), 0)
+        cooldown.served()
+        XCTAssertEqual(cooldown.refused(at: now), 0)
+        XCTAssertEqual(cooldown.refused(at: now), 0)
+        XCTAssertNil(cooldown.pausedUntil(at: now))
+        // The third running is the server shut out.
+        XCTAssertEqual(cooldown.refused(at: now), 15 * 60)
+        XCTAssertEqual(cooldown.pausedUntil(at: now), now.addingTimeInterval(15 * 60))
+        XCTAssertNil(cooldown.pausedUntil(at: now.addingTimeInterval(15 * 60 + 1)))
+        // Doubling, to six hours.
+        for _ in 0..<3 { cooldown.refused(at: now) }
+        XCTAssertEqual(cooldown.pausedUntil(at: now), now.addingTimeInterval(30 * 60))
+        for _ in 0..<30 { cooldown.refused(at: now) }
+        XCTAssertEqual(cooldown.pausedUntil(at: now), now.addingTimeInterval(6 * 60 * 60))
+        // Served lyrics start it over.
+        cooldown.served()
+        XCTAssertNil(cooldown.pausedUntil(at: now))
+        XCTAssertEqual(cooldown.refused(at: now), 0)
+    }
+
     func testPlexAgentLyricsXML() throws {
         let xml = Data("""
         <?xml version="1.0" encoding="UTF-8"?>

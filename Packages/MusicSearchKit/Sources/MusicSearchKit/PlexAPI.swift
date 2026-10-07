@@ -238,8 +238,15 @@ public final class PlexAPI {
         let ordered = streams.filter(\.isLikelyTimed) + streams.filter { !$0.isLikelyTimed }
         var unreachable = false
         var askedAgent = false
+        var agentPaused = false
         for stream in ordered {
             guard let key = stream.key else { continue }
+            if stream.isAgent, let until = Self.lyricFindCooldown.pausedUntil() {
+                // Refused lately: asking again only keeps it shut.
+                log.info("plex \(ratingKey, privacy: .public): LyricFind paused until \(until.formatted(date: .omitted, time: .shortened), privacy: .public)")
+                agentPaused = true
+                continue
+            }
             // An agent's lyrics come from LyricFind, through Plex, which
             // limits how often a server may ask: a check of 150 songs, a few
             // requests each, shut it off after five. So one request a song —
@@ -268,18 +275,75 @@ public final class PlexAPI {
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 200
                 let preview = String(decoding: body.prefix(60), as: UTF8.self).replacingOccurrences(of: "\n", with: " ")
                 log.info("plex \(ratingKey, privacy: .public): \(key, privacy: .public)\(attempt.query.map { "?" + $0 } ?? "", privacy: .public) answered \(status, privacy: .public): \(preview, privacy: .public)")
-                guard status == 200 else { continue }
+                guard status == 200 else {
+                    if stream.isAgent, status == 404 {
+                        let pause = Self.lyricFindCooldown.refused()
+                        if pause > 0 {
+                            log.info("plex: LyricFind refused three songs running; not asked again for \(Int(pause / 60), privacy: .public) min")
+                        }
+                    }
+                    continue
+                }
                 if let lyrics = PlexLyricsContainer.lyrics(fromStream: body, credit: stream.credit) {
+                    if stream.isAgent { Self.lyricFindCooldown.served() }
                     return lyrics
                 }
             }
         }
         if unreachable { throw LyricsLookupError("Plex unreachable") }
+        if agentPaused { throw LyricsLookupError("LyricFind paused") }
         // Listed but none would load: the server couldn't fetch them (an
         // agent's lyrics come from LyricFind when asked, which fails at
         // times), not a song without lyrics.
         if !streams.isEmpty { throw LyricsLookupError("Plex lyric streams didn't load") }
         return nil
+    }
+
+    /// Plex answers a 404 for a LyricFind stream it listed both now and
+    /// then for one song (served a minute later for others, and later for
+    /// it) and, once a server has asked too much, for every song for a
+    /// long while. Asking while shut out only keeps it shut, so three
+    /// refusals running count as that: LyricFind isn't asked for 15
+    /// minutes, doubling each time to 6 hours. Lyrics it serves reset it.
+    static let lyricFindCooldown = LyricFindCooldown()
+
+    final class LyricFindCooldown: Sendable {
+        private struct State {
+            var pausedUntil: Date = .distantPast
+            var pause: TimeInterval = LyricFindCooldown.shortest
+            var refusalsInARow = 0
+        }
+
+        static let shortest: TimeInterval = 15 * 60
+        static let longest: TimeInterval = 6 * 60 * 60
+        /// Refusals running that mean the server is shut out, not the song.
+        static let refusalsBeforePause = 3
+
+        private let state = OSAllocatedUnfairLock(initialState: State())
+
+        /// When LyricFind may be asked again, or nil if it may now.
+        func pausedUntil(at now: Date = .now) -> Date? {
+            state.withLock { $0.pausedUntil > now ? $0.pausedUntil : nil }
+        }
+
+        /// Records a refusal; returns how long LyricFind now rests, 0 while
+        /// it's still taken as the song's.
+        @discardableResult
+        func refused(at now: Date = .now) -> TimeInterval {
+            state.withLock { state in
+                state.refusalsInARow += 1
+                guard state.refusalsInARow >= Self.refusalsBeforePause else { return 0 }
+                state.refusalsInARow = 0
+                let pause = state.pause
+                state.pausedUntil = now.addingTimeInterval(pause)
+                state.pause = min(pause * 2, Self.longest)
+                return pause
+            }
+        }
+
+        func served() {
+            state.withLock { $0 = State() }
+        }
     }
 
     /// The track's lyric streams as Plex lists them — format, whether

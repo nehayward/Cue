@@ -77,8 +77,10 @@ final class LyricsService {
     /// How long a lookup that found nothing is believed.
     static let noneLifetime: TimeInterval = 3 * 24 * 60 * 60
     /// How long an answer found while the song's own server couldn't be
-    /// asked stands before the server is asked again.
-    static let provisionalLifetime: TimeInterval = 5 * 60
+    /// asked stands before the server is asked again: as long as Plex's
+    /// shortest LyricFind cooldown, so a paused song doesn't send LRCLIB the
+    /// same lookup meanwhile.
+    static let provisionalLifetime: TimeInterval = 15 * 60
     /// How long a downloaded song with no lyrics anywhere is believed.
     static let downloadNoneLifetime: TimeInterval = 30 * 24 * 60 * 60
     /// How soon a lookup that failed may be tried again.
