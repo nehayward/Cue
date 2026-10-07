@@ -90,7 +90,7 @@ branch lands.
 
 ## Tier 2 — differentiators for self-hosters
 
-- [ ] **Lyrics** — `claude/lyrics`
+- [x] **Lyrics** — `claude/lyrics`
   OpenSubsonic returns synced LRC (`getLyricsBySongId`), Plex exposes
   lyric streams, and Files can read embedded USLT or a sidecar `.lrc`.
   Files: `SubsonicAPI`, `PlexAPI`, `FilesLibraryService`, a `LyricsService`
