@@ -146,6 +146,9 @@ struct PlayerView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(.interactiveSpring, value: showArtworkOnly)
+            // Full-screen lyrics put the controls away and back the way
+            // Hide Controls does, with the same transitions and spring.
+            .animation(.interactiveSpring, value: lyricsControlsHidden)
             // The next song's cover, decoded before Next is pressed, so a
             // skip shows it at once instead of a placeholder first.
             .onChange(of: playback.currentIndex, initial: true) {
@@ -339,7 +342,7 @@ struct PlayerView: View {
                 },
                 including: isLyrics ? .all : .subviews
             )
-            .transition(.opacity.combined(with: .move(edge: .bottom)))
+            .transition(.opacity.combined(with: .push(from: .bottom)))
         }
     }
 
@@ -349,14 +352,14 @@ struct PlayerView: View {
         if lyricsControlsHidden {
             noteLyricsTouch()
         } else {
-            withAnimation(.lyricsSwitch) { lyricsControlsHidden = true }
+            lyricsControlsHidden = true
         }
     }
 
     private func noteLyricsTouch() {
         lyricsTouchedAt = .now
         if lyricsControlsHidden {
-            withAnimation(.lyricsSwitch) { lyricsControlsHidden = false }
+            lyricsControlsHidden = false
         }
     }
 
@@ -371,13 +374,13 @@ struct PlayerView: View {
     private func lyricsChromeTask() async {
         guard isFullScreenLyrics, controller.isPlaying else {
             if lyricsControlsHidden {
-                withAnimation(.lyricsSwitch) { lyricsControlsHidden = false }
+                lyricsControlsHidden = false
             }
             return
         }
         try? await Task.sleep(for: .seconds(4))
         guard !Task.isCancelled else { return }
-        withAnimation(.lyricsSwitch) { lyricsControlsHidden = true }
+        lyricsControlsHidden = true
     }
 
     /// iPad and the Mac: the cover (or lyrics, or Live Transcription, in
