@@ -25,6 +25,7 @@ struct SubsonicBrowseScreen: View {
                         // Off for now: the index fights the paginated loads
                         // (scrolling to a letter jumps past unloaded pages).
                         showSectionIndex: false,
+                        refreshAction: serverListRefresh,
                         action: { offset in await musicSearchService.subsonicArtists(offset: offset) }
                     )) {
                         Label("Artists", systemImage: "music.mic")
@@ -42,6 +43,7 @@ struct SubsonicBrowseScreen: View {
                         // no separate default action.
                         sortOptions: albumSortOptions,
                         sortKey: SubsonicLibraryLists.albumSortKey,
+                        refreshAction: serverListRefresh,
                         searchAction: { query, offset in
                             await musicSearchService.searchSubsonicAlbums(query: query, offset: offset)
                         }
@@ -79,6 +81,7 @@ struct SubsonicBrowseScreen: View {
                         title: "Recently Added",
                         showSectionIndex: false,
                         allowsGrid: true,
+                        refreshAction: serverListRefresh,
                         action: { offset in await musicSearchService.subsonicRecentAlbums(offset: offset) }
                     )) {
                         Label("Recently Added", systemImage: "clock")
@@ -198,6 +201,12 @@ struct SubsonicBrowseScreen: View {
     /// The Albums list's sort menu, shared with the Albums tab.
     private var albumSortOptions: [PlayableListSort] {
         SubsonicLibraryLists.albumSortOptions(musicSearchService: musicSearchService)
+    }
+
+    /// The pull to refresh on Artists, Albums and Recently Added, shared
+    /// with their tabs.
+    private var serverListRefresh: () async -> Void {
+        SubsonicLibraryLists.serverListRefresh(musicSearchService: musicSearchService)
     }
 
     /// Shown when no server is configured yet. Centred (an overlay, not a list

@@ -56,6 +56,15 @@ enum PlexLibraryLists {
         }
     }
 
+    /// The pull to refresh on the lists read straight from the server —
+    /// Artists and Albums. They keep no copy, so the pull's reload of the
+    /// first page is what brings in an album added on the server; this only
+    /// checks whether the library grew, so Songs re-syncs on its next open
+    /// too.
+    static func serverListRefresh(musicSearchService: MusicSearchService) -> () async -> Void {
+        { await musicSearchService.refreshPlexLibraryIfChanged() }
+    }
+
     /// The Songs list's storage key for its remembered sort. Named, because
     /// Subsonic has a "Songs" too.
     static let songSortKey = "plex.songs"

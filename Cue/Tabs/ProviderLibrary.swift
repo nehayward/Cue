@@ -215,6 +215,7 @@ struct ProviderLibrary {
                 // Off for now: the index fights the paginated loads
                 // (scrolling to a letter jumps past unloaded pages).
                 showSectionIndex: false,
+                refreshAction: SubsonicLibraryLists.serverListRefresh(musicSearchService: musicSearchService),
                 action: { offset in await musicSearchService.subsonicArtists(offset: offset) }
             )
         case .albums:
@@ -226,6 +227,7 @@ struct ProviderLibrary {
                 // no separate default action.
                 sortOptions: SubsonicLibraryLists.albumSortOptions(musicSearchService: musicSearchService),
                 sortKey: SubsonicLibraryLists.albumSortKey,
+                refreshAction: SubsonicLibraryLists.serverListRefresh(musicSearchService: musicSearchService),
                 searchAction: { query, offset in
                     await musicSearchService.searchSubsonicAlbums(query: query, offset: offset)
                 }
@@ -243,9 +245,13 @@ struct ProviderLibrary {
                 loadingStatus: SubsonicLibraryLists.songSyncStatus(musicSearchService: musicSearchService)
             )
         case .recentlyAdded:
-            return .playableList(title: "Recently Added", showSectionIndex: false, allowsGrid: true, action: { offset in
-                await musicSearchService.subsonicRecentAlbums(offset: offset)
-            })
+            return .playableList(
+                title: "Recently Added",
+                showSectionIndex: false,
+                allowsGrid: true,
+                refreshAction: SubsonicLibraryLists.serverListRefresh(musicSearchService: musicSearchService),
+                action: { offset in await musicSearchService.subsonicRecentAlbums(offset: offset) }
+            )
         case .playlists:
             return .playableGridScreen(title: "Playlists", items: Bindable(subsonicBrowseService).userPlaylists, action: { _ in })
         default:
@@ -388,9 +394,11 @@ struct ProviderLibrary {
 
         switch collection {
         case .artists:
-            return .playableList(title: "Artists", action: { offset in
-                await plex.artists(offset: offset)
-            })
+            return .playableList(
+                title: "Artists",
+                refreshAction: PlexLibraryLists.serverListRefresh(musicSearchService: musicSearchService),
+                action: { offset in await plex.artists(offset: offset) }
+            )
         case .albums:
             return .playableList(
                 title: "Albums",
@@ -400,6 +408,7 @@ struct ProviderLibrary {
                 allowsGrid: true,
                 sortOptions: PlexLibraryLists.albumSortOptions(plexBrowseService: plex),
                 sortKey: PlexLibraryLists.albumSortKey,
+                refreshAction: PlexLibraryLists.serverListRefresh(musicSearchService: musicSearchService),
                 searchAction: { query, offset in
                     await musicSearchService.searchPlexAlbums(query: query, offset: offset)
                 }

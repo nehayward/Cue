@@ -127,8 +127,10 @@ struct PlayableListView: View {
     /// Where to remember the chosen sort, so it survives leaving the screen.
     var sortStorageKey: String? = nil
     /// Supplied by lists whose rows come from something worth re-reading —
-    /// a synced library — so a pull to refresh means more than reloading the
-    /// first page from a copy that hasn't changed.
+    /// a synced library, or a server whose library changes underneath (Plex
+    /// and Subsonic albums) — so a pull to refresh means more than reloading
+    /// the first page from a copy that hasn't changed. The list reloads its
+    /// first page after it.
     var refreshAction: (() async -> Void)? = nil
     /// Supplied by lists that can search their whole source rather than the
     /// rows already loaded — filtering the loaded page would quietly miss
