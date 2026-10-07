@@ -1,5 +1,6 @@
 #!/usr/bin/python3
-"""Print the iPhones this Mac can reach right now, USB first.
+"""Print the iPhones this Mac can reach right now, USB first, then those
+already connected over the network.
 
 One line per phone: <udid>\t<name>\t<model>\t<USB|Wi-Fi>
 Phones that are paired but not plugged in or on the network are skipped.
@@ -24,11 +25,22 @@ for d in devices:
     conn = d.get("connectionProperties", {})
     if hw.get("platform") != "iOS" or hw.get("deviceType") != "iPhone":
         continue
+    # devicectl lists simulators too now, as connected over "sameMachine".
+    if hw.get("reality", "physical") != "physical":
+        continue
     transport = conn.get("transportType")
     if not transport and conn.get("tunnelState") != "connected":
         continue
+    # USB, then a phone already connected over the network, then one that
+    # is only known to be on it.
+    if transport == "wired":
+        rank = 0
+    elif conn.get("tunnelState") == "connected":
+        rank = 1
+    else:
+        rank = 2
     phones.append((
-        0 if transport == "wired" else 1,
+        rank,
         hw.get("udid") or d.get("identifier", ""),
         d.get("deviceProperties", {}).get("name", "iPhone"),
         hw.get("marketingName") or hw.get("productType", ""),
