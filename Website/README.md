@@ -20,6 +20,7 @@ make deploy    # tests, then publishes to cue.dance
 | Home page copy: hero, features, services, FAQ | `src/content/home.js` |
 | Help questions | `src/content/help.js` |
 | Plex & Subsonic page | `src/content/self-hosted.js` |
+| Beta page (/testflight) | `src/content/testflight.js`; the link is `site.testflight` |
 | Press kit (copy, facts, screenshots) | `src/content/press.js`, files in `public/press/` |
 | Hero phones, hand-off picture, spotlights | `src/content/home.js` (`screens`, `handoff`, `spotlights`) |
 | Social preview card | `scripts/og-card.html`, then `make og` → `public/og.jpg` |
@@ -77,7 +78,10 @@ footer. Moving the app to `?embed` would remove that coupling.
   Routing), forwarding to the same inbox as hi@clic.dance. There's no mailbox
   to host; replies go out from that inbox.
 - **testflight.cue.dance** is a second custom domain on this Worker
-  (`wrangler.toml`), which redirects every path to `site.testflight`.
+  (`wrangler.toml`). Every path on it redirects to **/testflight**, the
+  beta's page, whose Join button and QR code open `site.testflight`. After
+  changing that link, run `make qr` to redraw `public/testflight-qr.svg`
+  (a test fails until you do).
 
 ## Launch checklist
 

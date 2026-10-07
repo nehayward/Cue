@@ -16,7 +16,8 @@ export const site = {
 	// call to action reads "Coming soon to the App Store" instead of linking.
 	appStoreId: null,
 
-	// The public beta. testflight.cue.dance redirects here.
+	// The public beta, joined from /testflight (testflight.cue.dance lands
+	// there). After changing it, run `make qr` to redraw the page's QR code.
 	testflight: 'https://testflight.apple.com/join/6B7QHpsd',
 };
 
@@ -28,12 +29,14 @@ export const nav = [
 	{ href: '/self-hosted', label: 'Plex & Navidrome' },
 	{ href: '/releases', label: "What's New" },
 	{ href: '/help', label: 'Help' },
+	{ href: '/testflight', label: 'Beta' },
 ];
 
 export const footerLinks = [
 	{ href: '/help', label: 'Help' },
 	{ href: '/releases', label: 'Release Notes' },
 	{ href: '/self-hosted', label: 'Plex & Navidrome' },
+	{ href: '/testflight', label: 'Beta' },
 	{ href: '/press', label: 'Press' },
 	{ href: '/privacy', label: 'Privacy' },
 	{ href: '/terms', label: 'Terms' },

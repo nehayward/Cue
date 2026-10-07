@@ -118,12 +118,12 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 
 .lede { margin-top: 1.25rem; color: var(--muted); font-size: clamp(1.1rem, 1.8vw, 1.3rem); max-width: 38rem; }
 .text-center .lede { margin-inline: auto; }
-.lede a, .prose a, .answer a, .notes a, .cta-panel p a, .old-release a {
+.lede a, .prose a, .answer a, .notes a, .cta-panel p a, .old-release a, .steps p a {
 	color: var(--text);
 	text-decoration-color: rgb(255 255 255 / 0.3);
 	text-underline-offset: 3px;
 }
-.lede a:hover, .prose a:hover, .answer a:hover, .notes a:hover { text-decoration-color: var(--accent); }
+.lede a:hover, .prose a:hover, .answer a:hover, .notes a:hover, .steps p a:hover { text-decoration-color: var(--accent); }
 
 .fine { color: var(--faint); font-size: 0.85rem; margin-top: 1rem; }
 
@@ -237,6 +237,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 .devices { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; }
 .devices li { display: inline-flex; align-items: center; gap: 0.35rem; }
+.text-center .devices { justify-content: center; }
 
 .hero-visual { display: flex; justify-content: center; }
 
@@ -581,6 +582,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .cta-panel h2 { font-size: clamp(1.8rem, 4vw, 2.5rem); }
 .cta-panel p { color: var(--muted); max-width: 32rem; }
 .cta-panel.compact { margin-block: 4rem; }
+.cta-panel .actions { margin-top: 0.5rem; }
 .cta-panel.compact h2 { font-size: 1.5rem; }
 
 
@@ -682,6 +684,18 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .downloads span { display: grid; flex: 1; color: var(--muted); font-size: 0.88rem; }
 .downloads strong { color: var(--text); font-size: 1rem; }
 .downloads .icon { color: var(--accent); }
+
+/* ── TestFlight ─────────────────────────────────────────────────────────── */
+
+.page-intro .devices + .fine { margin-top: 0.35rem; }
+
+/* The QR code is for a visitor on a computer; on a phone the button is enough. */
+.qr { display: none; }
+@media (hover: hover) and (pointer: fine) {
+	.qr { display: inline-flex; align-items: center; gap: 1rem; margin-top: 2rem; padding: 0.6rem 1.25rem 0.6rem 0.6rem; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+}
+.qr img { border-radius: 10px; }
+.qr p { max-width: 15rem; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
 
 /* ── Prose (legal) ──────────────────────────────────────────────────────── */
 

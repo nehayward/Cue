@@ -6,6 +6,7 @@ import { notFoundPage } from './pages/not-found.js';
 import { pressPage } from './pages/press.js';
 import { findRelease, releaseJson, releasePage, releases, releasesIndexPage } from './pages/releases.js';
 import { selfHostedPage } from './pages/self-hosted.js';
+import { testflightPage } from './pages/testflight.js';
 
 // Files in public/ (styles, icons) are served by Cloudflare before this Worker
 // runs; everything else lands here.
@@ -44,6 +45,7 @@ const REDIRECTS = {
 	'/plex': () => '/self-hosted',
 	'/navidrome': () => '/self-hosted',
 	'/subsonic': () => '/self-hosted',
+	'/beta': () => '/testflight',
 };
 
 // Exact paths → page. `query` is the request's URLSearchParams.
@@ -53,6 +55,7 @@ const PAGES = {
 	'/self-hosted': () => selfHostedPage(),
 	'/releases': () => releasesIndexPage(),
 	'/press': () => pressPage(),
+	'/testflight': () => testflightPage(),
 	'/privacy': () => privacyPage(),
 	'/terms': () => termsPage(),
 };
@@ -66,9 +69,8 @@ const sitemap = () => {
 
 export const route = async (request) => {
 	const url = new URL(request.url);
-	// testflight.cue.dance is the beta's short link. 302, so browsers don't
-	// keep the old link if the TestFlight one is ever reset.
-	if (url.hostname === 'testflight.cue.dance') return Response.redirect(site.testflight, 302);
+	// testflight.cue.dance is the beta's short link, to its page here.
+	if (url.hostname === 'testflight.cue.dance') return Response.redirect(`${site.origin}/testflight`, 302);
 
 	// One canonical form per page: /help/ → /help.
 	const path = url.pathname.replace(/\/+$/, '') || '/';

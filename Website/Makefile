@@ -1,7 +1,7 @@
 # Thin wrappers around npm scripts. Run `make` to list them.
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev test deploy tail og
+.PHONY: help install dev test deploy tail og qr
 
 help:  ## Show this help.
 	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  \033[36m%-8s\033[0m %s\n", $$1, $$2}'
@@ -30,3 +30,7 @@ og:  ## Render the social card (scripts/og-card.html) to public/og.jpg.
 	sips -s format jpeg -s formatOptions 86 build-og.png --out public/og.jpg >/dev/null
 	rm build-og.png
 	@echo "public/og.jpg updated"
+
+qr:  ## Draw the QR code for site.testflight → public/testflight-qr.svg.
+	swift scripts/qr.swift "$$(node -e "import('./src/config.js').then((m) => console.log(m.site.testflight))")" > public/testflight-qr.svg
+	@echo "public/testflight-qr.svg updated"

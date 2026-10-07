@@ -2,7 +2,9 @@
 // served by Cloudflare before the Worker, so they aren't covered here.
 
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
+import { site } from '../src/config.js';
 import { html, raw } from '../src/lib/html.js';
 import { releases } from '../src/pages/releases.js';
 import { route } from '../src/worker.js';
@@ -10,7 +12,7 @@ import { route } from '../src/worker.js';
 const get = (path, init) => route(new Request(`https://cue.dance${path}`, init));
 
 test('every page renders with the shared header and a title', async () => {
-	for (const path of ['/', '/help', '/releases', '/privacy', '/terms', '/self-hosted', '/press', `/releases/${releases[0].version}`]) {
+	for (const path of ['/', '/help', '/releases', '/privacy', '/terms', '/self-hosted', '/press', '/testflight', `/releases/${releases[0].version}`]) {
 		const response = await get(path);
 		assert.equal(response.status, 200, path);
 		const body = await response.text();
@@ -56,12 +58,22 @@ test('redirects: trailing slash, then known aliases', async () => {
 	assert.equal(latest.headers.get('location'), `https://cue.dance/releases/${releases[0].version}`);
 });
 
-test('testflight.cue.dance goes to the TestFlight beta, whatever the path', async () => {
+test('testflight.cue.dance and /beta land on the beta page, which joins TestFlight', async () => {
 	for (const path of ['/', '/join']) {
 		const response = await route(new Request(`https://testflight.cue.dance${path}`));
 		assert.equal(response.status, 302, path);
-		assert.match(response.headers.get('location'), /^https:\/\/testflight\.apple\.com\/join\/\w+$/, path);
+		assert.equal(response.headers.get('location'), 'https://cue.dance/testflight', path);
 	}
+	assert.equal((await get('/beta')).headers.get('location'), 'https://cue.dance/testflight');
+
+	assert.match(site.testflight, /^https:\/\/testflight\.apple\.com\/join\/\w+$/);
+	const body = await (await get('/testflight')).text();
+	assert.ok(body.includes(`href="${site.testflight}"`));
+});
+
+test('the beta page’s QR code is for the current TestFlight link (make qr)', async () => {
+	const svg = await readFile(new URL('../public/testflight-qr.svg', import.meta.url), 'utf8');
+	assert.ok(svg.includes(`<desc>${site.testflight}</desc>`), 'Run `make qr` after changing site.testflight');
 });
 
 test('unknown paths and versions are 404 pages', async () => {
