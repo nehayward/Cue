@@ -730,6 +730,8 @@ struct LyricsHeaderTitles: View {
 /// tapped. Asked again when the song's length arrives, which a speaker
 /// sends a moment after the song changes.
 struct LyricsRequestModifier: ViewModifier {
+    @AppStorage(AppStorageKeys.lyricsShown) private var isShown: Bool = false
+
     private var route: PlaybackRoute { .shared }
 
     private struct Request: Equatable {
@@ -740,9 +742,35 @@ struct LyricsRequestModifier: ViewModifier {
     func body(content: Content) -> some View {
         let controller = route.presented
         let song = LyricsService.song(of: controller)
-        content.task(id: Request(key: song.map(LyricsService.key(for:)), hasDuration: controller.duration > 0)) {
-            LyricsService.shared.request(for: song, duration: controller.duration)
-        }
+        // While lyrics are on, the next song's are looked up a few seconds
+        // into this one's, so they're there when it starts. This device's
+        // queue only: a speaker's next song arrives under another id than
+        // the one it plays with.
+        let next = isShown && controller.group == nil ? Self.nextSong() : nil
+        content
+            .task(id: Request(key: song.map(LyricsService.key(for:)), hasDuration: controller.duration > 0)) {
+                LyricsService.shared.request(for: song, duration: controller.duration)
+            }
+            .task(id: next.map(LyricsService.key(for:))) {
+                guard let next else { return }
+                try? await Task.sleep(for: .seconds(5))
+                guard !Task.isCancelled else { return }
+                LyricsService.shared.prefetch(next, duration: next.metadata?.duration.map(Self.seconds) ?? 0)
+            }
+    }
+
+    /// The song after this device's current one, when it can have lyrics.
+    private static func nextSong() -> PlayableContent? {
+        let playback = LocalPlaybackService.shared
+        let index = playback.currentIndex + 1
+        guard playback.queue.indices.contains(index) else { return nil }
+        let item = playback.queue[index]
+        guard !item.content.type.isRadio, item.metadata?.radioStation != true else { return nil }
+        return item
+    }
+
+    private static func seconds(_ duration: Duration) -> TimeInterval {
+        Double(duration.components.seconds) + Double(duration.components.attoseconds) * 1e-18
     }
 }
 

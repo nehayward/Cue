@@ -66,6 +66,11 @@ final class LyricsService {
     @ObservationIgnored private var failedAt: Date?
     @ObservationIgnored private var memory: [String: LyricsStore.Entry] = [:]
     @ObservationIgnored private let store = LyricsStore()
+    /// Downloaded songs' lyrics (`DownloadLyrics`), looked in first.
+    @ObservationIgnored private let downloads = LyricsStore(.downloads)
+    /// The next song's lookup, run ahead while lyrics are on (`prefetch`).
+    @ObservationIgnored private var prefetchTask: Task<Void, Never>?
+    @ObservationIgnored private var prefetchKey: String?
 
     private static let log = Logger(subsystem: "dance.cue", category: "lyrics")
 
@@ -74,6 +79,8 @@ final class LyricsService {
     /// How long an answer found while the song's own server couldn't be
     /// asked stands before the server is asked again.
     static let provisionalLifetime: TimeInterval = 5 * 60
+    /// How long a downloaded song with no lyrics anywhere is believed.
+    static let downloadNoneLifetime: TimeInterval = 30 * 24 * 60 * 60
     /// How soon a lookup that failed may be tried again.
     static let retryInterval: TimeInterval = 20
     /// How long a song with no length yet is given to report one before
@@ -145,7 +152,26 @@ final class LyricsService {
         origin = nil
         isWaitingForDuration = duration <= 0
         Self.log.info("\(item.title, privacy: .public): looking up \(String(describing: item.content.service), privacy: .public) \(item.content.id, privacy: .public), \(Int(duration), privacy: .public) s")
-        task = Task { [store] in
+        task = Task { [store, downloads] in
+            // The song the prefetch is already looking up: its answer.
+            if prefetchKey == key, let prefetch = prefetchTask {
+                await prefetch.value
+                if let entry = memory[key], entry.isUsable(lookUpOnline: lookUpOnline) {
+                    guard !Task.isCancelled, self.key == key else { return }
+                    isWaitingForDuration = false
+                    state = entry.lyrics.map(State.loaded) ?? .none
+                    origin = .memory
+                    return
+                }
+            }
+            if let entry = await downloads.entry(for: key), entry.isUsableForDownload {
+                guard !Task.isCancelled, self.key == key else { return }
+                memory[key] = entry
+                isWaitingForDuration = false
+                state = entry.lyrics.map(State.loaded) ?? .none
+                origin = .disk
+                return
+            }
             if let entry = await store.entry(for: key), entry.isUsable(lookUpOnline: lookUpOnline) {
                 guard !Task.isCancelled, self.key == key else { return }
                 memory[key] = entry
@@ -183,6 +209,81 @@ final class LyricsService {
     func retry(for item: PlayableContent?, duration: TimeInterval) {
         failedAt = nil
         request(for: item, duration: duration)
+    }
+
+    // MARK: - Ahead of time
+
+    /// Looks up `item`'s lyrics into the caches without showing them — the
+    /// next song's, while lyrics are on, so they're there when it starts.
+    /// One at a time; the song on screen comes first.
+    func prefetch(_ item: PlayableContent, duration: TimeInterval) {
+        let key = Self.key(for: item)
+        guard key != self.key, key != prefetchKey else { return }
+        let lookUpOnline = isOnlineLookupEnabled
+        if let entry = memory[key], entry.isUsable(lookUpOnline: lookUpOnline) { return }
+        prefetchTask?.cancel()
+        prefetchKey = key
+        prefetchTask = Task { [store, downloads] in
+            defer {
+                if prefetchKey == key { prefetchKey = nil }
+            }
+            if let entry = await downloads.entry(for: key), entry.isUsableForDownload {
+                memory[key] = entry
+                return
+            }
+            if let entry = await store.entry(for: key), entry.isUsable(lookUpOnline: lookUpOnline) {
+                memory[key] = entry
+                return
+            }
+            guard !Task.isCancelled,
+                  let result = try? await Self.find(item, duration: duration, lookUpOnline: lookUpOnline) else { return }
+            let (lyrics, serviceFailed) = result
+            let entry = LyricsStore.Entry(lyrics: lyrics, lookedOnline: lookUpOnline, storedAt: .now, isProvisional: serviceFailed)
+            memory[key] = entry
+            if !serviceFailed {
+                await store.store(entry, for: key)
+            }
+            Self.log.info("\(item.title, privacy: .public): prefetched \(lyrics.map { "\($0.source.rawValue), \($0.isSynced ? "timed" : "plain")" } ?? "none", privacy: .public)")
+        }
+    }
+
+    enum DownloadOutcome {
+        /// Kept with the download, found or not.
+        case kept
+        /// The song's own server couldn't be asked, or LRCLIB answered
+        /// nothing at all: worth another go later.
+        case later
+    }
+
+    /// Whether a downloaded song's lyrics are kept already.
+    func hasDownloadLyrics(for key: String) async -> Bool {
+        if let entry = await downloads.entry(for: key) {
+            return entry.isUsableForDownload
+        }
+        return false
+    }
+
+    /// Looks up a downloaded song's lyrics and keeps them with the download.
+    /// While the song's own server can't be asked the answer waits
+    /// (`.later`), unless `settling` — the last try, which keeps whatever
+    /// LRCLIB found rather than ask forever after lyrics Plex lists but
+    /// LyricFind never serves.
+    func keepDownloadLyrics(for item: PlayableContent, duration: TimeInterval, settling: Bool = false) async -> DownloadOutcome {
+        let key = Self.key(for: item)
+        let lookUpOnline = isOnlineLookupEnabled
+        guard let result = try? await Self.find(item, duration: duration, lookUpOnline: lookUpOnline),
+              !result.serviceFailed || settling else { return .later }
+        let lyrics = result.0
+        let entry = LyricsStore.Entry(lyrics: lyrics, lookedOnline: lookUpOnline, storedAt: .now)
+        memory[key] = entry
+        await downloads.store(entry, for: key)
+        Self.log.info("\(item.title, privacy: .public): kept with the download, \(lyrics.map { "\($0.source.rawValue), \($0.isSynced ? "timed" : "plain")" } ?? "none", privacy: .public)")
+        return .kept
+    }
+
+    /// Lets a removed download's lyrics go back to being the cache's.
+    func forgetDownloadLyrics(for key: String) {
+        Task { [downloads] in await downloads.remove(key) }
     }
 
     // MARK: - Finding
@@ -265,9 +366,16 @@ final class LyricsService {
     }
 }
 
-/// Lyrics already looked up, a file per song in Caches/Lyrics, found or
-/// not. The system may clear it; nothing here is the only copy.
+/// Lyrics already looked up, a file per song, found or not: in
+/// Caches/Lyrics, which the system may clear and nothing here is the only
+/// copy of; or, for downloaded songs, in Application Support, kept until
+/// the download goes so the words are there offline.
 actor LyricsStore {
+    enum Kind {
+        case cache
+        case downloads
+    }
+
     struct Entry: Codable {
         /// `nil`: looked, found none.
         let lyrics: Lyrics?
@@ -277,6 +385,12 @@ actor LyricsStore {
         /// Found while the song's own server couldn't be asked: kept in
         /// memory only, and only for a few minutes.
         var isProvisional = false
+
+        /// A downloaded song's: found lyrics are kept with the download,
+        /// and a miss is believed for a month before it's asked again.
+        var isUsableForDownload: Bool {
+            lyrics != nil || Date.now.timeIntervalSince(storedAt) < LyricsService.downloadNoneLifetime
+        }
 
         /// Still the answer: found lyrics last, unless LRCLIB's while
         /// looking online is now off; a miss lasts a few days, and only
@@ -303,15 +417,26 @@ actor LyricsStore {
     /// is one found while Plex listed lyrics it couldn't serve.
     private static let version = 3
 
+    private let kind: Kind
+    /// The cache's own folder, whose other versions go (`prepare`).
     private let root: URL?
     private let directory: URL?
     private var isPrepared = false
     private var storedSinceTrim = 0
 
-    init() {
-        root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("Lyrics", isDirectory: true)
-        directory = root?.appendingPathComponent("\(Self.version)", isDirectory: true)
+    init(_ kind: Kind = .cache) {
+        self.kind = kind
+        switch kind {
+        case .cache:
+            root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+                .appendingPathComponent("Lyrics", isDirectory: true)
+            directory = root?.appendingPathComponent("\(Self.version)", isDirectory: true)
+        case .downloads:
+            root = nil
+            directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+                .appendingPathComponent("Lyrics", isDirectory: true)
+                .appendingPathComponent("Downloads", isDirectory: true)
+        }
     }
 
     func entry(for key: String) -> Entry? {
@@ -329,9 +454,19 @@ actor LyricsStore {
         guard let url = fileURL(for: key), let data = try? JSONEncoder().encode(entry) else { return }
         try? data.write(to: url, options: .atomic)
         storedSinceTrim += 1
-        if storedSinceTrim >= 100 {
+        if kind == .cache, storedSinceTrim >= 100 {
             trim()
         }
+    }
+
+    func contains(_ key: String) -> Bool {
+        prepare()
+        return fileURL(for: key).map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+    }
+
+    func remove(_ key: String) {
+        guard let url = fileURL(for: key) else { return }
+        try? FileManager.default.removeItem(at: url)
     }
 
     private func prepare() {
@@ -344,7 +479,9 @@ actor LyricsStore {
                 try? FileManager.default.removeItem(at: item)
             }
         }
-        trim()
+        if kind == .cache {
+            trim()
+        }
     }
 
     private func trim() {

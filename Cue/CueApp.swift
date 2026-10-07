@@ -1618,6 +1618,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Early, so a status the watch sent while Cue was closed, and the
         // end of a library transfer, are delivered.
         WatchSyncService.shared.activate()
+        // Lyrics for downloads that don't have them yet, slowly.
+        DownloadLyrics.shared.start()
         #if DEBUG
         // `-LyricsAudit <count>`: checks lyrics lookups across the Plex library.
         LyricsAudit.startIfRequested()

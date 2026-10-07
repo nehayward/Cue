@@ -624,6 +624,7 @@ final class DownloadManager {
         }
         try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
         items[key] = nil
+        DownloadLyrics.shared.forget(entry)
         pruneContainers()
         scheduleSave()
     }
@@ -632,6 +633,7 @@ final class DownloadManager {
         for entry in completed {
             try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
             items[entry.key] = nil
+            DownloadLyrics.shared.forget(entry)
         }
         pruneContainers()
         scheduleSave()
@@ -925,6 +927,7 @@ final class DownloadManager {
         lastProgressPublish[key] = nil
         settleSessionTasks(for: key)
         scheduleSave()
+        DownloadLyrics.shared.enqueue(entry)
     }
 
     fileprivate func didFail(key: String, task identifier: Int, error: Error, resumeData: Data?) {
