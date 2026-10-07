@@ -273,6 +273,8 @@ final class LyricsTests: XCTestCase {
         XCTAssertTrue(streams[1].timed)
         XCTAssertNil(streams[0].credit)
         XCTAssertEqual(streams[1].credit, "LyricFind")
+        XCTAssertFalse(streams[0].isAgent, "a sidecar is a file on the server")
+        XCTAssertTrue(streams[1].isAgent, "LyricFind's are fetched, and limited")
     }
 
     func testPlexAgentLyricsJSON() throws {

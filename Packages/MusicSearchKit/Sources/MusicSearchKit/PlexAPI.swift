@@ -237,20 +237,28 @@ public final class PlexAPI {
         log.info("plex \(ratingKey, privacy: .public): \(streams.count, privacy: .public) lyric streams \(streams.map { "\($0.format ?? $0.codec ?? "?")\($0.timed ? " timed" : "") \($0.provider ?? "")" }.joined(separator: ", "), privacy: .public)")
         let ordered = streams.filter(\.isLikelyTimed) + streams.filter { !$0.isLikelyTimed }
         var unreachable = false
+        var askedAgent = false
         for stream in ordered {
             guard let key = stream.key else { continue }
+            // An agent's lyrics come from LyricFind, through Plex, which
+            // limits how often a server may ask: a check of 150 songs, a few
+            // requests each, shut it off after five. So one request a song —
+            // the timed stream if there is one, asked for the one way that
+            // works. A sidecar is a file on the server, free to ask for.
+            if stream.isAgent {
+                guard !askedAgent else { continue }
+                askedAgent = true
+            }
             let url = (getBaseURL(for: plexServer) ?? baseURL).appending(path: key.trimmingPrefix("/"))
             // Plex's own apps ask for a stream rendered (`format=xml`): an
             // agent's lyrics (LyricFind) aren't a file on the server, which
             // fetches them when asked, and a bare request for one is a 404.
             // A sidecar's stream answers either way.
-            let attempts = [
-                url.appending(queryItems: [
-                    URLQueryItem(name: "format", value: "xml"),
-                    URLQueryItem(name: "includeInlineAttribution", value: "1")
-                ]),
-                url
-            ]
+            let rendered = url.appending(queryItems: [
+                URLQueryItem(name: "format", value: "xml"),
+                URLQueryItem(name: "includeInlineAttribution", value: "1")
+            ])
+            let attempts = stream.isAgent ? [rendered] : [rendered, url]
             for attempt in attempts {
                 guard let request = await authorizedRequest(from: attempt),
                       let (body, response) = await loadData(for: request) else {
@@ -272,6 +280,23 @@ public final class PlexAPI {
         // times), not a song without lyrics.
         if !streams.isEmpty { throw LyricsLookupError("Plex lyric streams didn't load") }
         return nil
+    }
+
+    /// The track's lyric streams as Plex lists them — format, whether
+    /// timed, provider — for checking the lyrics a library has; `nil` when
+    /// the server couldn't be asked.
+    public func lyricStreamDescriptions(ratingKey: String) async -> [String]? {
+        guard let plexServer = await getPlexServer(),
+              let baseURL = getBaseURL(for: plexServer),
+              let request = await authorizedRequest(from: baseURL.appending(path: "library/metadata/\(ratingKey)")),
+              let (data, response) = await loadData(for: request),
+              (response as? HTTPURLResponse)?.statusCode ?? 200 == 200,
+              let container = try? decoder.decode(PlexLyricStreamsContainer.self, from: data) else { return nil }
+        return container.lyricStreams.map { stream in
+            [stream.format ?? stream.codec ?? "?", stream.timed ? "timed" : nil, stream.credit ?? stream.provider.map { $0.replacingOccurrences(of: "com.plexapp.agents.", with: "") }]
+                .compactMap { $0 }
+                .joined(separator: " ")
+        }
     }
 
     public func getTrackRating(ratingKey: String) async -> Double? {

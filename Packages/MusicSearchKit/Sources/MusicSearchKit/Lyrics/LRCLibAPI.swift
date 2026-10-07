@@ -34,6 +34,19 @@ public enum LRCLibAPI {
         let statusCode: Int
     }
 
+    /// A record LRCLIB matched a song to, how, and its lyrics.
+    public struct Match: Sendable {
+        public let id: Int
+        public let trackName: String?
+        public let artistName: String?
+        public let albumName: String?
+        /// Seconds.
+        public let duration: Double?
+        /// "exact" (the full artist), "exact, first artist" or "search".
+        public let via: String
+        public let lyrics: Lyrics
+    }
+
     /// The song's lyrics, timed when LRCLIB has them so.
     ///
     /// Tries an exact match first — the full artist, then the first artist
@@ -48,20 +61,32 @@ public enum LRCLibAPI {
         duration: TimeInterval?,
         session: URLSession = .shared
     ) async throws -> Lyrics? {
+        try await match(title: title, artist: artist, album: album, duration: duration, session: session)?.lyrics
+    }
+
+    /// `lyrics(title:artist:album:duration:)` with the record it came from.
+    public static func match(
+        title: String,
+        artist: String,
+        album: String?,
+        duration: TimeInterval?,
+        session: URLSession = .shared
+    ) async throws -> Match? {
         let duration = duration.flatMap { $0 > 0 ? $0 : nil }
         if let duration {
             var artists = [artist]
             let primary = primaryArtist(artist)
             if primary != artist { artists.append(primary) }
-            for name in artists {
+            for (index, name) in artists.enumerated() {
                 if let record = try await exact(title: title, artist: name, album: album, duration: duration, session: session),
                    let lyrics = lyrics(from: record) {
-                    return lyrics
+                    return Match(record, via: index == 0 ? "exact" : "exact, first artist", lyrics: lyrics)
                 }
             }
         }
         let records = try await search(title: searchTitle(title), artist: primaryArtist(artist), session: session)
-        return best(of: records, title: title, duration: duration).flatMap(lyrics(from:))
+        guard let record = best(of: records, title: title, duration: duration), let lyrics = lyrics(from: record) else { return nil }
+        return Match(record, via: "search", lyrics: lyrics)
     }
 
     // MARK: - Requests
@@ -86,20 +111,37 @@ public enum LRCLibAPI {
         let (data, status) = try await get("search", [
             URLQueryItem(name: "track_name", value: title),
             URLQueryItem(name: "artist_name", value: artist)
-        ], session: session)
+        ], retryingServerErrors: true, session: session)
         guard status == 200 else { throw BadResponse(statusCode: status) }
         return (try? JSONDecoder().decode([Record].self, from: data)) ?? []
     }
 
-    private static func get(_ endpoint: String, _ items: [URLQueryItem], session: URLSession) async throws -> (Data, Int) {
+    /// One retry, a second later, for a request that timed out — and, for
+    /// a search, one LRCLIB answered with a server error: a check of 150
+    /// songs saw one in ten do either, nearly all passing. (An exact
+    /// match's 503 is LRCLIB giving up on the song, so it isn't retried.)
+    private static func get(_ endpoint: String, _ items: [URLQueryItem], retryingServerErrors: Bool = false, session: URLSession) async throws -> (Data, Int) {
         var components = URLComponents(url: base.appending(path: endpoint), resolvingAgainstBaseURL: false)!
         components.queryItems = items
         var request = URLRequest(url: components.url!)
         request.timeoutInterval = 10
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        let (data, response) = try await session.data(for: request)
-        return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
+        for attempt in 0..<2 {
+            let isLast = attempt == 1
+            do {
+                let (data, response) = try await session.data(for: request)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                if retryingServerErrors, status >= 500, !isLast {
+                    try await Task.sleep(for: .seconds(1))
+                    continue
+                }
+                return (data, status)
+            } catch let error as URLError where error.code == .timedOut && !isLast {
+                try await Task.sleep(for: .seconds(1))
+            }
+        }
+        throw URLError(.timedOut)
     }
 
     // MARK: - Matching
@@ -139,7 +181,7 @@ public enum LRCLibAPI {
 
     /// The title without what streaming services add to it and LRCLIB's
     /// records mostly don't carry: a featured artist, a remaster year.
-    static func searchTitle(_ title: String) -> String {
+    public static func searchTitle(_ title: String) -> String {
         var result = title
         // "(feat. X)", "[with X]"
         result = result.replacing(#/\s*[\(\[](?:feat\.?|ft\.?|featuring|with)\s[^\)\]]*[\)\]]/#.ignoresCase(), with: "")
@@ -164,5 +206,11 @@ public enum LRCLibAPI {
     private static func normalized(_ string: String) -> String {
         string.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
             .filter { $0.isLetter || $0.isNumber }
+    }
+}
+
+extension LRCLibAPI.Match {
+    init(_ record: LRCLibAPI.Record, via: String, lyrics: Lyrics) {
+        self.init(id: record.id, trackName: record.trackName, artistName: record.artistName, albumName: record.albumName, duration: record.duration, via: via, lyrics: lyrics)
     }
 }

@@ -67,6 +67,13 @@ struct PlexLyricStream: Decodable {
         timed = PlexFlexibleBool.decode(container, .timed)
     }
 
+    /// From a lyrics agent (LyricFind) rather than a file beside the song:
+    /// fetched from the agent when asked, and limited.
+    var isAgent: Bool {
+        guard let provider = provider?.lowercased() else { return false }
+        return provider.contains("agents.") && !provider.contains("localmedia")
+    }
+
     /// Timed by Plex's word, or an LRC file, which nearly always is.
     var isLikelyTimed: Bool {
         timed || format?.lowercased() == "lrc" || codec?.lowercased() == "lrc"

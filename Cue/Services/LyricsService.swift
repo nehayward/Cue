@@ -205,12 +205,23 @@ final class LyricsService {
         }
         guard lookUpOnline else { return (own, serviceFailed) }
         do {
-            let online = try await LRCLibAPI.lyrics(
-                title: item.title,
-                artist: item.metadata?.artist ?? item.subtitle,
-                album: item.metadata?.album,
-                duration: duration > 0 ? duration : nil
-            )
+            let artist = item.metadata?.artist ?? item.subtitle
+            func lookUp(by artist: String) async throws -> Lyrics? {
+                try await LRCLibAPI.lyrics(
+                    title: item.title,
+                    artist: artist,
+                    album: item.metadata?.album,
+                    duration: duration > 0 ? duration : nil
+                )
+            }
+            var online = try await lookUp(by: artist)
+            // Plex files a compilation's songs under the album's artist
+            // ("Various Artists"), which LRCLIB doesn't know them by: the
+            // song's own artist gets a second try.
+            if online == nil, let trackArtist = await plexTrackArtist(of: item), trackArtist != artist {
+                log.info("\(item.title, privacy: .public): asking LRCLIB again as \(trackArtist, privacy: .public)")
+                online = try await lookUp(by: trackArtist)
+            }
             if let online, online.isSynced || own == nil {
                 return (online, serviceFailed)
             }
@@ -218,6 +229,14 @@ final class LyricsService {
             if own == nil { throw error }
         }
         return (own, serviceFailed)
+    }
+
+    /// A Plex song's own artist, when Plex has one apart from the album's.
+    private static func plexTrackArtist(of item: PlayableContent) async -> String? {
+        guard let ratingKey = item.plexRatingKey,
+              let artist = await PlexAPI.shared.lookupPlexSong(key: ratingKey)?.metadata?.first?.originalTitle,
+              !artist.isEmpty else { return nil }
+        return artist
     }
 
     /// The song's own server's lyrics: `nil` when it answered with none,
