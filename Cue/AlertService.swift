@@ -8,8 +8,8 @@ public final class AlertService: @unchecked Sendable {
     public static var shared = AlertService()
     var alert = Alert()
     private var alertTask: Task<Void, Error>?
-    /// The alert's hosts on screen (`withAlert()`), in the order they
-    /// appeared. Only the latest draws it, so a sheet with its own host
+    /// The alert's hosts in a window (`withAlert()`), in the order they
+    /// joined. Only the latest draws it, so a sheet with its own host
     /// doesn't show it a second time over the screen it covers.
     private var hosts: [UUID] = []
 
@@ -17,7 +17,7 @@ public final class AlertService: @unchecked Sendable {
 
     @MainActor
     func addHost(_ id: UUID) {
-        hosts.removeAll { $0 == id }
+        guard !hosts.contains(id) else { return }
         hosts.append(id)
     }
 

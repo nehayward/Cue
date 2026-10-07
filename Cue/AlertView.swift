@@ -1,9 +1,8 @@
+import OSLog
 import SwiftUI
 import SonosKit
 import VibesDS
-#if os(iOS) && !targetEnvironment(macCatalyst)
 import UIKit
-#endif
 
 /// The app's toast: a capsule at the top of the screen with the alert's
 /// artwork, text and symbol.
@@ -56,9 +55,33 @@ struct AlertView: View {
         .ignoresSafeArea(.container, edges: .top)
         // Opens with a little bounce, as the island does; closes without.
         .animation(alert.isShowing ? .bouncy(duration: 0.5, extraBounce: 0.05) : .smooth(duration: 0.35), value: alert.isShowing)
-        .onAppear { alertService.addHost(id) }
-        .onDisappear { alertService.removeHost(id) }
+        // In line while it's in a window, not between onAppear and
+        // onDisappear: a sheet closed by a play (Search, an album) as the
+        // player came up could stay in line, and the player's host never
+        // drew the alert.
+        .background(alignment: .topLeading) {
+            HostWindowProbe { isInWindow in
+                if isInWindow {
+                    alertService.addHost(id)
+                } else {
+                    alertService.removeHost(id)
+                }
+            }
+            .frame(width: 1, height: 1)
+            .allowsHitTesting(false)
+        }
+#if DEBUG
+        .onChange(of: alert.isShowing) { _, isShowing in
+            guard isShowing else { return }
+            let name = String(id.uuidString.prefix(4))
+            let isFront = alertService.frontHost == id
+            let style = island.map { "island \($0)" } ?? "glass"
+            Self.log.debug("host \(name, privacy: .public): front \(isFront), \(style, privacy: .public)")
+        }
+#endif
     }
+
+    private static let log = Logger(subsystem: "dance.cue", category: "alert")
 }
 
 // MARK: - Capsules
@@ -239,12 +262,23 @@ private enum DynamicIsland {
 #if os(iOS) && !targetEnvironment(macCatalyst)
         guard UIDevice.current.userInterfaceIdiom == .phone, let window = Self.window else { return nil }
         let bounds = window.bounds
-        let top = window.safeAreaInsets.top
-        // An island's iPhone insets the top by 59 points or more, a notched
-        // one by 44 to 50, and one on its side by none.
-        guard top > 52, bounds.height > bounds.width,
+        guard bounds.height > bounds.width,
               abs(host.minY) < 1, abs(host.minX) < 1, abs(host.width - bounds.width) < 1
         else { return nil }
+        // Read while the status bar is up, and kept for while the capsule
+        // has it hidden, which may change the safe area: worked out live
+        // then, the island could move, or go and take the capsule (and the
+        // hidden status bar) with it, over and over.
+        let top: CGFloat
+        if window.windowScene?.statusBarManager?.isStatusBarHidden == true, let kept = topInsets[bounds.width] {
+            top = kept
+        } else {
+            top = window.safeAreaInsets.top
+            topInsets[bounds.width] = top
+        }
+        // An island's iPhone insets the top by 59 points or more, a notched
+        // one by 44 to 50.
+        guard top > 52 else { return nil }
         // 126 × 37 points, ending 11 above the safe area: 11 from the top
         // on the iPhone 14 Pro, 15 and 16 (59-point inset), 14 on the 16 Pro
         // and 17 (62), whose island sits lower.
@@ -256,6 +290,10 @@ private enum DynamicIsland {
     }
 
 #if os(iOS) && !targetEnvironment(macCatalyst)
+    /// The top safe area by window width, as last read with the status bar up.
+    @MainActor
+    private static var topInsets: [CGFloat: CGFloat] = [:]
+
     @MainActor
     private static var window: UIWindow? {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
@@ -263,6 +301,40 @@ private enum DynamicIsland {
         return scene?.keyWindow ?? scene?.windows.first
     }
 #endif
+}
+
+/// Tells a host when it joins or leaves a window. UIKit always says: a
+/// sheet's views leave when it closes, a tab's when another is chosen, and
+/// the screen's under a full-screen cover while it's up.
+private struct HostWindowProbe: UIViewRepresentable {
+    let onChange: (Bool) -> Void
+
+    func makeUIView(context: Context) -> ProbeView {
+        let view = ProbeView()
+        view.isUserInteractionEnabled = false
+        view.onChange = onChange
+        return view
+    }
+
+    func updateUIView(_ view: ProbeView, context: Context) {
+        view.onChange = onChange
+    }
+
+    final class ProbeView: UIView {
+        var onChange: ((Bool) -> Void)?
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            // After the update that moved it, not during it, and as things
+            // stand then: a view moved within the window leaves and joins in
+            // one go, which shouldn't count as joining again. A view freed
+            // meanwhile (a closed sheet's) has left.
+            let onChange = onChange
+            DispatchQueue.main.async { [weak self] in
+                onChange?(self?.window != nil)
+            }
+        }
+    }
 }
 
 /// Where a host is in the window, out to its top edge, and how much of that
