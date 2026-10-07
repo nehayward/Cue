@@ -16,7 +16,7 @@ make deploy    # tests, then publishes to cue.dance
 
 | To change… | Edit |
 | --- | --- |
-| Name, email, App Store ID | `src/config.js` |
+| Name, email, App Store ID, TestFlight link | `src/config.js` |
 | Home page copy: hero, features, services, FAQ | `src/content/home.js` |
 | Help questions | `src/content/help.js` |
 | Plex & Subsonic page | `src/content/self-hosted.js` |
@@ -70,6 +70,14 @@ The web views hide the site's chrome with injected CSS that targets
 `header.header`, `footer`, `main > section.text-center` and `.latest-hero`.
 Both pages also accept `?embed`, which renders them without a header or
 footer. Moving the app to `?embed` would remove that coupling.
+
+## Email and the beta link
+
+- **hi@cue.dance** is Cloudflare Email Routing (cue.dance ▸ Email ▸ Email
+  Routing), forwarding to the same inbox as hi@clic.dance. There's no mailbox
+  to host; replies go out from that inbox.
+- **testflight.cue.dance** is a second custom domain on this Worker
+  (`wrangler.toml`), which redirects every path to `site.testflight`.
 
 ## Launch checklist
 

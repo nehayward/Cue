@@ -66,6 +66,10 @@ const sitemap = () => {
 
 export const route = async (request) => {
 	const url = new URL(request.url);
+	// testflight.cue.dance is the beta's short link. 302, so browsers don't
+	// keep the old link if the TestFlight one is ever reset.
+	if (url.hostname === 'testflight.cue.dance') return Response.redirect(site.testflight, 302);
+
 	// One canonical form per page: /help/ → /help.
 	const path = url.pathname.replace(/\/+$/, '') || '/';
 	if (path !== url.pathname) return Response.redirect(`${url.origin}${path}${url.search}`, 301);

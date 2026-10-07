@@ -3,10 +3,13 @@ name = "cue-site"
 main = "src/worker.js"
 compatibility_date = "2026-09-01"
 
-# The Worker is cue.dance's custom domain: Cloudflare creates the DNS record
-# and certificate on deploy. api.cue.dance and resource.cue.dance are
-# separate and untouched.
-routes = [{ pattern = "cue.dance", custom_domain = true }]
+# The Worker is cue.dance's custom domain, and testflight.cue.dance's (which
+# redirects to the beta): Cloudflare creates the DNS records and certificates
+# on deploy. api.cue.dance and resource.cue.dance are separate and untouched.
+routes = [
+	{ pattern = "cue.dance", custom_domain = true },
+	{ pattern = "testflight.cue.dance", custom_domain = true },
+]
 
 # public/ is served straight from Cloudflare's edge (styles, icons);
 # any path without a file there runs the Worker.
