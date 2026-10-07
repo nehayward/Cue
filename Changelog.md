@@ -176,6 +176,13 @@ A header button in `PlayerView` (⇧⌘T), shown while a station plays, swaps th
 ### Browse services after switching mid-load (ported from Clic)
 - Switching Browse services cancels the old screen's `.task`, and its cancelled requests come back empty. `SonosRadioBrowseService` set `hasLoaded`, `PandoraBrowseService` set `lastLoaded`, and `SoundCloudBrowseService` reported "not authenticated"; they now return on `Task.isCancelled` without recording anything. `DeezerBrowseService` and `SubsonicBrowseService` no longer write a cancelled load's empty lists over loaded ones.
 
+### Trimmed album downloads
+Removing one song of an album, playlist or artist downloaded whole used to forget the whole container (`pruneContainers`), so the rest dropped out of Downloads ▸ Albums, the album's button went back to Download, and downloading it again brought the removed songs back. A container now stands for the songs it still holds.
+
+- `DownloadManager.trimContainers` replaces `pruneContainers`: a track whose entry is gone (removed from its menu or the Downloads list, cancelled, or missing from disk) leaves `Container.trackKeys` and is recorded in the new `removedKeys` (optional, so older `containers.json` manifests decode). A container is forgotten only when nothing is left in it. Removing an album whose songs an artist download shares trims the artist rather than forgetting it.
+- `queue(_:)` calls `rejoinContainers(key:)` for each new entry, so downloading a removed song on its own, or through another container, puts it back in every container it was taken out of.
+- `removedTrackCount(forContentsOf:)` feeds a "Download N Removed Songs" item in the downloaded state of `ContainerDownloadButton`'s menu and `LocalDownloadMenuSection`. It runs `download(contentsOf:)`, which rebuilds the container whole (`removedKeys` nil) when the free limit lets every song in.
+
 ---
 
 ## 2026.7

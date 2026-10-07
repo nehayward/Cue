@@ -31,6 +31,7 @@
 - Improved Subsonic setup: type just your server's name, like music.example.com, and Cue connects over HTTPS when the server has it. Errors now say what to fix — a wrong password, a server that can't be found, Local Network access, or an address that isn't a Subsonic server
 - Fixed SoundCloud, Deezer, Pandora and Sonos Radio sometimes showing as signed out or not loading until Cue was force quit
 - Fixed Browse sections staying empty after switching between music services quickly
+- Improved downloaded albums and playlists: remove a song you don't want and the rest stay on your device as the album, still marked downloaded and removable in one go. The album's download button offers the removed songs again, and downloading one of them on its own puts it back
 
 # 2026.7
 

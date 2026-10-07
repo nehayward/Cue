@@ -223,7 +223,7 @@ struct DownloadsScreen: View {
             containersSection(downloaded) {
                 Text("On This Device")
             } footer: {
-                Text("Swipe to remove every song of an album or playlist at once. The songs themselves are listed under Songs.")
+                Text("Swipe to remove every song of an album or playlist at once. The songs themselves are listed under Songs; remove one there and the rest stay here.")
             }
         } else if downloading.isEmpty {
             Section {

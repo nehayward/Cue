@@ -106,9 +106,10 @@ final class DownloadManager {
         }
     }
 
-    /// An album, playlist or artist the user downloaded whole: which tracks
-    /// it stood for at the time, so the album can be badged, removed and
-    /// listed as one thing rather than as its songs.
+    /// An album, playlist or artist the user downloaded whole: which of its
+    /// tracks it holds, so the album can be badged, removed and listed as
+    /// one thing rather than as its songs. Removing one of its songs trims
+    /// it to the rest rather than forgetting it (see `trimContainers`).
     struct Container: Codable, Identifiable, Hashable, Sendable {
         let key: String
         let service: MusicService
@@ -119,6 +120,10 @@ final class DownloadManager {
         let artwork: URL?
         let createdAt: Date
         var trackKeys: [String]
+        /// Songs taken out of it since it came down whole, kept so it can
+        /// offer them again and take one back when it's downloaded again.
+        /// Nil when nothing was, and on manifests from before trimming.
+        var removedKeys: [String]?
 
         var id: String { key }
     }
@@ -204,7 +209,7 @@ final class DownloadManager {
         relay.manager = self
         adoptLegacyPlexDownloads()
         reconcileWithDisk()
-        pruneContainers()
+        trimContainers()
         reattachSessionTasks()
         pathMonitor.pathUpdateHandler = { [weak self] path in
             let network: Connectivity = path.status != .satisfied
@@ -364,8 +369,8 @@ final class DownloadManager {
     }
 
     /// Where a container downloaded whole stands, or nil if it never was
-    /// (or one of its songs has since been removed on its own, which
-    /// forgets the container — see `pruneContainers`).
+    /// (or every one of its songs has since been removed, which forgets
+    /// the container — see `trimContainers`).
     func containerState(for container: PlayableContent) -> ContainerState? {
         containerState(key: Self.containerKey(for: container))
     }
@@ -419,6 +424,12 @@ final class DownloadManager {
         return (downloaded, container.trackKeys.count)
     }
 
+    /// How many songs were taken out of a container downloaded whole, which
+    /// downloading it again would bring back.
+    func removedTrackCount(forContentsOf container: PlayableContent) -> Int {
+        containers[Self.containerKey(for: container)]?.removedKeys?.count ?? 0
+    }
+
     // MARK: - Downloading
 
     /// Queues a track as a batch of one — the system card still shows it
@@ -441,7 +452,8 @@ final class DownloadManager {
     /// container's order, and reports what it couldn't take. When every
     /// track is here or on its way, the container is remembered with its
     /// tracks, so it can be badged and removed as one; a batch the limit
-    /// cut short isn't, since it doesn't stand for the whole set.
+    /// cut short isn't, since it doesn't stand for the whole set. Run on a
+    /// container that was trimmed, it brings back the songs taken out.
     @discardableResult
     func download(contentsOf container: PlayableContent) async -> BatchResult {
         guard canDownload(contentsOf: container) else { return BatchResult() }
@@ -500,13 +512,33 @@ final class DownloadManager {
         scheduleSave()
     }
 
-    /// Forgets a container once any of its tracks is gone — removed on its
-    /// own from a row or the Downloads list, cancelled, or missing from
-    /// disk. A container stands for the whole set; with a track out, it's
-    /// back to being songs, and can be downloaded whole again.
-    private func pruneContainers() {
-        for container in containers.values where container.trackKeys.contains(where: { items[$0] == nil }) {
-            containers[container.key] = nil
+    /// Takes a track out of every container that held it once it's gone —
+    /// removed on its own from a row or the Downloads list, cancelled, or
+    /// missing from disk — so an album with the songs you didn't want taken
+    /// out stays an album of the rest, badged and removed as one. A
+    /// container with nothing left is forgotten.
+    private func trimContainers() {
+        for var container in containers.values {
+            let gone = container.trackKeys.filter { items[$0] == nil }
+            guard !gone.isEmpty else { continue }
+            container.trackKeys.removeAll { items[$0] == nil }
+            guard !container.trackKeys.isEmpty else {
+                containers[container.key] = nil
+                continue
+            }
+            container.removedKeys = (container.removedKeys ?? []) + gone
+            containers[container.key] = container
+        }
+    }
+
+    /// Puts a track back into any container it was taken out of, now that
+    /// it's coming down again.
+    private func rejoinContainers(key: String) {
+        for var container in containers.values where container.removedKeys?.contains(key) == true {
+            container.removedKeys?.removeAll { $0 == key }
+            if container.removedKeys?.isEmpty == true { container.removedKeys = nil }
+            container.trackKeys.append(key)
+            containers[container.key] = container
         }
     }
 
@@ -538,6 +570,7 @@ final class DownloadManager {
             track: item
         )
         items[key] = entry
+        rejoinContainers(key: key)
         start(entry)
         scheduleSave()
     }
@@ -607,7 +640,7 @@ final class DownloadManager {
         taskIDs[key] = nil
         settleSessionTasks(for: key)
         try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
-        pruneContainers()
+        trimContainers()
         scheduleSave()
     }
 
@@ -624,7 +657,7 @@ final class DownloadManager {
         }
         try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
         items[key] = nil
-        pruneContainers()
+        trimContainers()
         scheduleSave()
     }
 
@@ -633,7 +666,7 @@ final class DownloadManager {
             try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
             items[entry.key] = nil
         }
-        pruneContainers()
+        trimContainers()
         scheduleSave()
     }
 

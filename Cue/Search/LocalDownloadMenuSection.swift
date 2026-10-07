@@ -80,6 +80,14 @@ struct LocalDownloadMenuSection: View {
             } else if manager.canDownload(contentsOf: item) {
                 switch manager.containerState(for: item) {
                 case .downloaded:
+                    let removed = manager.removedTrackCount(forContentsOf: item)
+                    if removed > 0 {
+                        Button {
+                            downloadContainer()
+                        } label: {
+                            Label(removed == 1 ? "Download 1 Removed Song" : "Download \(removed) Removed Songs", systemImage: "arrow.down.circle")
+                        }
+                    }
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         manager.removeDownload(contentsOf: item)
