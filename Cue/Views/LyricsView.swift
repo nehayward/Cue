@@ -118,11 +118,16 @@ private struct SyncedLyricsView: View {
     private var route: PlaybackRoute { .shared }
 
     /// Lines light up a moment early, so the eye is on a line as it's sung.
-    static let lead: TimeInterval = 0.15
+    static let deviceLead: TimeInterval = 0.15
+    /// A speaker's clock runs from whole-second reports that arrive a round
+    /// trip late, so it trails the audio; this lead, tuned by ear on Sonos
+    /// (Clic uses the same), puts the line on the vocal.
+    static let speakerLead: TimeInterval = 0.875
 
     var body: some View {
         let controller = route.presented
         let clock = LyricsClock(isRunning: controller.isClockRunning)
+        let lead = controller.group == nil ? Self.deviceLead : Self.speakerLead
         PlaybackTimeline(
             isRunning: clock.isRunning,
             minimumInterval: 0.1,
@@ -132,7 +137,8 @@ private struct SyncedLyricsView: View {
                 lyrics: lyrics,
                 songKey: songKey,
                 style: style,
-                current: lyrics.lineIndex(at: position + Self.lead),
+                current: lyrics.lineIndex(at: position + lead),
+                lead: lead,
                 clock: clock,
                 canSeek: controller.isActive && !route.isHolding,
                 seek: { start in
@@ -161,6 +167,8 @@ private struct LyricsLinesInput: Equatable {
     let songKey: String
     let style: LyricsStyle
     let current: Int?
+    /// Seconds ahead of the clock the lines are shown.
+    let lead: TimeInterval
     let clock: LyricsClock
     let canSeek: Bool
     let seek: (TimeInterval) -> Void
@@ -168,7 +176,7 @@ private struct LyricsLinesInput: Equatable {
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.songKey == rhs.songKey && lhs.current == rhs.current && lhs.canSeek == rhs.canSeek
-            && lhs.style == rhs.style && lhs.clock.isRunning == rhs.clock.isRunning
+            && lhs.style == rhs.style && lhs.clock.isRunning == rhs.clock.isRunning && lhs.lead == rhs.lead
     }
 
     func row(_ line: Lyrics.Line, onTap: @escaping (TimeInterval) -> Void) -> LyricLineRow {
@@ -177,6 +185,7 @@ private struct LyricsLinesInput: Equatable {
             nextStart: lyrics.nextStart(after: line.id),
             isCurrent: line.id == current,
             font: style.font,
+            lead: lead,
             clock: clock,
             canSeek: canSeek,
             seek: onTap
@@ -397,6 +406,7 @@ private struct LyricLineRow: View {
     let nextStart: TimeInterval?
     let isCurrent: Bool
     let font: Font
+    let lead: TimeInterval
     let clock: LyricsClock
     let canSeek: Bool
     let seek: (TimeInterval) -> Void
@@ -431,7 +441,7 @@ private struct LyricLineRow: View {
                 PlaybackTimeline(isRunning: clock.isRunning, minimumInterval: 1.0 / 60, position: clock.position) { position in
                     Text(line.text)
                         .textRenderer(LyricFillRenderer(
-                            progress: line.progress(at: position + SyncedLyricsView.lead, nextStart: nextStart)
+                            progress: line.progress(at: position + lead, nextStart: nextStart)
                         ))
                 }
                 .foregroundStyle(.primary)
