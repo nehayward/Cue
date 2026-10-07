@@ -250,19 +250,18 @@ final class LyricsService {
     }
 
     enum DownloadOutcome {
-        /// Kept with the download, found or not.
-        case kept
+        /// Kept with the download: lyrics, or that there are none.
+        case kept(hasLyrics: Bool)
         /// The song's own server couldn't be asked, or LRCLIB answered
         /// nothing at all: worth another go later.
         case later
     }
 
-    /// Whether a downloaded song's lyrics are kept already.
-    func hasDownloadLyrics(for key: String) async -> Bool {
-        if let entry = await downloads.entry(for: key) {
-            return entry.isUsableForDownload
-        }
-        return false
+    /// What's kept for a downloaded song: lyrics (`true`), that it has none
+    /// (`false`), or nothing yet (`nil`).
+    func downloadLyrics(for key: String) async -> Bool? {
+        guard let entry = await downloads.entry(for: key), entry.isUsableForDownload else { return nil }
+        return entry.lyrics != nil
     }
 
     /// Looks up a downloaded song's lyrics and keeps them with the download.
@@ -280,7 +279,7 @@ final class LyricsService {
         memory[key] = entry
         await downloads.store(entry, for: key)
         Self.log.info("\(item.title, privacy: .public): kept with the download, \(lyrics.map { "\($0.source.rawValue), \($0.isSynced ? "timed" : "plain")" } ?? "none", privacy: .public)")
-        return .kept
+        return .kept(hasLyrics: lyrics != nil)
     }
 
     /// Lets a removed download's lyrics go back to being the cache's.

@@ -17,6 +17,7 @@ import SonosKit
 /// finished while Cue was closed, or before this existed, are picked up
 /// at launch.
 @MainActor
+@Observable
 final class DownloadLyrics {
     static let shared = DownloadLyrics()
 
@@ -32,10 +33,14 @@ final class DownloadLyrics {
     /// Tries before a song settles for what LRCLIB has.
     static let triesBeforeSettling = 3
 
-    private var pending: [DownloadManager.Item] = []
-    private var worker: Task<Void, Never>?
+    /// Downloads whose lyrics are kept, by download key — for Downloads to
+    /// mark them.
+    private(set) var withLyrics: Set<String> = []
+
+    @ObservationIgnored private var pending: [DownloadManager.Item] = []
+    @ObservationIgnored private var worker: Task<Void, Never>?
     /// Songs whose server couldn't be asked, by download key.
-    private var tries: [String: Int] = [:]
+    @ObservationIgnored private var tries: [String: Int] = [:]
 
     /// What `LyricsService` keeps a song's lyrics under: the same as for
     /// the song playing, so playback finds them.
@@ -43,13 +48,21 @@ final class DownloadLyrics {
         "\(item.service)|\(item.contentID)"
     }
 
-    /// Queues every finished download, a little after launch so it doesn't
-    /// compete with it. Songs whose lyrics are kept already pass through
-    /// without a lookup.
+    /// Notes which finished downloads have lyrics kept, at once, and queues
+    /// the rest a little after launch so the lookups don't compete with it.
     func start() {
         Task {
+            var missing: [DownloadManager.Item] = []
+            for item in DownloadManager.shared.completed where [.plex, .subsonic].contains(item.service) {
+                switch await LyricsService.shared.downloadLyrics(for: Self.key(for: item)) {
+                case true?: withLyrics.insert(item.key)
+                case false?: break
+                case nil: missing.append(item)
+                }
+            }
+            Self.log.info("\(self.withLyrics.count, privacy: .public) downloads have lyrics kept; \(missing.count, privacy: .public) to look up")
             try? await Task.sleep(for: .seconds(20))
-            for item in DownloadManager.shared.completed {
+            for item in missing {
                 enqueue(item)
             }
         }
@@ -67,6 +80,7 @@ final class DownloadLyrics {
     /// A download removed: its lyrics go with it.
     func forget(_ item: DownloadManager.Item) {
         pending.removeAll { $0.key == item.key }
+        withLyrics.remove(item.key)
         LyricsService.shared.forgetDownloadLyrics(for: Self.key(for: item))
     }
 
@@ -75,7 +89,10 @@ final class DownloadLyrics {
         while !pending.isEmpty {
             let item = pending.removeFirst()
             guard DownloadManager.shared.completed.contains(where: { $0.key == item.key }) else { continue }
-            if await LyricsService.shared.hasDownloadLyrics(for: Self.key(for: item)) { continue }
+            if let hasLyrics = await LyricsService.shared.downloadLyrics(for: Self.key(for: item)) {
+                if hasLyrics { withLyrics.insert(item.key) }
+                continue
+            }
             guard let found = await Self.song(for: item) else {
                 // Its server couldn't be asked about it at all.
                 pending.append(item)
@@ -86,8 +103,9 @@ final class DownloadLyrics {
             let tried = tries[item.key, default: 0] + 1
             let settling = tried >= Self.triesBeforeSettling
             switch await LyricsService.shared.keepDownloadLyrics(for: found.song, duration: found.duration, settling: settling) {
-            case .kept:
+            case .kept(let hasLyrics):
                 tries[item.key] = nil
+                if hasLyrics { withLyrics.insert(item.key) }
             case .later:
                 tries[item.key] = tried
                 pending.append(item)
