@@ -1484,6 +1484,43 @@ public final class MusicSearchService {
         return (result.totalSize ?? result.size, playableContent, duration)
     }
 
+    /// Every song of a Plex album, or nil if the server couldn't list them
+    /// — for a download, which mustn't take a failed lookup for an empty
+    /// album. Each request is tried three times before giving up.
+    public func allPlexAlbumSongs(id: String) async -> [PlayableContent]? {
+        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return nil }
+        guard let metadata = await Self.retrying({ await self.plex.lookupAlbumTracks(key: key)?.metadata }),
+              !metadata.isEmpty else { return nil }
+        return metadata.map(\.toPlayable)
+    }
+
+    /// Every song of a Plex playlist, page after page, or nil if any page
+    /// fails (each tried three times) — for a download, which would
+    /// otherwise remember a list cut short as the whole playlist. Plex caps
+    /// a page at 200 and answers a page past the end with no items, which
+    /// doesn't decode, so the playlist's `totalSize` says when to stop.
+    public func allPlexPlaylistSongs(id: String) async -> [PlayableContent]? {
+        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return nil }
+        let songs = await PagedList.all(pageSize: 200) { offset -> (items: [PlexMetadata], total: Int?)? in
+            guard let page = await Self.retrying({
+                await self.plex.lookupPlaylist(key: key, type: .song, ascending: true, offset: offset)
+            }) else { return nil }
+            return (page.metadata, page.totalSize)
+        }
+        guard let songs, !songs.isEmpty else { return nil }
+        return songs.map(\.toPlayable)
+    }
+
+    /// `attempt` until it answers, three tries at most, a moment apart.
+    private static func retrying<T>(_ attempt: @escaping () async -> T?) async -> T? {
+        for delay in [0.5, 1.5, 0] {
+            if let answer = await attempt() { return answer }
+            guard delay > 0, !Task.isCancelled else { break }
+            try? await Task.sleep(for: .seconds(delay))
+        }
+        return nil
+    }
+
     public func getPlexServers() async -> [PlexServer] {
         let plexServers = await plex.getPlexServers()
         return plexServers
@@ -2567,6 +2604,45 @@ public final class MusicSearchService {
 
     public func lookupSubsonicPlaylistTracks(id: String) async -> [PlayableContent] {
         (await subsonic.playlist(for: id)?.entry ?? []).map(\.toPlayable)
+    }
+
+    /// Every song of a Subsonic album, playlist or artist, or nil if the
+    /// server couldn't list them (each request tried three times) — for a
+    /// download, which would otherwise take an artist with an album that
+    /// failed to load for the whole artist. Bounded like the queue's
+    /// expansion (`subsonicContainerTracks`): 30 albums, 200 songs.
+    public func allSubsonicSongs(for content: PlayableContent) async -> [PlayableContent]? {
+        let id = content.content.id
+        let songs: [PlayableContent]
+        switch content.content.type {
+        case .album:
+            guard let album = await Self.retrying({ await self.subsonic.album(for: id) }) else { return nil }
+            songs = (album.song ?? []).map(\.toPlayable)
+        case .playlist:
+            guard let playlist = await Self.retrying({ await self.subsonic.playlist(for: id) }) else { return nil }
+            songs = (playlist.entry ?? []).map(\.toPlayable)
+        case .artist:
+            guard let artist = await Self.retrying({ await self.subsonic.artist(for: id) }) else { return nil }
+            let albums = (artist.album ?? []).sorted { ($0.year ?? 0) < ($1.year ?? 0) }.prefix(30)
+            let byAlbum = await withTaskGroup(of: (Int, [PlayableContent]?).self) { group in
+                for (index, album) in albums.enumerated() {
+                    group.addTask {
+                        let full = await Self.retrying({ await self.subsonic.album(for: album.id) })
+                        return (index, full.map { ($0.song ?? []).map(\.toPlayable) })
+                    }
+                }
+                var results = [[PlayableContent]?](repeating: nil, count: albums.count)
+                for await (index, songs) in group {
+                    results[index] = songs
+                }
+                return results
+            }
+            guard !byAlbum.contains(where: { $0 == nil }) else { return nil }
+            songs = Array(byAlbum.compactMap { $0 }.flatMap { $0 }.prefix(200))
+        default:
+            return nil
+        }
+        return songs.isEmpty ? nil : songs
     }
 
     /// The tracks inside a direct-HTTP service's container, in play order —

@@ -1615,6 +1615,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // The continued-processing task's launch handler has to be in place
         // before a download batch submits it.
         ContinuedDownloadTask.shared.register()
+        #if DEBUG
+        DownloadAudit.runIfAsked()
+        #endif
         // Early, so a status the watch sent while Cue was closed, and the
         // end of a library transfer, are delivered.
         WatchSyncService.shared.activate()

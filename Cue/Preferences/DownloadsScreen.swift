@@ -91,7 +91,7 @@ struct DownloadsScreen: View {
                         }
                         Divider()
                         Button(role: .destructive) {
-                            active.forEach { manager.cancel(key: $0.key) }
+                            manager.cancel(keys: active.map(\.key))
                         } label: {
                             Label("Cancel All", systemImage: "xmark.circle")
                         }
@@ -224,7 +224,7 @@ struct DownloadsScreen: View {
             containersSection(downloaded) {
                 Text("On This Device")
             } footer: {
-                Text("Swipe to remove every song of an album or playlist at once. The songs themselves are listed under Songs.")
+                Text("Swipe to remove every song of an album or playlist at once. The songs themselves are listed under Songs; remove one there and the rest stay here.")
             }
         } else if downloading.isEmpty {
             Section {

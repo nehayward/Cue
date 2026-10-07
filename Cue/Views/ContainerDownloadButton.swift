@@ -21,6 +21,14 @@ struct ContainerDownloadButton: View {
                 Menu {
                     let counts = manager.trackCounts(forContainer: DownloadManager.containerKey(for: item))
                     Label(counts.total == 1 ? "1 song on this device" : "\(counts.total) songs on this device", systemImage: "arrow.down.circle.fill")
+                    let removed = manager.removedTrackCount(forContentsOf: item)
+                    if removed > 0 {
+                        Button {
+                            downloadWhole()
+                        } label: {
+                            Label(removed == 1 ? "Download 1 Removed Song" : "Download \(removed) Removed Songs", systemImage: "arrow.down.circle")
+                        }
+                    }
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         manager.removeDownload(contentsOf: item)
@@ -73,14 +81,7 @@ struct ContainerDownloadButton: View {
                 .accessibilityLabel("Downloading, \(Int(fraction * 100)) percent")
             case nil:
                 Button {
-                    guard !isQueuing else { return }
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    guard FeatureGate.shared.unlock(.downloads) else { return }
-                    isQueuing = true
-                    Task { @MainActor in
-                        await LocalDownloadMenuSection.download(item, alertService: alertService)
-                        isQueuing = false
-                    }
+                    downloadWhole()
                 } label: {
                     Group {
                         if isQueuing {
@@ -97,6 +98,18 @@ struct ContainerDownloadButton: View {
                 .glassButton()
                 .accessibilityLabel("Download \(item.content.type.title)")
             }
+        }
+    }
+
+    /// Queues the whole thing — or, for one trimmed, the songs taken out.
+    private func downloadWhole() {
+        guard !isQueuing else { return }
+        HapticManager.shared.fireHaptic(.buttonPress)
+        guard FeatureGate.shared.unlock(.downloads) else { return }
+        isQueuing = true
+        Task { @MainActor in
+            await LocalDownloadMenuSection.download(item, alertService: alertService)
+            isQueuing = false
         }
     }
 }

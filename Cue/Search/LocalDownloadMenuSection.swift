@@ -80,6 +80,14 @@ struct LocalDownloadMenuSection: View {
             } else if manager.canDownload(contentsOf: item) {
                 switch manager.containerState(for: item) {
                 case .downloaded:
+                    let removed = manager.removedTrackCount(forContentsOf: item)
+                    if removed > 0 {
+                        Button {
+                            downloadContainer()
+                        } label: {
+                            Label(removed == 1 ? "Download 1 Removed Song" : "Download \(removed) Removed Songs", systemImage: "arrow.down.circle")
+                        }
+                    }
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         manager.removeDownload(contentsOf: item)
@@ -226,6 +234,11 @@ struct LocalDownloadMenuSection: View {
     static func download(_ item: PlayableContent, alertService: AlertService) async {
         let manager = DownloadManager.shared
         let result = await manager.download(contentsOf: item)
+        guard !result.couldNotLoad else {
+            let server = item.content.service == .plex ? "Plex" : "the server"
+            alertService.showAlertContent(with: item, subtitle: "Couldn't reach \(server). Try again.", symbolName: "exclamationmark.triangle")
+            return
+        }
         switch (result.queued, result.heldBack) {
         case (0, 0):
             if manager.isDownloaded(contentsOf: item) {
