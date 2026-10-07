@@ -8,6 +8,29 @@ public final class AlertService: @unchecked Sendable {
     public static var shared = AlertService()
     var alert = Alert()
     private var alertTask: Task<Void, Error>?
+    /// The alert's hosts on screen (`withAlert()`), in the order they
+    /// appeared. Only the latest draws it, so a sheet with its own host
+    /// doesn't show it a second time over the screen it covers.
+    private var hosts: [UUID] = []
+
+    var frontHost: UUID? { hosts.last }
+
+    @MainActor
+    func addHost(_ id: UUID) {
+        hosts.removeAll { $0 == id }
+        hosts.append(id)
+    }
+
+    @MainActor
+    func removeHost(_ id: UUID) {
+        hosts.removeAll { $0 == id }
+    }
+
+    /// Puts the alert away now, as a swipe up does.
+    @MainActor
+    func dismiss() {
+        showAlert(show: false)
+    }
 
     @MainActor
     func showAlert(with text: String) {
