@@ -96,6 +96,7 @@ enum MP4TagParser {
                 // One more than the ID3 index.
                 if tags.genre == nil { tags.genre = ID3Genres.name(ByteView(payload.data).u16BE(0) - 1) }
             case [copyright, 0x64, 0x61, 0x79]: tags.year = TagText.year(in: text(payload))  // ©day
+            case [copyright, 0x6C, 0x79, 0x72]: tags.lyrics = text(payload)                  // ©lyr
             case Array("trkn".utf8):
                 let number = ByteView(payload.data).u16BE(2)
                 if number > 0 { tags.trackNumber = number }

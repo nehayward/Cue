@@ -17,6 +17,9 @@ public struct AudioTags: Equatable, Sendable {
     /// The embedded front cover, as the bytes of the image file.
     public var artwork: Data?
     public var isCompilation = false
+    /// The words as the tag holds them, LRC or plain. Read with the rest
+    /// for the song playing, not kept in the library's index.
+    public var lyrics: String?
 
     public init() {}
 
@@ -39,6 +42,7 @@ public struct AudioTags: Equatable, Sendable {
         duration = duration ?? other.duration
         artwork = artwork ?? other.artwork
         isCompilation = isCompilation || other.isCompilation
+        lyrics = lyrics ?? other.lyrics
     }
 }
 

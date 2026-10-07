@@ -202,6 +202,39 @@ public final class PlexAPI {
         return (200...299).contains(http.statusCode)
     }
 
+    // MARK: - Lyrics
+
+    /// The track's lyrics from the server: its lyric streams (a sidecar
+    /// `.lrc` or `.txt` beside the file, or the lyrics agent's, which needs
+    /// Plex Pass), timed ones first. An agent's stream answers in JSON,
+    /// line by line; a sidecar's with the file itself.
+    public func lyrics(ratingKey: String) async -> Lyrics? {
+        guard let plexServer = await getPlexServer(),
+              let baseURL = getBaseURL(for: plexServer),
+              let request = await authorizedRequest(from: baseURL.appending(path: "library/metadata/\(ratingKey)")),
+              let (data, _) = await loadData(for: request),
+              let container = try? decoder.decode(PlexLyricStreamsContainer.self, from: data) else {
+            return nil
+        }
+        let streams = container.lyricStreams
+        let ordered = streams.filter(\.isLikelyTimed) + streams.filter { !$0.isLikelyTimed }
+        for stream in ordered {
+            guard let key = stream.key,
+                  let request = await authorizedRequest(from: (getBaseURL(for: plexServer) ?? baseURL).appending(path: key.trimmingPrefix("/"))),
+                  let (body, response) = await loadData(for: request),
+                  (response as? HTTPURLResponse)?.statusCode ?? 200 == 200 else { continue }
+            if body.first(where: { !Character(UnicodeScalar($0)).isWhitespace }) == UInt8(ascii: "{") {
+                if let lyrics = (try? decoder.decode(PlexLyricsContainer.self, from: body))?.lyrics(credit: stream.credit) {
+                    return lyrics
+                }
+            } else if let text = String(data: body, encoding: .utf8) ?? String(data: body, encoding: .isoLatin1),
+                      let lyrics = Lyrics.parse(text, source: .plex, credit: stream.credit) {
+                return lyrics
+            }
+        }
+        return nil
+    }
+
     public func getTrackRating(ratingKey: String) async -> Double? {
         guard let song = await lookupPlexSong(key: ratingKey) else { return nil }
         return song.metadata?.first?.userRating

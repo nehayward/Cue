@@ -233,6 +233,29 @@ public final class SubsonicAPI: DirectStreamProvider {
         await get("getPlaylist", queryItems: [URLQueryItem(name: "id", value: id)])?.playlist
     }
 
+    // MARK: - Lyrics
+
+    /// The song's lyrics from the server: OpenSubsonic's structured lyrics
+    /// (timed when the server has them so, the main set before a
+    /// translation), else the original `getLyrics` by artist and title,
+    /// which is plain text. A server without the OpenSubsonic call answers
+    /// it with an error, which falls through to the original.
+    public func lyrics(songID: String, artist: String?, title: String?) async -> Lyrics? {
+        if let sets = await get("getLyricsBySongId", queryItems: [URLQueryItem(name: "id", value: songID)])?.lyricsList?.structuredLyrics {
+            let main = sets.filter { $0.kind == nil || $0.kind == "main" }
+            let ordered = main.filter { $0.synced == true } + main.filter { $0.synced != true }
+            if let lyrics = ordered.lazy.compactMap(\.lyrics).first {
+                return lyrics
+            }
+        }
+        guard let artist, !artist.isEmpty, let title, !title.isEmpty,
+              let value = await get("getLyrics", queryItems: [
+                  URLQueryItem(name: "artist", value: artist),
+                  URLQueryItem(name: "title", value: title)
+              ])?.lyrics?.value else { return nil }
+        return Lyrics.parse(value, source: .subsonic)
+    }
+
     // MARK: - Library
 
     public func playlists() async -> [SubsonicPlaylist] {
