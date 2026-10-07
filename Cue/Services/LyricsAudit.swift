@@ -1,4 +1,5 @@
 #if DEBUG
+import Defaults
 import Foundation
 import MusicSearchKit
 import OSLog
@@ -19,6 +20,16 @@ enum LyricsAudit {
     private static let log = Logger(subsystem: "dance.cue", category: "lyrics-audit")
 
     static func startIfRequested() {
+        // `-LyricsTestDownload 2709,2688`: downloads those Plex songs, for
+        // `DownloadLyrics` to keep their lyrics.
+        if let keys = UserDefaults.standard.string(forKey: "LyricsTestDownload") {
+            Task { await testDownload(ratingKeys: keys.split(separator: ",").map(String.init)) }
+        }
+        // `-LyricsTestPlay 2709,2688`: plays them on this device with the
+        // player open and lyrics on, for the prefetch and the screen.
+        if let keys = UserDefaults.standard.string(forKey: "LyricsTestPlay") {
+            Task { await testPlay(ratingKeys: keys.split(separator: ",").map(String.init)) }
+        }
         // `-LyricsAuditRatingKeys 2661,2684`: just those songs, again.
         if let keys = UserDefaults.standard.string(forKey: "LyricsAuditRatingKeys") {
             Task { await run(ratingKeys: keys.split(separator: ",").map(String.init)) }
@@ -27,6 +38,45 @@ enum LyricsAudit {
         let count = UserDefaults.standard.integer(forKey: "LyricsAudit")
         guard count > 0 else { return }
         Task { await run(sampleSize: count) }
+    }
+
+    private static func playables(_ ratingKeys: [String]) async -> [PlayableContent] {
+        try? await Task.sleep(for: .seconds(5))
+        var items: [PlayableContent] = []
+        for key in ratingKeys {
+            guard let song = await PlexAPI.shared.lookupPlexSong(key: key)?.metadata?.first, song.sonosID != nil else {
+                log.error("no song \(key, privacy: .public)")
+                continue
+            }
+            items.append(song.toPlayable)
+        }
+        return items
+    }
+
+    static func testDownload(ratingKeys: [String]) async {
+        for item in await playables(ratingKeys) {
+            let started = DownloadManager.shared.download(item)
+            log.info("download \(item.title, privacy: .public): \(started ? "started" : "refused", privacy: .public)")
+        }
+    }
+
+    static func testPlay(ratingKeys: [String]) async {
+        let items = await playables(ratingKeys)
+        guard !items.isEmpty else { return }
+        UserDefaults.standard.set(true, forKey: AppStorageKeys.lyricsShown)
+        do {
+            try await LocalPlaybackService.shared.play(items)
+            Router.main.isPlayerPresented = true
+            log.info("playing \(items.count) songs with lyrics on")
+            // Then on to the next, whose lyrics the prefetch should have
+            // ready: `origin` says where the shown ones came from.
+            try? await Task.sleep(for: .seconds(12))
+            await LocalPlaybackService.shared.next()
+            try? await Task.sleep(for: .seconds(2))
+            log.info("after the skip: \(LyricsService.shared.key ?? "-", privacy: .public) from \(LyricsService.shared.origin?.rawValue ?? "-", privacy: .public)")
+        } catch {
+            log.error("couldn't play: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     static func run(ratingKeys: [String]) async {
@@ -85,8 +135,12 @@ enum LyricsAudit {
             return
         }
         let count = min(sampleSize, total)
-        log.info("library has \(total) songs; checking \(count)")
+        // Seconds between songs (`-LyricsAuditSpacing`): each asks Plex for
+        // LyricFind's lyrics once, and Plex limits that.
+        let spacing = max(1, UserDefaults.standard.double(forKey: "LyricsAuditSpacing"))
+        log.info("library has \(total) songs; checking \(count), \(spacing) s apart")
         var rows: [Row] = []
+        var refusedInARow = 0
         for index in 0..<count {
             let offset = index * total / count
             guard let song = await PlexAPI.shared.songPage(offset: offset, limit: 1).songs.first else { continue }
@@ -94,7 +148,14 @@ enum LyricsAudit {
             rows.append(row)
             log.info("\(index + 1)/\(count) \(row.title, privacy: .public) — \(row.albumArtist, privacy: .public): plex \(row.plex, privacy: .public), lrclib \(row.lrclib, privacy: .public), shown \(row.shown, privacy: .public)")
             if rows.count % 10 == 0 { write(rows, total: total) }
-            try? await Task.sleep(for: .seconds(1))
+            // Plex refusing LyricFind three songs running is the limit, not
+            // the songs: stop rather than keep it shut.
+            refusedInARow = row.plex.contains("didn't load") ? refusedInARow + 1 : 0
+            if refusedInARow >= 3 {
+                log.error("LyricFind refused three songs in a row; stopping")
+                break
+            }
+            try? await Task.sleep(for: .seconds(spacing))
         }
         write(rows, total: total)
         log.info("done: \(rows.count) songs")

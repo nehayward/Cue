@@ -72,6 +72,9 @@ public enum LRCLibAPI {
         duration: TimeInterval?,
         session: URLSession = .shared
     ) async throws -> Match? {
+        // A take whose title says it has no singing: LRCLIB, written by
+        // anyone, often files the song's words under it too.
+        guard !isInstrumentalTitle(title) else { return nil }
         let duration = duration.flatMap { $0 > 0 ? $0 : nil }
         if let duration {
             var artists = [artist]
@@ -191,6 +194,12 @@ public enum LRCLibAPI {
         result = result.replacing(#/\s+-\s+[^-]*remaster[^-]*$/#.ignoresCase(), with: "")
         let trimmed = result.trimmingCharacters(in: .whitespaces)
         return trimmed.isEmpty ? title : trimmed
+    }
+
+    /// A title that names a take without singing: "(Instrumental)",
+    /// "(strings only)", "[Karaoke Version]", "- Backing Track".
+    public static func isInstrumentalTitle(_ title: String) -> Bool {
+        title.firstMatch(of: #/[\(\[\-–—]\s*[^\)\]]*\b(instrumental|karaoke|backing track|strings only|orchestral version|no vocals?)\b/#.ignoresCase()) != nil
     }
 
     /// The first name in a credit: "A feat. B", "A & B", "A, B" are A's.

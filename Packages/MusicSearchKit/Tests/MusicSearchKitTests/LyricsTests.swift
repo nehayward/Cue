@@ -194,6 +194,16 @@ final class LyricsTests: XCTestCase {
         XCTAssertEqual(LRCLibAPI.searchTitle("Live Forever (Live)"), "Live Forever (Live)")
     }
 
+    func testInstrumentalTitles() {
+        XCTAssertTrue(LRCLibAPI.isInstrumentalTitle("Eleanor Rigby (strings only)"))
+        XCTAssertTrue(LRCLibAPI.isInstrumentalTitle("Levitating (Instrumental)"))
+        XCTAssertTrue(LRCLibAPI.isInstrumentalTitle("Shallow [Karaoke Version]"))
+        XCTAssertTrue(LRCLibAPI.isInstrumentalTitle("Hello - Backing Track"))
+        XCTAssertFalse(LRCLibAPI.isInstrumentalTitle("Instrumental Love"), "a word in the title, not a version")
+        XCTAssertFalse(LRCLibAPI.isInstrumentalTitle("Ticket to Ride (live on Blackpool Night Out)"))
+        XCTAssertFalse(LRCLibAPI.isInstrumentalTitle("Good in Bed (Gen Hoshino remix)"))
+    }
+
     func testPrimaryArtist() {
         XCTAssertEqual(LRCLibAPI.primaryArtist("Daft Punk feat. Pharrell Williams"), "Daft Punk")
         XCTAssertEqual(LRCLibAPI.primaryArtist("Calvin Harris, Dua Lipa"), "Calvin Harris")
