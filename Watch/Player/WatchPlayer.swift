@@ -92,12 +92,6 @@ final class WatchPlayer {
         return play(store.songs(in: store.picks.items.map(\.key)), shuffled: shuffled)
     }
 
-    /// One album, playlist, artist or song on the watch.
-    @discardableResult
-    func play(pickKey: String, shuffled: Bool) -> Bool {
-        play(WatchDownloadStore.shared.songs(in: [pickKey]), shuffled: shuffled)
-    }
-
     func togglePlayPause() {
         isPlaying ? pause() : resume()
     }
