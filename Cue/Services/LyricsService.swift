@@ -94,7 +94,7 @@ final class LyricsService {
     private init() {}
 
     var isOnlineLookupEnabled: Bool {
-        UserDefaults.standard.object(forKey: AppStorageKeys.lyricsOnlineLookup) as? Bool ?? true
+        UserDefaults.standard.object(forKey: AppStorageKeys.lyricsOnlineLookup) as? Bool ?? false
     }
 
     /// The song a controller is playing, when it's one that can have lyrics.
