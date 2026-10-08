@@ -1,6 +1,7 @@
 import Foundation
 import MediaPlayer
 import Nuke
+import OSLog
 import SonosKit
 import UIKit
 
@@ -44,10 +45,19 @@ final class LocalNowPlayingPresenter {
     private var artworkTask: Task<Void, Never>?
     private var publishedArtworkURL: URL?
     private var publishedArtwork: MPMediaItemArtwork?
+    /// Whether the last update asked for the clock to be restated (see
+    /// `update`), so a seek's publish states the card the same way.
+    private var restatesClock = false
 
     /// Marks the card as this presenter's, so it can tell when something
-    /// else has replaced or cleared it.
-    private static let identifierPrefix = "cue.local."
+    /// else has replaced or cleared it. In the collection identifier, not
+    /// `MPNowPlayingInfoPropertyExternalContentIdentifier`: a card carrying
+    /// that one runs into CarPlay's metadata throttle ("Application exceeded
+    /// audio metadata throttle limit"), after which the car's Now Playing
+    /// screen stops taking the card's updates.
+    private static let marker = "cue.local"
+
+    private static let log = Logger(subsystem: "dance.cue", category: "nowplaying")
 
     init(player: LocalPlaybackService) {
         self.player = player
@@ -74,6 +84,7 @@ final class LocalNowPlayingPresenter {
         published = nil
         publishedArtworkURL = nil
         publishedArtwork = nil
+        restatesClock = false
     }
 
     /// Called from the player's poll. Publishes when the song, its state or
@@ -88,6 +99,9 @@ final class LocalNowPlayingPresenter {
     /// out of process, and on iOS 27 the car reads this card all the same
     /// (FB24840951) — so it froze at the last publish. Stepping beats
     /// standing still; the car's play/pause glyph stays wrong regardless.
+    /// Such a card is stated at rate 0, as the car reads it anyway: at rate
+    /// 1 each restate says only what the system's own clock already
+    /// predicts, which it can take as no change at all.
     func update(
         item: PlayableContent?,
         isPlaying: Bool,
@@ -97,6 +111,7 @@ final class LocalNowPlayingPresenter {
         restatesClock: Bool = false
     ) {
         guard let item else { return }
+        self.restatesClock = restatesClock
         let snapshot = Snapshot(
             identity: item.content.id,
             title: item.title,
@@ -137,9 +152,9 @@ final class LocalNowPlayingPresenter {
             MPMediaItemPropertyTitle: snapshot.title,
             MPMediaItemPropertyArtist: snapshot.artist,
             MPMediaItemPropertyAlbumTitle: snapshot.album,
-            MPNowPlayingInfoPropertyExternalContentIdentifier: Self.identifierPrefix + snapshot.identity,
+            MPNowPlayingInfoCollectionIdentifier: Self.marker,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
-            MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying && !restatesClock ? 1.0 : 0.0,
             MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
             MPNowPlayingInfoPropertyIsLiveStream: false,
         ]
@@ -166,6 +181,9 @@ final class LocalNowPlayingPresenter {
         published = snapshot
         publishedElapsed = max(0, elapsed)
         publishedAt = .now
+        if restatesClock {
+            Self.log.debug("car card: \(snapshot.title, privacy: .public) at \(elapsed, format: .fixed(precision: 0))s, \(snapshot.isPlaying ? "playing" : "paused", privacy: .public)")
+        }
 
         if publishedArtworkURL != snapshot.artworkURL {
             loadArtwork(from: snapshot.artworkURL, item: item)
@@ -173,12 +191,14 @@ final class LocalNowPlayingPresenter {
     }
 
     private func isOurs(_ info: [String: Any]?) -> Bool {
-        (info?[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String)?.hasPrefix(Self.identifierPrefix) ?? false
+        (info?[MPNowPlayingInfoCollectionIdentifier] as? String) == Self.marker
     }
 
-    /// Through the shared Nuke pipeline under the same key the artwork views
-    /// use, so the image is usually already decoded; file URLs from the
-    /// Files folder and the download cache load the same way.
+    /// Through the shared Nuke pipeline with the player cover's own request,
+    /// so the image is usually already decoded; file URLs from the Files
+    /// folder and the download cache load the same way. Its own request (a
+    /// resize to 500 px) had a key of its own: every song was decoded again
+    /// at full size, then scaled.
     private func loadArtwork(from url: URL?, item: PlayableContent?) {
         artworkTask?.cancel()
         publishedArtworkURL = url
@@ -187,10 +207,10 @@ final class LocalNowPlayingPresenter {
             MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyArtwork] = nil
             return
         }
-        var request = ImageRequest(url: url, processors: [.resize(width: 500)], priority: .high)
-        if let item {
-            request.imageID = item.imageKey
-        }
+        var request = item.map {
+            ContentArtworkView.artworkRequest(for: $0, url: url, preferredSize: ContentArtworkView.playerPreferredSize)
+        } ?? ImageRequest(url: url, processors: [.resize(width: 500)])
+        request.priority = .high
         if let cached = ImagePipeline.shared.cache.cachedImage(for: request)?.image {
             attach(artwork: cached, for: url)
             return

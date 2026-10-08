@@ -65,14 +65,26 @@ public final class AppleMusicBrowseService {
     }
 
     public func updateUsersAppleSongs() async {
+        // Past the last page. Reading its missing `next` as offset 0 started
+        // the library over from the first page whenever the end was scrolled
+        // to, and again on the next scroll, for good.
+        guard !userSongsComplete else { return }
         guard let container = try? await apple.getUserSongs(offset: offsets["updateUsersAppleSongs", default: 0]) else { return }
-        let offset = Int(container.next?.components(separatedBy: "=").last ?? "0") ?? 0
-        offsets["updateUsersAppleSongs"] = offset
-        let newUserAlbums = container.data.compactMap(\.toPlayable)
-        for newUserAlbum in newUserAlbums {
-            userSongs.updateOrAppend(newUserAlbum)
+        if let next = container.next {
+            offsets["updateUsersAppleSongs"] = Int(next.components(separatedBy: "=").last ?? "") ?? 0
+        } else {
+            userSongsComplete = true
         }
+        var songs = userSongs
+        for song in container.data.compactMap(\.toPlayable) {
+            songs.updateOrAppend(song)
+        }
+        // One update for the page, not one per song.
+        userSongs = songs
     }
+
+    /// The whole song library has been read (see `updateUsersAppleSongs`).
+    @ObservationIgnored private var userSongsComplete = false
 
     public func updateUsersApplePlaylists(offset: Int, limit: Int? = nil) async {
         guard let container = try? await apple.getUserPlaylists(offset: offset, limit: limit) else { return }

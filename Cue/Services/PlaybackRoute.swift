@@ -45,9 +45,10 @@ final class PlaybackRoute {
     private(set) var chosen: PlayDestination
 
     /// Where playback goes now: the choice, or this device while no speaker
-    /// can be reached (Sonos switched off, or the phone on cellular).
-    /// Derived rather than stored, so it follows `SonosService.isAvailable`
-    /// by itself, and every view reading it with it.
+    /// can be reached (Sonos switched off, the phone on cellular or in a
+    /// car). Derived rather than stored, so it follows
+    /// `SonosService.isAvailable` by itself, and every view reading it with
+    /// it.
     var destination: PlayDestination {
         SonosService.shared.isAvailable ? chosen : .device
     }

@@ -1,7 +1,9 @@
 import Defaults
 import Foundation
+import MusicSearchKit
 import Network
 import Observation
+import OSLog
 import SonosKit
 import SubscriptionKit
 import UIKit
@@ -75,6 +77,10 @@ final class DownloadManager {
         /// It failed for want of a network (dropped, timed out, the server
         /// out of reach), so it retries by itself when one comes back.
         var failedOnNetwork: Bool?
+        /// How many times it has been tried again by itself after the
+        /// server was busy or the transfer dropped (`retryAutomatically`).
+        /// Cleared when the person resumes it.
+        var automaticRetries: Int?
 
         /// Points `url` and `fileExtension` at the stream the current
         /// Streaming Quality setting delivers. A transfer part-way through
@@ -105,9 +111,10 @@ final class DownloadManager {
         }
     }
 
-    /// An album, playlist or artist the user downloaded whole: which tracks
-    /// it stood for at the time, so the album can be badged, removed and
-    /// listed as one thing rather than as its songs.
+    /// An album, playlist or artist the user downloaded whole: which of its
+    /// tracks it holds, so the album can be badged, removed and listed as
+    /// one thing rather than as its songs. Removing one of its songs trims
+    /// it to the rest rather than forgetting it (see `trimContainers`).
     struct Container: Codable, Identifiable, Hashable, Sendable {
         let key: String
         let service: MusicService
@@ -118,6 +125,10 @@ final class DownloadManager {
         let artwork: URL?
         let createdAt: Date
         var trackKeys: [String]
+        /// Songs taken out of it since it came down whole, kept so it can
+        /// offer them again and take one back when it's downloaded again.
+        /// Nil when nothing was, and on manifests from before trimming.
+        var removedKeys: [String]?
 
         var id: String { key }
     }
@@ -179,6 +190,24 @@ final class DownloadManager {
     /// offer to start; gathered so a batch asks once.
     @ObservationIgnored private var cellularPromptKeys: [String] = []
     @ObservationIgnored private var cellularPromptTask: Task<Void, Never>?
+    /// Keys whose stray session tasks are let go on the next look at the
+    /// session (`settleSessionTasks(for:)`), and that look.
+    @ObservationIgnored private var keysToSettle: Set<String> = []
+    @ObservationIgnored private var settleTask: Task<Void, Never>?
+    /// Automatic retries waiting their turn, by key (`retryAutomatically`).
+    @ObservationIgnored private var retryTasks: [String: Task<Void, Never>] = [:]
+    /// Session tasks this launch took over from an earlier one, by key;
+    /// each download is moved to a task of its own once it runs with the
+    /// app active (`restartAdoptedTasks`).
+    @ObservationIgnored private var adoptedTasks: [String: Int] = [:]
+    /// What each running task had received at the watchdog's last look,
+    /// and since when, by task.
+    @ObservationIgnored private var lastMovement: [Int: (bytes: Int64, since: Date)] = [:]
+    /// Stalls restarted this launch, by key, so one that keeps stalling is
+    /// left to the system after a while.
+    @ObservationIgnored private var stallRestarts: [String: Int] = [:]
+    @ObservationIgnored private var watchdog: Task<Void, Never>?
+    private static let log = Logger(subsystem: "dance.cue", category: "downloads")
 
     @ObservationIgnored private lazy var session: URLSession = {
         let configuration = URLSessionConfiguration.background(withIdentifier: Self.sessionIdentifier)
@@ -188,7 +217,7 @@ final class DownloadManager {
         configuration.sessionSendsLaunchEvents = true
         configuration.shouldUseExtendedBackgroundIdleMode = true
         configuration.waitsForConnectivity = true
-        configuration.httpMaximumConnectionsPerHost = 4
+        configuration.httpMaximumConnectionsPerHost = 2
         configuration.timeoutIntervalForResource = 24 * 60 * 60
         return URLSession(configuration: configuration, delegate: relay, delegateQueue: nil)
     }()
@@ -203,7 +232,7 @@ final class DownloadManager {
         relay.manager = self
         adoptLegacyPlexDownloads()
         reconcileWithDisk()
-        pruneContainers()
+        trimContainers()
         reattachSessionTasks()
         pathMonitor.pathUpdateHandler = { [weak self] path in
             let network: Connectivity = path.status != .satisfied
@@ -212,6 +241,15 @@ final class DownloadManager {
             Task { @MainActor in self?.networkDidChange(to: network) }
         }
         pathMonitor.start(queue: DispatchQueue(label: "dance.cue.downloads.path", qos: .utility))
+        let center = NotificationCenter.default
+        center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.appDidBecomeActive() }
+        }
+        center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+            // Suspended next, unless a continued-processing task keeps Cue
+            // running: hand the session enough to go on with meanwhile.
+            MainActor.assumeIsolated { self?.admit() }
+        }
     }
 
     // MARK: - Queries
@@ -252,11 +290,13 @@ final class DownloadManager {
     /// Whether the next new download would be refused.
     var isAtFreeLimit: Bool { remainingFreeSlots == 0 }
 
-    /// What a container download did: how many tracks it queued, and how
-    /// many it left behind because the free limit was reached.
+    /// What a container download did: how many tracks it queued, how many
+    /// it left behind because the free limit was reached, and whether the
+    /// server couldn't list its tracks at all.
     struct BatchResult: Equatable {
         var queued = 0
         var heldBack = 0
+        var couldNotLoad = false
     }
 
     /// Whether the manager can download this at all: a Plex or Subsonic
@@ -289,21 +329,32 @@ final class DownloadManager {
 
     /// The entry for a download waiting for a network it may use.
     func waitingDownload(for item: PlayableContent) -> Item? {
-        guard let entry = items[Self.key(for: item)], entry.state == .waiting else { return nil }
+        guard let entry = items[Self.key(for: item)], waitsForNetwork(entry) else { return nil }
         return entry
+    }
+
+    /// Waiting for a network it may use: on the session and held there,
+    /// or in line behind the window (`admit()`) on a network it may not
+    /// use, where it would be held the moment it was handed over.
+    func waitsForNetwork(_ entry: Item) -> Bool {
+        entry.state == .waiting || (entry.state == .queued && taskIDs[entry.key] == nil && !mayUse(entry))
     }
 
     /// Downloads waiting for Wi‑Fi that cellular could start now, were it
     /// allowed for them.
     var cellularHeldKeys: [String] {
         guard network == .metered else { return [] }
-        return active.filter { $0.state == .waiting && !mayUseCellular($0) }.map(\.key)
+        return active.filter(isHeldForWiFi).map(\.key)
+    }
+
+    private func isHeldForWiFi(_ entry: Item) -> Bool {
+        network == .metered && waitsForNetwork(entry) && !mayUseCellular(entry)
     }
 
     /// The keys of a container's tracks that wait for a network.
     func waitingTrackKeys(forContentsOf container: PlayableContent) -> [String] {
         guard let entry = containers[Self.containerKey(for: container)] else { return [] }
-        return entry.trackKeys.filter { items[$0]?.state == .waiting }
+        return entry.trackKeys.filter { items[$0].map(waitsForNetwork) == true }
     }
 
     func progress(for item: PlayableContent) -> Double? {
@@ -314,9 +365,30 @@ final class DownloadManager {
     /// The local file for a downloaded track, or nil. Playback prefers this
     /// over the server URL, so downloaded tracks work away from the server.
     func localURL(for item: PlayableContent) -> URL? {
-        guard let entry = items[Self.key(for: item)], entry.state == .completed else { return nil }
+        guard var entry = items[Self.key(for: item)], entry.state == .completed else { return nil }
+        let fixed = Self.containerFixed(key: entry.key, fileExtension: entry.fileExtension, in: Self.fileURL)
+        if fixed != entry.fileExtension {
+            entry.fileExtension = fixed
+            items[entry.key] = entry
+            scheduleSave()
+        }
         let url = Self.fileURL(key: entry.key, fileExtension: entry.fileExtension)
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// A copy an earlier build saved under its codec's name (`.alac`), which
+    /// the player can't open, renamed to its container's (`.m4a`). Returns
+    /// the extension to use from now on: the new one once the file has
+    /// moved, the old one if it couldn't.
+    static func containerFixed(key: String, fileExtension: String, in fileURL: (String, String) -> URL) -> String {
+        let fixed = StreamTranscoding.fileExtension(forCodec: fileExtension)
+        guard fixed != fileExtension else { return fileExtension }
+        let from = fileURL(key, fileExtension)
+        let to = fileURL(key, fixed)
+        let files = FileManager.default
+        if files.fileExists(atPath: to.path) { return fixed }
+        guard files.fileExists(atPath: from.path), (try? files.moveItem(at: from, to: to)) != nil else { return fileExtension }
+        return fixed
     }
 
     /// Whether the manager can download this whole: a Plex or Subsonic
@@ -342,8 +414,8 @@ final class DownloadManager {
     }
 
     /// Where a container downloaded whole stands, or nil if it never was
-    /// (or one of its songs has since been removed on its own, which
-    /// forgets the container — see `pruneContainers`).
+    /// (or every one of its songs has since been removed, which forgets
+    /// the container — see `trimContainers`).
     func containerState(for container: PlayableContent) -> ContainerState? {
         containerState(key: Self.containerKey(for: container))
     }
@@ -397,6 +469,12 @@ final class DownloadManager {
         return (downloaded, container.trackKeys.count)
     }
 
+    /// How many songs were taken out of a container downloaded whole, which
+    /// downloading it again would bring back.
+    func removedTrackCount(forContentsOf container: PlayableContent) -> Int {
+        containers[Self.containerKey(for: container)]?.removedKeys?.count ?? 0
+    }
+
     // MARK: - Downloading
 
     /// Queues a track as a batch of one — the system card still shows it
@@ -408,6 +486,7 @@ final class DownloadManager {
         guard canDownload(item), !isDownloaded(item) else { return false }
         if takesNewSlot(item), isAtFreeLimit { return false }
         queue(item)
+        admit()
         didQueue([Self.key(for: item)], title: item.title)
         return true
     }
@@ -419,25 +498,54 @@ final class DownloadManager {
     /// container's order, and reports what it couldn't take. When every
     /// track is here or on its way, the container is remembered with its
     /// tracks, so it can be badged and removed as one; a batch the limit
-    /// cut short isn't, since it doesn't stand for the whole set.
+    /// cut short isn't, since it doesn't stand for the whole set. Run on a
+    /// container that was trimmed, it brings back the songs taken out.
     @discardableResult
     func download(contentsOf container: PlayableContent) async -> BatchResult {
         guard canDownload(contentsOf: container) else { return BatchResult() }
-        let tracks = await LocalPlaybackService.shared.allContainerTracks(for: container)
-        let downloadable = tracks.filter { canDownload($0) }
+        guard let tracks = await Self.tracksToDownload(for: container) else {
+            Self.log.error("Couldn't list \(container.title, privacy: .public)")
+            return BatchResult(couldNotLoad: true)
+        }
+        // A song a playlist holds twice is one download.
+        var seen = Set<String>()
+        let downloadable = tracks.filter { canDownload($0) && seen.insert(Self.key(for: $0)).inserted }
         guard !downloadable.isEmpty else { return BatchResult() }
 
         var result = BatchResult()
         var keys: [String] = []
-        for track in downloadable where !isDownloaded(track) {
-            if takesNewSlot(track), isAtFreeLimit {
-                result.heldBack += 1
-                continue
+        // Built aside and put in place at once: each change to `items` is
+        // news to every view that reads it, and a playlist of 1,700 songs
+        // made that 1,700 times over.
+        var updated = items
+        var added: Set<String> = []
+        var freeSlots = remainingFreeSlots
+        for track in downloadable {
+            let key = Self.key(for: track)
+            if var existing = updated[key] {
+                guard existing.state != .completed else { continue }
+                if existing.state == .paused || existing.state == .failed {
+                    Self.requeue(&existing)
+                    updated[key] = existing
+                }
+            } else {
+                if let free = freeSlots {
+                    guard free > 0 else {
+                        result.heldBack += 1
+                        continue
+                    }
+                    freeSlots = free - 1
+                }
+                guard let entry = Self.entry(for: track) else { continue }
+                updated[key] = entry
+                added.insert(key)
             }
-            queue(track)
-            keys.append(Self.key(for: track))
+            keys.append(key)
             result.queued += 1
         }
+        items = updated
+        rejoinContainers(keys: added)
+        admit()
         if result.heldBack == 0 {
             let key = Self.containerKey(for: container)
             containers[key] = Container(
@@ -454,7 +562,31 @@ final class DownloadManager {
         }
         scheduleSave()
         didQueue(keys, title: container.title)
+        Self.log.info("\(container.title, privacy: .public): \(tracks.count) listed, \(downloadable.count) downloadable, \(result.queued) queued, \(result.heldBack) held back")
         return result
+    }
+
+    /// Every track of a container, or nil when the server couldn't list
+    /// them. Unlike the queue's fetch, which plays whatever arrives, a page
+    /// that fails fails the lot: a list cut short would be remembered as
+    /// the whole album or playlist, and badged downloaded with songs
+    /// missing.
+    private static func tracksToDownload(for container: PlayableContent) async -> [PlayableContent]? {
+        let search = MusicSearchService.shared
+        guard !OnDeviceLibrary.isContainer(container) else {
+            return OnDeviceLibrary.tracks(inContainer: container)
+        }
+        switch (container.content.type, container.content.service) {
+        case (.album, .plex):
+            return await search.allPlexAlbumSongs(id: container.content.id)
+        case (.playlist, .plex):
+            return await search.allPlexPlaylistSongs(id: container.content.id)
+        case (_, .subsonic):
+            return await search.allSubsonicSongs(for: container)
+        default:
+            let tracks = await LocalPlaybackService.shared.allContainerTracks(for: container)
+            return tracks.isEmpty ? nil : tracks
+        }
     }
 
     /// Whether downloading this would add an entry, as opposed to resuming
@@ -472,52 +604,192 @@ final class DownloadManager {
     func removeContainer(key: String) {
         guard let container = containers[key] else { return }
         containers[key] = nil
-        for trackKey in container.trackKeys {
+        // A song another album or playlist downloaded whole also holds
+        // stays for that one: removing an album took the songs it shares
+        // with ❤️ Tracks, and the playlist with them.
+        let held = Set(containers.values.flatMap(\.trackKeys))
+        holdsAdmission = true
+        for trackKey in container.trackKeys where !held.contains(trackKey) {
             remove(key: trackKey)
+        }
+        holdsAdmission = false
+        scheduleSave()
+        admit()
+    }
+
+    /// Takes a track out of every container that held it once it's gone —
+    /// removed on its own from a row or the Downloads list, cancelled, or
+    /// missing from disk — so an album with the songs you didn't want taken
+    /// out stays an album of the rest, badged and removed as one. A
+    /// container with nothing left is forgotten.
+    private func trimContainers() {
+        for var container in containers.values {
+            let gone = container.trackKeys.filter { items[$0] == nil }
+            guard !gone.isEmpty else { continue }
+            container.trackKeys.removeAll { items[$0] == nil }
+            guard !container.trackKeys.isEmpty else {
+                containers[container.key] = nil
+                continue
+            }
+            container.removedKeys = (container.removedKeys ?? []) + gone
+            containers[container.key] = container
+        }
+    }
+
+    /// Puts tracks back into any container they were taken out of, now
+    /// that they're coming down again.
+    private func rejoinContainers(keys: Set<String>) {
+        for var container in containers.values {
+            guard let removed = container.removedKeys, removed.contains(where: keys.contains) else { continue }
+            container.removedKeys = removed.filter { !keys.contains($0) }
+            if container.removedKeys?.isEmpty == true { container.removedKeys = nil }
+            container.trackKeys += removed.filter(keys.contains)
+            containers[container.key] = container
+        }
+    }
+
+    /// Puts a track in line for the session (see `admit()`): a new entry,
+    /// or one that paused or failed, again. Already-downloaded and
+    /// in-flight tracks are left alone.
+    private func queue(_ item: PlayableContent) {
+        guard canDownload(item) else { return }
+        let key = Self.key(for: item)
+        if var existing = items[key] {
+            guard existing.state == .paused || existing.state == .failed else { return }
+            Self.requeue(&existing)
+            items[key] = existing
+        } else if let entry = Self.entry(for: item) {
+            items[key] = entry
+            rejoinContainers(keys: [key])
         }
         scheduleSave()
     }
 
-    /// Forgets a container once any of its tracks is gone — removed on its
-    /// own from a row or the Downloads list, cancelled, or missing from
-    /// disk. A container stands for the whole set; with a track out, it's
-    /// back to being songs, and can be downloaded whole again.
-    private func pruneContainers() {
-        for container in containers.values where container.trackKeys.contains(where: { items[$0] == nil }) {
-            containers[container.key] = nil
-        }
-    }
-
-    /// `download(_:)` without the batch bookkeeping, for callers that batch
-    /// themselves.
-    private func queue(_ item: PlayableContent) {
+    /// A new download entry for a track, in line and not yet on the session.
+    private static func entry(for item: PlayableContent) -> Item? {
         // The stream as the transcoding setting delivers it to this device —
         // a download made under "MP3, 128 kbps" is that, and saved as .mp3.
-        guard canDownload(item), let url = item.playbackStreamURL else { return }
-        let key = Self.key(for: item)
-        if let existing = items[key] {
-            if existing.state == .completed || existing.isActive { return }
-            resume(key: key)
-            return
-        }
-        let entry = Item(
-            key: key,
+        guard let url = item.playbackStreamURL else { return nil }
+        return Item(
+            key: key(for: item),
             service: item.content.service,
             contentID: item.content.id,
             title: item.title,
             subtitle: item.metadata?.artist ?? item.subtitle,
             artwork: item.thumbnail ?? item.artwork,
             url: url,
-            fileExtension: Self.fileExtension(for: item, url: url),
+            fileExtension: fileExtension(for: item, url: url),
             createdAt: .now,
             state: .queued,
             sourceURL: item.previewURL,
             audioCodec: item.metadata?.audioCodec,
             track: item
         )
-        items[key] = entry
-        start(entry)
-        scheduleSave()
+    }
+
+    /// Back in line after a pause or a failure, made under the Streaming
+    /// Quality in force now.
+    private static func requeue(_ entry: inout Item) {
+        entry.state = .queued
+        entry.error = nil
+        entry.failedOnNetwork = nil
+        entry.automaticRetries = nil
+        entry.applyStreamingQuality()
+    }
+
+    // MARK: - The window
+
+    /// How many downloads are on the session at once. Every one handed
+    /// over is a request the system may send right away, and Plex answers
+    /// those beyond the few it's serving with 503: an album of thirteen
+    /// handed over whole had six refused, and a playlist of 1,700 brought
+    /// 229 refusals in ten seconds, and froze an iPhone SE for twenty
+    /// making the tasks. The rest wait in line here, and each that lands
+    /// lets the next one on — in the background too, when the session
+    /// wakes Cue to hear about it. Two came out fastest: the same album
+    /// landed in 13–16 s two at a time, 18–36 s three at a time, with
+    /// next to no refusals either way.
+    private static var window: Int {
+        #if DEBUG
+        let override = UserDefaults.standard.integer(forKey: "DownloadWindow")
+        if override > 0 { return override }
+        #endif
+        return 2
+    }
+
+    /// The window while Cue is suspended: in the background with no
+    /// continued-processing task keeping it running. Two at a time then
+    /// waits on the system to wake Cue for the next pair, and it spaces
+    /// those wakes out (70 s, then 137 s, for songs that take eight), so
+    /// the session gets a dozen to go on with. Many more on the session
+    /// at once stall each other (an album handed over whole took 137 s
+    /// against 13–16 s two at a time), so not everything.
+    private static let suspendedWindow = 12
+
+    private var currentWindow: Int {
+        let suspends = UIApplication.shared.applicationState == .background && !ContinuedDownloadTask.shared.keepsAppRunning
+        return suspends ? max(Self.window, Self.suspendedWindow) : Self.window
+    }
+
+    /// While set, `admit()` waits: a batch that pauses or cancels many
+    /// at once mustn't hand the next ones in line over between them.
+    @ObservationIgnored private var holdsAdmission = false
+
+    /// Hands the session the next downloads in line, oldest first, until
+    /// `window` are on it. One waiting out an automatic retry isn't in
+    /// line until its time comes.
+    private func admit() {
+        guard !holdsAdmission else { return }
+        let free = currentWindow - taskIDs.count
+        guard free > 0 else { return }
+        let next = items.values
+            .filter { $0.state == .queued && taskIDs[$0.key] == nil && retryTasks[$0.key] == nil }
+            .sorted { $0.createdAt < $1.createdAt }
+            .prefix(free)
+        for entry in next {
+            start(entry)
+        }
+    }
+
+    /// Plex ends a transcode when the same client starts another, so each
+    /// conversion on the session runs as a client of its own, one per place
+    /// in the window, and none of them as Cue's player ("Cue"): two at
+    /// once under one name left 64 KB of one song and "cannot parse
+    /// response" for the next, and a download would end the song playing.
+    private static var plexClients: [String] {
+        (1 ... window).map { $0 == 1 ? "Cue-Download" : "Cue-Download-\($0)" }
+    }
+
+    /// The Plex client the fewest other conversions on the session use,
+    /// read off their URLs. With more on the session than clients (Cue
+    /// suspended), they alternate in the order made, which is the order
+    /// the session runs them.
+    private func freePlexClient(for key: String) -> String {
+        var uses = Dictionary(uniqueKeysWithValues: Self.plexClients.map { ($0, 0) })
+        for other in taskIDs.keys where other != key {
+            if let client = items[other].flatMap({ DownloadChecks.plexClient(in: $0.url) }), uses[client] != nil {
+                uses[client, default: 0] += 1
+            }
+        }
+        return Self.plexClients.min { uses[$0, default: 0] < uses[$1, default: 0] } ?? "Cue-Download"
+    }
+
+    /// Cancels many downloads at once, letting none in line take their
+    /// places meanwhile.
+    func cancel(keys: [String]) {
+        holdsAdmission = true
+        keys.forEach(cancel(key:))
+        holdsAdmission = false
+        admit()
+    }
+
+    /// Stops many downloads at once, letting none in line take their
+    /// places meanwhile; others still in line go on after.
+    func pause(keys: [String]) {
+        holdsAdmission = true
+        keys.forEach(pause(key:))
+        holdsAdmission = false
+        admit()
     }
 
     func pause(key: String) {
@@ -525,8 +797,10 @@ final class DownloadManager {
         entry.state = .paused
         items[key] = entry
         taskIDs[key] = nil
+        retryTasks.removeValue(forKey: key)?.cancel()
         settleSessionTasks(for: key)
         scheduleSave()
+        admit()
     }
 
     /// Resumes or retries a download the person stopped, or that failed.
@@ -536,17 +810,16 @@ final class DownloadManager {
 
     private func resume(keys: [String], title: String) {
         var resumed: [String] = []
+        var updated = items
         for key in keys {
-            guard var entry = items[key], entry.state == .paused || entry.state == .failed else { continue }
-            entry.state = .queued
-            entry.error = nil
-            entry.failedOnNetwork = nil
-            entry.applyStreamingQuality()
-            items[key] = entry
-            start(entry)
+            guard var entry = updated[key], entry.state == .paused || entry.state == .failed else { continue }
+            Self.requeue(&entry)
+            updated[key] = entry
             resumed.append(key)
         }
+        items = updated
         scheduleSave()
+        admit()
         didQueue(resumed, title: title)
     }
 
@@ -560,20 +833,21 @@ final class DownloadManager {
             guard var entry = items[key], entry.state != .completed else { continue }
             entry.cellularOverride = true
             if entry.state == .paused || entry.state == .failed {
-                entry.state = .queued
-                entry.error = nil
-                entry.failedOnNetwork = nil
-                entry.applyStreamingQuality()
+                Self.requeue(&entry)
             }
             items[key] = entry
-            if entry.requestAllowsCellular != true || entry.state == .queued {
-                start(entry)
-            } else {
-                refreshWaiting(key: key)
+            // One in line takes the override when its turn comes.
+            if taskIDs[key] != nil {
+                if entry.requestAllowsCellular != true {
+                    start(entry)
+                } else {
+                    refreshWaiting(key: key)
+                }
             }
             started.append(key)
         }
         scheduleSave()
+        admit()
         track(started)
     }
 
@@ -583,10 +857,12 @@ final class DownloadManager {
         items[key] = nil
         lastProgressPublish[key] = nil
         taskIDs[key] = nil
+        retryTasks.removeValue(forKey: key)?.cancel()
         settleSessionTasks(for: key)
         try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
-        pruneContainers()
+        trimContainers()
         scheduleSave()
+        admit()
     }
 
     func removeDownload(_ item: PlayableContent) {
@@ -602,7 +878,8 @@ final class DownloadManager {
         }
         try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
         items[key] = nil
-        pruneContainers()
+        DownloadLyrics.shared.forget(entry)
+        trimContainers()
         scheduleSave()
     }
 
@@ -610,15 +887,14 @@ final class DownloadManager {
         for entry in completed {
             try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
             items[entry.key] = nil
+            DownloadLyrics.shared.forget(entry)
         }
-        pruneContainers()
+        trimContainers()
         scheduleSave()
     }
 
     func pauseAll() {
-        for entry in active where entry.isActive {
-            pause(key: entry.key)
-        }
+        pause(keys: active.filter(\.isActive).map(\.key))
     }
 
     func resumeAll() {
@@ -639,6 +915,9 @@ final class DownloadManager {
             entry.bytesReceived = 0
         }
 
+        if entry.resumeData == nil {
+            entry.url = DownloadChecks.plexConversion(entry.url, client: freePlexClient(for: entry.key))
+        }
         var request = URLRequest(url: entry.url)
         request.allowsCellularAccess = cellular
         request.allowsExpensiveNetworkAccess = cellular
@@ -670,14 +949,25 @@ final class DownloadManager {
     /// gone. A paused one keeps its resume data. Reads the manager when the
     /// session answers, not when asked, so a resume tapped in between
     /// keeps its fresh task.
+    ///
+    /// Keys asked for together share one look at the session: a playlist
+    /// of two thousand songs queued at once read every task once per song,
+    /// four million on the main thread.
     private func settleSessionTasks(for key: String) {
-        Task { @MainActor [weak self] in
+        keysToSettle.insert(key)
+        guard settleTask == nil else { return }
+        settleTask = Task { @MainActor [weak self] in
             guard let self else { return }
             let tasks = await self.session.allTasks
-            let entry = self.items[key]
-            let current = entry?.isActive == true ? self.taskIDs[key] : nil
-            for task in tasks where DownloadNaming.parseTaskDescription(task.taskDescription)?.key == key {
-                guard task.taskIdentifier != current, task.state != .completed else { continue }
+            let keys = self.keysToSettle
+            self.keysToSettle = []
+            self.settleTask = nil
+            for task in tasks where task.state != .completed {
+                guard let key = DownloadNaming.parseTaskDescription(task.taskDescription)?.key,
+                      keys.contains(key) else { continue }
+                let entry = self.items[key]
+                let current = entry?.isActive == true ? self.taskIDs[key] : nil
+                guard task.taskIdentifier != current else { continue }
                 if entry?.state == .paused, let download = task as? URLSessionDownloadTask {
                     download.cancel { [weak self] data in
                         Task { @MainActor in self?.store(resumeData: data, for: key) }
@@ -686,6 +976,124 @@ final class DownloadManager {
                     task.cancel()
                 }
             }
+        }
+    }
+
+    #if DEBUG
+    /// The session's own view of its tasks, for `DownloadAudit`.
+    func sessionTaskSummary() async -> String {
+        let states = ["running", "suspended", "canceling", "completed"]
+        return await session.allTasks.map { task in
+            let key = DownloadNaming.parseTaskDescription(task.taskDescription)?.key.suffix(5) ?? "?"
+            let state = states.indices.contains(task.state.rawValue) ? states[task.state.rawValue] : "\(task.state.rawValue)"
+            return "#\(task.taskIdentifier) \(key) \(state) \(task.countOfBytesReceived / 1_000_000)/\(task.countOfBytesExpectedToReceive / 1_000_000) MB"
+        }.joined(separator: ", ")
+    }
+    #endif
+
+    // MARK: - Stalls
+
+    /// While Cue is open, transfers it can see are kept moving: those taken
+    /// over from an earlier launch are put on tasks of this one, and any
+    /// that stops moving is restarted — in the background too while a
+    /// continued-processing task keeps Cue running, since one that shows
+    /// no progress is the first the system ends.
+    private func appDidBecomeActive() {
+        restartAdoptedTasks()
+        // Downloads left from before (Cue closed part-way, or the task
+        // that kept it running ended) get a continued-processing task too,
+        // so leaving Cue doesn't leave them to a suspended app.
+        let unfinished = items.values.filter { $0.isActive && !waitsForNetwork($0) }.map(\.key)
+        if !unfinished.isEmpty {
+            track(unfinished)
+        }
+        guard watchdog == nil else { return }
+        watchdog = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(10))
+                guard !Task.isCancelled, let self else { return }
+                await self.restartStalledTasks()
+            }
+        }
+    }
+
+    /// A task an earlier launch made barely moves once this one takes it
+    /// over, and reports nothing while it does: on an iPhone SE, songs of
+    /// an album sat at nothing for minutes after Cue was closed part-way,
+    /// then landed whole, and the last one never did. The same transfer
+    /// on a task of this launch's own finished in two seconds. So each one
+    /// is moved, keeping what it has.
+    ///
+    /// One waiting for a network isn't moving yet, so it keeps its place
+    /// here and is moved when it runs (`networkDidChange`); one paused,
+    /// finished, gone or already on a new task is forgotten.
+    private func restartAdoptedTasks() {
+        adoptedTasks = adoptedTasks.filter { taskIDs[$0.key] == $0.value }
+        guard !adoptedTasks.isEmpty, UIApplication.shared.applicationState == .active else { return }
+        let running = adoptedTasks.keys.filter { items[$0]?.state == .downloading }
+        guard !running.isEmpty else { return }
+        running.forEach { adoptedTasks[$0] = nil }
+        Self.log.info("Restarting \(running.count) downloads taken over from the last launch")
+        running.forEach(restartTask)
+    }
+
+    /// Restarts any transfer that has had an answer from the server but
+    /// received nothing for a while. One still waiting for a connection
+    /// (the session runs four per server) has had no answer, and is left
+    /// alone.
+    private func restartStalledTasks() async {
+        // Woken in the background only to hear from the session, Cue
+        // leaves the transfers to it.
+        let running = UIApplication.shared.applicationState == .active || ContinuedDownloadTask.shared.keepsAppRunning
+        guard running, network != .none, items.values.contains(where: { $0.state == .downloading }) else {
+            lastMovement = [:]
+            return
+        }
+        let tasks = await session.allTasks.filter { $0.state == .running }
+        let now = Date.now
+        var seen: [Int: (bytes: Int64, since: Date)] = [:]
+        for task in tasks {
+            guard let key = DownloadNaming.parseTaskDescription(task.taskDescription)?.key,
+                  taskIDs[key] == task.taskIdentifier, items[key]?.state == .downloading,
+                  task.countOfBytesReceived > 0 || task.countOfBytesExpectedToReceive > 0 else { continue }
+            let bytes = task.countOfBytesReceived
+            let last = lastMovement[task.taskIdentifier]
+            let since = last.map { $0.bytes == bytes ? $0.since : now } ?? now
+            seen[task.taskIdentifier] = (bytes, since)
+            if now.timeIntervalSince(since) >= Self.stallTimeout, stallRestarts[key, default: 0] < 10 {
+                stallRestarts[key, default: 0] += 1
+                let title = items[key]?.title ?? key
+                Self.log.info("Restarting \(title, privacy: .public): nothing for \(Int(now.timeIntervalSince(since))) s")
+                restartTask(key: key)
+            }
+        }
+        lastMovement = seen
+    }
+
+    private static let stallTimeout: TimeInterval = 30
+
+    /// Stands in for the task id while a download moves to a new task, so
+    /// neither of the old one's endings is taken as news.
+    private static let restartingTaskID = -1
+
+    /// Moves a running download onto a fresh task, keeping what it has:
+    /// the old task is cancelled for its resume data, and a new one picks
+    /// up from there.
+    private func restartTask(key: String) {
+        guard items[key]?.state == .downloading, let old = taskIDs[key], old != Self.restartingTaskID else { return }
+        taskIDs[key] = Self.restartingTaskID
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let task = await self.session.allTasks.first { $0.taskIdentifier == old } as? URLSessionDownloadTask
+            let data = await task?.cancelByProducingResumeData()
+            // Landed, paused or cancelled meanwhile.
+            guard var entry = self.items[key], entry.isActive, self.taskIDs[key] == Self.restartingTaskID else {
+                if let data { self.store(resumeData: data, for: key) }
+                return
+            }
+            entry.resumeData = data
+            self.start(entry)
+            self.scheduleSave()
         }
     }
 
@@ -735,26 +1143,25 @@ final class DownloadManager {
             }
         }
 
+        repairCutShortDownloads()
+
         // A usable network is back: retry what the network made fail, and
         // make sure what's running has a task — the session may have
         // dropped one while the app wasn't looking.
         if network != .none, first || before == .none || network == .unmetered {
             for entry in items.values where entry.state == .failed && entry.failedOnNetwork == true {
                 var retry = entry
-                retry.state = .queued
-                retry.error = nil
-                retry.failedOnNetwork = nil
-                retry.applyStreamingQuality()
+                Self.requeue(&retry)
                 items[entry.key] = retry
-                start(retry)
-                if items[entry.key]?.state == .downloading {
-                    resumed.append(entry.key)
-                }
+                resumed.append(entry.key)
             }
+            admit()
         }
         if !first, !resumed.isEmpty {
             ensureSessionTasks(for: resumed)
         }
+        // Taken over from the last launch and waiting until now.
+        restartAdoptedTasks()
         scheduleSave()
         // Unless this is the launch report, when nothing the person did is
         // running yet and the reattach already accounts for it.
@@ -769,10 +1176,14 @@ final class DownloadManager {
             guard let self else { return }
             let tasks = await self.session.allTasks
             let carried = Set(tasks.filter { $0.state != .completed }.compactMap { DownloadNaming.parseTaskDescription($0.taskDescription)?.key })
+            // Dropped by the session: back in line.
             for key in keys where !carried.contains(key) {
-                guard let entry = self.items[key], entry.isActive else { continue }
-                self.start(entry)
+                guard var entry = self.items[key], entry.isActive, self.taskIDs[key] != nil else { continue }
+                self.taskIDs[key] = nil
+                entry.state = .queued
+                self.items[key] = entry
             }
+            self.admit()
         }
     }
 
@@ -793,7 +1204,9 @@ final class DownloadManager {
     /// it, there was nothing moving to keep.
     private func conformToCellularSetting() -> [String] {
         var started: [String] = []
-        for entry in items.values where entry.isActive {
+        // Only what's on the session: a song in line is made under the rule
+        // in force when its turn comes.
+        for entry in items.values where entry.isActive && taskIDs[entry.key] != nil {
             let allowed = allowsCellular || entry.cellularOverride == true
             guard entry.requestAllowsCellular != allowed else { continue }
             start(entry)
@@ -810,8 +1223,7 @@ final class DownloadManager {
     private func didQueue(_ keys: [String], title: String) {
         track(keys, title: title)
         let held = keys.filter { key in
-            guard network == .metered, let entry = items[key] else { return false }
-            return entry.state == .waiting && !mayUseCellular(entry)
+            items[key].map(isHeldForWiFi) == true
         }
         guard !held.isEmpty else { return }
         cellularPromptKeys.append(contentsOf: held.filter { !cellularPromptKeys.contains($0) })
@@ -833,8 +1245,7 @@ final class DownloadManager {
 
     private func presentCellularPrompt() {
         let keys = cellularPromptKeys.filter { key in
-            guard let entry = items[key] else { return false }
-            return entry.state == .waiting && !mayUseCellular(entry)
+            items[key].map(isHeldForWiFi) == true
         }
         cellularPromptKeys = []
         guard !keys.isEmpty, network == .metered else { return }
@@ -889,11 +1300,39 @@ final class DownloadManager {
         items[key] = entry
     }
 
-    /// A file landed. Taken from whichever task brought it — it's the song
-    /// either way — and any other task for the key is let go.
-    fileprivate func didFinish(key: String, fileSize: Int64?) {
-        guard var entry = items[key] else { return }
+    /// A file landed at `file`. Taken from whichever task brought it — it's
+    /// the song either way — and any other task for the key is let go. The
+    /// file is read here rather than when it landed: another task's report
+    /// may have removed it since.
+    fileprivate func didFinish(key: String, task identifier: Int, file: URL, lengthKnown: Bool) {
+        // Cancelled or removed meanwhile, or made again in another format:
+        // no download is waiting for this file, and one left behind would
+        // be taken for the song by the next download of it.
+        guard var entry = items[key], file == Self.fileURL(key: key, fileExtension: entry.fileExtension) else {
+            try? FileManager.default.removeItem(at: file)
+            return
+        }
+        // A straggler: the song is in place already.
+        guard entry.state != .completed else { return }
+        // This task's own file was let go for one another task brought,
+        // which turned out cut short and is gone: fetched again.
+        guard let fileSize = Self.size(of: file) else {
+            Self.log.error("Landed with no file: \(entry.title, privacy: .public)")
+            didFail(key: key, task: identifier, error: CutShort(), resumeData: nil)
+            return
+        }
+        // A conversion comes with no length, so one the server broke off
+        // ends like a whole one: Plex ending a transcode left 64 KB of a
+        // song, saved as the song. Too small for its length and bitrate,
+        // it's thrown away and fetched again.
+        if !lengthKnown, let minimum = Self.minimumSize(of: entry), fileSize < minimum {
+            Self.log.error("Cut short: \(entry.title, privacy: .public) \(fileSize) bytes, expected at least \(minimum)")
+            try? FileManager.default.removeItem(at: file)
+            didFail(key: key, task: identifier, error: CutShort(), resumeData: nil)
+            return
+        }
         taskIDs[key] = nil
+        Self.log.info("Finished \(entry.title, privacy: .public) [\(key, privacy: .public)] \(fileSize) bytes")
         entry.state = .completed
         entry.bytesReceived = entry.bytesExpected
         entry.fileSize = fileSize
@@ -903,6 +1342,8 @@ final class DownloadManager {
         lastProgressPublish[key] = nil
         settleSessionTasks(for: key)
         scheduleSave()
+        DownloadLyrics.shared.enqueue(entry)
+        admit()
     }
 
     fileprivate func didFail(key: String, task identifier: Int, error: Error, resumeData: Data?) {
@@ -911,12 +1352,89 @@ final class DownloadManager {
         taskIDs[key] = nil
         let nsError = error as NSError
         let cancelled = nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
+        if !cancelled {
+            Self.log.error("Failed \(entry.title, privacy: .public) [\(key, privacy: .public)]: \(nsError.domain, privacy: .public) \(nsError.code) \(nsError.localizedDescription, privacy: .public)")
+        }
         entry.resumeData = resumeData ?? entry.resumeData
+        if !cancelled, retryAutomatically(&entry, after: error) {
+            items[key] = entry
+            scheduleSave()
+            admit()
+            return
+        }
         entry.state = cancelled ? .paused : .failed
         entry.error = cancelled ? nil : error.localizedDescription
         entry.failedOnNetwork = cancelled ? nil : Self.isNetworkFailure(nsError)
         items[key] = entry
         scheduleSave()
+        admit()
+    }
+
+    /// Tries a failed transfer again by itself, a while later, when the
+    /// failure is one that passes: Plex answers a burst of requests with
+    /// 503 now and then (three of nine songs of a playlist, on a server
+    /// doing nothing else), and a transfer can drop with the network still
+    /// up. It stays queued meanwhile, so it reads as still coming rather
+    /// than stopped, and only fails once the retries are spent. With no
+    /// network at all it fails as before, and retries when one is back.
+    private func retryAutomatically(_ entry: inout Item, after error: Error) -> Bool {
+        let retries = entry.automaticRetries ?? 0
+        guard network != .none, retries < Self.retryDelays.count, Self.isTransient(error) else { return false }
+        entry.automaticRetries = retries + 1
+        entry.state = .queued
+        entry.error = nil
+        entry.failedOnNetwork = nil
+        let key = entry.key
+        // Spread out, so a burst refused together doesn't come back together.
+        let delay = Self.retryDelays[retries] * Double.random(in: 0.7 ... 1.3)
+        let title = entry.title
+        Self.log.info("Retrying \(title, privacy: .public) in \(delay, format: .fixed(precision: 1)) s (try \(retries + 2))")
+        retryTasks[key]?.cancel()
+        retryTasks[key] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled, let self else { return }
+            self.retryTasks[key] = nil
+            // Paused, cancelled or already restarted meanwhile.
+            guard var entry = self.items[key], entry.state == .queued, self.taskIDs[key] == nil else { return }
+            entry.applyStreamingQuality()
+            self.items[key] = entry
+            // Back in line, first in it: it was queued before what's waiting.
+            self.admit()
+            self.scheduleSave()
+        }
+        return true
+    }
+
+    /// How long to wait before each automatic retry, before the jitter.
+    private static let retryDelays: [Double] = [3, 10, 30, 60, 120]
+
+    /// A server busy or briefly down, or the network dropping the
+    /// transfer, as opposed to the server refusing the file.
+    private static func isTransient(_ error: Error) -> Bool {
+        if let refused = error as? StreamResponseCheck.Refused, let status = refused.statusCode {
+            return [408, 429, 500, 502, 503, 504].contains(status)
+        }
+        if error is CutShort { return true }
+        let nsError = error as NSError
+        // How a conversion the server breaks off ends, when it doesn't
+        // end looking whole.
+        if nsError.domain == NSURLErrorDomain,
+           [NSURLErrorCannotParseResponse, NSURLErrorBadServerResponse, NSURLErrorZeroByteResource].contains(nsError.code) {
+            return true
+        }
+        return isNetworkFailure(nsError)
+    }
+
+    /// A converted song that ended well short of its length.
+    struct CutShort: LocalizedError {
+        var errorDescription: String? { "The server stopped sending the song part-way" }
+    }
+
+    /// The least a converted song can weigh (`DownloadChecks`), or nil for
+    /// the original file.
+    static func minimumSize(of entry: Item) -> Int64? {
+        let seconds = entry.track?.metadata?.duration.map { Double($0.components.seconds) }
+        return DownloadChecks.minimumConvertedSize(seconds: seconds, url: entry.url)
     }
 
     /// Failures a better network would fix, as opposed to the server
@@ -973,16 +1491,22 @@ final class DownloadManager {
                 guard let key = DownloadNaming.parseTaskDescription(task.taskDescription)?.key else { continue }
                 carried[key] = max(carried[key] ?? task.taskIdentifier, task.taskIdentifier)
             }
+            let unfinished = self.items.values.filter(\.isActive).count
+            Self.log.info("Reattach: session carries \(tasks.count) tasks for \(carried.count) songs; \(unfinished) unfinished")
             for entry in self.items.values where entry.state != .completed {
                 if entry.isActive {
                     if let identifier = carried[entry.key], self.taskIDs[entry.key] == nil {
                         self.taskIDs[entry.key] = identifier
+                        self.adoptedTasks[entry.key] = identifier
                         var updated = entry
                         updated.state = self.mayUse(entry) ? .downloading : .waiting
                         self.items[entry.key] = updated
                         self.settleSessionTasks(for: entry.key)
-                    } else if carried[entry.key] == nil {
-                        self.start(entry)
+                    } else if carried[entry.key] == nil, entry.state != .queued {
+                        // Its task is gone: back in line.
+                        var queued = entry
+                        queued.state = .queued
+                        self.items[entry.key] = queued
                     }
                 } else if carried[entry.key] != nil {
                     self.settleSessionTasks(for: entry.key)
@@ -992,6 +1516,12 @@ final class DownloadManager {
                 self.settleSessionTasks(for: key)
             }
             self.scheduleSave()
+            self.admit()
+            // Made after launch, the manager may have missed the app
+            // becoming active.
+            if UIApplication.shared.applicationState == .active {
+                self.appDidBecomeActive()
+            }
         }
     }
 
@@ -1007,12 +1537,43 @@ final class DownloadManager {
         for entry in items.values where entry.state != .completed {
             let url = Self.fileURL(key: entry.key, fileExtension: entry.fileExtension)
             if let size = Self.size(of: url) {
+                // Nothing says whether it came with its length, so it's
+                // weighed like a conversion (see `didFinish`); one too
+                // small is fetched again.
+                if let minimum = Self.minimumSize(of: entry), size < minimum {
+                    Self.log.error("Found cut short: \(entry.title, privacy: .public) \(size) bytes")
+                    try? FileManager.default.removeItem(at: url)
+                    continue
+                }
                 var updated = entry
                 updated.state = .completed
                 updated.fileSize = size
                 updated.resumeData = nil
                 items[entry.key] = updated
             }
+        }
+    }
+
+    /// Plex conversions an earlier build kept though the server had broken
+    /// them off part-way (see `didFinish`): thrown away and fetched again.
+    /// Once, and on Wi‑Fi, so a song is never deleted where it can't be
+    /// fetched again. Plex's only: it's the server that ended conversions,
+    /// while a Subsonic server sends a song it holds at a lower bitrate
+    /// than asked for as it is, which the size check would take for cut
+    /// short on every pass.
+    private func repairCutShortDownloads() {
+        let defaults = UserDefaults.standard
+        guard network == .unmetered, !defaults.bool(forKey: AppStorageKeys.downloadsCutShortRepaired) else { return }
+        defaults.set(true, forKey: AppStorageKeys.downloadsCutShortRepaired)
+        for entry in items.values where entry.state == .completed && entry.url.path.contains("/transcode/universal/") {
+            guard let size = entry.fileSize, let minimum = Self.minimumSize(of: entry), size < minimum else { continue }
+            Self.log.error("Fetching again, cut short: \(entry.title, privacy: .public) \(size) bytes")
+            try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
+            var again = entry
+            Self.requeue(&again)
+            again.bytesReceived = 0
+            again.fileSize = nil
+            items[entry.key] = again
         }
     }
 
@@ -1164,14 +1725,29 @@ private final class DownloadSessionRelay: NSObject, URLSessionDownloadDelegate, 
         // 400 page) still lands here as a finished file. Fail it instead of
         // keeping the page as a song; nothing to resume from.
         if let refused = StreamResponseCheck.refusal(in: downloadTask.response) {
+            #if DEBUG
+            let http = downloadTask.response as? HTTPURLResponse
+            let headers = (http?.allHeaderFields ?? [:]).map { "\($0.key)=\($0.value)" }.sorted().joined(separator: "; ")
+            let body = (try? FileHandle(forReadingFrom: location).read(upToCount: 400)).flatMap { $0.flatMap { String(data: $0, encoding: .utf8) } } ?? ""
+            Logger(subsystem: "dance.cue", category: "downloads").error("Refused \(key, privacy: .public): \(headers, privacy: .public) body: \(body, privacy: .public)")
+            #endif
             Task { @MainActor in
                 self.manager?.didFail(key: key, task: identifier, error: refused, resumeData: nil)
             }
             return
         }
         let destination = DownloadManager.fileURL(key: key, fileExtension: fileExtension)
+        // The song is here already, from the task that brought it first: a
+        // straggler for the same song mustn't put whatever it brought in
+        // its place. That file's length is the other task's to vouch for,
+        // so it's weighed like a conversion's.
+        if FileManager.default.fileExists(atPath: destination.path) {
+            Task { @MainActor in
+                self.manager?.didFinish(key: key, task: identifier, file: destination, lengthKnown: false)
+            }
+            return
+        }
         try? FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? FileManager.default.removeItem(at: destination)
         do {
             try FileManager.default.moveItem(at: location, to: destination)
             try? FileManager.default.setAttributes(
@@ -1184,9 +1760,9 @@ private final class DownloadSessionRelay: NSObject, URLSessionDownloadDelegate, 
             }
             return
         }
-        let size = DownloadManager.size(of: destination)
+        let lengthKnown = (downloadTask.response?.expectedContentLength ?? -1) > 0
         Task { @MainActor in
-            self.manager?.didFinish(key: key, fileSize: size)
+            self.manager?.didFinish(key: key, task: identifier, file: destination, lengthKnown: lengthKnown)
         }
     }
 

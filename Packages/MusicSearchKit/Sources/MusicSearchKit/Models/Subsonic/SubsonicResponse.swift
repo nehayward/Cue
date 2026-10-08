@@ -25,6 +25,8 @@ struct SubsonicResponseBody: Decodable {
     let albumList2: SubsonicAlbumList?
     let topSongs: SubsonicSongList?
     let scanStatus: SubsonicScanStatus?
+    let lyricsList: SubsonicLyricsList?
+    let lyrics: SubsonicLegacyLyrics?
 
     var isOK: Bool { status == "ok" }
 }

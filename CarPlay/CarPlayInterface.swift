@@ -12,7 +12,8 @@ import UIKit
 /// - **Recents** — what was last played in Cue, with Resume on top when the
 ///   device has a queue waiting.
 /// - **Library** — the signed-in providers' library, a section at a time:
-///   Playlists, Recently Added and Albums are a switch across the top.
+///   Playlists, Recently Added and Albums are a switch across the top, and
+///   the section shows under it as grids of covers.
 /// - **Downloads** — what's on this iPhone, which plays with no signal:
 ///   Shuffle All, Albums, Artists and Songs, and the newest albums.
 /// - **Radio** — TuneIn's and Apple Music's stations, as on the phone, as
@@ -25,12 +26,12 @@ import UIKit
 /// repeat over it), the album or playlist that's playing, shuffle and
 /// repeat to it.
 ///
-/// The newest plays and downloads are iOS 26 card rows, the stations image
-/// grids, and the buttons (the Library's sections, the Downloads tab's ways
-/// in, Play and Shuffle, shuffle and repeat) tiles on the car's platters
-/// (`tileRow`). From iOS 27 an album or playlist opens under a details
-/// header with its cover, and the system's MiniPlayer shows what's playing
-/// without any work here.
+/// The newest plays and downloads are iOS 26 card rows, the stations and
+/// the Library's sections image grids, and the buttons (the Library's
+/// sections, the Downloads tab's ways in, Play and Shuffle, shuffle and
+/// repeat) tiles on the car's platters (`tileRow`). From iOS 27 an album or
+/// playlist opens under a details header with its cover, and the system's
+/// MiniPlayer shows what's playing without any work here.
 ///
 /// The tabs are built once and refilled in place, following the player,
 /// the play history and the downloads through observation.
@@ -301,9 +302,9 @@ final class CarPlayInterface: NSObject {
     /// The Library tab is a section at a time, with the sections as a
     /// switch of tiles across the top: picking one fills the list under
     /// them with it, from every signed-in provider, in place rather than on
-    /// a screen of its own. It opens on Playlists. The tiles are up at once;
-    /// a section fills in as the providers answer, and again when the tab
-    /// is picked (`refresh`).
+    /// a screen of its own, as grids of covers like Radio's. It opens on
+    /// Playlists. The tiles are up at once; a section fills in as the
+    /// providers answer, and again when the tab is picked (`refresh`).
     private func reloadLibrary(refresh: Bool = false) {
         let services = CarPlayLibrary.libraryServices()
         if OfflineMode.shared.isActive {
@@ -363,9 +364,11 @@ final class CarPlayInterface: NSObject {
         }
     }
 
-    /// The tiles, then the section's shelves: a provider's each, under its
-    /// name when there's more than one. `shelves` is nil while the section
-    /// has nothing to show yet, and empty when it came back with nothing.
+    /// The tiles, then the section's shelves as grids of covers, the way
+    /// Radio lays out its stations: a provider's each, titled with its name
+    /// when there's more than one and with the section's when there's one.
+    /// `shelves` is nil while the section has nothing to show yet, and
+    /// empty when it came back with nothing.
     private func fillLibrary(sections: [ProviderCollection], shelves: [CarPlayLibrary.Shelf]?) {
         let section = librarySection
         let tiles = sections.map { $0 == section ? "[\($0.rawValue)]" : $0.rawValue }.joined(separator: ",")
@@ -375,12 +378,12 @@ final class CarPlayInterface: NSObject {
         update(libraryTemplate, signature: tiles + "/" + (body ?? "…")) {
             var list = [CPListSection(items: [libraryTiles(sections)])]
             if let shelves, !shelves.isEmpty {
-                // Room for the tiles' section and row.
-                list += shelfSections(
-                    shelves,
-                    sectionLimit: CPListTemplate.maximumSectionCount - 1,
-                    rowLimit: CarPlayLibrary.rowLimit - 1
-                )
+                let named = shelves.count > 1
+                // Room for the tiles' section.
+                list += shelves.prefix(CPListTemplate.maximumSectionCount - 1).map { shelf -> CPListSection in
+                    let title = named ? shelf.title : section.title
+                    return CPListSection(items: [imageGrid(title: title, items: shelf.items)])
+                }
             } else if shelves == nil {
                 list.append(CPListSection(items: [note("Loading \(section.title)…")]))
             } else {
@@ -398,33 +401,6 @@ final class CarPlayInterface: NSObject {
                 self?.showLibrarySection(section)
             })
         })
-    }
-
-    /// A section per provider, under its name when there's more than one.
-    /// The car's row limit is shared out, so one long library can't crowd
-    /// the others off the list.
-    private func shelfSections(_ shelves: [CarPlayLibrary.Shelf], sectionLimit: Int, rowLimit: Int) -> [CPListSection] {
-        let shown = Array(shelves.prefix(max(0, sectionLimit)))
-        let counts = Self.share(max(0, rowLimit), among: shown.map(\.items.count))
-        let named = shown.count > 1
-        return zip(shown, counts).map { (shelf, count) -> CPListSection in
-            let rows: [CPListTemplateItem] = shelf.items.prefix(count).map { row(for: $0) }
-            return CPListSection(items: rows, header: named ? shelf.title : nil, sectionIndexTitle: nil)
-        }
-    }
-
-    /// Shares `limit` rows among lists of `counts` rows: a short list keeps
-    /// all of its rows, and the longer ones split what's left evenly.
-    private static func share(_ limit: Int, among counts: [Int]) -> [Int] {
-        var shares = Array(repeating: 0, count: counts.count)
-        var remaining = limit
-        var left = counts.count
-        for index in counts.indices.sorted(by: { counts[$0] < counts[$1] }) {
-            shares[index] = min(counts[index], remaining / left)
-            remaining -= shares[index]
-            left -= 1
-        }
-        return shares
     }
 
     /// Opens at once on a loading note and fills in when the provider
@@ -570,10 +546,6 @@ final class CarPlayInterface: NSObject {
 
     // MARK: - Radio
 
-    /// Stations in a section's grid: a few lines of them. The grid's title
-    /// opens the rest.
-    private static let stationsPerGrid = 12
-
     /// Each section's stations as a grid of squares, the way the Music app
     /// lays out its radio.
     private func reloadRadio() {
@@ -590,20 +562,11 @@ final class CarPlayInterface: NSObject {
                 .joined(separator: "|")
             self.update(self.radioTemplate, signature: signature) {
                 sections.prefix(CPListTemplate.maximumSectionCount).map { section in
-                    CPListSection(items: [self.stationGrid(section)])
+                    CPListSection(items: [self.imageGrid(title: section.title, items: section.stations)])
                 }
             }
             self.updatePlayingIndicators()
         }
-    }
-
-    /// All of a section's stations, as rows, from its grid's title.
-    private func pushStations(_ section: CarPlayLibrary.StationSection) {
-        let template = CPListTemplate(title: section.title, sections: [])
-        let rows: [CPListTemplateItem] = section.stations.prefix(CarPlayLibrary.rowLimit).map { row(for: $0) }
-        template.updateSections([CPListSection(items: rows)])
-        push(template)
-        updatePlayingIndicators()
     }
 
     // MARK: - Now Playing
@@ -816,31 +779,46 @@ final class CarPlayInterface: NSObject {
         return row
     }
 
-    /// A section's stations as a grid of squares with their names under
-    /// them, a few lines of them: the Music app's radio. The one playing
-    /// gets a speaker under it (`updatePlayingIndicators`, from the ids in
-    /// `userInfo`). When there are more than fit, the grid's title opens
-    /// them all.
-    private func stationGrid(_ section: CarPlayLibrary.StationSection) -> CPListImageRowItem {
-        let stations = Array(section.stations.prefix(Self.stationsPerGrid))
-        let elements = stations.map { station in
+    /// Squares in a grid: a few lines of them. The grid's title opens the
+    /// rest.
+    private static let squaresPerGrid = 12
+
+    /// Stations, albums or playlists as a grid of squares with their names
+    /// under them, a few lines of them: the Music app's radio and its
+    /// Recently Added. A station or song plays when its square is picked,
+    /// and the one playing gets a speaker under it (`updatePlayingIndicators`,
+    /// from the ids in `userInfo`); an album or playlist opens, so it has
+    /// nothing to mark. When there are more than fit, the grid's title opens
+    /// them all as rows.
+    private func imageGrid(title: String, items: [PlayableContent]) -> CPListImageRowItem {
+        let shown = Array(items.prefix(Self.squaresPerGrid))
+        let elements = shown.map { item in
             CPListImageRowItemImageGridElement(
-                image: CarPlayArtwork.requiredPlaceholder(for: station),
+                image: CarPlayArtwork.requiredPlaceholder(for: item),
                 imageShape: .roundedRectangle,
-                title: station.title,
+                title: item.title,
                 accessorySymbolName: nil
             )
         }
-        let row = CPListImageRowItem(text: section.title, imageGridElements: elements, allowsMultipleLines: true)
-        row.userInfo = stations.map(\.id)
+        let row = CPListImageRowItem(text: title, imageGridElements: elements, allowsMultipleLines: true)
+        row.userInfo = shown.map { opens($0) ? "" : $0.id }
         var showAll: (@MainActor () -> Void)?
-        if section.stations.count > stations.count {
+        if items.count > shown.count {
             showAll = { [weak self] in
-                self?.pushStations(section)
+                self?.pushRows(title: title, items: items)
             }
         }
-        attach(stations, to: row, showAll: showAll)
+        attach(shown, to: row, showAll: showAll)
         return row
+    }
+
+    /// All of a grid's items as rows, from its title.
+    private func pushRows(title: String, items: [PlayableContent]) {
+        let template = CPListTemplate(title: title, sections: [])
+        let rows: [CPListTemplateItem] = items.prefix(CarPlayLibrary.rowLimit).map { row(for: $0) }
+        template.updateSections([CPListSection(items: rows)])
+        push(template)
+        updatePlayingIndicators()
     }
 
     /// Loads each item's cover into its element of `row`, plays or opens the

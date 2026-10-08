@@ -2,7 +2,9 @@ import SonosKit
 import SwiftUI
 
 /// The small mark at the end of a row that says where a song's file is:
-/// kept on this device, coming down (with how far), or still up in iCloud.
+/// kept on this device (with a lyrics mark when its lyrics are kept too,
+/// for listening offline), coming down (with how far), or still up in
+/// iCloud.
 /// An album, playlist or artist downloaded whole gets the same mark for
 /// the set. Nothing for a song that streams and isn't being fetched. Reads
 /// the download manager, the Music app's downloads for Apple songs, and,
@@ -12,7 +14,7 @@ struct DownloadStateBadge: View {
     let item: PlayableContent
 
     private enum State: Equatable {
-        case downloaded
+        case downloaded(withLyrics: Bool)
         case downloading(Double?)
         /// Paused, or failed and waiting on a retry.
         case stopped(failed: Bool)
@@ -26,16 +28,18 @@ struct DownloadStateBadge: View {
         let manager = DownloadManager.shared
         if manager.canDownload(contentsOf: item) {
             switch manager.containerState(for: item) {
-            case .downloaded: return .downloaded
+            case .downloaded: return .downloaded(withLyrics: false)
             case let .downloading(fraction): return .downloading(fraction)
             case nil: return .none
             }
         }
-        if manager.isDownloaded(item) { return .downloaded }
+        if manager.isDownloaded(item) {
+            return .downloaded(withLyrics: DownloadLyrics.shared.withLyrics.contains(DownloadManager.key(for: item)))
+        }
         if manager.waitingDownload(for: item) != nil { return .waiting }
         if manager.isDownloading(item) { return .downloading(manager.progress(for: item)) }
         if let stopped = manager.stoppedDownload(for: item) { return .stopped(failed: stopped.state == .failed) }
-        if AppleDownloadsIndex.shared.isDownloaded(item) { return .downloaded }
+        if AppleDownloadsIndex.shared.isDownloaded(item) { return .downloaded(withLyrics: false) }
         if item.content.service == .files {
             switch FilesLibraryService.shared.cloudStatus(trackID: item.content.id) {
             case let .downloading(fraction): return .downloading(fraction)
@@ -48,10 +52,17 @@ struct DownloadStateBadge: View {
 
     var body: some View {
         switch state {
-        case .downloaded:
-            Image(systemName: "arrow.down.circle.fill")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+        case let .downloaded(withLyrics):
+            HStack(spacing: 3) {
+                if withLyrics {
+                    Image(systemName: "quote.bubble.fill")
+                }
+                Image(systemName: "arrow.down.circle.fill")
+            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(withLyrics ? "Downloaded, with lyrics" : "Downloaded")
         case let .downloading(fraction):
             ProgressRing(fraction: fraction)
                 .frame(width: 13, height: 13)

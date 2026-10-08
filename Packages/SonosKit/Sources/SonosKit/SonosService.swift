@@ -101,12 +101,39 @@ public final class SonosService {
     public var state: String { sonosSystemDiscoverService.lastKnownState }
     public var isCellular: Bool { sonosSystemDiscoverService.isCellular }
 
-    /// Whether speakers can be reached from here: Sonos is on and this device
-    /// is on Wi‑Fi or Ethernet. Speakers are only ever on the local network,
-    /// so on cellular alone there are none to show or play to. Observable, so
-    /// anything derived from it follows by itself. Gate speaker UI and
-    /// routing on this; `isEnabled` is the setting.
-    public var isAvailable: Bool { isEnabled && !isCellular }
+    /// Whether speakers can be reached from here: Sonos is on, this device
+    /// is on Wi‑Fi or Ethernet, and it isn't in a car. Speakers are only ever
+    /// on the local network, so on cellular alone there are none to show or
+    /// play to, and in a car there's no place for one (`isInCar`).
+    /// Observable, so anything derived from it follows by itself. Gate
+    /// speaker UI and routing on this; `isEnabled` is the setting.
+    public var isAvailable: Bool { isEnabled && !isCellular && !isInCar }
+
+    /// True while this iPhone is in a car: CarPlay's screen is up or the
+    /// sound goes to CarPlay. Set by the app (`CarConnection`). Speakers have
+    /// no place in a car, so while it's true Cue acts as if Sonos were off:
+    /// the groups are put away, and nothing looks for speakers or loads
+    /// their groups, even on Wi‑Fi (a garage within reach of home, or the
+    /// car's own Wi‑Fi). Out of the car they're looked for again.
+    public private(set) var isInCar = false
+
+    /// Whether looking for speakers or loading their groups may touch the
+    /// network: Sonos is on and this device isn't in a car.
+    private var mayLookForSpeakers: Bool { isEnabled && !isInCar }
+
+    /// Into a car, the groups are put away as on cellular (`clearDevices`);
+    /// out of one, on Wi‑Fi, they're looked for again.
+    @MainActor
+    public func setInCar(_ inCar: Bool) {
+        guard inCar != isInCar else { return }
+        isInCar = inCar
+        guard isEnabled else { return }
+        if inCar {
+            clearDevices()
+        } else if !isCellular {
+            monitor()
+        }
+    }
 
     /// Off Wi‑Fi the groups on hand are the last ones seen, and nothing can
     /// reach them, so they're put away as if Sonos were off (`clearDevices`
@@ -267,6 +294,12 @@ public final class SonosService {
     /// the list on it. Kept so the next change or `clearDevices` can cancel
     /// a read still waiting on a speaker that doesn't answer.
     @ObservationIgnored private var roomStateTask: Task<Void, Never>?
+    /// When `load` last asked each coordinator (by address) for its sleep
+    /// timer.
+    @ObservationIgnored private var sleepTimerCheckedAt: [String: ContinuousClock.Instant] = [:]
+    /// How long `load` leaves a speaker that has no sleep timer before
+    /// asking again.
+    private static let sleepTimerRecheck: Duration = .seconds(15)
     @ObservationIgnored private var hasAppliedGroupsCache = false
     @ObservationIgnored private var cachedIPVerified = false
     @ObservationIgnored private var attemptedTrackInfoUniques = Set<String>()
@@ -349,7 +382,7 @@ public final class SonosService {
     }
 
     public func updateGroups() async throws {
-        guard isEnabled else { return }
+        guard mayLookForSpeakers else { return }
         let newGroup = try await getGroups(useCache: true)
         system = try await findSystem(useCache: true)
 
@@ -476,7 +509,7 @@ public final class SonosService {
 
     @MainActor
     public func monitor(retry: Bool = true, useCache: Bool = true) {
-        guard isEnabled, allowsMonitoring else { return }
+        guard mayLookForSpeakers, allowsMonitoring else { return }
         if isRunning { return }
         print("Monitoring!")
 
@@ -611,13 +644,23 @@ public final class SonosService {
         // Refresh sleepTimer for every active coordinator (including the
         // selected group). Placed above the selectedGroup branch so the
         // scattered early returns below can't skip it — sleepTimer is
-        // nil-gated, so retries every load until a coordinator resolves.
+        // nil-gated, so retries until a coordinator resolves.
+        //
+        // A speaker with no timer answers nil too, which read as "not asked
+        // yet": every room without one was asked again on every load, about
+        // six requests a second for a home of five. A room that said it has
+        // none is asked again after `sleepTimerRecheck`; the player asks for
+        // its own group's as it opens (`getSleepTimer(group:)`).
+        let now = ContinuousClock.now
         await withTaskGroup(of: Void.self) { [weak self] taskGroup in
             guard let self = self else { return }
             for group in groups where group.coordinatorRoom.state == .active && group.coordinatorRoom.sleepTimer == nil {
+                let ip = group.coordinatorRoom.ip
+                if let checked = sleepTimerCheckedAt[ip], now - checked < Self.sleepTimerRecheck { continue }
+                sleepTimerCheckedAt[ip] = now
                 taskGroup.addTask { [weak self] in
                     guard let self = self else { return }
-                    if let timer = await self.api.getSleepTimer(IP: group.coordinatorRoom.ip) {
+                    if let timer = await self.api.getSleepTimer(IP: ip) {
                         group.coordinatorRoom.sleepTimer = timer
                     }
                 }
@@ -1413,7 +1456,7 @@ public final class SonosService {
 
     @MainActor
     public func getGroups(useCache: Bool) async throws -> [GroupRoom] {
-        guard isEnabled else { throw SonosServiceError.sonosSystemNotFound }
+        guard mayLookForSpeakers else { throw SonosServiceError.sonosSystemNotFound }
         // Candidate IPs to probe = union of every known household's IPs, as a
         // Set. An IP is just an address to try, not a household claim: the same
         // 192.168.x.x commonly appears in two different homes, so a map keyed by
@@ -1568,7 +1611,7 @@ public final class SonosService {
 
     @MainActor
     public func getGroupsFast() async throws -> [GroupRoom] {
-        guard isEnabled else { return [] }
+        guard mayLookForSpeakers else { return [] }
         let ips = try await sonosSystemDiscoverService.getAllIPs()
 
         return try await withThrowingTaskGroup(of: [GroupRoom].self, returning: [GroupRoom].self) { taskGroup in
@@ -1591,7 +1634,7 @@ public final class SonosService {
 
     @MainActor
     public func findSystem(useCache: Bool) async throws -> System? {
-        guard isEnabled else { return nil }
+        guard mayLookForSpeakers else { return nil }
         let IP = try await sonosSystemDiscoverService.getFirstIP(useCache: useCache)
         let system = try await api.system(for: IP)
         return system

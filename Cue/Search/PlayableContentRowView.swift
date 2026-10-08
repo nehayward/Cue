@@ -59,11 +59,6 @@ struct PlayableContentRowView: View {
         return audioService.isPreviewing(url)
     }
 
-    private var previewProgress: Double {
-        guard audioService.duration > 0 else { return 0 }
-        return min(1, audioService.playbackProgress / audioService.duration)
-    }
-    
     private var subtitleText: String {
         if item.content.type.isRadio {
             return item.content.type.title
@@ -147,11 +142,7 @@ struct PlayableContentRowView: View {
                 // Gated on isPreviewing so stopping removes the bar instantly,
                 // instead of animating its width back down to zero.
                 if isPreviewing {
-                    Rectangle()
-                        .foregroundStyle(.accent.gradient)
-                        .frame(height: 2)
-                        .scaleEffect(x: previewProgress, anchor: .leading)
-                        .animation(.linear(duration: 0.3), value: previewProgress)
+                    PreviewProgressBar()
                 }
             }
             .background {

@@ -1598,6 +1598,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // call `monitor()`, which is what would put up the Local Network
         // prompt on a device that has never seen a speaker.
         SonosService.shared.loadEnabledPreference()
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        // In a car, speakers are put away and not looked for; known before
+        // the first `monitor()` for the same reason.
+        CarConnection.start()
+        #endif
         // RevenueCat, analytics, remote flags and the image pipeline. Before
         // any view body: `Purchases.shared` is a fatal error until
         // `Purchases.configure` has run, and Preferences reads it for the
@@ -1610,9 +1615,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // The continued-processing task's launch handler has to be in place
         // before a download batch submits it.
         ContinuedDownloadTask.shared.register()
+        #if DEBUG
+        DownloadAudit.runIfAsked()
+        #endif
         // Early, so a status the watch sent while Cue was closed, and the
         // end of a library transfer, are delivered.
         WatchSyncService.shared.activate()
+        // Lyrics for downloads that don't have them yet, slowly.
+        DownloadLyrics.shared.start()
+        #if DEBUG
+        // `-LyricsAudit <count>`: checks lyrics lookups across the Plex library.
+        LyricsAudit.startIfRequested()
+        #endif
         // A Files scan gets the same card: progress on the Lock Screen and
         // the app kept running until it's done. The pass that reads the
         // tags of songs still in iCloud follows the scan on the same card,

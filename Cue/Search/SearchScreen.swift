@@ -118,7 +118,9 @@ struct SearchScreen: View {
     /// picks the single-service results view. Separators prevent key
     /// collisions between adjacent components.
     private var searchTaskKey: String {
-        ([offline.isActive ? "offline" : "online", musicSearchService.query, searchSelection.primary.rawValue]
+        // Trimmed, as the search itself is: a space typed between words
+        // doesn't search every service again for the same thing.
+        ([offline.isActive ? "offline" : "online", musicSearchService.query.trimmingCharacters(in: .whitespaces), searchSelection.primary.rawValue]
             + selectedSearchServices.map(\.rawValue).sorted())
             .joined(separator: "|")
     }
@@ -314,7 +316,6 @@ struct SearchScreen: View {
                 suggestion = nil
                 isLoading = false
             }
-            .animation(.snappy, value: playHistoryService.history)
             .animation(.snappy, value: musicSearchService.results)
             .animation(.snappy, value: filters)
             .animation(.snappy, value: searchCompletionTapped)

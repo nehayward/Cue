@@ -34,12 +34,16 @@ struct ArtworkMeshBackground: View {
     @State private var imageKey: String?
     /// The player `image` was made for.
     @State private var imageSourceID: String?
+    /// When the gradient last changed, so skips in quick succession swap it
+    /// rather than stacking one 0.8 s crossfade on another — each a
+    /// full-screen layer kept alive under the blur until it finishes.
+    @State private var lastChange: Date = .distantPast
 
-    private static let grid = 4
+    nonisolated private static let grid = 4
     /// Output size in pixels. The interpolated field is smooth, so a small
     /// bitmap scaled up with high-quality filtering looks the same as a
     /// full-resolution one.
-    private static let bitmapSize = 48
+    nonisolated private static let bitmapSize = 48
 
     var body: some View {
         ZStack {
@@ -72,10 +76,13 @@ struct ArtworkMeshBackground: View {
         var request = ImageRequest(url: url, priority: .high)
         request.imageID = key
         request.thumbnail = ImageRequest.ThumbnailOptions(maxPixelSize: 32)
-        guard let cover = try? await ImagePipeline.shared.image(for: request),
-              let colors = Self.sampleColors(from: cover),
-              let gradient = Self.renderGradient(colors) else { return }
-        guard !Task.isCancelled else { return }
+        guard let cover = try? await ImagePipeline.shared.image(for: request) else { return }
+        // Sampled and drawn off the main thread, which a song change keeps
+        // busy enough already.
+        let rendered = await Task.detached(priority: .userInitiated) {
+            Self.sampleColors(from: cover).flatMap(Self.renderGradient)
+        }.value
+        guard let gradient = rendered, !Task.isCancelled else { return }
         Self.store(gradient, for: key)
         set(gradient, key: key, animated: !isSourceSwitch)
     }
@@ -83,7 +90,10 @@ struct ArtworkMeshBackground: View {
     private func set(_ new: UIImage?, key: String?, animated: Bool) {
         imageSourceID = sourceID
         guard key != imageKey else { return }
-        if animated {
+        let now = Date.now
+        let isQuickSkip = now.timeIntervalSince(lastChange) < 1
+        lastChange = now
+        if animated, !isQuickSkip {
             withAnimation(.smooth(duration: 0.8)) {
                 image = new
                 imageKey = key
@@ -103,7 +113,7 @@ struct ArtworkMeshBackground: View {
     /// replaced was zoomed 1.3× and aspect-filled, so the cover's edges (often
     /// a plain sky or border) never set its colour. Averaging also mutes
     /// colour, hence saturation ×1.5 rather than that background's 1.3.
-    static func sampleColors(from image: UIImage) -> [SIMD3<Float>]? {
+    nonisolated static func sampleColors(from image: UIImage) -> [SIMD3<Float>]? {
         guard let full = image.cgImage else { return nil }
         let inset = 1 - 1 / 1.3
         let crop = CGRect(x: 0, y: 0, width: full.width, height: full.height)
@@ -145,7 +155,7 @@ struct ArtworkMeshBackground: View {
     /// Interpolates the colour grid into a `bitmapSize`² image with
     /// Catmull-Rom splines, which pass through every sampled colour and stay
     /// smooth across grid lines (bilinear leaves visible creases).
-    static func renderGradient(_ colors: [SIMD3<Float>]) -> UIImage? {
+    nonisolated static func renderGradient(_ colors: [SIMD3<Float>]) -> UIImage? {
         guard colors.count == grid * grid else { return nil }
         let size = bitmapSize
         func color(_ column: Int, _ row: Int) -> SIMD3<Float> {

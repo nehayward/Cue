@@ -91,7 +91,7 @@ struct DownloadsScreen: View {
                         }
                         Divider()
                         Button(role: .destructive) {
-                            active.forEach { manager.cancel(key: $0.key) }
+                            manager.cancel(keys: active.map(\.key))
                         } label: {
                             Label("Cancel All", systemImage: "xmark.circle")
                         }
@@ -161,7 +161,8 @@ struct DownloadsScreen: View {
             } header: {
                 Text("On This Device")
             } footer: {
-                Text("\(completed.count == 1 ? "1 song" : "\(completed.count) songs") • \(ByteCountFormatter.string(fromByteCount: completedBytes, countStyle: .file)). Kept until you remove them; not included in backups.")
+                let withLyrics = completed.filter { DownloadLyrics.shared.withLyrics.contains($0.key) }.count
+                Text("\(completed.count == 1 ? "1 song" : "\(completed.count) songs") • \(ByteCountFormatter.string(fromByteCount: completedBytes, countStyle: .file))\(withLyrics > 0 ? " • lyrics for \(withLyrics == completed.count ? "all" : "\(withLyrics)") offline" : ""). Kept until you remove them; not included in backups.")
             }
         } else if active.isEmpty {
             Section {
@@ -223,7 +224,7 @@ struct DownloadsScreen: View {
             containersSection(downloaded) {
                 Text("On This Device")
             } footer: {
-                Text("Swipe to remove every song of an album or playlist at once. The songs themselves are listed under Songs.")
+                Text("Swipe to remove every song of an album or playlist at once. The songs themselves are listed under Songs; remove one there and the rest stay here.")
             }
         } else if downloading.isEmpty {
             Section {
@@ -488,9 +489,16 @@ struct DownloadsScreen: View {
             VStack(alignment: .trailing, spacing: 2) {
                 item.service.image
                     .frame(width: 14, height: 14)
-                Text(ByteCountFormatter.string(fromByteCount: item.fileSize ?? 0, countStyle: .file))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    // Its lyrics are kept with it, for listening offline.
+                    if DownloadLyrics.shared.withLyrics.contains(item.key) {
+                        Image(systemName: "quote.bubble.fill")
+                            .accessibilityLabel("Lyrics saved")
+                    }
+                    Text(ByteCountFormatter.string(fromByteCount: item.fileSize ?? 0, countStyle: .file))
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
             }
         }
     }
