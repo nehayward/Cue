@@ -585,8 +585,12 @@ final class CarPlayInterface: NSObject {
         return PlaybackRoute.shared.destination == .device && player.isActive && player.isPlaying
     }
 
-    /// Up Next and the album button while the device has a queue; shuffle and
-    /// repeat for a queue of songs (a station has neither).
+    /// The album button while the device has a queue; shuffle and repeat for
+    /// a queue of songs (a station has neither); and the queue button.
+    ///
+    /// The queue button is Cue's own, the phone's ring with the song's place
+    /// in it (`CarPlayArtwork.queueGauge`), in place of the system's Up Next
+    /// button, which only takes a word or the car's own icon.
     ///
     /// Runs on every change the tabs follow (a play, the history, the
     /// downloads), so each part is only handed to the car when it differs
@@ -596,12 +600,8 @@ final class CarPlayInterface: NSObject {
         let player = LocalPlaybackService.shared
         let onDevice = PlaybackRoute.shared.destination == .device && player.isActive
         let nowPlaying = CPNowPlayingTemplate.shared
-        // Up whenever there's a queue of songs, on its last song too, as
-        // the Music app's is — and under a station, which leaves the queue
-        // waiting behind it. A station alone has no queue to show.
-        let upNext = onDevice && !player.queue.isEmpty
-        if nowPlaying.isUpNextButtonEnabled != upNext {
-            nowPlaying.isUpNextButtonEnabled = upNext
+        if nowPlaying.isUpNextButtonEnabled {
+            nowPlaying.isUpNextButtonEnabled = false
         }
         let albumArtist = onDevice && player.source.map { player.canPlayContainerLocally($0) } == true
         if nowPlaying.isAlbumArtistButtonEnabled != albumArtist {
@@ -609,7 +609,14 @@ final class CarPlayInterface: NSObject {
         }
 
         let hasModes = onDevice && !player.isPlayingStation
-        let signature = hasModes ? "\(player.isShuffled),\(player.repeatMode.rawValue)" : ""
+        // Whenever there's a queue of songs, on its last song too, as the
+        // Music app's is — and under a station, which leaves the queue
+        // waiting behind it, at place zero. A station alone has no queue.
+        let hasQueue = onDevice && !player.queue.isEmpty
+        let signature = [
+            hasModes ? "\(player.isShuffled),\(player.repeatMode.rawValue)" : "",
+            hasQueue ? "\(player.queuePosition)/\(player.queueCount)" : "",
+        ].joined(separator: "|")
         guard signature != nowPlayingButtons else { return }
         nowPlayingButtons = signature
 
@@ -640,6 +647,14 @@ final class CarPlayInterface: NSObject {
             let commands = MPRemoteCommandCenter.shared()
             commands.changeShuffleModeCommand.currentShuffleType = player.isShuffled ? .items : .off
             commands.changeRepeatModeCommand.currentRepeatType = player.repeatMode.repeatType
+        }
+        if hasQueue {
+            let image = CarPlayArtwork.queueGauge(position: player.queuePosition, total: player.queueCount)
+            buttons.append(CPNowPlayingImageButton(image: image) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.showUpNext()
+                }
+            })
         }
         nowPlaying.updateNowPlayingButtons(buttons)
     }
