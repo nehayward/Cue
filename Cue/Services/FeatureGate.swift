@@ -29,6 +29,8 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
     /// Cue on a car's screen: browsing and playing from CarPlay.
     case carPlay
     case lastFM
+    /// Bringing a playlist across from Spotify, Apple Music or a file.
+    case importPlaylists
 
     var id: String { rawValue }
 
@@ -44,6 +46,7 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
         case .downloads: "Downloads"
         case .carPlay: "CarPlay"
         case .lastFM: "Last.fm"
+        case .importPlaylists: "Import Playlists"
         }
     }
 
@@ -51,7 +54,7 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .allRooms, .scenes, .liveActivities, .lockScreenNowPlaying, .hardwareVolumeButtons:
             .superTier
-        case .files, .onDevicePlayback, .downloads, .carPlay:
+        case .files, .onDevicePlayback, .downloads, .carPlay, .importPlaylists:
             .free
         case .lastFM:
             .remoteFlag(.lastFM)

@@ -78,11 +78,10 @@ struct PlayableGridScreen: View {
             }
             if let service = createPlaylistService {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button {
+                    NewPlaylistMenu(service: service) {
                         router.presentedSheet = .newPlaylist(service: service)
-                    } label: {
-                        Label("New Playlist", systemImage: "plus")
-                            .labelStyle(.iconOnly)
+                    } importPlaylist: {
+                        router.presentedSheet = .importPlaylist(service: service)
                     }
                 }
             }

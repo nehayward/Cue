@@ -198,6 +198,8 @@ extension View {
                         ReorderSoundCloudLibrarySectionsView()
                     case .shareToWatch:
                         ShareToWatchView()
+                    case let .importPlaylist(service):
+                        ImportPlaylistSheet(destination: service)
                     case .paywall, .onboard:
                         // Routed via `withFullScreenCoverDestinations` —
                         // listed here to keep the switch exhaustive but never

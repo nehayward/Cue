@@ -121,11 +121,10 @@ struct FilesBrowseScreen: View {
                 // the empty state and changed in Settings › Services.
                 if library.isConfigured {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button {
+                        NewPlaylistMenu(service: .files) {
                             router.presentedSheet = .newPlaylist(service: .files)
-                        } label: {
-                            Label("New Playlist", systemImage: "plus")
-                                .labelStyle(.iconOnly)
+                        } importPlaylist: {
+                            router.presentedSheet = .importPlaylist(service: .files)
                         }
                     }
 #if !os(visionOS)

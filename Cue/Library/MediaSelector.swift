@@ -37,6 +37,17 @@ struct MediaSelector: View {
                 }
             }
             Divider()
+            if !PlaylistImporter.destinations.isEmpty {
+                Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    if FeatureGate.shared.unlock(.importPlaylists, via: router) {
+                        // Into the library on screen, when it can take one.
+                        router.presentedSheet = .importPlaylist(service: MusicService(service: browseMediaService.rawValue))
+                    }
+                } label: {
+                    Label("Import Playlist…", systemImage: "square.and.arrow.down")
+                }
+            }
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 router.presentedSheet = .settings(destination: .servicePreferenceScreen)

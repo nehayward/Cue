@@ -1724,6 +1724,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 modifierFlags: .command
             )
 
+            let importPlaylistCommand = UICommand(
+                title: "Import Playlist…",
+                image: UIImage(systemName: "square.and.arrow.down"),
+                action: #selector(importPlaylist)
+            )
+
             // Add to Last Playlist command (dynamic title)
             let addToLastPlaylistAction: UIMenuElement
 
@@ -1821,7 +1827,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             let undoCommand = UIKeyCommand(title: "Undo", action: #selector(playlistUndo), input: "z", modifierFlags: .command)
             let redoCommand = UIKeyCommand(title: "Redo", action: #selector(playlistRedo), input: "z", modifierFlags: [.command, .shift])
             let playlistMenu = UIMenu(title: "Playlist", identifier: UIMenu.Identifier("com.cue.playlistMenu"), children: [
-                UIMenu(title: "", options: .displayInline, children: [newPlaylistCommand, addToLastPlaylistAction, addToPlaylistMenu]),
+                UIMenu(title: "", options: .displayInline, children: [newPlaylistCommand, importPlaylistCommand, addToLastPlaylistAction, addToPlaylistMenu]),
                 UIMenu(title: "", options: .displayInline, children: [undoCommand, redoCommand])
             ])
             builder.insertSibling(playlistMenu, afterMenu: .file)
@@ -1857,6 +1863,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     @objc func newPlaylist() {
         Router.main.presentedSheet = .newPlaylist()
+    }
+
+    @objc func importPlaylist() {
+        guard FeatureGate.shared.unlock(.importPlaylists) else { return }
+        Router.main.presentedSheet = .importPlaylist()
     }
 
     @objc func addToLastPlaylist() {

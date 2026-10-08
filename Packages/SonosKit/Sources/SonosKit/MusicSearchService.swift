@@ -762,6 +762,50 @@ public final class MusicSearchService {
         }
     }
 
+    /// Adds `tracks` to `playlist` in order, in as few requests as the
+    /// playlist's service takes — an imported playlist can be hundreds of
+    /// songs. Returns how many were added; a batch that fails counts none.
+    public func addToServicePlaylist(tracks: [PlayableContent], playlist: PlayableContent) async -> Int {
+        let id = playlist.content.id
+        switch playlist.content.service {
+        case .apple:
+            var added = 0
+            for batch in Self.batches(of: tracks, size: 50) {
+                let songs = batch.map { (id: $0.content.id, type: $0.content.type == .libraryTrack ? "library-songs" : "songs") }
+                if (try? await apple.addSongsToPlaylist(songs, playlistID: id)) == true { added += batch.count }
+            }
+            return added
+        case .plex:
+            guard let playlistKey = plexRatingKey(from: id) else { return 0 }
+            var added = 0
+            for batch in Self.batches(of: tracks, size: 100) {
+                let keys = batch.compactMap { plexRatingKey(from: $0.content.id) }
+                if await plex.addToPlaylist(playlistRatingKey: playlistKey, trackRatingKeys: keys) { added += keys.count }
+            }
+            return added
+        case .subsonic:
+            var added = 0
+            // Sent as query items, so kept short enough for a server behind
+            // a proxy that caps the request line.
+            for batch in Self.batches(of: tracks, size: 100) {
+                if await subsonic.addToPlaylist(id: id, songIDs: batch.map(\.content.id)) { added += batch.count }
+            }
+            return added
+        case .files:
+            return await FilesLibraryService.shared.addToPlaylist(trackIDs: tracks.map(\.content.id), playlistID: id)
+        default:
+            var added = 0
+            for track in tracks {
+                if await addToServicePlaylist(track: track, playlist: playlist) { added += 1 }
+            }
+            return added
+        }
+    }
+
+    private static func batches<Element>(of items: [Element], size: Int) -> [[Element]] {
+        stride(from: 0, to: items.count, by: size).map { Array(items[$0..<min($0 + size, items.count)]) }
+    }
+
     /// Removes `track` from `playlist`, dispatching to the playlist's service.
     /// Apple Music has no remove endpoint, so it returns `false`.
     ///

@@ -420,6 +420,13 @@ public final class PlexAPI {
         return (200...299).contains(http.statusCode)
     }
 
+    /// Adds several tracks to a playlist in one request, in order: Plex
+    /// takes a comma-separated list of rating keys in the item uri.
+    public func addToPlaylist(playlistRatingKey: String, trackRatingKeys: [String]) async -> Bool {
+        guard !trackRatingKeys.isEmpty else { return true }
+        return await addToPlaylist(playlistRatingKey: playlistRatingKey, trackRatingKey: trackRatingKeys.joined(separator: ","))
+    }
+
     /// Moves a playlist item after another item, or to the front when `afterItemID` is nil.
     public func movePlaylistItem(playlistRatingKey: String, playlistItemID: String, afterItemID: String?) async -> Bool {
         guard let plexServer = await getPlexServer(),

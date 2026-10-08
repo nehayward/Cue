@@ -95,6 +95,7 @@ struct PlayableListView: View {
     @State private var hasReachedEnd: Bool = false
     @State var items: OrderedSet<PlayableContent> = []
     @State private var showCreatePlaylist = false
+    @State private var showImportPlaylist = false
     @State private var sortName: String?
     @State private var isDescending = false
     /// Suppresses the row animation for the first fill: a local library
@@ -322,19 +323,22 @@ struct PlayableListView: View {
                 }
             }
 
-            if createPlaylistService != nil {
+            if let service = createPlaylistService {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button {
+                    NewPlaylistMenu(service: service) {
                         showCreatePlaylist = true
-                    } label: {
-                        Label("New Playlist", systemImage: "plus")
-                            .labelStyle(.iconOnly)
+                    } importPlaylist: {
+                        showImportPlaylist = true
                     }
                 }
             }
         }
         .sheet(isPresented: $showCreatePlaylist, onDismiss: { Task { await reload() } }) {
             NewPlaylistView(service: createPlaylistService ?? .library)
+                .withEnvironments()
+        }
+        .sheet(isPresented: $showImportPlaylist, onDismiss: { Task { await reload() } }) {
+            ImportPlaylistSheet(destination: createPlaylistService)
                 .withEnvironments()
         }
         .task {

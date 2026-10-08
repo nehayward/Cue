@@ -154,6 +154,23 @@ public final class AppleMusicAPI {
         return (200..<300).contains(response.urlResponse.statusCode)
     }
 
+    /// Adds several songs to a library playlist in one request, in order.
+    /// - Parameter songs: Each song's id and resource type (`"songs"` or
+    ///   `"library-songs"`, as for `addSongToPlaylist`).
+    public func addSongsToPlaylist(_ songs: [(id: String, type: String)], playlistID: String) async throws -> Bool {
+        guard !songs.isEmpty else { return true }
+        let tracksURL = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(playlistID)/tracks")!
+        var urlRequest = URLRequest(url: tracksURL)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = ["data": songs.map { ["id": $0.id, "type": $0.type] }]
+        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let request = MusicDataRequest(urlRequest: urlRequest)
+        guard let response = try? await request.response() else { return false }
+        return (200..<300).contains(response.urlResponse.statusCode)
+    }
+
     /// Creates a new playlist in the user's library and returns its identifier.
     public func createLibraryPlaylist(name: String, description: String? = nil) async throws -> String? {
         guard await requestMusicAuthorization() else { return nil }

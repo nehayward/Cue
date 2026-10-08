@@ -24,6 +24,9 @@ enum SheetDestination: Identifiable, Equatable {
     case renamePlaylist(content: PlayableContent)
     case confirmDeletePlaylist(content: PlayableContent)
     case addToPlaylist(content: PlayableContent)
+    /// Brings a Spotify or Apple Music playlist (or a file) across, made on
+    /// `service` when it is one a playlist can be imported into.
+    case importPlaylist(service: MusicService? = nil)
     case speakerSettings(room: Room)
     case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async throws -> Void)? = nil, onQueueSelection: ((GroupRoom, QueuePosition) async throws -> Void)? = nil, defaultPosition: QueuePosition = .now, content: PlayableContent? = nil)
     case plexManagement
@@ -81,6 +84,8 @@ enum SheetDestination: Identifiable, Equatable {
             content.id + "confirmDelete"
         case let .addToPlaylist(content):
             content.id + "addToPlaylist"
+        case .importPlaylist:
+            "import.playlist"
         case .speakerSettings:
             "speaker.configuration"
         case .selectGroup:

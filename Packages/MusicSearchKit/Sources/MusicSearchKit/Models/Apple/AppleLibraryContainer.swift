@@ -64,6 +64,9 @@ extension AppleLibraryItem {
         public let contentRating: String?
         public let isLive: Bool?
         public let previews: [Preview]?
+        /// Catalog songs only; a library song carries it on its `catalog`
+        /// relationship.
+        public let isrc: String?
 
         public var releaseDateFormatted: String? {
             if let releaseDate {

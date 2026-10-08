@@ -1247,6 +1247,20 @@ public final class FilesLibraryService {
         return true
     }
 
+    /// Adds several tracks in order with one write of the file. Tracks no
+    /// longer in the folder are left out. Returns how many were added.
+    public func addToPlaylist(trackIDs: [String], playlistID: String) async -> Int {
+        guard let index = playlistIndex(id: playlistID) else { return 0 }
+        let paths = trackIDs.compactMap { catalog.tracksByID[$0]?.relativePath }
+        guard !paths.isEmpty else { return 0 }
+        var playlist = filePlaylists[index]
+        playlist.trackRelativePaths.append(contentsOf: paths)
+        guard await write(playlist) else { return 0 }
+        filePlaylists[index] = playlist
+        await commitPlaylists()
+        return paths.count
+    }
+
     /// Removes one occurrence: the one at `position` when it is that track,
     /// otherwise the first.
     public func removeFromPlaylist(trackID: String, playlistID: String, position: Int? = nil) async -> Bool {
