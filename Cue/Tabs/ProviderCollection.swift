@@ -21,6 +21,9 @@ enum ProviderCollection: String, CaseIterable, Hashable, Codable {
     case folders
     case importedPlaylists
     case savedPlaylists
+    /// Plex's collections: albums (or artists, or songs) grouped on the
+    /// server.
+    case collections
 
     var title: String {
         switch self {
@@ -41,6 +44,7 @@ enum ProviderCollection: String, CaseIterable, Hashable, Codable {
         case .folders: "Folders"
         case .importedPlaylists: "Imported Playlists"
         case .savedPlaylists: "Saved Playlists"
+        case .collections: "Collections"
         }
     }
 
@@ -55,6 +59,7 @@ enum ProviderCollection: String, CaseIterable, Hashable, Codable {
         case .recentlyAdded: "clock"
         case .personalStations: "dot.radiowaves.left.and.right"
         case .genres: "theatermasks"
+        case .collections: "square.stack.3d.up"
         }
     }
 }
@@ -80,7 +85,7 @@ extension MediaSearchService {
         case .library:
             [.artists, .albums, .songs, .genres, .folders, .importedPlaylists, .savedPlaylists]
         case .plex:
-            [.artists, .albums, .songs, .playlists]
+            [.artists, .albums, .songs, .playlists, .collections]
         case .files:
             [.artists, .albums, .songs, .playlists, .recentlyAdded]
         case .tidal, .tuneIn, .sonosRadio, .pandora:

@@ -23,6 +23,9 @@ extension View {
                 AddToPlaylistSheet(content: content)
                     .presentationDragIndicator(.hidden)
                     .withEnvironments()
+            case let .addToPlexCollection(content):
+                AddToPlexCollectionSheet(content: content)
+                    .withEnvironments()
             default:
                 Group {
                     switch destination {
@@ -86,7 +89,7 @@ extension View {
                         let selectedGroupService = SelectedGroupService(group: group)
 
                         NavigationStack(path: $router.path) {
-                            MediaDetailView(playableContent: content)
+                            MediaDetailDestination(content: content)
                                 .navigationBarTitleDisplayMode(.inline)
                                 .withAppRouter()
                                 .addDismiss {
@@ -158,7 +161,7 @@ extension View {
                         EmptyView()
                     case .confirmDeletePlaylist:
                         EmptyView()
-                    case .addToPlaylist:
+                    case .addToPlaylist, .addToPlexCollection:
                         EmptyView()
                     case let .renamePlaylist(content: content):
                         NewPlaylistView(playlist: content)
@@ -296,7 +299,7 @@ extension View {
                     let selectedGroupService = SelectedGroupService(group: group)
                     
                     NavigationStack {
-                        MediaDetailView(playableContent: content)
+                        MediaDetailDestination(content: content)
                             .navigationBarTitleDisplayMode(.inline)
                             .withAppRouter()
                     }

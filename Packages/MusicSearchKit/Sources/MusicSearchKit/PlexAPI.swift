@@ -695,7 +695,268 @@ public final class PlexAPI {
 
         return playlists
     }
-    
+
+    // MARK: - Collections
+
+    /// A page of the music library's collections, with the section's total.
+    /// Nil when the server couldn't answer, which a library without
+    /// collections (an empty page) is not.
+    public func collections(offset: Int = 0, limit: Int = 100) async -> (collections: [PlexCollection], total: Int?)? {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
+            return nil
+        }
+
+        if librarySelectionID == nil {
+            librarySelectionID = await getMusicLibrarySection()
+        }
+
+        guard let sectionKey = librarySelectionID,
+              var url = getBaseURL(for: plexServer)?.appending(path: "/library/sections/\(sectionKey)/all") else {
+            return nil
+        }
+
+        url.append(queryItems: [
+            URLQueryItem(name: "type", value: "18"), // 18 = collection
+            URLQueryItem(name: "X-Plex-Container-Size", value: "\(limit)"),
+            URLQueryItem(name: "X-Plex-Container-Start", value: "\(offset)")
+        ])
+
+        guard let container: PlexContainer<PlexCollectionContainer> = await loadAuthorized(url) else {
+            return nil
+        }
+
+        guard plexServer.clientIdentifier != nil else { return nil }
+        let collections = container.mediaContainer.metadata.map { decorated($0, server: plexServer, token: token) }
+        return (collections, container.mediaContainer.totalSize)
+    }
+
+    /// One collection, read fresh: its title after a rename, whether it's
+    /// smart, and the order it's kept in.
+    public func collection(ratingKey: String) async -> PlexCollection? {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let url = getBaseURL(for: plexServer)?.appending(path: "library/metadata/\(ratingKey)"),
+              let container: PlexContainer<PlexCollectionContainer> = await loadAuthorized(url),
+              let collection = container.mediaContainer.metadata.first else {
+            return nil
+        }
+        return decorated(collection, server: plexServer, token: token)
+    }
+
+    /// Fills in what Plex doesn't send: the id Cue keys Plex items by, and
+    /// the token-carrying artwork URL.
+    private func decorated(_ collection: PlexCollection, server: PlexServer, token: String) -> PlexCollection {
+        var collection = collection
+        if let id = server.clientIdentifier {
+            collection.sonosID = "\(id)%3A3%3A\(collection.ratingKey)"
+        }
+        if let thumb = collection.thumb ?? collection.composite {
+            collection.thumbImageURL = getBaseURL(for: server)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+        }
+        return collection
+    }
+
+    /// A page of what a collection holds, in the order the collection is
+    /// sorted by on the server, with the collection's total. Nil when the
+    /// server couldn't answer.
+    public func collectionItems(ratingKey: String, offset: Int = 0, limit: Int = 100) async -> (items: [PlexMetadata], total: Int?)? {
+        guard let plexServer = await getPlexServer(),
+              var url = getBaseURL(for: plexServer)?.appending(path: "library/collections/\(ratingKey)/children") else {
+            return nil
+        }
+
+        url.append(queryItems: [
+            URLQueryItem(name: "X-Plex-Container-Size", value: "\(limit)"),
+            URLQueryItem(name: "X-Plex-Container-Start", value: "\(offset)")
+        ])
+
+        guard let container: PlexContainer<PlexCollectionItemsContainer> = await loadAuthorized(url) else {
+            return nil
+        }
+
+        return (await enrichMetadata(metadata: container.mediaContainer.metadata), container.mediaContainer.totalSize)
+    }
+
+    // MARK: - Collection Management
+
+    /// Whether the signed-in account owns the selected server. A collection
+    /// belongs to the library, which only the owner can change; anyone with
+    /// access can browse and play one. (Playlists belong to each user, which
+    /// is why anyone can make those.)
+    public func ownsServer() async -> Bool {
+        await getPlexServer()?.owned ?? false
+    }
+
+    /// Creates a collection in the selected library, holding one item to
+    /// start with. A collection holds one kind of item — albums, artists or
+    /// songs — set by `type`.
+    /// - Returns: The new collection's ratingKey, or `nil` on failure.
+    public func createCollection(title: String, itemRatingKey: String, type: PlexMediaType) async -> String? {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let machineIdentifier = plexServer.clientIdentifier else {
+            return nil
+        }
+
+        if librarySelectionID == nil {
+            librarySelectionID = await getMusicLibrarySection()
+        }
+
+        guard let sectionKey = librarySelectionID,
+              var url = getBaseURL(for: plexServer)?.appending(path: "library/collections") else {
+            return nil
+        }
+        url.append(queryItems: [
+            URLQueryItem(name: "type", value: "\(type.rawValue)"),
+            URLQueryItem(name: "title", value: title),
+            URLQueryItem(name: "smart", value: "0"),
+            URLQueryItem(name: "sectionId", value: sectionKey),
+            URLQueryItem(name: "uri", value: libraryItemURI(machineIdentifier: machineIdentifier, ratingKey: itemRatingKey))
+        ])
+
+        guard let data = await sendChange(to: url, method: "POST", token: token) else { return nil }
+        let container = try? decoder.decode(PlexContainer<PlexCollectionContainer>.self, from: data)
+        return container?.mediaContainer.metadata.first?.ratingKey
+    }
+
+    /// Adds an item to a collection, at the end of a custom order.
+    public func addToCollection(collectionRatingKey: String, itemRatingKey: String) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let machineIdentifier = plexServer.clientIdentifier,
+              var url = getBaseURL(for: plexServer)?.appending(path: "library/collections/\(collectionRatingKey)/items") else {
+            return false
+        }
+        url.append(queryItems: [
+            URLQueryItem(name: "uri", value: libraryItemURI(machineIdentifier: machineIdentifier, ratingKey: itemRatingKey))
+        ])
+        return await sendChange(to: url, method: "PUT", token: token) != nil
+    }
+
+    /// Takes an item out of a collection. The item itself stays in the library.
+    public func removeFromCollection(collectionRatingKey: String, itemRatingKey: String) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let url = getBaseURL(for: plexServer)?.appending(path: "library/collections/\(collectionRatingKey)/items/\(itemRatingKey)") else {
+            return false
+        }
+        return await sendChange(to: url, method: "DELETE", token: token) != nil
+    }
+
+    /// Renames a collection, locking the title so Plex's agents don't put
+    /// the old one back.
+    public func renameCollection(ratingKey: String, title: String) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let base = getBaseURL(for: plexServer) else {
+            return false
+        }
+
+        if librarySelectionID == nil {
+            librarySelectionID = await getMusicLibrarySection()
+        }
+
+        let titleItems = [
+            URLQueryItem(name: "title.value", value: title),
+            URLQueryItem(name: "title.locked", value: "1")
+        ]
+        var urls: [URL] = []
+        // The library's edit route, which every server takes, then the
+        // item's own, which newer servers also do.
+        if let sectionKey = librarySelectionID {
+            urls.append(base.appending(path: "library/sections/\(sectionKey)/all").appending(queryItems: [
+                URLQueryItem(name: "type", value: "18"), // 18 = collection
+                URLQueryItem(name: "id", value: ratingKey)
+            ] + titleItems))
+        }
+        urls.append(base.appending(path: "library/metadata/\(ratingKey)").appending(queryItems: titleItems))
+        return await sendChange(toFirstOf: urls, method: "PUT", token: token)
+    }
+
+    /// Deletes a collection. What it held stays in the library.
+    public func deleteCollection(ratingKey: String) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let base = getBaseURL(for: plexServer) else {
+            return false
+        }
+        // A collection is a library item too, so either route reaches it.
+        return await sendChange(toFirstOf: [
+            base.appending(path: "library/collections/\(ratingKey)"),
+            base.appending(path: "library/metadata/\(ratingKey)")
+        ], method: "DELETE", token: token)
+    }
+
+    /// Sets the order a collection is kept in. Items can only be moved in
+    /// `.custom`.
+    public func setCollectionSort(ratingKey: String, sort: PlexCollectionSort) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let base = getBaseURL(for: plexServer) else {
+            return false
+        }
+        let sortItem = URLQueryItem(name: "collectionSort", value: "\(sort.rawValue)")
+        // Advanced settings live under the item's prefs: the collection's own
+        // route first, as python-plexapi sends it, then the generic item
+        // route. A server can answer the wrong one without keeping the
+        // change, so the one known to work goes first.
+        return await sendChange(toFirstOf: [
+            base.appending(path: "library/collections/\(ratingKey)/prefs").appending(queryItems: [sortItem]),
+            base.appending(path: "library/metadata/\(ratingKey)/prefs").appending(queryItems: [sortItem])
+        ], method: "PUT", token: token)
+    }
+
+    /// Moves an item after another in a custom-sorted collection, or to the
+    /// front when `afterItemRatingKey` is nil.
+    public func moveCollectionItem(collectionRatingKey: String, itemRatingKey: String, afterItemRatingKey: String?) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              var url = getBaseURL(for: plexServer)?.appending(path: "library/collections/\(collectionRatingKey)/items/\(itemRatingKey)/move") else {
+            return false
+        }
+        if let afterItemRatingKey {
+            url.append(queryItems: [URLQueryItem(name: "after", value: afterItemRatingKey)])
+        }
+        return await sendChange(to: url, method: "PUT", token: token) != nil
+    }
+
+    /// Sends a request that changes something on the server. The response
+    /// body when the server took it, nil when it didn't.
+    ///
+    /// Each one is logged with what the server answered (the path only; the
+    /// token rides in a header), so which route a server takes for a
+    /// collection change shows in the console:
+    /// `CUE_LOG_FILTER=PlexChange Scripts/iphone-logs.sh`.
+    private func sendChange(to url: URL, method: String, token: String) async -> Data? {
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+        guard let (data, response) = try? await session.data(for: request) else {
+            Self.changeLog.notice("PlexChange \(method, privacy: .public) \(url.path, privacy: .public): no response")
+            return nil
+        }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        Self.changeLog.notice("PlexChange \(method, privacy: .public) \(url.path, privacy: .public): \(status)")
+        guard (200...299).contains(status) else { return nil }
+        return data
+    }
+
+    private static let changeLog = Logger(subsystem: Bundle.main.bundleIdentifier ?? "MusicSearchKit", category: "PlexChange")
+
+    /// The same change sent to each of `urls` in turn until one is taken,
+    /// for changes Plex answers on one route or another by server version.
+    private func sendChange(toFirstOf urls: [URL], method: String, token: String) async -> Bool {
+        for url in urls {
+            if await sendChange(to: url, method: method, token: token) != nil {
+                return true
+            }
+        }
+        return false
+    }
+
     public func songs(
         sort: PlexSongSort = .title,
         reversed: Bool = false,

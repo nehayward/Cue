@@ -22,6 +22,11 @@ struct AlertView: View {
                         Text(alertService.alert.text)
                         Text(alertService.alert.subtitle)
                             .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                        if let progress = alertService.alert.progress {
+                            ProgressView(value: progress)
+                                .tint(.accent)
+                        }
                     }
                     Spacer()
                     if alertService.alert.isLoading {

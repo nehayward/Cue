@@ -112,6 +112,9 @@ public enum AppStorageKeys {
     public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
     public static let lastPlaylistService = "\(Prefix.id).lastPlaylistService"
     public static let recentPlaylistIDs = "\(Prefix.id).recentPlaylistIDs"
+    /// Plex collections most recently added to, most recent first, for the
+    /// Add to Collection sheet.
+    public static let recentPlexCollectionIDs = "\(Prefix.id).recentPlexCollectionIDs"
     public static let addToPlaylistSegment = "\(Prefix.id).addToPlaylistSegment"
     public static let recentlyViewed = "\(Prefix.id).recentlyViewed"
     public static let recentQueries = "\(Prefix.id).recentQueries"
@@ -155,6 +158,10 @@ public enum AppStorageKeys {
     /// requires an active subscription, so an unsubscribed user with the default
     /// keeps Live Activities and nothing takes over their audio.
     public static let lockScreenNowPlaying = "\(Prefix.id).lockScreenNowPlaying"
+    /// The Plex collections screen's layout (`PlayableListLayout` raw value).
+    public static let plexCollectionsLayout = "\(Prefix.id).plexCollectionsLayout"
+    /// The layout inside a Plex collection (`PlayableListLayout` raw value).
+    public static let plexCollectionLayout = "\(Prefix.id).plexCollectionLayout"
 }
 
 public extension UserDefaults {

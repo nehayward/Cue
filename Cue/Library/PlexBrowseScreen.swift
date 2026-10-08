@@ -36,6 +36,11 @@ struct PlexBrowseScreen: View {
         PlexLibraryLists.albumSortOptions(plexBrowseService: plexBrowseService)
     }
 
+    /// The server and library the collections are read from.
+    private var collectionSource: String {
+        "\(musicSearchService.plexServerID ?? "")/\(musicSearchService.plexLibrarySelectionID ?? "")"
+    }
+
     var body: some View {
         @Bindable var plexBrowseService = plexBrowseService
 
@@ -87,6 +92,12 @@ struct PlexBrowseScreen: View {
                         Label("Songs", systemImage: "music.note")
                     }
 
+                    if let count = plexBrowseService.collectionCount, count > 0 {
+                        NavigationLink(value: RouterDestination.plexCollections) {
+                            Label("Collections (\(count))", systemImage: "square.stack.3d.up")
+                        }
+                    }
+
                     NavigationLink(value: RouterDestination.downloaded(service: .plex)) {
                         Label("Downloaded", systemImage: "arrow.down.circle")
                     }
@@ -131,11 +142,17 @@ struct PlexBrowseScreen: View {
                 // more songs than the synced copy — Songs is one tap away.
                 await musicSearchService.refreshPlexLibraryIfChanged()
             }
+            .task(id: collectionSource) {
+                // Collections belong to a library, not the server, so they
+                // follow a change of library too.
+                await plexBrowseService.updateCollections()
+            }
             .refreshable {
                 // Songs is served from a synced copy of the library; a
                 // refresh should pick up anything added on the server since.
                 musicSearchService.clearPlexSongCache()
                 await updatePlexBrowseService()
+                await plexBrowseService.updateCollections()
             }
             .withAppRouter()
             .toolbar {

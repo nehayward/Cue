@@ -2947,7 +2947,8 @@ public final class SonosService {
             return
         }
 
-        let count = await api.getQueueCount(IP: group.ip)
+        // Only Play Now needs it, to skip to the new track when the queue had others.
+        let count = position == .now ? await api.getQueueCount(IP: group.ip) : nil
         try await api.queuePlayable(playableContent: playable, IP: group.ip, position: position, shuffling: shuffling)
         
         if let index, index > 0, position == .now || position == .replace {
@@ -3001,8 +3002,17 @@ public final class SonosService {
             return
         }
         try await queuePlayable(playable: playable, group: group, position: position, index: index)
-        try? await Task.sleep(for: .milliseconds(120))
-        try? await updateGroups(from: [group])
+        refreshAfterQueueEdit(group, settle: .milliseconds(120))
+    }
+
+    /// Reads the group back once the speaker has settled after a queue edit,
+    /// without holding up the caller: the add is done when the speaker
+    /// answers, and `QueueManager` can start the next one meanwhile.
+    private func refreshAfterQueueEdit(_ group: GroupRoom, settle: Duration) {
+        Task { [weak self] in
+            try? await Task.sleep(for: settle)
+            try? await self?.updateGroups(from: [group])
+        }
     }
     
     /// Expands containers from direct-HTTP services (no Sonos container URI)
@@ -3050,9 +3060,12 @@ public final class SonosService {
     ///
     /// Note: Sonos treats `.next` as LIFO, so remaining items are enqueued in reverse
     /// to preserve the caller’s order.
+    ///
+    /// `progress` hears how many items are in and of how many, as each lands.
     public func playNext(
         _ contents: [PlayableContent],
-        on group: GroupRoom
+        on group: GroupRoom,
+        progress: (@MainActor (Int, Int) -> Void)? = nil
     ) async throws {
         guard !contents.isEmpty else {
             assertionFailure("playNext called with empty contents")
@@ -3078,6 +3091,7 @@ public final class SonosService {
             shuffling: shuffling
         )
 
+        await progress?(1, contents.count)
         // Activate transport
         await next(ip: group.ip)
         await play(ip: group.ip)
@@ -3086,17 +3100,16 @@ public final class SonosService {
         try? await updateGroups(from: [group])
 
         // Queue remaining items (reverse to preserve order)
-        for content in remainder.reversed() {
+        for (index, content) in remainder.reversed().enumerated() {
             try await api.queuePlayable(
                 playableContent: content,
                 IP: group.ip,
                 position: .next,
                 shuffling: shuffling
             )
+            await progress?(index + 2, contents.count)
         }
-
-        try? await Task.sleep(for: .milliseconds(150))
-        try? await updateGroups(from: [group])
+        refreshAfterQueueEdit(group, settle: .milliseconds(150))
     }
     
     /// Queues items on a Sonos group at the requested position.
@@ -3107,11 +3120,14 @@ public final class SonosService {
     /// `startIndex` (with `.replace` only) starts playback at that 0-based
     /// position in the new queue as soon as the item lands, while the rest
     /// keeps filling in behind it.
+    ///
+    /// `progress` hears how many items are in and of how many, as each lands.
     public func queue(
         contents: [PlayableContent],
         group: GroupRoom,
         position: QueuePosition = .end,
-        startIndex: Int? = nil
+        startIndex: Int? = nil,
+        progress: (@MainActor (Int, Int) -> Void)? = nil
     ) async throws {
         guard !contents.isEmpty else {
             assertionFailure("queue called with empty contents")
@@ -3147,6 +3163,7 @@ public final class SonosService {
 
         for (index, content) in sequence.enumerated() {
             try await api.queuePlayable(playableContent: content, IP: group.ip, position: enqueuePosition, shuffling: shuffling)
+            await progress?(index + 1, sequence.count)
 
             // Start playback as soon as the first item is queued
             if position == .now && index == 0 {
@@ -3165,9 +3182,7 @@ public final class SonosService {
                 await play(ip: group.ip)
             }
         }
-
-        try? await Task.sleep(for: .milliseconds(150))
-        try? await updateGroups(from: [group])
+        refreshAfterQueueEdit(group, settle: .milliseconds(150))
     }
 
     /// Replaces the group's queue with one track and sets it `offset`

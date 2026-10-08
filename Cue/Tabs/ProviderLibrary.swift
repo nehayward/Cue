@@ -423,6 +423,8 @@ struct ProviderLibrary {
             return .playableGridScreen(title: "Playlists", items: Bindable(plex).userPlaylists, action: { offset in
                 await plex.updateUserPlaylists(offset: offset)
             })
+        case .collections:
+            return .plexCollections
         default:
             return nil
         }

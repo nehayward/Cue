@@ -14,6 +14,7 @@ public final class AlertService: @unchecked Sendable {
         alertTask?.cancel()
         alert.handleTap = nil
         alert.isLoading = false
+        alert.progress = nil
         alert.isShowing = false
         alert.text = text
         showAlert(show: false)
@@ -37,6 +38,7 @@ public final class AlertService: @unchecked Sendable {
         alertTask?.cancel()
         alert.handleTap = nil
         alert.isLoading = false
+        alert.progress = nil
         alert.content = nil
         alert.subtitle = ""
         alert.text = text
@@ -59,6 +61,7 @@ public final class AlertService: @unchecked Sendable {
     func showAlert(with text: String, imageName: String, action: @escaping () -> Void) {
         alertTask?.cancel()
         alert.isLoading = false
+        alert.progress = nil
         alert.content = nil
         alert.subtitle = ""
         alert.text = text
@@ -104,6 +107,7 @@ public final class AlertService: @unchecked Sendable {
     func showUndoAlert(with text: String, delay: Duration = .seconds(5), action: @escaping () -> Void) {
         alertTask?.cancel()
         alert.isLoading = false
+        alert.progress = nil
         alert.content = nil
         alert.subtitle = "Tap to undo"
         alert.text = text
@@ -133,6 +137,7 @@ public final class AlertService: @unchecked Sendable {
         // callers that want tap-through set `handleTap` right after calling this.
         alert.handleTap = nil
         alert.isLoading = false
+        alert.progress = nil
         alert.text = content.title
         alert.subtitle = subtitle
         withAnimation {
@@ -166,10 +171,24 @@ public final class AlertService: @unchecked Sendable {
         alert.subtitle = subtitle
         alert.imageName = nil
         alert.isLoading = true
+        alert.progress = nil
         withAnimation {
             alert.content = content
         }
         showAlert(show: true)
+    }
+
+    /// The loading banner with how far a long queue has got: a line of
+    /// text ("Adding album 3 of 12") and a bar under it. Call it as each
+    /// item lands; like `showLoadingContent`, it stays up until the caller
+    /// replaces it.
+    @MainActor
+    func showLoadingProgress(with content: PlayableContent, subtitle: LocalizedStringKey, fraction: Double) {
+        if !alert.isLoading || alert.content != content || !alert.isShowing {
+            showLoadingContent(with: content, subtitle: subtitle)
+        }
+        alert.subtitle = subtitle
+        alert.progress = min(max(fraction, 0), 1)
     }
 
     private func showAlert(show: Bool) {
@@ -190,6 +209,9 @@ public final class Alert: Equatable {
     /// Shows a spinner in place of the trailing symbol while content is being
     /// queued to the speaker.
     var isLoading: Bool = false
+    /// How far through a long operation, 0–1, drawn as a bar under the
+    /// text; nil for none.
+    var progress: Double?
     var handleTap: (() -> Void)? = nil
 
     public static func == (lhs: Alert, rhs: Alert) -> Bool {

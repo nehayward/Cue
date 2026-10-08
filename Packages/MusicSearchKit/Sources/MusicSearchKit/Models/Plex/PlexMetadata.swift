@@ -16,6 +16,9 @@ public struct PlexMetadata: Codable, Sendable {
     public let parentStudio: String?
     public let type: String
     public let title: String
+    /// The title Plex sorts by: the title without a leading article ("The
+    /// Album" sorts as "Album"). Nil when Plex didn't send one.
+    public let titleSort: String?
     public let parentKey: String?
     public let parentTitle: String?
     public let originalTitle: String?
@@ -25,6 +28,8 @@ public struct PlexMetadata: Codable, Sendable {
     public let ratingCount: Int?
     public let parentYear: Int?
     public let year: Int?
+    /// The original release date, "1977-12-12".
+    public let originallyAvailableAt: String?
     public let thumb: String?
     public let art: String?
     public let parentThumb: String?
@@ -47,7 +52,7 @@ public struct PlexMetadata: Codable, Sendable {
     public var streamURL: URL?
 
     enum CodingKeys: String, CodingKey {
-        case ratingKey, key, playlistItemID, parentRatingKey, grandparentRatingKey, guid, parentGuid, grandparentGuid, parentStudio, type, title, grandparentKey, parentKey, grandparentTitle, parentTitle, originalTitle, summary, index, parentIndex, ratingCount, parentYear, year, thumb, art, parentThumb, grandparentThumb, grandparentArt, duration, addedAt, updatedAt, viewCount, lastViewedAt, userRating, leafCount
+        case ratingKey, key, playlistItemID, parentRatingKey, grandparentRatingKey, guid, parentGuid, grandparentGuid, parentStudio, type, title, titleSort, grandparentKey, parentKey, grandparentTitle, parentTitle, originalTitle, summary, index, parentIndex, ratingCount, parentYear, year, originallyAvailableAt, thumb, art, parentThumb, grandparentThumb, grandparentArt, duration, addedAt, updatedAt, viewCount, lastViewedAt, userRating, leafCount
         case media = "Media"
     }
 }

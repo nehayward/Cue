@@ -42,6 +42,7 @@ public enum RouterDestination: Hashable, Identifiable {
     /// reached from the Radio tab's links. Pages link on to more pages, so
     /// this pushes itself.
     case tuneInBrowse(title: String, url: URL)
+    case plexCollections
     case connectByIP
 
     public var id: String {
@@ -96,6 +97,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return item.id
         case let .tuneInBrowse(_, url):
             return "tuneInBrowse:\(url.absoluteString)"
+        case .plexCollections:
+            return "plexCollections"
         case .connectByIP:
             return "connectByIP"
         }
@@ -148,6 +151,8 @@ public enum RouterDestination: Hashable, Identifiable {
         case (.spotifyUserPlaylist, .spotifyUserPlaylist):
             return true
         case (.genreList, .genreList):
+            return true
+        case (.plexCollections, .plexCollections):
             return true
         default:
             return false
@@ -214,6 +219,8 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine(title)
         case let .tuneInBrowse(_, url):
             hasher.combine(url)
+        case .plexCollections:
+            hasher.combine("plexCollections")
         case .connectByIP:
             hasher.combine("connectByIP")
         }

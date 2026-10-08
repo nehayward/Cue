@@ -807,6 +807,9 @@ extension PlexMetadata {
         var album: String?
         var albumID: String?
         var audioCodec: String?
+        // A track's `parentYear` is its album's year; an album carries its
+        // own as `year`.
+        var releaseYear = parentYear
 
         switch type {
         case "track":
@@ -823,6 +826,7 @@ extension PlexMetadata {
             // editions of the same album showed one edition's art — the exact
             // bug the per-edition imageKey fixed in search.
             albumID = ratingKey
+            releaseYear = year
         case "playlist":
             break
         case "artist":
@@ -833,7 +837,7 @@ extension PlexMetadata {
        
         return PlayableContent(
             title: title,
-            subtitle: [artist, parentYear?.description, audioCodec?.uppercased()].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artist, releaseYear?.description, audioCodec?.uppercased()].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: thumbImageURL?.plexResized(to: PlexImageSize.thumbnail),
             artwork: thumbImageURL?.plexResized(to: PlexImageSize.artwork),
             content: .init(
@@ -872,6 +876,25 @@ extension PlexUserPlaylist {
                 service: .plex,
                 id: sonosID!,
                 type: .playlist,
+                location: nil
+            )
+        )
+    }
+}
+
+extension PlexCollection {
+    /// A collection as a folder: opened rather than queued, since Sonos has no
+    /// URI for a Plex collection. Its items are what play.
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: itemCountLabel ?? "",
+            thumbnail: thumbImageURL?.plexResized(to: PlexImageSize.thumbnail),
+            artwork: thumbImageURL?.plexResized(to: PlexImageSize.artwork),
+            content: .init(
+                service: .plex,
+                id: sonosID ?? ratingKey,
+                type: .folder,
                 location: nil
             )
         )

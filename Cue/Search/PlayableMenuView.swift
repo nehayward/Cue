@@ -44,6 +44,8 @@ struct PlayableMenuView: View {
                 }
 
                 WatchMenuSection(item: item)
+
+                addToPlexCollectionButton
             case .playlist, .libraryPlaylist, .libraryImportedPlaylists:
                 ControlGroup("Queue \(item.title)") {
                     Button {
@@ -156,6 +158,9 @@ struct PlayableMenuView: View {
                         Label("Add to Playlist…", systemImage: "text.badge.plus")
                     }
                 }
+                if item.content.type == .album {
+                    addToPlexCollectionButton
+                }
                 Divider()
               
                 // Library songs map to a catalog track behind the scenes, so the
@@ -175,10 +180,24 @@ struct PlayableMenuView: View {
                     FavoriteMenuButton(item: item)
                 }
             case .folder:
-                Button {
-                    playFolder()
-                } label: {
-                    Label("Play All Playlists in Folder", systemImage: "play.fill")
+                if item.content.service == .plex {
+                    // Plex's folders are its collections.
+                    Button {
+                        PlexCollectionPlayer.play(item, mode: .normal, selectedGroupService: selectedGroupService)
+                    } label: {
+                        Label("Play Collection", systemImage: "play.fill")
+                    }
+                    Button {
+                        PlexCollectionPlayer.play(item, mode: [.normal, .shuffle], selectedGroupService: selectedGroupService)
+                    } label: {
+                        Label("Shuffle Collection", systemImage: "shuffle")
+                    }
+                } else {
+                    Button {
+                        playFolder()
+                    } label: {
+                        Label("Play All Playlists in Folder", systemImage: "play.fill")
+                    }
                 }
             case .radio, .liveRadio, .favorite, .unique:
                 Button {
@@ -217,6 +236,20 @@ struct PlayableMenuView: View {
                 onRemoveFromPlaylist()
             } label: {
                 Label("Remove from Playlist", systemImage: "trash")
+            }
+        }
+    }
+
+    /// Add to Collection… for a Plex album or artist. Left out once Cue
+    /// knows the account doesn't own the server, since only the owner can
+    /// change its collections; the sheet checks for itself before that.
+    @ViewBuilder
+    private var addToPlexCollectionButton: some View {
+        if item.content.service == .plex, PlexBrowseService.shared.canManageCollections != false {
+            Button {
+                router.sheet(to: .addToPlexCollection(content: item))
+            } label: {
+                Label("Add to Collection…", systemImage: "square.stack.3d.up")
             }
         }
     }
