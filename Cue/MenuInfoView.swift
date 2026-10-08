@@ -176,24 +176,29 @@ struct LiveActivityMenu: View {
 
 /// Line-in from any speaker in the household, not only the group's own:
 /// a speaker's input plays on every group. One source is a button naming it;
-/// several are a submenu, which stays while line-in plays so another source
-/// can be picked.
+/// several are a submenu, the one playing checked, which stays while line-in
+/// plays so another source can be picked.
 struct LineInMenu: View {
     var group: GroupRoom
+
+    /// The speaker whose line-in the group plays, from the stream it reports.
+    private var playingSourceID: String? { group.coordinatorRoom.track.lineInSourceID }
 
     var body: some View {
         let sources = SonosService.shared.lineInSources
         if sources.count > 1 {
             Menu {
                 ForEach(sources) { source in
-                    Button(source.name) {
-                        play(source)
-                    }
+                    Toggle(source.name, isOn: Binding {
+                        playingSourceID == source.id
+                    } set: { isOn in
+                        if isOn { play(source) }
+                    })
                 }
             } label: {
                 Label("Switch to Line In", systemImage: "audio.jack.stereo")
             }
-        } else if let source = sources.first, group.playbackService != .lineIn {
+        } else if let source = sources.first, playingSourceID != source.id {
             Button {
                 play(source)
             } label: {
@@ -209,7 +214,10 @@ struct LineInMenu: View {
 
     private func play(_ source: Room) {
         Task {
-            await SonosService.shared.switchToLineIn(group: group, from: source)
+            guard await SonosService.shared.switchToLineIn(group: group, from: source) else {
+                AlertService.shared.showAlert(with: "Couldn’t switch to \(source.name)’s Line In", imageName: "exclamationmark.triangle")
+                return
+            }
             await SonosService.shared.play(ip: group.ip)
         }
     }
