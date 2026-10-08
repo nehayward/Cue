@@ -46,15 +46,23 @@ struct ServicePreferenceScreen: View {
     /// discovery hasn't returned, so an empty keychain read never hides the
     /// toggles.
     private var connectedServices: [MediaSearchService] {
-        guard !servers.isEmpty else { return sonosServices }
-        return sonosServices.filter { $0.isAuthorized(on: installedTypes) }
+        let services = sonosServices.filter { !$0.signsInInCue || $0.isAuthorized(on: installedTypes) }
+        guard !servers.isEmpty else { return services }
+        return services.filter { $0.isAuthorized(on: installedTypes) }
     }
 
     /// Supported by Cue but not yet authorized on the user's Sonos. Only
-    /// meaningful once discovery has returned something.
+    /// meaningful once discovery has returned something. A service signed
+    /// in to in Cue isn't one: its sign-in row is with the connected ones.
     private var notConnectedServices: [MediaSearchService] {
         guard !servers.isEmpty else { return [] }
-        return sonosServices.filter { !$0.isAuthorized(on: installedTypes) }
+        return sonosServices.filter { !$0.signsInInCue && !$0.isAuthorized(on: installedTypes) }
+    }
+
+    /// Services signed in to in Cue (TIDAL) that aren't yet: a row each that
+    /// opens the sign-in, whatever the Sonos system has.
+    private var signedOutServices: [MediaSearchService] {
+        sonosServices.filter { $0.signsInInCue && !$0.isAuthorized(on: installedTypes) }
     }
 
     /// Discovered on the user's Sonos but not supported by Cue yet —
@@ -100,6 +108,10 @@ struct ServicePreferenceScreen: View {
                         }
                         .tint(.accent)
                     }
+                }
+
+                ForEach(signedOutServices, id: \.self) { service in
+                    connectRow(for: service)
                 }
 
                 // Authorized in Sonos but not supported by Cue yet — same
@@ -272,9 +284,10 @@ struct ServicePreferenceScreen: View {
     /// sheet in Cue; the rest send the user to the Sonos app to sign in.
     private func connectRow(for service: MediaSearchService) -> some View {
         let isSelfHosted = service.isConfiguredInCue != nil
+        let opensSheet = isSelfHosted || service.signsInInCue
 
         return Button {
-            if isSelfHosted, let sheet = service.managementSheet {
+            if opensSheet, let sheet = service.managementSheet {
                 router.presentedSheet = sheet
             } else {
                 openSonosApp()
@@ -286,12 +299,14 @@ struct ServicePreferenceScreen: View {
                         Text(service.title)
                         Text(service == .files
                              ? "Choose a folder of music"
+                             : service.signsInInCue
+                             ? "Sign in to \(service.title)"
                              : (isSelfHosted ? "Connect your server" : "Sign in with the Sonos app"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Image(systemName: isSelfHosted ? "chevron.right" : "arrow.up.forward.app")
+                    Image(systemName: opensSheet ? "chevron.right" : "arrow.up.forward.app")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -355,6 +370,17 @@ struct ServicePreferenceScreen: View {
             Label {
                 Text(service.title)
                 Text(musicSearchService.isPlexAuthorized ? "Manage" : "Sign In")
+                    .foregroundStyle(.accent)
+            } icon: {
+                service.iconForMusicService
+                    .frame(width: 24, height: 24)
+            }
+        } else if service == .tidal {
+            // Signed in to here in Cue, like Plex; only listed with a
+            // toggle once it is.
+            Label {
+                Text(service.title)
+                Text("Manage")
                     .foregroundStyle(.accent)
             } icon: {
                 service.iconForMusicService

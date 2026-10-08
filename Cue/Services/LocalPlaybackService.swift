@@ -74,6 +74,10 @@ final class LocalPlaybackService {
                 self?.streamItemDidFinish(ObjectIdentifier(item))
             }
         })
+        // The same for a TIDAL run's last song, and a song it couldn't play.
+        tidalPlayer.onEvent = { [weak self] event in
+            self?.tidalPlayerDid(event)
+        }
     }
 
     enum LocalPlaybackError: LocalizedError {
@@ -111,6 +115,8 @@ final class LocalPlaybackService {
         /// player as `appleMusic`, with no entries to follow through.
         case appleStation
         case stream
+        /// TIDAL's own player (`TidalPlayer`), one song ahead.
+        case tidal
     }
 
     /// What happens when the queue runs out, or a track ends — the same three
@@ -407,6 +413,23 @@ final class LocalPlaybackService {
     /// Each armed stream item's status, watched so a song that won't load is
     /// reported the moment it fails — see `watch(_:)`.
     @ObservationIgnored private var itemWatches: [ObjectIdentifier: NSKeyValueObservation] = [:]
+    private var tidalPlayer: TidalPlayer { .shared }
+    /// The armed TIDAL run: each song handed to the player, by the reference
+    /// it carries, → queue index. The player holds the current song and the
+    /// one after; the rest follow one at a time (`topUpTidalRun`).
+    @ObservationIgnored private var tidalRun: [String: Int] = [:]
+    /// Where to take the TIDAL song once it has loaded: a seek before then
+    /// has no song to land in.
+    @ObservationIgnored private var tidalPendingSeek: TimeInterval?
+    /// Set once the TIDAL run's song has loaded, so an idle player means
+    /// the run has played out rather than not started yet.
+    @ObservationIgnored private var tidalWasLoaded = false
+    /// Set once a TIDAL preview has been pointed out, so the next one
+    /// doesn't say it again.
+    @ObservationIgnored private var didNoteTidalPreview = false
+    /// The cursor for the next page of a TIDAL playlist, by "playlist
+    /// id#offset": `containerTracks` pages by offset, and TIDAL by cursor.
+    @ObservationIgnored private var tidalPlaylistCursors: [String: String] = [:]
     /// The Apple `Song`s looked up most recently, by `songKey(for:)`, so a
     /// skip back or a re-arm needs neither the catalog nor the disk. The rest
     /// wait in `AppleSongStore`, which is what lets a track seen before arm
@@ -444,7 +467,7 @@ final class LocalPlaybackService {
                 } else {
                     nowPlayingCard.end()
                 }
-            case .stream, nil:
+            case .stream, .tidal, nil:
                 break
             }
         }
@@ -525,9 +548,20 @@ final class LocalPlaybackService {
         // only set once an iCloud file has actually downloaded.
         case .files where item.content.type == .track && item.previewURL != nil:
             .stream
+        // TIDAL's own player plays it as the signed-in account; the id is
+        // all it needs. A row off a speaker's queue whose URI didn't give
+        // one up has nothing to play.
+        case .tidal where item.content.type == .track && !item.content.id.isEmpty && Self.playsTidal:
+            .tidal
         default:
             nil
         }
+    }
+
+    /// Whether TIDAL plays here: the app has TIDAL's player, and someone is
+    /// signed in for it to play as.
+    private static var playsTidal: Bool {
+        TidalPlayer.isAvailable && TidalAccount.shared.isSignedIn
     }
 
     /// Whether this is a container — album or playlist — whose tracks the local
@@ -548,6 +582,9 @@ final class LocalPlaybackService {
         // download manager can take an album whole.
         case (.album, .subsonic), (.artist, .subsonic), (.playlist, .subsonic):
             true
+        // An artist plays its top tracks, as on TIDAL.
+        case (.album, .tidal), (.playlist, .tidal), (.artist, .tidal):
+            Self.playsTidal
         default:
             false
         }
@@ -617,9 +654,38 @@ final class LocalPlaybackService {
         case (.album, .subsonic), (.artist, .subsonic), (.playlist, .subsonic):
             guard offset == 0 else { return [] }
             return await MusicSearchService.shared.containerTracks(for: container)
+        case (.album, .tidal):
+            // Every page of the album at once.
+            guard offset == 0 else { return [] }
+            return await MusicSearchService.shared.lookupTidalAlbumTracks(id: container.content.id)
+        case (.artist, .tidal):
+            guard offset == 0 else { return [] }
+            return await MusicSearchService.shared.lookupTidalArtistTracks(id: container.content.id)
+        case (.playlist, .tidal):
+            return await tidalPlaylistPage(id: container.content.id, offset: offset)
         default:
             return []
         }
+    }
+
+    /// The page of a TIDAL playlist that starts at `offset`. TIDAL pages by
+    /// cursor, so each page leaves the cursor for the one after it under
+    /// that page's end; an offset with no cursor left for it is past the
+    /// end, or wasn't reached in order, and comes back empty.
+    private func tidalPlaylistPage(id: String, offset: Int) async -> [PlayableContent] {
+        let cursor: String?
+        if offset == 0 {
+            cursor = nil
+        } else if let next = tidalPlaylistCursors["\(id)#\(offset)"] {
+            cursor = next
+        } else {
+            return []
+        }
+        let (tracks, next) = await MusicSearchService.shared.lookupTidalPlaylist(id: id, cursor: cursor)
+        if let next, !tracks.isEmpty {
+            tidalPlaylistCursors["\(id)#\(offset + tracks.count)"] = next
+        }
+        return tracks
     }
 
     /// Appends everything after the page already queued. Runs detached from the
@@ -711,9 +777,14 @@ final class LocalPlaybackService {
     /// (a stream run that has let its session go). A Plex album queued in
     /// pages lands this way too, page by page.
     private func extendArmedRun() async {
-        // An Apple run fills itself (`fillAppleRun`).
+        // An Apple run fills itself (`fillAppleRun`), and a TIDAL run only
+        // ever holds the song after the current one.
         if backend == .appleMusic {
             fillAppleRun()
+            return
+        }
+        if backend == .tidal {
+            topUpTidalRun()
             return
         }
         guard let backend, backend != .appleStation,
@@ -751,7 +822,7 @@ final class LocalPlaybackService {
                 register(item, at: queueIndex)
                 runEnd = queueIndex
             }
-        case .appleMusic, .appleStation:
+        case .appleMusic, .appleStation, .tidal:
             break
         }
     }
@@ -900,6 +971,15 @@ final class LocalPlaybackService {
         case .stream:
             streamPlayer?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
             nowPlayingCard.noteSeek(elapsed: seconds)
+        case .tidal:
+            // Until the song has loaded there's nothing to seek in; the poll
+            // takes it there once it has.
+            if !tidalPlayer.status.isLoaded {
+                tidalPendingSeek = seconds
+            } else {
+                tidalPlayer.seek(to: seconds)
+            }
+            nowPlayingCard.noteSeek(elapsed: seconds)
         case .appleStation:
             // A station has nowhere to seek to.
             break
@@ -940,6 +1020,14 @@ final class LocalPlaybackService {
                 streamPlayer.pause()
                 showRequested(playing: false)
             }
+        case .tidal:
+            let playing = heldPlaying ?? tidalPlayer.status.isPlaying
+            if playing {
+                tidalPlayer.pause()
+            } else {
+                tidalPlayer.resume()
+            }
+            showRequested(playing: !playing)
         case nil:
             // Queue loaded but nothing armed (e.g. a failed track) — retry it.
             Task { try? await arm(at: currentIndex) }
@@ -956,6 +1044,8 @@ final class LocalPlaybackService {
             musicPlayer.pause()
         case .stream:
             streamPlayer?.pause()
+        case .tidal:
+            tidalPlayer.pause()
         case nil:
             return
         }
@@ -1167,6 +1257,9 @@ final class LocalPlaybackService {
             case .stream:
                 streamPlayer?.advanceToNextItem()
                 followStreamPlayer()
+            case .tidal:
+                tidalPlayer.skipToNext()
+                followTidalPlayer(to: target)
             case .appleStation:
                 // Skipped within the station above.
                 break
@@ -1361,11 +1454,12 @@ final class LocalPlaybackService {
         // Letting it go and taking it back on every Previous or long skip
         // was a round trip to the audio server each way, and told other
         // apps they could resume for the moment in between.
-        let keepsAudioSession = queue.indices.contains(index) && backendKind(for: queue[index]) == .stream
+        let ownsAudioSession: (Backend?) -> Bool = { $0 == .stream || $0 == .tidal }
+        let keepsAudioSession = queue.indices.contains(index) && ownsAudioSession(backendKind(for: queue[index]))
         teardownRun(keepingAudioSession: keepsAudioSession)
         // Unless nothing ended up playing on it.
         defer {
-            if keepsAudioSession, playToken == token, backend != .stream {
+            if keepsAudioSession, playToken == token, !ownsAudioSession(backend) {
                 releaseAudioSession()
             }
         }
@@ -1394,6 +1488,8 @@ final class LocalPlaybackService {
             try await armApple(index: index, end: end, token: token, resume: resume)
         case .appleStation:
             try await armAppleStation(index: index, token: token)
+        case .tidal:
+            armTidal(index: index, end: end, token: token, resume: resume)
         case nil:
             // Shouldn't happen — the queue only takes playable items.
             advancePastRun(endingAt: index)
@@ -1457,6 +1553,8 @@ final class LocalPlaybackService {
         case .stream:
             let seconds = streamPlayer?.currentTime().seconds ?? 0
             return seconds.isFinite ? seconds : 0
+        case .tidal:
+            return tidalPendingSeek ?? tidalPlayer.status.position ?? 0
         case nil:
             return 0
         }
@@ -1534,6 +1632,8 @@ final class LocalPlaybackService {
             musicPlayer.restartCurrentEntry()
         case .stream:
             streamPlayer?.seek(to: .zero)
+        case .tidal:
+            seek(to: 0)
         case .appleStation:
             break
         case nil:
@@ -1574,7 +1674,9 @@ final class LocalPlaybackService {
         // prepared.
         let end = Self.appleWindowEnd(from: next, through: runEnd(from: next))
         Self.log.notice("looking ahead to the run at \(next)...\(end)")
-        let fromStream = backend == .stream
+        // Coming off this app's own player (a stream or TIDAL), not Apple's.
+        let armed = backend
+        let fromStream = armed == .stream || armed == .tidal
         let token = playToken
         Task {
             guard let resolved = try? await resolveAppleSongs(next...end) else {
@@ -1587,8 +1689,8 @@ final class LocalPlaybackService {
             // the gap between a Plex song and an Apple one. Off an Apple run
             // the player is busy playing, so the songs alone will do.
             guard fromStream, !resolved.isEmpty,
-                  playToken == token, backend == .stream, runEnd + 1 == next else {
-                Self.log.notice("pre-arm skipped: fromStream=\(fromStream) resolved=\(resolved.count) tokenSame=\(self.playToken == token) stream=\(self.backend == .stream) runEnd=\(self.runEnd) next=\(next)")
+                  playToken == token, backend == armed, runEnd + 1 == next else {
+                Self.log.notice("pre-arm skipped: fromStream=\(fromStream) resolved=\(resolved.count) tokenSame=\(self.playToken == token) sameRun=\(self.backend == armed) runEnd=\(self.runEnd) next=\(next)")
                 return
             }
             musicPlayer.queue = ApplicationMusicPlayer.Queue(for: resolved.map(\.song))
@@ -1598,7 +1700,7 @@ final class LocalPlaybackService {
                 Self.log.error("pre-arming the Apple run failed: \(error.localizedDescription, privacy: .public)")
                 return
             }
-            guard playToken == token, backend == .stream, runEnd + 1 == next else { return }
+            guard playToken == token, backend == armed, runEnd + 1 == next else { return }
             preparedAppleRun = (next, resolved.map(\.song.id))
             Self.log.notice("Apple run at \(next) prepared ahead of the hand-off")
         }
@@ -1611,7 +1713,7 @@ final class LocalPlaybackService {
         // The stream run is ending into an Apple run that's already loaded:
         // keep the audio session rather than release it and take it straight
         // back, which only adds to the gap.
-        let handsToPreparedApple = previous == .stream && preparedAppleRun?.start == runEnd + 1
+        let handsToPreparedApple = (previous == .stream || previous == .tidal) && preparedAppleRun?.start == runEnd + 1
         backend = nil
         // Whatever was playing has been left, wherever it got to.
         PlayReporter.shared.end()
@@ -1648,6 +1750,17 @@ final class LocalPlaybackService {
             streamPlayer = nil
             streamRun = [:]
             itemWatches = [:]
+            nowPlayingCard.end()
+            isPlayingLocalStream = false
+            if !handsToPreparedApple, !keepingAudioSession {
+                releaseAudioSession()
+            }
+        }
+        if previous == .tidal {
+            tidalPlayer.reset()
+            tidalRun = [:]
+            tidalPendingSeek = nil
+            tidalWasLoaded = false
             nowPlayingCard.end()
             isPlayingLocalStream = false
             if !handsToPreparedApple, !keepingAudioSession {
@@ -1692,6 +1805,8 @@ final class LocalPlaybackService {
                     streamPlayer.remove(item)
                 }
             }
+        case .tidal:
+            tidalPlayer.setNext(trackID: nil, reference: nil)
         case nil:
             break
         }
@@ -2241,6 +2356,180 @@ final class LocalPlaybackService {
         return false
     }
 
+    // MARK: - TIDAL backend
+
+    /// Plays the TIDAL run from `index`: that song now, and the one after it
+    /// set as next, so the player joins them without a gap. The rest of the
+    /// run follows a song at a time as it plays (`topUpTidalRun`).
+    private func armTidal(index: Int, end: Int, token: Int, resume: TimeInterval? = nil) {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            Self.log.error("audio session for TIDAL: \(error.localizedDescription, privacy: .public)")
+        }
+
+        tidalRun = [:]
+        backend = .tidal
+        runEnd = index
+        currentIndex = index
+        if let resume, resume > 0 {
+            tidalPendingSeek = resume
+        }
+        tidalPlayer.play(trackID: queue[index].content.id, reference: tidalReference(for: index, token: token))
+        if end > index {
+            topUpTidalRun()
+        }
+
+        isPlayingLocalStream = true
+        nowPlayingCard.begin()
+        nowPlayingCard.update(
+            item: nowPlayingDisplay,
+            isPlaying: true,
+            duration: duration,
+            elapsed: resume ?? 0,
+            canSkip: currentIndex + 1 < queue.count
+        )
+    }
+
+    /// The reference queue row `index` carries in the player, unique to this
+    /// arm so the same song twice, or a row from an earlier run, can't be
+    /// mistaken for it. Recorded in `tidalRun`.
+    private func tidalReference(for index: Int, token: Int) -> String {
+        let reference = "\(token).\(index)"
+        tidalRun[reference] = index
+        return reference
+    }
+
+    /// Sets the song after the current one as the player's next, when it's
+    /// a TIDAL song too and the run goes on: the player holds one song ahead.
+    private func topUpTidalRun() {
+        guard backend == .tidal, repeatMode != .one, !sleepsAtEndOfTrack,
+              runEnd == currentIndex else { return }
+        let next = currentIndex + 1
+        guard let row = queue[safe: next], backendKind(for: row) == .tidal else { return }
+        tidalPlayer.setNext(trackID: row.content.id, reference: tidalReference(for: next, token: playToken))
+        runEnd = next
+    }
+
+    /// Moves the queue's place to `index` straight after a skip within the
+    /// run, rather than on the poll after the player gets there, and sets up
+    /// the song after it.
+    private func followTidalPlayer(to index: Int) {
+        guard index != currentIndex else { return }
+        currentIndex = index
+        progress = 0
+        duration = catalogDuration(at: index)
+        tidalPendingSeek = nil
+        topUpTidalRun()
+    }
+
+    private func tidalPlayerDid(_ event: TidalPlayer.Event) {
+        guard backend == .tidal else { return }
+        switch event {
+        case let .ended(reference):
+            // The run's last song: arm what follows. Earlier songs are the
+            // player going on to the next one, which it does itself.
+            guard let reference, let row = tidalRun[reference], row == runEnd else { return }
+            teardownRun()
+            advancePastRun(endingAt: row)
+        case let .failed(message, skips):
+            let row = currentIndex
+            let title = queue[safe: row]?.title ?? "this song"
+            AlertService.shared.showAlert(with: "Couldn't play “\(title)”. \(message)", imageName: "exclamationmark.triangle")
+            if skips {
+                teardownRun()
+                advancePastRun(endingAt: row)
+            } else {
+                // The next song would fail the same way: wait here, paused,
+                // for Play to try again.
+                park()
+            }
+        case .playingElsewhere:
+            AlertService.shared.showAlert(with: "Paused: your Tidal account started playing somewhere else", imageName: "pause.circle")
+        }
+    }
+
+    /// The poll's turn for a TIDAL run: follows the player from song to song,
+    /// reads its clock, and notices a preview.
+    private func refreshTidal() {
+        let status = tidalPlayer.status
+        let loaded = status.isLoaded
+        // Played out with nothing set after it — the next song set too late,
+        // or a song the run had let go of, which no `ended` matches: go on
+        // from the song that was playing.
+        if status.isIdle, tidalWasLoaded {
+            tidalWasLoaded = false
+            let end = currentIndex
+            teardownRun()
+            advancePastRun(endingAt: end)
+            return
+        }
+        if loaded { tidalWasLoaded = true }
+
+        // Still loading counts as playing: the player starts the song as
+        // soon as it has it.
+        let playing = reconcilePlaying(status.isPlaying || !loaded)
+        let paused = isPlaying && !playing
+        if isPlaying != playing { isPlaying = playing }
+
+        if let reference = status.reference, let row = tidalRun[reference], row != currentIndex {
+            followTidalPlayer(to: row)
+        }
+        if let pending = tidalPendingSeek {
+            if loaded {
+                tidalPendingSeek = nil
+                tidalPlayer.seek(to: pending)
+            }
+        } else if let position = status.position {
+            noteProgress(Self.finite(position, else: progress))
+        }
+        savePositionIfDue(paused: paused)
+
+        // A preview's length is the preview's; the catalog's stands in until
+        // the song has loaded.
+        let total = status.duration ?? catalogDuration(at: currentIndex)
+        if duration != total { duration = total }
+        topUpTidalRun()
+        prepareNextRun()
+        if loaded, status.quality != audioQuality {
+            audioQuality = status.quality
+        }
+        if loaded {
+            noteTidalPreview(status.previewNotice)
+        }
+
+        nowPlayingCard.update(
+            item: nowPlayingDisplay,
+            isPlaying: isPlaying,
+            duration: duration,
+            elapsed: progress,
+            canSkip: currentIndex + 1 < queue.count
+        )
+    }
+
+    /// Keeps the account's word on previews current, and says it once when
+    /// the first one plays: until TIDAL raises the app's access tier, every
+    /// song is 30 seconds, and that shouldn't look like a fault.
+    private func noteTidalPreview(_ notice: String?) {
+        let account = TidalAccount.shared
+        if account.previewNotice != notice {
+            account.previewNotice = notice
+        }
+        guard let notice, !didNoteTidalPreview else { return }
+        didNoteTidalPreview = true
+        AlertService.shared.showAlert(with: notice, imageName: "info.circle") {
+            Router.main.presentedSheet = .tidalManagement
+        }
+    }
+
+    /// The TIDAL account has gone: a TIDAL run stops where it was, and the
+    /// queue waits for the next Play like any parked one.
+    func signedOutOfTidal() {
+        guard backend == .tidal else { return }
+        park()
+    }
+
     // MARK: - Station metadata
 
     /// TuneIn's station lookup says what's on air — the same call the Sonos
@@ -2616,6 +2905,8 @@ final class LocalPlaybackService {
                 duration: duration,
                 isPlaying: isPlaying
             )
+        case .tidal:
+            refreshTidal()
         case nil:
             if isPlaying { isPlaying = false }
         }

@@ -1338,6 +1338,28 @@ public final class MusicSearchService {
         return (songs.compactMap(\.toPlayable), next)
     }
 
+    // The signed-in user's collection, a page (20) at a time with the
+    // cursor for the next. Empty with nobody signed in.
+    public func tidalCollectionTracks(cursor: String? = nil) async -> ([PlayableContent], String?) {
+        guard let (items, next) = try? await tidal.collectionTracks(cursor: cursor) else { return ([], nil) }
+        return (items.map(\.toPlayable), next)
+    }
+
+    public func tidalCollectionAlbums(cursor: String? = nil) async -> ([PlayableContent], String?) {
+        guard let (items, next) = try? await tidal.collectionAlbums(cursor: cursor) else { return ([], nil) }
+        return (items.map(\.toPlayable), next)
+    }
+
+    public func tidalCollectionArtists(cursor: String? = nil) async -> ([PlayableContent], String?) {
+        guard let (items, next) = try? await tidal.collectionArtists(cursor: cursor) else { return ([], nil) }
+        return (items.map(\.toPlayable), next)
+    }
+
+    public func tidalCollectionPlaylists(cursor: String? = nil) async -> ([PlayableContent], String?) {
+        guard let (items, next) = try? await tidal.collectionPlaylists(cursor: cursor) else { return ([], nil) }
+        return (items.map(\.toPlayable), next)
+    }
+
     private func searchTidal(query: String) async -> [PlayableContent] {
         var playableContent: [PlayableContent] = []
         guard let results = await tidal.search(for: query) else { return playableContent }

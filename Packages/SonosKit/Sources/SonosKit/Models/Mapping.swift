@@ -991,10 +991,21 @@ extension TidalAlbumResource {
                 artistID: artist?.id,
                 album: title,
                 albumID: id,
-                isExplicit: isExplicit
+                albumYear: releaseDate.flatMap(Self.releaseDateFormatter.date(from:)),
+                isExplicit: isExplicit,
+                isSingle: isSingleOrEP
             )
         )
     }
+
+    /// Tidal release dates are plain `yyyy-MM-dd`.
+    private static let releaseDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
 }
 
 // MARK: Tidal

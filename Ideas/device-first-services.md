@@ -23,7 +23,7 @@ anything with a stream URL or file. The Sonos side is `PlayableContent.uri`
 | TuneIn | Live stream resolved from the station id | `x-sonosapi-stream:…?sid=333` | **Keep** |
 | Files (user folder) | The file itself | None (`playsOnDeviceOnly`) | **Keep, decide** (device-only, see Open questions) |
 | Spotify | 30-second preview clip only | `x-sonos-spotify:…?sid=12` | **Remove** |
-| Tidal | None | `…?sid=174` | **Remove** |
+| Tidal | TIDAL's own Player SDK, as the account signed in to in Cue (30-second previews until TIDAL raises the app's access tier) | `…?sid=174` | **Keep** (since October 2026) |
 | Deezer | 30-second preview clip only | `x-sonos-http:tr-flac…?sid=2` | **Remove** |
 | SoundCloud | None | `x-sonos-http:track-…?sid=160` | **Remove** |
 | Pandora | None (pure SMAPI) | `x-sonosapi-radio:…?sid=236` | **Remove** |
@@ -37,6 +37,16 @@ its iOS SDK only remote-controls the Spotify app. `PlayAction/QueueListView
 local backend" → fall back off Device). The `SpotfiySonos/` folder is
 Spotify browsed through Sonos' SMAPI proxy with the household's credentials;
 it yields metadata only.
+
+Tidal crossed it in October 2026. TIDAL's iOS SDK (`tidal-sdk-ios`) has a
+Player that plays the catalog on the device for an account signed in with
+TIDAL's own login, and TIDAL allows no other way to play its audio. So Cue
+signs in with the SDK (`TidalAccount`) and plays through its Player
+(`TidalPlayer`, a `.tidal` run in `LocalPlaybackService`). Full songs need
+TIDAL to raise Cue's access tier on the Developer Platform; until then the
+Player plays 30-second previews and reports `FULL_REQUIRES_HIGHER_ACCESS_TIER`.
+Tidal's files are no longer part of the removal below. Its share-sheet link
+handling (`PlayAction/QueueListView`) still falls back off Device.
 
 ## Footprint of the services to remove
 

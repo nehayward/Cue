@@ -96,6 +96,8 @@ private extension BrowseScreen {
             PandoraBrowseScreen()
         case .subsonic:
             SubsonicBrowseScreen()
+        case .tidal:
+            TidalBrowseScreen()
         case .files:
             FilesBrowseScreen()
         default:

@@ -1,0 +1,1246 @@
+{
+ "data": [
+  {
+   "id": "RMZ1UMyyURnYSKCD9jmTxFbBFW6MFgp5x8EyeQGfBBY",
+   "type": "searchResults",
+   "attributes": {
+    "query": "radiohead creep",
+    "trackingId": "6011bbed-f0b2-4dba-8879-38e63931ecf7"
+   },
+   "relationships": {
+    "playlists": {
+     "data": [
+      {
+       "id": "2bf56688-c693-47a2-839f-aa18bd333c24",
+       "type": "playlists"
+      },
+      {
+       "id": "22b4c0f6-4328-4636-ae99-0084e0794fe3",
+       "type": "playlists"
+      },
+      {
+       "id": "549e6e94-05f2-4c5c-91d5-92a08a03665a",
+       "type": "playlists"
+      }
+     ]
+    },
+    "albums": {
+     "data": [
+      {
+       "id": "60258228",
+       "type": "albums"
+      },
+      {
+       "id": "286114271",
+       "type": "albums"
+      },
+      {
+       "id": "58990510",
+       "type": "albums"
+      }
+     ]
+    },
+    "artists": {
+     "data": [
+      {
+       "id": "64518",
+       "type": "artists"
+      },
+      {
+       "id": "3548249",
+       "type": "artists"
+      }
+     ]
+    },
+    "tracks": {
+     "data": [
+      {
+       "id": "58990486",
+       "type": "tracks"
+      },
+      {
+       "id": "286114279",
+       "type": "tracks"
+      },
+      {
+       "id": "189051144",
+       "type": "tracks"
+      }
+     ]
+    }
+   }
+  }
+ ],
+ "included": [
+  {
+   "id": "189051143",
+   "type": "albums",
+   "attributes": {
+    "title": "Creep (Very 2021 Rmx)",
+    "barcodeId": "191404120750",
+    "numberOfVolumes": 1,
+    "numberOfItems": 1,
+    "duration": "PT9M3S",
+    "explicit": false,
+    "releaseDate": "2021-07-13",
+    "copyright": {
+     "text": "LLLP LLP under exclusive license to XL Recordings Ltd"
+    },
+    "popularity": 0.41719906476681157,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "LOSSLESS"
+    ],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/album/189051143",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "type": "SINGLE",
+    "albumType": "SINGLE"
+   },
+   "relationships": {
+    "coverArt": {
+     "data": [
+      {
+       "id": "2xpmpI1s9DzIRrSEiRjqbb",
+       "type": "artworks"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "286114271",
+   "type": "albums",
+   "attributes": {
+    "title": "Creep EP",
+    "barcodeId": "191404134351",
+    "numberOfVolumes": 1,
+    "numberOfItems": 6,
+    "duration": "PT23M33S",
+    "explicit": true,
+    "releaseDate": "1992-09-21",
+    "copyright": {
+     "text": "LLLP LLP under exclusive license to XL Recordings Ltd"
+    },
+    "popularity": 0.6077273212242683,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "LOSSLESS"
+    ],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/album/286114271",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "type": "EP",
+    "albumType": "EP",
+    "createdAt": "2023-03-29T22:17:42Z"
+   },
+   "relationships": {
+    "coverArt": {
+     "data": [
+      {
+       "id": "2xpmpI1s9DzeQTsLDOpqFt",
+       "type": "artworks"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "58990484",
+   "type": "albums",
+   "attributes": {
+    "title": "Pablo Honey",
+    "barcodeId": "634904077969",
+    "numberOfVolumes": 1,
+    "numberOfItems": 12,
+    "duration": "PT42M17S",
+    "explicit": true,
+    "releaseDate": "1993-04-20",
+    "copyright": {
+     "text": "LLLP LLP under exclusive license to XL Recordings Ltd"
+    },
+    "popularity": 0.8546879261804959,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "LOSSLESS"
+    ],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/album/58990484",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "type": "ALBUM",
+    "albumType": "ALBUM",
+    "createdAt": "2016-04-02T08:18:54Z"
+   },
+   "relationships": {
+    "coverArt": {
+     "data": [
+      {
+       "id": "iWOu0yW0IPMMuL9q3gkW",
+       "type": "artworks"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "58990510",
+   "type": "albums",
+   "attributes": {
+    "title": "OK Computer",
+    "barcodeId": "634904078164",
+    "numberOfVolumes": 1,
+    "numberOfItems": 12,
+    "duration": "PT53M36S",
+    "explicit": false,
+    "releaseDate": "1997-07-01",
+    "copyright": {
+     "text": "XL Recordings Ltd"
+    },
+    "popularity": 0.9036889553167395,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "LOSSLESS"
+    ],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/album/58990510",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "type": "ALBUM",
+    "albumType": "ALBUM"
+   },
+   "relationships": {
+    "coverArt": {
+     "data": [
+      {
+       "id": "iWOu0yW0IPMMuL9q3xKa",
+       "type": "artworks"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "60258228",
+   "type": "albums",
+   "attributes": {
+    "title": "Creep",
+    "barcodeId": "634904079765",
+    "numberOfVolumes": 1,
+    "numberOfItems": 5,
+    "duration": "PT19M14S",
+    "explicit": true,
+    "releaseDate": "1992-09-21",
+    "copyright": {
+     "text": "LLLP LLP under exclusive license to XL Recordings Ltd"
+    },
+    "popularity": 0.5728194037929549,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "LOSSLESS"
+    ],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/album/60258228",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "type": "SINGLE",
+    "albumType": "SINGLE",
+    "createdAt": "2016-05-10T07:23:15Z"
+   },
+   "relationships": {
+    "coverArt": {
+     "data": [
+      {
+       "id": "iWOu0yW0IPRWaFVZ2TRw",
+       "type": "artworks"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "3544256",
+   "type": "artists",
+   "attributes": {
+    "name": "Thom Yorke",
+    "popularity": 0.7980918442024396,
+    "numberOfFollowers": 64830,
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/artist/3544256",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "ownerType": "LABEL"
+   }
+  },
+  {
+   "id": "3548249",
+   "type": "artists",
+   "attributes": {
+    "name": "Creep",
+    "popularity": 0.3328407406806946,
+    "numberOfFollowers": 80,
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/artist/3548249",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "ownerType": "LABEL"
+   },
+   "relationships": {
+    "profileArt": {
+     "data": [
+      {
+       "id": "iWOu0yW0IPBZpnKT2qQP",
+       "type": "artworks"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "64518",
+   "type": "artists",
+   "attributes": {
+    "name": "Radiohead",
+    "popularity": 0.9204140305519104,
+    "numberOfFollowers": 868037,
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/artist/64518",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "ownerType": "LABEL"
+   },
+   "relationships": {
+    "profileArt": {
+     "data": [
+      {
+       "id": "dDmYD0OBhT89Wuro",
+       "type": "artworks"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "2b7Vtuqr0FkUUtHKtiSmvFQOQzG7G3cAHUKMlE9hVpKuisBBoY69223Rj",
+   "type": "artworks",
+   "attributes": {
+    "mediaType": "IMAGE",
+    "files": [
+     {
+      "href": "https://resources.tidal.com/images/1530c655/749d/4de7/b6f2/4f1357281369/160x160.jpg",
+      "meta": {
+       "width": 160,
+       "height": 160
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/1530c655/749d/4de7/b6f2/4f1357281369/320x320.jpg",
+      "meta": {
+       "width": 320,
+       "height": 320
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/1530c655/749d/4de7/b6f2/4f1357281369/480x480.jpg",
+      "meta": {
+       "width": 480,
+       "height": 480
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/1530c655/749d/4de7/b6f2/4f1357281369/1080x1080.jpg",
+      "meta": {
+       "width": 1080,
+       "height": 1080
+      }
+     }
+    ],
+    "visualMetadata": {
+     "selectedPaletteColor": "#585D5F",
+     "blurHash": "UGIrQut700V@?bofD%V[00WB?woz9ZV[-:xu",
+     "status": "OK"
+    }
+   }
+  },
+  {
+   "id": "2b7Vtuqr0FxQ1GAlHIsLtfCshpowkpNBdND4I6aUGX53MlN8jfBzxEuYu",
+   "type": "artworks",
+   "attributes": {
+    "mediaType": "IMAGE",
+    "files": [
+     {
+      "href": "https://resources.tidal.com/images/6d734635/1084/40b6/b387/2ca7b7d7cd3f/160x160.jpg",
+      "meta": {
+       "width": 160,
+       "height": 160
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/6d734635/1084/40b6/b387/2ca7b7d7cd3f/320x320.jpg",
+      "meta": {
+       "width": 320,
+       "height": 320
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/6d734635/1084/40b6/b387/2ca7b7d7cd3f/480x480.jpg",
+      "meta": {
+       "width": 480,
+       "height": 480
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/6d734635/1084/40b6/b387/2ca7b7d7cd3f/1080x1080.jpg",
+      "meta": {
+       "width": 1080,
+       "height": 1080
+      }
+     }
+    ],
+    "visualMetadata": {
+     "selectedPaletteColor": "#7B693E",
+     "blurHash": "ULC$+T-:M{bI~VbIkCoe_2WWRjofRjM{WBaz",
+     "status": "OK"
+    }
+   }
+  },
+  {
+   "id": "2b7Vtuqr0J5lOn1JRNkg00owgnhnYzHcLD9DUkV1JnZW6VWW0A5K35Tbl",
+   "type": "artworks",
+   "attributes": {
+    "mediaType": "IMAGE",
+    "files": [
+     {
+      "href": "https://resources.tidal.com/images/39dcfb02/fa45/4df4/ad1b/9bab68e34e3f/160x160.jpg",
+      "meta": {
+       "width": 160,
+       "height": 160
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/39dcfb02/fa45/4df4/ad1b/9bab68e34e3f/320x320.jpg",
+      "meta": {
+       "width": 320,
+       "height": 320
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/39dcfb02/fa45/4df4/ad1b/9bab68e34e3f/480x480.jpg",
+      "meta": {
+       "width": 480,
+       "height": 480
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/39dcfb02/fa45/4df4/ad1b/9bab68e34e3f/1080x1080.jpg",
+      "meta": {
+       "width": 1080,
+       "height": 1080
+      }
+     }
+    ],
+    "visualMetadata": {
+     "selectedPaletteColor": "#37251D",
+     "blurHash": "U5R{x*R*o~H?9G00Mw.800D%4.~qD%D%%NWB",
+     "status": "OK"
+    }
+   }
+  },
+  {
+   "id": "2xpmpI1s9DzIRrSEiRjqbb",
+   "type": "artworks",
+   "attributes": {
+    "mediaType": "IMAGE",
+    "files": [
+     {
+      "href": "https://resources.tidal.com/images/b6c53fad/590d/468f/8012/b0dae66e0d47/1280x1280.jpg",
+      "meta": {
+       "width": 1280,
+       "height": 1280
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/b6c53fad/590d/468f/8012/b0dae66e0d47/1080x1080.jpg",
+      "meta": {
+       "width": 1080,
+       "height": 1080
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/b6c53fad/590d/468f/8012/b0dae66e0d47/750x750.jpg",
+      "meta": {
+       "width": 750,
+       "height": 750
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/b6c53fad/590d/468f/8012/b0dae66e0d47/640x640.jpg",
+      "meta": {
+       "width": 640,
+       "height": 640
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/b6c53fad/590d/468f/8012/b0dae66e0d47/320x320.jpg",
+      "meta": {
+       "width": 320,
+       "height": 320
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/b6c53fad/590d/468f/8012/b0dae66e0d47/160x160.jpg",
+      "meta": {
+       "width": 160,
+       "height": 160
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/b6c53fad/590d/468f/8012/b0dae66e0d47/80x80.jpg",
+      "meta": {
+       "width": 80,
+       "height": 80
+      }
+     }
+    ],
+    "visualMetadata": {
+     "selectedPaletteColor": "#7F745D",
+     "blurHash": "UFQSV7D%tRxa?at6s.of~V-oIpRkM|Ioj[t6",
+     "status": "OK"
+    }
+   }
+  },
+  {
+   "id": "2xpmpI1s9DzeQTsLDOpqFt",
+   "type": "artworks",
+   "attributes": {
+    "mediaType": "IMAGE",
+    "files": [
+     {
+      "href": "https://resources.tidal.com/images/fd3c7f42/0060/4d70/b073/39c6bbf08d48/1280x1280.jpg",
+      "meta": {
+       "width": 1280,
+       "height": 1280
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/fd3c7f42/0060/4d70/b073/39c6bbf08d48/1080x1080.jpg",
+      "meta": {
+       "width": 1080,
+       "height": 1080
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/fd3c7f42/0060/4d70/b073/39c6bbf08d48/750x750.jpg",
+      "meta": {
+       "width": 750,
+       "height": 750
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/fd3c7f42/0060/4d70/b073/39c6bbf08d48/640x640.jpg",
+      "meta": {
+       "width": 640,
+       "height": 640
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/fd3c7f42/0060/4d70/b073/39c6bbf08d48/320x320.jpg",
+      "meta": {
+       "width": 320,
+       "height": 320
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/fd3c7f42/0060/4d70/b073/39c6bbf08d48/160x160.jpg",
+      "meta": {
+       "width": 160,
+       "height": 160
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/fd3c7f42/0060/4d70/b073/39c6bbf08d48/80x80.jpg",
+      "meta": {
+       "width": 80,
+       "height": 80
+      }
+     }
+    ],
+    "visualMetadata": {
+     "selectedPaletteColor": "#565310",
+     "blurHash": "UOL:+C*0~C$*~aIBIUI;t=MxXSogtZt7MxRj",
+     "status": "OK"
+    }
+   }
+  },
+  {
+   "id": "dDmYD0OBhT89Wuro",
+   "type": "artworks",
+   "attributes": {
+    "mediaType": "IMAGE",
+    "files": [
+     {
+      "href": "https://resources.tidal.com/images/2fecc844/307f/4dd6/9e13/81e406d62d9c/750x750.jpg",
+      "meta": {
+       "width": 750,
+       "height": 750
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/2fecc844/307f/4dd6/9e13/81e406d62d9c/480x480.jpg",
+      "meta": {
+       "width": 480,
+       "height": 480
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/2fecc844/307f/4dd6/9e13/81e406d62d9c/320x320.jpg",
+      "meta": {
+       "width": 320,
+       "height": 320
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/2fecc844/307f/4dd6/9e13/81e406d62d9c/160x160.jpg",
+      "meta": {
+       "width": 160,
+       "height": 160
+      }
+     }
+    ],
+    "visualMetadata": {
+     "selectedPaletteColor": "#751D04",
+     "blurHash": "U9C}I3w{0lbrx?oeRSWC0lW:}nagIEafxroe",
+     "status": "OK"
+    }
+   }
+  },
+  {
+   "id": "iWOu0yW0IPBZpnKT2qQP",
+   "type": "artworks",
+   "attributes": {
+    "mediaType": "IMAGE",
+    "files": [
+     {
+      "href": "https://resources.tidal.com/images/5024c57c/9b42/4ffd/973e/396d4666f504/1280x1280.jpg",
+      "meta": {
+       "width": 1280,
+       "height": 1280
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/5024c57c/9b42/4ffd/973e/396d4666f504/1080x1080.jpg",
+      "meta": {
+       "width": 1080,
+       "height": 1080
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/5024c57c/9b42/4ffd/973e/396d4666f504/750x750.jpg",
+      "meta": {
+       "width": 750,
+       "height": 750
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/5024c57c/9b42/4ffd/973e/396d4666f504/640x640.jpg",
+      "meta": {
+       "width": 640,
+       "height": 640
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/5024c57c/9b42/4ffd/973e/396d4666f504/320x320.jpg",
+      "meta": {
+       "width": 320,
+       "height": 320
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/5024c57c/9b42/4ffd/973e/396d4666f504/160x160.jpg",
+      "meta": {
+       "width": 160,
+       "height": 160
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/5024c57c/9b42/4ffd/973e/396d4666f504/80x80.jpg",
+      "meta": {
+       "width": 80,
+       "height": 80
+      }
+     }
+    ],
+    "visualMetadata": {
+     "selectedPaletteColor": "#1C273C",
+     "blurHash": "U242SRj[00WX%iaeISo#D*WB%Mt7M{a#xuoJ",
+     "status": "OK"
+    }
+   }
+  },
+  {
+   "id": "iWOu0yW0IPMMuL9q3gkW",
+   "type": "artworks",
+   "attributes": {
+    "mediaType": "IMAGE",
+    "files": [
+     {
+      "href": "https://resources.tidal.com/images/ccc50c5e/b347/4faa/9524/924dc8f071fc/1280x1280.jpg",
+      "meta": {
+       "width": 1280,
+       "height": 1280
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/ccc50c5e/b347/4faa/9524/924dc8f071fc/1080x1080.jpg",
+      "meta": {
+       "width": 1080,
+       "height": 1080
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/ccc50c5e/b347/4faa/9524/924dc8f071fc/750x750.jpg",
+      "meta": {
+       "width": 750,
+       "height": 750
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/ccc50c5e/b347/4faa/9524/924dc8f071fc/640x640.jpg",
+      "meta": {
+       "width": 640,
+       "height": 640
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/ccc50c5e/b347/4faa/9524/924dc8f071fc/320x320.jpg",
+      "meta": {
+       "width": 320,
+       "height": 320
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/ccc50c5e/b347/4faa/9524/924dc8f071fc/160x160.jpg",
+      "meta": {
+       "width": 160,
+       "height": 160
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/ccc50c5e/b347/4faa/9524/924dc8f071fc/80x80.jpg",
+      "meta": {
+       "width": 80,
+       "height": 80
+      }
+     }
+    ],
+    "visualMetadata": {
+     "selectedPaletteColor": "#867038",
+     "blurHash": "UaP=irt7*0R+pHR-M{oJPDogNybINIjEi]ae",
+     "status": "OK"
+    }
+   }
+  },
+  {
+   "id": "iWOu0yW0IPMMuL9q3xKa",
+   "type": "artworks",
+   "attributes": {
+    "mediaType": "IMAGE",
+    "files": [
+     {
+      "href": "https://resources.tidal.com/images/e77e4cc0/6cd0/4522/807d/88aeac488065/1280x1280.jpg",
+      "meta": {
+       "width": 1280,
+       "height": 1280
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/e77e4cc0/6cd0/4522/807d/88aeac488065/1080x1080.jpg",
+      "meta": {
+       "width": 1080,
+       "height": 1080
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/e77e4cc0/6cd0/4522/807d/88aeac488065/750x750.jpg",
+      "meta": {
+       "width": 750,
+       "height": 750
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/e77e4cc0/6cd0/4522/807d/88aeac488065/640x640.jpg",
+      "meta": {
+       "width": 640,
+       "height": 640
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/e77e4cc0/6cd0/4522/807d/88aeac488065/320x320.jpg",
+      "meta": {
+       "width": 320,
+       "height": 320
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/e77e4cc0/6cd0/4522/807d/88aeac488065/160x160.jpg",
+      "meta": {
+       "width": 160,
+       "height": 160
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/e77e4cc0/6cd0/4522/807d/88aeac488065/80x80.jpg",
+      "meta": {
+       "width": 80,
+       "height": 80
+      }
+     }
+    ],
+    "visualMetadata": {
+     "selectedPaletteColor": "#005487",
+     "blurHash": "URPG?Sx[-oR,~Bxt9aM{~VM{%LoJI:M{t6oz",
+     "status": "OK"
+    }
+   }
+  },
+  {
+   "id": "iWOu0yW0IPRWaFVZ2TRw",
+   "type": "artworks",
+   "attributes": {
+    "mediaType": "IMAGE",
+    "files": [
+     {
+      "href": "https://resources.tidal.com/images/0bc8781b/5ff0/4811/b4d1/9fff9937108d/1280x1280.jpg",
+      "meta": {
+       "width": 1280,
+       "height": 1280
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/0bc8781b/5ff0/4811/b4d1/9fff9937108d/1080x1080.jpg",
+      "meta": {
+       "width": 1080,
+       "height": 1080
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/0bc8781b/5ff0/4811/b4d1/9fff9937108d/750x750.jpg",
+      "meta": {
+       "width": 750,
+       "height": 750
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/0bc8781b/5ff0/4811/b4d1/9fff9937108d/640x640.jpg",
+      "meta": {
+       "width": 640,
+       "height": 640
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/0bc8781b/5ff0/4811/b4d1/9fff9937108d/320x320.jpg",
+      "meta": {
+       "width": 320,
+       "height": 320
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/0bc8781b/5ff0/4811/b4d1/9fff9937108d/160x160.jpg",
+      "meta": {
+       "width": 160,
+       "height": 160
+      }
+     },
+     {
+      "href": "https://resources.tidal.com/images/0bc8781b/5ff0/4811/b4d1/9fff9937108d/80x80.jpg",
+      "meta": {
+       "width": 80,
+       "height": 80
+      }
+     }
+    ],
+    "visualMetadata": {
+     "selectedPaletteColor": "#565310",
+     "blurHash": "UOL:+C*0~C$*~aIBIUI;t=MxXSogtZt7MxRj",
+     "status": "OK"
+    }
+   }
+  },
+  {
+   "id": "22b4c0f6-4328-4636-ae99-0084e0794fe3",
+   "type": "playlists",
+   "attributes": {
+    "name": "The World of: Radiohead’s ‘OK Computer’",
+    "description": "“Fitter, happier, more productive” … Was any work of pop-music art more prescient in the late ’90s, or in any epoch, than Radiohead’s third studio LP? Released in 1997, its ironic dichotomy — a fearful meditation on tech-dependent postmodern life, awash in ingenious futuristic sounds and recording strategies — seems to embody our contemporary world of forced wellness and smartphone addiction. To celebrate the 25th anniversary of this essential album, we researched this special ‘World of’ playlist featuring the original tracks, their specific sonic and musical inspirations, the band’s more general influences during the period, other songs from this important moment in British alternative rock and more. \n",
+    "bounded": true,
+    "duration": "PT2H46M30S",
+    "numberOfItems": 38,
+    "numberOfTrackItems": 38,
+    "numberOfVideoItems": 0,
+    "externalLinks": [
+     {
+      "href": "https://listen.tidal.com/playlist/22b4c0f6-4328-4636-ae99-0084e0794fe3",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     },
+     {
+      "href": "https://tidal.com/playlist/22b4c0f6-4328-4636-ae99-0084e0794fe3?play=true",
+      "meta": {
+       "type": "TIDAL_AUTOPLAY_ANDROID"
+      }
+     },
+     {
+      "href": "https://tidal.com/playlist/22b4c0f6-4328-4636-ae99-0084e0794fe3?play=true",
+      "meta": {
+       "type": "TIDAL_AUTOPLAY_IOS"
+      }
+     },
+     {
+      "href": "https://listen.tidal.com/playlist/22b4c0f6-4328-4636-ae99-0084e0794fe3?play=true",
+      "meta": {
+       "type": "TIDAL_AUTOPLAY_WEB"
+      }
+     }
+    ],
+    "createdAt": "2022-06-16T14:23:20.013788Z",
+    "lastModifiedAt": "2022-06-16T14:57:15.347Z",
+    "accessType": "PUBLIC",
+    "playlistType": "EDITORIAL",
+    "numberOfFollowers": 186
+   },
+   "relationships": {
+    "coverArt": {
+     "data": [
+      {
+       "id": "2b7Vtuqr0FkUUtHKtiSmvFQOQzG7G3cAHUKMlE9hVpKuisBBoY69223Rj",
+       "type": "artworks"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "2bf56688-c693-47a2-839f-aa18bd333c24",
+   "type": "playlists",
+   "attributes": {
+    "name": "Radiohead Essentials",
+    "description": "Modern rock history wouldn’t have been the same without Radiohead – a British ‘90s sensation that became one of the most influential alternative bands of all time. The five members – Thom Yorke (vocals, guitar), Ed O'Brien (guitar, vocals), Jonny Greenwood (guitar), Colin Greenwood (bass), and Phil Selway (drums) – formed Radiohead in 1988 while attending boarding school in Oxford. Initially called ‘On a Friday’ (referring to the day of the week they would meet up to rehearse) the band began a musical career that sharply took off with the celebrated 1993 debut Pablo Honey (and hit single “Creep”) and the classic follow-up The Bends (1995). But it was with the progressive, timeless, electronic-tinged masterpiece OK Computer (1997) that Radiohead became an international phenomenon. Since then, the band has brilliantly managed to continually evolve and reinvent themselves, always trying out new sounds and musical directions, such as with the two-part electronic suite Kid A (2000) and Amnesiac (2001). As one of the most celebrated acts of their time, Radiohead have never really made a mediocre album. (Photo: Rovi)",
+    "bounded": true,
+    "duration": "PT1H56M35S",
+    "numberOfItems": 25,
+    "numberOfTrackItems": 25,
+    "numberOfVideoItems": 0,
+    "externalLinks": [
+     {
+      "href": "https://listen.tidal.com/playlist/2bf56688-c693-47a2-839f-aa18bd333c24",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     },
+     {
+      "href": "https://tidal.com/playlist/2bf56688-c693-47a2-839f-aa18bd333c24?play=true",
+      "meta": {
+       "type": "TIDAL_AUTOPLAY_ANDROID"
+      }
+     },
+     {
+      "href": "https://tidal.com/playlist/2bf56688-c693-47a2-839f-aa18bd333c24?play=true",
+      "meta": {
+       "type": "TIDAL_AUTOPLAY_IOS"
+      }
+     },
+     {
+      "href": "https://listen.tidal.com/playlist/2bf56688-c693-47a2-839f-aa18bd333c24?play=true",
+      "meta": {
+       "type": "TIDAL_AUTOPLAY_WEB"
+      }
+     }
+    ],
+    "createdAt": "2015-09-24T08:28:46.821Z",
+    "lastModifiedAt": "2023-08-30T00:01:13.059Z",
+    "accessType": "PUBLIC",
+    "playlistType": "EDITORIAL",
+    "numberOfFollowers": 20665
+   },
+   "relationships": {
+    "coverArt": {
+     "data": [
+      {
+       "id": "2b7Vtuqr0FxQ1GAlHIsLtfCshpowkpNBdND4I6aUGX53MlN8jfBzxEuYu",
+       "type": "artworks"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "549e6e94-05f2-4c5c-91d5-92a08a03665a",
+   "type": "playlists",
+   "attributes": {
+    "name": "Remember...the 1990s",
+    "description": "The 1990s - what a memorable decade! R.E.M. and U2 ascended as world stars, while grunge changed many people's perception of what could top the charts. Pop-punk (Green Day, The Offspring) and Britpop (Oasis, Blur) were born, just as hip-hop was gaining traction on the charts (Jay-Z, Eminem). Many promising hitmakers would go on to have long, healthy careers, while others would never see the 2000s. But they all belong in our collective memory of the 1990's. (Cover: The Notorious B.I.G. - Ready to Die, Bad Boy/WMG)",
+    "bounded": true,
+    "duration": "PT15H8M13S",
+    "numberOfItems": 200,
+    "numberOfTrackItems": 200,
+    "numberOfVideoItems": 0,
+    "externalLinks": [
+     {
+      "href": "https://listen.tidal.com/playlist/549e6e94-05f2-4c5c-91d5-92a08a03665a",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     },
+     {
+      "href": "https://tidal.com/playlist/549e6e94-05f2-4c5c-91d5-92a08a03665a?play=true",
+      "meta": {
+       "type": "TIDAL_AUTOPLAY_ANDROID"
+      }
+     },
+     {
+      "href": "https://tidal.com/playlist/549e6e94-05f2-4c5c-91d5-92a08a03665a?play=true",
+      "meta": {
+       "type": "TIDAL_AUTOPLAY_IOS"
+      }
+     },
+     {
+      "href": "https://listen.tidal.com/playlist/549e6e94-05f2-4c5c-91d5-92a08a03665a?play=true",
+      "meta": {
+       "type": "TIDAL_AUTOPLAY_WEB"
+      }
+     }
+    ],
+    "createdAt": "2014-09-30T17:13:59.313Z",
+    "lastModifiedAt": "2026-04-09T17:49:43.106Z",
+    "accessType": "PUBLIC",
+    "playlistType": "EDITORIAL",
+    "numberOfFollowers": 59080
+   },
+   "relationships": {
+    "coverArt": {
+     "data": [
+      {
+       "id": "2b7Vtuqr0J5lOn1JRNkg00owgnhnYzHcLD9DUkV1JnZW6VWW0A5K35Tbl",
+       "type": "artworks"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "189051144",
+   "type": "tracks",
+   "attributes": {
+    "title": "Creep",
+    "version": "Very 2021 Rmx",
+    "isrc": "GBBKS2100062",
+    "duration": "PT9M3S",
+    "copyright": {
+     "text": "LLLP LLP under exclusive license to XL Recordings Ltd"
+    },
+    "explicit": false,
+    "popularity": 0.4852322715186524,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "LOSSLESS"
+    ],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/track/189051144",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "createdAt": "2021-06-25T15:58:05Z"
+   },
+   "relationships": {
+    "artists": {
+     "data": [
+      {
+       "id": "3544256",
+       "type": "artists"
+      },
+      {
+       "id": "64518",
+       "type": "artists"
+      }
+     ]
+    },
+    "albums": {
+     "data": [
+      {
+       "id": "189051143",
+       "type": "albums"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "286114279",
+   "type": "tracks",
+   "attributes": {
+    "title": "Creep",
+    "version": "Acoustic",
+    "isrc": "GBAYE9300465",
+    "duration": "PT4M19S",
+    "copyright": {
+     "text": "LLLP LLP under exclusive license to XL Recordings Ltd"
+    },
+    "explicit": false,
+    "popularity": 0.7293468581578323,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "LOSSLESS"
+    ],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/track/286114279",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "createdAt": "2023-03-29T22:17:42Z"
+   },
+   "relationships": {
+    "artists": {
+     "data": [
+      {
+       "id": "64518",
+       "type": "artists"
+      }
+     ]
+    },
+    "albums": {
+     "data": [
+      {
+       "id": "286114271",
+       "type": "albums"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "58990486",
+   "type": "tracks",
+   "attributes": {
+    "title": "Creep",
+    "version": null,
+    "isrc": "GBAYE9200070",
+    "duration": "PT3M59S",
+    "copyright": {
+     "text": "LLLP LLP under exclusive license to XL Recordings Ltd"
+    },
+    "explicit": true,
+    "popularity": 0.919644774269019,
+    "accessType": "PUBLIC",
+    "availability": [
+     "STREAM",
+     "DJ"
+    ],
+    "mediaTags": [
+     "LOSSLESS"
+    ],
+    "externalLinks": [
+     {
+      "href": "https://tidal.com/browse/track/58990486",
+      "meta": {
+       "type": "TIDAL_SHARING"
+      }
+     }
+    ],
+    "spotlighted": false,
+    "createdAt": "2016-04-02T08:18:54Z"
+   },
+   "relationships": {
+    "artists": {
+     "data": [
+      {
+       "id": "64518",
+       "type": "artists"
+      }
+     ]
+    },
+    "albums": {
+     "data": [
+      {
+       "id": "58990484",
+       "type": "albums"
+      }
+     ]
+    }
+   }
+  }
+ ],
+ "links": {
+  "self": "/searchResults?filter%5Bquery%5D=radiohead+creep&include=albums.coverArt%2Cartists.profileArt%2Cplaylists.coverArt%2Ctracks.albums.coverArt%2Ctracks.artists&countryCode=US"
+ }
+}

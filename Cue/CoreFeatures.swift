@@ -42,9 +42,12 @@ final class CoreFeatures {
     /// A service that isn't in `MediaSearchService.supported` is never
     /// enabled, whatever an older build left in defaults — so a stored
     /// Spotify selection falls out of search, browse, and the tabs on its
-    /// own.
+    /// own. Nor is one signed in to in Cue (TIDAL) while it's signed out: an
+    /// unset flag reads as on, and it has nothing to play until then.
     func isEnabled(_ service: MediaSearchService) -> Bool {
-        service.isSupported && feature(service.title)
+        guard service.isSupported else { return false }
+        if service.signsInInCue, !TidalAccount.shared.isSignedIn { return false }
+        return feature(service.title)
     }
 
     /// Sync Cue's per-service enabled flags to whatever the user has actually

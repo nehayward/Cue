@@ -63,7 +63,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         case .spotify:
             true
         case .tidal:
-            false
+            true
         case .tuneIn:
             false
         case .soundcloud:

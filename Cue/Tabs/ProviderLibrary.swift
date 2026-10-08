@@ -27,6 +27,7 @@ struct ProviderLibrary {
         case .plex: musicSearchService.isPlexAuthorized && musicSearchService.plexServerID != nil
         case .deezer: deezerBrowseService.isAuthenticated
         case .subsonic: subsonicBrowseService.isAuthenticated
+        case .tidal: TidalAccount.shared.isSignedIn
         case .files: FilesLibraryService.shared.isConfigured
         default: true
         }
@@ -69,7 +70,21 @@ struct ProviderLibrary {
         case .library: libraryDestination(for: collection)
         case .plex: plexDestination(for: collection)
         case .files: Self.filesDestination(for: collection)
-        case .tidal, .tuneIn, .sonosRadio, .pandora: nil
+        case .tidal: Self.tidalDestination(for: collection)
+        case .tuneIn, .sonosRadio, .pandora: nil
+        }
+    }
+
+    // MARK: - Tidal
+
+    /// The signed-in account's My Collection, list by list.
+    private static func tidalDestination(for collection: ProviderCollection) -> RouterDestination? {
+        switch collection {
+        case .songs: TidalLibrary.Kind.songs.destination
+        case .albums: TidalLibrary.Kind.albums.destination
+        case .artists: TidalLibrary.Kind.artists.destination
+        case .playlists: TidalLibrary.Kind.playlists.destination
+        default: nil
         }
     }
 

@@ -6,12 +6,14 @@ import MusicSearchKit
 extension MediaSearchService {
     /// The services Cue offers, in the order the app lists them. Everything
     /// here plays from this device or from something the user runs
-    /// themselves: Apple Music, a Plex or Subsonic server, radio, and a
-    /// folder of files. The streaming services that only work through a
-    /// Sonos account (Spotify, Tidal, Deezer, …) keep their cases in the
-    /// package so stored settings still decode, but they are never listed
-    /// or enabled here.
-    static let supported: [MediaSearchService] = [.apple, .plex, .tuneIn, .subsonic, .files]
+    /// themselves: Apple Music, TIDAL (through TIDAL's own SDK, in the apps
+    /// that link it), a Plex or Subsonic server, radio, and a folder of
+    /// files. The streaming services that only work through a Sonos account
+    /// (Spotify, Deezer, …) keep their cases in the package so stored
+    /// settings still decode, but they are never listed or enabled here.
+    static let supported: [MediaSearchService] = TidalAccount.isAvailable
+        ? [.apple, .tidal, .plex, .tuneIn, .subsonic, .files]
+        : [.apple, .plex, .tuneIn, .subsonic, .files]
 
     /// Whether this is one of the services Cue offers (see `supported`).
     var isSupported: Bool {

@@ -51,6 +51,7 @@ extension MediaSearchService {
     @MainActor
     func isAuthorized(on installed: Set<SonosServiceType>) -> Bool {
         if let isConfiguredInCue { return isConfiguredInCue }
+        if signsInInCue { return isAuthorizedOnDevice }
         // Device-first: a service the phone can play on its own is never
         // switched off because the Sonos system in reach doesn't have it —
         // switching households used to turn Apple Music, Plex and TuneIn
@@ -61,16 +62,24 @@ extension MediaSearchService {
     }
 
     /// Whether this device can play the service without any speaker: TuneIn
-    /// needs no account, Apple Music needs MusicKit access, Plex needs Cue's
-    /// own sign-in.
+    /// needs no account, Apple Music needs MusicKit access, Plex and TIDAL
+    /// need Cue's own sign-in.
     @MainActor
     private var isAuthorizedOnDevice: Bool {
         switch self {
         case .tuneIn: true
         case .apple: MusicAuthorization.currentStatus == .authorized
         case .plex: PlexAuthenticator.shared.authToken != nil
+        case .tidal: TidalAccount.shared.isSignedIn
         default: false
         }
+    }
+
+    /// Signed in to here in Cue rather than in the Sonos app, and not
+    /// offered at all until it is: TIDAL. A TIDAL account linked in the
+    /// Sonos app alone plays only on speakers, which Cue doesn't offer.
+    var signsInInCue: Bool {
+        self == .tidal
     }
 
     /// The in-app management sheet for services configured (at least partly)
@@ -80,6 +89,7 @@ extension MediaSearchService {
         switch self {
         case .plex: .plexManagement
         case .subsonic: .subsonicManagement
+        case .tidal: .tidalManagement
         case .files: .filesManagement
         default: nil
         }

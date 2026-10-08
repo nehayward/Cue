@@ -18,8 +18,13 @@ struct ServicesStep: View {
     /// (MediaSearchService+Sonos.swift) — a new music backend added there
     /// shows up here automatically. Library is skipped: it has no Sonos
     /// counterpart to detect.
+    ///
+    /// A service signed in to in Cue (Tidal) isn't listed: being on the
+    /// Sonos system doesn't make it ready here. It's signed in to from
+    /// Settings ▸ Services.
     private let mapping: [(SonosServiceType, MediaSearchService)] = MediaSearchService.supported.compactMap { service in
-        service.sonosServiceType.map { ($0, service) }
+        guard !service.signsInInCue else { return nil }
+        return service.sonosServiceType.map { ($0, service) }
     }
 
     private var hasAnySupported: Bool {
@@ -40,7 +45,7 @@ struct ServicesStep: View {
     /// Cue doesn't yet support — Pandora, SiriusXM, Bandcamp, etc. We can
     /// render these with their proper names since the enum knows the label.
     private var unsupportedKnownTypes: [SonosServiceType] {
-        let mapped = Set(mapping.map(\.0))
+        let mapped = Set(MediaSearchService.supported.compactMap(\.sonosServiceType))
         return installed.compactMap { type -> SonosServiceType? in
             guard !mapped.contains(type) else { return nil }
             if case .unknown = type { return nil }

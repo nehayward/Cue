@@ -1612,6 +1612,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             AppBootstrapper.shared.didLaunch = true
             AppBootstrapper.shared.bootstrap()
         }
+        // Before any view reads whether TIDAL is signed in, and before a
+        // restored queue or search asks TIDAL for anything.
+        TidalAccount.shared.configure()
         // The continued-processing task's launch handler has to be in place
         // before a download batch submits it.
         ContinuedDownloadTask.shared.register()

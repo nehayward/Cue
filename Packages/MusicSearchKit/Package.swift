@@ -13,7 +13,9 @@ let package = Package(
             targets: ["MusicSearchKit"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/drmohundro/SWXMLHash", from: "8.0.0"),
+        // 7.x as well as 8.x: TIDAL's SDK (in the app) is on 7.x, and one
+        // package graph can hold only one. Nothing here uses what 8 added.
+        .package(url: "https://github.com/drmohundro/SWXMLHash", "7.0.2"..<"9.0.0"),
         .package(url: "https://github.com/SwiftyBeaver/SwiftyBeaver.git", .upToNextMajor(from: "2.0.0"))
     ],
     targets: [

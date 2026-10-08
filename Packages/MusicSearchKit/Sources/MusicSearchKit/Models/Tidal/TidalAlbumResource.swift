@@ -16,6 +16,13 @@ public struct TidalAlbumResource: Codable {
     public let mediaMetadata: [String]?
     public let isExplicit: Bool
     public let popularity: Double
+    /// Tidal's release type: "ALBUM", "EP" or "SINGLE".
+    public var albumType: String? = nil
+
+    /// Singles and EPs, as opposed to full albums.
+    public var isSingleOrEP: Bool {
+        albumType == "SINGLE" || albumType == "EP"
+    }
     
     public var releaseDateFormatted: String? {
         if let releaseDate {
