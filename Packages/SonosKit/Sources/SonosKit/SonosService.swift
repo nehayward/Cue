@@ -1871,11 +1871,17 @@ public final class SonosService {
     }
 
     public func getTrack(ip: String) async -> Track? {
-        await api.getCurrentTrack(ipAddress: ip, prioritizedAlbumArtIP: prioritizedIP())
+        guard var track = await api.getCurrentTrack(ipAddress: ip, prioritizedAlbumArtIP: prioritizedIP()) else { return nil }
+        // Line-in has no artist, so the speaker the input comes from takes
+        // its place: "Line In", then "Kitchen".
+        if let sourceID = track.lineInSourceID, let name = await roomName(id: sourceID) {
+            track.artist = name
+        }
+        return track
     }
 
     public func getTrackDetails(ip: String) async -> Track? {
-        guard var track = await api.getCurrentTrack(ipAddress: ip, prioritizedAlbumArtIP: prioritizedIP()) else { return nil }
+        guard var track = await getTrack(ip: ip) else { return nil }
         guard let (trackMetadata, artworkURL) = await self.getTrackInformation(from: track) else {
             return track
         }
@@ -1885,6 +1891,12 @@ public final class SonosService {
             track.artist = trackMetadata?.artist ?? ""
         }
         return track
+    }
+
+    /// On the main actor, where the rooms change: the track is read off it.
+    @MainActor
+    private func roomName(id: String) -> String? {
+        rooms.first { $0.id == id }?.name
     }
     
     /// Points the on-screen listener at a group. Routed through the listener
@@ -2735,8 +2747,19 @@ public final class SonosService {
         await api.tvInput(IP: firstSoundBar.ip, ID: firstSoundBar.id)
     }
     
-    public func switchToLineIn(group: GroupRoom) async {
-        await api.switchToLineIn(IP: group.ip, ID: group.coordinatorRoom.id)
+    /// Every speaker in the household with a line-in, by name. Any group can
+    /// play any of them, not only the group that holds the speaker.
+    public var lineInSources: [Room] {
+        sortedRooms.filter { $0.state == .active && $0.supportsLineIn }
+    }
+
+    /// Plays `source`'s line-in on `group`. The stream is the source
+    /// speaker's (`x-rincon-stream:<its id>`), set on the group's coordinator.
+    ///
+    /// - Returns: Whether the group's coordinator took it.
+    @discardableResult
+    public func switchToLineIn(group: GroupRoom, from source: Room) async -> Bool {
+        await api.switchToLineIn(IP: group.ip, ID: source.id)
     }
     
     public func switchToQueueInput(group: GroupRoom) async {

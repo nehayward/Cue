@@ -29,6 +29,36 @@ final class TrackTests: XCTestCase {
         XCTAssertFalse(Track.alarm.isEmpty)
     }
 
+    // MARK: Line-in
+
+    /// The stream names the speaker whose input it is, which can be any
+    /// speaker in the household, not the group's own.
+    func testLineInTrackNamesItsSourceSpeaker() throws {
+        let xml = """
+        <s:Envelope><s:Body><u:GetPositionInfoResponse>\
+        <Track>1</Track><TrackDuration>0:00:00</TrackDuration>\
+        <TrackMetaData>NOT_IMPLEMENTED</TrackMetaData>\
+        <TrackURI>x-rincon-stream:RINCON_000E58AABBCC01400</TrackURI>\
+        <RelTime>0:01:12</RelTime>\
+        </u:GetPositionInfoResponse></s:Body></s:Envelope>
+        """
+        let track = try XCTUnwrap(SonosTrackParser.parse(xmlString: xml, ip: "192.168.1.20", preferredIP: nil))
+        XCTAssertEqual(track.name, "Line In")
+        XCTAssertEqual(track.lineInSourceID, "RINCON_000E58AABBCC01400")
+        XCTAssertFalse(track.isEmpty)
+    }
+
+    /// A Move 2 playing its own input reports it with the input's number.
+    func testLineInSourceDropsTheInputNumber() {
+        XCTAssertEqual(Track.lineIn(uri: "x-rincon-stream:RINCON_C43875011B7C01400:0").lineInSourceID, "RINCON_C43875011B7C01400")
+    }
+
+    func testOnlyLineInTracksHaveASource() {
+        XCTAssertNil(Track.tv.lineInSourceID)
+        XCTAssertNil(Track(trackID: "song:123").lineInSourceID)
+        XCTAssertNil(Track(trackID: "x-rincon-stream:").lineInSourceID)
+    }
+
     // MARK: artworkURL fallback order
 
     func testArtworkURLPrefersDownloadedThenSonosThenStation() {

@@ -39,9 +39,19 @@ struct PlaybackRouteButton: View {
                 // With Sonos off, or away from Wi‑Fi, the only routes are the
                 // system's, so the button is the system's AirPlay picker
                 // itself. Speakers are switched on in Settings ▸ Sonos.
-                AirPlayRoutePicker()
+                // In a car the sound goes to CarPlay, and the button shows a
+                // car where the AirPlay glyph was, the way Music's does. The
+                // picker underneath still takes the tap.
+                AirPlayRoutePicker(hidesGlyph: sonosService.isInCar)
                     .frame(width: 30, height: 30)
+                    .overlay {
+                        if sonosService.isInCar {
+                            Image(systemName: "car.fill")
+                                .allowsHitTesting(false)
+                        }
+                    }
                     .accessibilityLabel("AirPlay")
+                    .accessibilityValue(sonosService.isInCar ? "CarPlay" : "")
             }
         }
         // Re-read on every appearance: the share extension writes this too, so
@@ -81,16 +91,22 @@ private struct SonosRouteButton: View {
 /// The system AirPlay button: a tap puts up the system route sheet, the
 /// same one Control Center shows, and the device's audio follows it.
 private struct AirPlayRoutePicker: UIViewRepresentable {
+    /// Draws the picker without its own glyph, for a symbol laid over it.
+    var hidesGlyph = false
+
     func makeUIView(context: Context) -> AVRoutePickerView {
         let picker = AVRoutePickerView()
         picker.prioritizesVideoDevices = false
-        picker.tintColor = .label
-        picker.activeTintColor = .tintColor
         picker.backgroundColor = .clear
         return picker
     }
 
-    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {
+        // The glyph is drawn in these tints, so clear ones hide it while the
+        // button still takes the tap.
+        uiView.tintColor = hidesGlyph ? .clear : .label
+        uiView.activeTintColor = hidesGlyph ? .clear : .tintColor
+    }
 }
 
 struct PendingSwitch: Identifiable {
