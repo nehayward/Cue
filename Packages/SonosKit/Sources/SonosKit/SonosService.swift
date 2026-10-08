@@ -2735,8 +2735,16 @@ public final class SonosService {
         await api.tvInput(IP: firstSoundBar.ip, ID: firstSoundBar.id)
     }
     
-    public func switchToLineIn(group: GroupRoom) async {
-        await api.switchToLineIn(IP: group.ip, ID: group.coordinatorRoom.id)
+    /// Every speaker in the household with a line-in, by name. Any group can
+    /// play any of them, not only the group that holds the speaker.
+    public var lineInSources: [Room] {
+        sortedRooms.filter { $0.state == .active && $0.supportsLineIn }
+    }
+
+    /// Plays `source`'s line-in on `group`. The stream is the source
+    /// speaker's (`x-rincon-stream:<its id>`), set on the group's coordinator.
+    public func switchToLineIn(group: GroupRoom, from source: Room) async {
+        await api.switchToLineIn(IP: group.ip, ID: source.id)
     }
     
     public func switchToQueueInput(group: GroupRoom) async {
