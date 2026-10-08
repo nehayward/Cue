@@ -1167,10 +1167,13 @@ struct CueApp: App {
         switch phase {
         case .background:
             quickLaunchPending = true
+            router.openedToSearch = false
         case .active:
             guard quickLaunchPending else { return }
             quickLaunchPending = false
-            guard speedLaunchNowPlaying, !isOnboarding else { return }
+            // Opened with the Search quick action: that's where the user
+            // asked to go, not the player.
+            guard speedLaunchNowPlaying, !isOnboarding, !router.openedToSearch else { return }
             openNowPlaying()
         default:
             break
@@ -1229,36 +1232,22 @@ struct CueApp: App {
                 return
             }
             
+            // Search is a tab. These links used to open it as a sheet on the
+            // main router, which nothing presents any more.
             if components.host?.lowercased() == "search", url.pathComponents.contains("favorites") {
-                // Navigate to favorite search
-                router.path.removeAll()
-                router.presentedSheet = .favorites
+                // The tab opens on the Sonos favorites; no keyboard over them.
+                router.openSearch(focusingField: false)
                 return
             }
 
-            if components.host?.lowercased() == "search", let id = components.queryItems?.first(where: { $0.name == "id" })?.value {
-                router.presentedSheet = nil
-                
-
-                guard let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) else {
-                    Task {
-                        guard let group = await sonosService.getGroupCoordinatorWithRoom(roomID: id) else {
-                            return
-                        }
-                        router.selectedID = group.coordinatorID
-                        if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
-                            router.presentedSheet = .search(group: group)
-                        } else {
-                            router.inspectorSheet = .search(group: group)
-                        }
-                    }
-                    return
-                }
-                router.selectedID = group.coordinatorID
-                if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
-                    router.presentedSheet = .search(group: group)
-                } else {
-                    router.inspectorSheet = .search(group: group)
+            if components.host?.lowercased() == "search" {
+                router.openSearch()
+                // The Live Activity's search button names its room.
+                guard let id = components.queryItems?.first(where: { $0.name == "id" })?.value else { return }
+                if let group = sonosService.groups.first(where: { $0.coordinatorRoom.id == id }) {
+                    router.selectedID = group.coordinatorID
+                } else if let group = await sonosService.getGroupCoordinatorWithRoom(roomID: id) {
+                    router.selectedID = group.coordinatorID
                 }
                 return
             }
@@ -1673,17 +1662,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
              return carPlay
          }
 #endif
-         if let shortcutItem = options.shortcutItem {
-             if shortcutItem.type == "com.cue.search" {
-                 Task { @MainActor in
-                     // MARK: Delay for Toolbar
-                     try await Task.sleep(for: .milliseconds(200))
-                     Router.main.path.removeAll()
-                     Router.main.presentedSheet = .search()
-                 }
-             }
-         }
-
+       // A quick action that launched Cue is handled by the scene delegate
+       // (`scene(_:willConnectTo:options:)`), which gets it for a new scene
+       // and for a saved one coming back alike.
        let sceneConfig = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
        sceneConfig.delegateClass = CueSceneDelegate.self // 👈🏻
        return sceneConfig
@@ -1908,8 +1889,14 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
     private var windowSizeObserver: WindowSizeObserver?
     #endif
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        // Launched from a Home Screen quick action. One chosen while Cue is
+        // running comes through `windowScene(_:performActionFor:)`.
+        if let shortcutItem = connectionOptions.shortcutItem {
+            performQuickAction(shortcutItem)
+        }
+
         guard let windowScene = (scene as? UIWindowScene) else { return }
-        
+
 #if targetEnvironment(macCatalyst)
         if let titlebar = windowScene.titlebar {
             // A unified toolbar across the top of the window, the way Xcode
@@ -1950,14 +1937,19 @@ class CueSceneDelegate: NSObject, UIWindowSceneDelegate {
     func windowScene(_ windowScene: UIWindowScene,
                      performActionFor shortcutItem: UIApplicationShortcutItem,
                      completionHandler: @escaping (Bool) -> Void) {
+        completionHandler(performQuickAction(shortcutItem))
+    }
 
-        if shortcutItem.type == "com.cue.search" {
-            Task { @MainActor in
-                // MARK: Delay for Toolbar
-                try await Task.sleep(for: .milliseconds(200))
-                Router.main.path.removeAll()
-                Router.main.presentedSheet = .search()
-            }
+    /// The Home Screen quick actions (`UIApplicationShortcutItems` in
+    /// Info.plist). Returns whether the item was one of them.
+    @discardableResult
+    private func performQuickAction(_ shortcutItem: UIApplicationShortcutItem) -> Bool {
+        switch shortcutItem.type {
+        case "com.cue.search":
+            Router.main.openSearch()
+            return true
+        default:
+            return false
         }
     }
 }

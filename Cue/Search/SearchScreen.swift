@@ -31,6 +31,10 @@ struct SearchScreen: View {
     var closeInspector: (() -> Void)? = nil
 
     var isAlarmSearch: Bool = false
+    /// The Search tab's own screen, the one `SearchActivator` focuses: a
+    /// re-tap of the tab or the Search quick action. A search sheet left
+    /// open elsewhere (the player's) must not take the request instead.
+    var isSearchTab: Bool = false
     @State private var coreFeatures = CoreFeatures.shared
     @State private var alertService = AlertService.shared
     /// Offline, the field searches what's on this device instead of the
@@ -58,6 +62,10 @@ struct SearchScreen: View {
     @State private var lastCompletedSearchKey: String?
     @State private var isLoading: Bool = false
     @State private var keyboardSelectedIndex: Int?
+    /// Between `onAppear` and `onDisappear`: a focus request is for the
+    /// screen the user is looking at.
+    @State private var isShowing = false
+    @State private var focusTask: Task<Void, Never>?
 
     private var showAlert: Bool {
 #if targetEnvironment(macCatalyst)
@@ -407,20 +415,29 @@ struct SearchScreen: View {
 #endif
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
+            isShowing = true
             searchFieldIsPresented = true
             lastNonEmptyQuery = ""
             musicSearchService.query = ""
+            // The Search quick action asks before the tab is showing.
+            if isSearchTab, SearchActivator.shared.takePendingRequest() {
+                focusSearchField()
+            }
         }
         .onDisappear {
+            isShowing = false
+            focusTask?.cancel()
             if !lastNonEmptyQuery.isEmpty {
                 recentQueries.addOrMoveToFront(lastNonEmptyQuery)
             }
         }
         .animation(.interactiveSpring, value: focusedField)
         // Re-tapping the Search tab asks for the field. A counter, so a second
-        // request still counts as a change.
+        // request still counts as a change. A request made while the tab
+        // isn't showing waits for `onAppear`.
         .onChange(of: SearchActivator.shared.requestCount) {
-            focusedField = .search
+            guard isSearchTab, isShowing, SearchActivator.shared.takePendingRequest() else { return }
+            focusSearchField()
         }
         .animation(.interactiveSpring, value: musicSearchService.suggestions)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
@@ -502,6 +519,22 @@ struct SearchScreen: View {
         Task {
             try await Task.sleep(for: .milliseconds(300))
             UIView.setAnimationsEnabled(true)
+        }
+    }
+
+    /// Puts the cursor in the field. Straight after a launch or a tab
+    /// switch the toolbar holding it isn't in the window yet, and focus set
+    /// then doesn't take, so this asks again until it does, for up to two
+    /// seconds.
+    @MainActor
+    private func focusSearchField() {
+        focusTask?.cancel()
+        focusTask = Task {
+            for _ in 0..<10 {
+                focusedField = .search
+                try? await Task.sleep(for: .milliseconds(200))
+                guard !Task.isCancelled, focusedField != .search else { return }
+            }
         }
     }
 

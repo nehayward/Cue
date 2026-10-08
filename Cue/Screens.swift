@@ -24,7 +24,7 @@ enum Screens {
     static var search: some View {
         let searchRouter = Router.search
         let selectedGroupService = SelectedGroupService(group: nil)
-        SearchScreen(favorites: true)
+        SearchScreen(favorites: true, isSearchTab: true)
             // The TabView is tinted `.primary` so its sidebar selection reads
             // that way; tab content wants the app's real accent back.
             .tint(Color("Accent"))

@@ -65,6 +65,31 @@ enum AppTab: Hashable {
 
     var dismiss: Bool = false
 
+    /// Cue was opened to search (the Home Screen quick action), so Quick
+    /// Launch leaves the player closed this time. Cleared when Cue goes to
+    /// the background.
+    @MainActor var openedToSearch = false
+
+    /// Shows the Search tab with its field focused: the Home Screen's Search
+    /// quick action and `cue://search` links. Search used to be a sheet on
+    /// this router and they still asked for one after it became a tab, but
+    /// nothing presents this router's sheets any more (each tab has its own),
+    /// so they did nothing. Closes the player and the sheets that would cover
+    /// the tab first.
+    @MainActor
+    func openSearch(focusingField: Bool = true) {
+        openedToSearch = true
+        isPlayerPresented = false
+        presentedSheet = nil
+        Router.browse.presentedSheet = nil
+        Router.search.presentedSheet = nil
+        Router.search.path.removeAll()
+        selectedTab = .search
+        if focusingField {
+            SearchActivator.shared.requestFocus()
+        }
+    }
+
     /// What a tap on the already-selected tab does. Reselection is the iOS
     /// convention for "take me to the top of this tab": Search focuses its
     /// field, the way Music does. The other tabs have nothing to do yet —
