@@ -99,7 +99,6 @@ final class CoreFeatures {
         if installed.contains(.appleMusic) { return .apple }
         if installed.contains(.plex) { return .plex }
         if installed.contains(.tunein) { return .tuneIn }
-        if installed.contains(.sonosRadio) { return .sonosRadio }
         return .files
     }
 
