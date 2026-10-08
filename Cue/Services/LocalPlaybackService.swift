@@ -455,11 +455,14 @@ final class LocalPlaybackService {
     @ObservationIgnored private lazy var nowPlayingCard = LocalNowPlayingPresenter(player: self)
     /// Whether Apple Music runs get this app's own card too, alongside the
     /// one MusicKit's player publishes. On while CarPlay is connected: on
-    /// iOS 27 the car's Now Playing screen reads the app's own Now Playing
-    /// client and never MusicKit's (FB24840951), so without this it stays
-    /// blank, or shows the last stream song, while Apple Music plays. The
-    /// Lock Screen follows the client that's making the sound, MusicKit's,
-    /// so the phone's own card is unchanged.
+    /// iOS 27 the car's Now Playing screen stays on whichever of the app's
+    /// two Now Playing clients it was on, usually this one, rather than
+    /// following MusicKit's when it makes the sound (FB24840951), so
+    /// without this it stays blank, or shows the last stream song, while
+    /// Apple Music plays. The Lock Screen follows the client that's making
+    /// the sound, MusicKit's, so the phone's own card is unchanged. Also
+    /// what puts up the paused card for a queue or station with nothing in
+    /// a player (`updateIdleCard`).
     @ObservationIgnored var publishesAppleMusicCard = false {
         didSet {
             guard publishesAppleMusicCard != oldValue else { return }
@@ -748,8 +751,8 @@ final class LocalPlaybackService {
     }
 
     /// Appends `items` to the end of the queue (they play when the armed run
-    /// ends and the advance reaches them). Starts playing if the queue was
-    /// empty.
+    /// ends and the advance reaches them). Starts playing if nothing was
+    /// loaded; behind a station they wait in the queue, as `playNext`'s do.
     ///
     /// `recordingOrder: false` is for a caller that has already put the
     /// items in the real order itself — a shuffled page arriving behind a
@@ -979,6 +982,7 @@ final class LocalPlaybackService {
             // end-of-track sleep timer. Play arms the track and picks up
             // from here rather than from where it was saved.
             resumePosition = seconds
+            updateIdleCard()
         }
     }
 
@@ -1018,6 +1022,7 @@ final class LocalPlaybackService {
                 showRequested(playing: true)
             } else {
                 streamPlayer.pause()
+                notePausedStation()
                 showRequested(playing: false)
             }
         case nil:
@@ -1041,10 +1046,19 @@ final class LocalPlaybackService {
             musicPlayer.pause()
         case .stream:
             streamPlayer?.pause()
+            notePausedStation()
         case nil:
             return
         }
         showRequested(playing: false)
+    }
+
+    /// Stamps when a station's stream was paused, at the pause itself: the
+    /// poll does it too, but may not run before the app is suspended
+    /// (`liveResumeLimit`).
+    private func notePausedStation() {
+        guard station != nil, stationPausedAt == nil else { return }
+        stationPausedAt = .now
     }
 
     /// Flips the button now rather than on the next poll, and holds it there
@@ -1222,8 +1236,13 @@ final class LocalPlaybackService {
     func next() {
         // An Apple station skips to its own next song, not past itself into
         // the queue; a live one, or a TuneIn stream, has nothing to skip to.
-        if station != nil {
-            guard backend == .appleStation, isPlayingAppleStation else { return }
+        if let station {
+            guard isPlayingAppleStation else { return }
+            // Stopped, or still arming: Next starts it, which is a new song.
+            guard backend == .appleStation else {
+                Task { try? await playStation(station) }
+                return
+            }
             Task {
                 do {
                     try await musicPlayer.skipToNextEntry()
@@ -1290,8 +1309,8 @@ final class LocalPlaybackService {
         guard runEnd < limit else { return }
         for queueIndex in (runEnd + 1)...limit {
             let row = queue[queueIndex]
-            // The run ends at another service, a station, or a song still in
-            // iCloud; the run-end advance arms those.
+            // The run ends at another service or a song still in iCloud; the
+            // run-end advance arms those.
             guard backendKind(for: row) == .stream, !isStation(row),
                   cloudPendingURL(for: row) == nil,
                   let url = trackStreamURL(for: row) else { return }
@@ -1426,6 +1445,12 @@ final class LocalPlaybackService {
         playToken += 1
         let token = playToken
         armingIndex = nil
+        // An Apple run loaded ahead of a hand-off is about to be replaced by
+        // this station in the Apple player; armed later, it would play the
+        // station's queue as those songs.
+        preparedAppleRun = nil
+        // What to fall back to if this one won't play.
+        let previousStation = self.station
         // The queue's spot, read before the teardown, as `park()` does: the
         // poll's last tick is what's there.
         if self.station == nil, !queue.isEmpty {
@@ -1455,13 +1480,16 @@ final class LocalPlaybackService {
                 throw LocalPlaybackError.nothingPlayable
             }
         } catch {
-            // Back to the queue as it was left, paused: a station that won't
-            // play shouldn't stand in front of it.
+            // Back to what was there, paused: the station before it, ready to
+            // play again, or the queue as it was left. A station that won't
+            // play shouldn't stand in front of either.
             if playToken == token {
-                self.station = nil
+                self.station = previousStation
                 isPlaying = false
-                duration = catalogDuration(at: currentIndex)
-                progress = resumePosition ?? 0
+                if previousStation == nil {
+                    duration = catalogDuration(at: currentIndex)
+                    progress = resumePosition ?? 0
+                }
                 updateIdleCard()
             }
             throw error
@@ -1535,6 +1563,9 @@ final class LocalPlaybackService {
         let token = playToken
         armingIndex = index
         defer { if playToken == token { armingIndex = nil } }
+        // An arm that ends with nothing in a player (a song not found, no
+        // subscription) has taken the last card down; a car still needs one.
+        defer { if playToken == token, backend == nil { updateIdleCard() } }
         // Straight back to a stream player: the audio session stays ours.
         // Letting it go and taking it back on every Previous or long skip
         // was a round trip to the audio server each way, and told other
@@ -2135,6 +2166,8 @@ final class LocalPlaybackService {
 
         let request = MusicCatalogResourceRequest<Station>(matching: \.id, equalTo: MusicItemID(item.content.id))
         guard let station = try? await request.response().items.first else {
+            // Only worth saying if nothing else has been played meanwhile.
+            guard playToken == token else { return }
             throw LocalPlaybackError.stationNotFound
         }
         guard playToken == token else { return }
@@ -2617,7 +2650,7 @@ final class LocalPlaybackService {
 
     /// A TuneIn station: the one kind that plays as a stream here (see
     /// `backendKind(for:)`). An Apple Music station already names every
-    /// song it plays. Read off the queue row rather than `backend` so a
+    /// song it plays. Read off what's playing rather than `backend` so a
     /// view showing the button follows it.
     var canRecognizeSong: Bool {
         guard let item = nowPlaying else { return false }
@@ -2958,6 +2991,18 @@ final class LocalPlaybackService {
         // The observer may or may not run for an assignment in `init`; the
         // cache wants to know either way, and the call is debounced.
         cacheNeedsRefresh()
+        // Rows were dropped (a station from a build that queued them, a row
+        // that won't play any more): the file still has them, and the index
+        // saved from here on would count against it. Written once the
+        // restore is over, which suppresses saves.
+        if kept.count != saved.queue.count {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.writeQueue()
+                LocalQueueStore.save(unshuffled: self.unshuffledUpNext)
+                self.savePosition()
+            }
+        }
     }
 
     private func queueNeedsSave() {

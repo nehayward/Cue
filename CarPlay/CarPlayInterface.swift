@@ -179,7 +179,8 @@ final class CarPlayInterface: NSObject {
         _ = player.isShuffled
         _ = player.repeatMode
         _ = player.source
-        // A station in front of the queue changes neither of the above.
+        // What the Up Next list and the buttons switch on; `source` reads
+        // it too, but not as anything to rely on.
         _ = player.isPlayingStation
         // A queue the phone handed to a speaker earlier is parked, not
         // playing; the route says which.

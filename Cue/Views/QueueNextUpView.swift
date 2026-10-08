@@ -42,11 +42,10 @@ private struct LocalNextUpView: View {
 
     @State private var editMode: EditMode = .inactive
 
-    /// Kept small: it reads whether a station is playing, which follows the
-    /// current song, so it runs again on every skip. The rows, the header's
-    /// buttons and the scroll that follows the current song are views of
-    /// their own, each reading only what it shows — a skip used to rebuild
-    /// the whole 1,700-row list from here.
+    /// Kept small: the rows, the header's buttons and the scroll that
+    /// follows the current song are views of their own, each reading only
+    /// what it shows — a skip used to rebuild the whole 1,700-row list from
+    /// here. This reads the queue and whether a station is in front of it.
     var body: some View {
         let isParked = playback.isPlayingStation
         VStack(alignment: .leading, spacing: 0) {

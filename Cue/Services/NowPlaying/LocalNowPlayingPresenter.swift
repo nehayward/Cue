@@ -6,16 +6,20 @@ import SonosKit
 import UIKit
 
 /// The Lock Screen and Control Center card for on-device stream playback —
-/// Plex, Subsonic and Files through `AVQueuePlayer`. Apple Music plays in
+/// Plex, Subsonic, Files and TuneIn through `AVQueuePlayer`. Apple Music plays in
 /// MusicKit's own player, which publishes for itself; the stream player
 /// publishes nothing unless told, which is what this does: the song, its
 /// artwork and timeline, and the transport commands, for as long as a run
 /// is armed.
 ///
 /// While CarPlay is connected it publishes Apple Music runs as well. On
-/// iOS 27 the car's Now Playing screen reads this app's own client rather
-/// than MusicKit's, so Apple Music needs a card here to show up there at
-/// all (`LocalPlaybackService.publishesAppleMusicCard`).
+/// iOS 27 the car's Now Playing screen stays on whichever of the app's two
+/// clients it was on, usually this one, rather than following MusicKit's
+/// (FB24840951), so Apple Music needs a card here to show up there at
+/// all (`LocalPlaybackService.publishesAppleMusicCard`), and a queue or
+/// station that's loaded with nothing in a player gets a paused card, so
+/// the car's Now Playing always has something to show and its Play reaches
+/// this player (`LocalPlaybackService.updateIdleCard`).
 ///
 /// A station's card is live (`MPNowPlayingInfoPropertyIsLiveStream`): the
 /// LIVE bar in place of a timeline, and play and pause alone. iOS draws a
@@ -84,7 +88,8 @@ final class LocalNowPlayingPresenter {
 
     // MARK: - Lifecycle
 
-    /// A stream run is armed: take the commands.
+    /// A card is going up — a stream run, an Apple Music run or a paused
+    /// queue for a car: take the commands.
     func begin() {
         guard commandTokens.isEmpty else { return }
         registerCommands()
