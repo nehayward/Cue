@@ -427,6 +427,9 @@ final class LocalPlaybackService {
     /// The player item of a TuneIn station playing in front of the queue
     /// (`station`), which has no queue index to go under in `streamRun`.
     @ObservationIgnored private var stationItem: ObjectIdentifier?
+    /// Since when a TuneIn station's stream has stood paused, for
+    /// `liveResumeLimit`. Nil while it plays.
+    @ObservationIgnored private var stationPausedAt: Date?
     /// Each armed stream item's status, watched so a song that won't load is
     /// reported the moment it fails — see `watch(_:)`.
     @ObservationIgnored private var itemWatches: [ObjectIdentifier: NSKeyValueObservation] = [:]
@@ -467,7 +470,15 @@ final class LocalPlaybackService {
                 } else {
                     nowPlayingCard.end()
                 }
-            case .stream, nil:
+            case nil:
+                // A car connecting to a queue or station that's loaded with
+                // nothing playing yet (see `updateIdleCard`).
+                if publishesAppleMusicCard {
+                    updateIdleCard()
+                } else {
+                    nowPlayingCard.end()
+                }
+            case .stream:
                 break
             }
         }
@@ -996,6 +1007,13 @@ final class LocalPlaybackService {
         case .stream:
             guard let streamPlayer else { return }
             if streamPlayer.timeControlStatus == .paused {
+                // A station paused for a while is rejoined live rather than
+                // picked up where it stopped (`liveResumeLimit`).
+                if let station, let pausedAt = stationPausedAt,
+                   Date.now.timeIntervalSince(pausedAt) > Self.liveResumeLimit {
+                    Task { try? await playStation(station) }
+                    return
+                }
                 streamPlayer.play()
                 showRequested(playing: true)
             } else {
@@ -1340,6 +1358,7 @@ final class LocalPlaybackService {
         isLoading = false
         progress = 0
         duration = 0
+        updateIdleCard()
     }
 
     /// Takes the player down but keeps the queue: nothing armed, paused on
@@ -1366,6 +1385,7 @@ final class LocalPlaybackService {
             resumePosition = position > 2 ? position : nil
         }
         savePosition()
+        updateIdleCard()
     }
 
     /// Arms the current track again and plays it, from the parked spot when
@@ -1442,6 +1462,7 @@ final class LocalPlaybackService {
                 isPlaying = false
                 duration = catalogDuration(at: currentIndex)
                 progress = resumePosition ?? 0
+                updateIdleCard()
             }
             throw error
         }
@@ -1457,7 +1478,16 @@ final class LocalPlaybackService {
         isPlaying = false
         isLoading = false
         progress = 0
+        updateIdleCard()
     }
+
+    /// How long a TuneIn station can stand paused and still pick up from
+    /// where it stopped. Past this, Play starts it again: a live stream
+    /// can't be resumed, only rejoined (iOS draws its pause as a stop for
+    /// that reason), and a stream left paused for long has usually been
+    /// dropped by its server, so the old item would fail or play stale
+    /// audio.
+    private static let liveResumeLimit: TimeInterval = 30
 
     /// The length the catalog gave the queue row, or zero when it gave none.
     /// Every service that streams here — Plex, Subsonic, Files — parses one
@@ -1631,6 +1661,7 @@ final class LocalPlaybackService {
             // Parked at the start of the next track: show its length, as a
             // paused speaker would, rather than no scrubber at all.
             duration = catalogDuration(at: currentIndex)
+            updateIdleCard()
             return
         }
         if repeatMode == .one {
@@ -1676,6 +1707,7 @@ final class LocalPlaybackService {
         // would, rather than no scrubber at all.
         duration = catalogDuration(at: 0)
         savePosition()
+        updateIdleCard()
     }
 
     private func restartCurrent() {
@@ -1798,6 +1830,7 @@ final class LocalPlaybackService {
             streamPlayer = nil
             streamRun = [:]
             stationItem = nil
+            stationPausedAt = nil
             itemWatches = [:]
             nowPlayingCard.end()
             isPlayingLocalStream = false
@@ -2779,6 +2812,15 @@ final class LocalPlaybackService {
             let playing = reconcilePlaying(streamPlayer.timeControlStatus != .paused)
             let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
+            // However it was paused — in the app, from the car's stop
+            // button, a sleep timer — so Play knows how long it's been.
+            if station != nil {
+                if streamPlayer.timeControlStatus != .paused {
+                    stationPausedAt = nil
+                } else if stationPausedAt == nil {
+                    stationPausedAt = .now
+                }
+            }
             noteProgress(Self.finite(current.currentTime().seconds, else: progress))
             savePositionIfDue(paused: paused)
             if let queueIndex = streamRun[ObjectIdentifier(current)], currentIndex != queueIndex {
@@ -2833,6 +2875,31 @@ final class LocalPlaybackService {
             canSkip: hasNext,
             isLive: station != nil,
             restatesClock: station == nil
+        )
+    }
+
+    /// The card for a queue or station that's loaded with nothing in a
+    /// player — restored from the last launch, at the end of the queue, or
+    /// a station whose stream stopped — while a car is connected. CarPlay's
+    /// Now Playing screen has to be ready to show something at all times
+    /// (CarPlay Developer Guide), and its Play has to reach this player.
+    /// With no card of ours the template sat blank, or on MusicKit's last
+    /// entry, and a press of Play there went to MusicKit's empty player.
+    /// Paused, at the spot Play picks up from; its commands arm it.
+    private func updateIdleCard() {
+        guard publishesAppleMusicCard, backend == nil else { return }
+        guard isActive, PlaybackRoute.shared.destination == .device else {
+            nowPlayingCard.end()
+            return
+        }
+        nowPlayingCard.begin()
+        nowPlayingCard.update(
+            item: nowPlayingDisplay,
+            isPlaying: false,
+            duration: duration,
+            elapsed: progress,
+            canSkip: hasNext,
+            isLive: station != nil
         )
     }
 
