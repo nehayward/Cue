@@ -5,9 +5,11 @@ import SwiftUI
 
 /// The download manager: the songs kept on this device, the albums and
 /// playlists they came from, and how downloading behaves — one face each,
-/// switched by the segmented control under the title. A Files folder in
+/// switched by the segmented control under the title. Songs opens on how
+/// much room Cue takes and what's left on the device. A Files folder in
 /// iCloud Drive reports how much of it is here under Settings. Reached from
-/// Settings › Storage.
+/// Settings › Storage, and from Manage on a Downloaded page, which opens
+/// Settings here in a sheet.
 struct DownloadsScreen: View {
     /// The screen's three faces. Songs is home: what's on the device is what
     /// the screen is for, and it's what the Storage row's size describes.
@@ -25,6 +27,22 @@ struct DownloadsScreen: View {
         }
     }
 
+    /// How the downloaded songs are listed. Largest first is for making
+    /// room; newest first is how they're kept.
+    private enum SongOrder: String, CaseIterable, Identifiable {
+        case newest, largest, alphabetical
+
+        var id: Self { self }
+
+        var title: LocalizedStringKey {
+            switch self {
+            case .newest: "Recently Downloaded"
+            case .largest: "Largest"
+            case .alphabetical: "Title"
+            }
+        }
+    }
+
     @Environment(Router.self) private var router: Router?
     @State private var manager = DownloadManager.shared
     @State private var cache = PlaybackCache.shared
@@ -32,7 +50,12 @@ struct DownloadsScreen: View {
     @State private var files = FilesLibraryService.shared
     @State private var cloudSummary: (local: Int, remote: Int)?
     @State private var tab: Tab = .songs
+    @State private var songOrder: SongOrder = .newest
     @State private var isConfirmingClearCache = false
+    @State private var isConfirmingRemoveAll = false
+    /// Room left on the device, read when the screen opens and whenever a
+    /// download lands or goes.
+    @State private var availableBytes: Int64?
 
     var body: some View {
         // Each is a filter and sort over every download; once per render,
@@ -112,6 +135,9 @@ struct DownloadsScreen: View {
         .onChange(of: files.cloudProgress.isEmpty) {
             Task { await refreshCloudSummary() }
         }
+        .task(id: completed.count) {
+            availableBytes = Self.availableCapacity()
+        }
     }
 
     // MARK: - Songs
@@ -120,12 +146,18 @@ struct DownloadsScreen: View {
     /// meter when there is one.
     @ViewBuilder
     private func songsSections(active: [DownloadManager.Item], completed: [DownloadManager.Item]) -> some View {
+        let completedBytes = completed.reduce(0) { $0 + ($1.fileSize ?? 0) }
+        if completedBytes + cache.totalBytes > 0 {
+            storageSection(completed: completed, completedBytes: completedBytes)
+        }
+
         if let remaining = manager.remainingFreeSlots {
             freeLimitSection(remaining: remaining)
         }
 
         if !active.isEmpty {
             Section {
+                downloadingSummary(active)
                 ForEach(active) { item in
                     activeRow(item)
                 }
@@ -139,18 +171,21 @@ struct DownloadsScreen: View {
         }
 
         if !completed.isEmpty {
-            let completedBytes = completed.reduce(0) { $0 + ($1.fileSize ?? 0) }
             Section {
-                ForEach(completed) { item in
+                ForEach(ordered(completed)) { item in
                     completedRow(item)
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                manager.remove(key: item.key)
+                            } label: {
+                                Label("Remove", systemImage: "trash")
+                            }
+                        }
                 }
-                .onDelete { offsets in
-                    for index in offsets where completed.indices.contains(index) {
-                        manager.remove(key: completed[index].key)
-                    }
-                }
+                // Asks first: it's every song at once, and getting them
+                // back means downloading them all again.
                 Button(role: .destructive) {
-                    manager.removeAllCompleted()
+                    isConfirmingRemoveAll = true
                 } label: {
                     Text("Remove All Downloads")
                         .frame(maxWidth: .infinity)
@@ -158,8 +193,31 @@ struct DownloadsScreen: View {
                 .buttonStyle(.bordered)
                 .tint(.red)
                 .listRowBackground(Color.clear)
+                .confirmationDialog("Remove all downloads?", isPresented: $isConfirmingRemoveAll, titleVisibility: .visible) {
+                    Button(role: .destructive) {
+                        manager.removeAllCompleted()
+                    } label: {
+                        Text(completed.count == 1 ? "Remove 1 Song" : "Remove \(completed.count) Songs")
+                    }
+                } message: {
+                    Text("They're taken off this device and stay on the server, to download again whenever you like. Songs still downloading carry on.")
+                }
             } header: {
-                Text("On This Device")
+                HStack {
+                    Text("Downloaded")
+                    Spacer()
+                    Menu {
+                        Picker("Sort By", selection: $songOrder) {
+                            ForEach(SongOrder.allCases) { order in
+                                Text(order.title).tag(order)
+                            }
+                        }
+                    } label: {
+                        Label(songOrder.title, systemImage: "arrow.up.arrow.down")
+                            .font(.footnote)
+                    }
+                    .textCase(nil)
+                }
             } footer: {
                 let withLyrics = completed.filter { DownloadLyrics.shared.withLyrics.contains($0.key) }.count
                 Text("\(completed.count == 1 ? "1 song" : "\(completed.count) songs") • \(ByteCountFormatter.string(fromByteCount: completedBytes, countStyle: .file))\(withLyrics > 0 ? " • lyrics for \(withLyrics == completed.count ? "all" : "\(withLyrics)") offline" : ""). Kept until you remove them; not included in backups.")
@@ -222,7 +280,7 @@ struct DownloadsScreen: View {
 
         if !downloaded.isEmpty {
             containersSection(downloaded) {
-                Text("On This Device")
+                Text("Downloaded")
             } footer: {
                 Text("Swipe to remove every song of an album or playlist at once. The songs themselves are listed under Songs; remove one there and the rest stay here.")
             }
@@ -344,6 +402,126 @@ struct DownloadsScreen: View {
 
         if files.isConfigured, files.isCloudFolder {
             cloudSection
+        }
+    }
+
+    // MARK: - Storage
+
+    /// How much room Cue takes, at a glance: downloads and the playback
+    /// cache as one bar, each with its size, and what's left on the device.
+    /// The bar is Cue's own share split between the two — against the
+    /// whole device it would be a sliver.
+    private func storageSection(completed: [DownloadManager.Item], completedBytes: Int64) -> some View {
+        let cacheBytes = cache.totalBytes
+        let cacheCount = cache.entries.count
+        return Section {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(ByteCountFormatter.string(fromByteCount: completedBytes + cacheBytes, countStyle: .file))
+                        .font(.title2.weight(.semibold))
+                        .monospacedDigit()
+                    Text("used by Cue")
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 8)
+                    if let availableBytes {
+                        Text("\(ByteCountFormatter.string(fromByteCount: availableBytes, countStyle: .file)) free")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
+
+                StorageBar(segments: [
+                    .init(id: "downloads", bytes: completedBytes, color: .accentColor),
+                    .init(id: "cache", bytes: cacheBytes, color: .orange),
+                ])
+
+                HStack(alignment: .top, spacing: 20) {
+                    storageLegend(
+                        "Downloads",
+                        detail: "\(completed.count == 1 ? "1 song" : "\(completed.count.formatted()) songs") • \(ByteCountFormatter.string(fromByteCount: completedBytes, countStyle: .file))",
+                        color: .accentColor
+                    )
+                    storageLegend(
+                        "Playback Cache",
+                        detail: cache.isEnabled
+                            ? "\(cacheCount == 1 ? "1 song" : "\(cacheCount.formatted()) songs") • \(ByteCountFormatter.string(fromByteCount: cacheBytes, countStyle: .file))"
+                            : "Off",
+                        color: .orange
+                    )
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private func storageLegend(_ title: LocalizedStringKey, detail: String, color: Color) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+                .padding(.top, 4)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.caption.weight(.medium))
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+    }
+
+    /// Room left on the device for things that matter to the person — what
+    /// the system would free for a download, not only what's free now.
+    private static func availableCapacity() -> Int64? {
+        let home = URL(fileURLWithPath: NSHomeDirectory())
+        return (try? home.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?
+            .volumeAvailableCapacityForImportantUsage
+    }
+
+    // MARK: - Downloading
+
+    /// Everything coming down in one line — how many to go and how far
+    /// along — with the control most often wanted beside it, rather than
+    /// only in the menu.
+    private func downloadingSummary(_ active: [DownloadManager.Item]) -> some View {
+        let running = active.filter(\.isActive).count
+        let fraction = active.reduce(0.0) { $0 + $1.progress } / Double(max(active.count, 1))
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(running > 0
+                     ? (running == 1 ? "1 song to go" : "\(running) songs to go")
+                     : (active.count == 1 ? "1 song stopped" : "\(active.count) songs stopped"))
+                    .font(.subheadline.weight(.medium))
+                ProgressView(value: fraction)
+                    .progressViewStyle(.linear)
+            }
+            Button(running > 0 ? "Pause All" : "Resume All") {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                if running > 0 {
+                    manager.pauseAll()
+                } else {
+                    manager.resumeAll()
+                }
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.small)
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// The downloaded songs in the order picked in the section's menu.
+    /// `completed` comes newest first.
+    private func ordered(_ items: [DownloadManager.Item]) -> [DownloadManager.Item] {
+        switch songOrder {
+        case .newest:
+            items
+        case .largest:
+            items.sorted { ($0.fileSize ?? 0) > ($1.fileSize ?? 0) }
+        case .alphabetical:
+            items.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
         }
     }
 
@@ -608,6 +786,38 @@ struct DownloadsScreen: View {
             return
         }
         cloudSummary = await files.cloudSummary()
+    }
+}
+
+/// A capsule split into coloured runs, each as long as its share of the
+/// total. A run with anything in it keeps a few points so it never
+/// vanishes beside a much bigger one.
+private struct StorageBar: View {
+    struct Segment: Identifiable {
+        let id: String
+        let bytes: Int64
+        let color: Color
+    }
+
+    let segments: [Segment]
+
+    var body: some View {
+        let visible = segments.filter { $0.bytes > 0 }
+        let total = Double(max(visible.reduce(0) { $0 + $1.bytes }, 1))
+        GeometryReader { proxy in
+            let spacing: CGFloat = 2
+            let width = proxy.size.width - spacing * CGFloat(max(visible.count - 1, 0))
+            HStack(spacing: spacing) {
+                ForEach(visible) { segment in
+                    segment.color
+                        .frame(width: max(4, width * CGFloat(Double(segment.bytes) / total)))
+                }
+            }
+        }
+        .frame(height: 8)
+        .background(.quaternary)
+        .clipShape(Capsule())
+        .accessibilityHidden(true)
     }
 }
 
