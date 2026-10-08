@@ -5,9 +5,9 @@ import UIKit
 
 /// The alert's own window, one per scene, above everything the app shows:
 /// sheets, full-screen covers, popovers, navigation and tab bars. The
-/// capsule is always at the top of the screen, so on an iPhone with a
-/// Dynamic Island it grows out of the island over any screen, and no screen
-/// needs a host of its own (`withAlert()` is for the Mac and visionOS).
+/// capsule is always just under the status bar, whatever's on screen, and
+/// no screen needs a host of its own (`withAlert()` is for the Mac and
+/// visionOS).
 ///
 /// The window is hidden while there's no alert, so the app's own screens
 /// keep the status bar, and it takes touches only inside the capsule.
@@ -78,7 +78,7 @@ final class AlertWindowController {
         window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
     }
 
-    /// Down once the capsule has closed (`AlertView`'s exit takes 0.35 s),
+    /// Down once the capsule has faded (`AlertView`'s exit takes 0.3 s),
     /// handing the status bar back to the app.
     private func hideAfterExit() {
         window.capsuleFrame = .zero
@@ -104,9 +104,8 @@ final class AlertWindow: UIWindow {
     }
 }
 
-/// While the window is up it has the status bar. The island's capsule hides
-/// it (`AlertView`, through SwiftUI); otherwise it looks the way the app's
-/// screen under it wants.
+/// While the window is up it has the status bar, so it looks the way the
+/// app's screen under it wants.
 private final class AlertHostingController: UIHostingController<AlertWindowRoot> {
     var appWindow: () -> UIWindow? = { nil }
 
