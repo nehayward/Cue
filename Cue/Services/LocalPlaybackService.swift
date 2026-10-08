@@ -2626,8 +2626,8 @@ final class LocalPlaybackService {
 
     /// This app's card for the Apple Music run, for a connected car (see
     /// `publishesAppleMusicCard`). Its commands drive this player, which
-    /// drives MusicKit's. Stated again every second: the car reads it as
-    /// paused and wouldn't move its clock otherwise.
+    /// drives MusicKit's. Stated again every few seconds: the car reads it
+    /// as paused and wouldn't move its clock otherwise.
     private func updateAppleMusicCard() {
         nowPlayingCard.begin()
         nowPlayingCard.update(
