@@ -98,7 +98,7 @@ Ported from Clic (nehayward/Clic#116). A speaker's line-in belongs to the househ
 - `TrackTests`: line-in parsing and `lineInSourceID`.
 
 ### Album, playlist and artist headers in Light mode
-The header over an album, playlist or artist page (`MediaDetailView.headerOverlay`, the overlay in `ArtistDetailView.artworkSection`) draws white type on the cover's black fade, and its Play, Shuffle, download and ••• buttons are `glassButton()` (`.buttonStyle(.glass)`) with white labels. The glass followed the system appearance, and in Light mode the Mac draws it white, so the labels were white on white (reported on the Mac in the right-hand column; Dark mode was fine). Both headers now set `.environment(\.colorScheme, .dark)`, which is what the type already assumed. Same fix in Clic.
+The header over an album, playlist or artist page (`MediaDetailView.headerOverlay`, the overlay in `ArtistDetailView.artworkSection`) draws white type on the cover's black fade, and its Play, Shuffle, download and ••• buttons are `glassButton()` (`.buttonStyle(.glass)`) with white labels. The glass followed the system appearance, and in Light mode the Mac draws it white, so the labels were white on white (reported by a Clic listener on macOS 27, in the right-hand column; Dark mode was fine). Both headers now set `.environment(\.colorScheme, .dark)`, which is what the type already assumed. Same fix in Clic.
 
 ---
 ### Quick group menu on the group button
