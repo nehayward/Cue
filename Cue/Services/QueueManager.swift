@@ -66,17 +66,20 @@ final class QueueManager {
         let playableContent = queueItem.playableContent
         let group = queueItem.group
 
+        // One subtitle from the first banner to the last, so the banner's
+        // text holds still and only the spinner comes and goes.
+        let subtitle = LocalizedStringKey(queueItem.title.isEmpty ? "Playing" : queueItem.title)
         if queueItem.showBanner {
-            alertService.showAlertContent(with: playableContent, subtitle: LocalizedStringKey(queueItem.title))
+            alertService.showAlertContent(with: playableContent, subtitle: subtitle)
         }
 
         // Long lists can take seconds to queue. If Sonos hasn't accepted the
-        // content after 500ms, switch the banner into a loading state with a
-        // spinner so the tap doesn't feel dropped.
+        // content after 500ms, add a spinner to the banner so the tap
+        // doesn't feel dropped.
         let loadingBanner = Task { @MainActor [alertService] in
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
-            alertService.showLoadingContent(with: playableContent)
+            alertService.showLoadingContent(with: playableContent, subtitle: subtitle)
         }
         defer { loadingBanner.cancel() }
 
@@ -101,9 +104,9 @@ final class QueueManager {
 
         loadingBanner.cancel()
         if alertService.alert.isLoading {
-            // The spinner took over the banner — replace it with the normal
-            // confirmation now that the content is actually queued.
-            alertService.showAlertContent(with: playableContent, subtitle: LocalizedStringKey(queueItem.title.isEmpty ? "Playing" : queueItem.title))
+            // The content is queued: the same banner without its spinner,
+            // and the usual time on screen from here.
+            alertService.showAlertContent(with: playableContent, subtitle: subtitle)
         }
 
         if [.now, .replace].contains(queueItem.position) {

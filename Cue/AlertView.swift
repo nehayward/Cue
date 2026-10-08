@@ -7,7 +7,8 @@ import UIKit
 /// The app's toast: a glass capsule just under the status bar with the
 /// alert's artwork, text and symbol. It opens out from under the navigation
 /// bar as it comes in and fades away as it goes, both drawn as a scale and
-/// a fade so nothing is laid out again frame by frame.
+/// a fade so nothing is laid out again frame by frame. It keeps one width
+/// while it's up, and a change to what it says crossfades in place.
 ///
 /// On iOS it's in a window of its own over each scene (`AlertWindow`), so it
 /// sits above every sheet, cover and bar. On the Mac and visionOS screens
@@ -75,14 +76,18 @@ struct AlertView: View {
 // MARK: - Capsule
 
 private extension AlertView {
-    /// Sized to what it says, up to 440 points.
+    /// As wide as the screen allows, up to 440 points, whatever it says, so
+    /// a change while it's up (the spinner going once the speaker has the
+    /// music) doesn't resize it; what does change animates in place.
     var capsule: some View {
         row
-            .padding(.leading, alert.content == nil ? 18 : 10)
-            .padding(.trailing, 20)
+            .padding(.leading, alert.content == nil ? 16 : 10)
+            .padding(.trailing, 16)
             .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .alertGlass(interactive: alert.handleTap != nil)
             .contentShape(.capsule)
+            .animation(.snappy(duration: 0.3), value: look)
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { onCapsuleFrame?($0) }
             .modifier(AlertInteraction(alertService: alertService, drag: $drag))
             .frame(maxWidth: 440)
@@ -102,6 +107,11 @@ private extension AlertView {
         )
     }
 
+    /// What the capsule shows, for animating a change to it in place.
+    var look: Look {
+        Look(text: alert.text, subtitle: alert.subtitle, imageName: alert.imageName, isLoading: alert.isLoading, contentID: alert.content?.id)
+    }
+
     /// The artwork, then the text, with the symbol (or the spinner while
     /// something's on its way to a speaker) at the end. Without artwork the
     /// symbol leads, as in the system's own banners.
@@ -110,42 +120,65 @@ private extension AlertView {
             if let content = alert.content {
                 VibeContentArtworkView(content: content, showMusicSource: false)
                     .frame(width: 40, height: 40)
-            } else {
+            } else if hasAccessory {
                 accessory
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text(alert.text)
                     .font(.subheadline.weight(.semibold))
+                    .contentTransition(.opacity)
                 if alert.subtitle != "" {
                     Text(alert.subtitle)
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(.secondary)
+                        .contentTransition(.opacity)
+                        .transition(.opacity)
                 }
             }
             .lineLimit(2)
+            Spacer(minLength: 0)
             if alert.content != nil {
                 accessory
             }
         }
         .fontDesign(.rounded)
-        .animation(.smooth, value: alert.text)
     }
 
-    @ViewBuilder
+    var hasAccessory: Bool {
+        alert.isLoading || !(alert.imageName ?? "").isEmpty
+    }
+
+    /// One slot, the same size whatever's in it (the spinner, a symbol or
+    /// nothing), so one taking the other's place crossfades rather than
+    /// resizing the row.
     var accessory: some View {
-        if alert.isLoading {
-            ProgressView()
-                .tint(.secondary)
-        } else if let imageName = alert.imageName, !imageName.isEmpty {
-            Image(systemName: imageName)
-                .font(.title3.weight(.semibold))
+        ZStack {
+            if alert.isLoading {
+                ProgressView()
+                    .tint(.secondary)
+                    .transition(AnyTransition.opacity.combined(with: .scale(scale: 0.6)))
+            } else if let imageName = alert.imageName, !imageName.isEmpty {
+                Image(systemName: imageName)
+                    .font(.title3.weight(.semibold))
+                    .transition(AnyTransition.opacity.combined(with: .scale(scale: 0.6)))
+            }
         }
+        .frame(width: 26, height: 26)
     }
 
     /// A downward drag, damped so it gives about 12 points at most.
     var pull: CGFloat {
         drag > 0 ? 12 * (1 - exp(-drag / 60)) : 0
     }
+}
+
+/// What the capsule shows: the alert's text, symbol, spinner and artwork.
+private struct Look: Equatable {
+    var text: String
+    var subtitle: LocalizedStringKey
+    var imageName: String?
+    var isLoading: Bool
+    var contentID: String?
 }
 
 /// The entrance: from a narrower, shorter pill under the navigation bar,
