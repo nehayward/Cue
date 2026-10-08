@@ -17,6 +17,13 @@ import UIKit
 /// than MusicKit's, so Apple Music needs a card here to show up there at
 /// all (`LocalPlaybackService.publishesAppleMusicCard`).
 ///
+/// A station's card is live (`MPNowPlayingInfoPropertyIsLiveStream`): the
+/// LIVE bar in place of a timeline, and play and pause alone. iOS draws a
+/// live card's pause as a stop button (the Music app's radio is the same),
+/// so the stop command pauses; skipping, scrubbing, shuffle and repeat are
+/// switched off, which greys out what the system won't hide. An Apple Music
+/// station that skips its own songs keeps Next.
+///
 /// The Sonos mirror (`NowPlayingSessionService`) stands down while local
 /// audio plays, and on its way out it clears the card. The presenter notices
 /// its card is gone on the next poll and puts it back, so the two hand off
@@ -34,6 +41,7 @@ final class LocalNowPlayingPresenter {
         var isPlaying: Bool
         var artworkURL: URL?
         var canSkip: Bool
+        var isLive: Bool
     }
 
     private var published: Snapshot?
@@ -113,25 +121,37 @@ final class LocalNowPlayingPresenter {
     /// Such a card is stated at rate 0, as the car reads it anyway: at rate
     /// 1 each restate says only what the system's own clock already
     /// predicts, which it can take as no change at all.
+    ///
+    /// `isLive` is a station's card: no timeline, so no restates and no
+    /// drift to correct, only a write when what's on air or the play state
+    /// changes. The station's name goes where an album's would.
     func update(
         item: PlayableContent?,
         isPlaying: Bool,
         duration: TimeInterval,
         elapsed: TimeInterval,
         canSkip: Bool,
+        isLive: Bool = false,
         restatesClock: Bool = false
     ) {
         guard let item else { return }
-        self.restatesClock = restatesClock
+        self.restatesClock = restatesClock && !isLive
+        // The station's name where an album's would go, unless it's the
+        // title already (nothing said to be on air yet).
+        var album = item.metadata?.album ?? ""
+        if isLive, let station = player?.nowPlaying?.title, station != item.title {
+            album = station
+        }
         let snapshot = Snapshot(
             identity: item.content.id,
             title: item.title,
             artist: item.metadata?.artist ?? item.subtitle,
-            album: item.metadata?.album ?? "",
-            duration: duration.isFinite ? duration : 0,
+            album: album,
+            duration: isLive || !duration.isFinite ? 0 : duration,
             isPlaying: isPlaying,
             artworkURL: item.artwork ?? item.thumbnail,
-            canSkip: canSkip
+            canSkip: canSkip,
+            isLive: isLive
         )
         let cardIsOurs = isOurs(MPNowPlayingInfoCenter.default().nowPlayingInfo)
         // A stall or a hiccup can leave the system's clock well off, and so
@@ -142,15 +162,15 @@ final class LocalNowPlayingPresenter {
         let expected = published?.isPlaying == true
             ? publishedElapsed + Date.now.timeIntervalSince(publishedAt)
             : publishedElapsed
-        let drifted = abs(elapsed - expected) > 2
-        let restate = restatesClock && isPlaying && Date.now.timeIntervalSince(publishedAt) >= Self.restateInterval
+        let drifted = !isLive && abs(elapsed - expected) > 2
+        let restate = self.restatesClock && isPlaying && Date.now.timeIntervalSince(publishedAt) >= Self.restateInterval
         guard snapshot != published || !cardIsOurs || drifted || restate else { return }
         publish(snapshot, elapsed: elapsed, item: item)
     }
 
     /// A seek moves the timeline; the card has to know now.
     func noteSeek(elapsed: TimeInterval) {
-        guard let published, let player else { return }
+        guard let published, !published.isLive, let player else { return }
         publish(published, elapsed: elapsed, item: player.nowPlayingDisplay)
     }
 
@@ -165,33 +185,42 @@ final class LocalNowPlayingPresenter {
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
             MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying && !restatesClock ? 1.0 : 0.0,
             MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
-            MPNowPlayingInfoPropertyIsLiveStream: false,
+            MPNowPlayingInfoPropertyIsLiveStream: snapshot.isLive,
         ]
-        if snapshot.duration > 0 {
-            info[MPMediaItemPropertyPlaybackDuration] = snapshot.duration
+        // A live card has no timeline: LIVE stands where the time would.
+        if !snapshot.isLive {
+            if snapshot.duration > 0 {
+                info[MPMediaItemPropertyPlaybackDuration] = snapshot.duration
+            }
+            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = max(0, elapsed)
         }
-        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = max(0, elapsed)
 
         if let publishedArtwork, publishedArtworkURL == snapshot.artworkURL {
             info[MPMediaItemPropertyArtwork] = publishedArtwork
         }
 
+        // Ahead of the card, so the card is drawn with the buttons that go
+        // with it: a station's comes up with no skips to take away after.
+        let center = MPRemoteCommandCenter.shared()
+        Self.set(center.nextTrackCommand, enabled: snapshot.canSkip)
+        Self.set(center.previousTrackCommand, enabled: !snapshot.isLive)
+        Self.set(center.changePlaybackPositionCommand, enabled: !snapshot.isLive && snapshot.duration > 0)
+        Self.set(center.stopCommand, enabled: snapshot.isLive)
+        // The Sonos mirror switches these off for its card; this card is
+        // back, and so are they — bar a station's, which has neither.
+        Self.set(center.changeShuffleModeCommand, enabled: !snapshot.isLive)
+        Self.set(center.changeRepeatModeCommand, enabled: !snapshot.isLive)
+
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         MPNowPlayingInfoCenter.default().playbackState = snapshot.isPlaying ? .playing : .paused
-
-        let center = MPRemoteCommandCenter.shared()
-        center.nextTrackCommand.isEnabled = snapshot.canSkip
-        center.changePlaybackPositionCommand.isEnabled = snapshot.duration > 0
-        // The Sonos mirror switches these off for its card; this card is
-        // back, and so are they.
-        center.changeShuffleModeCommand.isEnabled = true
-        center.changeRepeatModeCommand.isEnabled = true
 
         published = snapshot
         publishedElapsed = max(0, elapsed)
         publishedAt = .now
         if restatesClock {
             Self.log.debug("car card: \(snapshot.title, privacy: .public) at \(elapsed, format: .fixed(precision: 0))s, \(snapshot.isPlaying ? "playing" : "paused", privacy: .public)")
+        } else if snapshot.isLive {
+            Self.log.debug("live card: \(snapshot.title, privacy: .public) on \(snapshot.album, privacy: .public), \(snapshot.isPlaying ? "playing" : "paused", privacy: .public)")
         }
 
         if publishedArtworkURL != snapshot.artworkURL {
@@ -201,6 +230,15 @@ final class LocalNowPlayingPresenter {
 
     private func isOurs(_ info: [String: Any]?) -> Bool {
         (info?[MPNowPlayingInfoCollectionIdentifier] as? String) == Self.marker
+    }
+
+    /// Sets a command's state only when it changes, so a republish (a
+    /// restate, a new song) isn't also a round of command updates for the
+    /// system to pass on to a car.
+    private static func set(_ command: MPRemoteCommand, enabled: Bool) {
+        if command.isEnabled != enabled {
+            command.isEnabled = enabled
+        }
     }
 
     /// Through the shared Nuke pipeline with the player cover's own request,
@@ -255,6 +293,8 @@ final class LocalNowPlayingPresenter {
         center.changePlaybackPositionCommand.isEnabled = true
         center.changeShuffleModeCommand.isEnabled = true
         center.changeRepeatModeCommand.isEnabled = true
+        // Only a live card's (see `publish`).
+        center.stopCommand.isEnabled = false
 
         func add(_ command: MPRemoteCommand, _ action: @escaping @MainActor (LocalPlaybackService, MPRemoteCommandEvent) -> MPRemoteCommandHandlerStatus) {
             let token = command.addTarget { [weak self] event in
@@ -276,6 +316,11 @@ final class LocalNowPlayingPresenter {
         }
         add(center.togglePlayPauseCommand) { player, _ in
             player.togglePlayback()
+            return .success
+        }
+        // A live card's pause button, as iOS draws it.
+        add(center.stopCommand) { player, _ in
+            if player.isPlaying { player.pause() }
             return .success
         }
         add(center.nextTrackCommand) { player, _ in
@@ -312,6 +357,8 @@ final class LocalNowPlayingPresenter {
             command.removeTarget(token)
         }
         commandTokens = []
+        // Nothing else takes it; left on, it would outlive the card.
+        MPRemoteCommandCenter.shared().stopCommand.isEnabled = false
     }
 }
 

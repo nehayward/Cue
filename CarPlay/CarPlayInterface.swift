@@ -47,6 +47,9 @@ final class CarPlayInterface: NSObject {
 
     /// Up Next, pushed from Now Playing, follows the player while it's up.
     private weak var upNextTemplate: CPListTemplate?
+    /// What Now Playing's buttons were last set to show (`updateNowPlaying`);
+    /// nil until they've been set this connection.
+    private var nowPlayingButtons: String?
 
     private var isConnected = false
     private var radioTask: Task<Void, Never>?
@@ -125,6 +128,7 @@ final class CarPlayInterface: NSObject {
 
     func stop() {
         isConnected = false
+        nowPlayingButtons = nil
         LocalPlaybackService.shared.publishesAppleMusicCard = false
         CPNowPlayingTemplate.shared.remove(self)
         radioTask?.cancel()
@@ -175,6 +179,8 @@ final class CarPlayInterface: NSObject {
         _ = player.isShuffled
         _ = player.repeatMode
         _ = player.source
+        // A station in front of the queue changes neither of the above.
+        _ = player.isPlayingStation
         // A queue the phone handed to a speaker earlier is parked, not
         // playing; the route says which.
         _ = PlaybackRoute.shared.destination
@@ -580,17 +586,34 @@ final class CarPlayInterface: NSObject {
 
     /// Up Next and the album button while the device has a queue; shuffle and
     /// repeat for a queue of songs (a station has neither).
+    ///
+    /// Runs on every change the tabs follow (a play, the history, the
+    /// downloads), so each part is only handed to the car when it differs
+    /// from what the car already has: every `updateNowPlayingButtons` is a
+    /// new set of buttons for the car to draw.
     private func updateNowPlaying() {
         let player = LocalPlaybackService.shared
         let onDevice = PlaybackRoute.shared.destination == .device && player.isActive
         let nowPlaying = CPNowPlayingTemplate.shared
         // Up whenever there's a queue of songs, on its last song too, as
-        // the Music app's is. A station alone has no queue to show.
-        nowPlaying.isUpNextButtonEnabled = onDevice && (!player.isPlayingStation || !player.upNext.isEmpty)
-        nowPlaying.isAlbumArtistButtonEnabled = onDevice && player.source.map { player.canPlayContainerLocally($0) } == true
+        // the Music app's is — and under a station, which leaves the queue
+        // waiting behind it. A station alone has no queue to show.
+        let upNext = onDevice && !player.queue.isEmpty
+        if nowPlaying.isUpNextButtonEnabled != upNext {
+            nowPlaying.isUpNextButtonEnabled = upNext
+        }
+        let albumArtist = onDevice && player.source.map { player.canPlayContainerLocally($0) } == true
+        if nowPlaying.isAlbumArtistButtonEnabled != albumArtist {
+            nowPlaying.isAlbumArtistButtonEnabled = albumArtist
+        }
+
+        let hasModes = onDevice && !player.isPlayingStation
+        let signature = hasModes ? "\(player.isShuffled),\(player.repeatMode.rawValue)" : ""
+        guard signature != nowPlayingButtons else { return }
+        nowPlayingButtons = signature
 
         var buttons: [CPNowPlayingButton] = []
-        if onDevice, !player.isPlayingStation {
+        if hasModes {
             // A tap reaches these handlers only while the matching remote
             // commands are enabled, which `LocalNowPlayingPresenter` sees
             // to. Each moves on from the state the car shows (the
@@ -628,17 +651,25 @@ final class CarPlayInterface: NSObject {
         push(template)
     }
 
-    /// Shuffle and repeat on top for a queue of songs (a station has
-    /// neither), then what's coming.
+    /// Shuffle and repeat on top for a queue of songs, then what's coming.
+    ///
+    /// Under a station the queue waits behind it, not in use, as a speaker's
+    /// does on radio: a note says so in place of the tiles, and the list is
+    /// where the queue goes on from — the song it was left on, then the rest.
+    /// A row picked leaves the station for the queue there.
     private func fillUpNext(_ template: CPListTemplate) {
         let player = LocalPlaybackService.shared
-        let hasModes = !player.isPlayingStation
-        let upNext = Array(player.upNext.prefix(CarPlayLibrary.rowLimit - (hasModes ? 1 : 0)))
-        let modes = hasModes ? "\(player.isShuffled),\(player.repeatMode.rawValue)" : ""
+        let isParked = player.isPlayingStation
+        let hasModes = !isParked
+        let waiting = isParked ? Array(player.queue.dropFirst(player.currentIndex)) : player.upNext
+        let upNext = Array(waiting.prefix(CarPlayLibrary.rowLimit - 1))
+        let modes = hasModes ? "\(player.isShuffled),\(player.repeatMode.rawValue)" : "parked"
         update(template, signature: ([modes] + upNext.map(\.id)).joined(separator: "|")) {
             var sections: [CPListSection] = []
             if hasModes {
                 sections.append(CPListSection(items: [playModeTiles()]))
+            } else if !upNext.isEmpty {
+                sections.append(CPListSection(items: [note("Not Playing", detail: "The radio is on. Pick a song to go back to the queue.")]))
             }
             guard !upNext.isEmpty else {
                 // With the tiles up, the list's own empty note doesn't show.
@@ -689,10 +720,12 @@ final class CarPlayInterface: NSObject {
 
     /// Plays an Up Next row and goes back to Now Playing. Looked up again
     /// rather than kept as an index: the queue can have moved since the
-    /// list was drawn.
+    /// list was drawn. Under a station the song the queue was left on is
+    /// listed too, and picking it goes back to its spot.
     private func jump(to content: PlayableContent) {
         let player = LocalPlaybackService.shared
-        let upcoming = player.queue.indices.dropFirst(player.currentIndex + 1)
+        let first = player.currentIndex + (player.isPlayingStation ? 0 : 1)
+        let upcoming = player.queue.indices.dropFirst(first)
         guard let index = upcoming.first(where: { player.queue[$0] == content }) else { return }
         player.play(at: index)
         interfaceController.popTemplate(animated: true, completion: nil)

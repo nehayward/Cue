@@ -32,6 +32,11 @@ struct QueueNextUpView: View {
 /// clear in the header, and the rows after the current track can be
 /// removed (swipe, or the context menu), moved to play next, or dragged into
 /// a new order. Played rows and the current one stay put.
+///
+/// While a station plays, the queue waits behind it (`station`) and the list
+/// says so the way a speaker's does on radio: "Not Active" in the header,
+/// the rows dimmed with no current one, and a row tapped goes back to the
+/// queue there.
 private struct LocalNextUpView: View {
     private var playback: LocalPlaybackService { .shared }
 
@@ -43,12 +48,21 @@ private struct LocalNextUpView: View {
     /// their own, each reading only what it shows — a skip used to rebuild
     /// the whole 1,700-row list from here.
     var body: some View {
+        let isParked = playback.isPlayingStation
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 14) {
-                Text("Next Up")
-                    .font(.title3.bold())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Next Up")
+                        .font(.title3.bold())
+                    if isParked, !playback.queue.isEmpty {
+                        Text("Not Active")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 Spacer(minLength: 8)
-                if !playback.isPlayingStation {
+                // A station alone has no queue to shuffle or repeat.
+                if !isParked || !playback.queue.isEmpty {
                     LocalNextUpControls(editMode: $editMode)
                 }
             }
@@ -56,17 +70,16 @@ private struct LocalNextUpView: View {
             .padding(.top, 14)
             .padding(.bottom, 10)
 
-            // A station is live: nothing follows it, so the panel reads as
-            // empty rather than listing the station as a one-row queue.
-            if playback.queue.isEmpty || playback.isPlayingStation {
+            if playback.queue.isEmpty {
                 Spacer()
-                Text(playback.isPlayingStation ? "Live radio — nothing queued" : "Nothing queued")
+                Text(isParked ? "Live radio — nothing queued" : "Nothing queued")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                 Spacer()
             } else {
                 LocalQueueList(editMode: $editMode)
+                    .opacity(isParked ? 0.6 : 1)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -273,7 +286,9 @@ private struct LocalQueueRow: View {
     var body: some View {
         let current = playback.currentIndex
         let isUpcoming = index > current
-        QueueNextUpRow(item: item, isCurrent: index == current)
+        // Behind a station the queue's song isn't playing, so no row is
+        // current; a tap goes back to the queue from this one.
+        QueueNextUpRow(item: item, isCurrent: index == current && !playback.isPlayingStation)
             .opacity(index < current ? 0.5 : 1)
             .onTapGesture { playback.play(at: index) }
             .accessibilityAddTraits(.isButton)

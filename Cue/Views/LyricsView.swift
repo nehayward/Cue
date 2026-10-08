@@ -769,6 +769,8 @@ struct LyricsRequestModifier: ViewModifier {
     /// The song after this device's current one, when it can have lyrics.
     private static func nextSong() -> PlayableContent? {
         let playback = LocalPlaybackService.shared
+        // Behind a station the queue waits; nothing of it is next.
+        guard !playback.isPlayingStation else { return nil }
         let index = playback.currentIndex + 1
         guard playback.queue.indices.contains(index) else { return nil }
         let item = playback.queue[index]
