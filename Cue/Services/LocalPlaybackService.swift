@@ -453,6 +453,10 @@ final class LocalPlaybackService {
     /// The Lock Screen card for the stream backend. Apple Music's player
     /// publishes its own — except to a car, see `publishesAppleMusicCard`.
     @ObservationIgnored private lazy var nowPlayingCard = LocalNowPlayingPresenter(player: self)
+    /// Silence played beside an Apple Music run while a car is connected,
+    /// so Cue keeps running, and its card keeps following the music, with
+    /// the phone locked (`syncCarAudio`).
+    @ObservationIgnored private lazy var carAudio = CarAudioClaim()
     /// Whether Apple Music runs get this app's own card too, alongside the
     /// one MusicKit's player publishes. On while CarPlay is connected: on
     /// iOS 27 the car's Now Playing screen stays on whichever of the app's
@@ -472,6 +476,9 @@ final class LocalPlaybackService {
                     updateAppleMusicCard()
                 } else {
                     nowPlayingCard.end()
+                    // The music plays on, on the phone; the silence was only
+                    // for the car.
+                    carAudio.release(deactivating: true)
                 }
             case nil:
                 // A car connecting to a queue or station that's loaded with
@@ -1854,6 +1861,10 @@ final class LocalPlaybackService {
             if publishesAppleMusicCard {
                 nowPlayingCard.end()
             }
+            // Left active when a stream run takes the session straight over;
+            // its own configuration puts the category back to one that
+            // doesn't mix.
+            carAudio.release(deactivating: !keepingAudioSession)
         }
         if streamPlayer != nil {
             streamPlayer?.pause()
@@ -2899,6 +2910,7 @@ final class LocalPlaybackService {
     /// as paused and wouldn't move its clock otherwise. A station's card is
     /// live, with no clock to move, so it's only stated when it changes.
     private func updateAppleMusicCard() {
+        syncCarAudio()
         nowPlayingCard.begin()
         nowPlayingCard.update(
             item: nowPlayingDisplay,
@@ -2909,6 +2921,21 @@ final class LocalPlaybackService {
             isLive: station != nil,
             restatesClock: station == nil
         )
+    }
+
+    /// Plays silence beside an Apple Music run while a car is connected,
+    /// paused and resumed with the music (`CarAudioClaim`). MusicKit makes
+    /// the sound in a process of its own, so without it this one is
+    /// suspended once the phone locks, and the card it keeps for the car
+    /// stops on the song and second it was on. Mixed with others, so it
+    /// never interrupts that music; held only while the music is in the
+    /// Apple player, and given up with the run (`teardownRun`) or the car.
+    private func syncCarAudio() {
+        guard publishesAppleMusicCard, backend == .appleMusic || backend == .appleStation else {
+            carAudio.release(deactivating: true)
+            return
+        }
+        carAudio.hold(playing: isPlaying)
     }
 
     /// The card for a queue or station that's loaded with nothing in a
