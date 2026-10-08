@@ -211,6 +211,9 @@ struct ArtistDetailView: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
+            // Dark like the album header: white type and glass on the
+            // cover's black fade, readable in Light mode too.
+            .environment(\.colorScheme, .dark)
         }
         .frame(height: maxHeight)
         .listRowBackground(Color.white.opacity(0.001))

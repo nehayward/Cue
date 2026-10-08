@@ -97,6 +97,9 @@ Ported from Clic (nehayward/Clic#116). A speaker's line-in belongs to the househ
 - **Artwork**: `ArtworkView` and `ArtworkMeshBackground` hold the outgoing cover while a new track's art is on its way, and only an empty track let it go. A line-in track never gets a cover, so it clears it too, and the jack placeholder shows from the stream as well as from `playbackService`.
 - `TrackTests`: line-in parsing and `lineInSourceID`.
 
+### Album, playlist and artist headers in Light mode
+The header over an album, playlist or artist page (`MediaDetailView.headerOverlay`, the overlay in `ArtistDetailView.artworkSection`) draws white type on the cover's black fade, and its Play, Shuffle, download and ••• buttons are `glassButton()` (`.buttonStyle(.glass)`) with white labels. The glass followed the system appearance, and in Light mode the Mac draws it white, so the labels were white on white (reported on the Mac in the right-hand column; Dark mode was fine). Both headers now set `.environment(\.colorScheme, .dark)`, which is what the type already assumed. Same fix in Clic.
+
 ---
 ### Quick group menu on the group button
 Press-and-hold the group button (player toolbar on iPhone, the popover button on iPad/Mac, and the split-view media controls) for a menu that regroups without the sheet: every active room as a checkmark toggle, plus **Everywhere** (disabled once everything's grouped) and **Ungroup All** (disabled for a solo room). A tap still opens the full `GroupScreen`, via `Menu`'s `primaryAction`. The menu is `GroupMenuButton`, wrapped around the same `GroupIconView` labels the plain buttons used, and its semantics are `GroupScreen.addGroup`'s exactly: membership changes diff through `smartGroup`, the last room can't leave its own group, and removing the coordinator follows the promoted one (`Router.main` → `.player(groupID:)`). Everywhere uses `speedGroup`, same as the sheet's button.

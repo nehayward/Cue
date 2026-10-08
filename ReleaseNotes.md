@@ -39,6 +39,7 @@
 - Removing a downloaded album no longer takes the songs it shares with another downloaded album or playlist
 - Fixed songs in your Files folder losing the last letter of their title, artist or album when their tags were written by some Windows taggers
 - Fixed Switch to Line In missing from the player's menu while the speaker with the line-in was grouped under another room
+- Fixed the Play, Shuffle and other buttons over an album, playlist or artist's cover being hard to read in Light mode on Mac
 
 # 2026.7
 

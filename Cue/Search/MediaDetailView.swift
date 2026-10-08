@@ -381,6 +381,11 @@ struct MediaDetailView: View {
         }
         .fontDesign(.rounded)
         .foregroundStyle(.white)
+        // The header always sits on the cover's black fade with white type,
+        // so its glass is drawn dark whatever the system appearance. Left to
+        // Light mode, the Mac draws the glass white under the white labels
+        // and Play and Shuffle can't be read.
+        .environment(\.colorScheme, .dark)
     }
     
     private func play(_ playMode: PlayMode = .normal) {
