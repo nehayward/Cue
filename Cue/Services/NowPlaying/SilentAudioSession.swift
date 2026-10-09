@@ -19,21 +19,8 @@ private let logger = Logger(subsystem: "com.cue", category: "NowPlaying")
 /// Split out of `NowPlayingSessionService` because none of this knows anything
 /// about Sonos, Now Playing, or SwiftUI: it's an audio-session lifecycle and a
 /// WAV encoder, and it's testable and replaceable on its own terms.
-///
-/// The on-device player uses one too, mixed with others, for Apple Music in a
-/// car (`CarAudioClaim`).
 @MainActor
 final class SilentAudioSession {
-    /// The category options the session is taken with. None for the Sonos
-    /// mirror, which needs the Now Playing claim (see `configureSession`);
-    /// `.mixWithOthers` for `CarAudioClaim`, which must never interrupt the
-    /// music it plays beside.
-    private let options: AVAudioSession.CategoryOptions
-
-    init(options: AVAudioSession.CategoryOptions = []) {
-        self.options = options
-    }
-
     /// Called after the session has been re-established following something that
     /// interrupted it. The owner uses it to republish whatever state the
     /// interruption may have invalidated.
@@ -65,7 +52,7 @@ final class SilentAudioSession {
     @discardableResult
     func start() async -> Bool {
         guard !isHeld else { return true }
-        guard await Self.configureSession(options: options), startLoop() else { return false }
+        guard await Self.configureSession(), startLoop() else { return false }
         observeInterruptions()
         isHeld = true
         // Starts playing on purpose: the card is only created once audio has
@@ -104,23 +91,7 @@ final class SilentAudioSession {
         }
     }
 
-    /// The same, taken on the spot rather than off the main actor: for an
-    /// owner whose next step may be another player taking the session, which
-    /// a configuration still in flight would then overwrite.
-    @discardableResult
-    func startNow() -> Bool {
-        guard !isHeld else { return true }
-        guard Self.activate(options: options), startLoop() else { return false }
-        observeInterruptions()
-        isHeld = true
-        isPlaying = true
-        return true
-    }
-
-    /// `deactivating: false` leaves the session active for whoever takes it
-    /// next (the on-device player's stream run), which a deactivation still
-    /// on its way would otherwise cut off.
-    func stop(deactivating: Bool = true) {
+    func stop() {
         guard isHeld else { return }
         isHeld = false
         isPlaying = false
@@ -129,7 +100,6 @@ final class SilentAudioSession {
         playerSampleRate = nil
         for task in interruptionTasks { task.cancel() }
         interruptionTasks.removeAll()
-        guard deactivating else { return }
         // Off the main actor for the same reason as activation, and nothing is
         // waiting on the result.
         Task.detached(priority: .utility) {
@@ -143,11 +113,7 @@ final class SilentAudioSession {
     /// `.duckOthers` behind, which forfeits the Now Playing claim.
     func reclaim() async {
         guard isHeld else { return }
-        _ = await Self.configureSession(options: options)
-        // Given up while the session was being configured — a car
-        // unplugged, which is a route change too. A loop started from here
-        // would play on with nothing to stop it.
-        guard isHeld else { return }
+        _ = await Self.configureSession()
 
         // A new route can bring a new hardware rate with it — Bluetooth
         // especially — and keeping a buffer built for the old one re-introduces
@@ -172,12 +138,9 @@ final class SilentAudioSession {
 
     // MARK: - Session
 
-    /// `.playback` with no options for the Sonos mirror, on purpose:
-    /// `.mixWithOthers` and `.duckOthers` both let other audio keep the Now
-    /// Playing claim, which is the one thing it exists to hold. `CarAudioClaim`
-    /// takes `.mixWithOthers` all the same: the audio it sits beside is the
-    /// app's own, played by another process, and stopping that would be
-    /// worse than any claim.
+    /// `.playback` with no options on purpose: `.mixWithOthers` and
+    /// `.duckOthers` both let other audio keep the Now Playing claim, which is
+    /// the one thing this exists to hold.
     ///
     /// The I/O buffer is asked to be as long as the system will allow. This
     /// session is the app's one *continuous* background cost — it renders for as
@@ -189,27 +152,22 @@ final class SilentAudioSession {
     /// the added latency is meaningless for silence. Nothing else in the app
     /// cares either: the only other player is a song preview, where 100 ms to
     /// first sample is imperceptible.
-    private static func configureSession(options: AVAudioSession.CategoryOptions) async -> Bool {
+    private static func configureSession() async -> Bool {
         await Task.detached(priority: .userInitiated) {
-            SilentAudioSession.activate(options: options)
+            let session = AVAudioSession.sharedInstance()
+            do {
+                try session.setCategory(.playback, mode: .default, options: [])
+                // Preferred values are requests, and have to be made before
+                // activation to be considered. A refusal is not a failure —
+                // it only means the default buffer stands.
+                try? session.setPreferredIOBufferDuration(0.1)
+                try session.setActive(true)
+                return true
+            } catch {
+                logger.error("Audio session failed to activate: \(error.localizedDescription)")
+                return false
+            }
         }.value
-    }
-
-    /// The configuration itself, on whatever thread calls it.
-    nonisolated private static func activate(options: AVAudioSession.CategoryOptions) -> Bool {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(.playback, mode: .default, options: options)
-            // Preferred values are requests, and have to be made before
-            // activation to be considered. A refusal is not a failure —
-            // it only means the default buffer stands.
-            try? session.setPreferredIOBufferDuration(0.1)
-            try session.setActive(true)
-            return true
-        } catch {
-            logger.error("Audio session failed to activate: \(error.localizedDescription)")
-            return false
-        }
     }
 
     private func startLoop() -> Bool {
@@ -327,77 +285,3 @@ final class SilentAudioSession {
     }
 }
 #endif
-
-/// Silence the on-device player plays, mixed with others, while an Apple
-/// Music run plays to a car (`LocalPlaybackService.syncCarAudio`).
-///
-/// MusicKit's player makes the sound in a process of its own, so this one
-/// makes none, and iOS treats it accordingly: once the phone locks it is
-/// suspended within seconds, and the card it keeps for the car
-/// (`LocalNowPlayingPresenter`) stops there, the song and the clock with it,
-/// with the car's play button reading paused all along — the car's Now
-/// Playing screen goes by whether the card's own process is making sound.
-/// Playing silence, paused and resumed with the music, keeps Cue running in
-/// the background so the card follows the music, and stands to make the
-/// car's button read playing.
-///
-/// Mixed with others because the music beside it isn't this process's:
-/// MusicKit's player has its own audio session, and taking a session that
-/// doesn't mix interrupts it — the music would stop the moment this began.
-/// A mixable session also starts with Cue in the background, where a
-/// non-mixable one is refused.
-///
-/// A type on every platform, empty off the iPhone, so the player that owns
-/// it needs no platform checks of its own.
-@MainActor
-final class CarAudioClaim {
-    #if os(iOS) && !targetEnvironment(macCatalyst)
-    private let session = SilentAudioSession(options: [.mixWithOthers])
-    /// No new attempt before this after one was refused: the caller asks on
-    /// every poll, twice a second.
-    private var retryAfter = Date.distantPast
-    private let log = Logger(subsystem: "dance.cue", category: "nowplaying")
-    #endif
-
-    var isHeld: Bool {
-        #if os(iOS) && !targetEnvironment(macCatalyst)
-        return session.isHeld
-        #else
-        return false
-        #endif
-    }
-
-    /// Takes the session if it isn't held, and plays or pauses the silence
-    /// with the music.
-    func hold(playing: Bool) {
-        #if os(iOS) && !targetEnvironment(macCatalyst)
-        if !session.isHeld {
-            guard Date.now >= retryAfter else { return }
-            guard session.startNow() else {
-                retryAfter = .now.addingTimeInterval(30)
-                log.error("car audio: the session was refused")
-                return
-            }
-            log.notice("car audio: held")
-        }
-        session.setPlaying(playing)
-        #endif
-    }
-
-    /// Gives the session up. `deactivating: false` when a stream run of the
-    /// player's own takes it straight over.
-    func release(deactivating: Bool) {
-        #if os(iOS) && !targetEnvironment(macCatalyst)
-        guard session.isHeld else { return }
-        session.stop(deactivating: false)
-        if deactivating {
-            // Here and now, as the player's own release is, rather than off
-            // the main actor: a deactivation still on its way could land
-            // after the next Apple run has taken the session again.
-            try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
-        }
-        retryAfter = .distantPast
-        log.notice("car audio: released")
-        #endif
-    }
-}

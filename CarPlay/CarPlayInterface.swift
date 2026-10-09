@@ -22,9 +22,9 @@ import UIKit
 /// Everything plays on this device (see `CarPlayPlayback`); speakers have
 /// no place in a car, so nothing here offers one. The car's Now Playing
 /// screen is the system's, filled from the card the device player publishes
-/// (see `LocalNowPlayingPresenter`); this adds Up Next (with shuffle and
-/// repeat over it), the album or playlist that's playing, shuffle and
-/// repeat to it.
+/// (see `LocalNowPlayingPresenter`), or MusicKit's own for Apple Music; this
+/// adds the queue button and Up Next (with shuffle and repeat over it), the
+/// album or playlist that's playing, shuffle and repeat to it.
 ///
 /// The newest plays and downloads are iOS 26 card rows, the stations and
 /// the Library's sections image grids, and the buttons (the Library's
@@ -93,11 +93,7 @@ final class CarPlayInterface: NSObject {
     func start() {
         isConnected = true
         CarPlayArtwork.screen = interfaceController
-        // The car's Now Playing reads this app's own card; Apple Music needs
-        // one there too (see `publishesAppleMusicCard`).
-        LocalPlaybackService.shared.publishesAppleMusicCard = true
-        // No `upNextTitle`: with one the queue button is that word, and
-        // without it the car draws its own queue icon, as for Apple Music.
+        // The queue button is Cue's own (`updateNowPlaying`).
         let nowPlaying = CPNowPlayingTemplate.shared
         nowPlaying.add(self)
 
@@ -129,7 +125,6 @@ final class CarPlayInterface: NSObject {
     func stop() {
         isConnected = false
         nowPlayingButtons = nil
-        LocalPlaybackService.shared.publishesAppleMusicCard = false
         CPNowPlayingTemplate.shared.remove(self)
         radioTask?.cancel()
         libraryTask?.cancel()
