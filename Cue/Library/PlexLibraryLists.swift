@@ -1,5 +1,6 @@
 import MusicSearchKit
 import SonosKit
+import SwiftUI
 
 /// The pieces of Plex's Songs list that the library's front page and the
 /// Songs tab both build — one place for the sort menu and the sync status,
@@ -37,6 +38,37 @@ enum PlexLibraryLists {
                 await plexBrowseService.updateUserAlbums(offset: offset, sort: sort, reversed: reversed)
             }
         }
+    }
+
+    /// The Playlists grid's sort menu. Plex sorts its playlists on the
+    /// server as it does albums, and lists them all in one response, so
+    /// every order covers every playlist and can be flipped. The choice is
+    /// the browse service's, so the first few on the library's front page
+    /// follow it too.
+    static func playlistSort(plexBrowseService: PlexBrowseService) -> PlayableGridSort {
+        PlayableGridSort(
+            options: PlexPlaylistSort.allCases.map { sort in
+                PlayableGridSort.Option(
+                    name: sort.label,
+                    ascendingLabel: sort.ascendingLabel,
+                    descendingLabel: sort.descendingLabel
+                )
+            },
+            selection: Binding(
+                get: { plexBrowseService.playlistSort.label },
+                set: { name in
+                    guard let sort = PlexPlaylistSort.allCases.first(where: { $0.label == name }) else { return }
+                    plexBrowseService.playlistSort = sort
+                    // Each order starts in its own natural direction; the
+                    // Order picker is there to flip it.
+                    plexBrowseService.playlistsReversed = false
+                }
+            ),
+            isReversed: Binding(
+                get: { plexBrowseService.playlistsReversed },
+                set: { plexBrowseService.playlistsReversed = $0 }
+            )
+        )
     }
 
     /// The line under the Songs title: how far the one-time library sync has

@@ -420,9 +420,14 @@ struct ProviderLibrary {
                 loadingStatus: PlexLibraryLists.songSyncStatus(musicSearchService: musicSearchService)
             )
         case .playlists:
-            return .playableGridScreen(title: "Playlists", items: Bindable(plex).userPlaylists, action: { offset in
-                await plex.updateUserPlaylists(offset: offset)
-            })
+            return .playableGridScreen(
+                title: "Playlists",
+                items: Bindable(plex).userPlaylists,
+                sort: PlexLibraryLists.playlistSort(plexBrowseService: plex),
+                action: { offset in
+                    await plex.updateUserPlaylists(offset: offset)
+                }
+            )
         default:
             return nil
         }

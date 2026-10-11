@@ -549,7 +549,10 @@ public final class PlexAPI {
         }
     }
 
-    public func playlists() async -> [PlexUserPlaylist] {
+    /// The server's audio playlists, all in one response. With a `sort`,
+    /// Plex returns them in that order (`reversed` flips its natural
+    /// direction); without one, in its own.
+    public func playlists(sort: PlexPlaylistSort? = nil, reversed: Bool = false) async -> [PlexUserPlaylist] {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else {
             return []
@@ -560,9 +563,12 @@ public final class PlexAPI {
         #endif
 
         guard var playlistsURL = getBaseURL(for: plexServer)?.appending(path: "playlists") else { return [] }
-        let queryItems: [URLQueryItem] = [
+        var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "playlistType", value: "audio")
         ]
+        if let sort {
+            queryItems.append(URLQueryItem(name: "sort", value: sort.queryValue(reversed: reversed)))
+        }
         playlistsURL.append(queryItems: queryItems)
 
         guard let playlistContainer: PlexContainer<PlexUserPlaylistContainer> = await loadAuthorized(playlistsURL) else {
