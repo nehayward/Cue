@@ -42,6 +42,15 @@ struct MediaDetailView: View {
     @State private var selection: Set<Int> = []
     @State private var nextCursor: String?
     @State private var showNavigationTitle: Bool = false
+    /// The order the songs are listed in. Only a Plex playlist offers
+    /// another (`sortsSongs`); the choice is remembered per playlist.
+    @State private var songSort: PlaylistSongSort = .playlistOrder
+    @State private var songSortReversed = false
+    /// The indices of `tracks` in `songSort`'s order, once every song is in
+    /// to sort; nil while the songs are in the playlist's own order.
+    @State private var sortedOrder: [Int]?
+    /// The rest of the playlist is loading so it can be sorted.
+    @State private var isLoadingAllSongs = false
 
     /// Proxies the view's existing `tracks` usage onto the coordinator (the source of truth),
     /// so native undo/redo mutations are reflected in the UI.
@@ -67,21 +76,55 @@ struct MediaDetailView: View {
     private var canReorderTracks: Bool {
         playableContent.isReorderablePlaylist && serviceEditable
     }
+
+    /// Plex keeps a playlist in its own order and won't sort its items, but
+    /// says how many there are, so every page can be loaded and the songs
+    /// sorted here.
+    private var sortsSongs: Bool {
+        playableContent.content.service == .plex && playableContent.content.type == .playlist
+    }
+
+    /// One row of the song list: the song, where it sits in the playlist
+    /// (what edits, selection and paging address) and the number it shows.
+    private struct SongRow: Identifiable {
+        let number: Int
+        let index: Int
+        let song: PlayableContent
+        var id: String { song.trackID }
+    }
+
+    /// The songs as listed: the playlist's order, or `sortedOrder`'s.
+    private var songRows: [SongRow] {
+        let tracks = tracks
+        let order = sortedOrder ?? Array(tracks.indices)
+        return order.enumerated().compactMap { offset, index in
+            // An order a step behind an edit is put right by `onChange`.
+            guard tracks.indices.contains(index) else { return nil }
+            return SongRow(number: offset + 1, index: index, song: tracks[index])
+        }
+    }
     
     var body: some View {
         @Bindable var router = router
+        // Read in `body` itself, so a pick runs it again: what only the
+        // toolbar's builder reads doesn't, and the sort menu's checkmarks
+        // and spinner would lag behind.
+        let _ = (songSort, songSortReversed, isLoadingAllSongs)
         List(selection: $selection) {
             artworkSection
-            ForEach(Array(tracks.enumerated()), id: \.element.trackID) { index, item in
+            ForEach(songRows) { row in
+                let index = row.index
+                let item = row.song
                 VStack {
                     PlayableContentView(item: item,
                                         parent: content ?? playableContent,
                                         hideArtwork: content?.content.type == .album,
                                         hideContentType: true,
-                                        index: index + 1,
+                                        index: row.number,
                                         dismissOnComplete: true,
                                         total: totalSongs ?? tracks.count,
-                                        onRemoveFromPlaylist: isEditablePlaylist ? { removeTrack(at: index) } : nil)
+                                        onRemoveFromPlaylist: isEditablePlaylist ? { removeTrack(at: index) } : nil,
+                                        playAction: sortedOrder == nil ? nil : { playListed(from: row.number - 1) })
                 }
                 .tag(index)
                 .swipeActions(edge: .trailing) {
@@ -105,7 +148,7 @@ struct MediaDetailView: View {
                     }
 
                     let hasMore = totalSongs.map { loadedItemCount < $0 } ?? true
-                    let nearEnd = index >= tracks.count - Self.prefetchThreshold
+                    let nearEnd = row.number - 1 >= tracks.count - Self.prefetchThreshold
                     if nearEnd && isLoadingMore && hasMore {
                         await updateTracks(offset: loadedItemCount)
                     }
@@ -114,7 +157,8 @@ struct MediaDetailView: View {
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
             }
-            .onMove(perform: canReorderTracks ? move : nil)
+            // Moving a song means something only in the playlist's own order.
+            .onMove(perform: canReorderTracks && sortedOrder == nil ? move : nil)
             if tracks.isEmpty {
                 if !isLoaded {
                     ProgressView()
@@ -175,6 +219,16 @@ struct MediaDetailView: View {
             // loading (instant for Sonos, an ownership lookup for streaming).
             Task { serviceEditable = await confirmServiceEditable() }
             await updateTracks(offset: loadedItemCount)
+            restoreSongSort()
+            if songSort != .playlistOrder {
+                await applySongSort()
+            }
+        }
+        .onChange(of: tracks) { _, tracks in
+            // A song removed (or put back by Undo) while sorted: sort again
+            // rather than point at rows that have moved.
+            guard sortedOrder != nil, songSort != .playlistOrder else { return }
+            sortedOrder = songSort.order(of: tracks, reversed: songSortReversed)
         }
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationTitle(content?.title ?? "")
@@ -198,6 +252,9 @@ struct MediaDetailView: View {
             }
             
             ToolbarItemGroup(placement: .topBarTrailing) {
+                if sortsSongs {
+                    songSortMenu
+                }
                 if isEditablePlaylist {
                     Button {
                         withAnimation {
@@ -384,6 +441,12 @@ struct MediaDetailView: View {
     }
     
     private func play(_ playMode: PlayMode = .normal) {
+        // Sorted, Play plays the songs as listed; Shuffle shuffles the
+        // playlist, where the order doesn't matter.
+        if playMode == .normal, sortedOrder != nil {
+            playListed(from: 0)
+            return
+        }
         Task { @MainActor in
             let currentContent = content ?? playableContent
             let defaultPosition = QueuePosition.defaultPosition(
@@ -416,6 +479,148 @@ struct MediaDetailView: View {
         }
     }
     
+    /// Sort By and, for an order that has one, its direction — the same
+    /// menu as the library's lists.
+    private var songSortMenu: some View {
+        Menu {
+            Picker("Sort By", selection: Binding(
+                get: { songSort },
+                set: { sort in
+                    guard sort != songSort else { return }
+                    songSort = sort
+                    // Each order starts in its own natural direction; the
+                    // Order picker is there to flip it.
+                    songSortReversed = false
+                    rememberSongSort()
+                    Task { await applySongSort() }
+                }
+            )) {
+                ForEach(PlaylistSongSort.allCases) { sort in
+                    Text(sort.label).tag(sort)
+                }
+            }
+            .pickerStyle(.inline)
+
+            if songSort.isReversible {
+                Picker("Order", selection: Binding(
+                    get: { songSortReversed },
+                    set: { reversed in
+                        guard reversed != songSortReversed else { return }
+                        songSortReversed = reversed
+                        rememberSongSort()
+                        Task { await applySongSort() }
+                    }
+                )) {
+                    Text(songSort.ascendingLabel).tag(false)
+                    Text(songSort.descendingLabel).tag(true)
+                }
+                .pickerStyle(.inline)
+            }
+        } label: {
+            if isLoadingAllSongs {
+                ProgressView()
+            } else {
+                Label("Sort", systemImage: "arrow.up.arrow.down")
+                    .labelStyle(.iconOnly)
+            }
+        }
+        .accessibilityLabel("Sort")
+    }
+
+    /// Lists the songs in `songSort`'s order, loading the pages still to
+    /// come first: sorting only the pages in hand would move songs about as
+    /// the rest arrived, so the playlist's order stays until every song is
+    /// in.
+    private func applySongSort() async {
+        guard songSort != .playlistOrder else {
+            sortedOrder = nil
+            return
+        }
+        isLoadingAllSongs = true
+        await loadAllTracks()
+        isLoadingAllSongs = false
+        // Back to the playlist's order while the songs were loading.
+        guard !Task.isCancelled, songSort != .playlistOrder else { return }
+        sortedOrder = songSort.order(of: tracks, reversed: songSortReversed)
+    }
+
+    /// Every page still to come, one after another.
+    private func loadAllTracks() async {
+        while let total = totalSongs, loadedItemCount < total, !Task.isCancelled {
+            // The list's own paging may have a page on its way: wait it out
+            // rather than skip it.
+            if isFetchingPage {
+                try? await Task.sleep(for: .milliseconds(100))
+                continue
+            }
+            let loaded = loadedItemCount
+            await updateTracks(offset: loadedItemCount)
+            // A page that failed or came back empty: stop, rather than ask
+            // for it again for ever.
+            guard loadedItemCount > loaded else { break }
+        }
+    }
+
+    private var songSortKey: String { "playlistSongSort.\(playableContent.id)" }
+
+    private func restoreSongSort() {
+        guard sortsSongs,
+              let raw = UserDefaults.standard.string(forKey: songSortKey),
+              let sort = PlaylistSongSort(rawValue: raw) else { return }
+        songSort = sort
+        songSortReversed = UserDefaults.standard.bool(forKey: songSortKey + ".reversed")
+    }
+
+    private func rememberSongSort() {
+        // The playlist's own order is the default, so it needs no entry.
+        guard songSort != .playlistOrder else {
+            UserDefaults.standard.removeObject(forKey: songSortKey)
+            UserDefaults.standard.removeObject(forKey: songSortKey + ".reversed")
+            return
+        }
+        UserDefaults.standard.set(songSort.rawValue, forKey: songSortKey)
+        UserDefaults.standard.set(songSortReversed, forKey: songSortKey + ".reversed")
+    }
+
+    /// Plays the songs as they're listed, from the `start`th on. A sorted
+    /// playlist isn't the playlist's own order, so a speaker gets the songs
+    /// rather than the playlist, and this device the list.
+    private func playListed(from start: Int) {
+        let listed = songRows.map(\.song)
+        guard listed.indices.contains(start) else { return }
+        let songs = listed[start...].filter(\.isPlayable)
+        guard !songs.isEmpty else { return }
+        Task { @MainActor in
+            let currentContent = content ?? playableContent
+            let defaultPosition = QueuePosition.defaultPosition(
+                for: currentContent.content.type,
+                replaceQueueByDefault: replaceQueueByDefault
+            )
+            let queue: ((GroupRoom, QueuePosition) async throws -> Void) = { [songs, currentContent] group, selectedPosition in
+                // In the order shown, so not shuffled.
+                await SonosService.shared.setPlayMode(group.ip, mode: .normal)
+                group.playMode = .normal
+                switch selectedPosition {
+                case .replace:
+                    try await SonosService.shared.queue(contents: songs, group: group, position: .replace, startIndex: 0)
+                case .now:
+                    try await SonosService.shared.playNext(songs, on: group)
+                default:
+                    try await SonosService.shared.queue(contents: songs, group: group, position: selectedPosition)
+                }
+                playHistoryService.record(currentContent)
+                Router.main.show(destination: .player(groupID: group.coordinatorID))
+            }
+
+            guard let group = selectedGroupService.group else {
+                await PlayDestinationRouter.play(songs, position: defaultPosition, from: currentContent, queue: queue)
+                return
+            }
+
+            try await queue(group, defaultPosition)
+        }
+    }
+
     private var totalDuration: Duration {
         Duration.seconds(tracks.compactMap(\.metadata?.duration?.components.seconds).reduce(Int64.zero, +))
     }

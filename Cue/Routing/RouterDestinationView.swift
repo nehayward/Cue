@@ -90,8 +90,8 @@ struct RouterDestinationView: View {
                     action: action
                 )
                 .navigationTitle(title)
-            case let .playableGridScreen(title: title, items: items, action: action):
-                PlayableGridScreen(items: items, action: action)
+            case let .playableGridScreen(title: title, items: items, sort: sort, action: action):
+                PlayableGridScreen(items: items, sort: sort, action: action)
                     .navigationTitle(title)
             case .houseHold:
                 HouseholdScreen()
