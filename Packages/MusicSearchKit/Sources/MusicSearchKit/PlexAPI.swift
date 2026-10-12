@@ -584,7 +584,7 @@ public final class PlexAPI {
             playlists[index].thumbImageURL = getBaseURL(for: plexServer)?.appending(path:  composite).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
         }
 
-        return playlists
+        return sort?.sort(playlists, reversed: reversed) ?? playlists
     }
     
     public enum AlbumSortOrder {

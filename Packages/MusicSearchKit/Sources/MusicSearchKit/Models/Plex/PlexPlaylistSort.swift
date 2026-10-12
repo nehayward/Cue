@@ -1,8 +1,10 @@
 import Foundation
 
-/// How the list of Plex playlists is ordered. Every case is a `sort` field
-/// Plex's `/playlists` takes — the orders Plex's own apps offer for it — so
-/// the server does the ordering, and the list arrives already in it.
+/// How the list of Plex playlists is ordered. Plex's `/playlists` sorts by
+/// a playlist's own fields, so the server does the ordering for all but Song
+/// Count: a playlist's `leafCount` is counted as the list is answered, not a
+/// field Plex sorts on. Every playlist comes in one response carrying its
+/// count, so that order is put together here (`sort(_:reversed:)`).
 public enum PlexPlaylistSort: String, CaseIterable, Sendable, Identifiable {
     case title
     case dateAdded
@@ -24,7 +26,8 @@ public enum PlexPlaylistSort: String, CaseIterable, Sendable, Identifiable {
         }
     }
 
-    /// Plex's sort field.
+    /// Plex's sort field. Song Count's is only what `sort(_:reversed:)`
+    /// reads.
     private var field: String {
         switch self {
         case .title: "titleSort"
@@ -65,12 +68,30 @@ public enum PlexPlaylistSort: String, CaseIterable, Sendable, Identifiable {
     /// The `sort` query value. `reversed` flips the natural direction, so
     /// the flag means the same thing here as on the album and song orders.
     /// Every order but Title carries a title tiebreak, so playlists that
-    /// were never played, or hold as many songs, come out A–Z.
+    /// were never played come out A–Z. Song Count asks only for that A–Z
+    /// order, which `sort(_:reversed:)` keeps between playlists of the same
+    /// size.
     public func queryValue(reversed: Bool) -> String {
         let direction = naturallyDescending != reversed ? "desc" : "asc"
         switch self {
         case .title: return "titleSort:\(direction)"
+        case .songCount: return "titleSort:asc"
         default: return "\(field):\(direction),titleSort:asc"
         }
+    }
+
+    /// Orders playlists the server returned for `queryValue(reversed:)`:
+    /// Song Count by each one's `leafCount`, keeping the server's A–Z order
+    /// between playlists of the same size. The other orders arrive sorted
+    /// and pass through as they are.
+    public func sort(_ playlists: [PlexUserPlaylist], reversed: Bool = false) -> [PlexUserPlaylist] {
+        guard self == .songCount else { return playlists }
+        let biggestFirst = naturallyDescending != reversed
+        return playlists.enumerated().sorted { lhs, rhs in
+            let left = lhs.element.leafCount ?? 0, right = rhs.element.leafCount ?? 0
+            if left != right { return biggestFirst ? left > right : left < right }
+            return lhs.offset < rhs.offset
+        }
+        .map { $0.element }
     }
 }
