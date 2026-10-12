@@ -106,6 +106,10 @@ struct MediaDetailView: View {
     
     var body: some View {
         @Bindable var router = router
+        // Read in `body` itself, so a pick runs it again: what only the
+        // toolbar's builder reads doesn't, and the sort menu's checkmarks
+        // and spinner would lag behind.
+        let _ = (songSort, songSortReversed, isLoadingAllSongs)
         List(selection: $selection) {
             artworkSection
             ForEach(songRows) { row in

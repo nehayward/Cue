@@ -30,50 +30,6 @@ public struct PlayableGridSort {
     let isReversed: Binding<Bool>
 }
 
-/// The grid's sort menu. Its own view, so the choice it reads from the
-/// service is tracked by its own body: reads made in a toolbar's builder
-/// aren't, and the checkmarks would lag behind a pick.
-private struct PlayableGridSortMenu: View {
-    let sort: PlayableGridSort
-    /// Called after a pick changes the order.
-    let onChange: () -> Void
-
-    var body: some View {
-        let selected = sort.options.first { $0.name == sort.selection.wrappedValue }
-
-        Menu {
-            Picker("Sort By", selection: changing(sort.selection)) {
-                ForEach(sort.options) { option in
-                    Text(option.name).tag(option.name)
-                }
-            }
-            .pickerStyle(.inline)
-
-            if let selected {
-                Picker("Order", selection: changing(sort.isReversed)) {
-                    Text(selected.ascendingLabel).tag(false)
-                    Text(selected.descendingLabel).tag(true)
-                }
-                .pickerStyle(.inline)
-            }
-        } label: {
-            Label("Sort", systemImage: "arrow.up.arrow.down")
-        }
-    }
-
-    /// `binding`, calling `onChange` when a pick really changes it.
-    private func changing<Value: Equatable>(_ binding: Binding<Value>) -> Binding<Value> {
-        Binding(
-            get: { binding.wrappedValue },
-            set: { value in
-                guard value != binding.wrappedValue else { return }
-                binding.wrappedValue = value
-                onChange()
-            }
-        )
-    }
-}
-
 struct PlayableGridScreen: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(LibraryBrowseService.self) var browseService
@@ -85,6 +41,12 @@ struct PlayableGridScreen: View {
     /// The last page added nothing: there's no more to ask for until a refresh.
     @State private var reachedEnd = false
     @Binding var items: OrderedSet<PlayableContent>
+    /// The sort menu's choice, copied from `sort` into the grid's own state.
+    /// The menu's checkmarks follow state the view owns, as
+    /// `PlayableListView`'s do; bound straight to the service, the order
+    /// changed but the checkmarks stayed on the first pick.
+    @State private var sortName = ""
+    @State private var isSortReversed = false
 
     /// Nil for a grid with a single fixed order — no menu is shown then.
     var sort: PlayableGridSort? = nil
@@ -101,6 +63,11 @@ struct PlayableGridScreen: View {
     }
 
     var body: some View {
+        // Read in `body` itself, so a pick runs it again: what only the
+        // toolbar's builder reads doesn't, and the menu would keep drawing
+        // the old checkmarks.
+        let _ = (sortName, isSortReversed)
+
         ScrollView {
             LazyVGrid(columns: adaptiveColumn, spacing: 16) {
                 ForEach(items) { item in
@@ -146,13 +113,7 @@ struct PlayableGridScreen: View {
             }
             if let sort {
                 ToolbarItem(placement: .primaryAction) {
-                    // The tiles already there stay until the new order
-                    // arrives, then move into it, rather than the grid
-                    // going blank behind a spinner.
-                    PlayableGridSortMenu(sort: sort) {
-                        reachedEnd = false
-                        Task { await action?(0) }
-                    }
+                    sortMenu(sort)
                 }
             }
             if let service = createPlaylistService {
@@ -167,6 +128,10 @@ struct PlayableGridScreen: View {
             }
         }
         .task {
+            if let sort {
+                sortName = sort.selection.wrappedValue
+                isSortReversed = sort.isReversed.wrappedValue
+            }
             isLoading = true
             await action?(0)
             isLoading = false
@@ -175,6 +140,55 @@ struct PlayableGridScreen: View {
 }
 
 extension PlayableGridScreen {
+    /// Sort By and, for the chosen order, its direction — the same menu as
+    /// `PlayableListView`'s. A pick sets the service's order and fetches
+    /// again.
+    fileprivate func sortMenu(_ sort: PlayableGridSort) -> some View {
+        Menu {
+            Picker("Sort By", selection: Binding(
+                get: { sortName },
+                set: { name in
+                    guard name != sortName else { return }
+                    sort.selection.wrappedValue = name
+                    sortName = name
+                    // The service starts each order in its own direction.
+                    isSortReversed = sort.isReversed.wrappedValue
+                    reloadInNewOrder()
+                }
+            )) {
+                ForEach(sort.options) { option in
+                    Text(option.name).tag(option.name)
+                }
+            }
+            .pickerStyle(.inline)
+
+            if let option = sort.options.first(where: { $0.name == sortName }) {
+                Picker("Order", selection: Binding(
+                    get: { isSortReversed },
+                    set: { reversed in
+                        guard reversed != isSortReversed else { return }
+                        sort.isReversed.wrappedValue = reversed
+                        isSortReversed = reversed
+                        reloadInNewOrder()
+                    }
+                )) {
+                    Text(option.ascendingLabel).tag(false)
+                    Text(option.descendingLabel).tag(true)
+                }
+                .pickerStyle(.inline)
+            }
+        } label: {
+            Label("Sort", systemImage: "arrow.up.arrow.down")
+        }
+    }
+
+    /// The tiles already there stay until the new order arrives, then move
+    /// into it, rather than the grid going blank behind a spinner.
+    fileprivate func reloadInNewOrder() {
+        reachedEnd = false
+        Task { await action?(0) }
+    }
+
     /// Asks for the next page when the last tile appears, one page at a
     /// time: each tile used to ask as it appeared, with nothing stopping a
     /// second request for the same page while the first was on its way.
