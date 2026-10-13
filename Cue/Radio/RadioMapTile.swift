@@ -89,7 +89,9 @@ struct RadioMapTile: View {
                 .padding(10)
         }
         .contentShape(.rect(cornerRadius: RadioGrid.cornerRadius))
-        .task(id: RenderTask(key: snapshotKey, isLocating: isLocating)) {
+        // Placing only matters once there's a picture to keep; before
+        // the first, it would only restart the first render.
+        .task(id: RenderTask(key: snapshotKey, isLocating: rendered != nil && isLocating)) {
             await render(snapshotKey)
         }
         .accessibilityElement(children: .ignore)

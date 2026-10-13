@@ -117,6 +117,7 @@ final class RadioMap {
 
     private func lookUp(_ ids: [String]) async {
         let tuneIn = TuneInBrowseService.shared
+        var tally = Tally()
         await withTaskGroup(of: (String, TuneInPlace?).self) { group in
             var next = 0
             while next < min(Self.concurrentLookups, ids.count) {
@@ -132,11 +133,36 @@ final class RadioMap {
                     next += 1
                     group.addTask { (nextID, await tuneIn.place(for: nextID)) }
                 }
-                await record(place, for: id)
+                tally.count(await record(place, for: id))
             }
         }
         publish()
         save()
+        // How the run went, for a device's console
+        // (`CUE_LOG_FILTER=radioMap`): many without an answer is TuneIn
+        // turning the lookups away; many with no place is stations it
+        // doesn't place.
+        Self.log.notice("placed \(tally.placed) of \(ids.count): \(tally.nowhere) with no place, \(tally.unanswered) without an answer")
+    }
+
+    /// What became of each lookup in a run.
+    private struct Tally {
+        var placed = 0
+        var nowhere = 0
+        var unanswered = 0
+
+        /// `kept` is what `record` kept: nil for no answer.
+        mutating func count(_ kept: Place?) {
+            guard let kept else {
+                unanswered += 1
+                return
+            }
+            if kept.latitude != nil {
+                placed += 1
+            } else {
+                nowhere += 1
+            }
+        }
     }
 
     /// Asks TuneIn for the stations local to a point and puts them on the
@@ -153,7 +179,7 @@ final class RadioMap {
         let known = Set(explored.map(\.id))
         explored.append(contentsOf: found.filter { !known.contains($0.id) })
         searches.append(AreaSearch(latitude: latitude, longitude: longitude, stations: found))
-        Self.log.debug("area search found \(found.count) stations")
+        Self.log.notice("area search at \(latitude, format: .fixed(precision: 3)),\(longitude, format: .fixed(precision: 3)) found \(found.count) stations")
         await locate(found)
     }
 
@@ -165,10 +191,12 @@ final class RadioMap {
     /// Keeps what a description said, for the next `publish`. No answer
     /// at all (offline, turned away, or a place name the map couldn't be
     /// asked about) keeps nothing, so the station is asked again next time.
-    private func record(_ found: TuneInPlace?, for id: String) async {
+    /// Returns what it kept, for the run's tally.
+    private func record(_ found: TuneInPlace?, for id: String) async -> Place? {
         let kept = await self.place(from: found)
         unpublished.updateValue(kept, forKey: id)
         publishSoon()
+        return kept
     }
 
     private func place(from found: TuneInPlace?) async -> Place? {
