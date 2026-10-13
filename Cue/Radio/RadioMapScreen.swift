@@ -235,6 +235,26 @@ private enum RadioMapStatus: Equatable {
         if case .search = self { true } else { false }
     }
 
+    var isWorking: Bool {
+        if case .working = self { true } else { false }
+    }
+
+    var title: String {
+        switch self {
+        case let .working(text): text
+        case .search: "Search This Area"
+        case let .notice(text): text
+        }
+    }
+
+    /// The mark beside the title; work under way shows a spinner instead.
+    var symbol: String {
+        switch self {
+        case .working, .search: "magnifyingglass"
+        case .notice: "antenna.radiowaves.left.and.right.slash"
+        }
+    }
+
     /// What the bar animates on. Not the point Search This Area would ask
     /// about, which moves with every pan and changes nothing on screen.
     var look: String {
@@ -276,6 +296,9 @@ private struct RadioMapStatusBar: View {
             label(status)
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
+                // Its own width, always: squeezed by a capsule still
+                // growing, the new words were cut short.
+                .fixedSize()
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .contentShape(.capsule)
@@ -286,20 +309,38 @@ private struct RadioMapStatusBar: View {
         .accessibilityRemoveTraits(status.isSearch ? [] : .isButton)
     }
 
-    @ViewBuilder
+    /// One mark and one title whatever the status, so a change is the
+    /// title turning into the next, not one label fading out over another.
     private func label(_ status: RadioMapStatus) -> some View {
-        switch status {
-        case let .working(text):
-            HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                Text(text)
+        HStack(spacing: 8) {
+            // One slot for the mark, so the spinner and the symbol trade
+            // places without moving the title.
+            ZStack {
+                if status.isWorking {
+                    ProgressView()
+                        .controlSize(.small)
+                        .transition(.opacity)
+                } else {
+                    Image(systemName: status.symbol)
+                        .transition(.opacity)
+                }
             }
-        case .search:
-            Label("Search This Area", systemImage: "magnifyingglass")
-        case let .notice(text):
-            Label(text, systemImage: "antenna.radiowaves.left.and.right.slash")
+            .frame(width: 18, height: 18)
+
+            Text(status.title)
+                .contentTransition(Self.titleTransition)
         }
+    }
+
+    /// The title's glyphs move into the new words. Not on the Mac, where
+    /// text redrawn as it changes holds ~90 MB of GPU memory for the run
+    /// of it (see Mac GPU cost in CLAUDE.md); there the words just change.
+    private static var titleTransition: ContentTransition {
+        #if targetEnvironment(macCatalyst)
+        .identity
+        #else
+        .interpolate
+        #endif
     }
 }
 
