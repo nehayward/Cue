@@ -16,7 +16,6 @@ struct RadioScreen: View {
     @Environment(TuneInBrowseService.self) private var tuneInBrowseService
     @Environment(CoreFeatures.self) private var coreFeatures
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @Environment(\.zoomNamespace) private var zoomNamespace
 
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
@@ -25,7 +24,6 @@ struct RadioScreen: View {
     @State private var router = Router()
     @State private var query = ""
     @State private var search = RadioSearch()
-    @State private var radioMap = RadioMap.shared
 
     private var showsTuneIn: Bool { coreFeatures.isEnabled(.tuneIn) }
     /// Apple's stations load on open, so they wait for an authorization the
@@ -77,12 +75,6 @@ struct RadioScreen: View {
             .task {
                 await load(refreshing: false)
             }
-            // Apart from `load`, so a pull to refresh doesn't wait on every
-            // station's place; once placed, a station isn't asked again.
-            .task(id: tuneInBrowseService.localStations.map(\.id)) {
-                guard showsTuneIn else { return }
-                await radioMap.locate(tuneInBrowseService.localStations)
-            }
             .refreshable {
                 await load(refreshing: true)
             }
@@ -128,7 +120,7 @@ struct RadioScreen: View {
                     action: { offset in offset == 0 ? local : [] }
                 )
             )
-            mapSection(local)
+            RadioMapSection(local: local)
         }
         if !trending.isEmpty {
             RadioStationsSection(
@@ -162,26 +154,6 @@ struct RadioScreen: View {
                     .buttonStyle(.plain)
                 }
             }
-        }
-        .listRowInsets(.default)
-        .listRowSeparator(.hidden)
-        .listSectionSeparator(.hidden)
-    }
-
-    /// The local stations on a map. The tile opens the full map. It stays
-    /// while there are local stations, placed or not, so the map pushed
-    /// from it always has it to zoom back into.
-    private func mapSection(_ local: [PlayableContent]) -> some View {
-        Section {
-            RadioSectionHeader(title: "Radio Map", caption: "TuneIn")
-
-            Button {
-                router.navigate(to: .radioMap(zoomSource: zoomNamespace == nil ? nil : .radioMap))
-            } label: {
-                RadioMapTile(stations: radioMap.mapped(local), isLocating: radioMap.isLocating)
-            }
-            .buttonStyle(.plain)
-            .modifier(RadioMapZoomSource(namespace: zoomNamespace))
         }
         .listRowInsets(.default)
         .listRowSeparator(.hidden)
@@ -309,6 +281,40 @@ struct RadioScreen: View {
                 }
             }
         }
+    }
+}
+
+/// The local stations on a map; the tile opens the full map. Its own view
+/// so stations landing on the map redraw the tile, not the whole tab. It
+/// stays while there are local stations, placed or not, so the map pushed
+/// from it always has it to zoom back into. The stations are looked up
+/// once the tile is in the list, apart from the tab's `load`, so a pull to
+/// refresh doesn't wait on them; once placed, a station isn't asked again.
+private struct RadioMapSection: View {
+    let local: [PlayableContent]
+
+    @Environment(Router.self) private var router
+    @Environment(\.zoomNamespace) private var zoomNamespace
+    @State private var radioMap = RadioMap.shared
+
+    var body: some View {
+        Section {
+            RadioSectionHeader(title: "Radio Map", caption: "TuneIn")
+
+            Button {
+                router.navigate(to: .radioMap(zoomSource: zoomNamespace == nil ? nil : .radioMap))
+            } label: {
+                RadioMapTile(stations: radioMap.mapped(local), isLocating: radioMap.isLocating)
+            }
+            .buttonStyle(.plain)
+            .modifier(RadioMapZoomSource(namespace: zoomNamespace))
+            .task(id: local.map(\.id)) {
+                await radioMap.locate(local)
+            }
+        }
+        .listRowInsets(.default)
+        .listRowSeparator(.hidden)
+        .listSectionSeparator(.hidden)
     }
 }
 

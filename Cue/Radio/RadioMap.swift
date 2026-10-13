@@ -57,7 +57,15 @@ final class RadioMap {
     private static let storeURL = URL.cachesDirectory.appending(path: "RadioMapPlaces.json")
     private static let log = Logger(subsystem: "dance.cue", category: "radioMap")
 
+    /// How often answers reach `places`. Each change there redraws every
+    /// view reading the map, so a burst of answers lands as one.
+    private static let publishInterval: Duration = .milliseconds(500)
+
     @ObservationIgnored private var inFlight: Set<String> = []
+    /// Answers back but not yet in `places`, by station id: the place to
+    /// keep, or nil for nothing to keep (ask again next time).
+    @ObservationIgnored private var unpublished: [String: Place?] = [:]
+    @ObservationIgnored private var publishTask: Task<Void, Never>?
     /// Place names already looked up, misses included, so a city's
     /// stations cost one lookup between them.
     @ObservationIgnored private var geocoded: [String: Point?] = [:]
@@ -117,14 +125,17 @@ final class RadioMap {
                 group.addTask { (id, await tuneIn.place(for: id)) }
             }
             while let (id, place) = await group.next() {
-                await record(place, for: id)
+                // The next lookup goes out before this answer is kept, so a
+                // place name being geocoded doesn't hold TuneIn up.
                 if next < ids.count {
                     let nextID = ids[next]
                     next += 1
                     group.addTask { (nextID, await tuneIn.place(for: nextID)) }
                 }
+                await record(place, for: id)
             }
         }
+        publish()
         save()
     }
 
@@ -147,15 +158,17 @@ final class RadioMap {
         return place.latitude == nil && place.checked.distance(to: .now) > Self.recheckInterval
     }
 
-    /// Keeps what a description said. No answer at all (offline, turned
-    /// away, or a place name the map couldn't be asked about) keeps
-    /// nothing, so the station is asked again next time.
+    /// Keeps what a description said, for the next `publish`. No answer
+    /// at all (offline, turned away, or a place name the map couldn't be
+    /// asked about) keeps nothing, so the station is asked again next time.
     private func record(_ found: TuneInPlace?, for id: String) async {
-        defer {
-            inFlight.remove(id)
-            pendingCount -= 1
-        }
-        guard let found else { return }
+        let kept = await self.place(from: found)
+        unpublished.updateValue(kept, forKey: id)
+        publishSoon()
+    }
+
+    private func place(from found: TuneInPlace?) async -> Place? {
+        guard let found else { return nil }
         var place = Place(latitude: found.latitude, longitude: found.longitude, location: found.location, checked: .now)
         if found.coordinate == nil, let location = found.location {
             switch await geocode(location) {
@@ -165,10 +178,41 @@ final class RadioMap {
             case .nowhere:
                 break
             case .failed:
-                return
+                return nil
             }
         }
-        places[id] = place
+        return place
+    }
+
+    private func publishSoon() {
+        guard publishTask == nil else { return }
+        publishTask = Task {
+            try? await Task.sleep(for: Self.publishInterval)
+            // Cancelled: a `publish` already came, and took these answers.
+            guard !Task.isCancelled else { return }
+            publish()
+        }
+    }
+
+    /// Puts every answer back since the last time into `places` in one
+    /// change. A station stays in flight until then, so a `locate` in the
+    /// meantime doesn't ask for it again.
+    private func publish() {
+        publishTask?.cancel()
+        publishTask = nil
+        guard !unpublished.isEmpty else { return }
+        let answers = unpublished
+        unpublished = [:]
+
+        var updated = places
+        for (id, place) in answers {
+            if let place {
+                updated[id] = place
+            }
+            inFlight.remove(id)
+        }
+        places = updated
+        pendingCount -= answers.count
     }
 
     private enum Geocoded {

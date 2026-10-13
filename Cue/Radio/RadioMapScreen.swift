@@ -32,10 +32,16 @@ struct RadioMapScreen: View {
     }
 
     var body: some View {
+        // Each of these walks every station, so once a redraw, not once
+        // for each place that asks.
+        let local = localStations
+        let nearYou = Self.nearYouRegion(local)
+        let barStatus = status(nearYou: nearYou)
+        let selectedID = selected?.id
         let clusters = RadioMapCluster.clusters(
             of: stations,
             // Before the map reports where it's looking, where it was set.
-            in: visibleRegion ?? Self.nearYouRegion(localStations),
+            in: visibleRegion ?? nearYou,
             size: size,
             pinSize: Self.pinSize * 1.2
         )
@@ -46,7 +52,12 @@ struct RadioMapScreen: View {
                     Button {
                         open(cluster)
                     } label: {
-                        RadioMapPin(cluster: cluster, isSelected: isSelected(cluster), size: Self.pinSize)
+                        RadioMapPin(
+                            lead: cluster.lead,
+                            count: cluster.stations.count,
+                            isSelected: cluster.stations.contains { $0.id == selectedID },
+                            size: Self.pinSize
+                        )
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(cluster.accessibilityLabel)
@@ -70,8 +81,8 @@ struct RadioMapScreen: View {
             size = newSize
         }
         .safeAreaInset(edge: .top) {
-            if let status {
-                statusView(status)
+            if let barStatus {
+                statusView(barStatus)
                     .padding(.top, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
@@ -86,7 +97,7 @@ struct RadioMapScreen: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.snappy, value: status)
+        .animation(.snappy, value: barStatus)
         .navigationTitle("Radio Map")
 #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -96,7 +107,7 @@ struct RadioMapScreen: View {
                 Button("Stations Near You", systemImage: "scope") {
                     frameNearYou()
                 }
-                .disabled(localStations.isEmpty)
+                .disabled(local.isEmpty)
             }
         }
         .onAppear {
@@ -104,14 +115,14 @@ struct RadioMapScreen: View {
             // Here rather than in `init`, which the screen that pushes this
             // runs in its body, so reading the places there would redraw
             // that screen with every station placed.
-            guard !hasFramed, let region = Self.nearYouRegion(localStations) else { return }
+            guard !hasFramed, let nearYou else { return }
             hasFramed = true
-            position = .region(region)
+            position = .region(nearYou)
         }
         .task {
             await radioMap.locate(tuneIn.localStations)
         }
-        .onChange(of: localStations.map(\.id)) {
+        .onChange(of: local.map(\.id)) {
             // Opened before any station near you had a place: the first
             // ones to land set the view.
             guard !hasFramed else { return }
@@ -120,11 +131,6 @@ struct RadioMapScreen: View {
     }
 
     // MARK: - Pins
-
-    private func isSelected(_ cluster: RadioMapCluster) -> Bool {
-        guard let selected else { return false }
-        return cluster.stations.contains { $0.id == selected.id }
-    }
 
     /// Zooms in on a pin whose stations zooming would pull apart; opens the
     /// card for the rest. A pin of stations a little way apart, already as
@@ -173,14 +179,14 @@ struct RadioMapScreen: View {
 
     /// What the bar over the map says: work under way, else the offer to
     /// search where the map has moved to, else what the last search found.
-    private var status: Status? {
+    private func status(nearYou: MKCoordinateRegion?) -> Status? {
         if radioMap.isSearchingArea {
             return .working("Searching This Area…")
         }
         if radioMap.isLocating {
             return .working("Placing Stations…")
         }
-        if let center = searchCenter {
+        if let center = searchCenter(nearYou: nearYou) {
             return .search(latitude: center.latitude, longitude: center.longitude)
         }
         if let notice {
@@ -192,9 +198,10 @@ struct RadioMapScreen: View {
     /// The middle of the map, once it has moved off everywhere already
     /// asked about. Nil zoomed out past a region, where one point's local
     /// stations would be a speck.
-    private var searchCenter: CLLocationCoordinate2D? {
+    private func searchCenter(nearYou: MKCoordinateRegion?) -> CLLocationCoordinate2D? {
         guard let region = visibleRegion, region.span.latitudeDelta < 12 else { return nil }
         let center = CLLocation(latitude: region.center.latitude, longitude: region.center.longitude)
+        let nearYouCenter = nearYou.map { CLLocation(latitude: $0.center.latitude, longitude: $0.center.longitude) }
         let asked = radioMap.searches.map(\.center) + [nearYouCenter].compactMap { $0 }
         guard asked.allSatisfy({ center.distance(from: $0) > Self.samePlace(in: region) }) else { return nil }
         return region.center
@@ -209,10 +216,6 @@ struct RadioMapScreen: View {
         guard center.distance(from: search.center) <= Self.samePlace(in: region) else { return nil }
         let placedNearby = radioMap.mapped(search.stations).contains { $0.point.distance(from: search.center) < 300_000 }
         return placedNearby ? nil : "No Stations Found Here"
-    }
-
-    private var nearYouCenter: CLLocation? {
-        Self.nearYouRegion(localStations).map { CLLocation(latitude: $0.center.latitude, longitude: $0.center.longitude) }
     }
 
     /// How far the map's middle can move and still be the same place: half
@@ -301,7 +304,9 @@ private struct RadioMapStationsCard: View {
             }
 
             ScrollView {
-                VStack(spacing: RadioGrid.spacing) {
+                // Lazy: a city's pin can hold dozens of stations, and each
+                // row is a menu with its own artwork.
+                LazyVStack(spacing: RadioGrid.spacing) {
                     ForEach(cluster.stations) { station in
                         PlayableContentRowView(item: station.station, hideSubtitle: true)
                             .buttonStyle(.plain)

@@ -56,7 +56,7 @@ struct RadioMapTile: View {
                     .resizable()
                     .frame(width: rendered.key.width, height: rendered.key.height)
                 ForEach(clusters(on: rendered)) { cluster in
-                    RadioMapPin(cluster: cluster, size: Self.pinSize)
+                    RadioMapPin(lead: cluster.lead, count: cluster.stations.count, size: Self.pinSize)
                         .position(rendered.snapshot.point(for: cluster.coordinate))
                 }
             }
@@ -190,28 +190,34 @@ private struct RenderedMap {
 }
 
 /// A pin on the Radio map: the lead station's logo on a white tile and,
-/// when the pin stands for more than one station, how many.
-struct RadioMapPin: View {
-    let cluster: RadioMapCluster
+/// when the pin stands for more than one station, how many. Equatable on
+/// what it draws, so a redraw of the map that leaves a pin as it was
+/// leaves it alone.
+struct RadioMapPin: View, Equatable {
+    let lead: PlayableContent
+    let count: Int
     var isSelected = false
     var size: CGFloat = 40
 
     private var cornerRadius: CGFloat { size * 0.24 }
 
     var body: some View {
-        ContentArtworkView(content: cluster.lead, showMusicSource: false, cornerRadius: cornerRadius)
+        ContentArtworkView(content: lead, showMusicSource: false, cornerRadius: cornerRadius)
             .frame(width: size, height: size)
             // Logos are often drawn on nothing; the tile gives them a ground.
             .background(.white, in: .rect(cornerRadius: cornerRadius, style: .continuous))
             .padding(isSelected ? 3 : 2)
-            .background(
-                isSelected ? Color.accentColor : Color.white,
-                in: .rect(cornerRadius: cornerRadius + 3, style: .continuous)
-            )
-            .shadow(color: .black.opacity(0.3), radius: 3, y: 1)
+            .background {
+                // The shadow is the frame's alone. On the whole pin it
+                // would draw the logo and badge offscreen to find their
+                // edge, for every pin on the map.
+                RoundedRectangle(cornerRadius: cornerRadius + 3, style: .continuous)
+                    .fill(isSelected ? Color.accentColor : Color.white)
+                    .shadow(color: .black.opacity(0.3), radius: 3, y: 1)
+            }
             .overlay(alignment: .topTrailing) {
-                if cluster.stations.count > 1 {
-                    Text(cluster.stations.count, format: .number)
+                if count > 1 {
+                    Text(count, format: .number)
                         .font(.caption2.weight(.bold))
                         .monospacedDigit()
                         .foregroundStyle(.white)
