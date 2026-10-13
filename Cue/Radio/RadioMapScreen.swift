@@ -54,7 +54,9 @@ struct RadioMapScreen: View {
                 .annotationTitles(.hidden)
             }
         }
-        .mapStyle(.standard(emphasis: .muted, pointsOfInterest: .excludingAll))
+        // Flat: the 3D buildings and terrain a city loads at street level
+        // are most of a live map's memory, and nothing here needs them.
+        .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll))
         .mapControls {
             MapCompass()
             MapScaleView()
