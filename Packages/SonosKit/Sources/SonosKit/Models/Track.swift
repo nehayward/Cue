@@ -137,4 +137,21 @@ public extension Track {
     static let empty = Track(trackID: "", name: "")
     static let alarm = Track(trackID: "x-rincon-buzzer:0", name: "Alarm")
     static let tv = Track(trackID: "x-sonos-htastream", name: "TV")
+
+    /// Line-in from the speaker `uri` names (`x-rincon-stream:<its id>`). The
+    /// URI is the track's ID, so a switch to another speaker's input is a new
+    /// track.
+    static func lineIn(uri: String) -> Track {
+        Track(trackID: uri, name: "Line In")
+    }
+
+    /// The speaker whose line-in this is, nil for anything else. A speaker
+    /// playing its own input reports an input number after the id
+    /// (`x-rincon-stream:RINCON_…01400:0`), so the id ends at the first colon.
+    var lineInSourceID: String? {
+        let prefix = "x-rincon-stream:"
+        guard trackID.hasPrefix(prefix),
+              let id = trackID.dropFirst(prefix.count).split(separator: ":").first else { return nil }
+        return String(id)
+    }
 }

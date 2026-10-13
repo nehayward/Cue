@@ -14,6 +14,7 @@
 - Streaming Quality: Have your Plex or Subsonic server convert songs to MP3 or Opus at a bitrate you choose, under Settings ▸ Services — smaller over cellular or a slow connection home. Applies to songs played and downloaded on this device and to Subsonic songs sent to your speakers, which get MP3 in place of Opus since Sonos players can't play it
 - Live Transcription: While a radio station plays, tap the captions button on the player (⇧⌘T on Mac) to see what's being said, written out live by a model that runs entirely on your device (iOS 26 and later). Works for TuneIn stations on this device, and for TuneIn and internet radio stations playing on your Sonos speakers. Pick any supported language — it downloads the first time — and Cue remembers it for each station. The switch stays how you left it between launches
 - Lyrics: Tap the speech bubble on the player to follow along with the words. Cue shows your Plex, Subsonic and Files songs' own lyrics — a .lrc beside the song or lyrics in its tags — and finds the rest on LRCLIB, Apple Music songs included. On iPhone they fill the screen like Apple Music, each line lighting up as it's sung; tap a line to jump there, scroll away and Back to Now brings you back, and the controls tuck away while you sing along. Works on this device and on your Sonos speakers, and downloaded Plex and Subsonic songs keep their lyrics for listening offline. Turn off the online lookup in Settings ▸ Playback ▸ Look Up Lyrics Online
+- Line In from any speaker: Play the line-in of any speaker on any room or group, say the turntable on your Living Room Port in the Kitchen. Switch to Line In in the player's ••• menu lists every speaker with a line-in and checks the one playing, and the player shows which speaker the sound comes from
 
 –– Bug Fixes & Improvements ––
 - Smoother changes between songs from different services on this device: Cue starts the next song the moment the last one ends, and looks up Apple Music songs ahead of time, so there's barely a pause going from your server to Apple Music and back
@@ -37,6 +38,7 @@
 - Fixed downloads at an MP3 or Opus Streaming Quality sometimes saving a few seconds of a song as the whole thing, or failing with "cannot parse response". Songs already saved that way are fetched again the next time you're on Wi‑Fi
 - Removing a downloaded album no longer takes the songs it shares with another downloaded album or playlist
 - Fixed songs in your Files folder losing the last letter of their title, artist or album when their tags were written by some Windows taggers
+- Fixed Switch to Line In missing from the player's menu while the speaker with the line-in was grouped under another room
 
 # 2026.7
 

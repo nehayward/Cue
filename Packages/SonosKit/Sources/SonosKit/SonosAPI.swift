@@ -929,18 +929,19 @@ final class SonosAPI: NSObject {
         return ""
     }
     
-    func switchToLineIn(IP: String, ID: String) async {
+    /// Plays the line-in of speaker `ID` on the coordinator at `IP`, which
+    /// can be any speaker's: a line-in belongs to the household.
+    ///
+    /// - Returns: Whether the speaker took it.
+    @discardableResult
+    func switchToLineIn(IP: String, ID: String) async -> Bool {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),
             ("CurrentURI", "x-rincon-stream:\(ID)"),
             ("CurrentURIMetaData", "")
         ]
-        
-        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
-            if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
-            }
-        }
+
+        return await sendTransportCommand(ip: IP, action: "SetAVTransportURI", arguments: arguments)
     }
 
     // MARK: - Favorites

@@ -224,7 +224,8 @@ extension ArtworkMeshBackground {
             sourceID: group.coordinatorID,
             artworkURL: track.artworkURL,
             artworkKey: track.playerArtworkCacheKey,
-            isEmpty: track.isEmpty
+            // Line-in never gets a cover, so there's none to hold out for.
+            isEmpty: track.isEmpty || track.lineInSourceID != nil
         )
     }
 

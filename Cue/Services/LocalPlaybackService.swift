@@ -2177,7 +2177,10 @@ final class LocalPlaybackService {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
-            print(error)
+            // The player goes on regardless and plays nothing, so this is
+            // the line that says why a stream run is silent.
+            let code = (error as NSError).code
+            Self.log.error("activating the audio session for the stream run at \(index) failed: \(code) \(error.localizedDescription, privacy: .public)")
         }
 
         streamRun = [:]
@@ -2623,8 +2626,8 @@ final class LocalPlaybackService {
 
     /// This app's card for the Apple Music run, for a connected car (see
     /// `publishesAppleMusicCard`). Its commands drive this player, which
-    /// drives MusicKit's. Stated again every second: the car reads it as
-    /// paused and wouldn't move its clock otherwise.
+    /// drives MusicKit's. Stated again every few seconds: the car reads it
+    /// as paused and wouldn't move its clock otherwise.
     private func updateAppleMusicCard() {
         nowPlayingCard.begin()
         nowPlayingCard.update(

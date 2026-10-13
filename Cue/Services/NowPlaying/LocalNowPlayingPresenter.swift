@@ -57,6 +57,17 @@ final class LocalNowPlayingPresenter {
     /// screen stops taking the card's updates.
     private static let marker = "cue.local"
 
+    /// How often a card that restates its clock is published again (see
+    /// `update`). Once a second ran the car's clock smoothly, but at rate 0
+    /// every restate is a real change, a write a second, and CarPlay's
+    /// metadata throttle ("Application exceeded audio metadata throttle
+    /// limit") is there to stop that: past it the car's Now Playing takes no
+    /// more updates. With restates every second, a new song or a new queue
+    /// played on with the old one still showing in the car. A song change
+    /// still publishes at once; this only spaces the restates in between, so
+    /// the clock steps every few seconds.
+    private static let restateInterval: TimeInterval = 5
+
     private static let log = Logger(subsystem: "dance.cue", category: "nowplaying")
 
     init(player: LocalPlaybackService) {
@@ -92,8 +103,8 @@ final class LocalNowPlayingPresenter {
     /// elapsed time is left to the system's own clock between publishes,
     /// which is smoother than pushing a number twice a second.
     ///
-    /// `restatesClock` publishes about once a second while playing, for a
-    /// card the system won't run the clock on. That's Apple Music's in a
+    /// `restatesClock` publishes every `restateInterval` while playing, for
+    /// a card the system won't run the clock on. That's Apple Music's in a
     /// car: iOS reads a card as playing only while this process makes the
     /// sound (`playbackState` is macOS-only), MusicKit's player makes it
     /// out of process, and on iOS 27 the car reads this card all the same
@@ -132,9 +143,7 @@ final class LocalNowPlayingPresenter {
             ? publishedElapsed + Date.now.timeIntervalSince(publishedAt)
             : publishedElapsed
         let drifted = abs(elapsed - expected) > 2
-        // The poll runs twice a second; just under one lets every other
-        // tick through, whatever the timer's jitter.
-        let restate = restatesClock && isPlaying && Date.now.timeIntervalSince(publishedAt) >= 0.9
+        let restate = restatesClock && isPlaying && Date.now.timeIntervalSince(publishedAt) >= Self.restateInterval
         guard snapshot != published || !cardIsOurs || drifted || restate else { return }
         publish(snapshot, elapsed: elapsed, item: item)
     }
