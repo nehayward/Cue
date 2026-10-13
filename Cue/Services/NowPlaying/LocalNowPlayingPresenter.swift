@@ -116,11 +116,10 @@ final class LocalNowPlayingPresenter {
             isLive: isLive
         )
         let cardIsOurs = isOurs(MPNowPlayingInfoCenter.default().nowPlayingInfo)
-        // A stall or a hiccup can leave the system's clock well off, and so
-        // can a seek this player never saw (MusicKit's own card takes
-        // those for Apple Music); a drift past a couple of seconds is worth
-        // a republish. The clock runs on from the last publish while
-        // playing and stands still while paused.
+        // A stall or a hiccup can leave the system's clock well off; a
+        // drift past a couple of seconds is worth a republish. The clock
+        // runs on from the last publish while playing and stands still
+        // while paused.
         let expected = published?.isPlaying == true
             ? publishedElapsed + Date.now.timeIntervalSince(publishedAt)
             : publishedElapsed

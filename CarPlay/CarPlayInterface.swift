@@ -50,6 +50,9 @@ final class CarPlayInterface: NSObject {
     /// What Now Playing's buttons were last set to show (`updateNowPlaying`);
     /// nil until they've been set this connection.
     private var nowPlayingButtons: String?
+    /// This interface's targets on the shuffle and repeat commands, for as
+    /// long as the car is connected (`registerModeCommands`).
+    private var modeCommandTargets: [(MPRemoteCommand, Any)] = []
 
     private var isConnected = false
     private var radioTask: Task<Void, Never>?
@@ -96,6 +99,7 @@ final class CarPlayInterface: NSObject {
         // The queue button is Cue's own (`updateNowPlaying`).
         let nowPlaying = CPNowPlayingTemplate.shared
         nowPlaying.add(self)
+        registerModeCommands()
 
         guard FeatureGate.shared.isAvailable(.carPlay) else {
             showUnavailable()
@@ -126,6 +130,7 @@ final class CarPlayInterface: NSObject {
         isConnected = false
         nowPlayingButtons = nil
         CPNowPlayingTemplate.shared.remove(self)
+        unregisterModeCommands()
         radioTask?.cancel()
         libraryTask?.cancel()
         libraryTask = nil
@@ -638,10 +643,13 @@ final class CarPlayInterface: NSObject {
             repeatButton.isSelected = player.repeatMode != .off
             buttons += [shuffle, repeatButton]
 
-            // What the two buttons draw their state from.
+            // What the two buttons draw their state from, and what lets them
+            // take a tap: a station's card switches both off.
             let commands = MPRemoteCommandCenter.shared()
             commands.changeShuffleModeCommand.currentShuffleType = player.isShuffled ? .items : .off
             commands.changeRepeatModeCommand.currentRepeatType = player.repeatMode.repeatType
+            commands.changeShuffleModeCommand.isEnabled = true
+            commands.changeRepeatModeCommand.isEnabled = true
         }
         if hasQueue {
             let image = CarPlayArtwork.queueGauge(position: player.queuePosition, total: player.queueCount)
@@ -652,6 +660,45 @@ final class CarPlayInterface: NSObject {
             })
         }
         nowPlaying.updateNowPlayingButtons(buttons)
+    }
+
+    /// Targets on the shuffle and repeat commands while the car is
+    /// connected. Now Playing's shuffle and repeat buttons take a tap only
+    /// while those commands are enabled with a target, and the device
+    /// card's (`LocalNowPlayingPresenter`) are there only while a stream
+    /// plays: during Apple Music, whose card is MusicKit's, the buttons drew
+    /// and did nothing. Like the card's, each sets the mode the event names,
+    /// so a tap that reaches both sets it once.
+    private func registerModeCommands() {
+        guard modeCommandTargets.isEmpty else { return }
+        let commands = MPRemoteCommandCenter.shared()
+        let shuffle = commands.changeShuffleModeCommand.addTarget { event in
+            MainActor.assumeIsolated {
+                let player = LocalPlaybackService.shared
+                guard let event = event as? MPChangeShuffleModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+                player.setShuffle(event.shuffleType != .off)
+                return .success
+            }
+        }
+        let repeatMode = commands.changeRepeatModeCommand.addTarget { event in
+            MainActor.assumeIsolated {
+                let player = LocalPlaybackService.shared
+                guard let event = event as? MPChangeRepeatModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+                player.setRepeatMode(LocalPlaybackService.RepeatMode(event.repeatType))
+                return .success
+            }
+        }
+        modeCommandTargets = [
+            (commands.changeShuffleModeCommand, shuffle),
+            (commands.changeRepeatModeCommand, repeatMode),
+        ]
+    }
+
+    private func unregisterModeCommands() {
+        for (command, target) in modeCommandTargets {
+            command.removeTarget(target)
+        }
+        modeCommandTargets = []
     }
 
     private func showUpNext() {
