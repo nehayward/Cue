@@ -354,6 +354,24 @@ struct RadioMapCluster: Identifiable {
     let stations: [RadioMapStation]
     let latitude: Double
     let longitude: Double
+    /// The place TuneIn names for every one of the stations, when they
+    /// share one.
+    let sharedLocation: String?
+    /// The place the stations share, else the one station's name, else
+    /// how many there are.
+    let title: String
+
+    /// Works out the names once: each pin reads them on every redraw of
+    /// the map.
+    init(stations: [RadioMapStation], latitude: Double, longitude: Double) {
+        self.stations = stations
+        self.latitude = latitude
+        self.longitude = longitude
+        let locations = Set(stations.map(\.location))
+        let shared: String? = locations.count == 1 ? locations.first ?? nil : nil
+        sharedLocation = shared
+        title = shared ?? (stations.count == 1 ? stations[0].station.title : "\(stations.count) Stations")
+    }
 
     /// The lead station's: a station is in one cluster at a time, and the
     /// pin keeps its identity while others join and leave it.
@@ -375,23 +393,6 @@ struct RadioMapCluster: Identifiable {
               let minLongitude = longitudes.min(), let maxLongitude = longitudes.max() else { return true }
         // About 500 m.
         return maxLatitude - minLatitude < 0.005 && maxLongitude - minLongitude < 0.005
-    }
-
-    /// The place TuneIn names for every one of the stations, when they
-    /// share one.
-    var sharedLocation: String? {
-        let locations = Set(stations.map(\.location))
-        guard locations.count == 1 else { return nil }
-        return locations.first ?? nil
-    }
-
-    /// The place the stations share, else the one station's name, else
-    /// how many there are.
-    var title: String {
-        if let sharedLocation {
-            return sharedLocation
-        }
-        return stations.count == 1 ? stations[0].station.title : "\(stations.count) Stations"
     }
 
     var accessibilityLabel: String {

@@ -1,4 +1,6 @@
 import MapKit
+import Nuke
+import NukeUI
 import SonosKit
 import SwiftUI
 
@@ -87,7 +89,7 @@ struct RadioMapTile: View {
                 .padding(10)
         }
         .contentShape(.rect(cornerRadius: RadioGrid.cornerRadius))
-        .task(id: snapshotKey) {
+        .task(id: RenderTask(key: snapshotKey, isLocating: isLocating)) {
             await render(snapshotKey)
         }
         .accessibilityElement(children: .ignore)
@@ -97,13 +99,18 @@ struct RadioMapTile: View {
     }
 
     /// Draws the map for `key`, unless that's the picture already shown.
+    /// While stations are still being placed, a picture already up stays:
+    /// they land every half second, and each picture is a MapKit render.
+    /// The pins move over it meanwhile, and the map is drawn once more for
+    /// where they all ended up.
     private func render(_ key: SnapshotKey?) async {
         guard let key, let framing, rendered?.key != key else { return }
-        // Stations land in bursts as their places come back; with a
-        // picture already up, wait for a pause rather than drawing the map
-        // once for each. A new key cancels this task, and so the wait.
         if rendered != nil {
-            try? await Task.sleep(for: .milliseconds(400))
+            guard !isLocating else { return }
+            // A rotation or a size class change brings several sizes in a
+            // row; draw the last. A new key cancels this task, and so the
+            // wait.
+            try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
         }
 
@@ -183,6 +190,13 @@ private struct SnapshotKey: Hashable {
     let scale: Double
 }
 
+/// What the tile's render task runs again for: a new picture to draw, or
+/// the placing it waited out coming to an end.
+private struct RenderTask: Equatable {
+    let key: SnapshotKey?
+    let isLocating: Bool
+}
+
 /// A tile's picture of the map, and what it was drawn for.
 private struct RenderedMap {
     let snapshot: MKMapSnapshotter.Snapshot
@@ -202,7 +216,7 @@ struct RadioMapPin: View, Equatable {
     private var cornerRadius: CGFloat { size * 0.24 }
 
     var body: some View {
-        ContentArtworkView(content: lead, showMusicSource: false, cornerRadius: cornerRadius)
+        RadioMapLogo(station: lead, cornerRadius: cornerRadius)
             .frame(width: size, height: size)
             // Logos are often drawn on nothing; the tile gives them a ground.
             .background(.white, in: .rect(cornerRadius: cornerRadius, style: .continuous))
@@ -233,6 +247,33 @@ struct RadioMapPin: View, Equatable {
             }
             .scaleEffect(isSelected ? 1.2 : 1)
             .animation(.snappy, value: isSelected)
+    }
+}
+
+/// A station's logo for a pin: the image alone, asked for exactly as the
+/// Radio tab's rows ask (`ContentArtworkView.artworkRequest` at a row's
+/// size), so a logo the tab has shown comes from the memory cache.
+/// `ContentArtworkView` brings a row's service badge, drag, colour and
+/// lookup hooks with it, and a map can hold a hundred pins.
+private struct RadioMapLogo: View {
+    let station: PlayableContent
+    let cornerRadius: CGFloat
+
+    var body: some View {
+        LazyImage(request: ContentArtworkView.artworkRequest(for: station, url: station.thumbnail, preferredSize: 50)) { state in
+            if let image = state.image {
+                image
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image(systemName: "radio")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(6)
+                    .foregroundStyle(.gray)
+            }
+        }
+        .clipShape(.rect(cornerRadius: cornerRadius, style: .continuous))
     }
 }
 
