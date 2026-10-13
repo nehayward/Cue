@@ -80,12 +80,19 @@ struct RadioMapScreen: View {
         } action: { newSize in
             size = newSize
         }
-        .safeAreaInset(edge: .top) {
-            if let barStatus {
-                statusView(barStatus)
-                    .padding(.top, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+        // Over the map, not a safe-area inset: an inset that comes, goes
+        // and changes height moves the map's centre each time, so the pins
+        // jumped as the bar changed.
+        .overlay(alignment: .top) {
+            RadioMapStatusBar(status: barStatus) { latitude, longitude in
+                withAnimation(.snappy) {
+                    selected = nil
+                }
+                Task {
+                    await radioMap.searchArea(latitude: latitude, longitude: longitude)
+                }
             }
+            .padding(.top, 8)
         }
         .safeAreaInset(edge: .bottom) {
             if let selected {
@@ -97,7 +104,6 @@ struct RadioMapScreen: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.snappy, value: barStatus)
         .navigationTitle("Radio Map")
 #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -170,16 +176,9 @@ struct RadioMapScreen: View {
 
     // MARK: - Status
 
-    private enum Status: Equatable {
-        case working(String)
-        /// Search This Area, asking about this point.
-        case search(latitude: Double, longitude: Double)
-        case notice(String)
-    }
-
     /// What the bar over the map says: work under way, else the offer to
     /// search where the map has moved to, else what the last search found.
-    private func status(nearYou: MKCoordinateRegion?) -> Status? {
+    private func status(nearYou: MKCoordinateRegion?) -> RadioMapStatus? {
         if radioMap.isSearchingArea {
             return .working("Searching This Area…")
         }
@@ -223,9 +222,72 @@ struct RadioMapScreen: View {
     private static func samePlace(in region: MKCoordinateRegion) -> CLLocationDistance {
         max(20_000, region.span.latitudeDelta * 111_000 / 2)
     }
+}
+
+/// What the bar over the Radio map says.
+private enum RadioMapStatus: Equatable {
+    case working(String)
+    /// Search This Area, asking about this point.
+    case search(latitude: Double, longitude: Double)
+    case notice(String)
+
+    var isSearch: Bool {
+        if case .search = self { true } else { false }
+    }
+
+    /// What the bar animates on. Not the point Search This Area would ask
+    /// about, which moves with every pan and changes nothing on screen.
+    var look: String {
+        switch self {
+        case let .working(text): "working:\(text)"
+        case .search: "search"
+        case let .notice(text): "notice:\(text)"
+        }
+    }
+}
+
+/// The bar over the Radio map: one glass capsule whose content changes, so
+/// Search This Area turning into Searching and then going away is one
+/// shape changing size, not a button and a label swapped under each other.
+/// It only takes a tap while it offers the search; otherwise touches go
+/// through to the map.
+private struct RadioMapStatusBar: View {
+    let status: RadioMapStatus?
+    let search: (_ latitude: Double, _ longitude: Double) -> Void
+
+    var body: some View {
+        ZStack {
+            if let status {
+                capsule(status)
+                    .transition(.scale(scale: 0.85, anchor: .top).combined(with: .opacity))
+            }
+        }
+        // Scoped to the bar. On the whole map it also animated the pins
+        // that landed in the same update, which flew in from nowhere.
+        .animation(.snappy, value: status?.look)
+    }
+
+    private func capsule(_ status: RadioMapStatus) -> some View {
+        Button {
+            if case let .search(latitude, longitude) = status {
+                search(latitude, longitude)
+            }
+        } label: {
+            label(status)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .radioMapGlass(in: .capsule)
+        .allowsHitTesting(status.isSearch)
+        .accessibilityRemoveTraits(status.isSearch ? [] : .isButton)
+    }
 
     @ViewBuilder
-    private func statusView(_ status: Status) -> some View {
+    private func label(_ status: RadioMapStatus) -> some View {
         switch status {
         case let .working(text):
             HStack(spacing: 8) {
@@ -233,44 +295,11 @@ struct RadioMapScreen: View {
                     .controlSize(.small)
                 Text(text)
             }
-            .statusCapsule()
-        case let .search(latitude, longitude):
-            searchButton {
-                selected = nil
-                Task {
-                    await radioMap.searchArea(latitude: latitude, longitude: longitude)
-                }
-            }
+        case .search:
+            Label("Search This Area", systemImage: "magnifyingglass")
         case let .notice(text):
             Label(text, systemImage: "antenna.radiowaves.left.and.right.slash")
-                .statusCapsule()
         }
-    }
-
-    @ViewBuilder
-    private func searchButton(action: @escaping () -> Void) -> some View {
-        let button = Button(action: action) {
-            Label("Search This Area", systemImage: "magnifyingglass")
-                .font(.subheadline.weight(.semibold))
-        }
-#if !os(visionOS)
-        if #available(iOS 26.0, macOS 26.0, *) {
-            button.buttonStyle(.glass)
-        } else {
-            button.buttonStyle(.bordered)
-        }
-#else
-        button.buttonStyle(.bordered)
-#endif
-    }
-}
-
-private extension View {
-    func statusCapsule() -> some View {
-        font(.subheadline.weight(.semibold))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .radioMapGlass(in: .capsule)
     }
 }
 

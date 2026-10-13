@@ -141,10 +141,14 @@ final class RadioMap {
 
     /// Asks TuneIn for the stations local to a point and puts them on the
     /// map with the rest.
+    ///
+    /// Searching until the stations found are placed, not just listed: in
+    /// between, the search would read as one that placed nothing, and "No
+    /// Stations Found Here" flashed up before they landed.
     func searchArea(latitude: Double, longitude: Double) async {
         isSearchingArea = true
+        defer { isSearchingArea = false }
         let found = await TuneInBrowseService.shared.stations(nearLatitude: latitude, longitude: longitude)
-        isSearchingArea = false
 
         let known = Set(explored.map(\.id))
         explored.append(contentsOf: found.filter { !known.contains($0.id) })
