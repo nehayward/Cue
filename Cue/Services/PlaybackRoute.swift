@@ -603,7 +603,10 @@ final class PlaybackRoute {
     private func localSnapshot() -> Snapshot? {
         let playback = LocalPlaybackService.shared
         guard playback.isActive, let current = playback.nowPlaying else { return nil }
-        return Snapshot(items: [current] + playback.upNext, position: playback.progress, isPlaying: playback.isPlaying)
+        // A station goes alone: the queue waiting behind it stays on the
+        // phone, as it is, and isn't what's being listened to.
+        let items = playback.isPlayingStation ? [current] : [current] + playback.upNext
+        return Snapshot(items: items, position: playback.progress, isPlaying: playback.isPlaying)
     }
 
     /// Only a queue can be carried across — radio, TV and a line-in have

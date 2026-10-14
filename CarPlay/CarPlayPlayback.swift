@@ -165,6 +165,67 @@ enum CarPlayArtwork {
         }
     }
 
+    /// The phone's queue button (`QueueIconView`) for the car's Now Playing:
+    /// a ring filled as far through the queue as the song playing, with its
+    /// place in the middle. Zero under a station, which leaves the queue
+    /// waiting, as a speaker's reads on radio: the ring stays, its place
+    /// doesn't. Past 999 the ring is shown alone, as on the phone. Drawn
+    /// whole at the size the car draws a Now Playing button's image at.
+    static func queueGauge(position: Int, total: Int) -> UIImage {
+        let maximum = CPNowPlayingButtonMaximumImageSize
+        let side = min(maximum.width, maximum.height) > 0 ? min(maximum.width, maximum.height) : 40
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = max(screen?.carTraitCollection.displayScale ?? 2, 1)
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format)
+        // The phone's proportions: a 2 pt line on a 24 pt ring.
+        let lineWidth = max(2, side / 12)
+        let inset = side * 0.08 + lineWidth / 2
+        let ring = CGRect(x: inset, y: inset, width: side - inset * 2, height: side - inset * 2)
+        let fraction = total > 0 ? min(1, CGFloat(position) / CGFloat(total)) : 0
+        let text = position < 1000 ? "\(position)" : nil
+        return looks { color in
+            renderer.image { _ in
+                let track = UIBezierPath(ovalIn: ring)
+                track.lineWidth = lineWidth
+                color.withAlphaComponent(0.25).setStroke()
+                track.stroke()
+                if fraction > 0 {
+                    let start = -CGFloat.pi / 2
+                    let arc = UIBezierPath(
+                        arcCenter: CGPoint(x: ring.midX, y: ring.midY),
+                        radius: ring.width / 2,
+                        startAngle: start,
+                        endAngle: start + 2 * .pi * fraction,
+                        clockwise: true
+                    )
+                    arc.lineWidth = lineWidth
+                    arc.lineCapStyle = .round
+                    color.setStroke()
+                    arc.stroke()
+                }
+                guard let text else { return }
+                // As large as fits inside the ring: three digits shrink.
+                let room = ring.width - lineWidth * 2 - side * 0.1
+                var font = roundedDigits(size: side * 0.36)
+                while (text as NSString).size(withAttributes: [.font: font]).width > room, font.pointSize > side * 0.18 {
+                    font = roundedDigits(size: font.pointSize - 0.5)
+                }
+                let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
+                let width = (text as NSString).size(withAttributes: attributes).width
+                // Centred on the digits' height rather than the line's.
+                let origin = CGPoint(x: ring.midX - width / 2, y: ring.midY + font.capHeight / 2 - font.ascender)
+                (text as NSString).draw(at: origin, withAttributes: attributes)
+            }
+        }
+    }
+
+    /// The phone's queue count: rounded, with digits of one width.
+    private static func roundedDigits(size: CGFloat) -> UIFont {
+        let font = UIFont.monospacedDigitSystemFont(ofSize: size, weight: .semibold)
+        guard let rounded = font.fontDescriptor.withDesign(.rounded) else { return font }
+        return UIFont(descriptor: rounded, size: size)
+    }
+
     /// An image in black for a light screen and white for a dark one, both
     /// in its asset, for the car to switch as it goes from day to night; the
     /// one handed over is the screen's look now.

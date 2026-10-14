@@ -230,9 +230,11 @@ enum PlayDestinationRouter {
     /// count instead, since there's no single piece of art that stands for it.
     private static func announce(_ contents: [PlayableContent], position: QueuePosition) {
         guard contents.count > 1 else {
+            // A station plays now at any position (`LocalPlaybackService.enqueue`).
+            let shown: QueuePosition = contents[0].content.type.isRadio ? .now : position
             AlertService.shared.showAlertContent(
                 with: contents[0],
-                subtitle: subtitle(for: position),
+                subtitle: subtitle(for: shown),
                 symbolName: "iphone.radiowaves.left.and.right"
             )
             return
