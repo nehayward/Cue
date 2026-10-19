@@ -2573,10 +2573,18 @@ public final class MusicSearchService {
     private func searchAudiobookshelf(query: String) async -> [PlayableContent] {
         let shelf = AudiobookshelfAPI.shared
         guard shelf.isConfigured, let libraries = await shelf.libraries() else { return [] }
-        var books: [PlayableContent] = []
-        for library in libraries {
-            books += await shelf.search(libraryID: library.id, query: query).map(\.toPlayable)
+        // Every library at once, kept in the server's order.
+        let found = await withTaskGroup(of: (Int, [PlayableContent]).self) { group in
+            for (index, library) in libraries.enumerated() {
+                group.addTask { (index, await shelf.search(libraryID: library.id, query: query).map(\.toPlayable)) }
+            }
+            var found: [Int: [PlayableContent]] = [:]
+            for await (index, books) in group {
+                found[index] = books
+            }
+            return found
         }
+        let books = found.keys.sorted().flatMap { found[$0] ?? [] }
         return await sortContentByIntelligentSearch(playableContent: books, query: query)
     }
 

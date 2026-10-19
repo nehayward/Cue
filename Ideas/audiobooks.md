@@ -156,9 +156,11 @@ One item per branch, as in the roadmap.
   files (`AudiobookDownloads`). Checked in the Simulator: both copies of
   The Two Towers (598 MB each) in under 10 s, played with Offline Mode on.
 - [ ] **Report offline listening** — Audiobookshelf's `/api/session/local`
-  for what was heard offline (today the first sync back online moves the
-  place, but the server's stats miss the time); CarPlay's Audiobooks tab
-  offline (it lists the servers' shelves).
+  for what was heard offline. Opening a book sends this device's place
+  when it's newer than the server's (`AudiobookLibrary.sendNewerPlace`),
+  so a place or a finish from offline gets there, but the server's stats
+  miss the time. CarPlay's Audiobooks tab offline (it lists the servers'
+  shelves).
 - [x] **CarPlay** — an Audiobooks tab (Recents folded into a Home tab to
   make room: an audio app gets four): Continue Listening as rows with a
   progress bar, then each server's books; a book plays from where it was

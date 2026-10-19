@@ -92,7 +92,26 @@ enum AudiobookLibrary {
         if loaded.filesMissing == true, AudiobookDownloads.hasAllFiles(loaded) {
             loaded.filesMissing = nil
         }
+        sendNewerPlace(of: loaded)
         return loaded
+    }
+
+    /// Tells an Audiobookshelf server where this device has the listener
+    /// when that's newer than what the server holds: a place moved, or a
+    /// book finished, with no server to tell (offline), so its other
+    /// players pick up here. A minute's grace covers the reading this
+    /// device's own syncs already gave it. Plex hears a device's plays
+    /// from its timeline reports as they happen.
+    private static func sendNewerPlace(of audiobook: Audiobook) {
+        guard audiobook.book.content.service == .audiobookshelf,
+              let local = AudiobookProgressStore.shared.progress(for: audiobook.book) else { return }
+        if let server = audiobook.serverProgress, server.updatedAt.addingTimeInterval(60) >= local.updatedAt { return }
+        let itemID = audiobook.book.content.id
+        let duration = audiobook.duration
+        log.notice("\(audiobook.book.title, privacy: .public): sending this device's newer place, \(Int(local.position)) s\(local.isFinished ? ", finished" : "", privacy: .public)")
+        Task {
+            await AudiobookshelfAPI.shared.updateProgress(itemID: itemID, currentTime: local.position, duration: duration, isFinished: local.isFinished)
+        }
     }
 
     /// The book read whole from its own server alone.
@@ -115,12 +134,17 @@ enum AudiobookLibrary {
             return nil
         }
         let timeline = PlexAudiobook.timeline(parts: files)
-        let missing = await isMissing(files.first?.streamURL)
+        // Side by side: whether Plex can open the files, and the marks it
+        // lists for them. Only reading the files themselves waits on the
+        // first.
+        async let missingCheck = isMissing(files.first?.streamURL)
+        async let listed = PlexAPI.shared.audiobookChapterMarks(parts: files)
+        let missing = await missingCheck
         if missing {
             let folder = files.first?.media?.first?.part.first.map { ($0.file as NSString).deletingLastPathComponent } ?? "?"
             log.error("plex book \(key, privacy: .public): Plex can't open its files (404), kept in \(folder, privacy: .public)")
         }
-        let marks = await plexChapterMarks(files, readingFiles: !missing)
+        let marks = await plexChapterMarks(files, listed: await listed, readingFiles: !missing)
         let item = await details
         var chapters = PlexAudiobook.chapters(parts: files, marks: marks, timeline: timeline)
         if chapters.count <= 1 {
@@ -172,11 +196,14 @@ enum AudiobookLibrary {
         return status == 404 || status == 410
     }
 
-    /// The chapter marks in a Plex book's files: Plex's, else the file's
-    /// own for a file Plex has none for (it lists an `.m4b`'s only when it
-    /// read them at scan), unless the files can't be read.
-    private static func plexChapterMarks(_ files: [PlexMetadata], readingFiles: Bool) async -> [String: [AudiobookChapterMark]] {
-        var marks = await PlexAPI.shared.audiobookChapterMarks(parts: files)
+    /// The chapter marks in a Plex book's files: those Plex lists
+    /// (`listed`), else the file's own for a file Plex has none for (it
+    /// lists an `.m4b`'s only when it read them at scan), unless the files
+    /// can't be read. An mp3's own marks never come this way: Plex sends an
+    /// mp3 without its ID3 tag, `download=1` too, so its `CHAP` frames are
+    /// gone (the same file from Audiobookshelf, sent whole, keeps them).
+    private static func plexChapterMarks(_ files: [PlexMetadata], listed: [String: [AudiobookChapterMark]], readingFiles: Bool) async -> [String: [AudiobookChapterMark]] {
+        var marks = listed
         let fromPlex = marks.count
         let unmarked = files.filter { marks[$0.ratingKey] == nil && ($0.chapters ?? []).isEmpty }
         if readingFiles, !unmarked.isEmpty, files.count <= AudiobookChapterReader.fileLimit {
@@ -362,7 +389,9 @@ final class PlexBookScan {
             guard await plex.isScanning(sectionKeys: keys) == true else { break }
         }
         AudiobookLibrary.log.info("plex scan of \(keys, privacy: .public) done or left after \((clock.now - start).formatted(.units(allowed: [.seconds])), privacy: .public)")
-        // A library that came to have books, or lost them, changes the tab.
-        await AudiobookLibrary.checkPlexBooks(afterChange: true)
+        // A library that came to have books shows the tab. Not one that
+        // seems to have none: that's also what a server out of reach reads
+        // as, and a blip shouldn't take the tab away.
+        await AudiobookLibrary.checkPlexBooks()
     }
 }

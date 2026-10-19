@@ -72,7 +72,8 @@ final class DownloadLyrics {
     }
 
     func enqueue(_ item: DownloadManager.Item) {
-        guard [.plex, .subsonic].contains(item.service),
+        // A book's file has no lyrics to find.
+        guard [.plex, .subsonic].contains(item.service), item.isBookFile != true,
               !pending.contains(where: { $0.key == item.key }) else { return }
         pending.append(item)
         if worker == nil {

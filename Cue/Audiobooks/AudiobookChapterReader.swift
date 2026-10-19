@@ -139,14 +139,34 @@ enum AudiobookChapterReader {
         duration: TimeInterval,
         lookup: () async -> AudnexusChapters?
     ) async -> [AudiobookChapter]? {
+        if case let .fitted(chapters) = await audibleLookup(asin: asin, duration: duration, lookup: lookup) {
+            return chapters
+        }
+        return nil
+    }
+
+    /// What asking for an edition's chapters came to.
+    private enum AudibleAnswer {
+        case fitted([AudiobookChapter])
+        /// Audible answered with none, or none that fit.
+        case noFit
+        /// It couldn't be asked: not an answer, and not kept.
+        case unanswered
+    }
+
+    private static func audibleLookup(
+        asin: String,
+        duration: TimeInterval,
+        lookup: () async -> AudnexusChapters?
+    ) async -> AudibleAnswer {
         let key = "audnexus:\(asin):\(Int(duration.rounded()))"
         if let cached = cached(key) {
-            guard !cached.isEmpty else { return nil }
-            return .from(files: [(title: "", marks: cached)], timeline: AudiobookTimeline(partDurations: [duration]))
+            guard !cached.isEmpty else { return .noFit }
+            return .fitted(.from(files: [(title: "", marks: cached)], timeline: AudiobookTimeline(partDurations: [duration])))
         }
         guard let answer = await lookup() else {
             log.error("chapters: couldn't ask for Audible's chapters for \(asin, privacy: .public)")
-            return nil
+            return .unanswered
         }
         let fitted = answer.chapters(fitting: duration) ?? []
         if fitted.isEmpty {
@@ -157,14 +177,15 @@ enum AudiobookChapterReader {
         }
         cache[key] = Entry(marks: fitted.map { AudiobookChapterMark(title: $0.title, start: $0.start, end: $0.end) })
         save()
-        return fitted.isEmpty ? nil : fitted
+        return fitted.isEmpty ? .noFit : .fitted(fitted)
     }
 
     /// Audible's chapters for a book no server matched there: its title and
     /// author searched for in Audible's catalog, and the editions as long as
     /// the book (`AudibleCatalog`) fitted as a matched book's are, closest
-    /// first. What the search found is kept (none too, for a day); a search
-    /// that couldn't be made is tried next time.
+    /// first. What the search found is kept (none too, for a day), but only
+    /// when every edition tried answered: one that couldn't be asked (the
+    /// network, Audnexus down) leaves the search to be tried next time.
     static func searchedAudibleChapters(title: String, author: String?, duration: TimeInterval) async -> [AudiobookChapter]? {
         let region = AudibleCatalog.region()
         let query = AudibleCatalog.searchTitle(title)
@@ -179,17 +200,23 @@ enum AudiobookChapterReader {
         }
         let editions = AudibleCatalog.editions(products, fitting: duration)
         var found: [AudiobookChapter]?
+        var unanswered = false
         for asin in editions.prefix(3) {
-            found = await audibleChapters(asin: asin, duration: duration) {
-                await AudnexusAPI.chapters(asin: asin, region: region)
+            switch await audibleLookup(asin: asin, duration: duration, lookup: { await AudnexusAPI.chapters(asin: asin, region: region) }) {
+            case let .fitted(chapters):
+                found = chapters
+            case .noFit:
+                continue
+            case .unanswered:
+                unanswered = true
+                continue
             }
-            if found != nil {
-                log.info("chapters: \(query, privacy: .public) is \(asin, privacy: .public) on Audible")
-                break
-            }
+            log.info("chapters: \(query, privacy: .public) is \(asin, privacy: .public) on Audible")
+            break
         }
         if found == nil {
-            log.notice("chapters: no edition of \(query, privacy: .public) on Audible fits \(Int(duration)) s (\(products.count) found, \(editions.count) about as long)")
+            log.notice("chapters: no edition of \(query, privacy: .public) on Audible fits \(Int(duration)) s (\(products.count) found, \(editions.count) about as long\(unanswered ? ", some unanswered" : "", privacy: .public))")
+            guard !unanswered else { return nil }
         }
         cache[key] = Entry(marks: (found ?? []).map { AudiobookChapterMark(title: $0.title, start: $0.start, end: $0.end) })
         save()

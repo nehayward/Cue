@@ -15,7 +15,10 @@ struct LocalDownloadMenuSection: View {
 
     var body: some View {
         let manager = DownloadManager.shared
-        if [.plex, .subsonic].contains(item.content.service) {
+        // A book's file downloads with its book, never as a song of its own.
+        if let book = Self.book(of: item) {
+            bookSection(book)
+        } else if [.plex, .subsonic].contains(item.content.service) {
             if item.content.type == .track {
                 if manager.isDownloaded(item) {
                     Button {
@@ -210,6 +213,36 @@ struct LocalDownloadMenuSection: View {
         guard FeatureGate.shared.unlock(.downloads) else { return }
         Task { @MainActor in
             await Self.download(item, alertService: alertService)
+        }
+    }
+
+    /// The loaded book `item` is a file of, if it is one.
+    private static func book(of item: PlayableContent) -> PlayableContent? {
+        let books = AudiobookPlayer.shared
+        return books.contains(item) ? books.current?.book : nil
+    }
+
+    /// The whole book, as its page's download button has it.
+    @ViewBuilder
+    private func bookSection(_ book: PlayableContent) -> some View {
+        let manager = DownloadManager.shared
+        if manager.canDownload(contentsOf: book) {
+            switch manager.containerState(for: book) {
+            case .downloaded:
+                Label("Book Downloaded", systemImage: "arrow.down.circle.fill")
+            case .downloading:
+                Label("Downloading Book…", systemImage: "arrow.down.circle.dotted")
+            case nil:
+                Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    guard FeatureGate.shared.unlock(.downloads) else { return }
+                    Task { @MainActor in
+                        await Self.download(book, alertService: alertService)
+                    }
+                } label: {
+                    Label("Download Book", systemImage: "arrow.down.circle")
+                }
+            }
         }
     }
 

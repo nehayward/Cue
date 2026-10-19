@@ -114,9 +114,15 @@ final class DownloadManager {
         /// hour, so a transfer starting afresh gets a newly signed URL.
         /// Plex's token doesn't run out.
         mutating func refreshBookFileURL() {
-            guard resumeData == nil, service == .audiobookshelf, let track,
+            guard resumeData == nil, needsAudiobookshelfToken, let track,
                   let fresh = DownloadManager.bookFileURL(for: track) else { return }
             url = fresh
+        }
+
+        /// One of an Audiobookshelf book's files: signed with the access
+        /// token when it starts.
+        var needsAudiobookshelfToken: Bool {
+            isBookFile == true && service == .audiobookshelf
         }
 
         var progress: Double {
@@ -840,12 +846,40 @@ final class DownloadManager {
         guard !holdsAdmission else { return }
         let free = currentWindow - taskIDs.count
         guard free > 0 else { return }
+        // An Audiobookshelf book's file is signed with the access token as
+        // it starts (`start`): one about to run out is renewed first, and
+        // those files wait for it while the rest go on.
+        let renewing = AudiobookshelfAPI.accessTokenExpires(within: Self.tokenMargin)
+        if renewing {
+            renewTokenThenAdmit()
+        }
         let next = items.values
             .filter { $0.state == .queued && taskIDs[$0.key] == nil && retryTasks[$0.key] == nil }
+            .filter { !renewing || !$0.needsAudiobookshelfToken }
             .sorted { $0.createdAt < $1.createdAt }
             .prefix(free)
         for entry in next {
             start(entry)
+        }
+    }
+
+    /// How long a token has to have left for a file to start on it: a
+    /// request is checked when it's made, so a few minutes covers it.
+    private static let tokenMargin: TimeInterval = 5 * 60
+
+    @ObservationIgnored private var tokenRenewal: Task<Void, Never>?
+
+    private func renewTokenThenAdmit() {
+        guard tokenRenewal == nil, items.values.contains(where: { $0.state == .queued && $0.needsAudiobookshelfToken }) else { return }
+        tokenRenewal = Task { [weak self] in
+            let renewed = await AudiobookshelfAPI.shared.renewAccessToken()
+            guard let self else { return }
+            self.tokenRenewal = nil
+            guard renewed else {
+                Self.log.error("Couldn't renew the Audiobookshelf token for book downloads")
+                return
+            }
+            self.admit()
         }
     }
 
@@ -1016,6 +1050,10 @@ final class DownloadManager {
         }
 
         if entry.resumeData == nil {
+            // An Audiobookshelf book's file is signed as it starts, not
+            // when the book was queued: its token lasts an hour, and a big
+            // book's last files start well after that.
+            entry.refreshBookFileURL()
             entry.url = DownloadChecks.plexConversion(entry.url, client: freePlexClient(for: entry.key))
         }
         var request = URLRequest(url: entry.url)

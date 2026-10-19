@@ -58,14 +58,16 @@ enum AudiobookDownloads {
     }
 
     /// The books downloaded or on their way (`completeOnly`: only those
-    /// whole on this device), newest first, as the shelf lists them.
+    /// whole on this device), newest first, as the shelf lists them: from
+    /// what the download keeps of each (its title, author and cover), so a
+    /// shelf drawn often reads nothing from disk.
     static func downloadedBooks(completeOnly: Bool = false) -> [PlayableContent] {
         let manager = DownloadManager.shared
         return manager.containers.values
             .filter { $0.type == .audiobook && (!completeOnly || manager.containerState(key: $0.key) == .downloaded) }
             .sorted { $0.createdAt > $1.createdAt }
             .map { container in
-                copy(forContainerKey: container.key)?.book ?? PlayableContent(
+                PlayableContent(
                     title: container.title,
                     subtitle: container.subtitle,
                     thumbnail: container.artwork,
@@ -92,11 +94,6 @@ enum AudiobookDownloads {
         } catch {
             log.error("couldn't keep \(audiobook.book.title, privacy: .public) for offline: \(error.localizedDescription, privacy: .public)")
         }
-    }
-
-    private static func copy(forContainerKey key: String) -> Audiobook? {
-        guard let data = try? Data(contentsOf: url(forContainerKey: key)) else { return nil }
-        return try? JSONDecoder().decode(Audiobook.self, from: data)
     }
 
     /// Beside the downloads, so it's kept and removed with them.

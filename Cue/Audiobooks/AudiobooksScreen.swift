@@ -31,8 +31,10 @@ struct AudiobooksScreen: View {
         let isOffline = OfflineMode.shared.isActive
         let listened = isOffline ? listenedBooks.filter(AudiobookDownloads.isDownloaded) : listenedBooks
         let inProgress = listened.filter { store.progress(for: $0)?.isStarted == true }
-        // The book loaded to play leads even before a reading has come in.
-        let hero = inProgress.first ?? player.current?.book
+        // The book loaded to play leads even before a reading has come in
+        // (offline, only one downloaded: anything else won't play).
+        let loaded = (player.current?.book).flatMap { !isOffline || AudiobookDownloads.isDownloaded($0) ? $0 : nil }
+        let hero = inProgress.first ?? loaded
         let others = inProgress.filter { !$0.isSameBook(as: hero) }
         let recent = listened.filter { book in
             !book.isSameBook(as: hero) && !inProgress.contains { $0.isSameBook(as: book) }

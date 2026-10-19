@@ -142,9 +142,11 @@ final class AudiobookPlayer {
             return
         }
         let startTime = min(max(time ?? AudiobookLibrary.progress(for: audiobook)?.resumePosition ?? 0, 0), audiobook.duration)
-        await start(audiobook, at: startTime, on: target)
-        // The book, not its files: Recently Played opens its page.
-        PlayHistoryService.shared.record(audiobook.book)
+        // The book, not its files: Recently Played opens its page. Only
+        // once it's playing: one that wouldn't start wasn't listened to.
+        if await start(audiobook, at: startTime, on: target) {
+            PlayHistoryService.shared.record(audiobook.book)
+        }
     }
 
     /// Moves to `time` in the loaded book: a seek within the file playing,
@@ -298,8 +300,10 @@ final class AudiobookPlayer {
         }
     }
 
-    /// Starts `audiobook` at book time `time`, at `target`.
-    private func start(_ audiobook: Audiobook, at time: TimeInterval, on target: Target = .route) async {
+    /// Starts `audiobook` at book time `time`, at `target`. False when it
+    /// didn't start (said in an alert).
+    @discardableResult
+    private func start(_ audiobook: Audiobook, at time: TimeInterval, on target: Target = .route) async -> Bool {
         var audiobook = audiobook
         // Audiobookshelf streams belong to a listening session, opened
         // for each play; its files' URLs come from it.
@@ -315,7 +319,7 @@ final class AudiobookPlayer {
                 Self.log.notice("no session for \(audiobook.book.title, privacy: .public); playing its downloaded files")
             } else {
                 AlertService.shared.showAlert(with: "Couldn't start “\(audiobook.book.title)”", imageName: "exclamationmark.triangle")
-                return
+                return false
             }
         }
         let location = audiobook.timeline.location(at: time)
@@ -330,20 +334,21 @@ final class AudiobookPlayer {
         case let .group(group): group
         }
         if !OfflineMode.shared.isActive, let group {
-            await playOnSpeaker(audiobook, part: location.part, offset: location.offset, group: group)
-        } else {
-            do {
-                try await LocalPlaybackService.shared.play(audiobook.parts, startingAt: location.part, from: location.offset)
-            } catch {
-                Self.log.error("device play failed: \(error.localizedDescription, privacy: .public)")
-                AlertService.shared.showAlert(with: "Couldn't play “\(audiobook.book.title)” on this device", imageName: "exclamationmark.triangle")
-            }
+            return await playOnSpeaker(audiobook, part: location.part, offset: location.offset, group: group)
+        }
+        do {
+            try await LocalPlaybackService.shared.play(audiobook.parts, startingAt: location.part, from: location.offset)
+            return true
+        } catch {
+            Self.log.error("device play failed: \(error.localizedDescription, privacy: .public)")
+            AlertService.shared.showAlert(with: "Couldn't play “\(audiobook.book.title)” on this device", imageName: "exclamationmark.triangle")
+            return false
         }
     }
 
     /// The speaker's queue becomes the book's files from `part` on, the
     /// first set `offset` in before it starts (see `SonosService.cue`).
-    private func playOnSpeaker(_ audiobook: Audiobook, part: Int, offset: TimeInterval, group: GroupRoom) async {
+    private func playOnSpeaker(_ audiobook: Audiobook, part: Int, offset: TimeInterval, group: GroupRoom) async -> Bool {
         let sonos = SonosService.shared
         LocalPlaybackService.shared.park()
         let first = audiobook.parts[part]
@@ -359,9 +364,11 @@ final class AudiobookPlayer {
             if !rest.isEmpty {
                 try await sonos.queue(contents: rest, group: group, position: .end)
             }
+            return true
         } catch {
             Self.log.error("speaker play failed: \(error.localizedDescription, privacy: .public)")
             AlertService.shared.showAlert(with: error.localizedDescription, imageName: "exclamationmark.triangle")
+            return false
         }
     }
 
@@ -493,7 +500,9 @@ final class AudiobookPlayer {
             AudiobookProgress(position: audiobook.duration, duration: audiobook.duration, isFinished: true),
             for: audiobook.book
         )
-        guard audiobook.book.content.service == .audiobookshelf else { return }
+        // Offline the server isn't asked; the finish, kept here, goes to it
+        // when the book is next opened (`AudiobookLibrary.load`).
+        guard audiobook.book.content.service == .audiobookshelf, !OfflineMode.shared.isActive else { return }
         let itemID = audiobook.book.content.id
         let duration = audiobook.duration
         Task {
@@ -510,7 +519,8 @@ final class AudiobookPlayer {
     private func end() {
         guard let current else { return }
         Self.log.notice("book left: \(current.book.title, privacy: .public)")
-        if current.book.content.service == .audiobookshelf {
+        // Offline the session is left to lapse on the server.
+        if current.book.content.service == .audiobookshelf, !OfflineMode.shared.isActive {
             let itemID = current.book.content.id
             // A finished book closes at its end, not where the player
             // rewound to.

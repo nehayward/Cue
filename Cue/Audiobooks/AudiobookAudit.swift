@@ -41,6 +41,16 @@ enum AudiobookAudit {
                 log.notice("scan: \(books.count) Plex books after: \(books.map(\.title), privacy: .public)")
             }
         }
+        // `-AudiobookAuditToken YES`: when Audiobookshelf's access token runs
+        // out, then the same after renewing it (never the token itself).
+        if UserDefaults.standard.bool(forKey: "AudiobookAuditToken") {
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                log.notice("token: expires within 5 min \(AudiobookshelfAPI.accessTokenExpires(within: 300)), within 2 h \(AudiobookshelfAPI.accessTokenExpires(within: 7200))")
+                let renewed = await AudiobookshelfAPI.shared.renewAccessToken()
+                log.notice("token: renewed \(renewed); expires within 5 min \(AudiobookshelfAPI.accessTokenExpires(within: 300)), within 2 h \(AudiobookshelfAPI.accessTokenExpires(within: 7200)), signed in \(AudiobookshelfAPI.shared.isConfigured)")
+            }
+        }
         // `-AudiobookAuditDownload <title>`: downloads the books with that
         // in their title, on every server, as the book page's button does,
         // and follows them to the end.
@@ -189,6 +199,17 @@ enum AudiobookAudit {
             guard let url = file.streamURL else { continue }
             for line in await FileProbe.describe(url, ratingKey: file.ratingKey) {
                 report.line("  \(line)")
+            }
+            // `-AudiobookAuditHeads YES`: the original too (Plex strips an
+            // mp3's tag from what it streams; `download=1` may not).
+            if UserDefaults.standard.bool(forKey: "AudiobookAuditHeads"),
+               var original = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+                original.queryItems = (original.queryItems ?? []) + [URLQueryItem(name: "download", value: "1")]
+                if let originalURL = original.url {
+                    for line in await FileProbe.describe(originalURL, ratingKey: file.ratingKey) {
+                        report.line("  download=1: \(line)")
+                    }
+                }
             }
         }
         guard let audiobook = await AudiobookLibrary.load(book) else {

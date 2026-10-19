@@ -439,6 +439,34 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         return nil
     }
 
+    /// Renews the access token now, for URLs signed with it that are used
+    /// later (a book's downloads). True when a new one is held.
+    public func renewAccessToken() async -> Bool {
+        await renewTokens()
+    }
+
+    /// Whether the access token runs out within `margin`, read from the
+    /// token itself. False for one that never does (servers before 2.26,
+    /// with no refresh token) or can't be read.
+    public static func accessTokenExpires(within margin: TimeInterval) -> Bool {
+        guard let tokens = storedTokens(), tokens.refresh != nil,
+              let expiry = expiry(ofToken: tokens.access) else { return false }
+        return expiry.timeIntervalSinceNow < margin
+    }
+
+    /// When a token runs out: its `exp`, a JWT's claims being the base64url
+    /// JSON between its two dots. Nil with no `exp`, or not a JWT.
+    static func expiry(ofToken token: String) -> Date? {
+        let parts = token.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 3 else { return nil }
+        var payload = parts[1].replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        while payload.count % 4 != 0 { payload += "=" }
+        guard let data = Data(base64Encoded: payload),
+              let claims = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let exp = (claims["exp"] as? NSNumber)?.doubleValue else { return nil }
+        return Date(timeIntervalSince1970: exp)
+    }
+
     /// One renewal at a time: the refresh token is rotated by each, so two
     /// at once would have the second turned away.
     private let renewal = OSAllocatedUnfairLock<Task<Bool, Never>?>(initialState: nil)
@@ -464,14 +492,39 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         request.timeoutInterval = 15
         request.addValue(refresh, forHTTPHeaderField: "x-refresh-token")
         guard let (data, response) = try? await session.data(for: request),
-              (response as? HTTPURLResponse)?.statusCode == 200,
+              let status = (response as? HTTPURLResponse)?.statusCode else {
+            Self.log.error("couldn't renew the access token: no answer")
+            return false
+        }
+        guard status == 200,
               let renewed = try? decoder.decode(AudiobookshelfLoginResponse.self, from: data),
               let access = renewed.user.accessToken else {
-            Self.log.error("couldn't renew the access token")
+            Self.log.error("couldn't renew the access token: \(status)")
+            // Turned away: the refresh token ran out (30 days unused) or was
+            // spent. The login is over, and saying so is better than every
+            // request quietly failing while it still looks signed in.
+            if status == 401 || status == 403 {
+                await expireLogin()
+            }
             return false
         }
         Self.setTokens(Tokens(access: access, refresh: renewed.user.refreshToken ?? refresh))
         return true
+    }
+
+    /// Ends a login the server no longer takes. The address and username
+    /// stay, so signing in again needs only the password.
+    private func expireLogin() async {
+        Self.log.error("the server turned the refresh token away; signed out")
+        Self.setTokens(nil)
+        Self.sessionCache.withLock { $0 = [:] }
+        UserDefaults.standard.removeObject(forKey: StorageKey.sessions)
+        await markSignedOut()
+    }
+
+    @MainActor
+    private func markSignedOut() {
+        isConfigured = false
     }
 
     private static let log = Logger(subsystem: "dance.cue", category: "audiobookshelf")
@@ -531,10 +584,18 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         sessionID(for: itemID) != nil
     }
 
-    /// Notes that a session was just opened or synced.
+    /// Notes that a session was just opened or synced. Written at most every
+    /// half hour, a sliver of the session's life: in Cue every defaults
+    /// write redraws every view that holds an `@AppStorage`, and a sync
+    /// comes every 15 s.
     private static func touchSession(for itemID: String) {
-        UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: "\(StorageKey.sessionsTouched).\(itemID)")
+        let key = "\(StorageKey.sessionsTouched).\(itemID)"
+        let now = Date.now.timeIntervalSince1970
+        guard now - UserDefaults.standard.double(forKey: key) >= touchInterval else { return }
+        UserDefaults.standard.set(now, forKey: key)
     }
+
+    static let touchInterval: TimeInterval = 30 * 60
 
     private static func rememberSession(_ sessionID: String?, for itemID: String) {
         let sessions = sessionCache.withLock { cache -> [String: String] in

@@ -132,8 +132,9 @@ struct AudiobookChapterButtons: View {
                 HapticManager.shared.fireHaptic(.selection)
                 Task { await player.jump(to: chapter.start) }
             } label: {
+                // Marked as the book's page marks it.
                 if chapter.id == player.currentChapter?.id {
-                    Label(chapter.title, systemImage: "speaker.wave.2.fill")
+                    Label(chapter.title, systemImage: "bookmark.fill")
                 } else {
                     Text(chapter.title)
                 }
