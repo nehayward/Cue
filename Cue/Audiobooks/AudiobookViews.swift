@@ -33,10 +33,10 @@ struct AudiobookProgressBar: View {
 }
 
 enum AudiobookFormat {
-    /// "5 hr, 3 min", "42 min": how long, to the minute.
+    /// "5h 3m", "42m": how long, to the minute, in the narrow form.
     static func duration(_ seconds: TimeInterval) -> String {
         let minutes = max(Int((seconds / 60).rounded()), seconds > 0 ? 1 : 0)
-        return Duration.seconds(minutes * 60).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
+        return Duration.seconds(minutes * 60).formatted(.units(allowed: [.hours, .minutes], width: .narrow))
     }
 
     /// What the listener has left, or that they've finished.

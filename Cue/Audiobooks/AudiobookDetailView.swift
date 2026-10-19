@@ -260,8 +260,8 @@ struct AudiobookDetailView: View {
             }
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: isPlaying ? "speaker.wave.2.fill" : "bookmark")
-                    .foregroundStyle(isPlaying ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
+                Image(systemName: isPlaying ? "bookmark.fill" : "bookmark")
+                    .foregroundStyle(isPlaying ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
                     .frame(width: 20)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(chapter.title)
@@ -277,10 +277,14 @@ struct AudiobookDetailView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            // The chapter playing is the accent throughout: its levels
+            // (primary, secondary) are the accent's.
+            .foregroundStyle(isPlaying ? AnyShapeStyle(.tint) : AnyShapeStyle(.foreground))
             .padding(.vertical, 10)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isPlaying ? .isSelected : [])
     }
 
     // MARK: - Loading

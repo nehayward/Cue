@@ -650,6 +650,7 @@ final class DownloadManager {
 
     func removeContainer(key: String) {
         guard let container = containers[key] else { return }
+        Self.log.notice("Removing \(container.title, privacy: .public) [\(key, privacy: .public)], \(container.trackKeys.count) tracks")
         containers[key] = nil
         if container.type == .audiobook {
             AudiobookDownloads.removeCopy(containerKey: key)
@@ -951,6 +952,7 @@ final class DownloadManager {
     /// Stops and forgets a download that hasn't finished.
     func cancel(key: String) {
         guard let entry = items[key], entry.state != .completed else { return }
+        Self.log.notice("Cancelling \(entry.title, privacy: .public) [\(key, privacy: .public)]")
         items[key] = nil
         lastProgressPublish[key] = nil
         taskIDs[key] = nil
@@ -973,6 +975,7 @@ final class DownloadManager {
             cancel(key: key)
             return
         }
+        Self.log.notice("Removing \(entry.title, privacy: .public) [\(key, privacy: .public)]")
         try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
         items[key] = nil
         DownloadLyrics.shared.forget(entry)
@@ -1628,6 +1631,7 @@ final class DownloadManager {
         for entry in items.values where entry.state == .completed {
             let url = Self.fileURL(key: entry.key, fileExtension: entry.fileExtension)
             if !FileManager.default.fileExists(atPath: url.path) {
+                Self.log.error("Gone from disk: \(entry.title, privacy: .public) [\(entry.key, privacy: .public)]")
                 items[entry.key] = nil
             }
         }
