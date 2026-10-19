@@ -28,40 +28,44 @@ struct AudiobookDetailView: View {
     }
 
     var body: some View {
-        List {
-            header
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+        // A scroll view, not a List: a List resizes a row on its own, after
+        // the row's content has changed, so the summary opening out jumped
+        // however its text was animated.
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                header
+                actions
+                    .padding(.top, 20)
 
-            actions
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-
-            if let summary = audiobook?.summary {
-                Section {
+                if let summary = audiobook?.summary {
                     AudiobookSummary(text: summary)
+                        .padding(.top, 20)
                 }
-                .listRowSeparator(.hidden)
-            }
 
-            // One chapter is the whole book: nothing to choose between.
-            if let audiobook, audiobook.chapters.count > 1 {
-                Section {
+                // One chapter is the whole book: nothing to choose between.
+                if let audiobook, audiobook.chapters.count > 1 {
+                    Text("Chapters")
+                        .font(.title3.bold())
+                        .padding(.top, 28)
+                        .padding(.bottom, 4)
                     ForEach(audiobook.chapters) { chapter in
                         chapterRow(chapter, in: audiobook)
+                        if chapter.id != audiobook.chapters.last?.id {
+                            Divider()
+                                .padding(.leading, 32)
+                        }
                     }
-                } header: {
-                    Text("Chapters")
+                }
+
+                if audiobook == nil, !failed {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 24)
                 }
             }
-
-            if audiobook == nil, !failed {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .listRowSeparator(.hidden)
-            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
-        .listStyle(.plain)
         .overlay {
             if failed, audiobook == nil {
                 ContentUnavailableView {
@@ -238,6 +242,7 @@ struct AudiobookDetailView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .padding(.vertical, 10)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)

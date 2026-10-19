@@ -65,6 +65,9 @@ enum AudiobookLibrary {
         let marks = await plexChapterMarks(files)
         let item = await details
         var chapters = PlexAudiobook.chapters(parts: files, marks: marks, timeline: timeline)
+        if chapters.count <= 1 {
+            log.notice("plex book \(key, privacy: .public): no chapter marks; guid \(item?.guid ?? "none", privacy: .public)")
+        }
         // No marks anywhere: Audible's, for a book the Audnexus agent matched.
         if chapters.count <= 1, let match = AudnexusChapters.asin(fromPlexGuid: item?.guid) {
             let region = match.region ?? "us"
@@ -101,7 +104,8 @@ enum AudiobookLibrary {
                 marks[part.ratingKey] = read[chapterCacheKey(part)]
             }
         }
-        log.info("plex book: \(files.count) files, marks for \(fromPlex) from Plex, \(marks.count - fromPlex) from the files")
+        let types = files.map { $0.streamURL?.pathExtension ?? "?" }
+        log.info("plex book: \(files.count) files (\(types, privacy: .public)), marks for \(fromPlex) from Plex, \(marks.count - fromPlex) from the files")
         return marks
     }
 
