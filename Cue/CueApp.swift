@@ -1659,6 +1659,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         #if DEBUG
         // `-LyricsAudit <count>`: checks lyrics lookups across the Plex library.
         LyricsAudit.startIfRequested()
+        // `-AudiobookAudit <title>`: what a Plex book's server and files
+        // hold about its chapters.
+        AudiobookAudit.startIfRequested()
         #endif
         // A Files scan gets the same card: progress on the Lock Screen and
         // the app kept running until it's done. The pass that reads the

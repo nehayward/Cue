@@ -20,6 +20,10 @@ struct Audiobook: Equatable, Codable {
     var summary: String?
     /// Where the server has the listener, as read when the book was loaded.
     var serverProgress: AudiobookProgress?
+    /// The server lists the book's files but can't open them: moved or
+    /// renamed since it last scanned them, or in a folder it can no longer
+    /// reach. The book won't play, and its files can't be read for chapters.
+    var filesMissing: Bool?
 
     var duration: TimeInterval { timeline.duration }
 

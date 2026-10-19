@@ -6,9 +6,11 @@ Music library kept for books, or albums tagged with an audiobook genre) and
 (`device-first-services.md`): the phone plays the files straight from the
 server, and so does a speaker.
 
-**Status:** first slice on `claude/audiobooks`. Not yet built in Xcode. The
-pure-Foundation parts (timeline, chapters, Plex resume, Audiobookshelf
-JSON, URLs) have unit tests that pass on Linux.
+**Status:** on `claude/audiobooks`, built in Xcode and on the phone
+(2026-10-19). The pure-Foundation parts (timeline, chapters, Plex resume,
+Audiobookshelf JSON, URLs, Audible's catalog) have unit tests. The package's
+test target doesn't build as a whole for stale tests elsewhere
+(`MockTokenRefreshHandler`, `PlexTests`' `externalURIs`).
 
 ## Where this came from
 
@@ -72,6 +74,22 @@ JSON, URLs) have unit tests that pass on Linux.
   `com.plexapp.agents.audnexus://<asin>`), from `api.audnex.us` —
   `AudnexusChapters`, laid on the book only when its length is Audible's,
   with or without Audible's branding at each end.
+- A book no agent matched (`com.plexapp.agents.none`) is looked for in
+  Audible's catalog by its title and author (`AudibleCatalog`, the search
+  Audiobookshelf's own Audible match makes), and the editions within a
+  minute and the tolerance of its length are fitted the same way, closest
+  first. Single-file mp3 rips of Audible books are the usual case: they
+  carry no `CHAP` frames, but their length is Audible's to the second.
+- AVFoundation reads an mp3's ID3 `CHAP` frames as chapters (checked on
+  macOS 27 with an ffmpeg-made file), so mp3s need no reader of their own.
+- A file Plex lists but answers 404 for (moved since the scan, or a library
+  folder out of its reach) gets a notice on the book's page and isn't read
+  for chapters (`Audiobook.filesMissing`, a one-byte range request when the
+  book opens). Audiobookshelf's `isMissing` sets the same.
+- `AudiobookAudit` (Debug, `-AudiobookAudit <title>`) saves what Plex says
+  about a book and each file, walks each file's ID3 frames or MP4 boxes over
+  range requests, and loads it as its page does, for both servers; the
+  report is in Documents/AudiobookAudit.
 - On a speaker, Plex files play through Plex's Sonos service (sid 212), as
   for music. While a speaker plays, `AudiobookPlayer` sends the timeline
   reports the device sends itself through `PlayReporter`.
@@ -99,7 +117,8 @@ JSON, URLs) have unit tests that pass on Linux.
 - Chapters: the server's (ffprobe's, at scan), else the files' own read
   with AVFoundation through the signed file URL (never a session's, which
   may have ended), else Audible's for a book matched there: the server's
-  own Lookup (`/api/search/chapters?asin=`), fitted as for Plex.
+  own Lookup (`/api/search/chapters?asin=`), fitted as for Plex; else
+  Audible's for the edition found by title and author, as for Plex.
 - Descriptions are HTML; `AudiobookText.plain` reads them as text (Plex's
   book agents fill summaries with `<br />` too).
 
@@ -107,8 +126,12 @@ JSON, URLs) have unit tests that pass on Linux.
 
 One item per branch, as in the roadmap.
 
-- [ ] **Build and fix** — first Xcode build of this branch, then a pass on
-  the phone with a Plex audiobook library and an Audiobookshelf server.
+- [x] **Build and fix** — builds in Xcode; deployed to the phone.
+- [ ] **The test server's Plex Audiobook library** (not Cue's) — every
+  file in it answers 404, while the music library's stream: it was scanned
+  from a Container Manager path the Plex container can no longer read.
+  Point the library at the share's own folder and scan, then check the
+  Tolkien books play and take Audible's chapters on Plex too.
 - [ ] **Check on a speaker** (unverified):
   - a 10 h+ `.m4b` from Plex through sid 212, seeking late in the file;
   - Audiobookshelf session URLs with the `ext=.m4a` hint (Sonos has no

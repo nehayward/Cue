@@ -62,7 +62,12 @@ enum AudiobookLibrary {
             return nil
         }
         let timeline = PlexAudiobook.timeline(parts: files)
-        let marks = await plexChapterMarks(files)
+        let missing = await isMissing(files.first?.streamURL)
+        if missing {
+            let folder = files.first?.media?.first?.part.first.map { ($0.file as NSString).deletingLastPathComponent } ?? "?"
+            log.error("plex book \(key, privacy: .public): Plex can't open its files (404), kept in \(folder, privacy: .public)")
+        }
+        let marks = await plexChapterMarks(files, readingFiles: !missing)
         let item = await details
         var chapters = PlexAudiobook.chapters(parts: files, marks: marks, timeline: timeline)
         if chapters.count <= 1 {
@@ -78,6 +83,12 @@ enum AudiobookLibrary {
                 chapters = audible
             }
         }
+        // Nor matched there: Audible's edition as long as the book, found by
+        // its title and author.
+        if chapters.count <= 1, !missing,
+           let audible = await AudiobookChapterReader.searchedAudibleChapters(title: item?.title ?? book.title, author: item?.parentTitle, duration: timeline.duration) {
+            chapters = audible
+        }
         return Audiobook(
             // The server's own copy where it answered: a shelf's row may
             // carry what's left in its subtitle, which history shouldn't keep.
@@ -87,18 +98,35 @@ enum AudiobookLibrary {
             chapters: chapters,
             narrator: nil,
             summary: readable(item?.summary),
-            serverProgress: PlexAudiobook.progress(parts: files, timeline: timeline)
+            serverProgress: PlexAudiobook.progress(parts: files, timeline: timeline),
+            filesMissing: missing
         )
+    }
+
+    /// Whether the server answers "not found" for a file it lists, asked
+    /// for its first byte; only the answer's head is read, so a server that
+    /// ignores the range doesn't send the whole file. Plex answers so when
+    /// the file has moved since its scan, or its library's folder is out of
+    /// its reach; anything else (no answer, a slow one) isn't missing.
+    private nonisolated static func isMissing(_ url: URL?) async -> Bool {
+        guard let url else { return false }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 10
+        request.addValue("bytes=0-0", forHTTPHeaderField: "Range")
+        guard let (body, response) = try? await URLSession.shared.bytes(for: request) else { return false }
+        body.task.cancel()
+        let status = (response as? HTTPURLResponse)?.statusCode
+        return status == 404 || status == 410
     }
 
     /// The chapter marks in a Plex book's files: Plex's, else the file's
     /// own for a file Plex has none for (it lists an `.m4b`'s only when it
-    /// read them at scan).
-    private static func plexChapterMarks(_ files: [PlexMetadata]) async -> [String: [AudiobookChapterMark]] {
+    /// read them at scan), unless the files can't be read.
+    private static func plexChapterMarks(_ files: [PlexMetadata], readingFiles: Bool) async -> [String: [AudiobookChapterMark]] {
         var marks = await PlexAPI.shared.audiobookChapterMarks(parts: files)
         let fromPlex = marks.count
         let unmarked = files.filter { marks[$0.ratingKey] == nil && ($0.chapters ?? []).isEmpty }
-        if !unmarked.isEmpty, files.count <= AudiobookChapterReader.fileLimit {
+        if readingFiles, !unmarked.isEmpty, files.count <= AudiobookChapterReader.fileLimit {
             let read = await AudiobookChapterReader.marks(in: unmarked.map { (key: chapterCacheKey($0), url: $0.streamURL) })
             for part in unmarked {
                 marks[part.ratingKey] = read[chapterCacheKey(part)]
@@ -135,14 +163,15 @@ enum AudiobookLibrary {
             chapters: await audiobookshelfChapters(item, parts: parts),
             narrator: metadata?.narratorName.flatMap { $0.isEmpty ? nil : $0 },
             summary: readable(metadata?.description),
-            serverProgress: item.progress
+            serverProgress: item.progress,
+            filesMissing: item.isMissing
         )
     }
 
     /// An Audiobookshelf book's chapters: the server's, else the marks in
     /// its files for a book the server found none in, else Audible's for a
     /// book matched there (looked up by the server, as its chapter editor
-    /// does).
+    /// does), else for the edition found by its title and author.
     private static func audiobookshelfChapters(_ item: AudiobookshelfItem, parts: [PlayableContent]) async -> [AudiobookChapter] {
         guard (item.media?.chapters ?? []).isEmpty else { return item.chapters }
         let keys = parts.map { "audiobookshelf:\($0.content.id)" }
@@ -168,6 +197,12 @@ enum AudiobookLibrary {
                 return audible
             }
             log.info("audiobookshelf book \(asin, privacy: .public): no Audible chapters that fit \(Int(duration)) s")
+        }
+        // Nor matched there: Audible's edition as long as the book, found by
+        // its title and author.
+        if item.chapters.count <= 1, item.isMissing != true, let title = item.media?.metadata?.title,
+           let audible = await AudiobookChapterReader.searchedAudibleChapters(title: title, author: item.media?.metadata?.authorName, duration: item.timeline.duration) {
+            return audible
         }
         return item.chapters
     }

@@ -77,6 +77,8 @@ public struct AudiobookshelfItem: Decodable, Sendable, Identifiable {
     public let userMediaProgress: AudiobookshelfMediaProgress?
     /// On items in progress: when the listener was last in it, ms.
     public let progressLastUpdate: Int64?
+    /// The server's last scan didn't find the item's folder.
+    public let isMissing: Bool?
 
     /// A book with something to listen to: ebook-only items have no tracks.
     public var hasAudio: Bool {

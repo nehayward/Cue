@@ -160,6 +160,42 @@ enum AudiobookChapterReader {
         return fitted.isEmpty ? nil : fitted
     }
 
+    /// Audible's chapters for a book no server matched there: its title and
+    /// author searched for in Audible's catalog, and the editions as long as
+    /// the book (`AudibleCatalog`) fitted as a matched book's are, closest
+    /// first. What the search found is kept (none too, for a day); a search
+    /// that couldn't be made is tried next time.
+    static func searchedAudibleChapters(title: String, author: String?, duration: TimeInterval) async -> [AudiobookChapter]? {
+        let region = AudibleCatalog.region()
+        let query = AudibleCatalog.searchTitle(title)
+        let key = "audible-search:\(region):\(query.lowercased()):\(author?.lowercased() ?? ""):\(Int(duration.rounded()))"
+        if let cached = cached(key) {
+            guard !cached.isEmpty else { return nil }
+            return .from(files: [(title: "", marks: cached)], timeline: AudiobookTimeline(partDurations: [duration]))
+        }
+        guard let products = await AudibleCatalog.search(title: query, author: author, region: region) else {
+            log.error("chapters: couldn't search Audible for \(query, privacy: .public)")
+            return nil
+        }
+        let editions = AudibleCatalog.editions(products, fitting: duration)
+        var found: [AudiobookChapter]?
+        for asin in editions.prefix(3) {
+            found = await audibleChapters(asin: asin, duration: duration) {
+                await AudnexusAPI.chapters(asin: asin, region: region)
+            }
+            if found != nil {
+                log.info("chapters: \(query, privacy: .public) is \(asin, privacy: .public) on Audible")
+                break
+            }
+        }
+        if found == nil {
+            log.notice("chapters: no edition of \(query, privacy: .public) on Audible fits \(Int(duration)) s (\(products.count) found, \(editions.count) about as long)")
+        }
+        cache[key] = Entry(marks: (found ?? []).map { AudiobookChapterMark(title: $0.title, start: $0.start, end: $0.end) })
+        save()
+        return found
+    }
+
     // MARK: - Cache
 
     /// What was read, and when: "none" is believed only for a while.

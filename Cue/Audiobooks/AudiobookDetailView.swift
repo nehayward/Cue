@@ -37,6 +37,11 @@ struct AudiobookDetailView: View {
                 actions
                     .padding(.top, 20)
 
+                if audiobook?.filesMissing == true {
+                    missingFilesNotice
+                        .padding(.top, 20)
+                }
+
                 if let summary = audiobook?.summary {
                     AudiobookSummary(text: summary)
                         .padding(.top, 20)
@@ -189,6 +194,25 @@ struct AudiobookDetailView: View {
         .bold()
         .fontDesign(.rounded)
         .disabled(audiobook == nil || player.isLoading)
+    }
+
+    /// The server lists the book but can't open its files, so it won't play
+    /// and shows no chapters: said here, where the missing chapters show.
+    private var missingFilesNotice: some View {
+        let service = book.content.service.title
+        return Label {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(service) Can't Open This Book")
+                    .font(.subheadline.bold())
+                Text("\(service) lists its files but can't find them, so it won't play or show its chapters. Check that the files are still in the library's folder on the server, then scan the library again.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        } icon: {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.yellow)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
