@@ -38,7 +38,7 @@ test target doesn't build as a whole for stale tests elsewhere
 | Where the listener is | `AudiobookProgress`; this device's in `AudiobookProgressStore` (App Support), the server's read on open; newer wins |
 | Loading a book | `AudiobookLibrary` (Plex: `PlexAPI+Audiobooks`; Audiobookshelf: `AudiobookshelfAPI`) |
 | Playing it | `AudiobookPlayer`: replaces the queue with the files from the resume point, on this device or the route's speaker; follows `PlaybackRoute.presented` every 2 s to save the place and sync the server |
-| Speed | `AudiobookPlayer.rate`, applied by `LocalPlaybackService.applyPlaybackRate` to a book's files only; the clock runs at that rate. Speakers stay at 1× |
+| Speed | `AudiobookPlayer.rate`, each book's own (a book never changed plays at 1×), applied by `LocalPlaybackService.applyPlaybackRate` to a book's files only; the clock runs at that rate. Speakers stay at 1× |
 | Transport | Player: −15 s / +30 s replace Previous / Next. Lock Screen: skip commands and a rate command (`LocalNowPlayingPresenter`) |
 | Player menu | Previous / Next Chapter, the chapters (device and speaker) and Speed (device) — `AudiobookPlayerMenuItems` |
 | Chapter line | The player's origin line reads the chapter playing and opens the chapters (`AudiobookChapterLine`) |
@@ -170,7 +170,8 @@ One item per branch, as in the roadmap.
   than the file, for a 20 h `.m4b`.
 - [ ] **Lock Screen chapters** — Previous / Next Chapter in place of the
   skips, as a setting.
-- [ ] **Speed per book** — `rate` is one setting for every book today.
+- [x] **Speed per book** — each book keeps its own speed; one never
+  changed plays at 1×.
 - [ ] **Audiobookshelf single sign-on** — OpenID-only servers are refused
   with a message. The mobile PKCE flow is in the research notes below.
 - [ ] **`.m4b` in Files** — the Files provider already takes the extension;

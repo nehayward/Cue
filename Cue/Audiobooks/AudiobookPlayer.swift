@@ -34,9 +34,11 @@ final class AudiobookPlayer {
     /// A book is being read from its server to play.
     private(set) var isLoading = false
 
-    /// How fast books play on this device, 1 being normal. Speakers play
-    /// at 1× whatever this says: Sonos has no other speed.
-    private(set) var rate: Double
+    /// How fast the loaded book plays on this device, 1 being normal. Each
+    /// book keeps its own (`bookRates`), so speeding one up leaves the rest
+    /// as they were, and a book never changed plays at 1×. Speakers play at
+    /// 1× whatever this says: Sonos has no other speed.
+    private(set) var rate: Double = 1
 
     static let rates: [Double] = [0.75, 1, 1.1, 1.2, 1.3, 1.5, 1.75, 2, 2.5, 3]
     static let skipBackInterval: TimeInterval = 15
@@ -59,14 +61,18 @@ final class AudiobookPlayer {
     @ObservationIgnored private var finishReported = false
     @ObservationIgnored private var backgroundObserver: (any NSObjectProtocol)?
 
-    private static let rateKey = "dance.cue.audiobookRate"
+    /// Each book's speed, by `AudiobookProgressStore.key`; a book at 1× has
+    /// none.
+    private static let ratesKey = "dance.cue.audiobookRates"
+    /// The one speed every book shared before each kept its own.
+    private static let sharedRateKey = "dance.cue.audiobookRate"
     private static let serverSyncInterval: TimeInterval = 15
     private static let storeInterval: TimeInterval = 10
 
     private init() {
-        let stored = UserDefaults.standard.double(forKey: Self.rateKey)
-        rate = stored > 0 ? stored : 1
+        UserDefaults.standard.removeObject(forKey: Self.sharedRateKey)
         current = Self.loadCurrent()
+        rate = Self.rate(for: current?.book)
         if let current {
             graceUntil = .now.addingTimeInterval(30)
             startMonitoring()
@@ -191,9 +197,24 @@ final class AudiobookPlayer {
         await jump(to: now + seconds)
     }
 
+    /// Sets the loaded book's speed, kept for that book alone.
     func setRate(_ rate: Double) {
         self.rate = rate
-        UserDefaults.standard.set(rate, forKey: Self.rateKey)
+        guard let book = current?.book else { return }
+        var rates = Self.bookRates
+        rates[AudiobookProgressStore.key(for: book)] = rate == 1 ? nil : rate
+        Self.bookRates = rates
+    }
+
+    private static var bookRates: [String: Double] {
+        get { UserDefaults.standard.dictionary(forKey: ratesKey) as? [String: Double] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: ratesKey) }
+    }
+
+    /// The speed `book` was left at: 1× for one never changed.
+    private static func rate(for book: PlayableContent?) -> Double {
+        guard let book, let rate = bookRates[AudiobookProgressStore.key(for: book)], rate > 0 else { return 1 }
+        return rate
     }
 
     // MARK: - Chapters
@@ -493,6 +514,7 @@ final class AudiobookPlayer {
 
     private func setCurrent(_ audiobook: Audiobook?) {
         current = audiobook
+        rate = Self.rate(for: audiobook?.book)
         lastServerSync = .distantPast
         lastServerPosition = nil
         lastStoredPosition = nil
