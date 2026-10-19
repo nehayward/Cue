@@ -23,8 +23,43 @@ enum AudiobookAudit {
     private static let log = Logger(subsystem: "dance.cue", category: "audiobook-audit")
 
     static func startIfRequested() {
+        // `-AudiobookAuditCarPlay YES`: what the car's tabs would list.
+        if UserDefaults.standard.bool(forKey: "AudiobookAuditCarPlay") {
+            Task { await carPlay() }
+        }
         guard let title = UserDefaults.standard.string(forKey: "AudiobookAudit"), !title.isEmpty else { return }
         Task { await run(title: title) }
+    }
+
+    /// The books the car would show — on Home's Recently Played, on the
+    /// Audiobooks tab's Continue Listening and its shelves — with no car.
+    private static func carPlay() async {
+        try? await Task.sleep(for: .seconds(5))
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        let books = CarPlayLibrary.recents().filter { $0.content.type == .audiobook }
+        log.notice("carplay: audiobooks tab \(CarPlayLibrary.showsAudiobooks ? "shown" : "hidden", privacy: .public); recently played books: \(books.map(\.title), privacy: .public)")
+        for book in CarPlayLibrary.booksInProgress() {
+            let progress = AudiobookProgressStore.shared.progress(for: book)
+            log.notice("carplay: continue listening \(book.title, privacy: .public) \(Int((progress?.fraction ?? 0) * 100))% \(progress.flatMap(AudiobookFormat.remaining) ?? "", privacy: .public)")
+        }
+        let shelves = await CarPlayLibrary.bookShelves()
+        for shelf in shelves {
+            log.notice("carplay: shelf \(shelf.title, privacy: .public): \(shelf.items.map(\.title), privacy: .public)")
+        }
+        // `-AudiobookAuditCarPlayPlay <title>`: plays the first book with
+        // that in its title as a tap in the car does, then steps its speed.
+        guard let title = UserDefaults.standard.string(forKey: "AudiobookAuditCarPlayPlay"),
+              let book = shelves.flatMap(\.items).first(where: { $0.title.localizedCaseInsensitiveContains(title) }) else { return }
+        do {
+            try await CarPlayPlayback.play(book: book)
+            let books = AudiobookPlayer.shared
+            log.notice("carplay: playing \(LocalPlaybackService.shared.nowPlaying?.title ?? "-", privacy: .public) for \(books.current?.book.title ?? "-", privacy: .public) at \(Int(books.position)) s, \(books.current?.chapters.count ?? 0) chapters")
+            CarPlayPlayback.nextBookRate()
+            log.notice("carplay: rate now \(books.rate)")
+        } catch {
+            log.error("carplay: \(error.localizedDescription, privacy: .public)")
+        }
+        #endif
     }
 
     private static func run(title: String) async {

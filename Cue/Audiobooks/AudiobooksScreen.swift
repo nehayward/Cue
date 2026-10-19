@@ -20,7 +20,6 @@ struct AudiobooksScreen: View {
     /// path push each other.
     @State private var router = Router()
     @State private var store = AudiobookProgressStore.shared
-    @State private var history = PlayHistoryService.shared
     @State private var shelf = AudiobookshelfBrowseService.shared
     @State private var player = AudiobookPlayer.shared
 
@@ -108,29 +107,9 @@ struct AudiobooksScreen: View {
 
     private static let recentCount = 10
 
-    /// Every book listened to, once each, newest first: this device's
-    /// history and the server's books in progress, from services still on.
+    /// Every book listened to, once each, newest first.
     private var listenedBooks: [PlayableContent] {
-        var books: [PlayableContent] = []
-        let candidates = Array(history.history).filter { $0.content.type == .audiobook } + (showsAudiobookshelf ? shelf.continueListening : [])
-        for book in candidates where isShown(book) && !books.contains(where: { $0.isSameBook(as: book) }) {
-            books.append(book)
-        }
-        // History's order breaks ties: a book with no reading yet stays
-        // where the history has it.
-        return books.enumerated().sorted { lhs, rhs in
-            let left = store.progress(for: lhs.element)?.updatedAt ?? .distantPast
-            let right = store.progress(for: rhs.element)?.updatedAt ?? .distantPast
-            return left == right ? lhs.offset < rhs.offset : left > right
-        }.map(\.element)
-    }
-
-    private func isShown(_ book: PlayableContent) -> Bool {
-        switch book.content.service {
-        case .plex: coreFeatures.isEnabled(.plex)
-        case .audiobookshelf: showsAudiobookshelf
-        default: false
-        }
+        AudiobookLibrary.listenedBooks(plex: coreFeatures.isEnabled(.plex), audiobookshelf: showsAudiobookshelf)
     }
 
     // MARK: - Libraries

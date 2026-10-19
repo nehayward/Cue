@@ -39,6 +39,31 @@ enum AudiobookLibrary {
         UserDefaults.standard.set(has, forKey: AppStorageKeys.hasPlexAudiobooks)
     }
 
+    /// Every book listened to, once each, newest first: this device's
+    /// history and Audiobookshelf's books in progress, from the servers
+    /// shown (`plex`, `audiobookshelf`). Ordered by when each book's place
+    /// last moved; history's order breaks ties, so a book with no reading
+    /// yet stays where the history has it.
+    static func listenedBooks(plex: Bool, audiobookshelf: Bool) -> [PlayableContent] {
+        let store = AudiobookProgressStore.shared
+        let history = Array(PlayHistoryService.shared.history).filter { $0.content.type == .audiobook }
+        let candidates = history + (audiobookshelf ? AudiobookshelfBrowseService.shared.continueListening : [])
+        var books: [PlayableContent] = []
+        for book in candidates where !books.contains(where: { $0.isSameBook(as: book) }) {
+            let isShown = switch book.content.service {
+            case .plex: plex
+            case .audiobookshelf: audiobookshelf
+            default: false
+            }
+            if isShown { books.append(book) }
+        }
+        return books.enumerated().sorted { lhs, rhs in
+            let left = store.progress(for: lhs.element)?.updatedAt ?? .distantPast
+            let right = store.progress(for: rhs.element)?.updatedAt ?? .distantPast
+            return left == right ? lhs.offset < rhs.offset : left > right
+        }.map(\.element)
+    }
+
     // MARK: - A book
 
     /// The book read whole, from its own server. Nil when it couldn't be,

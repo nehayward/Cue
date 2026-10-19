@@ -145,8 +145,13 @@ One item per branch, as in the roadmap.
 - [ ] **Download a book** — whole-book downloads for offline listening
   (`DownloadManager` takes Plex files one at a time today; nothing for
   Audiobookshelf), and `/api/session/local` to report offline listening.
-- [ ] **CarPlay** — a Books section with Continue Listening; the car's Now
-  Playing with skip and a `CPNowPlayingPlaybackRateButton`.
+- [x] **CarPlay** — an Audiobooks tab (Recents folded into a Home tab to
+  make room: an audio app gets four): Continue Listening as rows with a
+  progress bar, then each server's books; a book plays from where it was
+  left; Now Playing's skips are the Lock Screen's, and a
+  `CPNowPlayingPlaybackRateButton` steps 1× to 2× in place of shuffle and
+  repeat. Checked with `-AudiobookAuditCarPlay` in the Simulator, not yet
+  in a car or the CarPlay simulator.
 - [x] **Sleep timer: end of chapter** — End of Chapter, on this device and
   a speaker.
 - [x] **Chapter navigation** — Previous / Next Chapter and the chapter line
