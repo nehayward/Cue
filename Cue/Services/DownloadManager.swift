@@ -86,6 +86,10 @@ final class DownloadManager {
         /// Streaming Quality setting delivers. A transfer part-way through
         /// keeps its URL: its resume data belongs to that request.
         mutating func applyStreamingQuality() {
+            guard isBookFile != true else {
+                refreshBookFileURL()
+                return
+            }
             guard resumeData == nil, let sourceURL, DeviceStream.isTranscodable(service) else { return }
             let refreshed = DeviceStream.url(service: service, contentID: contentID, sourceURL: sourceURL, audioCodec: audioCodec)
             guard refreshed != url else { return }
@@ -97,8 +101,23 @@ final class DownloadManager {
         /// and artist and play it. Nil for downloads made before this was
         /// kept; those are rebuilt from the title and subtitle.
         var track: PlayableContent?
+        /// One of a book's files, downloaded with the book: fetched as the
+        /// server keeps it whatever Streaming Quality says (a file hours
+        /// long converted on the fly can't be seeked into, and an `.m4b`
+        /// keeps its chapters only as it is), counted with its book rather
+        /// than as a song, and kept out of the music on this device.
+        var isBookFile: Bool?
 
         var id: String { key }
+
+        /// An Audiobookshelf file is asked for with a token that lasts an
+        /// hour, so a transfer starting afresh gets a newly signed URL.
+        /// Plex's token doesn't run out.
+        mutating func refreshBookFileURL() {
+            guard resumeData == nil, service == .audiobookshelf, let track,
+                  let fresh = DownloadManager.bookFileURL(for: track) else { return }
+            url = fresh
+        }
 
         var progress: Double {
             DownloadNaming.progress(received: bytesReceived, expected: bytesExpected)
@@ -262,6 +281,12 @@ final class DownloadManager {
         items.values.filter { $0.state == .completed }.sorted { $0.createdAt > $1.createdAt }
     }
 
+    /// Finished downloads but books' files: the music on this device. A
+    /// book's files belong to their book (`isBookFile`).
+    var completedSongs: [Item] {
+        completed.filter { $0.isBookFile != true }
+    }
+
     var completedBytes: Int64 {
         completed.reduce(0) { $0 + ($1.fileSize ?? 0) }
     }
@@ -278,8 +303,11 @@ final class DownloadManager {
     /// playback cache are the system's and the cache's own and don't count.
     nonisolated static let freeSongLimit = 50
 
-    /// Songs held against the free limit.
-    var heldCount: Int { items.count }
+    /// Songs held against the free limit. A book downloaded whole counts as
+    /// one, however many files it comes in.
+    var heldCount: Int {
+        items.values.filter { $0.isBookFile != true }.count + containers.values.filter { $0.type == .audiobook }.count
+    }
 
     /// Slots left before the free limit, or nil with Super, which has none.
     var remainingFreeSlots: Int? {
@@ -395,7 +423,10 @@ final class DownloadManager {
     /// album, playlist or artist whose tracks the local queue knows how to
     /// fetch (the same fetch feeds the download).
     func canDownload(contentsOf container: PlayableContent) -> Bool {
-        [.plex, .subsonic].contains(container.content.service)
+        if container.content.type == .audiobook {
+            return [.plex, .audiobookshelf].contains(container.content.service)
+        }
+        return [.plex, .subsonic].contains(container.content.service)
             && [.album, .playlist, .artist].contains(container.content.type)
             && LocalPlaybackService.shared.canPlayContainerLocally(container)
     }
@@ -503,14 +534,26 @@ final class DownloadManager {
     @discardableResult
     func download(contentsOf container: PlayableContent) async -> BatchResult {
         guard canDownload(contentsOf: container) else { return BatchResult() }
-        guard let tracks = await Self.tracksToDownload(for: container) else {
+        // A book's files, as the book reads them, its details kept beside
+        // them for opening it with no network.
+        let isBook = container.content.type == .audiobook
+        let listed = isBook ? await AudiobookDownloads.prepare(container) : await Self.tracksToDownload(for: container)
+        guard let tracks = listed else {
             Self.log.error("Couldn't list \(container.title, privacy: .public)")
             return BatchResult(couldNotLoad: true)
         }
         // A song a playlist holds twice is one download.
         var seen = Set<String>()
-        let downloadable = tracks.filter { canDownload($0) && seen.insert(Self.key(for: $0)).inserted }
+        let downloadable = tracks.filter { track in
+            (isBook ? Self.bookFileURL(for: track) != nil : canDownload(track)) && seen.insert(Self.key(for: track)).inserted
+        }
         guard !downloadable.isEmpty else { return BatchResult() }
+
+        let containerKey = Self.containerKey(for: container)
+        // A book takes one slot of the free limit for all its files.
+        if isBook, containers[containerKey] == nil, isAtFreeLimit {
+            return BatchResult(heldBack: downloadable.count)
+        }
 
         var result = BatchResult()
         var keys: [String] = []
@@ -519,10 +562,14 @@ final class DownloadManager {
         // made that 1,700 times over.
         var updated = items
         var added: Set<String> = []
-        var freeSlots = remainingFreeSlots
+        var freeSlots = isBook ? nil : remainingFreeSlots
         for track in downloadable {
             let key = Self.key(for: track)
             if var existing = updated[key] {
+                if isBook, existing.isBookFile != true {
+                    existing.isBookFile = true
+                    updated[key] = existing
+                }
                 guard existing.state != .completed else { continue }
                 if existing.state == .paused || existing.state == .failed {
                     Self.requeue(&existing)
@@ -536,7 +583,7 @@ final class DownloadManager {
                     }
                     freeSlots = free - 1
                 }
-                guard let entry = Self.entry(for: track) else { continue }
+                guard let entry = isBook ? Self.bookEntry(for: track) : Self.entry(for: track) else { continue }
                 updated[key] = entry
                 added.insert(key)
             }
@@ -547,7 +594,7 @@ final class DownloadManager {
         rejoinContainers(keys: added)
         admit()
         if result.heldBack == 0 {
-            let key = Self.containerKey(for: container)
+            let key = containerKey
             containers[key] = Container(
                 key: key,
                 service: container.content.service,
@@ -604,6 +651,9 @@ final class DownloadManager {
     func removeContainer(key: String) {
         guard let container = containers[key] else { return }
         containers[key] = nil
+        if container.type == .audiobook {
+            AudiobookDownloads.removeCopy(containerKey: key)
+        }
         // A song another album or playlist downloaded whole also holds
         // stays for that one: removing an album took the songs it shares
         // with ❤️ Tracks, and the playlist with them.
@@ -688,13 +738,60 @@ final class DownloadManager {
     }
 
     /// Back in line after a pause or a failure, made under the Streaming
-    /// Quality in force now.
+    /// Quality in force now. An Audiobookshelf book's file starts over: its
+    /// resume data carries a request whose token may have run out.
     private static func requeue(_ entry: inout Item) {
         entry.state = .queued
         entry.error = nil
         entry.failedOnNetwork = nil
         entry.automaticRetries = nil
+        if entry.isBookFile == true, entry.service == .audiobookshelf {
+            entry.resumeData = nil
+            entry.bytesReceived = 0
+        }
         entry.applyStreamingQuality()
+    }
+
+    /// A new entry for one of a book's files (`Item.isBookFile`).
+    private static func bookEntry(for item: PlayableContent) -> Item? {
+        guard let url = bookFileURL(for: item) else { return nil }
+        return Item(
+            key: key(for: item),
+            service: item.content.service,
+            contentID: item.content.id,
+            title: item.title,
+            subtitle: item.metadata?.artist ?? item.subtitle,
+            artwork: item.thumbnail ?? item.artwork,
+            url: url,
+            fileExtension: bookFileExtension(for: item, url: url),
+            createdAt: .now,
+            state: .queued,
+            audioCodec: item.metadata?.audioCodec,
+            track: item,
+            isBookFile: true
+        )
+    }
+
+    /// A book's file as the server keeps it: Plex's part, Audiobookshelf's
+    /// file signed with the access token (never a listening session's
+    /// track, which ends with the session).
+    nonisolated static func bookFileURL(for item: PlayableContent) -> URL? {
+        switch item.content.service {
+        case .audiobookshelf:
+            AudiobookshelfAPI.fileURL(for: item.content.id, fileExtension: item.metadata?.audioCodec)
+        default:
+            item.previewURL
+        }
+    }
+
+    /// The file's own extension, from its URL (Plex's `…/file.m4b`) or the
+    /// one its server reports.
+    private static func bookFileExtension(for item: PlayableContent, url: URL) -> String {
+        let fromURL = url.pathExtension.lowercased()
+        if ["mp3", "m4a", "m4b", "aac", "mp4", "flac", "ogg", "oga", "opus", "wav"].contains(fromURL) {
+            return fromURL
+        }
+        return item.metadata?.audioCodec.map { StreamTranscoding.fileExtension(forCodec: $0) } ?? "mp3"
     }
 
     // MARK: - The window

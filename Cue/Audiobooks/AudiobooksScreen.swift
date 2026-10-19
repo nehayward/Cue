@@ -27,7 +27,9 @@ struct AudiobooksScreen: View {
     private var showsAudiobookshelf: Bool { coreFeatures.isEnabled(.audiobookshelf) && shelf.isAuthenticated }
 
     var body: some View {
-        let listened = listenedBooks
+        // Offline, only what's whole on this device plays.
+        let isOffline = OfflineMode.shared.isActive
+        let listened = isOffline ? listenedBooks.filter(AudiobookDownloads.isDownloaded) : listenedBooks
         let inProgress = listened.filter { store.progress(for: $0)?.isStarted == true }
         // The book loaded to play leads even before a reading has come in.
         let hero = inProgress.first ?? player.current?.book
@@ -35,6 +37,7 @@ struct AudiobooksScreen: View {
         let recent = listened.filter { book in
             !book.isSameBook(as: hero) && !inProgress.contains { $0.isSameBook(as: book) }
         }
+        let downloaded = AudiobookDownloads.downloadedBooks(completeOnly: isOffline)
 
         NavigationStack(path: $router.path) {
             List {
@@ -62,7 +65,18 @@ struct AudiobooksScreen: View {
                     .listRowSeparator(.hidden)
                 }
 
-                if showsAudiobookshelf, !shelf.recentlyAdded.isEmpty {
+                // On this device or on their way: what plays with no network.
+                if !downloaded.isEmpty {
+                    Section {
+                        AudiobookCoverRow(books: downloaded)
+                            .listRowInsets(EdgeInsets())
+                    } header: {
+                        Text("Downloads")
+                    }
+                    .listRowSeparator(.hidden)
+                }
+
+                if showsAudiobookshelf, !isOffline, !shelf.recentlyAdded.isEmpty {
                     Section {
                         AudiobookCoverRow(books: shelf.recentlyAdded)
                             .listRowInsets(EdgeInsets())
@@ -84,7 +98,9 @@ struct AudiobooksScreen: View {
                     .listRowSeparator(.hidden)
                 }
 
-                libraries
+                if !isOffline {
+                    libraries
+                }
             }
             .listStyle(.plain)
             .headerProminence(.increased)

@@ -151,9 +151,14 @@ One item per branch, as in the roadmap.
   is a book library to `.audiobook` (`PlexAlbum.toPlayable`).
 - [ ] **Keep genre-tagged books out of the music lists** — they show under
   both Albums and Audiobooks today.
-- [ ] **Download a book** — whole-book downloads for offline listening
-  (`DownloadManager` takes Plex files one at a time today; nothing for
-  Audiobookshelf), and `/api/session/local` to report offline listening.
+- [x] **Download a book** — whole, from the book page, on Plex and
+  Audiobookshelf; plays offline from a copy of the book kept beside its
+  files (`AudiobookDownloads`). Checked in the Simulator: both copies of
+  The Two Towers (598 MB each) in under 10 s, played with Offline Mode on.
+- [ ] **Report offline listening** — Audiobookshelf's `/api/session/local`
+  for what was heard offline (today the first sync back online moves the
+  place, but the server's stats miss the time); CarPlay's Audiobooks tab
+  offline (it lists the servers' shelves).
 - [x] **CarPlay** — an Audiobooks tab (Recents folded into a Home tab to
   make room: an audio app gets four): Continue Listening as rows with a
   progress bar, then each server's books; a book plays from where it was

@@ -190,6 +190,10 @@ struct AudiobookDetailView: View {
                 .glassButton()
                 .foregroundStyle(.primary)
             }
+
+            // The whole book on this device, for listening with no network.
+            ContainerDownloadButton(item: shown)
+                .foregroundStyle(.primary)
         }
         .bold()
         .fontDesign(.rounded)

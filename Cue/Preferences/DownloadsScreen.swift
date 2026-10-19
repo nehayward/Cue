@@ -38,7 +38,8 @@ struct DownloadsScreen: View {
         // Each is a filter and sort over every download; once per render,
         // not once per mention.
         let active = manager.active
-        let completed = manager.completed
+        // Books' files are listed with their books, under Albums.
+        let completed = manager.completedSongs
 
         List {
             switch tab {
@@ -396,7 +397,7 @@ struct DownloadsScreen: View {
                 if case let .downloading(fraction) = state {
                     ProgressView(value: fraction)
                         .progressViewStyle(.linear)
-                    Text("\(counts.downloaded) of \(counts.total) songs")
+                    Text("\(counts.downloaded) of \(container.type.downloadCount(counts.total))")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
@@ -407,7 +408,7 @@ struct DownloadsScreen: View {
                 container.service.image
                     .frame(width: 14, height: 14)
                 if state == .downloaded {
-                    Text(counts.total == 1 ? "1 song" : "\(counts.total) songs")
+                    Text(container.type.downloadCount(counts.total))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

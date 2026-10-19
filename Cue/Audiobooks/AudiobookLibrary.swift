@@ -72,9 +72,31 @@ enum AudiobookLibrary {
 
     // MARK: - A book
 
-    /// The book read whole, from its own server. Nil when it couldn't be,
-    /// or it has no files.
+    /// The book read whole: from its own server, else — offline, or with
+    /// the server out of reach — the copy kept with its download
+    /// (`AudiobookDownloads`). Nil when neither has it, or it has no files.
     static func load(_ book: PlayableContent) async -> Audiobook? {
+        // Offline, asking the server would only wait out its timeout.
+        if OfflineMode.shared.isActive, let copy = AudiobookDownloads.copy(of: book) {
+            return copy
+        }
+        guard var loaded = await loadFromServer(book) else {
+            if let copy = AudiobookDownloads.copy(of: book) {
+                log.notice("\(book.title, privacy: .public): server out of reach, opened the downloaded copy")
+                return copy
+            }
+            return nil
+        }
+        AudiobookDownloads.refresh(loaded)
+        // Its files on this device play whatever the server can open.
+        if loaded.filesMissing == true, AudiobookDownloads.hasAllFiles(loaded) {
+            loaded.filesMissing = nil
+        }
+        return loaded
+    }
+
+    /// The book read whole from its own server alone.
+    static func loadFromServer(_ book: PlayableContent) async -> Audiobook? {
         switch book.content.service {
         case .plex:
             return await loadPlex(book)

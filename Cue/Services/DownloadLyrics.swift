@@ -56,7 +56,7 @@ final class DownloadLyrics {
     func start() {
         Task {
             var missing: [DownloadManager.Item] = []
-            for item in DownloadManager.shared.completed where [.plex, .subsonic].contains(item.service) {
+            for item in DownloadManager.shared.completed where [.plex, .subsonic].contains(item.service) && item.isBookFile != true {
                 switch await LyricsService.shared.downloadLyrics(for: Self.key(for: item)) {
                 case true?: withLyrics.insert(item.key)
                 case false?: break

@@ -41,12 +41,60 @@ enum AudiobookAudit {
                 log.notice("scan: \(books.count) Plex books after: \(books.map(\.title), privacy: .public)")
             }
         }
+        // `-AudiobookAuditDownload <title>`: downloads the books with that
+        // in their title, on every server, as the book page's button does,
+        // and follows them to the end.
+        if let title = UserDefaults.standard.string(forKey: "AudiobookAuditDownload") {
+            Task { await download(title: title) }
+        }
         // `-AudiobookAuditCarPlay YES`: what the car's tabs would list.
         if UserDefaults.standard.bool(forKey: "AudiobookAuditCarPlay") {
             Task { await carPlay() }
         }
         guard let title = UserDefaults.standard.string(forKey: "AudiobookAudit"), !title.isEmpty else { return }
         Task { await run(title: title) }
+    }
+
+    private static func download(title: String) async {
+        try? await Task.sleep(for: .seconds(5))
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        let manager = DownloadManager.shared
+        let books = await CarPlayLibrary.bookShelves().flatMap(\.items).filter { $0.title.localizedCaseInsensitiveContains(title) }
+        for book in books {
+            // One part-way, from an earlier run, starts over.
+            if case .downloading = manager.containerState(for: book) {
+                manager.removeDownload(contentsOf: book)
+            }
+            let result = await manager.download(contentsOf: book)
+            log.notice("download \(book.title, privacy: .public) [\(book.content.service.sonosRawValue, privacy: .public)]: queued \(result.queued), held back \(result.heldBack), couldn't load \(result.couldNotLoad)")
+        }
+        let clock = ContinuousClock()
+        let start = clock.now
+        while clock.now - start < .seconds(600) {
+            try? await Task.sleep(for: .seconds(5))
+            let states = books.map { book in
+                switch manager.containerState(for: book) {
+                case .downloaded: "done"
+                case let .downloading(fraction): "\(Int(fraction * 100))%"
+                case nil: "none"
+                }
+            }
+            log.notice("download: \(states, privacy: .public) after \(Int((clock.now - start).components.seconds)) s")
+            guard states.contains(where: { $0.hasSuffix("%") }) else { break }
+        }
+        for book in books {
+            guard let copy = AudiobookDownloads.copy(of: book) else {
+                log.error("download \(book.title, privacy: .public): no copy kept")
+                continue
+            }
+            for part in copy.parts {
+                let url = manager.localURL(for: part)
+                let size = url.flatMap { DownloadManager.size(of: $0) } ?? 0
+                log.notice("download \(book.title, privacy: .public): \(part.title, privacy: .public) → \(url?.lastPathComponent ?? "missing", privacy: .public) \(size) bytes")
+            }
+            log.notice("download \(book.title, privacy: .public): \(copy.chapters.count) chapters kept; held count \(manager.heldCount); in the music: \(OnDeviceLibrary.downloadedSongs.contains { $0.metadata?.album == book.title || $0.title == book.title })")
+        }
+        #endif
     }
 
     /// The books the car would show — on Home's Recently Played, on the
@@ -72,6 +120,10 @@ enum AudiobookAudit {
             try await CarPlayPlayback.play(book: book)
             let books = AudiobookPlayer.shared
             log.notice("carplay: playing \(LocalPlaybackService.shared.nowPlaying?.title ?? "-", privacy: .public) for \(books.current?.book.title ?? "-", privacy: .public) at \(Int(books.position)) s, \(books.current?.chapters.count ?? 0) chapters")
+            let local = LocalPlaybackService.shared
+            log.notice("carplay: offline \(OfflineMode.shared.isActive), file on this device \(DownloadManager.shared.localURL(for: local.nowPlaying ?? book) != nil)")
+            try? await Task.sleep(for: .seconds(8))
+            log.notice("carplay: playing \(local.isPlaying), \(Int(local.progress)) s into the file")
             CarPlayPlayback.nextBookRate()
             log.notice("carplay: rate now \(books.rate)")
         } catch {
@@ -203,6 +255,16 @@ enum AudiobookAudit {
                     for line in await FileProbe.describe(url, ratingKey: nil) {
                         report.line("  \(line)")
                     }
+                    // `-AudiobookAuditHeads YES`: how the server answers
+                    // for the whole file, as a download asks.
+                    if UserDefaults.standard.bool(forKey: "AudiobookAuditHeads") {
+                        let clock = ContinuousClock()
+                        let start = clock.now
+                        for line in await FileProbe.failure(url, ratingKey: nil) {
+                            report.line("  \(line)")
+                        }
+                        report.line("  answered in \((clock.now - start).formatted(.units(allowed: [.seconds, .milliseconds])))")
+                    }
                 }
                 guard let audiobook = await AudiobookLibrary.load(item.toPlayable) else {
                     report.line("loaded: couldn't")
@@ -288,7 +350,7 @@ private enum FileProbe {
 
     /// Why the file wouldn't come: the answer with a range and without, and
     /// with the download flag; only each answer's head is read.
-    private static func failure(_ url: URL, ratingKey: String?) async -> [String] {
+    static func failure(_ url: URL, ratingKey: String?) async -> [String] {
         var lines = ["couldn't fetch the file"]
         var download = URLComponents(url: url, resolvingAgainstBaseURL: false)
         download?.queryItems?.append(URLQueryItem(name: "download", value: "1"))

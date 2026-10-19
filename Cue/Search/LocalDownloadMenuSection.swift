@@ -235,7 +235,7 @@ struct LocalDownloadMenuSection: View {
         let manager = DownloadManager.shared
         let result = await manager.download(contentsOf: item)
         guard !result.couldNotLoad else {
-            let server = item.content.service == .plex ? "Plex" : "the server"
+            let server = item.content.service == .plex ? "Plex" : item.content.service == .audiobookshelf ? "Audiobookshelf" : "the server"
             alertService.showAlertContent(with: item, subtitle: "Couldn't reach \(server). Try again.", symbolName: "exclamationmark.triangle")
             return
         }
@@ -252,7 +252,8 @@ struct LocalDownloadMenuSection: View {
             // Held for Wi‑Fi, the cellular question speaks for the batch.
             let held = Set(manager.cellularHeldKeys)
             guard !manager.waitingTrackKeys(forContentsOf: item).contains(where: held.contains) else { return }
-            alertService.showAlertContent(with: item, subtitle: queued == 1 ? "Downloading 1 song" : "Downloading \(queued) songs", symbolName: "arrow.down.circle")
+            let what = item.content.type == .audiobook ? "Downloading" : (queued == 1 ? "Downloading 1 song" : "Downloading \(queued) songs")
+            alertService.showAlertContent(with: item, subtitle: LocalizedStringKey(what), symbolName: "arrow.down.circle")
         case (let queued, let heldBack):
             // Part of the album made it in before the limit; say how much
             // didn't, and where the rest is.

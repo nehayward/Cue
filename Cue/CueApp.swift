@@ -353,13 +353,16 @@ struct CueApp: App {
 
     /// Whether the Audiobooks tab has books to show: an Audiobookshelf
     /// sign-in, or a Plex server that had books when last asked
-    /// (`AudiobookLibrary.checkPlexBooks`). Hidden in Settings › Appearance,
-    /// and while Offline Mode is active, since books stream.
+    /// (`AudiobookLibrary.checkPlexBooks`). Hidden in Settings › Appearance.
+    /// While Offline Mode is active only books downloaded whole can play,
+    /// so it stays while there are any.
     private var showsAudiobooksTab: Bool {
-        showAudiobooksTab
-            && !offline.isActive
-            && ((coreFeatures.isEnabled(.audiobookshelf) && AudiobookshelfAPI.shared.isConfigured)
-                || (coreFeatures.isEnabled(.plex) && hasPlexAudiobooks))
+        guard showAudiobooksTab else { return false }
+        if offline.isActive {
+            return AudiobookDownloads.hasDownloadedBooks
+        }
+        return (coreFeatures.isEnabled(.audiobookshelf) && AudiobookshelfAPI.shared.isConfigured)
+            || (coreFeatures.isEnabled(.plex) && hasPlexAudiobooks)
     }
 
     /// Search. The search role only on the phone, where it draws the tab as

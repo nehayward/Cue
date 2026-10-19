@@ -303,12 +303,20 @@ final class AudiobookPlayer {
         var audiobook = audiobook
         // Audiobookshelf streams belong to a listening session, opened
         // for each play; its files' URLs come from it.
+        // A book downloaded whole plays from its files without one: offline,
+        // or when the server won't open a session.
         if audiobook.book.content.service == .audiobookshelf {
-            guard let opened = await AudiobookLibrary.openAudiobookshelfSession(for: audiobook) else {
+            let downloaded = AudiobookDownloads.hasAllFiles(audiobook)
+            if downloaded, OfflineMode.shared.isActive {
+                Self.log.notice("playing \(audiobook.book.title, privacy: .public)'s downloaded files offline")
+            } else if let opened = await AudiobookLibrary.openAudiobookshelfSession(for: audiobook) {
+                audiobook = opened
+            } else if downloaded {
+                Self.log.notice("no session for \(audiobook.book.title, privacy: .public); playing its downloaded files")
+            } else {
                 AlertService.shared.showAlert(with: "Couldn't start “\(audiobook.book.title)”", imageName: "exclamationmark.triangle")
                 return
             }
-            audiobook = opened
         }
         let location = audiobook.timeline.location(at: time)
         setCurrent(audiobook)
@@ -443,6 +451,10 @@ final class AudiobookPlayer {
     /// Tells the book's server where it is: every few seconds while playing,
     /// and once on a pause.
     private func syncServer(_ audiobook: Audiobook, part: Int, time: TimeInterval, playing: Bool, onSpeaker: Bool) {
+        // Offline the server isn't asked, even with a network up (the
+        // listener's switch); what's heard meanwhile goes with the first
+        // sync after, counted from the last one made.
+        guard !OfflineMode.shared.isActive else { return }
         let paused = wasPlaying && !playing
         guard paused || (playing && Date.now.timeIntervalSince(lastServerSync) >= Self.serverSyncInterval) else { return }
         // What was heard since the last sync, for the server's listening
