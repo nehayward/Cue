@@ -42,7 +42,8 @@ struct TimerMenuView<Label: View>: View {
                     Task { await onSleepAtEndOfChapter() }
                 } label: {
                     if sleepsAtEndOfChapter {
-                        Label("End of Chapter", systemImage: "checkmark")
+                        // `Label` is this view's own label type here.
+                        SwiftUI.Label("End of Chapter", systemImage: "checkmark")
                     } else {
                         Text("End of Chapter")
                     }
