@@ -287,11 +287,13 @@ struct AudiobookDetailView: View {
     }
 }
 
-/// A book's description: four lines, the last fading out, with More under
-/// them, opening out to the whole of it. The text is laid out whole either
-/// way and only the frame showing it grows, so it opens as one smooth
-/// reveal rather than jumping from one layout of the text to another (a
-/// changing `lineLimit` re-wraps it mid-animation).
+/// A book's description: four lines, the last fading out, opening out to
+/// the whole of it at a tap anywhere on it, and closing again the same way.
+/// The text is laid out whole either way and only the frame showing it
+/// grows, so it opens as one smooth reveal rather than jumping from one
+/// layout of the text to another (a changing `lineLimit` re-wraps it
+/// mid-animation); as a geometry group it reaches the page as a single
+/// change of size, which the rows below follow in step.
 private struct AudiobookSummary: View {
     let text: String
 
@@ -306,39 +308,34 @@ private struct AudiobookSummary: View {
     private var isCollapsed: Bool { truncates && !isExpanded }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(text)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(height: isMeasured ? (isCollapsed ? collapsedHeight : fullHeight) : 0, alignment: .top)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .clipped()
-                .mask {
-                    VStack(spacing: 0) {
-                        Rectangle()
-                        LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
-                            .frame(height: isCollapsed ? 24 : 0)
-                    }
+        Text(text)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(height: isMeasured ? (isCollapsed ? collapsedHeight : fullHeight) : 0, alignment: .top)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .clipped()
+            // The last line fading out says there's more.
+            .mask {
+                VStack(spacing: 0) {
+                    Rectangle()
+                    LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
+                        .frame(height: isCollapsed ? 24 : 0)
                 }
-                .background(alignment: .top) { measurements }
-                .opacity(isMeasured ? 1 : 0)
+            }
+            .background(alignment: .top) { measurements }
+            .opacity(isMeasured ? 1 : 0)
+            .geometryGroup()
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .contentShape(.rect)
+            .onTapGesture(perform: toggle)
+            .accessibilityElement(children: .combine)
+            .accessibilityAction(named: isExpanded ? "Show Less" : "Show More", toggle)
+    }
 
-            if truncates {
-                Text(isExpanded ? "Less" : "More")
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.tint)
-            }
-        }
-        .font(.callout)
-        .foregroundStyle(.secondary)
-        .contentShape(.rect)
-        .onTapGesture {
-            guard truncates else { return }
-            withAnimation(.smooth(duration: 0.45)) {
-                isExpanded.toggle()
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityAction(named: isExpanded ? "Show Less" : "Show More") {
+    private func toggle() {
+        guard truncates else { return }
+        HapticManager.shared.fireHaptic(.selection)
+        withAnimation(.smooth(duration: 0.45)) {
             isExpanded.toggle()
         }
     }
