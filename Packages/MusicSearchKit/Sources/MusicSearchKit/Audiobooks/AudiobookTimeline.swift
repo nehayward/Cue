@@ -80,6 +80,49 @@ public extension Array where Element == AudiobookChapter {
         last { $0.start <= time + AudiobookChapter.boundaryTolerance }
     }
 
+    /// The chapter after the one playing at `time`: the first, before any
+    /// has begun. Nil in the last chapter.
+    func chapter(after time: TimeInterval) -> AudiobookChapter? {
+        guard let current = chapter(at: time) else { return first }
+        return first { $0.start > current.start }
+    }
+
+    /// Where Previous Chapter goes from `time`, as Previous goes for a
+    /// song: back to the start of the chapter playing once a few seconds
+    /// of it have been heard (`restartThreshold`), else to the start of the
+    /// one before. Nil with no chapters.
+    func previousChapterStart(from time: TimeInterval, restartThreshold: TimeInterval = 3) -> TimeInterval? {
+        guard let current = chapter(at: time) else { return first.map { _ in 0 } }
+        if time - current.start > restartThreshold { return current.start }
+        return last { $0.start < current.start }?.start ?? current.start
+    }
+
+    /// A book's chapters from each file's own marks, laid on the book's
+    /// timeline: a file with marks (an `.m4b`) gives them, offset to where
+    /// the file starts; a file without gives one chapter named for it, so a
+    /// book of a file per chapter reads the way it was ripped. A mark with
+    /// no end runs to the next one, or the end of its file.
+    static func from(files: [(title: String, marks: [AudiobookChapterMark])], timeline: AudiobookTimeline) -> [AudiobookChapter] {
+        var chapters: [AudiobookChapter] = []
+        for (index, file) in files.enumerated() {
+            let start = timeline.start(ofPart: index)
+            let end = start + (timeline.partDurations.indices.contains(index) ? timeline.partDurations[index] : 0)
+            let marks = file.marks.sorted { $0.start < $1.start }
+            if marks.isEmpty {
+                chapters.append(AudiobookChapter(id: chapters.count, title: file.title, start: start, end: end))
+                continue
+            }
+            for (markIndex, mark) in marks.enumerated() {
+                let markStart = Swift.min(start + mark.start, end)
+                let nextStart = markIndex + 1 < marks.count ? Swift.min(start + marks[markIndex + 1].start, end) : end
+                let markEnd = mark.end.map { Swift.min(start + $0, end) } ?? nextStart
+                let title = mark.title.flatMap { $0.isEmpty ? nil : $0 } ?? "Chapter \(chapters.count + 1)"
+                chapters.append(AudiobookChapter(id: chapters.count, title: title, start: markStart, end: markEnd))
+            }
+        }
+        return chapters
+    }
+
     /// One chapter per file, for a book whose files carry no chapter marks
     /// of their own: a file per chapter is how most rips are laid out, and
     /// the file's title is the chapter's.
@@ -98,6 +141,21 @@ extension AudiobookChapter {
     /// fraction short; without this, jumping to a chapter showed the one
     /// before it.
     static let boundaryTolerance: TimeInterval = 0.25
+}
+
+/// A chapter mark inside one file, as the server or the file itself gives
+/// it: seconds into that file.
+public struct AudiobookChapterMark: Sendable, Equatable, Codable, Hashable {
+    public let title: String?
+    public let start: TimeInterval
+    /// Nil when the mark doesn't say; it then runs to the next mark.
+    public let end: TimeInterval?
+
+    public init(title: String?, start: TimeInterval, end: TimeInterval? = nil) {
+        self.title = title
+        self.start = max(start, 0)
+        self.end = end
+    }
 }
 
 /// Where a listener is in a book.

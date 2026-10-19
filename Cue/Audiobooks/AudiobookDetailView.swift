@@ -49,7 +49,8 @@ struct AudiobookDetailView: View {
                 .listRowSeparator(.hidden)
             }
 
-            if let audiobook, !audiobook.chapters.isEmpty {
+            // One chapter is the whole book: nothing to choose between.
+            if let audiobook, audiobook.chapters.count > 1 {
                 Section {
                     ForEach(audiobook.chapters) { chapter in
                         chapterRow(chapter, in: audiobook)
@@ -159,26 +160,34 @@ struct AudiobookDetailView: View {
                     if player.isLoading {
                         ProgressView()
                     } else {
-                        Label(progress?.isStarted == true ? "Resume" : "Play", systemImage: "play.fill")
+                        Text("\(Image(systemName: "play.fill")) \(progress?.isStarted == true ? "Resume" : "Play")")
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .allowsTightening(true)
                     }
                 }
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .glassButton()
+            .foregroundStyle(.primary)
 
             if progress?.isStarted == true || progress?.isFinished == true {
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     Task { await player.play(shown, from: 0) }
                 } label: {
-                    Label("From Start", systemImage: "backward.end.fill")
+                    Text("\(Image(systemName: "backward.end.fill")) From Start")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .allowsTightening(true)
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
+                .glassButton()
+                .foregroundStyle(.primary)
             }
         }
+        .bold()
+        .fontDesign(.rounded)
         .disabled(audiobook == nil || player.isLoading)
     }
 

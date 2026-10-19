@@ -50,6 +50,7 @@ enum AudiobookLibrary {
             return nil
         }
         let timeline = PlexAudiobook.timeline(parts: files)
+        let marks = await plexChapterMarks(files)
         let item = await details
         let summary = item?.summary
         return Audiobook(
@@ -58,11 +59,34 @@ enum AudiobookLibrary {
             book: item?.toPlayable ?? book,
             parts: files.map(\.toPlayable),
             timeline: timeline,
-            chapters: PlexAudiobook.chapters(parts: files, timeline: timeline),
+            chapters: PlexAudiobook.chapters(parts: files, marks: marks, timeline: timeline),
             narrator: nil,
             summary: summary.flatMap { $0.isEmpty ? nil : $0 },
             serverProgress: PlexAudiobook.progress(parts: files, timeline: timeline)
         )
+    }
+
+    /// The chapter marks in a Plex book's files: Plex's, else the file's
+    /// own for a file Plex has none for (it lists an `.m4b`'s only when it
+    /// read them at scan).
+    private static func plexChapterMarks(_ files: [PlexMetadata]) async -> [String: [AudiobookChapterMark]] {
+        var marks = await PlexAPI.shared.audiobookChapterMarks(parts: files)
+        let fromPlex = marks.count
+        let unmarked = files.filter { marks[$0.ratingKey] == nil && ($0.chapters ?? []).isEmpty }
+        if !unmarked.isEmpty, files.count <= AudiobookChapterReader.fileLimit {
+            let read = await AudiobookChapterReader.marks(in: unmarked.map { (key: chapterCacheKey($0), url: $0.streamURL) })
+            for part in unmarked {
+                marks[part.ratingKey] = read[chapterCacheKey(part)]
+            }
+        }
+        log.info("plex book: \(files.count) files, marks for \(fromPlex) from Plex, \(marks.count - fromPlex) from the files")
+        return marks
+    }
+
+    /// A Plex file as the chapter cache knows it: a file replaced on the
+    /// server is read again.
+    private static func chapterCacheKey(_ part: PlexMetadata) -> String {
+        "plex:\(part.ratingKey):\(part.updatedAt ?? 0):\(part.duration ?? 0)"
     }
 
     private static func loadAudiobookshelf(_ book: PlayableContent) async -> Audiobook? {
@@ -82,11 +106,26 @@ enum AudiobookLibrary {
             book: item.toPlayable,
             parts: parts,
             timeline: item.timeline,
-            chapters: item.chapters,
+            chapters: await audiobookshelfChapters(item, parts: parts),
             narrator: metadata?.narratorName.flatMap { $0.isEmpty ? nil : $0 },
             summary: metadata?.description.flatMap { $0.isEmpty ? nil : $0 },
             serverProgress: item.progress
         )
+    }
+
+    /// An Audiobookshelf book's chapters: the server's, else the marks in
+    /// its files for a book the server found none in.
+    private static func audiobookshelfChapters(_ item: AudiobookshelfItem, parts: [PlayableContent]) async -> [AudiobookChapter] {
+        guard (item.media?.chapters ?? []).isEmpty else { return item.chapters }
+        let keys = parts.map { "audiobookshelf:\($0.content.id)" }
+        let marks = await AudiobookChapterReader.marks(in: zip(keys, parts).map { (key: $0, url: $1.previewURL) })
+        log.info("audiobookshelf book: \(parts.count) files, marks for \(marks.count) from the files")
+        guard !marks.isEmpty else { return item.chapters }
+        let tracks = item.media?.tracks ?? []
+        let files = keys.enumerated().map { index, key in
+            (title: tracks.indices.contains(index) ? tracks[index].title ?? "Part \(index + 1)" : "Part \(index + 1)", marks: marks[key] ?? [])
+        }
+        return .from(files: files, timeline: item.timeline)
     }
 
     /// Opens a listening session for an Audiobookshelf book and points its

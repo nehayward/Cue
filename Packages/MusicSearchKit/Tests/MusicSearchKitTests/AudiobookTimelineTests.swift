@@ -69,6 +69,27 @@ final class AudiobookTimelineTests: XCTestCase {
         XCTAssertNil([AudiobookChapter]().chapter(at: 10))
     }
 
+    func testNextAndPreviousChapter() {
+        let chapters = [
+            AudiobookChapter(id: 0, title: "One", start: 0, end: 600),
+            AudiobookChapter(id: 1, title: "Two", start: 600, end: 1200),
+            AudiobookChapter(id: 2, title: "Three", start: 1200, end: 1800)
+        ]
+        XCTAssertEqual(chapters.chapter(after: 10)?.id, 1)
+        XCTAssertEqual(chapters.chapter(after: 700)?.id, 2)
+        XCTAssertNil(chapters.chapter(after: 1300))
+        // Just short of a mark is already that chapter, so Next goes on
+        // past it rather than to it again.
+        XCTAssertEqual(chapters.chapter(after: 599.9)?.id, 2)
+
+        // A few seconds in, Previous goes back to the chapter's start…
+        XCTAssertEqual(chapters.previousChapterStart(from: 700), 600)
+        // …and right at it, to the one before.
+        XCTAssertEqual(chapters.previousChapterStart(from: 601), 0)
+        XCTAssertEqual(chapters.previousChapterStart(from: 2), 0)
+        XCTAssertNil([AudiobookChapter]().previousChapterStart(from: 10))
+    }
+
     func testChaptersPerFile() {
         let chapters = [AudiobookChapter].perPart(titles: ["Part 1", "Part 2", "Part 3", "Extra"], timeline: timeline)
         XCTAssertEqual(chapters.map(\.title), ["Part 1", "Part 2", "Part 3"])

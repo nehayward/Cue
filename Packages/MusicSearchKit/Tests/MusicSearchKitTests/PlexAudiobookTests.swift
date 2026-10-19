@@ -53,6 +53,42 @@ final class PlexAudiobookTests: XCTestCase {
         XCTAssertEqual(progress.updatedAt, Date(timeIntervalSince1970: 1_700_000_000))
     }
 
+    func testChapterLookupReadsOnlyTheMarks() throws {
+        // A track's full metadata, with fields the lookup doesn't model (and
+        // a summary-less, guid-less item that wouldn't decode as metadata).
+        let json = """
+        {"MediaContainer": {"size": 1, "Metadata": [{"ratingKey": "11", "type": "track",
+          "Media": [{"id": 5, "Part": [{"id": 9, "Stream": [{"id": 1, "streamType": 2}]}]}],
+          "Chapter": [{"id": 1, "tag": "Prologue", "startTimeOffset": 0, "endTimeOffset": 60000},
+                      {"id": 2, "tag": "One", "startTimeOffset": 60000}]}]}}
+        """
+        let lookup = try JSONDecoder().decode(PlexContainer<PlexChapterLookup>.self, from: Data(json.utf8))
+        let chapters = try XCTUnwrap(lookup.mediaContainer.metadata?.first?.chapters)
+        let marks = PlexAudiobook.chapterMarks(chapters)
+        XCTAssertEqual(marks, [
+            AudiobookChapterMark(title: "Prologue", start: 0, end: 60),
+            AudiobookChapterMark(title: "One", start: 60)
+        ])
+    }
+
+    func testMarksReadOnTheirOwnWin() throws {
+        let parts = try parts(container([
+            track("1", title: "Disc 1", duration: 600_000),
+            track("2", title: "Disc 2", duration: 600_000)
+        ]))
+        let timeline = PlexAudiobook.timeline(parts: parts)
+        let chapters = PlexAudiobook.chapters(
+            parts: parts,
+            marks: ["2": [AudiobookChapterMark(title: "Four", start: 0), AudiobookChapterMark(title: nil, start: 300)]],
+            timeline: timeline
+        )
+        // The first file has no marks and stands as one chapter; the
+        // second's are laid after it, an untitled one numbered in the book.
+        XCTAssertEqual(chapters.map(\.title), ["Disc 1", "Four", "Chapter 3"])
+        XCTAssertEqual(chapters.map(\.start), [0, 600, 900])
+        XCTAssertEqual(chapters.map(\.end), [600, 900, 1200])
+    }
+
     func testAFilePerChapter() throws {
         let parts = try parts(container([
             track("1", title: "Chapter 1", duration: 600_000, viewCount: 1, lastViewedAt: 100),

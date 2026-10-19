@@ -14,34 +14,29 @@ public enum PlexAudiobook {
         return TimeInterval(milliseconds) / 1000
     }
 
-    /// The book's chapters. A file with chapter marks inside (an `.m4b`)
-    /// gives its marks; a file without gives one chapter, named for the
-    /// file — so a book of a file per chapter reads the way it was ripped.
-    public static func chapters(parts: [PlexMetadata], timeline: AudiobookTimeline) -> [AudiobookChapter] {
-        var chapters: [AudiobookChapter] = []
-        for (index, part) in parts.enumerated() {
-            let start = timeline.start(ofPart: index)
-            let end = start + (timeline.partDurations[safe: index] ?? 0)
-            let marks = (part.chapters ?? [])
-                .compactMap { mark -> (title: String?, start: TimeInterval, end: TimeInterval?)? in
-                    guard let offset = mark.startTimeOffset else { return nil }
-                    return (mark.tag, TimeInterval(offset) / 1000, mark.endTimeOffset.map { TimeInterval($0) / 1000 })
-                }
-                .sorted { $0.start < $1.start }
-            if marks.isEmpty {
-                chapters.append(AudiobookChapter(id: chapters.count, title: part.title, start: start, end: end))
-                continue
-            }
-            for (markIndex, mark) in marks.enumerated() {
-                let markStart = start + mark.start
-                // A mark without an end runs to the next one, or the file's.
-                let nextStart = marks[safe: markIndex + 1].map { start + $0.start } ?? end
-                let markEnd = mark.end.map { min(start + $0, end) } ?? nextStart
-                let title = mark.title.flatMap { $0.isEmpty ? nil : $0 } ?? "Chapter \(chapters.count + 1)"
-                chapters.append(AudiobookChapter(id: chapters.count, title: title, start: markStart, end: markEnd))
-            }
+    /// The book's chapters: each file's marks (an `.m4b`'s), from `marks`
+    /// by the file's rating key where they were read on their own (from
+    /// Plex, or from the file itself), else as the file's metadata carries
+    /// them; a file without gives one chapter named for it (see
+    /// `[AudiobookChapter].from(files:timeline:)`).
+    public static func chapters(parts: [PlexMetadata], marks: [String: [AudiobookChapterMark]] = [:], timeline: AudiobookTimeline) -> [AudiobookChapter] {
+        let files = parts.map { part in
+            (title: part.title, marks: marks[part.ratingKey] ?? chapterMarks(part.chapters ?? []))
         }
-        return chapters
+        return .from(files: files, timeline: timeline)
+    }
+
+    /// Plex's chapter marks as book chapter marks: offsets in milliseconds
+    /// into the file. A mark with no start is dropped.
+    public static func chapterMarks(_ chapters: [PlexChapter]) -> [AudiobookChapterMark] {
+        chapters.compactMap { mark in
+            guard let offset = mark.startTimeOffset else { return nil }
+            return AudiobookChapterMark(
+                title: mark.tag,
+                start: TimeInterval(offset) / 1000,
+                end: mark.endTimeOffset.map { TimeInterval($0) / 1000 }
+            )
+        }
     }
 
     /// Where the book was left, from what Plex keeps for each file: the file
@@ -82,11 +77,5 @@ public enum PlexAudiobook {
 
     private static func date(_ seconds: Int?) -> Date {
         seconds.map { Date(timeIntervalSince1970: TimeInterval($0)) } ?? .distantPast
-    }
-}
-
-private extension Array {
-    subscript(safe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
     }
 }

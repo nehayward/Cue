@@ -71,6 +71,25 @@ public struct PlexMetadataList: Codable, Sendable {
     }
 }
 
+/// A file's metadata read for its chapter marks alone
+/// (`/library/metadata/<key>?includeChapters=1`), so nothing else in a
+/// track's metadata can fail the decode.
+struct PlexChapterLookup: Codable, Sendable {
+    let metadata: [Item]?
+
+    struct Item: Codable, Sendable {
+        let chapters: [PlexChapter]?
+
+        enum CodingKeys: String, CodingKey {
+            case chapters = "Chapter"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case metadata = "Metadata"
+    }
+}
+
 /// A chapter mark inside a file, as Plex reads it from an `.m4b`
 /// (`includeChapters=1`). Offsets are milliseconds into the file.
 public struct PlexChapter: Codable, Sendable, Hashable {

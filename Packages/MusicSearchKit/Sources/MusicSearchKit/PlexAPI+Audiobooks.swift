@@ -175,33 +175,48 @@ extension PlexAPI {
 
     // MARK: - A book's files
 
-    /// A book's files in playing order, with their stream URLs, where each
-    /// was left, and the chapter marks inside them. Plex lists chapters
-    /// only on an item's own metadata, so a book of a few files (an `.m4b`,
-    /// or one per CD) is read again with `includeChapters=1`; a book of
-    /// many files is a file per chapter, and the files are its chapters.
+    /// A book's files in playing order, with their stream URLs and where
+    /// each was left. Their chapter marks come on their own
+    /// (`audiobookChapterMarks(parts:)`).
     public func audiobookParts(ratingKey: String) async -> [PlexMetadata]? {
         guard let server = await getPlexServer(),
               let base = getBaseURL(for: server) else { return nil }
         let childrenURL = base.appending(path: "/library/metadata/\(ratingKey)/children")
+            .appending(queryItems: [URLQueryItem(name: "includeChapters", value: "1")])
         guard let container: PlexContainer<PlexMetadataList> = await loadAuthorized(childrenURL) else { return nil }
-        var parts = container.mediaContainer.metadata ?? []
-        if !parts.isEmpty, parts.count <= Self.chapterLookupLimit {
-            var url = base.appending(path: "/library/metadata/\(parts.map(\.ratingKey).joined(separator: ","))")
-            url.append(queryItems: [URLQueryItem(name: "includeChapters", value: "1")])
-            let detailed: PlexContainer<PlexMetadataList>? = await loadAuthorized(url)
-            let byKey = Dictionary(
-                (detailed?.mediaContainer.metadata ?? []).map { ($0.ratingKey, $0) },
-                uniquingKeysWith: { first, _ in first }
-            )
-            // The detailed copy where there is one, in the children's order.
-            parts = parts.map { byKey[$0.ratingKey] ?? $0 }
-        }
-        return await enrichMetadata(metadata: parts)
+        return await enrichMetadata(metadata: container.mediaContainer.metadata ?? [])
     }
 
-    /// Up to this many files, a book is read again for its chapter marks.
-    private static let chapterLookupLimit = 8
+    /// The chapter marks inside a book's files (an `.m4b`'s), by each
+    /// file's rating key; a file with none is left out. Plex lists them
+    /// only on a file's own metadata with `includeChapters=1`, so each file
+    /// is asked on its own, and read for nothing but its marks: a whole
+    /// track's metadata that didn't decode lost them before. A book of many
+    /// files is a file per chapter, and isn't asked.
+    public func audiobookChapterMarks(parts: [PlexMetadata]) async -> [String: [AudiobookChapterMark]] {
+        guard !parts.isEmpty, parts.count <= Self.chapterLookupLimit,
+              let server = await getPlexServer(),
+              let base = getBaseURL(for: server) else { return [:] }
+        return await withTaskGroup(of: (String, [AudiobookChapterMark]).self) { group in
+            for part in parts {
+                group.addTask {
+                    let url = base.appending(path: "/library/metadata/\(part.ratingKey)")
+                        .appending(queryItems: [URLQueryItem(name: "includeChapters", value: "1")])
+                    let container: PlexContainer<PlexChapterLookup>? = await self.loadAuthorized(url)
+                    let chapters = container?.mediaContainer.metadata?.first?.chapters ?? []
+                    return (part.ratingKey, PlexAudiobook.chapterMarks(chapters))
+                }
+            }
+            var marks: [String: [AudiobookChapterMark]] = [:]
+            for await (key, found) in group where !found.isEmpty {
+                marks[key] = found
+            }
+            return marks
+        }
+    }
+
+    /// Up to this many files, a book's files are asked for chapter marks.
+    public static let chapterLookupLimit = 8
 
     // MARK: - Played state
 
