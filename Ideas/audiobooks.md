@@ -67,6 +67,11 @@ JSON, URLs) have unit tests that pass on Linux.
   (`AudiobookChapterReader`, cached in Caches/AudiobookChapters.json). A
   file with no marks anywhere is one chapter named for it; a book whose
   only chapter is the whole book shows no chapter list.
+- A book with no marks anywhere takes Audible's chapters when the Audnexus
+  agent matched it (the ASIN in the album's guid,
+  `com.plexapp.agents.audnexus://<asin>`), from `api.audnex.us` —
+  `AudnexusChapters`, laid on the book only when its length is Audible's,
+  with or without Audible's branding at each end.
 - On a speaker, Plex files play through Plex's Sonos service (sid 212), as
   for music. While a speaker plays, `AudiobookPlayer` sends the timeline
   reports the device sends itself through `PlayReporter`.
@@ -91,6 +96,12 @@ JSON, URLs) have unit tests that pass on Linux.
 - Library screen: library picker, Continue Listening, All Books (sorts:
   title, author, recently added, length), Recently Added. Search covers
   every book library.
+- Chapters: the server's (ffprobe's, at scan), else the files' own read
+  with AVFoundation through the signed file URL (never a session's, which
+  may have ended), else Audible's for a book matched there: the server's
+  own Lookup (`/api/search/chapters?asin=`), fitted as for Plex.
+- Descriptions are HTML; `AudiobookText.plain` reads them as text (Plex's
+  book agents fill summaries with `<br />` too).
 
 ## Left to do
 

@@ -103,6 +103,8 @@ public struct AudiobookshelfBookMetadata: Decodable, Sendable {
     public let seriesName: String?
     public let description: String?
     public let publishedYear: String?
+    /// Audible's id for the book, when it was matched there.
+    public let asin: String?
 }
 
 public struct AudiobookshelfChapter: Decodable, Sendable {

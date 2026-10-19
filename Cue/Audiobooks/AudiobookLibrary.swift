@@ -64,16 +64,26 @@ enum AudiobookLibrary {
         let timeline = PlexAudiobook.timeline(parts: files)
         let marks = await plexChapterMarks(files)
         let item = await details
-        let summary = item?.summary
+        var chapters = PlexAudiobook.chapters(parts: files, marks: marks, timeline: timeline)
+        // No marks anywhere: Audible's, for a book the Audnexus agent matched.
+        if chapters.count <= 1, let match = AudnexusChapters.asin(fromPlexGuid: item?.guid) {
+            let region = match.region ?? "us"
+            if let audible = await AudiobookChapterReader.audibleChapters(asin: match.asin, duration: timeline.duration, lookup: {
+                await AudnexusAPI.chapters(asin: match.asin, region: region)
+            }) {
+                log.info("plex book \(key, privacy: .public): \(audible.count) chapters from Audible")
+                chapters = audible
+            }
+        }
         return Audiobook(
             // The server's own copy where it answered: a shelf's row may
             // carry what's left in its subtitle, which history shouldn't keep.
             book: item?.toPlayable ?? book,
             parts: files.map(\.toPlayable),
             timeline: timeline,
-            chapters: PlexAudiobook.chapters(parts: files, marks: marks, timeline: timeline),
+            chapters: chapters,
             narrator: nil,
-            summary: summary.flatMap { $0.isEmpty ? nil : $0 },
+            summary: readable(item?.summary),
             serverProgress: PlexAudiobook.progress(parts: files, timeline: timeline)
         )
     }
@@ -120,24 +130,49 @@ enum AudiobookLibrary {
             timeline: item.timeline,
             chapters: await audiobookshelfChapters(item, parts: parts),
             narrator: metadata?.narratorName.flatMap { $0.isEmpty ? nil : $0 },
-            summary: metadata?.description.flatMap { $0.isEmpty ? nil : $0 },
+            summary: readable(metadata?.description),
             serverProgress: item.progress
         )
     }
 
     /// An Audiobookshelf book's chapters: the server's, else the marks in
-    /// its files for a book the server found none in.
+    /// its files for a book the server found none in, else Audible's for a
+    /// book matched there (looked up by the server, as its chapter editor
+    /// does).
     private static func audiobookshelfChapters(_ item: AudiobookshelfItem, parts: [PlayableContent]) async -> [AudiobookChapter] {
         guard (item.media?.chapters ?? []).isEmpty else { return item.chapters }
         let keys = parts.map { "audiobookshelf:\($0.content.id)" }
-        let marks = await AudiobookChapterReader.marks(in: zip(keys, parts).map { (key: $0, url: $1.previewURL) })
+        // The file itself, not a session's track: a session held here may
+        // have ended on the server.
+        let marks = await AudiobookChapterReader.marks(in: zip(keys, parts).map { key, part in
+            (key: key, url: AudiobookshelfAPI.fileURL(for: part.content.id, fileExtension: part.metadata?.audioCodec))
+        })
         log.info("audiobookshelf book: \(parts.count) files, marks for \(marks.count) from the files")
-        guard !marks.isEmpty else { return item.chapters }
-        let tracks = item.media?.tracks ?? []
-        let files = keys.enumerated().map { index, key in
-            (title: tracks.indices.contains(index) ? tracks[index].title ?? "Part \(index + 1)" : "Part \(index + 1)", marks: marks[key] ?? [])
+        if !marks.isEmpty {
+            let tracks = item.media?.tracks ?? []
+            let files = keys.enumerated().map { index, key in
+                (title: tracks.indices.contains(index) ? tracks[index].title ?? "Part \(index + 1)" : "Part \(index + 1)", marks: marks[key] ?? [])
+            }
+            return .from(files: files, timeline: item.timeline)
         }
-        return .from(files: files, timeline: item.timeline)
+        if item.chapters.count <= 1, let asin = item.media?.metadata?.asin?.uppercased(), AudnexusChapters.isASIN(asin) {
+            let duration = item.timeline.duration
+            if let audible = await AudiobookChapterReader.audibleChapters(asin: asin, duration: duration, lookup: {
+                await AudiobookshelfAPI.shared.audibleChapters(asin: asin)
+            }) {
+                log.info("audiobookshelf book: \(audible.count) chapters from Audible")
+                return audible
+            }
+            log.info("audiobookshelf book \(asin, privacy: .public): no Audible chapters that fit \(Int(duration)) s")
+        }
+        return item.chapters
+    }
+
+    /// A book's description as text: servers keep it as HTML.
+    private static func readable(_ description: String?) -> String? {
+        guard let description else { return nil }
+        let text = AudiobookText.plain(description)
+        return text.isEmpty ? nil : text
     }
 
     /// Opens a listening session for an Audiobookshelf book and points its

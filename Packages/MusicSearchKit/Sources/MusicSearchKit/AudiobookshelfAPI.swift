@@ -343,6 +343,17 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         return (200...299).contains(status)
     }
 
+    /// Audible's chapters for `asin`, which the server looks up on
+    /// Audnexus: its chapter editor's Lookup. Nil when the server couldn't
+    /// be asked.
+    public func audibleChapters(asin: String, region: String = "us") async -> AudnexusChapters? {
+        guard AudnexusChapters.isASIN(asin) else { return nil }
+        return await get("/api/search/chapters", query: [
+            URLQueryItem(name: "asin", value: asin),
+            URLQueryItem(name: "region", value: region)
+        ])
+    }
+
     // MARK: - Media URLs
 
     /// A book file's URL for `id` (an `AudiobookshelfPartID`): its session
@@ -356,6 +367,14 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
             return AudiobookshelfURLs.sessionTrackURL(base: base, sessionID: sessionID, index: part.index, fileExtension: fileExtension)
         }
         guard let token = storedTokens()?.access else { return nil }
+        return AudiobookshelfURLs.fileURL(base: base, itemID: part.itemID, fileID: part.fileID, token: token, fileExtension: fileExtension)
+    }
+
+    /// A book file's URL signed with the access token, whether or not a
+    /// session is open: for reading the file rather than playing it.
+    public static func fileURL(for id: String, fileExtension: String?) -> URL? {
+        guard let part = AudiobookshelfPartID(id), let base = storedServerURL,
+              let token = storedTokens()?.access else { return nil }
         return AudiobookshelfURLs.fileURL(base: base, itemID: part.itemID, fileID: part.fileID, token: token, fileExtension: fileExtension)
     }
 

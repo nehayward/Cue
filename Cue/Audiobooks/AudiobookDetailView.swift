@@ -13,7 +13,6 @@ struct AudiobookDetailView: View {
 
     @State private var audiobook: Audiobook?
     @State private var failed = false
-    @State private var showsFullSummary = false
     @State private var player = AudiobookPlayer.shared
     @State private var store = AudiobookProgressStore.shared
 
@@ -40,11 +39,7 @@ struct AudiobookDetailView: View {
 
             if let summary = audiobook?.summary {
                 Section {
-                    Text(summary)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(showsFullSummary ? nil : 4)
-                        .onTapGesture { withAnimation { showsFullSummary.toggle() } }
+                    AudiobookSummary(text: summary)
                 }
                 .listRowSeparator(.hidden)
             }
@@ -101,8 +96,9 @@ struct AudiobookDetailView: View {
     private var header: some View {
         VStack(spacing: 12) {
             ContentArtworkView(content: shown, showMusicSource: false, preferredSize: ContentArtworkView.playerPreferredSize, cornerRadius: 8)
-                .frame(maxWidth: 260)
-                .aspectRatio(1, contentMode: .fit)
+                // A fixed square: given only a width, the cover took the
+                // row's height too and sat in a band of empty space.
+                .frame(width: 260, height: 260)
                 .overlay(alignment: .bottom) {
                     if let fraction = progress?.fraction, progress?.isStarted == true {
                         AudiobookProgressBar(fraction: fraction, tint: .white, isRounded: false)
@@ -259,5 +255,77 @@ struct AudiobookDetailView: View {
             store.record(server, for: loaded.book)
         }
         audiobook = loaded
+    }
+}
+
+/// A book's description: four lines, the last fading out, with More under
+/// them, opening out to the whole of it. The text is laid out whole either
+/// way and only the frame showing it grows, so it opens as one smooth
+/// reveal rather than jumping from one layout of the text to another (a
+/// changing `lineLimit` re-wraps it mid-animation).
+private struct AudiobookSummary: View {
+    let text: String
+
+    @State private var isExpanded = false
+    @State private var fullHeight: CGFloat = 0
+    @State private var collapsedHeight: CGFloat = 0
+
+    private static let collapsedLines = 4
+
+    private var isMeasured: Bool { fullHeight > 0 && collapsedHeight > 0 }
+    private var truncates: Bool { fullHeight > collapsedHeight + 1 }
+    private var isCollapsed: Bool { truncates && !isExpanded }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(text)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(height: isMeasured ? (isCollapsed ? collapsedHeight : fullHeight) : 0, alignment: .top)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .clipped()
+                .mask {
+                    VStack(spacing: 0) {
+                        Rectangle()
+                        LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
+                            .frame(height: isCollapsed ? 24 : 0)
+                    }
+                }
+                .background(alignment: .top) { measurements }
+                .opacity(isMeasured ? 1 : 0)
+
+            if truncates {
+                Text(isExpanded ? "Less" : "More")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.tint)
+            }
+        }
+        .font(.callout)
+        .foregroundStyle(.secondary)
+        .contentShape(.rect)
+        .onTapGesture {
+            guard truncates else { return }
+            withAnimation(.smooth(duration: 0.45)) {
+                isExpanded.toggle()
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAction(named: isExpanded ? "Show Less" : "Show More") {
+            isExpanded.toggle()
+        }
+    }
+
+    /// The text's whole height and its first four lines' at the width it's
+    /// shown at, from hidden copies of it.
+    private var measurements: some View {
+        ZStack(alignment: .top) {
+            Text(text)
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
+            Text(text)
+                .lineLimit(Self.collapsedLines)
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { collapsedHeight = $0 }
+        }
+        .hidden()
     }
 }

@@ -95,6 +95,30 @@ enum AudiobookChapterReader {
         return marks
     }
 
+    // MARK: - Audible's chapters
+
+    /// Audible's chapters for a book with no marks anywhere, by its ASIN
+    /// (`AudnexusChapters`), laid on a book `duration` long. Nil when
+    /// Audible has none, or none that fit this edition. `lookup` asks the
+    /// book's server or Audnexus; an answer is kept with the files' marks
+    /// (none too), and a lookup that couldn't be made is tried next time.
+    static func audibleChapters(
+        asin: String,
+        duration: TimeInterval,
+        lookup: () async -> AudnexusChapters?
+    ) async -> [AudiobookChapter]? {
+        let key = "audnexus:\(asin):\(Int(duration.rounded()))"
+        if let cached = cache[key] {
+            guard !cached.isEmpty else { return nil }
+            return .from(files: [(title: "", marks: cached)], timeline: AudiobookTimeline(partDurations: [duration]))
+        }
+        guard let answer = await lookup() else { return nil }
+        let fitted = answer.chapters(fitting: duration) ?? []
+        cache[key] = fitted.map { AudiobookChapterMark(title: $0.title, start: $0.start, end: $0.end) }
+        save()
+        return fitted.isEmpty ? nil : fitted
+    }
+
     // MARK: - Cache
 
     private static var cache: [String: [AudiobookChapterMark]] = load()

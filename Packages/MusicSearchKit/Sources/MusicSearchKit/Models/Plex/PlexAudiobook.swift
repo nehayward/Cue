@@ -7,6 +7,9 @@ import Foundation
 /// genres, which tell a book kept among music apart.
 public struct PlexAudiobookItem: Codable, Sendable {
     public let ratingKey: String
+    /// The agent's id for it: for one matched by Audnexus, the book's ASIN
+    /// (`com.plexapp.agents.audnexus://<asin>?lang=en`).
+    public let guid: String?
     public let title: String
     public let titleSort: String?
     /// The author: a book's album artist.
@@ -32,7 +35,7 @@ public struct PlexAudiobookItem: Codable, Sendable {
     public var sonosID: String?
 
     enum CodingKeys: String, CodingKey {
-        case ratingKey, title, titleSort, parentTitle, parentRatingKey, summary, studio, year, thumb
+        case ratingKey, guid, title, titleSort, parentTitle, parentRatingKey, summary, studio, year, thumb
         case leafCount, viewedLeafCount, lastViewedAt, addedAt, librarySectionID
         case genres = "Genre"
     }
