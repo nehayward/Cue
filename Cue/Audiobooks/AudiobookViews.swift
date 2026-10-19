@@ -84,17 +84,8 @@ struct AudiobookRow: View {
 
     var body: some View {
         let progress = AudiobookProgressStore.shared.progress(for: book)
-        PlayableContentView(item: book.withAudiobookProgress(progress))
-            .overlay(alignment: .bottomLeading) {
-                if let fraction = progress?.fraction, progress?.isStarted == true || progress?.isFinished == true {
-                    // From the text's leading edge (the 50pt cover and its
-                    // 8pt spacing), as Clic's Audible rows have it.
-                    AudiobookProgressBar(fraction: fraction, height: 2)
-                        .padding(.leading, 74)
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 2)
-                }
-            }
+        let isListened = progress?.isStarted == true || progress?.isFinished == true
+        PlayableContentView(item: book.withAudiobookProgress(progress), progress: isListened ? progress?.fraction : nil)
     }
 }
 

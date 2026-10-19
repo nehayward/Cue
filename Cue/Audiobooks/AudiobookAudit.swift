@@ -23,6 +23,11 @@ enum AudiobookAudit {
     private static let log = Logger(subsystem: "dance.cue", category: "audiobook-audit")
 
     static func startIfRequested() {
+        // `-AudiobookAuditTab YES`: opens on the Audiobooks tab, for a look
+        // at its rows.
+        if UserDefaults.standard.bool(forKey: "AudiobookAuditTab") {
+            Router.main.selectedTab = .audiobooks
+        }
         // `-AudiobookAuditScan YES`: a pull to refresh's Plex scan, then
         // the libraries' last scans.
         if UserDefaults.standard.bool(forKey: "AudiobookAuditScan") {
