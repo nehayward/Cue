@@ -1,7 +1,7 @@
 import SwiftUI
 import SonosKit
 
-struct TimerMenuView<Label: View>: View {
+struct TimerMenuView<MenuLabel: View>: View {
     @State var router = Router()
 
     var recentTimers: Storage<Duration> = Storage("sleep")
@@ -21,7 +21,7 @@ struct TimerMenuView<Label: View>: View {
     /// End of Chapter is the timer running: its item is checked.
     var sleepsAtEndOfChapter = false
 
-    @ViewBuilder var label: Label
+    @ViewBuilder var label: MenuLabel
 
     var body: some View {
         Menu {
@@ -42,8 +42,7 @@ struct TimerMenuView<Label: View>: View {
                     Task { await onSleepAtEndOfChapter() }
                 } label: {
                     if sleepsAtEndOfChapter {
-                        // `Label` is this view's own label type here.
-                        SwiftUI.Label("End of Chapter", systemImage: "checkmark")
+                        Label("End of Chapter", systemImage: "checkmark")
                     } else {
                         Text("End of Chapter")
                     }

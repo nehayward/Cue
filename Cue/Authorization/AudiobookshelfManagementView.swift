@@ -163,7 +163,7 @@ struct AudiobookshelfManagementView: View {
         Task { await AudiobookshelfBrowseService.shared.refresh() }
         // Done: the sheet goes, and the banner is the way to the books — the
         // Audiobooks tab, which the sign-in has just brought in.
-        HapticManager.shared.fireHaptic(.success)
+        HapticManager.shared.fireHaptic(.notification(.success))
         dismiss()
         AlertService.shared.showActionAlert(
             with: "Signed In to Audiobookshelf",
