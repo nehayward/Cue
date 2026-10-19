@@ -136,11 +136,11 @@ One item per branch, as in the roadmap.
   NAS (`Audiobook` to `Audiobooks`). Pointed at the new name and scanned
   (2026-10-19); all four books stream, and the Tolkien books take
   Audible's chapters on Plex too.
-- [ ] **An mp3's own chapters on Plex** — Plex strips the ID3 tag from a
-  part as it streams it (Fellowship comes 57 KB short, starting at the
-  first audio frame), so an mp3's `CHAP` frames never reach AVFoundation.
-  The tag would have to come from the original file (`download=1`, if
-  Plex serves it whole there).
+- [ ] **An mp3's own chapters on Plex** — not possible from Cue: Plex
+  strips the ID3 tag from a part as it sends it, `download=1` too (The
+  Two Towers comes 57 KB short either way, starting at the first audio
+  frame), so an mp3's `CHAP` frames never arrive. Audible's chapters
+  stand in; the same file on Audiobookshelf keeps its own.
 - [ ] **Check on a speaker** (unverified):
   - a 10 h+ `.m4b` from Plex through sid 212, seeking late in the file;
   - Audiobookshelf session URLs with the `ext=.m4a` hint (Sonos has no
