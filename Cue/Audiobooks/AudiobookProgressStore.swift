@@ -63,6 +63,23 @@ final class AudiobookProgressStore {
         scheduleSave()
     }
 
+    /// Notes the server's reading of a book, kept only when it's clearly
+    /// newer than this device's (`AudiobookProgress.preferring`): a server
+    /// a few seconds behind this device's own play mustn't take it back.
+    func recordFromServer(_ reading: AudiobookProgress, for book: PlayableContent) {
+        recordFromServer(reading, key: Self.key(for: book))
+    }
+
+    /// The same, for a book known by its server and id.
+    func recordFromServer(_ reading: AudiobookProgress, service: MusicService, id: String) {
+        recordFromServer(reading, key: Self.key(service: service, id: id))
+    }
+
+    private func recordFromServer(_ reading: AudiobookProgress, key: String) {
+        guard AudiobookProgress.preferring(local: readings[key], server: reading) == reading else { return }
+        record(reading, key: key)
+    }
+
     /// Forgets this device's reading, for a book marked unplayed.
     func forget(_ book: PlayableContent) {
         guard readings.removeValue(forKey: Self.key(for: book)) != nil else { return }

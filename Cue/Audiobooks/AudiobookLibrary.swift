@@ -105,7 +105,7 @@ enum AudiobookLibrary {
     private static func sendNewerPlace(of audiobook: Audiobook) {
         guard audiobook.book.content.service == .audiobookshelf,
               let local = AudiobookProgressStore.shared.progress(for: audiobook.book) else { return }
-        if let server = audiobook.serverProgress, server.updatedAt.addingTimeInterval(60) >= local.updatedAt { return }
+        if let server = audiobook.serverProgress, server.updatedAt.addingTimeInterval(AudiobookProgress.serverGrace) >= local.updatedAt { return }
         let itemID = audiobook.book.content.id
         let duration = audiobook.duration
         log.notice("\(audiobook.book.title, privacy: .public): sending this device's newer place, \(Int(local.position)) s\(local.isFinished ? ", finished" : "", privacy: .public)")
@@ -316,7 +316,7 @@ enum AudiobookLibrary {
     /// Where to pick the book up: the newer of this device's reading and
     /// the server's.
     static func progress(for audiobook: Audiobook) -> AudiobookProgress? {
-        AudiobookProgress.newer(AudiobookProgressStore.shared.progress(for: audiobook.book), audiobook.serverProgress)
+        AudiobookProgress.preferring(local: AudiobookProgressStore.shared.progress(for: audiobook.book), server: audiobook.serverProgress)
     }
 
     /// Marks the book finished, or not started, here and on its server.

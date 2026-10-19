@@ -141,7 +141,11 @@ final class AudiobookPlayer {
             AlertService.shared.showAlert(with: "Couldn't open “\(book.title)”", imageName: "exclamationmark.triangle")
             return
         }
-        let startTime = min(max(time ?? AudiobookLibrary.progress(for: audiobook)?.resumePosition ?? 0, 0), audiobook.duration)
+        let reading = AudiobookLibrary.progress(for: audiobook)
+        let startTime = min(max(time ?? reading?.resumePosition ?? 0, 0), audiobook.duration)
+        let local = AudiobookProgressStore.shared.progress(for: audiobook.book)
+        let from = time != nil ? "asked" : reading == nil ? "the top" : reading == local ? "this device's place" : "the server's place"
+        Self.log.notice("play \(audiobook.book.title, privacy: .public) at \(Int(startTime)) s (\(audiobook.chapter(at: startTime)?.title ?? "-", privacy: .public)), from \(from, privacy: .public); this device \(local.map { "\(Int($0.position)) s" } ?? "none", privacy: .public), server \(audiobook.serverProgress.map { "\(Int($0.position)) s" } ?? "none", privacy: .public)")
         // The book, not its files: Recently Played opens its page. Only
         // once it's playing: one that wouldn't start wasn't listened to.
         if await start(audiobook, at: startTime, on: target) {

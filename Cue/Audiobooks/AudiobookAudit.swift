@@ -1,5 +1,6 @@
 #if DEBUG
 import Foundation
+import MediaPlayer
 import MusicSearchKit
 import OSLog
 import SonosKit
@@ -51,6 +52,12 @@ enum AudiobookAudit {
                 log.notice("token: renewed \(renewed); expires within 5 min \(AudiobookshelfAPI.accessTokenExpires(within: 300)), within 2 h \(AudiobookshelfAPI.accessTokenExpires(within: 7200)), signed in \(AudiobookshelfAPI.shared.isConfigured)")
             }
         }
+        // `-AudiobookAuditPlayChapter "<title>|<service>|<chapter>"`: plays a
+        // book from a chapter (from 1) as its page does, then follows what
+        // plays and what the Now Playing card says, and pauses.
+        if let spec = UserDefaults.standard.string(forKey: "AudiobookAuditPlayChapter") {
+            Task { await playChapter(spec) }
+        }
         // `-AudiobookAuditDownload <title>`: downloads the books with that
         // in their title, on every server, as the book page's button does,
         // and follows them to the end.
@@ -63,6 +70,46 @@ enum AudiobookAudit {
         }
         guard let title = UserDefaults.standard.string(forKey: "AudiobookAudit"), !title.isEmpty else { return }
         Task { await run(title: title) }
+    }
+
+    private static func playChapter(_ spec: String) async {
+        try? await Task.sleep(for: .seconds(5))
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        let parts = spec.split(separator: "|").map(String.init)
+        guard parts.count == 3, let number = Int(parts[2]) else { return }
+        let books = await CarPlayLibrary.bookShelves().flatMap(\.items)
+        guard let book = books.first(where: { $0.title.localizedCaseInsensitiveContains(parts[0]) && $0.content.service.sonosRawValue == parts[1] }),
+              let audiobook = await AudiobookLibrary.load(book), audiobook.chapters.indices.contains(number - 1) else {
+            log.error("play chapter: no such book or chapter")
+            return
+        }
+        let chapter = audiobook.chapters[number - 1]
+        log.notice("play chapter: \(audiobook.parts.count) files; chapter \(number) \(chapter.title, privacy: .public) at \(Int(chapter.start)) s")
+        let local = LocalPlaybackService.shared
+        let playable = audiobook.parts.filter { local.canPlayLocally($0) }.count
+        log.notice("play chapter: \(playable) of \(audiobook.parts.count) files playable here; first: \(audiobook.parts.first?.title ?? "-", privacy: .public) \(local.canPlayLocally(audiobook.parts[0]))")
+        func follow(_ step: String, seconds: Int) async {
+            for second in stride(from: 2, through: seconds, by: 2) {
+                try? await Task.sleep(for: .seconds(2))
+                let card = MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyTitle] as? String ?? "-"
+                log.notice("play chapter \(step, privacy: .public) +\(second) s: playing \(local.nowPlaying?.title ?? "-", privacy: .public) (row \(local.currentIndex) of \(local.queue.count)), \(Int(local.progress)) s in; book's chapter \(AudiobookPlayer.shared.currentChapter?.title ?? "-", privacy: .public); card \(card, privacy: .public)")
+            }
+        }
+        let player = AudiobookPlayer.shared
+        await player.play(audiobook.book, from: chapter.start, on: .device)
+        await follow("played", seconds: 4)
+        // The book page's rows while the book plays: a jump each.
+        if audiobook.chapters.count > 2 {
+            await player.jump(to: audiobook.chapters[2].start)
+            await follow("jumped to 3", seconds: 4)
+            await player.jump(to: audiobook.chapters[0].start)
+            await follow("jumped to 1", seconds: 4)
+            // Across a chapter's end, into the next file.
+            await player.jump(to: audiobook.chapters[1].start - 4)
+            await follow("across into 2", seconds: 10)
+        }
+        local.pause()
+        #endif
     }
 
     private static func download(title: String) async {
@@ -195,7 +242,7 @@ enum AudiobookAudit {
         for (index, file) in files.prefix(AudiobookChapterReader.fileLimit).enumerated() {
             report.save(await plexJSON("/library/metadata/\(file.ratingKey)", query: chapters, like: first), as: "file-\(index + 1).json")
             let seconds = (file.duration ?? 0) / 1000
-            report.line("file \(index + 1): \(file.title), \(seconds) s, .\(file.streamURL?.pathExtension ?? "?"), Plex chapters: \(file.chapters?.count ?? 0)")
+            report.line("file \(index + 1): \(file.title), \(seconds) s, .\(file.streamURL?.pathExtension ?? "?"), Plex chapters: \(file.chapters?.count ?? 0); played \(file.viewCount ?? 0)×, left at \((file.viewOffset ?? 0) / 1000) s, last \(file.lastViewedAt.map { Date(timeIntervalSince1970: TimeInterval($0)).formatted(date: .omitted, time: .standard) } ?? "never")")
             guard let url = file.streamURL else { continue }
             for line in await FileProbe.describe(url, ratingKey: file.ratingKey) {
                 report.line("  \(line)")
@@ -240,6 +287,14 @@ enum AudiobookAudit {
             let scanned = (directory["scannedAt"] as? Int).map { Date(timeIntervalSince1970: TimeInterval($0)).formatted() } ?? "never"
             let folders = (directory["Location"] as? [[String: Any]] ?? []).compactMap { $0["path"] as? String }
             report.line("library \(key) \(directory["title"] as? String ?? "?") (\(directory["type"] as? String ?? "?"), \(directory["agent"] as? String ?? "?")): scanned \(scanned), refreshing \(directory["refreshing"] as? Bool ?? false), folders \(folders)")
+            // Whether Plex keeps where each file was left (Store track
+            // progress), which a book's place is read from.
+            let prefs = await plexJSON("/library/sections/\(key)/prefs", like: url)
+            let settings = (try? JSONSerialization.jsonObject(with: prefs ?? Data()) as? [String: Any])
+                .flatMap { $0["MediaContainer"] as? [String: Any] }?["Setting"] as? [[String: Any]] ?? []
+            if let offsets = settings.first(where: { ($0["id"] as? String) == "enableTrackOffsets" }) {
+                report.line("library \(key): store track progress \(offsets["value"].map { "\($0)" } ?? "?")")
+            }
         }
         let recent = await plexJSON("/library/recentlyAdded", query: [URLQueryItem(name: "X-Plex-Container-Size", value: "15")], like: url)
         report.save(recent, as: "recentlyAdded.json")

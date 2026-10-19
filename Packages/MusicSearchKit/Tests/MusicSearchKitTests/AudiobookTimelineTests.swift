@@ -128,4 +128,17 @@ final class AudiobookProgressTests: XCTestCase {
         XCTAssertEqual(AudiobookProgress.newer(nil, old), old)
         XCTAssertNil(AudiobookProgress.newer(nil, nil))
     }
+
+    func testThisDevicesPlaceUnlessTheServersIsClearlyNewer() {
+        // Plex, a few seconds after this device's own play: the first file
+        // counted played, read as the start of the second.
+        let device = AudiobookProgress(position: 600, duration: 58_254, updatedAt: Date(timeIntervalSince1970: 1000))
+        let plexAfter = AudiobookProgress(position: 2224, duration: 58_254, updatedAt: Date(timeIntervalSince1970: 1010))
+        XCTAssertEqual(AudiobookProgress.preferring(local: device, server: plexAfter), device)
+        // Another player, an hour later.
+        let elsewhere = AudiobookProgress(position: 9000, duration: 58_254, updatedAt: Date(timeIntervalSince1970: 4600))
+        XCTAssertEqual(AudiobookProgress.preferring(local: device, server: elsewhere), elsewhere)
+        XCTAssertEqual(AudiobookProgress.preferring(local: nil, server: elsewhere), elsewhere)
+        XCTAssertEqual(AudiobookProgress.preferring(local: device, server: nil), device)
+    }
 }

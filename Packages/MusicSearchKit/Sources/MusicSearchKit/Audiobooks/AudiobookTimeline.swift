@@ -217,4 +217,20 @@ public struct AudiobookProgress: Sendable, Equatable, Codable, Hashable {
         guard let b else { return a }
         return b.updatedAt > a.updatedAt ? b : a
     }
+
+    /// How much newer the server's reading has to be to win over this
+    /// device's. The server hears this device's own plays a moment after
+    /// the device notes them (Plex's stop report, Audiobookshelf's sync),
+    /// and Plex's reading of a file is coarse: with Store track progress
+    /// off it keeps no place in a file, only that one was played, so a
+    /// file left near its end reads as the start of the next.
+    public static let serverGrace: TimeInterval = 60
+
+    /// This device's reading, unless the server's is more than
+    /// `serverGrace` newer: another player has moved the book since.
+    public static func preferring(local: AudiobookProgress?, server: AudiobookProgress?) -> AudiobookProgress? {
+        guard let server else { return local }
+        guard let local else { return server }
+        return server.updatedAt > local.updatedAt.addingTimeInterval(serverGrace) ? server : local
+    }
 }

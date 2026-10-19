@@ -77,7 +77,7 @@ final class AudiobookshelfBrowseService {
         let store = AudiobookProgressStore.shared
         for (id, entry) in await progress ?? [:] {
             guard let reading = entry.audiobookProgress(duration: nil) else { continue }
-            store.record(reading, service: .audiobookshelf, id: id)
+            store.recordFromServer(reading, service: .audiobookshelf, id: id)
         }
         continueListening = (await inProgress ?? []).map(\.toPlayable)
         recentlyAdded = recent

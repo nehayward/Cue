@@ -296,7 +296,7 @@ struct AudiobookDetailView: View {
             return
         }
         if let server = loaded.serverProgress {
-            store.record(server, for: loaded.book)
+            store.recordFromServer(server, for: loaded.book)
         }
         audiobook = loaded
     }
