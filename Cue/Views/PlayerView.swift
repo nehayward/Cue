@@ -458,7 +458,13 @@ struct PlayerView: View {
         // Music has it — named by the station or by Shazam.
         let target = group == nil ? (playback.onAirMatch ?? item) : item
 
-        originLine(item)
+        // A book's line is the chapter playing, and opens its chapters.
+        if AudiobookPlayer.shared.isPlayingBook(on: controller), (AudiobookPlayer.shared.current?.chapters.count ?? 0) > 1 {
+            AudiobookChapterLine()
+                .frame(height: 12)
+        } else {
+            originLine(item)
+        }
         PlayerSongTitleButton(
             title: item?.title ?? (controller.isActive ? "" : "Not Playing"),
             target: target,
@@ -1679,13 +1685,20 @@ private struct LocalPlayerMenuView: View {
                     .tint(playback.repeatMode == .off ? .secondary : .accent)
                 }
 
+                // Any other choice puts End of Chapter away, or it would
+                // move the new timer back to the chapter's end.
                 TimerMenuView(sheetRouter: router, onSelect: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.sleepTimer($0)
                 }, onClear: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.cancelSleepTimer()
                 }, onSleepAtEndOfTrack: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.sleepAtEndOfTrack()
-                }) {
+                }, onSleepAtEndOfChapter: isBook ? {
+                    await AudiobookPlayer.shared.sleepAtEndOfChapter()
+                } : nil, sleepsAtEndOfChapter: AudiobookPlayer.shared.sleepsAt != nil) {
                     Label("Sleep Timer", systemImage: "deskclock.fill")
                 }
             }

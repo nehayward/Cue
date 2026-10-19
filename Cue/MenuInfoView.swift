@@ -10,13 +10,18 @@ struct MenuInfoView: View {
 
     var group: GroupRoom
     @Binding var showArtworkOnly: Bool
+
+    /// The speaker is playing one of the loaded book's files.
+    private var isBook: Bool {
+        AudiobookPlayer.shared.contains(group.coordinatorRoom.track.toPlayable)
+    }
     
     var body: some View {
         Menu {
             VStack {
                 // A book on the speaker: its chapters (a speaker has no
                 // speed but 1×).
-                if AudiobookPlayer.shared.contains(group.coordinatorRoom.track.toPlayable) {
+                if isBook {
                     AudiobookPlayerMenuItems(isOnDevice: false)
                     Divider()
                 }
@@ -133,13 +138,20 @@ struct MenuInfoView: View {
                         .tint(isCrossfaded ? .accent : .secondary)
                     }
                     
+                    // Any other choice puts End of Chapter away, or it would
+                    // move the new timer back to the chapter's end.
                     TimerMenuView(inMainMenu: true, onSelect: {
+                        AudiobookPlayer.shared.forgetChapterSleep()
                         await SonosService.shared.sleepTimer(group: group, duration: $0)
                     }, onClear: {
+                        AudiobookPlayer.shared.forgetChapterSleep()
                         await SonosService.shared.stopSleepTimer(group: group)
                     }, onSleepAtEndOfTrack: {
+                        AudiobookPlayer.shared.forgetChapterSleep()
                         await SonosService.shared.sleepAtEndOfTrack(group: group)
-                    }) {
+                    }, onSleepAtEndOfChapter: isBook ? {
+                        await AudiobookPlayer.shared.sleepAtEndOfChapter()
+                    } : nil, sleepsAtEndOfChapter: AudiobookPlayer.shared.sleepsAt != nil) {
                         Label("Sleep Timer", systemImage: "deskclock.fill")
                     }
                 }

@@ -196,6 +196,87 @@ final class AudiobookPlayer {
         UserDefaults.standard.set(rate, forKey: Self.rateKey)
     }
 
+    // MARK: - Chapters
+
+    /// The chapter after the one playing, from the last reading: nil in the
+    /// last chapter.
+    var nextChapter: AudiobookChapter? {
+        current?.chapters.chapter(after: position)
+    }
+
+    /// Moves to the start of the next chapter.
+    func skipToNextChapter() async {
+        guard let current else { return }
+        let now = readPosition(on: PlaybackRoute.shared.controller) ?? position
+        guard let next = current.chapters.chapter(after: now) else { return }
+        await jump(to: next.start)
+    }
+
+    /// Back to the start of the chapter playing, or, right at its start, of
+    /// the one before: Previous for a song, by chapter.
+    func skipToPreviousChapter() async {
+        guard let current else { return }
+        let now = readPosition(on: PlaybackRoute.shared.controller) ?? position
+        guard let start = current.chapters.previousChapterStart(from: now) else { return }
+        await jump(to: start)
+    }
+
+    // MARK: - Sleeping at the end of a chapter
+
+    /// The book time End of Chapter pauses at. Nil when it isn't set.
+    private(set) var sleepsAt: TimeInterval?
+
+    /// Pauses at the end of the chapter playing. It runs on the player's
+    /// own sleep timer (this device's, or the speaker's), set to the
+    /// chapter's end at the speed playing and set again whenever the two
+    /// drift apart — a pause, a skip, a new speed — so the timer's
+    /// countdown shows wherever a sleep timer does.
+    func sleepAtEndOfChapter() async {
+        let controller = PlaybackRoute.shared.controller
+        guard let current, let chapter = current.chapter(at: readPosition(on: controller) ?? position) else { return }
+        sleepsAt = chapter.end
+        await followChapterSleep(on: controller, force: true)
+    }
+
+    /// Forgets End of Chapter, for another timer chosen, or the timer off.
+    /// The player's own timer is left to whoever set it.
+    func forgetChapterSleep() {
+        sleepsAt = nil
+    }
+
+    /// Keeps the player's sleep timer on the chapter's end. A timer that's
+    /// gone means it went off, or was turned off: either way End of Chapter
+    /// is done.
+    private func followChapterSleep(on controller: any PlaybackController, force: Bool = false) async {
+        guard let sleepsAt, let current else { return }
+        guard let time = readPosition(on: controller) else { return }
+        if !force, controller.sleepTimerEndDate == nil {
+            self.sleepsAt = nil
+            return
+        }
+        // Jumped past the chapter's end: the end of the chapter it's in now.
+        var end = sleepsAt
+        if time > end + 1, let chapter = current.chapter(at: time) {
+            end = chapter.end
+            self.sleepsAt = end
+        }
+        let speed = controller.group == nil ? rate : 1
+        let remaining = max(end - time, 0) / speed
+        let due = Date.now.addingTimeInterval(remaining)
+        let drift = controller.sleepTimerEndDate.map { abs($0.timeIntervalSince(due)) } ?? .infinity
+        if let group = controller.group {
+            // A speaker's is set over the network: only for a real drift,
+            // and only while it plays (its timer runs on through a pause).
+            guard force || (controller.isPlaying && drift > 5) else { return }
+            await SonosService.shared.sleepTimer(group: group, duration: .seconds(max(remaining.rounded(), 1)))
+        } else {
+            // This device's runs on through a pause too, so it's set again
+            // while paused, and goes off only once playing reaches the end.
+            guard force || drift > 1.5 else { return }
+            LocalPlaybackService.shared.sleepTimer(.seconds(max(remaining.rounded(), 1)))
+        }
+    }
+
     /// Starts `audiobook` at book time `time`, at `target`.
     private func start(_ audiobook: Audiobook, at time: TimeInterval, on target: Target = .route) async {
         var audiobook = audiobook
@@ -333,6 +414,9 @@ final class AudiobookPlayer {
         }
         syncServer(current, part: part, time: time, playing: playing, onSpeaker: controller.group != nil)
         wasPlaying = playing
+        if sleepsAt != nil {
+            Task { await followChapterSleep(on: controller) }
+        }
     }
 
     /// Tells the book's server where it is: every few seconds while playing,
@@ -402,6 +486,7 @@ final class AudiobookPlayer {
             Task { await AudiobookshelfAPI.shared.closeSession(itemID: itemID, currentTime: time, duration: duration) }
         }
         setCurrent(nil)
+        sleepsAt = nil
         stopMonitoring()
         flush()
     }

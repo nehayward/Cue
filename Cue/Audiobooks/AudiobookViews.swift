@@ -128,6 +128,73 @@ struct AudiobookMenuItems: View {
     }
 }
 
+/// A button for each of the loaded book's chapters, jumping to it; the
+/// one playing is marked.
+struct AudiobookChapterButtons: View {
+    let chapters: [AudiobookChapter]
+
+    @State private var player = AudiobookPlayer.shared
+
+    var body: some View {
+        ForEach(chapters) { chapter in
+            Button {
+                HapticManager.shared.fireHaptic(.selection)
+                Task { await player.jump(to: chapter.start) }
+            } label: {
+                if chapter.id == player.currentChapter?.id {
+                    Label(chapter.title, systemImage: "speaker.wave.2.fill")
+                } else {
+                    Text(chapter.title)
+                }
+            }
+        }
+    }
+}
+
+/// The player's origin line while a book with chapters plays: the chapter
+/// playing, in the caption slot the album or playlist has for a song, and
+/// a tap opens the chapters, with Previous and Next Chapter over them. It
+/// reads the book's place, which moves every couple of seconds, so it's a
+/// view of its own: the player around it doesn't redraw with it.
+struct AudiobookChapterLine: View {
+    @State private var player = AudiobookPlayer.shared
+
+    var body: some View {
+        Menu {
+            if let book = player.current {
+                ControlGroup {
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        Task { await player.skipToPreviousChapter() }
+                    } label: {
+                        Label("Previous Chapter", systemImage: "backward.end.fill")
+                    }
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        Task { await player.skipToNextChapter() }
+                    } label: {
+                        Label("Next Chapter", systemImage: "forward.end.fill")
+                    }
+                    .disabled(player.nextChapter == nil)
+                }
+                AudiobookChapterButtons(chapters: book.chapters)
+            }
+        } label: {
+            HStack(spacing: 3) {
+                Text(player.currentChapter?.title ?? "")
+                Image(systemName: "chevron.up.chevron.down")
+                    .imageScale(.small)
+            }
+            .font(.caption.smallCaps())
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .contentTransition(.identity)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Chapter: \(player.currentChapter?.title ?? "")")
+    }
+}
+
 /// The player menu's book items while a book plays: its chapters, to jump
 /// to, and on this device its speed (a speaker has only 1×).
 struct AudiobookPlayerMenuItems: View {
@@ -137,20 +204,24 @@ struct AudiobookPlayerMenuItems: View {
 
     var body: some View {
         if let book = player.current {
-            if !book.chapters.isEmpty {
-                Menu {
-                    ForEach(book.chapters) { chapter in
-                        Button {
-                            HapticManager.shared.fireHaptic(.selection)
-                            Task { await player.jump(to: chapter.start) }
-                        } label: {
-                            if chapter.id == player.currentChapter?.id {
-                                Label(chapter.title, systemImage: "speaker.wave.2.fill")
-                            } else {
-                                Text(chapter.title)
-                            }
-                        }
+            if book.chapters.count > 1 {
+                ControlGroup {
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        Task { await player.skipToPreviousChapter() }
+                    } label: {
+                        Label("Previous Chapter", systemImage: "backward.end.fill")
                     }
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        Task { await player.skipToNextChapter() }
+                    } label: {
+                        Label("Next Chapter", systemImage: "forward.end.fill")
+                    }
+                    .disabled(player.nextChapter == nil)
+                }
+                Menu {
+                    AudiobookChapterButtons(chapters: book.chapters)
                 } label: {
                     Label(player.currentChapter?.title ?? "Chapters", systemImage: "list.bullet")
                 }
