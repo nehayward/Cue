@@ -91,6 +91,10 @@ struct PlayableContentView: View {
                     NavigationLink(value: RouterDestination.folderBrowse(item: item, title: item.title)) {
                         folderContent
                     }
+                case .audiobook:
+                    NavigationLink(value: RouterDestination.audiobookDetail(content: item)) {
+                        content
+                    }
                 case .track, .favorite, .radio, .songRadio, .artistRadio, .libraryTrack, .unique, .liveRadio:
                     content
                 }

@@ -175,6 +175,8 @@ extension View {
                         PlexManagementView()
                     case .subsonicManagement:
                         SubsonicManagementView()
+                    case .audiobookshelfManagement:
+                        AudiobookshelfManagementView()
                     case .filesManagement:
                         FilesManagementView()
                     case let .volumeControlsScreen(groupID: groupID):

@@ -861,6 +861,31 @@ extension PlexMetadata {
 }
 
 
+extension PlexAudiobookItem {
+    /// A Plex album kept as a book: the author under the title. Its
+    /// `albumID` is its own key, as an album's is, so the book and its
+    /// files share an artwork cache entry.
+    public var toPlayable: PlayableContent? {
+        guard let sonosID else { return nil }
+        return PlayableContent(
+            title: title,
+            subtitle: parentTitle ?? "",
+            thumbnail: thumbImageURL?.plexResized(to: PlexImageSize.thumbnail),
+            artwork: thumbImageURL?.plexResized(to: PlexImageSize.artwork),
+            content: .init(service: .plex, id: sonosID, type: .audiobook, location: nil),
+            metadata: .init(
+                popularity: nil,
+                artist: parentTitle,
+                artistID: parentRatingKey,
+                album: title,
+                albumID: ratingKey,
+                albumYear: nil,
+                librarySectionID: librarySectionID.map(String.init)
+            )
+        )
+    }
+}
+
 extension PlexUserPlaylist {
     public var toPlayable: PlayableContent {
         return PlayableContent(
@@ -1057,6 +1082,65 @@ extension TuneInStation {
 }
 
 // MARK: Subsonic
+// MARK: Audiobookshelf
+extension AudiobookshelfItem {
+    var bookTitle: String { media?.metadata?.title ?? "" }
+    var bookAuthor: String { media?.metadata?.authorName ?? "" }
+
+    /// The book, as a shelf or search lists it: the author under the
+    /// title, and its length.
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: bookTitle,
+            subtitle: bookAuthor,
+            thumbnail: AudiobookshelfAPI.coverURL(itemID: id, width: PlexImageSize.thumbnail),
+            artwork: AudiobookshelfAPI.coverURL(itemID: id),
+            content: .init(service: .audiobookshelf, id: id, type: .audiobook, location: nil),
+            metadata: .init(
+                duration: media?.duration.map { Duration.milliseconds(Int64($0 * 1000)) },
+                popularity: nil,
+                artist: bookAuthor,
+                album: bookTitle,
+                albumID: id
+            )
+        )
+    }
+
+    /// The book's files as the tracks the player plays, each with its
+    /// stream URL: through the book's listening session once one is open,
+    /// else signed in (see `AudiobookshelfAPI.streamURL`). The file's
+    /// extension rides as `audioCodec`, as for Subsonic, for the speaker's
+    /// extension hint and MIME type.
+    public func partsToPlayable(tracks: [AudiobookshelfTrack]? = nil) -> [PlayableContent] {
+        let cover = AudiobookshelfAPI.coverURL(itemID: id)
+        let thumbnail = AudiobookshelfAPI.coverURL(itemID: id, width: PlexImageSize.thumbnail)
+        let files = tracks ?? media?.tracks ?? []
+        return files.enumerated().compactMap { number, track in
+            guard let fileID = track.fileID else { return nil }
+            let part = AudiobookshelfPartID(itemID: id, index: track.index, fileID: fileID)
+            let ext = track.fileExtension
+            return PlayableContent(
+                // Audiobookshelf names a file by its file name ("01.m4b"):
+                // the book's title reads better in the player.
+                title: files.count > 1 ? "\(bookTitle), Part \(number + 1)" : bookTitle,
+                subtitle: bookAuthor,
+                thumbnail: thumbnail,
+                artwork: cover,
+                content: .init(service: .audiobookshelf, id: part.string, type: .track, location: nil),
+                previewURL: AudiobookshelfAPI.streamURL(for: part.string, fileExtension: ext, destination: .device),
+                metadata: .init(
+                    duration: Duration.milliseconds(Int64(track.duration * 1000)),
+                    popularity: nil,
+                    artist: bookAuthor,
+                    album: bookTitle,
+                    albumID: id,
+                    audioCodec: ext
+                )
+            )
+        }
+    }
+}
+
 extension SubsonicSong {
     public var toPlayable: PlayableContent {
         PlayableContent(

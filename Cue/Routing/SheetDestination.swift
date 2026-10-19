@@ -28,6 +28,8 @@ enum SheetDestination: Identifiable, Equatable {
     case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async throws -> Void)? = nil, onQueueSelection: ((GroupRoom, QueuePosition) async throws -> Void)? = nil, defaultPosition: QueuePosition = .now, content: PlayableContent? = nil)
     case plexManagement
     case subsonicManagement
+    /// The Audiobookshelf server: sign in, or out.
+    case audiobookshelfManagement
     /// The Files provider's folder: pick one, rescan it, or forget it.
     case filesManagement
     case volumeControlsScreen(groupID: String)
@@ -89,6 +91,8 @@ enum SheetDestination: Identifiable, Equatable {
             "plexManagement"
         case .subsonicManagement:
             "subsonicManagement"
+        case .audiobookshelfManagement:
+            "audiobookshelfManagement"
         case .filesManagement:
             "filesManagement"
         case .volumeControlsScreen:

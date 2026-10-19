@@ -34,6 +34,10 @@ final class LocalNowPlayingPresenter {
         var isPlaying: Bool
         var artworkURL: URL?
         var canSkip: Bool
+        /// A book's file: skips by interval instead of by track, at the
+        /// book's speed.
+        var isBook = false
+        var rate: Double = 1
     }
 
     private var published: Snapshot?
@@ -123,7 +127,7 @@ final class LocalNowPlayingPresenter {
     ) {
         guard let item else { return }
         self.restatesClock = restatesClock
-        let snapshot = Snapshot(
+        var snapshot = Snapshot(
             identity: item.content.id,
             title: item.title,
             artist: item.metadata?.artist ?? item.subtitle,
@@ -133,6 +137,16 @@ final class LocalNowPlayingPresenter {
             artworkURL: item.artwork ?? item.thumbnail,
             canSkip: canSkip
         )
+        // A book reads as its chapter, by its author, in the book.
+        let books = AudiobookPlayer.shared
+        if let book = books.current, books.contains(item) {
+            snapshot.isBook = true
+            snapshot.rate = books.rate
+            snapshot.title = books.currentChapter?.title ?? item.title
+            snapshot.album = book.book.title
+            snapshot.artist = book.book.subtitle
+            snapshot.artworkURL = book.book.artwork ?? snapshot.artworkURL
+        }
         let cardIsOurs = isOurs(MPNowPlayingInfoCenter.default().nowPlayingInfo)
         // A stall or a hiccup can leave the system's clock well off, and so
         // can a seek this player never saw (MusicKit's own card takes
@@ -140,7 +154,7 @@ final class LocalNowPlayingPresenter {
         // a republish. The clock runs on from the last publish while
         // playing and stands still while paused.
         let expected = published?.isPlaying == true
-            ? publishedElapsed + Date.now.timeIntervalSince(publishedAt)
+            ? publishedElapsed + Date.now.timeIntervalSince(publishedAt) * (published?.rate ?? 1)
             : publishedElapsed
         let drifted = abs(elapsed - expected) > 2
         let restate = restatesClock && isPlaying && Date.now.timeIntervalSince(publishedAt) >= Self.restateInterval
@@ -163,7 +177,7 @@ final class LocalNowPlayingPresenter {
             MPMediaItemPropertyAlbumTitle: snapshot.album,
             MPNowPlayingInfoCollectionIdentifier: Self.marker,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
-            MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying && !restatesClock ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying && !restatesClock ? snapshot.rate : 0.0,
             MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
             MPNowPlayingInfoPropertyIsLiveStream: false,
         ]
@@ -180,7 +194,14 @@ final class LocalNowPlayingPresenter {
         MPNowPlayingInfoCenter.default().playbackState = snapshot.isPlaying ? .playing : .paused
 
         let center = MPRemoteCommandCenter.shared()
-        center.nextTrackCommand.isEnabled = snapshot.canSkip
+        // A book's chapters run far too long to move through by track: the
+        // card's buttons skip back and forward instead, which it draws only
+        // while the track commands are off.
+        center.nextTrackCommand.isEnabled = snapshot.canSkip && !snapshot.isBook
+        center.previousTrackCommand.isEnabled = !snapshot.isBook
+        center.skipForwardCommand.isEnabled = snapshot.isBook
+        center.skipBackwardCommand.isEnabled = snapshot.isBook
+        center.changePlaybackRateCommand.isEnabled = snapshot.isBook
         center.changePlaybackPositionCommand.isEnabled = snapshot.duration > 0
         // The Sonos mirror switches these off for its card; this card is
         // back, and so are they.
@@ -255,6 +276,9 @@ final class LocalNowPlayingPresenter {
         center.changePlaybackPositionCommand.isEnabled = true
         center.changeShuffleModeCommand.isEnabled = true
         center.changeRepeatModeCommand.isEnabled = true
+        center.skipForwardCommand.preferredIntervals = [NSNumber(value: AudiobookPlayer.skipForwardInterval)]
+        center.skipBackwardCommand.preferredIntervals = [NSNumber(value: AudiobookPlayer.skipBackInterval)]
+        center.changePlaybackRateCommand.supportedPlaybackRates = AudiobookPlayer.rates.map { NSNumber(value: $0) }
 
         func add(_ command: MPRemoteCommand, _ action: @escaping @MainActor (LocalPlaybackService, MPRemoteCommandEvent) -> MPRemoteCommandHandlerStatus) {
             let token = command.addTarget { [weak self] event in
@@ -291,6 +315,22 @@ final class LocalNowPlayingPresenter {
             player.seek(to: event.positionTime)
             return .success
         }
+        // A book's skips go through the book, across its files.
+        add(center.skipForwardCommand) { _, event in
+            let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? AudiobookPlayer.skipForwardInterval
+            Task { await AudiobookPlayer.shared.skip(by: interval) }
+            return .success
+        }
+        add(center.skipBackwardCommand) { _, event in
+            let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? AudiobookPlayer.skipBackInterval
+            Task { await AudiobookPlayer.shared.skip(by: -interval) }
+            return .success
+        }
+        add(center.changePlaybackRateCommand) { _, event in
+            guard let event = event as? MPChangePlaybackRateCommandEvent else { return .commandFailed }
+            AudiobookPlayer.shared.setRate(Double(event.playbackRate))
+            return .success
+        }
         // A car's shuffle and repeat buttons (`CarPlayInterface`) take a tap
         // only while these commands are there to take one: without them the
         // buttons drew but did nothing. Siri and accessories send them as
@@ -312,6 +352,11 @@ final class LocalNowPlayingPresenter {
             command.removeTarget(token)
         }
         commandTokens = []
+        // Only a book's card has these; the Sonos mirror's has none.
+        let center = MPRemoteCommandCenter.shared()
+        center.skipForwardCommand.isEnabled = false
+        center.skipBackwardCommand.isEnabled = false
+        center.changePlaybackRateCommand.isEnabled = false
     }
 }
 

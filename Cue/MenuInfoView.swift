@@ -14,6 +14,12 @@ struct MenuInfoView: View {
     var body: some View {
         Menu {
             VStack {
+                // A book on the speaker: its chapters (a speaker has no
+                // speed but 1×).
+                if AudiobookPlayer.shared.contains(group.coordinatorRoom.track.toPlayable) {
+                    AudiobookPlayerMenuItems(isOnDevice: false)
+                    Divider()
+                }
                 OpenInServiceView(item:  group.coordinatorRoom.track.toPlayable)
                 if coreFeatures.nowPlaying, !group.TVMode, let nowPlayingURL = group.coordinatorRoom.track.nowPlayingURL {
                     Link(destination: nowPlayingURL) {

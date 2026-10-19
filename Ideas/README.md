@@ -18,3 +18,4 @@ Feature ideas and design notes for future development.
 - [Device-First Services](device-first-services.md) — Every service must play on the device and on Sonos; audit and removal plan for the ones that don't (Spotify, Tidal, Deezer, SoundCloud, Pandora, Sonos Radio)
 - [Website (cue.dance)](website.md) — Launch checklist, screenshots wanted, and app-side follow-ups for the site in `Website/`
 - [Lock Screen Suggestions](lock-screen-suggestions.md) — Cue's plays in the Lock Screen's artwork row above Now Playing, through `INPlayMediaIntent` donations
+- [Audiobooks](audiobooks.md) — Books from Plex (a library kept for them, or genre-tagged albums) and Audiobookshelf: resume, chapters, speed, skips, on the device and on speakers; what's built and what's left

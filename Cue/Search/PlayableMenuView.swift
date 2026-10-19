@@ -186,6 +186,10 @@ struct PlayableMenuView: View {
                 } label: {
                     Label("Play", systemImage: "play.fill")
                 }
+            case .audiobook:
+                // A book plays from where it was left, never mixed into the
+                // queue, so its menu has none of the queue's positions.
+                AudiobookMenuItems(book: item)
             }
         }
         

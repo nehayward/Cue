@@ -36,6 +36,12 @@ public struct PlexMetadata: Codable, Sendable {
     public let userRating: Double?
     /// Track count for album items; distinguishes editions in search rows.
     public let leafCount: Int?
+    /// How far into the track playback was left, in milliseconds, as the
+    /// timeline reports put it: where an audiobook's file resumes.
+    public let viewOffset: Int?
+    /// Chapter marks inside the file (an `.m4b`), when asked for with
+    /// `includeChapters=1`.
+    public let chapters: [PlexChapter]?
     public let media: [PlexMedia]?
 
     public var sonosID: String?
@@ -47,7 +53,8 @@ public struct PlexMetadata: Codable, Sendable {
     public var streamURL: URL?
 
     enum CodingKeys: String, CodingKey {
-        case ratingKey, key, playlistItemID, parentRatingKey, grandparentRatingKey, guid, parentGuid, grandparentGuid, parentStudio, type, title, grandparentKey, parentKey, grandparentTitle, parentTitle, originalTitle, summary, index, parentIndex, ratingCount, parentYear, year, thumb, art, parentThumb, grandparentThumb, grandparentArt, duration, addedAt, updatedAt, viewCount, lastViewedAt, userRating, leafCount
+        case ratingKey, key, playlistItemID, parentRatingKey, grandparentRatingKey, guid, parentGuid, grandparentGuid, parentStudio, type, title, grandparentKey, parentKey, grandparentTitle, parentTitle, originalTitle, summary, index, parentIndex, ratingCount, parentYear, year, thumb, art, parentThumb, grandparentThumb, grandparentArt, duration, addedAt, updatedAt, viewCount, lastViewedAt, userRating, leafCount, viewOffset
+        case chapters = "Chapter"
         case media = "Media"
     }
 }

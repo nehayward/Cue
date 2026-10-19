@@ -1049,6 +1049,11 @@ final class PlaybackRoute {
     private func localItem(_ item: PlayableContent) async -> PlayableContent? {
         let playback = LocalPlaybackService.shared
         if playback.canPlayLocally(item) { return item }
+        // A file of the book playing: the book has it ready, stream URL and
+        // all, whatever the speaker's row kept of its id.
+        if let book = AudiobookPlayer.shared.current, let part = book.partIndex(of: item) {
+            return book.parts[part]
+        }
         guard item.content.type == .track, [.plex, .subsonic].contains(item.content.service) else { return nil }
         guard let resolved = await SonosService.shared.contentLookup(id: item.content.id, type: .track, service: item.content.service) else {
             return nil

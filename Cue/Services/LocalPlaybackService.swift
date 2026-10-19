@@ -521,6 +521,10 @@ final class LocalPlaybackService {
         case .subsonic where item.content.type == .track
             && (item.previewURL != nil || DownloadManager.shared.isDownloaded(item)):
             .stream
+        // A book's file on an Audiobookshelf server: `previewURL` is the
+        // file, through the book's listening session.
+        case .audiobookshelf where item.content.type == .track && item.previewURL != nil:
+            .stream
         // A file in the user's folder: `previewURL` is the file itself, and
         // only set once an iCloud file has actually downloaded.
         case .files where item.content.type == .track && item.previewURL != nil:
@@ -1423,8 +1427,31 @@ final class LocalPlaybackService {
 
     private func runningProgress(at date: Date) -> TimeInterval {
         guard progressAnchoredAt != .distantPast else { return progressAnchor }
-        let elapsed = progressAnchor + max(date.timeIntervalSince(progressAnchoredAt), 0)
+        let elapsed = progressAnchor + max(date.timeIntervalSince(progressAnchoredAt), 0) * playbackRate
         return duration > 0 ? min(elapsed, duration) : elapsed
+    }
+
+    /// How fast the clock runs: the stream run's rate (a book at speed),
+    /// else normal. Apple runs always play at normal speed.
+    private var playbackRate: Double {
+        backend == .stream ? appliedRate : 1
+    }
+
+    /// The rate the stream player was last set to (`applyPlaybackRate`).
+    @ObservationIgnored private var appliedRate: Double = 1
+
+    /// Plays the stream run at the book speed while a book's file is on,
+    /// and at normal speed for anything else (`AudiobookPlayer.rate`). The
+    /// clock is set where it is first, so the time already run counts at
+    /// the rate it ran at.
+    private func applyPlaybackRate() {
+        guard let streamPlayer else { return }
+        let rate = AudiobookPlayer.shared.playbackRate(for: queue[safe: currentIndex])
+        guard Double(rate) != appliedRate || streamPlayer.defaultRate != rate else { return }
+        if isPlaying { progress = runningProgress(at: .now) }
+        appliedRate = Double(rate)
+        streamPlayer.defaultRate = rate
+        if streamPlayer.rate != 0 { streamPlayer.rate = rate }
     }
 
     /// Records a reading of the player's clock from the poll.
@@ -2085,6 +2112,9 @@ final class LocalPlaybackService {
 
     /// Hands `item` to the armed stream run as queue row `queueIndex`.
     private func register(_ item: AVPlayerItem, at queueIndex: Int) {
+        // Speech at a book's speed keeps its pitch; at normal speed nothing
+        // is stretched, so music is untouched.
+        item.audioTimePitchAlgorithm = .spectral
         streamRun[ObjectIdentifier(item)] = queueIndex
         watch(item)
     }
@@ -2115,10 +2145,17 @@ final class LocalPlaybackService {
 
     /// `streamURL(for:)` for anything but a station: answered at once.
     private func trackStreamURL(for item: PlayableContent) -> URL? {
+        // A book's file plays as it is on the server, whatever the
+        // Streaming Quality: a file hours long converted on the fly can't
+        // be seeked into, and the chapter list is all seeks.
+        if AudiobookPlayer.shared.contains(item) {
+            return DownloadManager.shared.localURL(for: item)
+                ?? (item.content.service == .plex ? item.previewURL : item.playbackStreamURL)
+        }
         // A local copy beats the server URL. The server URL is built now,
         // not read off the item, so the Streaming Quality setting in force
         // is the one used.
-        DownloadManager.shared.localURL(for: item)
+        return DownloadManager.shared.localURL(for: item)
             ?? PlaybackCache.shared.localURL(for: item)
             ?? item.playbackStreamURL
     }
@@ -2188,6 +2225,10 @@ final class LocalPlaybackService {
         let player = AVQueuePlayer(items: rows.map(\.item))
         streamPlayer = player
         player.volume = streamVolume
+        // Set before Play, which starts the player at its default rate.
+        let rate = AudiobookPlayer.shared.playbackRate(for: queue[safe: rows[0].queueIndex])
+        player.defaultRate = rate
+        appliedRate = Double(rate)
         if let resume, resume > 0 {
             // Partway in before the first note, so nothing from the top of
             // the track is heard first. Pending until the item is ready, so
@@ -2592,6 +2633,7 @@ final class LocalPlaybackService {
             if let queueIndex = streamRun[ObjectIdentifier(current)], currentIndex != queueIndex {
                 currentIndex = queueIndex
             }
+            applyPlaybackRate()
             topUpStreamRun()
             // `AVPlayerItem.duration` is indefinite until the item is ready
             // to play — and for good if it never gets there. The catalog's

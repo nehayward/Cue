@@ -287,6 +287,8 @@ public final class MusicSearchService {
                             await self.searchPandora(query: capturedQuery)
                         case .subsonic:
                             await self.searchSubsonic(query: capturedQuery)
+                        case .audiobookshelf:
+                            await self.searchAudiobookshelf(query: capturedQuery)
                         case .files:
                             await self.searchFiles(query: capturedQuery)
                         }
@@ -2565,6 +2567,17 @@ public final class MusicSearchService {
         content.append(contentsOf: (result.album ?? []).map(\.toPlayable))
         content.append(contentsOf: (result.artist ?? []).map(\.toPlayable))
         return await sortContentByIntelligentSearch(playableContent: content, query: query)
+    }
+
+    /// Books matching a query, in each of the listener's book libraries.
+    private func searchAudiobookshelf(query: String) async -> [PlayableContent] {
+        let shelf = AudiobookshelfAPI.shared
+        guard shelf.isConfigured, let libraries = await shelf.libraries() else { return [] }
+        var books: [PlayableContent] = []
+        for library in libraries {
+            books += await shelf.search(libraryID: library.id, query: query).map(\.toPlayable)
+        }
+        return await sortContentByIntelligentSearch(playableContent: books, query: query)
     }
 
     public func lookupSubsonicTrack(with id: String) async -> PlayableContent? {

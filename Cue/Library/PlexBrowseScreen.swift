@@ -20,6 +20,9 @@ struct PlexBrowseScreen: View {
     @State private var router = Router.browse
     @State private var isLoading: Bool = false
     @State private var plexAuthenticator = PlexAuthenticator.shared
+    /// The server has books: a library kept for them, or books among the
+    /// music under an audiobook genre (see `PlexAudiobookSettingsSection`).
+    @State private var hasAudiobooks = false
 
     /// The Songs list's sort menu, shared with the Songs tab.
     private var songSortOptions: [PlayableListSort] {
@@ -91,6 +94,21 @@ struct PlexBrowseScreen: View {
                         Label("Downloaded", systemImage: "arrow.down.circle")
                     }
 
+                    if hasAudiobooks {
+                        NavigationLink(value: RouterDestination.playableList(
+                            title: "Audiobooks",
+                            showSectionIndex: false,
+                            allowsGrid: true,
+                            action: { offset in
+                                // Read whole: the shelf merges several sources.
+                                guard offset == 0 else { return [] }
+                                return await AudiobookLibrary.plexShelf()
+                            }
+                        )) {
+                            Label("Audiobooks", systemImage: "book")
+                        }
+                    }
+
                     NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $plexBrowseService.userPlaylists, action: { offset in
                         await plexBrowseService.updateUserPlaylists(offset: offset)
                     })) {
@@ -127,6 +145,7 @@ struct PlexBrowseScreen: View {
                 isLoading = true
                 await updatePlexBrowseService()
                 isLoading = false
+                hasAudiobooks = await PlexAPI.shared.hasAudiobooks()
                 // Opening the library is the moment to notice the server has
                 // more songs than the synced copy — Songs is one tap away.
                 await musicSearchService.refreshPlexLibraryIfChanged()

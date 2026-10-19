@@ -1444,7 +1444,7 @@ public final class PlexAPI {
         }
     }
 
-    private func getPlexServer() async -> PlexServer? {
+    func getPlexServer() async -> PlexServer? {
 //        let jsonData = """
 // {
 //        "name": "The Mothership",
@@ -1519,7 +1519,7 @@ public final class PlexAPI {
         return preferredServer
     }
 
-    private func getBaseURL(for plexServer: PlexServer) -> URL? {
+    func getBaseURL(for plexServer: PlexServer) -> URL? {
         return withCacheLock { resolvedBaseURL } ?? plexServer.baseURL(preferring: connectionPreference)
     }
 
@@ -1530,7 +1530,7 @@ public final class PlexAPI {
     /// plex.tv round trip); only the stale connection is re-raced, and the retry
     /// only fires when re-resolution yields a different connection (avoids
     /// doubling the timeout when the server is simply down).
-    private func loadData(for request: URLRequest) async -> (Data, URLResponse)? {
+    func loadData(for request: URLRequest) async -> (Data, URLResponse)? {
         if let result = try? await session.data(for: request) {
             return result
         }
@@ -1565,7 +1565,7 @@ public final class PlexAPI {
         return request
     }
 
-    private func loadAuthorized<T: Decodable>(_ url: URL) async -> T? {
+    func loadAuthorized<T: Decodable>(_ url: URL) async -> T? {
         guard let request = await authorizedRequest(from: url) else {
             return nil
         }
@@ -1599,7 +1599,7 @@ public final class PlexAPI {
         }
     }
 
-    private func enrichMetadata(metadata: [PlexMetadata]?) async -> [PlexMetadata] {
+    func enrichMetadata(metadata: [PlexMetadata]?) async -> [PlexMetadata] {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken,
                 let clientID = plexServer.clientIdentifier,
