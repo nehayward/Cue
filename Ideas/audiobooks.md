@@ -57,6 +57,10 @@ test target doesn't build as a whole for stale tests elsewhere
   the music library with an audiobook genre.
 - The Plex library screen shows an Audiobooks row when there's anything to
   show.
+- Pulling to refresh a list of Plex books has Plex scan the libraries kept
+  for books (`/library/sections/<key>/refresh`, owner only) and waits for
+  it, up to 30 s, with "Scanning…" in the title bar (`PlexBookScan`). The
+  music library isn't scanned for genre-tagged books: it can be large.
 - Resume comes from each file's `viewOffset` / `viewCount` /
   `lastViewedAt` (`PlexAudiobook.progress`). **Plex keeps `viewOffset` only
   with "Store track progress" on in the library's advanced settings**; the

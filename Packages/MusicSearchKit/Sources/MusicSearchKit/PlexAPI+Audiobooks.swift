@@ -218,6 +218,41 @@ extension PlexAPI {
     /// Up to this many files, a book's files are asked for chapter marks.
     public static let chapterLookupLimit = 8
 
+    // MARK: - Scanning
+
+    /// Asks the server to scan the libraries with `keys` for files added,
+    /// changed or gone, as Plex's own Scan Library Files does. True when it
+    /// started at least one; only the server's owner may. Asked straight
+    /// rather than through `loadAuthorized`, which takes a 401 for a sign-in
+    /// gone bad and signs out: here it's only a listener who isn't the
+    /// owner.
+    public func scan(sectionKeys keys: [String]) async -> Bool {
+        guard let server = await getPlexServer(),
+              let token = server.accessToken,
+              let base = getBaseURL(for: server) else { return false }
+        var started = false
+        for key in keys {
+            var request = URLRequest(url: base.appending(path: "/library/sections/\(key)/refresh"))
+            request.timeoutInterval = 10
+            request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
+            request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+            guard let (_, response) = await loadData(for: request),
+                  let status = (response as? HTTPURLResponse)?.statusCode else { continue }
+            if (200...299).contains(status) {
+                started = true
+            }
+        }
+        return started
+    }
+
+    /// Whether the server is scanning any of the libraries with `keys`; nil
+    /// when it couldn't be asked.
+    public func isScanning(sectionKeys keys: [String]) async -> Bool? {
+        let libraries = await getMusicLibraries()
+        guard !libraries.isEmpty else { return nil }
+        return libraries.contains { keys.contains($0.key) && $0.refreshing == true }
+    }
+
     // MARK: - Played state
 
     /// Marks a book (or one file) played, or unplayed — which also forgets

@@ -17,4 +17,6 @@ public struct PlexLibrarySection: Codable, Identifiable {
     /// The metadata agent the library is matched with (e.g. Audnexus's, for
     /// books); one hint that a Music library is kept for audiobooks.
     public let agent: String?
+    /// The server is scanning the library's folders.
+    public let refreshing: Bool?
 }

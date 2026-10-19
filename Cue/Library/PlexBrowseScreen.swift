@@ -99,6 +99,9 @@ struct PlexBrowseScreen: View {
                             title: "Audiobooks",
                             showSectionIndex: false,
                             allowsGrid: true,
+                            // A pull has Plex scan for books added on the server.
+                            refreshAction: { await AudiobookLibrary.scanPlexBooks() },
+                            loadingStatus: { PlexBookScan.shared.status },
                             action: { offset in
                                 // Read whole: the shelf merges several sources.
                                 guard offset == 0 else { return [] }

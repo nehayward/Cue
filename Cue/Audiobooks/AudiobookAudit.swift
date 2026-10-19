@@ -23,6 +23,19 @@ enum AudiobookAudit {
     private static let log = Logger(subsystem: "dance.cue", category: "audiobook-audit")
 
     static func startIfRequested() {
+        // `-AudiobookAuditScan YES`: a pull to refresh's Plex scan, then
+        // the libraries' last scans.
+        if UserDefaults.standard.bool(forKey: "AudiobookAuditScan") {
+            Task {
+                try? await Task.sleep(for: .seconds(5))
+                await AudiobookLibrary.scanPlexBooks()
+                for library in await PlexAPI.shared.audiobookLibraries() {
+                    log.notice("scan: library \(library.key, privacy: .public) \(library.title, privacy: .public) refreshing \(library.refreshing ?? false)")
+                }
+                let books = await AudiobookLibrary.plexBooks() ?? []
+                log.notice("scan: \(books.count) Plex books after: \(books.map(\.title), privacy: .public)")
+            }
+        }
         // `-AudiobookAuditCarPlay YES`: what the car's tabs would list.
         if UserDefaults.standard.bool(forKey: "AudiobookAuditCarPlay") {
             Task { await carPlay() }
