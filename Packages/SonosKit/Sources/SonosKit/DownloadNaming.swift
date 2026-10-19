@@ -35,11 +35,14 @@ public enum DownloadNaming {
         "\(key)|\(fileExtension)"
     }
 
+    /// Split at the last `|`: an extension never holds one, but a key can
+    /// (an Audiobookshelf book's file is `<item>|<index>|<file>`).
     public static func parseTaskDescription(_ description: String?) -> (key: String, fileExtension: String)? {
-        guard let description else { return nil }
-        let parts = description.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
-        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
-        return (parts[0], parts[1])
+        guard let description, let separator = description.lastIndex(of: "|") else { return nil }
+        let key = String(description[..<separator])
+        let fileExtension = String(description[description.index(after: separator)...])
+        guard !key.isEmpty, !fileExtension.isEmpty else { return nil }
+        return (key, fileExtension)
     }
 
     /// Fraction done, clamped to 0…1; zero until the size is known.
