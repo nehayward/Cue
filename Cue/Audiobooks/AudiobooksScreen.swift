@@ -48,6 +48,7 @@ struct AudiobooksScreen: View {
                 } else {
                     Text("The book you're listening to waits here, ready to pick up where you left it.")
                         .font(.callout)
+                        .fontDesign(.rounded)
                         .foregroundStyle(.secondary)
                         .listRowInsets(.default)
                         .listRowSeparator(.hidden)
@@ -61,6 +62,7 @@ struct AudiobooksScreen: View {
                     } header: {
                         Text("Continue Listening")
                     }
+                    .fontDesign(.rounded)
                     .listRowInsets(.default)
                     .listRowSeparator(.hidden)
                 }
@@ -73,6 +75,7 @@ struct AudiobooksScreen: View {
                     } header: {
                         Text("Downloads")
                     }
+                    .fontDesign(.rounded)
                     .listRowSeparator(.hidden)
                 }
 
@@ -83,6 +86,7 @@ struct AudiobooksScreen: View {
                     } header: {
                         Text("Recently Added")
                     }
+                    .fontDesign(.rounded)
                     .listRowSeparator(.hidden)
                 }
 
@@ -94,17 +98,20 @@ struct AudiobooksScreen: View {
                     } header: {
                         Text("Recently Played")
                     }
+                    .fontDesign(.rounded)
                     .listRowInsets(.default)
                     .listRowSeparator(.hidden)
                 }
 
                 if !isOffline {
                     libraries
+                        .fontDesign(.rounded)
                 }
             }
             .listStyle(.plain)
             .headerProminence(.increased)
-            .fontDesign(.rounded)
+            // Rounded is set on each part rather than here: the outermost
+            // `.fontDesign` wins, and the book's title is New York.
             .contentMargins(.bottom, 120, for: .scrollContent)
             .navigationTitle("Audiobooks")
             .task {
@@ -235,60 +242,67 @@ struct AudiobookResumeCard: View {
             .accessibilityLabel("View \(book.title)")
 
             VStack(alignment: .leading, spacing: 4) {
+                // New York, a book's own face, for its title; the rest of
+                // the card is rounded, set on itself (the outermost
+                // `.fontDesign` wins).
                 Text(book.title)
                     .font(.headline)
+                    .fontDesign(.serif)
                     .lineLimit(2)
-                if !book.subtitle.isEmpty {
-                    Text(book.subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                if isLoaded, let chapter = player.currentChapter, (player.current?.chapters.count ?? 0) > 1 {
-                    Text(chapter.title)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 8)
-
-                if let progress, let fraction = progress.fraction {
-                    AudiobookProgressBar(fraction: fraction)
-                    if let remaining = AudiobookFormat.remaining(progress) {
-                        Text(remaining)
-                            .font(.caption)
+                Group {
+                    if !book.subtitle.isEmpty {
+                        Text(book.subtitle)
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
-                            .monospacedDigit()
+                            .lineLimit(1)
                     }
-                }
+                    if isLoaded, let chapter = player.currentChapter, (player.current?.chapters.count ?? 0) > 1 {
+                        Text(chapter.title)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
 
-                Button {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    Task {
-                        if isLoaded {
-                            await route.presented.togglePlayback()
-                        } else {
-                            await player.play(book)
+                    Spacer(minLength: 8)
+
+                    if let progress, let fraction = progress.fraction {
+                        AudiobookProgressBar(fraction: fraction)
+                        if let remaining = AudiobookFormat.remaining(progress) {
+                            Text(remaining)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
                         }
                     }
-                } label: {
-                    Group {
-                        if player.isLoading {
-                            ProgressView()
-                        } else {
-                            Text("\(Image(systemName: isPlaying ? "pause.fill" : "play.fill")) \(buttonTitle(progress))")
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
+
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        Task {
+                            if isLoaded {
+                                await route.presented.togglePlayback()
+                            } else {
+                                await player.play(book)
+                            }
                         }
+                    } label: {
+                        Group {
+                            if player.isLoading {
+                                ProgressView()
+                            } else {
+                                Text("\(Image(systemName: isPlaying ? "pause.fill" : "play.fill")) \(buttonTitle(progress))")
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
                     }
-                    .frame(maxWidth: .infinity)
+                    .glassButton()
+                    .foregroundStyle(.primary)
+                    .bold()
+                    .disabled(player.isLoading)
+                    .padding(.top, 4)
                 }
-                .glassButton()
-                .foregroundStyle(.primary)
-                .bold()
-                .disabled(player.isLoading)
-                .padding(.top, 4)
+                .fontDesign(.rounded)
             }
             .frame(minHeight: 136)
         }

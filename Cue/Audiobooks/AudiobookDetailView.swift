@@ -118,28 +118,35 @@ struct AudiobookDetailView: View {
                 .frame(maxWidth: .infinity)
 
             VStack(spacing: 4) {
+                // New York, a book's own face, for its title. Nothing
+                // around it may set a design: the outermost `.fontDesign`
+                // wins over one nearer the text, so the lines under it set
+                // rounded on themselves.
                 Text(shown.title)
                     .font(.title3.bold())
+                    .fontDesign(.serif)
                     .multilineTextAlignment(.center)
-                if !shown.subtitle.isEmpty {
-                    Text(shown.subtitle)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
+                Group {
+                    if !shown.subtitle.isEmpty {
+                        Text(shown.subtitle)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let narrator = audiobook?.narrator {
+                        Text("Narrated by \(narrator)")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let detail = detailLine {
+                        Text(detail)
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
-                if let narrator = audiobook?.narrator {
-                    Text("Narrated by \(narrator)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                if let detail = detailLine {
-                    Text(detail)
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
-                }
+                .fontDesign(.rounded)
             }
             .frame(maxWidth: .infinity)
         }
-        .fontDesign(.rounded)
         .padding(.top, 8)
     }
 
@@ -329,6 +336,8 @@ private struct AudiobookSummary: View {
             .opacity(isMeasured ? 1 : 0)
             .geometryGroup()
             .font(.callout)
+            // New York, a reading face at this size.
+            .fontDesign(.serif)
             .foregroundStyle(.secondary)
             .contentShape(.rect)
             .onTapGesture(perform: toggle)
