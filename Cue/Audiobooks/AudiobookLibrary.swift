@@ -1,3 +1,4 @@
+import Defaults
 import Foundation
 import MusicSearchKit
 import OSLog
@@ -25,6 +26,17 @@ enum AudiobookLibrary {
     static func plexShelf() async -> [PlayableContent] {
         let store = AudiobookProgressStore.shared
         return (await plexBooks() ?? []).map { $0.withAudiobookProgress(store.progress(for: $0)) }
+    }
+
+    /// Asks the Plex server whether it has books, for the Audiobooks tab,
+    /// which shows from the answer kept at launch. Only a server with books
+    /// changes it, unless `afterChange` (the listener just changed which
+    /// libraries are books): one that couldn't be reached reads as none,
+    /// and a blip shouldn't take the tab away.
+    static func checkPlexBooks(afterChange: Bool = false) async {
+        let has = await PlexAPI.shared.hasAudiobooks()
+        guard has || afterChange else { return }
+        UserDefaults.standard.set(has, forKey: AppStorageKeys.hasPlexAudiobooks)
     }
 
     // MARK: - A book

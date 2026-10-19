@@ -146,6 +146,9 @@ struct PlexBrowseScreen: View {
                 await updatePlexBrowseService()
                 isLoading = false
                 hasAudiobooks = await PlexAPI.shared.hasAudiobooks()
+                if hasAudiobooks {
+                    UserDefaults.standard.set(true, forKey: AppStorageKeys.hasPlexAudiobooks)
+                }
                 // Opening the library is the moment to notice the server has
                 // more songs than the synced copy — Songs is one tap away.
                 await musicSearchService.refreshPlexLibraryIfChanged()

@@ -155,25 +155,8 @@ struct AudiobookshelfBrowseScreen: View {
         }
     }
 
-    /// The All Books list's orders, each its own loader. The server sorts,
-    /// so each pages through in its own order and there's no direction to
-    /// flip, as for Subsonic's albums.
     private var sortOptions: [PlayableListSort] {
-        let browse = browse
-        return [
-            PlayableListSort(name: "Title") { offset, _ in
-                await browse.books(offset: offset, sort: "media.metadata.title")
-            },
-            PlayableListSort(name: "Author") { offset, _ in
-                await browse.books(offset: offset, sort: "media.metadata.authorNameLF")
-            },
-            PlayableListSort(name: "Recently Added") { offset, _ in
-                await browse.books(offset: offset, sort: "addedAt", descending: true)
-            },
-            PlayableListSort(name: "Length") { offset, _ in
-                await browse.books(offset: offset, sort: "media.duration", descending: true)
-            }
-        ]
+        browse.bookSortOptions
     }
 
     private var notConnectedView: some View {

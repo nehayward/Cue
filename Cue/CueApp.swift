@@ -305,6 +305,8 @@ struct CueApp: App {
     @State private var offline = OfflineMode.shared
     /// Settings › Appearance › Show Radio Tab.
     @AppStorage(AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
+    @AppStorage(AppStorageKeys.showAudiobooksTab) private var showAudiobooksTab: Bool = true
+    @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexAudiobooks: Bool = false
     /// The sidebar's edits — which of the provider tabs show, and the order
     /// of their sections — kept across launches. This is the whole of tab
     /// customization: the sidebar's own edit mode writes it, and the
@@ -349,6 +351,17 @@ struct CueApp: App {
             && [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
     }
 
+    /// Whether the Audiobooks tab has books to show: an Audiobookshelf
+    /// sign-in, or a Plex server that had books when last asked
+    /// (`AudiobookLibrary.checkPlexBooks`). Hidden in Settings › Appearance,
+    /// and while Offline Mode is active, since books stream.
+    private var showsAudiobooksTab: Bool {
+        showAudiobooksTab
+            && !offline.isActive
+            && ((coreFeatures.isEnabled(.audiobookshelf) && AudiobookshelfAPI.shared.isConfigured)
+                || (coreFeatures.isEnabled(.plex) && hasPlexAudiobooks))
+    }
+
     /// Search. The search role only on the phone, where it draws the tab as
     /// the bar's separate search bubble. Elsewhere the role exists to hoist
     /// a `.searchable` out of the tab, and `SearchScreen` draws its own
@@ -369,6 +382,16 @@ struct CueApp: App {
         if showsRadioTab {
             Tab("Radio", systemImage: "radio", value: AppTab.radio) {
                 Screens.radio
+            }
+        }
+    }
+
+    /// Audiobooks, after Radio, while there are books (`showsAudiobooksTab`).
+    @TabContentBuilder<AppTab>
+    private var audiobooksTab: some TabContent<AppTab> {
+        if showsAudiobooksTab {
+            Tab("Audiobooks", systemImage: "book", value: AppTab.audiobooks) {
+                Screens.audiobooks
             }
         }
     }
@@ -468,6 +491,9 @@ struct CueApp: App {
         if showsRadioTab {
             tabs.insert(.radio)
         }
+        if showsAudiobooksTab {
+            tabs.insert(.audiobooks)
+        }
         if showsLibrarySections {
             tabs.insert(.home)
             for service in tabProviders {
@@ -517,6 +543,7 @@ struct CueApp: App {
                     }
                     searchTab
                     radioTab
+                    audiobooksTab
                 } else {
                     Tab("Home", image: "home.fill", value: AppTab.home) {
                         Screens.home
@@ -526,6 +553,7 @@ struct CueApp: App {
                         Screens.browse
                     }
                     radioTab
+                    audiobooksTab
 
                     // The providers twice over, both driven by the switched-on
                     // set: once as tabs in one section, which is how the
@@ -646,6 +674,11 @@ struct CueApp: App {
             .onOpenURL(perform: handle)
             .onAppear {
                 coreFeatures.restoreDeviceServicesOnce()
+                // Whether Plex has books, for the Audiobooks tab: a server
+                // that gained some since last time brings the tab in.
+                if coreFeatures.isEnabled(.plex), !offline.isActive {
+                    Task { await AudiobookLibrary.checkPlexBooks() }
+                }
                 // Asks whether there are speakers before anything looks for
                 // them. Onboarding writes `hasOnboarded` however it ends,
                 // so this is once per install, and starts monitoring itself

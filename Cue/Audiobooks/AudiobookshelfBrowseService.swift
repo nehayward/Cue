@@ -112,6 +112,26 @@ final class AudiobookshelfBrowseService {
         return []
     }
 
+    /// The All Books list's orders, each its own loader. The server sorts,
+    /// so each pages through in its own order and there's no direction to
+    /// flip, as for Subsonic's albums.
+    var bookSortOptions: [PlayableListSort] {
+        [
+            PlayableListSort(name: "Title") { offset, _ in
+                await self.books(offset: offset, sort: "media.metadata.title")
+            },
+            PlayableListSort(name: "Author") { offset, _ in
+                await self.books(offset: offset, sort: "media.metadata.authorNameLF")
+            },
+            PlayableListSort(name: "Recently Added") { offset, _ in
+                await self.books(offset: offset, sort: "addedAt", descending: true)
+            },
+            PlayableListSort(name: "Length") { offset, _ in
+                await self.books(offset: offset, sort: "media.duration", descending: true)
+            }
+        ]
+    }
+
     /// Books matching `query` in the selected library.
     func search(_ query: String) async -> [PlayableContent] {
         guard let library = selectedLibrary else { return [] }

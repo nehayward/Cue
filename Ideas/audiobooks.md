@@ -38,7 +38,10 @@ JSON, URLs) have unit tests that pass on Linux.
 | Playing it | `AudiobookPlayer`: replaces the queue with the files from the resume point, on this device or the route's speaker; follows `PlaybackRoute.presented` every 2 s to save the place and sync the server |
 | Speed | `AudiobookPlayer.rate`, applied by `LocalPlaybackService.applyPlaybackRate` to a book's files only; the clock runs at that rate. Speakers stay at 1× |
 | Transport | Player: −15 s / +30 s replace Previous / Next. Lock Screen: skip commands and a rate command (`LocalNowPlayingPresenter`) |
-| Player menu | Chapters (device and speaker) and Speed (device) — `AudiobookPlayerMenuItems` |
+| Player menu | Previous / Next Chapter, the chapters (device and speaker) and Speed (device) — `AudiobookPlayerMenuItems` |
+| Chapter line | The player's origin line reads the chapter playing and opens the chapters (`AudiobookChapterLine`) |
+| Sleep timer | End of Chapter in place of End of Song: the player's own timer, kept on the chapter's end at the speed playing (`AudiobookPlayer.sleepAtEndOfChapter`) |
+| Audiobooks tab | `AudiobooksScreen`: the book listened to last with Resume (`AudiobookResumeCard`), Continue Listening, Audiobookshelf's Recently Added, Recently Played, then All Books per server. Shown while Audiobookshelf is signed in or Plex had books when last asked (`AppStorageKeys.hasPlexAudiobooks`); Settings ▸ Appearance can hide it |
 
 ### Plex
 
@@ -56,8 +59,14 @@ JSON, URLs) have unit tests that pass on Linux.
   `lastViewedAt` (`PlexAudiobook.progress`). **Plex keeps `viewOffset` only
   with "Store track progress" on in the library's advanced settings**; the
   settings footer says so. This device keeps its own place regardless.
-- Chapters come from the `.m4b`'s marks (`includeChapters=1`, read for books
-  of up to 8 files), else one chapter per file.
+- Chapters come from the `.m4b`'s marks: each file of a book of up to 8 is
+  asked on its own with `includeChapters=1`, read for its `Chapter` list
+  alone (`PlexChapterLookup`; a batch request for several files came back
+  without them). Plex lists an `.m4b`'s marks only when it read them at
+  scan, so a file it has none for is read with AVFoundation
+  (`AudiobookChapterReader`, cached in Caches/AudiobookChapters.json). A
+  file with no marks anywhere is one chapter named for it; a book whose
+  only chapter is the whole book shows no chapter list.
 - On a speaker, Plex files play through Plex's Sonos service (sid 212), as
   for music. While a speaker plays, `AudiobookPlayer` sends the timeline
   reports the device sends itself through `PlayReporter`.
@@ -104,11 +113,16 @@ One item per branch, as in the roadmap.
   Audiobookshelf), and `/api/session/local` to report offline listening.
 - [ ] **CarPlay** — a Books section with Continue Listening; the car's Now
   Playing with skip and a `CPNowPlayingPlaybackRateButton`.
-- [ ] **Sleep timer: end of chapter** — chapters are book time, so the timer
-  can stop at the next chapter's start.
+- [x] **Sleep timer: end of chapter** — End of Chapter, on this device and
+  a speaker.
+- [x] **Chapter navigation** — Previous / Next Chapter and the chapter line
+  in the player.
+- [x] **Audiobooks tab** — the last book one tap from Resume.
+- [ ] **Chapter scrubber** — the scrubber across the chapter playing rather
+  than the file, for a 20 h `.m4b`.
+- [ ] **Lock Screen chapters** — Previous / Next Chapter in place of the
+  skips, as a setting.
 - [ ] **Speed per book** — `rate` is one setting for every book today.
-- [ ] **The player's title** — shows the file's title; the book and chapter
-  would read better (the Lock Screen already does this).
 - [ ] **Audiobookshelf single sign-on** — OpenID-only servers are refused
   with a message. The mobile PKCE flow is in the research notes below.
 - [ ] **`.m4b` in Files** — the Files provider already takes the extension;

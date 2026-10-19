@@ -28,6 +28,7 @@ struct PlexAudiobookSettingsSection: View {
                 .tint(.accent)
                 .onChange(of: includesGenreTagged) { _, isOn in
                     PlexAPI.shared.includesGenreTaggedAudiobooks = isOn
+                    Task { await AudiobookLibrary.checkPlexBooks(afterChange: true) }
                 }
         } header: {
             Text("Audiobooks")
@@ -51,5 +52,6 @@ struct PlexAudiobookSettingsSection: View {
         }
         PlexAPI.shared.chosenAudiobookLibraryKeys = choices.map(\.id).filter(keys.contains)
         choices = choices.map { PlexAPI.AudiobookLibrary(section: $0.section, isBooks: keys.contains($0.id)) }
+        Task { await AudiobookLibrary.checkPlexBooks(afterChange: true) }
     }
 }

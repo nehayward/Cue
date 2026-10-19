@@ -95,7 +95,7 @@ struct AudiobookshelfManagementView: View {
                     case let .failure(message):
                         Text(message).foregroundStyle(.red)
                     case .success where !hasUnsavedEdits:
-                        Text("Signed in. Your books are in Library under Audiobookshelf.")
+                        Text("Signed in. Your books are in the Audiobooks tab.")
                     default:
                         Text("Your login is kept once the server accepts it.")
                     }
@@ -161,6 +161,18 @@ struct AudiobookshelfManagementView: View {
         password = ""
         CoreFeatures.shared.enabledServices(.audiobookshelf).wrappedValue = true
         Task { await AudiobookshelfBrowseService.shared.refresh() }
+        // Done: the sheet goes, and the banner is the way to the books — the
+        // Audiobooks tab, which the sign-in has just brought in.
+        HapticManager.shared.fireHaptic(.success)
+        dismiss()
+        AlertService.shared.showActionAlert(
+            with: "Signed In to Audiobookshelf",
+            subtitle: "Tap to see your books",
+            imageName: "checkmark.circle.fill"
+        ) {
+            Router.main.presentedSheet = nil
+            Router.main.selectedTab = .audiobooks
+        }
     }
 
     private func signOut() async {
