@@ -22,9 +22,9 @@ import UIKit
 /// Everything plays on this device (see `CarPlayPlayback`); speakers have
 /// no place in a car, so nothing here offers one. The car's Now Playing
 /// screen is the system's, filled from the card the device player publishes
-/// (see `LocalNowPlayingPresenter`); this adds Up Next (with shuffle and
-/// repeat over it), the album or playlist that's playing, shuffle and
-/// repeat to it.
+/// (see `LocalNowPlayingPresenter`), or MusicKit's own for Apple Music; this
+/// adds the queue button and Up Next (with shuffle and repeat over it), the
+/// album or playlist that's playing, shuffle and repeat to it.
 ///
 /// The newest plays and downloads are iOS 26 card rows, the stations and
 /// the Library's sections image grids, and the buttons (the Library's
@@ -47,6 +47,12 @@ final class CarPlayInterface: NSObject {
 
     /// Up Next, pushed from Now Playing, follows the player while it's up.
     private weak var upNextTemplate: CPListTemplate?
+    /// What Now Playing's buttons were last set to show (`updateNowPlaying`);
+    /// nil until they've been set this connection.
+    private var nowPlayingButtons: String?
+    /// This interface's targets on the shuffle and repeat commands, for as
+    /// long as the car is connected (`registerModeCommands`).
+    private var modeCommandTargets: [(MPRemoteCommand, Any)] = []
 
     private var isConnected = false
     private var radioTask: Task<Void, Never>?
@@ -90,13 +96,10 @@ final class CarPlayInterface: NSObject {
     func start() {
         isConnected = true
         CarPlayArtwork.screen = interfaceController
-        // The car's Now Playing reads this app's own card; Apple Music needs
-        // one there too (see `publishesAppleMusicCard`).
-        LocalPlaybackService.shared.publishesAppleMusicCard = true
-        // No `upNextTitle`: with one the queue button is that word, and
-        // without it the car draws its own queue icon, as for Apple Music.
+        // The queue button is Cue's own (`updateNowPlaying`).
         let nowPlaying = CPNowPlayingTemplate.shared
         nowPlaying.add(self)
+        registerModeCommands()
 
         guard FeatureGate.shared.isAvailable(.carPlay) else {
             showUnavailable()
@@ -125,8 +128,9 @@ final class CarPlayInterface: NSObject {
 
     func stop() {
         isConnected = false
-        LocalPlaybackService.shared.publishesAppleMusicCard = false
+        nowPlayingButtons = nil
         CPNowPlayingTemplate.shared.remove(self)
+        unregisterModeCommands()
         radioTask?.cancel()
         libraryTask?.cancel()
         libraryTask = nil
@@ -175,6 +179,9 @@ final class CarPlayInterface: NSObject {
         _ = player.isShuffled
         _ = player.repeatMode
         _ = player.source
+        // What the Up Next list and the buttons switch on; `source` reads
+        // it too, but not as anything to rely on.
+        _ = player.isPlayingStation
         // A queue the phone handed to a speaker earlier is parked, not
         // playing; the route says which.
         _ = PlaybackRoute.shared.destination
@@ -578,19 +585,43 @@ final class CarPlayInterface: NSObject {
         return PlaybackRoute.shared.destination == .device && player.isActive && player.isPlaying
     }
 
-    /// Up Next and the album button while the device has a queue; shuffle and
-    /// repeat for a queue of songs (a station has neither).
+    /// The album button while the device has a queue; shuffle and repeat for
+    /// a queue of songs (a station has neither); and the queue button.
+    ///
+    /// The queue button is Cue's own, the phone's ring with the song's place
+    /// in it (`CarPlayArtwork.queueGauge`), in place of the system's Up Next
+    /// button, which only takes a word or the car's own icon.
+    ///
+    /// Runs on every change the tabs follow (a play, the history, the
+    /// downloads), so each part is only handed to the car when it differs
+    /// from what the car already has: every `updateNowPlayingButtons` is a
+    /// new set of buttons for the car to draw.
     private func updateNowPlaying() {
         let player = LocalPlaybackService.shared
         let onDevice = PlaybackRoute.shared.destination == .device && player.isActive
         let nowPlaying = CPNowPlayingTemplate.shared
-        // Up whenever there's a queue of songs, on its last song too, as
-        // the Music app's is. A station alone has no queue to show.
-        nowPlaying.isUpNextButtonEnabled = onDevice && (!player.isPlayingStation || !player.upNext.isEmpty)
-        nowPlaying.isAlbumArtistButtonEnabled = onDevice && player.source.map { player.canPlayContainerLocally($0) } == true
+        if nowPlaying.isUpNextButtonEnabled {
+            nowPlaying.isUpNextButtonEnabled = false
+        }
+        let albumArtist = onDevice && player.source.map { player.canPlayContainerLocally($0) } == true
+        if nowPlaying.isAlbumArtistButtonEnabled != albumArtist {
+            nowPlaying.isAlbumArtistButtonEnabled = albumArtist
+        }
+
+        let hasModes = onDevice && !player.isPlayingStation
+        // Whenever there's a queue of songs, on its last song too, as the
+        // Music app's is — and under a station, which leaves the queue
+        // waiting behind it, at place zero. A station alone has no queue.
+        let hasQueue = onDevice && !player.queue.isEmpty
+        let signature = [
+            hasModes ? "\(player.isShuffled),\(player.repeatMode.rawValue)" : "",
+            hasQueue ? "\(player.queuePosition)/\(player.queueCount)" : "",
+        ].joined(separator: "|")
+        guard signature != nowPlayingButtons else { return }
+        nowPlayingButtons = signature
 
         var buttons: [CPNowPlayingButton] = []
-        if onDevice, !player.isPlayingStation {
+        if hasModes {
             // A tap reaches these handlers only while the matching remote
             // commands are enabled, which `LocalNowPlayingPresenter` sees
             // to. Each moves on from the state the car shows (the
@@ -612,12 +643,62 @@ final class CarPlayInterface: NSObject {
             repeatButton.isSelected = player.repeatMode != .off
             buttons += [shuffle, repeatButton]
 
-            // What the two buttons draw their state from.
+            // What the two buttons draw their state from, and what lets them
+            // take a tap: a station's card switches both off.
             let commands = MPRemoteCommandCenter.shared()
             commands.changeShuffleModeCommand.currentShuffleType = player.isShuffled ? .items : .off
             commands.changeRepeatModeCommand.currentRepeatType = player.repeatMode.repeatType
+            commands.changeShuffleModeCommand.isEnabled = true
+            commands.changeRepeatModeCommand.isEnabled = true
+        }
+        if hasQueue {
+            let image = CarPlayArtwork.queueGauge(position: player.queuePosition, total: player.queueCount)
+            buttons.append(CPNowPlayingImageButton(image: image) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.showUpNext()
+                }
+            })
         }
         nowPlaying.updateNowPlayingButtons(buttons)
+    }
+
+    /// Targets on the shuffle and repeat commands while the car is
+    /// connected. Now Playing's shuffle and repeat buttons take a tap only
+    /// while those commands are enabled with a target, and the device
+    /// card's (`LocalNowPlayingPresenter`) are there only while a stream
+    /// plays: during Apple Music, whose card is MusicKit's, the buttons drew
+    /// and did nothing. Like the card's, each sets the mode the event names,
+    /// so a tap that reaches both sets it once.
+    private func registerModeCommands() {
+        guard modeCommandTargets.isEmpty else { return }
+        let commands = MPRemoteCommandCenter.shared()
+        let shuffle = commands.changeShuffleModeCommand.addTarget { event in
+            MainActor.assumeIsolated {
+                let player = LocalPlaybackService.shared
+                guard let event = event as? MPChangeShuffleModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+                player.setShuffle(event.shuffleType != .off)
+                return .success
+            }
+        }
+        let repeatMode = commands.changeRepeatModeCommand.addTarget { event in
+            MainActor.assumeIsolated {
+                let player = LocalPlaybackService.shared
+                guard let event = event as? MPChangeRepeatModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+                player.setRepeatMode(LocalPlaybackService.RepeatMode(event.repeatType))
+                return .success
+            }
+        }
+        modeCommandTargets = [
+            (commands.changeShuffleModeCommand, shuffle),
+            (commands.changeRepeatModeCommand, repeatMode),
+        ]
+    }
+
+    private func unregisterModeCommands() {
+        for (command, target) in modeCommandTargets {
+            command.removeTarget(target)
+        }
+        modeCommandTargets = []
     }
 
     private func showUpNext() {
@@ -628,17 +709,25 @@ final class CarPlayInterface: NSObject {
         push(template)
     }
 
-    /// Shuffle and repeat on top for a queue of songs (a station has
-    /// neither), then what's coming.
+    /// Shuffle and repeat on top for a queue of songs, then what's coming.
+    ///
+    /// Under a station the queue waits behind it, not in use, as a speaker's
+    /// does on radio: a note says so in place of the tiles, and the list is
+    /// where the queue goes on from — the song it was left on, then the rest.
+    /// A row picked leaves the station for the queue there.
     private func fillUpNext(_ template: CPListTemplate) {
         let player = LocalPlaybackService.shared
-        let hasModes = !player.isPlayingStation
-        let upNext = Array(player.upNext.prefix(CarPlayLibrary.rowLimit - (hasModes ? 1 : 0)))
-        let modes = hasModes ? "\(player.isShuffled),\(player.repeatMode.rawValue)" : ""
+        let isParked = player.isPlayingStation
+        let hasModes = !isParked
+        let waiting = isParked ? Array(player.queue.dropFirst(player.currentIndex)) : player.upNext
+        let upNext = Array(waiting.prefix(CarPlayLibrary.rowLimit - 1))
+        let modes = hasModes ? "\(player.isShuffled),\(player.repeatMode.rawValue)" : "parked"
         update(template, signature: ([modes] + upNext.map(\.id)).joined(separator: "|")) {
             var sections: [CPListSection] = []
             if hasModes {
                 sections.append(CPListSection(items: [playModeTiles()]))
+            } else if !upNext.isEmpty {
+                sections.append(CPListSection(items: [note("Not Playing", detail: "The radio is on. Pick a song to go back to the queue.")]))
             }
             guard !upNext.isEmpty else {
                 // With the tiles up, the list's own empty note doesn't show.
@@ -689,10 +778,12 @@ final class CarPlayInterface: NSObject {
 
     /// Plays an Up Next row and goes back to Now Playing. Looked up again
     /// rather than kept as an index: the queue can have moved since the
-    /// list was drawn.
+    /// list was drawn. Under a station the song the queue was left on is
+    /// listed too, and picking it goes back to its spot.
     private func jump(to content: PlayableContent) {
         let player = LocalPlaybackService.shared
-        let upcoming = player.queue.indices.dropFirst(player.currentIndex + 1)
+        let first = player.currentIndex + (player.isPlayingStation ? 0 : 1)
+        let upcoming = player.queue.indices.dropFirst(first)
         guard let index = upcoming.first(where: { player.queue[$0] == content }) else { return }
         player.play(at: index)
         interfaceController.popTemplate(animated: true, completion: nil)

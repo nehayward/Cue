@@ -5,7 +5,7 @@ import SwiftUI
 
 /// The Radio tab: stations that play on this device as well as on a
 /// speaker. That rule picks the sources — TuneIn (the stations near the
-/// user, what's trending, and the rest of its directory) and Apple Music's
+/// user, also on a map, what's trending, and the rest of its directory) and Apple Music's
 /// live and personal stations — each only while its provider is switched
 /// on in Services. Sonos Radio and Sonos favorites are speaker-only, so
 /// they stay on Browse and Search. Typing in the field searches the same
@@ -120,6 +120,7 @@ struct RadioScreen: View {
                     action: { offset in offset == 0 ? local : [] }
                 )
             )
+            RadioMapSection(local: local)
         }
         if !trending.isEmpty {
             RadioStationsSection(
@@ -279,6 +280,55 @@ struct RadioScreen: View {
                     await appleMusicBrowseService.updateRadioStations(offset: 0)
                 }
             }
+        }
+    }
+}
+
+/// The local stations on a map; the tile opens the full map. Its own view
+/// so stations landing on the map redraw the tile, not the whole tab. It
+/// stays while there are local stations, placed or not, so the map pushed
+/// from it always has it to zoom back into. The stations are looked up
+/// once the tile is in the list, apart from the tab's `load`, so a pull to
+/// refresh doesn't wait on them; once placed, a station isn't asked again.
+private struct RadioMapSection: View {
+    let local: [PlayableContent]
+
+    @Environment(Router.self) private var router
+    @Environment(\.zoomNamespace) private var zoomNamespace
+    @State private var radioMap = RadioMap.shared
+
+    var body: some View {
+        Section {
+            RadioSectionHeader(title: "Radio Map", caption: "TuneIn")
+
+            Button {
+                router.navigate(to: .radioMap(zoomSource: zoomNamespace == nil ? nil : .radioMap))
+            } label: {
+                RadioMapTile(stations: radioMap.mapped(local), isLocating: radioMap.isLocating)
+            }
+            .buttonStyle(.plain)
+            .modifier(RadioMapZoomSource(namespace: zoomNamespace))
+            .task(id: local.map(\.id)) {
+                await radioMap.locate(local)
+            }
+        }
+        .listRowInsets(.default)
+        .listRowSeparator(.hidden)
+        .listSectionSeparator(.hidden)
+    }
+}
+
+/// Marks the map tile as what the full map zooms out of, where the app
+/// has a zoom namespace (not in previews).
+private struct RadioMapZoomSource: ViewModifier {
+    let namespace: Namespace.ID?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let namespace {
+            content.zoomSource(.radioMap, in: namespace)
+        } else {
+            content
         }
     }
 }
