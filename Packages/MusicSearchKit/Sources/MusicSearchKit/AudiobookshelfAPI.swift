@@ -32,6 +32,7 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         static let username = "com.cue.audiobookshelf.username"
         static let deviceID = "com.cue.audiobookshelf.deviceID"
         static let sessions = "com.cue.audiobookshelf.sessions"
+        static let sessionsTouched = "com.cue.audiobookshelf.sessionsTouched"
         static let defaultLibrary = "com.cue.audiobookshelf.defaultLibrary"
     }
 
@@ -296,6 +297,7 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         guard let (data, status) = await send("POST", "/api/items/\(itemID)/play", json: body), status == 200,
               let opened = try? decoder.decode(AudiobookshelfSession.self, from: data) else { return nil }
         Self.rememberSession(opened.id, for: itemID)
+        Self.touchSession(for: itemID)
         return opened
     }
 
@@ -306,10 +308,16 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
     public func sync(itemID: String, currentTime: TimeInterval, timeListened: TimeInterval, duration: TimeInterval) async {
         if let sessionID = Self.sessionID(for: itemID) {
             let body: [String: Any] = ["currentTime": currentTime, "timeListened": timeListened, "duration": duration]
-            if let (_, status) = await send("POST", "/api/session/\(sessionID)/sync", json: body), status == 200 {
+            // No answer: the network, not the session. Kept for the next.
+            guard let (_, status) = await send("POST", "/api/session/\(sessionID)/sync", json: body) else { return }
+            if status == 200 {
+                Self.touchSession(for: itemID)
                 return
             }
-            Self.rememberSession(nil, for: itemID)
+            // Gone on the server: a restart, or too long unheard.
+            if status == 404 {
+                Self.rememberSession(nil, for: itemID)
+            }
         }
         await updateProgress(itemID: itemID, currentTime: currentTime, duration: duration, isFinished: false)
     }
@@ -482,13 +490,31 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
     /// URLs stay good on the server for a day and a half without a sync.
     private static let sessionCache = OSAllocatedUnfairLock<[String: String]?>(initialState: nil)
 
+    /// How long a session is trusted after it was opened or last synced:
+    /// short of the server's day and a half, so a session it has dropped
+    /// isn't handed to a player.
+    static let sessionLifetime: TimeInterval = 30 * 3600
+
     static func sessionID(for itemID: String) -> String? {
-        sessionCache.withLock { cache in
+        let touched = UserDefaults.standard.double(forKey: "\(StorageKey.sessionsTouched).\(itemID)")
+        guard Date.now.timeIntervalSince1970 - touched < sessionLifetime else { return nil }
+        return sessionCache.withLock { cache in
             if cache == nil {
                 cache = UserDefaults.standard.dictionary(forKey: StorageKey.sessions) as? [String: String] ?? [:]
             }
             return cache?[itemID]
         }
+    }
+
+    /// Whether this device has a session open for the item that can still
+    /// be trusted.
+    public static func hasOpenSession(for itemID: String) -> Bool {
+        sessionID(for: itemID) != nil
+    }
+
+    /// Notes that a session was just opened or synced.
+    private static func touchSession(for itemID: String) {
+        UserDefaults.standard.set(Date.now.timeIntervalSince1970, forKey: "\(StorageKey.sessionsTouched).\(itemID)")
     }
 
     private static func rememberSession(_ sessionID: String?, for itemID: String) {

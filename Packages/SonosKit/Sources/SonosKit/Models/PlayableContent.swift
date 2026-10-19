@@ -182,6 +182,9 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return ""
         case (.unique, _):
             return id
+        // A book has no URI of its own: `AudiobookPlayer` queues its files.
+        case (.audiobook, _):
+            return ""
         default:
             assertionFailure("Failed")
             return ""

@@ -75,8 +75,10 @@ JSON, URLs) have unit tests that pass on Linux.
   the token's hour).
 - Synced every 15 s and on pause (`/api/session/<id>/sync`, with what was
   heard since, for the server's listening stats); closed when another book
-  or music takes over. A dead session falls back to `PATCH
-  /api/me/progress`.
+  or music takes over. A session the server has dropped (404) falls back
+  to `PATCH /api/me/progress`. Sessions unsynced for 30 h aren't trusted;
+  a relaunch with a book loaded opens a fresh one, and so does a book file
+  that fails to load (once a minute at most).
 - Library screen: library picker, Continue Listening, All Books (sorts:
   title, author, recently added, length), Recently Added. Search covers
   every book library.
@@ -107,8 +109,6 @@ One item per branch, as in the roadmap.
 - [ ] **Speed per book** — `rate` is one setting for every book today.
 - [ ] **The player's title** — shows the file's title; the book and chapter
   would read better (the Lock Screen already does this).
-- [ ] **Book drops** — dragging a book onto a speaker goes through the queue
-  path, which can't play one; route it through `AudiobookPlayer`.
 - [ ] **Audiobookshelf single sign-on** — OpenID-only servers are refused
   with a message. The mobile PKCE flow is in the research notes below.
 - [ ] **`.m4b` in Files** — the Files provider already takes the extension;

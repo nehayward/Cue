@@ -52,6 +52,11 @@ private enum DropPlay {
         switch item {
         case let .playable(content):
             Task { @MainActor in
+                // A book plays on the speaker from where it was left.
+                if content.content.type == .audiobook {
+                    await AudiobookPlayer.shared.play(content, on: .group(group))
+                    return
+                }
                 let position = [.playlist, .libraryPlaylist].contains(content.content.type) ? .replace : position
 
                 let queueItem = QueueItem(
@@ -95,6 +100,10 @@ private enum DropPlay {
                 content = await SonosService.shared.getContent(from: url)
             }
             guard let content else { return }
+            if content.content.type == .audiobook {
+                await AudiobookPlayer.shared.play(content, on: .device)
+                return
+            }
             let position = [.playlist, .libraryPlaylist].contains(content.content.type) ? .replace : position
             do {
                 try await LocalPlaybackService.shared.enqueue(content, at: position)

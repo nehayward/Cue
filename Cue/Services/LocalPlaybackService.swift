@@ -2135,6 +2135,7 @@ final class LocalPlaybackService {
         guard itemWatches.removeValue(forKey: key) != nil,
               let queueIndex = streamRun[key], let row = queue[safe: queueIndex] else { return }
         AlertService.shared.showAlert(with: "Couldn't play “\(row.title)”", imageName: "exclamationmark.triangle")
+        AudiobookPlayer.shared.fileFailed(row)
         // The item's error and the stream's path (not its query, which
         // carries the server's token).
         let error = item.error as NSError?

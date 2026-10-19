@@ -13,7 +13,7 @@ struct AudiobookProgressBar: View {
 
     /// Read with `onGeometryChange` rather than a `GeometryReader`, which
     /// re-runs its content on every layout pass.
-    @State private var width: Double = 0
+    @State private var width: CGFloat = 0
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: isRounded ? height / 2 : 0)
@@ -25,7 +25,7 @@ struct AudiobookProgressBar: View {
                     .frame(width: width * min(max(fraction, 0), 1))
             }
             .frame(height: height)
-            .onGeometryChange(for: Double.self) { $0.size.width } action: { width = $0 }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             .accessibilityElement()
             .accessibilityLabel("Listening progress")
             .accessibilityValue(Text(fraction, format: .percent.precision(.fractionLength(0))))

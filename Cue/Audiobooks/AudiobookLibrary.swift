@@ -71,7 +71,12 @@ enum AudiobookLibrary {
             return nil
         }
         let parts = item.partsToPlayable()
-        guard !parts.isEmpty else { return nil }
+        // The timeline is laid out from every file; a file Cue couldn't
+        // address would put every place after it in the wrong one.
+        guard !parts.isEmpty, parts.count == item.timeline.partDurations.count else {
+            log.error("audiobookshelf book \(book.content.id, privacy: .public): \(parts.count) of \(item.timeline.partDurations.count) files playable")
+            return nil
+        }
         let metadata = item.media?.metadata
         return Audiobook(
             book: item.toPlayable,

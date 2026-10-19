@@ -67,9 +67,16 @@ final class AudiobookPlayer {
         let stored = UserDefaults.standard.double(forKey: Self.rateKey)
         rate = stored > 0 ? stored : 1
         current = Self.loadCurrent()
-        if current != nil {
+        if let current {
             graceUntil = .now.addingTimeInterval(30)
             startMonitoring()
+            // The session its files stream through may have ended while
+            // Cue was closed (they last a day and a half unheard); one is
+            // open again before Play is pressed.
+            let itemID = current.book.content.id
+            if current.book.content.service == .audiobookshelf, !AudiobookshelfAPI.hasOpenSession(for: itemID) {
+                Task { _ = await AudiobookshelfAPI.shared.startSession(itemID: itemID) }
+            }
         }
         backgroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -103,9 +110,17 @@ final class AudiobookPlayer {
 
     // MARK: - Playing
 
+    /// Where a book plays.
+    enum Target {
+        /// Where the route goes: this device, or the chosen speaker.
+        case route
+        case device
+        /// A speaker it was dropped on.
+        case group(GroupRoom)
+    }
+
     /// Plays `book` from `time` (book time), or from where it was left.
-    /// Goes where the route goes: this device, or the chosen speaker.
-    func play(_ book: PlayableContent, from time: TimeInterval? = nil) async {
+    func play(_ book: PlayableContent, from time: TimeInterval? = nil, on target: Target = .route) async {
         isLoading = true
         defer { isLoading = false }
         // Read again even when it's the book already loaded: another player
@@ -121,7 +136,7 @@ final class AudiobookPlayer {
             return
         }
         let startTime = min(max(time ?? AudiobookLibrary.progress(for: audiobook)?.resumePosition ?? 0, 0), audiobook.duration)
-        await start(audiobook, at: startTime)
+        await start(audiobook, at: startTime, on: target)
         // The book, not its files: Recently Played opens its page.
         PlayHistoryService.shared.record(audiobook.book)
     }
@@ -152,6 +167,22 @@ final class AudiobookPlayer {
         await start(current, at: target)
     }
 
+    /// A book's file wouldn't load on this device. An Audiobookshelf file
+    /// streams through its session, which the server may have ended (a
+    /// restart does): a new session, and the book again from where it was.
+    /// Once a minute at most, so a server that's simply down isn't asked
+    /// over and over.
+    func fileFailed(_ item: PlayableContent) {
+        guard let current, current.book.content.service == .audiobookshelf, contains(item),
+              Date.now.timeIntervalSince(lastRecovery) > 60 else { return }
+        lastRecovery = .now
+        let time = position
+        Self.log.notice("book file failed; opening a new session")
+        Task { await start(current, at: time, on: .device) }
+    }
+
+    @ObservationIgnored private var lastRecovery: Date = .distantPast
+
     /// Skips `seconds` (back when negative) through the book, across files.
     func skip(by seconds: TimeInterval) async {
         guard current != nil else { return }
@@ -165,8 +196,8 @@ final class AudiobookPlayer {
         UserDefaults.standard.set(rate, forKey: Self.rateKey)
     }
 
-    /// Starts `audiobook` at book time `time`, where the route goes.
-    private func start(_ audiobook: Audiobook, at time: TimeInterval) async {
+    /// Starts `audiobook` at book time `time`, at `target`.
+    private func start(_ audiobook: Audiobook, at time: TimeInterval, on target: Target = .route) async {
         var audiobook = audiobook
         // Audiobookshelf streams belong to a listening session, opened
         // for each play; its files' URLs come from it.
@@ -183,8 +214,12 @@ final class AudiobookPlayer {
         graceUntil = .now.addingTimeInterval(15)
         misses = 0
 
-        let route = PlaybackRoute.shared
-        if !OfflineMode.shared.isActive, let group = route.group {
+        let group: GroupRoom? = switch target {
+        case .route: PlaybackRoute.shared.group
+        case .device: nil
+        case let .group(group): group
+        }
+        if !OfflineMode.shared.isActive, let group {
             await playOnSpeaker(audiobook, part: location.part, offset: location.offset, group: group)
         } else {
             do {
@@ -251,6 +286,13 @@ final class AudiobookPlayer {
         guard !route.isHolding else { return }
         let controller = route.presented
         guard let part = current.partIndex(of: controller.nowPlayingDisplay) else {
+            // A song played next, in a queue that still holds the book: the
+            // book carries on after it.
+            if controller.group == nil,
+               LocalPlaybackService.shared.queue.contains(where: { current.partIndex(of: $0) != nil }) {
+                misses = 0
+                return
+            }
             // Something else has the player — or the book is still on its
             // way into it.
             if controller.nowPlayingDisplay != nil, Date.now > graceUntil {
