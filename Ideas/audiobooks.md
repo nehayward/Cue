@@ -131,11 +131,16 @@ test target doesn't build as a whole for stale tests elsewhere
 One item per branch, as in the roadmap.
 
 - [x] **Build and fix** — builds in Xcode; deployed to the phone.
-- [ ] **The test server's Plex Audiobook library** (not Cue's) — every
-  file in it answers 404, while the music library's stream: it was scanned
-  from a Container Manager path the Plex container can no longer read.
-  Point the library at the share's own folder and scan, then check the
-  Tolkien books play and take Audible's chapters on Plex too.
+- [x] **The test server's Plex Audiobook library** (not Cue's) — every
+  file in it answered 404: the library's folder had been renamed on the
+  NAS (`Audiobook` to `Audiobooks`). Pointed at the new name and scanned
+  (2026-10-19); all four books stream, and the Tolkien books take
+  Audible's chapters on Plex too.
+- [ ] **An mp3's own chapters on Plex** — Plex strips the ID3 tag from a
+  part as it streams it (Fellowship comes 57 KB short, starting at the
+  first audio frame), so an mp3's `CHAP` frames never reach AVFoundation.
+  The tag would have to come from the original file (`download=1`, if
+  Plex serves it whole there).
 - [ ] **Check on a speaker** (unverified):
   - a 10 h+ `.m4b` from Plex through sid 212, seeking late in the file;
   - Audiobookshelf session URLs with the `ext=.m4a` hint (Sonos has no
