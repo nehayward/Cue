@@ -126,17 +126,25 @@ final class AudiobookPlayer {
     }
 
     /// What's left to hear, as "33m left in chapter" — or of the whole book
-    /// ("5h 3m left") when it has no chapters but itself — at the speed it
-    /// plays at: the book's on this device, 1× on a speaker. `compact`
-    /// leaves out "in chapter", for a narrow line. Nil with no book loaded.
-    func timeLeftText(compact: Bool = false) -> String? {
+    /// ("5h 3m left in book") with `ofBook`, or when it has no chapters but
+    /// itself — at the speed it plays at: the book's on this device, 1× on
+    /// a speaker. `compact` leaves out "in chapter" and "in book", for a
+    /// narrow line. Nil with no book loaded.
+    func timeLeftText(ofBook: Bool = false, compact: Bool = false) -> String? {
         guard let current else { return nil }
         let speed = PlaybackRoute.shared.controller.group == nil ? rate : 1
-        if current.chapters.count > 1, let chapter = currentChapter {
+        if !ofBook, hasChapters, let chapter = currentChapter {
             let left = "\(AudiobookFormat.duration(max(chapter.end - position, 0) / speed)) left"
             return compact ? left : "\(left) in chapter"
         }
-        return "\(AudiobookFormat.duration(max(current.duration - position, 0) / speed)) left"
+        let left = "\(AudiobookFormat.duration(max(current.duration - position, 0) / speed)) left"
+        return compact || !hasChapters ? left : "\(left) in book"
+    }
+
+    /// Whether the loaded book has chapters other than itself, so its time
+    /// left can be the chapter's as well as the book's.
+    var hasChapters: Bool {
+        (current?.chapters.count ?? 0) > 1
     }
 
     // MARK: - Playing

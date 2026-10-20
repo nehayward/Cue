@@ -67,6 +67,11 @@ public enum AppStorageKeys {
     /// (`PlexAPI.hasAudiobooks()`), so the Audiobooks tab shows at launch
     /// without waiting on the server.
     public static let hasPlexAudiobooks = "\(Prefix.id).hasPlexAudiobooks"
+    /// Whether a book's time left is the whole book's ("14h 24m left in
+    /// book") rather than the chapter's, in the player and the mini player.
+    /// A tap on the player's time left switches it. The chapter's when
+    /// unset.
+    public static let audiobookTimeLeftShowsBook = "\(Prefix.id).audiobookTimeLeftShowsBook"
     /// How the library's album lists are laid out — `"list"` (rows) or
     /// `"grid"` (artwork tiles). One setting for every provider's Albums
     /// page, so a choice made on Plex holds on Subsonic. Rows when unset.

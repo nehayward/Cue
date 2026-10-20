@@ -1084,7 +1084,8 @@ private struct PlayerScrubber: View {
                     Text(elapsed.formatted(.time(pattern: pattern)))
                         .contentTransition(.identity)
                     Spacer()
-                    // A book: what's left of the chapter. Anything else: lossless
+                    // A book: what's left of the chapter, or of the book (a
+                    // tap switches them). Anything else: lossless
                     // / Atmos / bit depth, as far as the backend or the speaker
                     // says.
                     if AudiobookPlayer.shared.isPlayingBook(on: controller) {
