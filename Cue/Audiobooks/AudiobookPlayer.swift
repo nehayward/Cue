@@ -78,6 +78,13 @@ final class AudiobookPlayer {
     /// there. Until then a reading at the top of the file is the file still
     /// loading (the seek lands once it can play), not the listener's place.
     @ObservationIgnored private var arriving: TimeInterval?
+    /// The `arriving` a held-back reading was last logged for, so a trip is
+    /// logged once.
+    @ObservationIgnored private var heldBackOnWayTo: TimeInterval?
+    /// The file and the offset into it of the last reading taken, to log
+    /// the queue going on to another file.
+    @ObservationIgnored private var lastPart: Int?
+    @ObservationIgnored private var lastOffset: TimeInterval = 0
     /// The book was heard to its end, and nothing has played since.
     @ObservationIgnored private var reachedEnd = false
     /// The server has been told the book is finished.
@@ -580,13 +587,23 @@ final class AudiobookPlayer {
         let playing = controller.isPlaying
         if let arriving {
             guard !isStillArriving(time: time, offset: offset, playing: playing) else {
-                if playing {
-                    Self.log.info("on its way to \(Int(arriving)) s; held back a reading of \(Int(time)) s")
+                if heldBackOnWayTo != arriving {
+                    heldBackOnWayTo = arriving
+                    Self.log.notice("on its way to \(Int(arriving)) s; held back a reading of \(Int(time)) s (file \(part + 1), \(playing ? "playing" : "stopped", privacy: .public))")
                 }
                 return
             }
             self.arriving = nil
+            Self.log.notice("got to \(Int(time)) s (file \(part + 1), \(Int(offset)) s in), sent to \(Int(arriving)) s")
         }
+        // The queue on to another file: at the end of the last, or not.
+        if let lastPart, lastPart != part {
+            let lengths = current.timeline.partDurations
+            let length = lengths.indices.contains(lastPart) ? lengths[lastPart] : 0
+            Self.log.notice("file \(lastPart + 1) → file \(part + 1); file \(lastPart + 1) was \(Int(self.lastOffset)) of \(Int(length)) s in")
+        }
+        lastPart = part
+        lastOffset = offset
         // Listening has gone well past the file that failed.
         if let failedAt, playing, time > failedAt + 30 {
             self.failedAt = nil
@@ -737,6 +754,7 @@ final class AudiobookPlayer {
         lastServerPosition = nil
         lastStoredPosition = nil
         arriving = nil
+        lastPart = nil
         reachedEnd = false
         finishReported = false
         wasPlaying = false

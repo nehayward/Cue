@@ -76,6 +76,17 @@ final class LocalPlaybackService {
                 self?.streamItemDidFinish(ObjectIdentifier(item))
             }
         })
+        // A stream that breaks off partway (the network lost) can end its
+        // item without its status ever reading failed, and the queue
+        // player goes on to the next: a book's file is played again from
+        // where it stopped instead (`streamItemFailed`).
+        observers.append(Task { [weak self] in
+            for await note in NotificationCenter.default.notifications(named: AVPlayerItem.failedToPlayToEndTimeNotification) {
+                guard let item = note.object as? AVPlayerItem else { continue }
+                let error = note.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? NSError
+                self?.streamItemFailed(item, error: error, alerts: false)
+            }
+        })
     }
 
     enum LocalPlaybackError: LocalizedError {
@@ -2308,21 +2319,71 @@ final class LocalPlaybackService {
         }
     }
 
-    private func streamItemFailed(_ item: AVPlayerItem) {
+    /// `error` is the one a notification carried, for an item that broke off
+    /// partway without failing; `alerts` false leaves a song's skip silent,
+    /// as the queue player's own move on always was.
+    private func streamItemFailed(_ item: AVPlayerItem, error noted: NSError? = nil, alerts: Bool = true) {
         let key = ObjectIdentifier(item)
         let row = key == stationItem ? station : streamRun[key].flatMap { queue[safe: $0] }
         guard itemWatches.removeValue(forKey: key) != nil, let row else { return }
         // The item's error and the stream's path (not its query, which
         // carries the server's token).
-        let error = item.error as NSError?
+        let error = item.error as NSError? ?? noted
         let underlying = error?.userInfo[NSUnderlyingErrorKey] as? NSError
         let path = (item.asset as? AVURLAsset)?.url.path ?? "?"
         let offset = Self.finite(item.currentTime().seconds, else: 0)
         Self.log.error("couldn't play \(row.title, privacy: .public) [\(row.metadata?.audioCodec ?? "?", privacy: .public)] from \(path, privacy: .public) at \(Int(offset)) s: \(error?.domain ?? "", privacy: .public) \(error?.code ?? 0) \(error?.localizedDescription ?? "", privacy: .public) / \(underlying?.domain ?? "", privacy: .public) \(underlying?.code ?? 0) \(underlying?.localizedDescription ?? "", privacy: .public)")
+        // What the transfer saw: the server's answer, and how it went.
+        if let event = item.errorLog()?.events.last {
+            Self.log.error("couldn't play \(row.title, privacy: .public): server said \(event.errorStatusCode) \(event.errorDomain, privacy: .public) \(event.errorComment ?? "", privacy: .public)")
+        }
+        if let access = item.accessLog()?.events.last {
+            Self.log.notice("couldn't play \(row.title, privacy: .public): \(access.numberOfBytesTransferred) bytes in \(Int(access.transferDuration)) s, \(access.numberOfStalls) stalls, \(Int(access.observedBitrate / 1000)) kbps")
+        }
         // A book's file is played again from where it stopped rather than
-        // left for the next one (`AudiobookPlayer.fileFailed`).
-        guard !AudiobookPlayer.shared.fileFailed(row, at: offset) else { return }
+        // left for the next one (`AudiobookPlayer.fileFailed`), and said
+        // only once that's given up.
+        let books = AudiobookPlayer.shared
+        guard !books.fileFailed(row, at: offset), alerts || books.contains(row) else { return }
         AlertService.shared.showAlert(with: "Couldn't play “\(row.title)”", imageName: "exclamationmark.triangle")
+    }
+
+    /// What a book's file is doing, as last logged (`noteBookFileState`).
+    @ObservationIgnored private var bookFileState: String?
+
+    /// Logs a book's file waiting to play and why (loading, a stall, a
+    /// slow network), and going on again, as it changes: what a log of a
+    /// book that won't play on a slow network needs.
+    private func noteBookFileState(_ player: AVQueuePlayer) {
+        guard let item = nowPlaying, AudiobookPlayer.shared.contains(item) else {
+            bookFileState = nil
+            return
+        }
+        let state = switch player.timeControlStatus {
+        case .paused: "paused"
+        case .playing: "playing"
+        case .waitingToPlayAtSpecifiedRate: "waiting (\(player.reasonForWaitingToPlay?.rawValue ?? "?"))"
+        @unknown default: "?"
+        }
+        let key = "\(item.content.id)|\(state)"
+        guard key != bookFileState else { return }
+        // A file the queue player went on to by itself: where it's from.
+        let isNewFile = bookFileState?.hasPrefix("\(item.content.id)|") != true
+        bookFileState = key
+        let source = isNewFile ? ", from \(Self.bookFileSource((player.currentItem?.asset as? AVURLAsset)?.url))" : ""
+        Self.log.notice("book file \(item.title, privacy: .public) \(state, privacy: .public) at \(Int(self.progress)) s\(source, privacy: .public)")
+    }
+
+    /// Where a book's file streams from, for the log: this device, or the
+    /// server on this network or over the internet (Plex's addresses name
+    /// the server's IP), never the address itself.
+    private static func bookFileSource(_ url: URL?) -> String {
+        guard let url else { return "nowhere" }
+        if url.isFileURL { return "the file on this device" }
+        let host = url.host ?? ""
+        let local = ["192-168-", "10-", "172-16-", "172-17-", "172-18-", "172-19-", "172-2", "172-30-", "172-31-", "127-"].contains { host.hasPrefix($0) }
+            || host.hasPrefix("192.168.") || host.hasPrefix("10.") || host.hasSuffix(".local")
+        return "the server \(local ? "on this network" : "over the internet"), port \(url.port ?? 0)"
     }
 
     /// `streamURL(for:)` for anything but a station: answered at once.
@@ -2385,6 +2446,10 @@ final class LocalPlaybackService {
 
         streamRun = [:]
         for row in rows { register(row.item, at: row.queueIndex) }
+        if let first = queue[safe: rows[0].queueIndex], AudiobookPlayer.shared.contains(first) {
+            let source = Self.bookFileSource((rows[0].item.asset as? AVURLAsset)?.url)
+            Self.log.notice("book file \(first.title, privacy: .public) from \(source, privacy: .public), \(Int(resume ?? 0)) s in; \(rows.count - 1) more armed after it")
+        }
         let player = AVQueuePlayer(items: rows.map(\.item))
         streamPlayer = player
         player.volume = streamVolume
@@ -2396,7 +2461,14 @@ final class LocalPlaybackService {
             // Partway in before the first note, so nothing from the top of
             // the track is heard first. Pending until the item is ready, so
             // not awaited — it lands before playback does.
-            player.seek(to: CMTime(seconds: resume, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { _ in }
+            // A book's file is logged landing: a far seek into a long file
+            // over a slow network is the slowest start there is.
+            let book = AudiobookPlayer.shared.contains(queue[safe: rows[0].queueIndex]) ? queue[safe: rows[0].queueIndex]?.title : nil
+            let asked = Date.now
+            player.seek(to: CMTime(seconds: resume, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { finished in
+                guard let book else { return }
+                Self.log.notice("book file \(book, privacy: .public): seek to \(Int(resume)) s \(finished ? "landed" : "didn't land", privacy: .public) after \(Date.now.timeIntervalSince(asked), format: .fixed(precision: 1)) s")
+            }
         }
         player.play()
 
@@ -2851,6 +2923,7 @@ final class LocalPlaybackService {
                 }
                 return
             }
+            noteBookFileState(streamPlayer)
             // Only what changed, as above.
             let playing = reconcilePlaying(streamPlayer.timeControlStatus != .paused)
             let paused = isPlaying && !playing
