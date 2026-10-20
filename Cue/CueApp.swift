@@ -1678,6 +1678,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // `-AudiobookAudit <title>`: what a Plex book's server and files
         // hold about its chapters.
         AudiobookAudit.startIfRequested()
+        #if os(iOS)
+        // Cue's log as a file the Mac can copy off the phone.
+        PhoneLogFile.start()
+        #endif
         #endif
         // A Files scan gets the same card: progress on the Lock Screen and
         // the app kept running until it's done. The pass that reads the
