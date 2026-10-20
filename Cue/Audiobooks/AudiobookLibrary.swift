@@ -313,10 +313,20 @@ enum AudiobookLibrary {
 
     // MARK: - Where it was left
 
-    /// Where to pick the book up: the newer of this device's reading and
-    /// the server's.
+    /// Where to pick the book up: this device's reading or the server's
+    /// (`preferring`).
     static func progress(for audiobook: Audiobook) -> AudiobookProgress? {
-        AudiobookProgress.preferring(local: AudiobookProgressStore.shared.progress(for: audiobook.book), server: audiobook.serverProgress)
+        preferring(local: AudiobookProgressStore.shared.progress(for: audiobook.book), server: audiobook.serverProgress, in: audiobook)
+    }
+
+    /// This device's reading of `audiobook`, unless the server's is clearly
+    /// newer. A Plex reading that knows only which file was played moves
+    /// this device on only past the file it's in (`PlexAudiobook.preferring`).
+    static func preferring(local: AudiobookProgress?, server: AudiobookProgress?, in audiobook: Audiobook) -> AudiobookProgress? {
+        guard audiobook.book.content.service == .plex else {
+            return AudiobookProgress.preferring(local: local, server: server)
+        }
+        return PlexAudiobook.preferring(local: local, server: server, timeline: audiobook.timeline)
     }
 
     /// Marks the book finished, or not started, here and on its server.

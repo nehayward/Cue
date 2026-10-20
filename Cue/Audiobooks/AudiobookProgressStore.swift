@@ -63,19 +63,22 @@ final class AudiobookProgressStore {
         scheduleSave()
     }
 
-    /// Notes the server's reading of a book, kept only when it's clearly
-    /// newer than this device's (`AudiobookProgress.preferring`): a server
-    /// a few seconds behind this device's own play mustn't take it back.
-    func recordFromServer(_ reading: AudiobookProgress, for book: PlayableContent) {
-        recordFromServer(reading, key: Self.key(for: book))
+    /// Notes the server's reading of a book read whole, kept only when it
+    /// beats this device's by the book's own rule
+    /// (`AudiobookLibrary.preferring`): a server a few seconds behind this
+    /// device's own play mustn't take it back, nor a Plex file counted
+    /// played take this device's place in it.
+    func recordServerProgress(of audiobook: Audiobook) {
+        guard let reading = audiobook.serverProgress,
+              AudiobookLibrary.preferring(local: progress(for: audiobook.book), server: reading, in: audiobook) == reading else { return }
+        record(reading, for: audiobook.book)
     }
 
-    /// The same, for a book known by its server and id.
+    /// The same for a book known by its server and id, from a reading with
+    /// a place in it (Audiobookshelf's, for a whole shelf at once): kept
+    /// only when it's clearly newer (`AudiobookProgress.preferring`).
     func recordFromServer(_ reading: AudiobookProgress, service: MusicService, id: String) {
-        recordFromServer(reading, key: Self.key(service: service, id: id))
-    }
-
-    private func recordFromServer(_ reading: AudiobookProgress, key: String) {
+        let key = Self.key(service: service, id: id)
         guard AudiobookProgress.preferring(local: readings[key], server: reading) == reading else { return }
         record(reading, key: key)
     }

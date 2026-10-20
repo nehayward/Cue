@@ -83,7 +83,8 @@ enum CarPlayPlayback {
 
     /// Plays the device's queue from where it stopped: just paused, or
     /// restored from the last launch or parked by a hand-off with nothing
-    /// armed yet, which Play arms at the saved spot.
+    /// armed yet, which Play arms at the saved spot (a book's files at the
+    /// book's kept place, `AudiobookPlayer.resumeOnDevice`).
     static func resume() {
         let player = LocalPlaybackService.shared
         guard player.isActive else { return }

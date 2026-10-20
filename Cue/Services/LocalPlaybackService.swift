@@ -997,6 +997,10 @@ final class LocalPlaybackService {
             // stream dropped) — retry it.
             if let station {
                 Task { try? await playStation(station) }
+            } else if AudiobookPlayer.shared.contains(queue[safe: currentIndex]) {
+                // A book's file: from the book's kept place, not the
+                // queue's own spot (see `AudiobookPlayer.resumeOnDevice`).
+                Task { await AudiobookPlayer.shared.resumeOnDevice() }
             } else {
                 Task { try? await arm(at: currentIndex) }
             }

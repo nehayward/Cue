@@ -70,6 +70,14 @@ final class AudiobookPlayer {
     @ObservationIgnored private var lastServerPosition: TimeInterval?
     @ObservationIgnored private var wasPlaying = false
     @ObservationIgnored private var lastStoredPosition: TimeInterval?
+    /// The last reading of the book playing, when it's newer than the one
+    /// kept (they're kept every `storeInterval`): kept when the book is
+    /// left or the app goes to the background, so nothing heard is lost.
+    @ObservationIgnored private var unrecorded: AudiobookProgress?
+    /// Where `start` or `jump` sent the player, until a reading shows it got
+    /// there. Until then a reading at the top of the file is the file still
+    /// loading (the seek lands once it can play), not the listener's place.
+    @ObservationIgnored private var arriving: TimeInterval?
     /// The book was heard to its end, and nothing has played since.
     @ObservationIgnored private var reachedEnd = false
     /// The server has been told the book is finished.
@@ -83,6 +91,9 @@ final class AudiobookPlayer {
     private static let sharedRateKey = "dance.cue.audiobookRate"
     private static let serverSyncInterval: TimeInterval = 15
     private static let storeInterval: TimeInterval = 10
+    /// How near the top of a file a reading still counts as the file
+    /// loading, and how near where it was sent as having got there.
+    private static let arrivalTolerance: TimeInterval = 3
 
     private init() {
         UserDefaults.standard.removeObject(forKey: Self.sharedRateKey)
@@ -179,6 +190,9 @@ final class AudiobookPlayer {
         let local = AudiobookProgressStore.shared.progress(for: audiobook.book)
         let from = time != nil ? "asked" : reading == nil ? "the top" : reading == local ? "this device's place" : "the server's place"
         Self.log.notice("play \(audiobook.book.title, privacy: .public) at \(Int(startTime)) s (\(audiobook.chapter(at: startTime)?.title ?? "-", privacy: .public)), from \(from, privacy: .public); this device \(local.map { "\(Int($0.position)) s" } ?? "none", privacy: .public), server \(audiobook.serverProgress.map { "\(Int($0.position)) s" } ?? "none", privacy: .public)")
+        if let local, reading == local, let server = audiobook.serverProgress, AudiobookProgress.preferring(local: local, server: server) == server {
+            Self.log.notice("kept this device's place over the server's newer \(Int(server.position)) s, which says only that a file was played")
+        }
         // The book, not its files: Recently Played opens its page. Only
         // once it's playing: one that wouldn't start wasn't listened to.
         if await start(audiobook, at: startTime, on: target) {
@@ -194,6 +208,9 @@ final class AudiobookPlayer {
         let location = current.timeline.location(at: target)
         let controller = PlaybackRoute.shared.controller
         position = target
+        arriving = target
+        // A move the listener made: kept now, even if nothing plays after it.
+        record(AudiobookProgress(position: target, duration: current.duration), of: current)
         if current.partIndex(of: controller.nowPlayingDisplay) == location.part {
             await controller.seek(to: location.offset)
             return
@@ -210,6 +227,31 @@ final class AudiobookPlayer {
             }
         }
         await start(current, at: target)
+    }
+
+    /// Plays the loaded book on this device from its kept place, for Play
+    /// on a queue that holds its files with nothing armed: the queue as the
+    /// app left it at launch, or one whose file wouldn't load. The queue's
+    /// own spot is only as good as its last save (a file still loading
+    /// reads as its top), and the book may have been moved since on
+    /// another player.
+    func resumeOnDevice() async {
+        guard let current else { return }
+        let time = AudiobookProgressStore.shared.progress(for: current.book)?.resumePosition ?? position
+        let location = current.timeline.location(at: time)
+        let local = LocalPlaybackService.shared
+        guard let index = local.queue.firstIndex(where: { current.partIndex(of: $0) == location.part }) else {
+            await start(current, at: time, on: .device)
+            return
+        }
+        Self.log.notice("resume \(current.book.title, privacy: .public) at \(Int(time)) s (\(current.chapter(at: time)?.title ?? "-", privacy: .public))")
+        position = time
+        arriving = time
+        do {
+            try await local.resume(at: index, from: location.offset)
+        } catch {
+            Self.log.error("resume at \(index) failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     /// A book's file wouldn't load on this device. An Audiobookshelf file
@@ -365,6 +407,7 @@ final class AudiobookPlayer {
         let location = audiobook.timeline.location(at: time)
         setCurrent(audiobook)
         position = time
+        arriving = time
         graceUntil = .now.addingTimeInterval(15)
         misses = 0
 
@@ -429,10 +472,22 @@ final class AudiobookPlayer {
         monitor = nil
     }
 
-    /// The book time `controller` is at, when it's playing the book.
+    /// The book time `controller` is at, when it's playing the book: where
+    /// it was sent while it's still loading the file there.
     private func readPosition(on controller: any PlaybackController) -> TimeInterval? {
         guard let current, let part = current.partIndex(of: controller.nowPlayingDisplay) else { return nil }
-        return current.time(part: part, offset: controller.position())
+        let offset = controller.position()
+        let time = current.time(part: part, offset: offset)
+        if let arriving, isStillArriving(time: time, offset: offset) { return arriving }
+        return time
+    }
+
+    /// Whether a reading at book time `time`, `offset` into its file, is the
+    /// file still loading on the way to `arriving`: at the top of the file
+    /// and short of it.
+    private func isStillArriving(time: TimeInterval, offset: TimeInterval) -> Bool {
+        guard let arriving else { return false }
+        return time < arriving - Self.arrivalTolerance && offset < Self.arrivalTolerance
     }
 
     private func tick() {
@@ -459,7 +514,15 @@ final class AudiobookPlayer {
             return
         }
         misses = 0
-        let time = current.time(part: part, offset: controller.position())
+        let offset = controller.position()
+        let time = current.time(part: part, offset: offset)
+        if let arriving {
+            guard !isStillArriving(time: time, offset: offset) else {
+                Self.log.info("on its way to \(Int(arriving)) s; held back a reading of \(Int(time)) s")
+                return
+            }
+            self.arriving = nil
+        }
         let playing = controller.isPlaying
         let finished = time >= current.duration - AudiobookProgress.finishedMargin && part == current.parts.count - 1
         // At the end the player goes back to the top of the queue and
@@ -478,15 +541,21 @@ final class AudiobookPlayer {
             finishReported = false
         }
         position = time
-        // Every few seconds of listening, not every reading: each write
-        // redraws every row showing a book's progress.
         let paused = wasPlaying && !playing
-        if abs(time - (lastStoredPosition ?? -.infinity)) >= Self.storeInterval || paused {
+        let reading = AudiobookProgress(position: time, duration: current.duration, isFinished: finished)
+        if lastStoredPosition == nil, !playing, !paused {
+            // The first reading since the book was loaded, of a player
+            // that isn't playing: the queue as the app left it at launch.
+            // That's where it was, not listening, so it's only the mark a
+            // move is measured from; what's kept may be newer (another
+            // player's place, through the server).
             lastStoredPosition = time
-            AudiobookProgressStore.shared.record(
-                AudiobookProgress(position: time, duration: current.duration, isFinished: finished),
-                for: current.book
-            )
+        } else if abs(time - (lastStoredPosition ?? -.infinity)) >= Self.storeInterval || paused {
+            // Every few seconds of listening, not every reading: each write
+            // redraws every row showing a book's progress.
+            record(reading, of: current)
+        } else if playing {
+            unrecorded = reading
         }
         syncServer(current, part: part, time: time, playing: playing, onSpeaker: controller.group != nil)
         wasPlaying = playing
@@ -550,8 +619,23 @@ final class AudiobookPlayer {
         }
     }
 
+    /// Keeps `reading` as this device's place in `audiobook`.
+    private func record(_ reading: AudiobookProgress, of audiobook: Audiobook) {
+        lastStoredPosition = reading.position
+        unrecorded = nil
+        AudiobookProgressStore.shared.record(reading, for: audiobook.book)
+    }
+
+    /// Keeps what was heard of the loaded book since its place was last
+    /// kept: for the book being left, or the app going to the background.
+    private func keepUnrecorded() {
+        guard let current, let unrecorded else { return }
+        record(unrecorded, of: current)
+    }
+
     /// Writes what's held, for the app leaving the foreground.
     private func flush() {
+        keepUnrecorded()
         AudiobookProgressStore.shared.save()
     }
 
@@ -575,12 +659,15 @@ final class AudiobookPlayer {
     }
 
     private func setCurrent(_ audiobook: Audiobook?) {
+        // The book loaded until now keeps what was heard of it.
+        keepUnrecorded()
         current = audiobook
         updateChapter()
         rate = Self.rate(for: audiobook?.book)
         lastServerSync = .distantPast
         lastServerPosition = nil
         lastStoredPosition = nil
+        arriving = nil
         reachedEnd = false
         finishReported = false
         wasPlaying = false

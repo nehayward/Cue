@@ -75,6 +75,36 @@ public enum PlexAudiobook {
         )
     }
 
+    /// Where to pick a Plex book up: this device's reading or the server's
+    /// (`progress`).
+    ///
+    /// Without Store track progress in the library's settings, Plex keeps
+    /// no place in a file, only that it was played — read as the start of
+    /// the next — and it counts a file played from the report this device
+    /// sends on leaving it, which can come hours after the listener paused
+    /// there (when another book starts, say). Taken as newer, that moved a
+    /// book left in its first chapter to the top of its second. So a
+    /// reading on a file's edge, all Plex has without a place, wins only
+    /// when it's past the end of the file this device is in — later files
+    /// played elsewhere — and clearly newer. A place in a file is weighed
+    /// by date alone (`AudiobookProgress.preferring`).
+    public static func preferring(local: AudiobookProgress?, server: AudiobookProgress?, timeline: AudiobookTimeline) -> AudiobookProgress? {
+        guard let local, let server, isFileEdge(server.position, in: timeline) else {
+            return AudiobookProgress.preferring(local: local, server: server)
+        }
+        let file = timeline.location(at: local.position).part
+        guard server.position > timeline.start(ofPart: file + 1) + edgeTolerance else { return local }
+        return AudiobookProgress.preferring(local: local, server: server)
+    }
+
+    /// Whether `time` is where one file ends and the next begins, the
+    /// book's own start and end included.
+    static func isFileEdge(_ time: TimeInterval, in timeline: AudiobookTimeline) -> Bool {
+        (0...timeline.partDurations.count).contains { abs(timeline.start(ofPart: $0) - time) < edgeTolerance }
+    }
+
+    private static let edgeTolerance: TimeInterval = 0.01
+
     private static func date(_ seconds: Int?) -> Date {
         seconds.map { Date(timeIntervalSince1970: TimeInterval($0)) } ?? .distantPast
     }

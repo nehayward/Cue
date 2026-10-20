@@ -135,6 +135,68 @@ final class PlexAudiobookTests: XCTestCase {
         XCTAssertEqual(progress.position, 1200)
     }
 
+    func testAFilePlayedDoesNotMoveThisDevicePastIt() throws {
+        // Project Hail Mary, Store track progress off: this device left the
+        // first file 10 minutes in, and its report on leaving it, an hour
+        // later, had Plex count it played.
+        let parts = try parts(container([
+            track("1", title: "01", duration: 2_224_979, viewCount: 10, lastViewedAt: 4600),
+            track("2", title: "02", duration: 1_721_521),
+            track("3", title: "03", duration: 2_241_253)
+        ]))
+        let timeline = PlexAudiobook.timeline(parts: parts)
+        let plex = try XCTUnwrap(PlexAudiobook.progress(parts: parts, timeline: timeline))
+        XCTAssertEqual(plex.position, timeline.start(ofPart: 1), accuracy: 0.001)
+        let device = AudiobookProgress(position: 600, duration: timeline.duration, updatedAt: Date(timeIntervalSince1970: 1000))
+        XCTAssertEqual(PlexAudiobook.preferring(local: device, server: plex, timeline: timeline), device)
+        // Near the end of that file too: still this device's.
+        let late = AudiobookProgress(position: 2200, duration: timeline.duration, updatedAt: Date(timeIntervalSince1970: 1000))
+        XCTAssertEqual(PlexAudiobook.preferring(local: late, server: plex, timeline: timeline), late)
+        // With no reading here, Plex's is all there is.
+        XCTAssertEqual(PlexAudiobook.preferring(local: nil, server: plex, timeline: timeline), plex)
+    }
+
+    func testLaterFilesPlayedElsewhereWin() throws {
+        let parts = try parts(container([
+            track("1", title: "01", duration: 600_000, viewCount: 1, lastViewedAt: 3000),
+            track("2", title: "02", duration: 600_000, viewCount: 1, lastViewedAt: 4600),
+            track("3", title: "03", duration: 600_000)
+        ]))
+        let timeline = PlexAudiobook.timeline(parts: parts)
+        let plex = try XCTUnwrap(PlexAudiobook.progress(parts: parts, timeline: timeline))
+        let device = AudiobookProgress(position: 300, duration: timeline.duration, updatedAt: Date(timeIntervalSince1970: 1000))
+        XCTAssertEqual(PlexAudiobook.preferring(local: device, server: plex, timeline: timeline), plex)
+        // Not when this device's reading is the newer.
+        let recent = AudiobookProgress(position: 300, duration: timeline.duration, updatedAt: Date(timeIntervalSince1970: 5000))
+        XCTAssertEqual(PlexAudiobook.preferring(local: recent, server: plex, timeline: timeline), recent)
+    }
+
+    func testAOneFileBookCountedPlayedIsNotFinished() throws {
+        // Counted played on leaving it in the last chapters: Plex calls the
+        // whole book finished, which would start it over.
+        let parts = try parts(container([track("1", title: "Fellowship", duration: 81_500_734, viewCount: 1, lastViewedAt: 4600)]))
+        let timeline = PlexAudiobook.timeline(parts: parts)
+        let plex = try XCTUnwrap(PlexAudiobook.progress(parts: parts, timeline: timeline))
+        XCTAssertTrue(plex.isFinished)
+        let device = AudiobookProgress(position: 75_000, duration: timeline.duration, updatedAt: Date(timeIntervalSince1970: 1000))
+        XCTAssertEqual(PlexAudiobook.preferring(local: device, server: plex, timeline: timeline), device)
+    }
+
+    func testAPlaceInAFileGoesByDate() throws {
+        // Store track progress on: a place, which a newer reading moves.
+        let parts = try parts(container([
+            track("1", title: "01", duration: 600_000, viewCount: 1, lastViewedAt: 3000),
+            track("2", title: "02", duration: 600_000, viewOffset: 120_000, lastViewedAt: 4600)
+        ]))
+        let timeline = PlexAudiobook.timeline(parts: parts)
+        let plex = try XCTUnwrap(PlexAudiobook.progress(parts: parts, timeline: timeline))
+        XCTAssertEqual(plex.position, 720)
+        let device = AudiobookProgress(position: 650, duration: timeline.duration, updatedAt: Date(timeIntervalSince1970: 1000))
+        XCTAssertEqual(PlexAudiobook.preferring(local: device, server: plex, timeline: timeline), plex)
+        let recent = AudiobookProgress(position: 650, duration: timeline.duration, updatedAt: Date(timeIntervalSince1970: 4630))
+        XCTAssertEqual(PlexAudiobook.preferring(local: recent, server: plex, timeline: timeline), recent)
+    }
+
     func testBookListDecodesWithoutAnIndex() throws {
         let json = """
         {"MediaContainer": {"size": 1, "totalSize": 1, "Metadata": [
