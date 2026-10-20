@@ -373,18 +373,38 @@ final class LocalPlaybackService {
     /// are left after the current one.
     private static let streamTopUpThreshold = 4
     /// How many of a book's files a stream run arms after the one playing:
-    /// one, to buffer into, topped up as each ends. Plex answers requests
-    /// beyond the couple it's serving with 503 (AVFoundation's -1008), and
-    /// iOS starts loading every armed item at once (its legibility pass
-    /// reads them all), so ten armed files were a burst the file meant to
-    /// play could lose — most often over the internet, on cellular — and
-    /// the queue went on to the next chapter.
+    /// at most one, and for a file from a server only once the one playing
+    /// has loaded to its end (`mayArmNextBookFile`). Plex refuses (503,
+    /// AVFoundation's -1008) or cuts off a transfer of one file while
+    /// another is under way, though not several ranges of the same file,
+    /// and iOS starts loading every armed item at once (its legibility pass
+    /// reads them all). Ten armed files, and then even one ahead of the file
+    /// still loading, were a race the file meant to play could lose — most
+    /// often over the internet, on cellular — and the queue went on to the
+    /// next chapter. Without the next file armed, a file that never loads
+    /// whole hands over at its end (`advancePastRun`), a moment's gap.
     private static let bookFilesAhead = 1
 
     /// Whether `index` is one of the loaded book's files, armed
     /// `bookFilesAhead` at a time.
     private func isBookFile(at index: Int) -> Bool {
         AudiobookPlayer.shared.contains(queue[safe: index])
+    }
+
+    /// Whether the book file playing lets the next one be asked for: a file
+    /// on this device always does; one from a server once it has loaded to
+    /// its end, so only one file is ever coming from the server at a time.
+    private func mayArmNextBookFile() -> Bool {
+        guard let item = streamPlayer?.currentItem else { return false }
+        guard let url = (item.asset as? AVURLAsset)?.url, !url.isFileURL else { return true }
+        let duration = item.duration.seconds
+        guard duration.isFinite, duration > 0 else { return false }
+        // One stretch from here to the end, not a probe of the file's tail.
+        let now = item.currentTime().seconds
+        return item.loadedTimeRanges.contains { value in
+            let range = value.timeRangeValue
+            return range.start.seconds <= now + 1 && range.end.seconds >= duration - 1
+        }
     }
     /// How many songs an Apple run starts with. The rest follow into the
     /// player's queue once it's playing (`fillAppleRun`).
@@ -791,7 +811,8 @@ final class LocalPlaybackService {
         // A stream run stays a window ahead of the current song; the poll
         // tops it up from there (`topUpStreamRun`).
         if backend == .stream {
-            end = min(end, currentIndex + (isBookFile(at: currentIndex) ? Self.bookFilesAhead : Self.streamWindow))
+            let ahead = isBookFile(at: currentIndex) ? (mayArmNextBookFile() ? Self.bookFilesAhead : 0) : Self.streamWindow
+            end = min(end, currentIndex + ahead)
         }
         guard end > runEnd else { return }
         let token = playToken
@@ -1304,7 +1325,8 @@ final class LocalPlaybackService {
         let book = isBookFile(at: currentIndex)
         guard backend == .stream, station == nil, let player = streamPlayer, player.currentItem != nil,
               repeatMode != .one, !sleepsAtEndOfTrack,
-              runEnd - currentIndex < (book ? Self.bookFilesAhead : Self.streamTopUpThreshold) else { return }
+              runEnd - currentIndex < (book ? Self.bookFilesAhead : Self.streamTopUpThreshold),
+              !book || mayArmNextBookFile() else { return }
         let limit = min(queue.count - 1, currentIndex + (book ? Self.bookFilesAhead : Self.streamWindow))
         guard runEnd < limit else { return }
         for queueIndex in (runEnd + 1)...limit {
@@ -1318,6 +1340,9 @@ final class LocalPlaybackService {
             player.insert(item, after: nil)
             register(item, at: queueIndex)
             runEnd = queueIndex
+            if book {
+                Self.log.notice("book file \(row.title, privacy: .public) armed next, from \(Self.bookFileSource(url), privacy: .public), \(Int(self.progress)) s into the one playing")
+            }
         }
     }
 
@@ -2455,6 +2480,9 @@ final class LocalPlaybackService {
             guard let url = await streamURL(for: item) else { continue }
             rows.append((queueIndex, AVPlayerItem(url: url)))
             lastArmed = queueIndex
+            // A book's file from a server is armed alone; the next follows
+            // once it has loaded (`bookFilesAhead`).
+            if queueIndex == index, isBookFile(at: index), !url.isFileURL { break }
         }
         // The user skipped elsewhere meanwhile — that call owns playback now.
         guard playToken == token else { return }
