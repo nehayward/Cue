@@ -40,6 +40,8 @@ enum SheetDestination: Identifiable, Equatable {
     case reorderSpotifyLibrarySections
     case reorderSoundCloudLibrarySections
     case shareToWatch
+    /// The book playing's chapters, opened on the one playing.
+    case audiobookChapters
 
     var id: String {
         switch self {
@@ -101,6 +103,8 @@ enum SheetDestination: Identifiable, Equatable {
             "favorites"
         case .shareToWatch:
             "shareToWatch"
+        case .audiobookChapters:
+            "audiobookChapters"
         default:
             "\(self)"
         }

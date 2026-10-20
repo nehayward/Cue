@@ -200,6 +200,9 @@ extension View {
                         ReorderSoundCloudLibrarySectionsView()
                     case .shareToWatch:
                         ShareToWatchView()
+                    case .audiobookChapters:
+                        AudiobookChaptersSheet()
+                            .presentationDetents([.medium, .large])
                     case .paywall, .onboard:
                         // Routed via `withFullScreenCoverDestinations` —
                         // listed here to keep the switch exhaustive but never

@@ -117,30 +117,329 @@ struct AudiobookMenuItems: View {
         NavigationLink(value: RouterDestination.audiobookDetail(content: book)) {
             Label("View Book", systemImage: "book")
         }
+        Section {
+            AudiobookDownloadMenuItems(book: book)
+        }
     }
 }
 
-/// A button for each of the loaded book's chapters, jumping to it; the
-/// one playing is marked.
-struct AudiobookChapterButtons: View {
-    let chapters: [AudiobookChapter]
+/// The whole book on this device, from a menu: Download Book, or Remove
+/// (Cancel while it comes down). At a glance rather than the progress: an
+/// open menu redrawn with every bit of progress flickers.
+struct AudiobookDownloadMenuItems: View {
+    let book: PlayableContent
 
-    @State private var player = AudiobookPlayer.shared
+    @Environment(AlertService.self) private var alertService
 
     var body: some View {
-        ForEach(chapters) { chapter in
-            Button {
-                HapticManager.shared.fireHaptic(.selection)
-                Task { await player.jump(to: chapter.start) }
-            } label: {
-                // Marked as the book's page marks it.
-                if chapter.id == player.currentChapter?.id {
-                    Label(chapter.title, systemImage: "bookmark.fill")
-                } else {
-                    Text(chapter.title)
+        let manager = DownloadManager.shared
+        if manager.canDownload(contentsOf: book) {
+            switch manager.containerPresence(for: book) {
+            case .downloaded:
+                Button(role: .destructive) {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    manager.removeDownload(contentsOf: book)
+                    alertService.showAlertContent(with: book, subtitle: "Removed from this device", symbolName: "trash")
+                } label: {
+                    Label("Remove Download", systemImage: "trash")
+                }
+            case .downloading:
+                Button(role: .destructive) {
+                    manager.removeDownload(contentsOf: book)
+                } label: {
+                    Label("Cancel Download", systemImage: "xmark.circle")
+                }
+            case nil:
+                Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    guard FeatureGate.shared.unlock(.downloads) else { return }
+                    Task { @MainActor in
+                        await LocalDownloadMenuSection.download(book, alertService: alertService)
+                    }
+                } label: {
+                    Label("Download Book", systemImage: "arrow.down.circle")
                 }
             }
         }
+    }
+}
+
+extension AudiobookPlayer {
+    /// Plays the loaded book from `chapter`'s start.
+    func play(chapter: AudiobookChapter) async {
+        await playLoaded(from: chapter.start)
+    }
+
+    /// Plays the loaded book from book time `time`: a chapter or a place
+    /// picked is meant to be heard, so a paused book starts there, where a
+    /// skip leaves it paused. A move to another file starts playing by
+    /// itself; a seek within the file playing doesn't.
+    func playLoaded(from time: TimeInterval) async {
+        guard let current else { return }
+        let controller = PlaybackRoute.shared.controller
+        let wasPlaying = controller.isPlaying
+        let staysInFile = current.partIndex(of: controller.nowPlayingDisplay) == current.timeline.location(at: time).part
+        await jump(to: time)
+        if !wasPlaying, staysInFile {
+            await controller.togglePlayback()
+        }
+    }
+
+    /// Plays `book` from book time `time`: the loaded one from there, any
+    /// other read from its server and started there.
+    func play(_ book: PlayableContent, at time: TimeInterval) async {
+        if current?.book.isSameBook(as: book) == true {
+            await playLoaded(from: time)
+        } else {
+            await play(book, from: time)
+        }
+    }
+}
+
+/// A book's place history (`AudiobookPlaceHistory`), newest first: what
+/// happened where, when, and in which chapter. A tap plays from there, and
+/// the place left for it joins the list, so going back is never a loss.
+struct AudiobookHistoryList: View {
+    let book: PlayableContent
+    /// The book read whole, for its chapters' names; nil before it's read.
+    let audiobook: Audiobook?
+    /// After a place is picked: the sheet showing the list closes.
+    var onPick: () -> Void = {}
+
+    @State private var history = AudiobookPlaceHistory.shared
+
+    var body: some View {
+        let places = history.places(for: book)
+        if places.isEmpty {
+            ContentUnavailableView {
+                Label("No History Yet", systemImage: "clock.arrow.circlepath")
+            } description: {
+                Text("Where you start, pause and jump from in this book shows here, so you can always go back.")
+            }
+            .padding(.top, 24)
+        } else {
+            LazyVStack(spacing: 0) {
+                ForEach(places) { place in
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        onPick()
+                        Task { await AudiobookPlayer.shared.play(book, at: place.position) }
+                    } label: {
+                        row(place)
+                    }
+                    .buttonStyle(.plain)
+                    if place.id != places.last?.id {
+                        Divider()
+                            .padding(.leading, 32)
+                    }
+                }
+            }
+        }
+    }
+
+    private func row(_ place: AudiobookPlaceHistory.Place) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: Self.symbol(place.kind))
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Self.title(place.kind))
+                    .foregroundStyle(.primary)
+                Text([audiobook?.chapter(at: place.position)?.title, AudiobookFormat.clock(place.position)].compactMap { $0 }.joined(separator: " · "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+            Spacer()
+            Text(Self.when(place.date))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 10)
+        .contentShape(.rect)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Plays from here")
+    }
+
+    private static func title(_ kind: AudiobookPlaceHistory.Place.Kind) -> LocalizedStringKey {
+        switch kind {
+        case .started: "Started"
+        case .paused: "Paused"
+        case .jumpedFrom: "Moved away from here"
+        case .replaced: "Before another device's place"
+        case .left: "Left the book"
+        }
+    }
+
+    private static func symbol(_ kind: AudiobookPlaceHistory.Place.Kind) -> String {
+        switch kind {
+        case .started: "play.fill"
+        case .paused: "pause.fill"
+        case .jumpedFrom: "arrow.uturn.backward"
+        case .replaced: "iphone.and.arrow.forward"
+        case .left: "rectangle.portrait.and.arrow.right"
+        }
+    }
+
+    /// "2:41 PM" today, "Mon 2:41 PM" this week, "Oct 12" before.
+    private static func when(_ date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return date.formatted(.dateTime.hour().minute())
+        }
+        if let days = calendar.dateComponents([.day], from: date, to: .now).day, days < 7 {
+            return date.formatted(.dateTime.weekday(.abbreviated).hour().minute())
+        }
+        return date.formatted(.dateTime.month(.abbreviated).day())
+    }
+}
+
+/// A chapter's row: a bookmark, its title, where it starts and how long it
+/// runs. `isHere` marks the listener's chapter, in the accent. The book's
+/// page and the chapters sheet both list them so.
+struct AudiobookChapterRowLabel: View {
+    let chapter: AudiobookChapter
+    let isHere: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: isHere ? "bookmark.fill" : "bookmark")
+                .foregroundStyle(isHere ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(chapter.title)
+                    .foregroundStyle(.primary)
+                    .fontWeight(isHere ? .semibold : .regular)
+                Text(AudiobookFormat.clock(chapter.start))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            Spacer()
+            Text(AudiobookFormat.duration(chapter.duration))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        // The listener's chapter is the accent throughout: its levels
+        // (primary, secondary) are the accent's.
+        .foregroundStyle(isHere ? AnyShapeStyle(.tint) : AnyShapeStyle(.foreground))
+        .padding(.vertical, 10)
+        .contentShape(.rect)
+    }
+}
+
+/// The loaded book's chapters, as a sheet from the player's chapter line
+/// and its menu: a long book's were a menu taller than the screen. It opens
+/// on the chapter playing and follows it; a chapter picked plays from its
+/// start and the sheet goes. Previous and Next Chapter sit under the list
+/// and leave it open. Its other tab is the book's place history.
+struct AudiobookChaptersSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var player = AudiobookPlayer.shared
+    @State private var showsHistory = false
+
+    var body: some View {
+        let chapters = player.current?.chapters ?? []
+        NavigationStack {
+            Group {
+                if showsHistory, let book = player.current {
+                    ScrollView {
+                        AudiobookHistoryList(book: book.book, audiobook: book) { dismiss() }
+                            .padding(.horizontal, 20)
+                    }
+                } else {
+                    chapterList(chapters)
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if !showsHistory {
+                    chapterButtons
+                }
+            }
+            .navigationTitle(showsHistory ? "History" : "Chapters")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Picker("Show", selection: $showsHistory) {
+                        Text("Chapters").tag(false)
+                        Text("History").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Label("Done", systemImage: "xmark")
+                    }
+                }
+            }
+        }
+        .fontDesign(.rounded)
+    }
+
+    private func chapterList(_ chapters: [AudiobookChapter]) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(chapters) { chapter in
+                        let isHere = chapter.id == player.currentChapter?.id
+                        Button {
+                            HapticManager.shared.fireHaptic(.selection)
+                            dismiss()
+                            Task { await player.play(chapter: chapter) }
+                        } label: {
+                            AudiobookChapterRowLabel(chapter: chapter, isHere: isHere)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(isHere ? .isSelected : [])
+                        .id(chapter.id)
+                        if chapter.id != chapters.last?.id {
+                            Divider()
+                                .padding(.leading, 32)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+            .onAppear {
+                guard let playing = player.currentChapter else { return }
+                proxy.scrollTo(playing.id, anchor: .center)
+            }
+            .onChange(of: player.currentChapter?.id) { _, playing in
+                guard let playing else { return }
+                withAnimation {
+                    proxy.scrollTo(playing, anchor: .center)
+                }
+            }
+        }
+    }
+
+    private var chapterButtons: some View {
+        HStack(spacing: 12) {
+            Button {
+                HapticManager.shared.fireHaptic(.selection)
+                Task { await player.skipToPreviousChapter() }
+            } label: {
+                Label("Previous", systemImage: "backward.end.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            Button {
+                HapticManager.shared.fireHaptic(.selection)
+                Task { await player.skipToNextChapter() }
+            } label: {
+                Label("Next", systemImage: "forward.end.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .disabled(player.nextChapter == nil)
+        }
+        .glassButton()
+        .foregroundStyle(.primary)
+        .bold()
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
     }
 }
 
@@ -187,38 +486,19 @@ struct AudiobookTimeLeft: View {
 
 /// The player's origin line while a book with chapters plays: the chapter
 /// playing, in the caption slot the album or playlist has for a song, and
-/// a tap opens the chapters, with Previous and Next Chapter over them. It
-/// reads the book's place, which moves every couple of seconds, so it's a
-/// view of its own: the player around it doesn't redraw with it.
+/// a tap opens the chapters sheet (`AudiobookChaptersSheet`). It reads the
+/// chapter, which changes only at a chapter's end, so it's a view of its
+/// own: the player around it doesn't redraw with it.
 struct AudiobookChapterLine: View {
+    @Environment(Router.self) private var router
     @State private var player = AudiobookPlayer.shared
 
     var body: some View {
-        Menu {
-            if let book = player.current {
-                ControlGroup {
-                    Button {
-                        HapticManager.shared.fireHaptic(.selection)
-                        Task { await player.skipToPreviousChapter() }
-                    } label: {
-                        Label("Previous Chapter", systemImage: "backward.end.fill")
-                    }
-                    Button {
-                        HapticManager.shared.fireHaptic(.selection)
-                        Task { await player.skipToNextChapter() }
-                    } label: {
-                        Label("Next Chapter", systemImage: "forward.end.fill")
-                    }
-                    .disabled(player.nextChapter == nil)
-                }
-                AudiobookChapterButtons(chapters: book.chapters)
-            }
+        Button {
+            HapticManager.shared.fireHaptic(.selection)
+            router.sheet(to: .audiobookChapters)
         } label: {
-            HStack(spacing: 3) {
-                Text(player.currentChapter?.title ?? "")
-                Image(systemName: "chevron.up.chevron.down")
-                    .imageScale(.small)
-            }
+            Text(player.currentChapter?.title ?? "")
             .font(.caption.smallCaps())
             .foregroundStyle(.secondary)
             .lineLimit(1)
@@ -226,14 +506,17 @@ struct AudiobookChapterLine: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Chapter: \(player.currentChapter?.title ?? "")")
+        .accessibilityHint("Shows the chapters")
     }
 }
 
-/// The player menu's book items while a book plays: its chapters, to jump
-/// to, and on this device its speed (a speaker has only 1×).
+/// The player menu's book items while a book plays: Previous and Next
+/// Chapter, the chapters sheet, and on this device its speed (a speaker has
+/// only 1×).
 struct AudiobookPlayerMenuItems: View {
     let isOnDevice: Bool
 
+    @Environment(Router.self) private var router
     @State private var player = AudiobookPlayer.shared
 
     var body: some View {
@@ -254,8 +537,8 @@ struct AudiobookPlayerMenuItems: View {
                     }
                     .disabled(player.nextChapter == nil)
                 }
-                Menu {
-                    AudiobookChapterButtons(chapters: book.chapters)
+                Button {
+                    router.sheet(to: .audiobookChapters)
                 } label: {
                     Label(player.currentChapter?.title ?? "Chapters", systemImage: "list.bullet")
                 }

@@ -85,6 +85,13 @@ final class AudiobookPlayer {
     /// the queue going on to another file.
     @ObservationIgnored private var lastPart: Int?
     @ObservationIgnored private var lastOffset: TimeInterval = 0
+    /// The last reading of the book's place, when it was taken, and whether
+    /// it was playing: a reading far from where listening since would have
+    /// got to is a move, and where it moved from goes in the place history.
+    @ObservationIgnored private var lastReading: (time: TimeInterval, at: Date, playing: Bool)?
+    /// How far a move goes before the place it left is worth going back to:
+    /// past a skip, short of a chapter.
+    private static let placeJump: TimeInterval = 60
     /// The book was heard to its end, and nothing has played since.
     @ObservationIgnored private var reachedEnd = false
     /// The server has been told the book is finished.
@@ -201,10 +208,18 @@ final class AudiobookPlayer {
         if let local, reading == local, let server = audiobook.serverProgress, AudiobookProgress.preferring(local: local, server: server) == server {
             Self.log.notice("kept this device's place over the server's newer \(Int(server.position)) s, which says only that a file was played")
         }
+        // This device's place, kept before a play that goes elsewhere: From
+        // Start, a chapter picked on the book's page, or another player's
+        // place taken over this one's.
+        let places = AudiobookPlaceHistory.shared
+        if let local, !local.isFinished, local.position > 0, abs(local.position - startTime) > Self.placeJump {
+            places.record(time != nil ? .jumpedFrom : .replaced, at: local.position, for: audiobook.book)
+        }
         // The book, not its files: Recently Played opens its page. Only
         // once it's playing: one that wouldn't start wasn't listened to.
         if await start(audiobook, at: startTime, on: target) {
             PlayHistoryService.shared.record(audiobook.book)
+            places.record(.started, at: startTime, for: audiobook.book)
         }
     }
 
@@ -216,6 +231,13 @@ final class AudiobookPlayer {
         let target = min(max(time, 0), current.duration)
         let location = current.timeline.location(at: target)
         let controller = PlaybackRoute.shared.controller
+        // Where it was, to go back to. The readings after aren't measured
+        // against it: this move is already noted.
+        let from = readPosition(on: controller) ?? position
+        if abs(from - target) > Self.placeJump {
+            AudiobookPlaceHistory.shared.record(.jumpedFrom, at: from, for: current.book)
+        }
+        lastReading = nil
         position = target
         arriving = target
         // A move the listener made: kept now, even if nothing plays after it.
@@ -647,6 +669,7 @@ final class AudiobookPlayer {
             finishReported = false
         }
         position = time
+        notePlace(time: time, playing: playing, of: current)
         let paused = wasPlaying && !playing
         let reading = AudiobookProgress(position: time, duration: current.duration, isFinished: finished)
         if lastStoredPosition == nil, !playing, !paused {
@@ -668,6 +691,25 @@ final class AudiobookPlayer {
         if sleepsAt != nil {
             Task { await followChapterSleep(on: controller) }
         }
+    }
+
+    /// Keeps a pause in the place history, and a reading far from where
+    /// listening since the last one would have got to: a move made some way
+    /// other than `jump` (the scrubber, the car, the Lock Screen), or one
+    /// nobody asked for. Where it moved from is the place to go back to.
+    private func notePlace(time: TimeInterval, playing: Bool, of audiobook: Audiobook) {
+        let places = AudiobookPlaceHistory.shared
+        if let last = lastReading {
+            let listened = last.playing ? Date.now.timeIntervalSince(last.at) * max(rate, 1) : 0
+            if time > last.time + listened + Self.placeJump || time < last.time - Self.placeJump {
+                Self.log.notice("moved from \(Int(last.time)) s to \(Int(time)) s; kept in the place history")
+                places.record(.jumpedFrom, at: last.time, for: audiobook.book)
+            }
+        }
+        if wasPlaying, !playing {
+            places.record(.paused, at: time, for: audiobook.book)
+        }
+        lastReading = (time, .now, playing)
     }
 
     /// Tells the book's server where it is: every few seconds while playing,
@@ -743,12 +785,14 @@ final class AudiobookPlayer {
     private func flush() {
         keepUnrecorded()
         AudiobookProgressStore.shared.save()
+        AudiobookPlaceHistory.shared.save()
     }
 
     /// The book is no longer what's playing.
     private func end() {
         guard let current else { return }
         Self.log.notice("book left: \(current.book.title, privacy: .public)")
+        AudiobookPlaceHistory.shared.record(.left, at: position, for: current.book)
         // Offline the session is left to lapse on the server.
         if current.book.content.service == .audiobookshelf, !OfflineMode.shared.isActive {
             let itemID = current.book.content.id
@@ -776,6 +820,7 @@ final class AudiobookPlayer {
         lastStoredPosition = nil
         arriving = nil
         lastPart = nil
+        lastReading = nil
         reachedEnd = false
         finishReported = false
         wasPlaying = false

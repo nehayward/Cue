@@ -1,18 +1,21 @@
+import Defaults
 import MusicSearchKit
 import NukeUI
 import SonosKit
 import SwiftUI
 
 /// The download manager: the songs kept on this device, the albums and
-/// playlists they came from, and how downloading behaves — one face each,
-/// switched by the segmented control under the title. A Files folder in
-/// iCloud Drive reports how much of it is here under Settings. Reached from
-/// Settings › Storage.
+/// playlists they came from, the books downloaded whole, and how
+/// downloading behaves — one face each, switched by the segmented control
+/// under the title. A Files folder in iCloud Drive reports how much of it
+/// is here under Settings. Reached from Settings › Storage, and on Books
+/// from the Audiobooks tab's Downloads.
 struct DownloadsScreen: View {
-    /// The screen's three faces. Songs is home: what's on the device is what
-    /// the screen is for, and it's what the Storage row's size describes.
+    /// The screen's faces. Songs is home: what's on the device is what the
+    /// screen is for, and it's what the Storage row's size describes. Books
+    /// shows while there are books to download, or any downloaded.
     private enum Tab: String, CaseIterable, Identifiable {
-        case songs, albums, settings
+        case songs, albums, books, settings
 
         var id: Self { self }
 
@@ -20,6 +23,7 @@ struct DownloadsScreen: View {
             switch self {
             case .songs: "Songs"
             case .albums: "Albums"
+            case .books: "Books"
             case .settings: "Settings"
             }
         }
@@ -31,22 +35,30 @@ struct DownloadsScreen: View {
     @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
     @State private var cloudSummary: (local: Int, remote: Int)?
-    @State private var tab: Tab = .songs
+    @State private var tab: Tab
     @State private var isConfirmingClearCache = false
+    @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexBooks = false
+
+    /// `showsBooks` opens on the books rather than the songs.
+    init(showsBooks: Bool = false) {
+        _tab = State(initialValue: showsBooks ? .books : .songs)
+    }
 
     var body: some View {
         // Each is a filter and sort over every download; once per render,
         // not once per mention.
         let active = manager.active
-        // Books' files are listed with their books, under Albums.
+        // Books' files are listed with their books, under Books.
         let completed = manager.completedSongs
 
         List {
             switch tab {
             case .songs:
-                songsSections(active: active, completed: completed)
+                songsSections(active: active.filter { $0.isBookFile != true }, completed: completed)
             case .albums:
                 albumsSections
+            case .books:
+                booksSections
             case .settings:
                 settingsSections
             }
@@ -56,7 +68,7 @@ struct DownloadsScreen: View {
         .id(tab)
         .pinnedUnderTitle {
             Picker("Show", selection: $tab) {
-                ForEach(Tab.allCases) { tab in
+                ForEach(Tab.allCases.filter { $0 != .books || showsBooks }) { tab in
                     Text(tab.title).tag(tab)
                 }
             }
@@ -207,11 +219,12 @@ struct DownloadsScreen: View {
     // MARK: - Albums
 
     /// What was downloaded whole, still coming or all here, each removable
-    /// as one. The songs themselves are listed under Songs.
+    /// as one. The songs themselves are listed under Songs; books have a
+    /// tab of their own.
     @ViewBuilder
     private var albumsSections: some View {
-        let downloading = manager.activeContainers
-        let downloaded = manager.completedContainers
+        let downloading = manager.activeContainers.filter { $0.type != .audiobook }
+        let downloaded = manager.completedContainers.filter { $0.type != .audiobook }
 
         if !downloading.isEmpty {
             containersSection(downloading) {
@@ -259,6 +272,132 @@ struct DownloadsScreen: View {
         } footer: {
             footer()
         }
+    }
+
+    // MARK: - Books
+
+    /// Whether the Books tab shows: books to download (the Audiobooks tab's
+    /// rule, an Audiobookshelf sign-in or a Plex server that had books), or
+    /// any downloaded or on their way, or the screen opened on them.
+    private var showsBooks: Bool {
+        let features = CoreFeatures.shared
+        return tab == .books
+            || (features.isEnabled(.audiobookshelf) && AudiobookshelfAPI.shared.isConfigured)
+            || (features.isEnabled(.plex) && hasPlexBooks)
+            || manager.containers.values.contains { $0.type == .audiobook }
+    }
+
+    /// The books downloaded whole, coming down or all here: each its cover,
+    /// how far into it the listener is, and the room it takes; a tap opens
+    /// its page, a swipe removes it, a long press plays it.
+    @ViewBuilder
+    private var booksSections: some View {
+        let downloading = manager.activeContainers.filter { $0.type == .audiobook }
+        let downloaded = manager.completedContainers.filter { $0.type == .audiobook }
+
+        if !downloading.isEmpty {
+            Section {
+                ForEach(downloading) { container in
+                    bookRow(container)
+                }
+                .onDelete { offsets in
+                    for index in offsets where downloading.indices.contains(index) {
+                        manager.removeContainer(key: downloading[index].key)
+                    }
+                }
+            } header: {
+                Text("Downloading")
+            } footer: {
+                Text("Swipe to cancel a book; the files of it already here go too.")
+            }
+        }
+
+        if !downloaded.isEmpty {
+            let bytes = downloaded.reduce(0) { $0 + bookBytes($1) }
+            Section {
+                ForEach(downloaded) { container in
+                    bookRow(container)
+                }
+                .onDelete { offsets in
+                    for index in offsets where downloaded.indices.contains(index) {
+                        manager.removeContainer(key: downloaded[index].key)
+                    }
+                }
+            } header: {
+                Text("On This Device")
+            } footer: {
+                Text("\(downloaded.count == 1 ? "1 book" : "\(downloaded.count) books") • \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)). Swipe to remove a book from this device; it stays on its server, and your place in it is kept.")
+            }
+        } else if downloading.isEmpty {
+            Section {
+                ContentUnavailableView {
+                    Label("No Books", systemImage: "books.vertical")
+                } description: {
+                    Text("Download a Plex or Audiobookshelf book from its page or its menu to listen with no network.")
+                }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            }
+        }
+    }
+
+    private func bookRow(_ container: DownloadManager.Container) -> some View {
+        let book = AudiobookDownloads.book(for: container)
+        let state = manager.containerState(key: container.key)
+        let counts = manager.trackCounts(forContainer: container.key)
+        let stopped = manager.stoppedTrackCount(forContainer: container.key)
+        let progress = AudiobookProgressStore.shared.progress(for: book)
+        return NavigationLink(value: RouterDestination.audiobookDetail(content: book)) {
+            HStack(spacing: 12) {
+                artwork(container.artwork)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(container.title)
+                        .lineLimit(1)
+                    Text([container.subtitle, progress.flatMap(AudiobookFormat.remaining) ?? ""].filter { !$0.isEmpty }.joined(separator: " • "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    if case let .downloading(fraction) = state {
+                        ProgressView(value: fraction)
+                            .progressViewStyle(.linear)
+                            .tint(stopped > 0 ? .red : .accentColor)
+                        Text(stopped > 0
+                             ? "\(container.type.downloadCount(stopped)) stopped"
+                             : "\(counts.downloaded) of \(container.type.downloadCount(counts.total))")
+                            .font(.caption2)
+                            .foregroundStyle(stopped > 0 ? .red : .secondary)
+                            .monospacedDigit()
+                    }
+                }
+                Spacer(minLength: 0)
+                if state == .downloaded {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        container.service.image
+                            .frame(width: 14, height: 14)
+                        Text(ByteCountFormatter.string(fromByteCount: bookBytes(container), countStyle: .file))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                } else if stopped > 0 {
+                    Button {
+                        manager.resumeDownload(contentsOf: book)
+                    } label: {
+                        Image(systemName: "arrow.clockwise.circle.fill")
+                            .font(.title2)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Retry Download")
+                }
+            }
+        }
+        .contextMenu {
+            AudiobookMenuItems(book: book)
+        }
+    }
+
+    /// The room a book's files take on this device.
+    private func bookBytes(_ container: DownloadManager.Container) -> Int64 {
+        container.trackKeys.reduce(0) { $0 + (manager.items[$1]?.fileSize ?? 0) }
     }
 
     // MARK: - Settings

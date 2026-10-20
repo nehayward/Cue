@@ -28,6 +28,16 @@ enum AudiobookLibrary {
         return (await plexBooks() ?? []).map { $0.withAudiobookProgress(store.progress(for: $0)) }
     }
 
+    /// Plex's books added last, newest first, for a row of covers. Nil when
+    /// the server couldn't be read.
+    static func plexNewestBooks(limit: Int = 12) async -> [PlayableContent]? {
+        guard let books = await PlexAPI.shared.audiobooks() else { return nil }
+        return books
+            .sorted { ($0.addedAt ?? 0) > ($1.addedAt ?? 0) }
+            .prefix(limit)
+            .compactMap(\.toPlayable)
+    }
+
     /// Has Plex scan its book libraries and waits for it, for a pull to
     /// refresh: a book added on the server shows without opening Plex.
     static func scanPlexBooks() async {

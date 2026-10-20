@@ -66,15 +66,18 @@ enum AudiobookDownloads {
         return manager.containers.values
             .filter { $0.type == .audiobook && (!completeOnly || manager.containerState(key: $0.key) == .downloaded) }
             .sorted { $0.createdAt > $1.createdAt }
-            .map { container in
-                PlayableContent(
-                    title: container.title,
-                    subtitle: container.subtitle,
-                    thumbnail: container.artwork,
-                    artwork: container.artwork,
-                    content: .init(service: container.service, id: container.contentID, type: .audiobook, location: nil)
-                )
-            }
+            .map(book(for:))
+    }
+
+    /// The book a download is of, from what the download keeps of it.
+    static func book(for container: DownloadManager.Container) -> PlayableContent {
+        PlayableContent(
+            title: container.title,
+            subtitle: container.subtitle,
+            thumbnail: container.artwork,
+            artwork: container.artwork,
+            content: .init(service: container.service, id: container.contentID, type: .audiobook, location: nil)
+        )
     }
 
     static func removeCopy(containerKey: String) {

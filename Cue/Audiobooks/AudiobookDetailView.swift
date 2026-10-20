@@ -2,8 +2,9 @@ import MusicSearchKit
 import SonosKit
 import SwiftUI
 
-/// A book's page: its cover, how far in the listener is, Resume, and its
-/// chapters, each of which plays the book from there.
+/// A book's page: its cover, the chapter the listener is in, Resume, and
+/// its chapters or its place history, each of which plays the book from
+/// there.
 ///
 /// The book is read whole from its server when the page opens; where the
 /// server has the listener is taken into `AudiobookProgressStore` (if it's
@@ -13,6 +14,10 @@ struct AudiobookDetailView: View {
 
     @State private var audiobook: Audiobook?
     @State private var failed = false
+    /// The list under the summary shows the book's place history rather
+    /// than its chapters.
+    @State private var showsHistory = false
+    @State private var history = AudiobookPlaceHistory.shared
     @State private var player = AudiobookPlayer.shared
     @State private var store = AudiobookProgressStore.shared
 
@@ -27,49 +32,92 @@ struct AudiobookDetailView: View {
         player.current?.book.id == shown.id && player.current?.book.content.service == shown.content.service
     }
 
+    /// The chapter the listener is in: the one playing while the player
+    /// has the book, else the one its place falls in. Nil before it's
+    /// started. From the chapter rather than the place, which moves every
+    /// couple of seconds, so the page redraws only when the chapter changes.
+    private var placeChapter: AudiobookChapter? {
+        guard let audiobook else { return nil }
+        if isCurrent { return player.currentChapter }
+        guard let progress, progress.isStarted else { return nil }
+        return audiobook.chapter(at: progress.position)
+    }
+
     var body: some View {
         // A scroll view, not a List: a List resizes a row on its own, after
         // the row's content has changed, so the summary opening out jumped
         // however its text was animated.
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                header
-                actions
-                    .padding(.top, 20)
-
-                if audiobook?.filesMissing == true {
-                    missingFilesNotice
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    header
+                    if let audiobook, audiobook.chapters.count > 1 {
+                        AudiobookPlaceChapter(audiobook: audiobook) { chapter in
+                            withAnimation {
+                                proxy.scrollTo(chapter.id, anchor: .center)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 14)
+                    }
+                    actions
                         .padding(.top, 20)
-                }
 
-                if let summary = audiobook?.summary {
-                    AudiobookSummary(text: summary)
-                        .padding(.top, 20)
-                }
+                    if audiobook?.filesMissing == true {
+                        missingFilesNotice
+                            .padding(.top, 20)
+                    }
 
-                // One chapter is the whole book: nothing to choose between.
-                if let audiobook, audiobook.chapters.count > 1 {
-                    Text("Chapters")
-                        .font(.title3.bold())
-                        .padding(.top, 28)
-                        .padding(.bottom, 4)
-                    ForEach(audiobook.chapters) { chapter in
-                        chapterRow(chapter, in: audiobook)
-                        if chapter.id != audiobook.chapters.last?.id {
-                            Divider()
-                                .padding(.leading, 32)
+                    if let summary = audiobook?.summary {
+                        AudiobookSummary(text: summary)
+                            .padding(.top, 20)
+                    }
+
+                    // Chapters, or where the listener has been. One chapter
+                    // is the whole book, with nothing to choose between: its
+                    // history alone, once it has one.
+                    if let audiobook {
+                        let hasChapters = audiobook.chapters.count > 1
+                        if hasChapters || !history.places(for: shown).isEmpty {
+                            Group {
+                                if hasChapters {
+                                    Picker("Show", selection: $showsHistory) {
+                                        Text("Chapters").tag(false)
+                                        Text("History").tag(true)
+                                    }
+                                    .pickerStyle(.segmented)
+                                } else {
+                                    Text("History")
+                                        .font(.title3.bold())
+                                }
+                            }
+                            .padding(.top, 28)
+                            .padding(.bottom, 8)
+                            if showsHistory || !hasChapters {
+                                AudiobookHistoryList(book: shown, audiobook: audiobook)
+                            } else {
+                                let here = placeChapter
+                                ForEach(audiobook.chapters) { chapter in
+                                    chapterRow(chapter, in: audiobook, isHere: chapter.id == here?.id)
+                                        .id(chapter.id)
+                                    if chapter.id != audiobook.chapters.last?.id {
+                                        Divider()
+                                            .padding(.leading, 32)
+                                    }
+                                }
+                            }
                         }
                     }
-                }
 
-                if audiobook == nil, !failed {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 24)
+                    if audiobook == nil, !failed {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 24)
+                    }
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 24)
         }
         .overlay {
             if failed, audiobook == nil {
@@ -247,44 +295,23 @@ struct AudiobookDetailView: View {
 
     // MARK: - Chapters
 
-    private func chapterRow(_ chapter: AudiobookChapter, in audiobook: Audiobook) -> some View {
-        let isPlaying = isCurrent && player.currentChapter?.id == chapter.id
-        return Button {
+    /// A chapter, playing the book from its start at a tap. `isHere` marks
+    /// the one the listener is in, playing or not.
+    private func chapterRow(_ chapter: AudiobookChapter, in audiobook: Audiobook, isHere: Bool) -> some View {
+        Button {
             HapticManager.shared.fireHaptic(.selection)
             Task {
                 if isCurrent {
-                    await player.jump(to: chapter.start)
+                    await player.play(chapter: chapter)
                 } else {
                     await player.play(audiobook.book, from: chapter.start)
                 }
             }
         } label: {
-            HStack(spacing: 12) {
-                Image(systemName: isPlaying ? "bookmark.fill" : "bookmark")
-                    .foregroundStyle(isPlaying ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
-                    .frame(width: 20)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(chapter.title)
-                        .foregroundStyle(.primary)
-                        .fontWeight(isPlaying ? .semibold : .regular)
-                    Text(AudiobookFormat.clock(chapter.start))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-                Spacer()
-                Text(AudiobookFormat.duration(chapter.duration))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            // The chapter playing is the accent throughout: its levels
-            // (primary, secondary) are the accent's.
-            .foregroundStyle(isPlaying ? AnyShapeStyle(.tint) : AnyShapeStyle(.foreground))
-            .padding(.vertical, 10)
-            .contentShape(.rect)
+            AudiobookChapterRowLabel(chapter: chapter, isHere: isHere)
         }
         .buttonStyle(.plain)
-        .accessibilityAddTraits(isPlaying ? .isSelected : [])
+        .accessibilityAddTraits(isHere ? .isSelected : [])
     }
 
     // MARK: - Loading
@@ -297,6 +324,82 @@ struct AudiobookDetailView: View {
         }
         store.recordServerProgress(of: loaded)
         audiobook = loaded
+    }
+}
+
+/// The chapter the listener is in, under the book's title, with what's
+/// left of it: a tap plays the book from where it was left, or, while it
+/// plays, brings the chapter into view in the list below (`reveal`). It
+/// reads the book's place, which moves every couple of seconds while it
+/// plays, so it's a view of its own: the page around it doesn't redraw
+/// with it. Nothing before the book is started.
+private struct AudiobookPlaceChapter: View {
+    let audiobook: Audiobook
+    let reveal: (AudiobookChapter) -> Void
+
+    @State private var player = AudiobookPlayer.shared
+    @State private var store = AudiobookProgressStore.shared
+
+    private var route: PlaybackRoute { .shared }
+
+    /// The player has this book, playing or paused.
+    private var isLoaded: Bool {
+        player.current?.book.isSameBook(as: audiobook.book) == true && player.isPlayingBook(on: route.presented)
+    }
+
+    /// The chapter, and where in the book: the player's while it has the
+    /// book, else the place kept for it.
+    private var place: (chapter: AudiobookChapter, position: TimeInterval)? {
+        if player.current?.book.isSameBook(as: audiobook.book) == true, let chapter = player.currentChapter {
+            return (chapter, player.position)
+        }
+        guard let progress = store.progress(for: audiobook.book), progress.isStarted,
+              let chapter = audiobook.chapter(at: progress.position) else { return nil }
+        return (chapter, progress.position)
+    }
+
+    var body: some View {
+        if let place {
+            let isPlaying = isLoaded && route.presented.isPlaying
+            // At the speed it plays, as the player says it, once loaded.
+            let left = isLoaded
+                ? player.timeLeftText(compact: true) ?? ""
+                : "\(AudiobookFormat.duration(max(place.chapter.end - place.position, 0))) left"
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                if isPlaying {
+                    reveal(place.chapter)
+                    return
+                }
+                Task {
+                    if isLoaded {
+                        await route.presented.togglePlayback()
+                    } else {
+                        await player.play(audiobook.book)
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(place.chapter.title)
+                        .lineLimit(1)
+                    Text("· \(left)")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .layoutPriority(1)
+                }
+                .font(.subheadline.weight(.semibold))
+                .fontDesign(.rounded)
+                .foregroundStyle(.tint)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.tint.opacity(0.14), in: .capsule)
+                .contentShape(.capsule)
+            }
+            .buttonStyle(.plain)
+            .disabled(player.isLoading)
+            .accessibilityLabel("\(place.chapter.title), \(left)")
+            .accessibilityHint(isPlaying ? "Shows the chapter in the list" : "Plays from where you left off")
+        }
     }
 }
 
