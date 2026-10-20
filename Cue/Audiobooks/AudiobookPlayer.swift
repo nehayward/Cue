@@ -30,7 +30,22 @@ final class AudiobookPlayer {
     /// something else has taken over.
     private(set) var current: Audiobook?
     /// Book time, as last read from the player.
-    private(set) var position: TimeInterval = 0
+    private(set) var position: TimeInterval = 0 {
+        didSet { updateChapter() }
+    }
+
+    /// The chapter playing, from the last reading. Kept apart from
+    /// `position`, which moves every couple of seconds: what shows only the
+    /// chapter (a menu, the chapter line) changes only when the chapter
+    /// does, and an open menu isn't rebuilt under the finger.
+    private(set) var currentChapter: AudiobookChapter?
+
+    private func updateChapter() {
+        let chapter = current?.chapter(at: position)
+        if chapter != currentChapter {
+            currentChapter = chapter
+        }
+    }
     /// A book is being read from its server to play.
     private(set) var isLoading = false
 
@@ -72,6 +87,7 @@ final class AudiobookPlayer {
     private init() {
         UserDefaults.standard.removeObject(forKey: Self.sharedRateKey)
         current = Self.loadCurrent()
+        updateChapter()
         rate = Self.rate(for: current?.book)
         if let current {
             graceUntil = .now.addingTimeInterval(30)
@@ -109,9 +125,18 @@ final class AudiobookPlayer {
         contains(item) ? Float(rate) : 1
     }
 
-    /// The chapter playing, from the last reading.
-    var currentChapter: AudiobookChapter? {
-        current?.chapter(at: position)
+    /// What's left to hear, as "33m left in chapter" — or of the whole book
+    /// ("5h 3m left") when it has no chapters but itself — at the speed it
+    /// plays at: the book's on this device, 1× on a speaker. `compact`
+    /// leaves out "in chapter", for a narrow line. Nil with no book loaded.
+    func timeLeftText(compact: Bool = false) -> String? {
+        guard let current else { return nil }
+        let speed = PlaybackRoute.shared.controller.group == nil ? rate : 1
+        if current.chapters.count > 1, let chapter = currentChapter {
+            let left = "\(AudiobookFormat.duration(max(chapter.end - position, 0) / speed)) left"
+            return compact ? left : "\(left) in chapter"
+        }
+        return "\(AudiobookFormat.duration(max(current.duration - position, 0) / speed)) left"
     }
 
     // MARK: - Playing
@@ -226,9 +251,12 @@ final class AudiobookPlayer {
     // MARK: - Chapters
 
     /// The chapter after the one playing, from the last reading: nil in the
-    /// last chapter.
+    /// last chapter. From the chapter rather than the place, so it changes
+    /// only when the chapter does.
     var nextChapter: AudiobookChapter? {
-        current?.chapters.chapter(after: position)
+        guard let chapters = current?.chapters else { return nil }
+        guard let playing = currentChapter else { return chapters.first }
+        return chapters.first { $0.start > playing.start }
     }
 
     /// Moves to the start of the next chapter.
@@ -540,6 +568,7 @@ final class AudiobookPlayer {
 
     private func setCurrent(_ audiobook: Audiobook?) {
         current = audiobook
+        updateChapter()
         rate = Self.rate(for: audiobook?.book)
         lastServerSync = .distantPast
         lastServerPosition = nil

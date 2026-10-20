@@ -254,6 +254,7 @@ final class DownloadManager {
         Self.prepareDirectory()
         items = Self.loadManifest()
         containers = Self.loadContainerManifest()
+        refreshContainerPresence()
         relay.manager = self
         adoptLegacyPlexDownloads()
         reconcileWithDisk()
@@ -448,6 +449,36 @@ final class DownloadManager {
             if case .downloading = containerState(key: $0.key) { return true }
             return false
         }.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    /// A container at a glance: on its way, or all here.
+    enum ContainerPresence: Equatable {
+        case downloading, downloaded
+    }
+
+    /// Each container at a glance, for what shows only that (a menu's row):
+    /// `containerState` reads every track's progress, which changes several
+    /// times a second while one comes down, and an open menu redrawn that
+    /// often flickers. Set when downloads start, land or go
+    /// (`scheduleSave`), never on progress.
+    private(set) var containerPresence: [String: ContainerPresence] = [:]
+
+    func containerPresence(for container: PlayableContent) -> ContainerPresence? {
+        containerPresence[Self.containerKey(for: container)]
+    }
+
+    private func refreshContainerPresence() {
+        var presence: [String: ContainerPresence] = [:]
+        for key in containers.keys {
+            switch containerState(key: key) {
+            case .downloaded: presence[key] = .downloaded
+            case .downloading: presence[key] = .downloading
+            case nil: break
+            }
+        }
+        if presence != containerPresence {
+            containerPresence = presence
+        }
     }
 
     /// Where a container downloaded whole stands, or nil if it never was
@@ -1820,6 +1851,7 @@ final class DownloadManager {
     /// Coalesces saves: progress alone never writes, and bursts of state
     /// changes (an album finishing) write once.
     private func scheduleSave() {
+        refreshContainerPresence()
         saveTask?.cancel()
         saveTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(300))

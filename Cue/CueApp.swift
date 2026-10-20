@@ -156,6 +156,9 @@ struct MusicPlaybackView: View {
         // way out: the buttons rest and Play reads as it did
         // (`HeldPlaybackController`).
         let isPlaying = controller.isPlaying
+        // A book reads as what's left of its chapter, and skips 30 s where a
+        // song goes to the next: a book's file is a chapter or more.
+        let isBook = AudiobookPlayer.shared.isPlayingBook(on: controller) && !route.isHolding
 
         Button {
             showPlayer.toggle()
@@ -180,10 +183,16 @@ struct MusicPlaybackView: View {
                         .foregroundStyle(item == nil ? .secondary : .primary)
                         .lineLimit(1)
                     if placement != .inline, let line = subtitle(for: item, on: group) {
-                        Text(line)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                        Group {
+                            if isBook {
+                                AudiobookTimeLeft(prefix: group?.nameWithCount ?? AudiobookPlayer.shared.current?.book.subtitle, isCompact: true)
+                            } else {
+                                Text(line)
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                         if !progressSpansFullWidth {
                             progressLine
                         }
@@ -211,9 +220,13 @@ struct MusicPlaybackView: View {
             .disabled(!controller.isActive)
 
             // A live station on this device has nothing to skip to.
-            if placement != .inline, controller.showsNext {
+            if placement != .inline, controller.showsNext || isBook {
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
+                    if isBook {
+                        Task { await AudiobookPlayer.shared.skip(by: AudiobookPlayer.skipForwardInterval) }
+                        return
+                    }
                     Task {
                         await controller.next()
                         // Nothing may be listening to the speaker with the
@@ -223,12 +236,12 @@ struct MusicPlaybackView: View {
                         }
                     }
                 } label: {
-                    Image(systemName: "forward.fill")
+                    Image(systemName: isBook ? "goforward.\(Int(AudiobookPlayer.skipForwardInterval))" : "forward.fill")
                 }
                 .buttonStyle(.plain)
                 .font(.title3)
-                .accessibilityLabel("Next")
-                .disabled(!controller.hasNext)
+                .accessibilityLabel(isBook ? "Forward \(Int(AudiobookPlayer.skipForwardInterval)) Seconds" : "Next")
+                .disabled(!isBook && !controller.hasNext)
             }
         }
     }

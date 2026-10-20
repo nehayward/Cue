@@ -1084,12 +1084,18 @@ private struct PlayerScrubber: View {
                     Text(elapsed.formatted(.time(pattern: pattern)))
                         .contentTransition(.identity)
                     Spacer()
-                    // Lossless / Atmos / bit depth, as far as the backend or
-                    // the speaker says.
-                    AudioInfoView(quality: controller.audioQuality)
-                        .frame(height: 12)
-                        .contentTransition(.identity)
-                        .animation(.spring, value: controller.audioQuality)
+                    // A book: what's left of the chapter. Anything else: lossless
+                    // / Atmos / bit depth, as far as the backend or the speaker
+                    // says.
+                    if AudiobookPlayer.shared.isPlayingBook(on: controller) {
+                        AudiobookTimeLeft()
+                            .frame(height: 12)
+                    } else {
+                        AudioInfoView(quality: controller.audioQuality)
+                            .frame(height: 12)
+                            .contentTransition(.identity)
+                            .animation(.spring, value: controller.audioQuality)
+                    }
                     Spacer()
                     Text("-\(remaining.formatted(.time(pattern: pattern)))")
                         .contentTransition(.identity)

@@ -143,6 +143,29 @@ struct AudiobookChapterButtons: View {
     }
 }
 
+/// What's left of the chapter playing, "33m left in chapter", after
+/// `prefix` (the author, or the speaker) when there is one: the player's
+/// middle line for a book, in the audio quality's place, and the mini
+/// player's line under the title. It reads the book's place, which moves
+/// every couple of seconds, so it's a view of its own: the player around
+/// it doesn't redraw with it.
+struct AudiobookTimeLeft: View {
+    var prefix: String? = nil
+    /// "33m left", for a narrow line (the mini player's).
+    var isCompact = false
+
+    @State private var player = AudiobookPlayer.shared
+
+    var body: some View {
+        let left = player.timeLeftText(compact: isCompact)
+        let parts = [prefix.flatMap { $0.isEmpty ? nil : $0 }, left].compactMap { $0 }
+        Text(parts.joined(separator: " • "))
+            .monospacedDigit()
+            .contentTransition(.numericText())
+            .animation(.default, value: left)
+    }
+}
+
 /// The player's origin line while a book with chapters plays: the chapter
 /// playing, in the caption slot the album or playlist has for a song, and
 /// a tap opens the chapters, with Previous and Next Chapter over them. It

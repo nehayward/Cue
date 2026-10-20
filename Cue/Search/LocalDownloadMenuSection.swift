@@ -227,7 +227,9 @@ struct LocalDownloadMenuSection: View {
     private func bookSection(_ book: PlayableContent) -> some View {
         let manager = DownloadManager.shared
         if manager.canDownload(contentsOf: book) {
-            switch manager.containerState(for: book) {
+            // At a glance, not the progress: an open menu redrawn with every
+            // bit of progress flickers.
+            switch manager.containerPresence(for: book) {
             case .downloaded:
                 Label("Book Downloaded", systemImage: "arrow.down.circle.fill")
             case .downloading:
