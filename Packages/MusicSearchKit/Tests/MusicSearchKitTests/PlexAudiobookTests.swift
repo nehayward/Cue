@@ -197,6 +197,16 @@ final class PlexAudiobookTests: XCTestCase {
         XCTAssertEqual(PlexAudiobook.preferring(local: recent, server: plex, timeline: timeline), recent)
     }
 
+    func testAFileGoesOnlyOntoItsOwnServersConnection() throws {
+        let remote = try XCTUnwrap(URL(string: "https://75-172-51-158.abc123.plex.direct:20891/library/parts/9582/1/file.mp3?X-Plex-Token=t"))
+        let local = try XCTUnwrap(URL(string: "https://192-168-5-166.abc123.plex.direct:32400"))
+        let other = try XCTUnwrap(URL(string: "https://10-0-0-2.def456.plex.direct:32400"))
+        XCTAssertTrue(PlexAPI.isSameServer(remote, local))
+        XCTAssertFalse(PlexAPI.isSameServer(remote, other))
+        XCTAssertTrue(PlexAPI.isSameServer(remote, remote))
+        XCTAssertFalse(PlexAPI.isSameServer(remote, try XCTUnwrap(URL(string: "http://192.168.5.166:32400"))))
+    }
+
     func testBookListDecodesWithoutAnIndex() throws {
         let json = """
         {"MediaContainer": {"size": 1, "totalSize": 1, "Metadata": [

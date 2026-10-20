@@ -250,6 +250,7 @@ final class AudiobookPlayer {
     func resumeOnDevice(from queueSpot: TimeInterval) async {
         guard let current else { return }
         forgetFailures()
+        await prepareConnection(for: current)
         let local = LocalPlaybackService.shared
         let kept = AudiobookProgressStore.shared.progress(for: current.book)
         let queueTime = current.partIndex(of: local.nowPlaying).map { current.time(part: $0, offset: queueSpot) }
@@ -275,6 +276,20 @@ final class AudiobookPlayer {
             try await local.resume(at: index, from: location.offset)
         } catch {
             Self.log.error("resume at \(index) failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// Resolves Plex's connection first when nothing has yet since launch,
+    /// so the files of a book loaded on another network go on the best one
+    /// here (`PlexAPI.onCurrentConnection`). A few seconds at most: with no
+    /// network, Play isn't held up for it.
+    private func prepareConnection(for audiobook: Audiobook) async {
+        guard audiobook.book.content.service == .plex, !OfflineMode.shared.isActive else { return }
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await PlexAPI.shared.prepareConnection() }
+            group.addTask { try? await Task.sleep(for: .seconds(3)) }
+            await group.next()
+            group.cancelAll()
         }
     }
 
@@ -313,6 +328,12 @@ final class AudiobookPlayer {
         let book = current.book
         retry = Task { [weak self] in
             try? await Task.sleep(for: delay)
+            // The network may have changed under the file (home Wi‑Fi to
+            // cellular): Plex's connection is raced again first, and the
+            // file goes on the one that wins (`trackStreamURL`).
+            if book.content.service == .plex {
+                await PlexAPI.shared.refreshConnection()
+            }
             guard !Task.isCancelled, let self, let current = self.current, current.book.isSameBook(as: book) else { return }
             self.retry = nil
             await self.start(current, at: time, on: .device)

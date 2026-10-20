@@ -2,6 +2,7 @@ import AVFoundation
 import Defaults
 import Foundation
 import MusicKit
+import MusicSearchKit
 import Observation
 import OSLog
 import SonosKit
@@ -371,6 +372,20 @@ final class LocalPlaybackService {
     /// The window is topped back up once fewer than this many armed songs
     /// are left after the current one.
     private static let streamTopUpThreshold = 4
+    /// How many of a book's files a stream run arms after the one playing:
+    /// one, to buffer into, topped up as each ends. Plex answers requests
+    /// beyond the couple it's serving with 503 (AVFoundation's -1008), and
+    /// iOS starts loading every armed item at once (its legibility pass
+    /// reads them all), so ten armed files were a burst the file meant to
+    /// play could lose — most often over the internet, on cellular — and
+    /// the queue went on to the next chapter.
+    private static let bookFilesAhead = 1
+
+    /// Whether `index` is one of the loaded book's files, armed
+    /// `bookFilesAhead` at a time.
+    private func isBookFile(at index: Int) -> Bool {
+        AudiobookPlayer.shared.contains(queue[safe: index])
+    }
     /// How many songs an Apple run starts with. The rest follow into the
     /// player's queue once it's playing (`fillAppleRun`).
     ///
@@ -776,7 +791,7 @@ final class LocalPlaybackService {
         // A stream run stays a window ahead of the current song; the poll
         // tops it up from there (`topUpStreamRun`).
         if backend == .stream {
-            end = min(end, currentIndex + Self.streamWindow)
+            end = min(end, currentIndex + (isBookFile(at: currentIndex) ? Self.bookFilesAhead : Self.streamWindow))
         }
         guard end > runEnd else { return }
         let token = playToken
@@ -1286,10 +1301,11 @@ final class LocalPlaybackService {
     /// outpace it — a track's URL needs no network.
     private func topUpStreamRun() {
         // A station's player holds the station alone; the queue waits.
+        let book = isBookFile(at: currentIndex)
         guard backend == .stream, station == nil, let player = streamPlayer, player.currentItem != nil,
               repeatMode != .one, !sleepsAtEndOfTrack,
-              runEnd - currentIndex < Self.streamTopUpThreshold else { return }
-        let limit = min(queue.count - 1, currentIndex + Self.streamWindow)
+              runEnd - currentIndex < (book ? Self.bookFilesAhead : Self.streamTopUpThreshold) else { return }
+        let limit = min(queue.count - 1, currentIndex + (book ? Self.bookFilesAhead : Self.streamWindow))
         guard runEnd < limit else { return }
         for queueIndex in (runEnd + 1)...limit {
             let row = queue[queueIndex]
@@ -2391,9 +2407,12 @@ final class LocalPlaybackService {
         // A book's file plays as it is on the server, whatever the
         // Streaming Quality: a file hours long converted on the fly can't
         // be seeked into, and the chapter list is all seeks.
+        // A Plex file's address is the one the book was loaded with, so it
+        // goes on the connection Plex is reached by now: a book loaded on
+        // cellular kept the internet address at home.
         if AudiobookPlayer.shared.contains(item) {
             return DownloadManager.shared.localURL(for: item)
-                ?? (item.content.service == .plex ? item.previewURL : item.playbackStreamURL)
+                ?? (item.content.service == .plex ? item.previewURL.map(PlexAPI.shared.onCurrentConnection) : item.playbackStreamURL)
         }
         // A local copy beats the server URL. The server URL is built now,
         // not read off the item, so the Streaming Quality setting in force
@@ -2425,8 +2444,10 @@ final class LocalPlaybackService {
 
         var rows: [(queueIndex: Int, item: AVPlayerItem)] = []
         var lastArmed = index
-        // A window of the run, not all of it — see `streamWindow`.
-        for queueIndex in index...min(end, index + Self.streamWindow - 1) {
+        // A window of the run, not all of it — see `streamWindow`, and
+        // `bookFilesAhead` for a book's.
+        let last = index + (isBookFile(at: index) ? Self.bookFilesAhead : Self.streamWindow - 1)
+        for queueIndex in index...min(end, last) {
             let item = queue[queueIndex]
             // A later song still in iCloud ends the run here; the next arm
             // fetches it.
