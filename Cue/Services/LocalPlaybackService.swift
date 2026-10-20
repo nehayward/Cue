@@ -2281,9 +2281,12 @@ final class LocalPlaybackService {
 
     /// Hands `item` to the armed stream run as queue row `queueIndex`.
     private func register(_ item: AVPlayerItem, at queueIndex: Int) {
-        // Speech at a book's speed keeps its pitch; at normal speed nothing
-        // is stretched, so music is untouched.
-        item.audioTimePitchAlgorithm = .spectral
+        // Played faster, audio keeps its pitch. A book is speech, which the
+        // time-domain stretch keeps clear: the spectral one (a phase
+        // vocoder, Apple's choice for music) smears a voice at 1.5× and
+        // over, the echoey, underwater sound of a sped-up book. At normal
+        // speed nothing is stretched either way.
+        item.audioTimePitchAlgorithm = AudiobookPlayer.shared.contains(queue[safe: queueIndex]) ? .timeDomain : .spectral
         streamRun[ObjectIdentifier(item)] = queueIndex
         watch(item)
     }
