@@ -2374,12 +2374,16 @@ final class LocalPlaybackService {
         let path = (item.asset as? AVURLAsset)?.url.path ?? "?"
         let offset = Self.finite(item.currentTime().seconds, else: 0)
         Self.log.error("couldn't play \(row.title, privacy: .public) [\(row.metadata?.audioCodec ?? "?", privacy: .public)] from \(path, privacy: .public) at \(Int(offset)) s: \(error?.domain ?? "", privacy: .public) \(error?.code ?? 0) \(error?.localizedDescription ?? "", privacy: .public) / \(underlying?.domain ?? "", privacy: .public) \(underlying?.code ?? 0) \(underlying?.localizedDescription ?? "", privacy: .public)")
-        // What the transfer saw: the server's answer, and how it went.
-        if let event = item.errorLog()?.events.last {
-            Self.log.error("couldn't play \(row.title, privacy: .public): server said \(event.errorStatusCode) \(event.errorDomain, privacy: .public) \(event.errorComment ?? "", privacy: .public)")
+        // What the transfer saw: the server's answer, and how it went, with
+        // the address the player went to (none when it never connected).
+        for event in item.errorLog()?.events.suffix(5) ?? [] {
+            Self.log.error("couldn't play \(row.title, privacy: .public): \(event.errorStatusCode) \(event.errorDomain, privacy: .public) \(event.errorComment ?? "", privacy: .public); asked \(event.uri.flatMap(URL.init(string:)).map(Self.maskedAddress) ?? "-", privacy: .public), server \(Self.maskedAddress(event.serverAddress), privacy: .public)")
         }
         if let access = item.accessLog()?.events.last {
-            Self.log.notice("couldn't play \(row.title, privacy: .public): \(access.numberOfBytesTransferred) bytes in \(Int(access.transferDuration)) s, \(access.numberOfStalls) stalls, \(Int(access.observedBitrate / 1000)) kbps")
+            Self.log.notice("couldn't play \(row.title, privacy: .public): \(access.numberOfBytesTransferred) bytes in \(Int(access.transferDuration)) s, \(access.numberOfStalls) stalls, \(Int(access.observedBitrate / 1000)) kbps, server \(Self.maskedAddress(access.serverAddress), privacy: .public)")
+        }
+        if AudiobookPlayer.shared.contains(row), let url = (item.asset as? AVURLAsset)?.url, !url.isFileURL {
+            Self.probe(url, of: row.title)
         }
         // A book's file is played again from where it stopped rather than
         // left for the next one (`AudiobookPlayer.fileFailed`), and said
@@ -2413,6 +2417,60 @@ final class LocalPlaybackService {
         bookFileState = key
         let source = isNewFile ? ", from \(Self.bookFileSource((player.currentItem?.asset as? AVURLAsset)?.url))" : ""
         Self.log.notice("book file \(item.title, privacy: .public) \(state, privacy: .public) at \(Int(self.progress)) s\(source, privacy: .public)")
+    }
+
+    /// Asks for a failed book file's first two bytes from Cue itself, beside
+    /// the player's own try, with the connection Plex's requests go to now:
+    /// an answer here and none there is the player's networking failing,
+    /// not the server.
+    private static func probe(_ url: URL, of title: String) {
+        let connection = PlexAPI.shared.currentConnection
+        let same = connection.map { $0.host == url.host && $0.port == url.port }
+        let comparison = same == true ? ", the file's own" : same == false ? ", not the file's \(maskedAddress(url))" : ""
+        log.notice("book file \(title, privacy: .public): Plex's connection now \(connection.map(maskedAddress) ?? "none", privacy: .public)\(comparison, privacy: .public)")
+        var request = URLRequest(url: url)
+        request.setValue("bytes=0-1", forHTTPHeaderField: "Range")
+        request.timeoutInterval = 15
+        Task {
+            let asked = Date.now
+            do {
+                let (_, response) = try await URLSession.shared.data(for: request)
+                let http = response as? HTTPURLResponse
+                log.notice("book file \(title, privacy: .public): the same URL from Cue answered \(http?.statusCode ?? 0) \(http?.value(forHTTPHeaderField: "Content-Type") ?? "-", privacy: .public) \(http?.value(forHTTPHeaderField: "Content-Range") ?? "-", privacy: .public) after \(Date.now.timeIntervalSince(asked), format: .fixed(precision: 1)) s")
+            } catch {
+                let error = error as NSError
+                log.notice("book file \(title, privacy: .public): the same URL from Cue failed: \(error.domain, privacy: .public) \(error.code) \(error.localizedDescription, privacy: .public) after \(Date.now.timeIntervalSince(asked), format: .fixed(precision: 1)) s")
+            }
+        }
+    }
+
+    /// An address for the log with most of it hidden: its kind, its first
+    /// part and its port, enough to tell two apart (the internet address
+    /// from the network's, IPv4 from IPv6, another server) without writing
+    /// the listener's IP down.
+    private static func maskedAddress(_ url: URL) -> String {
+        "\(maskedHost(url.host ?? "?")):\(url.port ?? 0)"
+    }
+
+    private static func maskedAddress(_ address: String?) -> String {
+        guard let address, !address.isEmpty else { return "none" }
+        return maskedHost(address)
+    }
+
+    private static func maskedHost(_ host: String) -> String {
+        // Plex's names are <address in dashes>.<server's hash>.plex.direct.
+        let labels = host.split(separator: ".")
+        if host.hasSuffix(".plex.direct"), labels.count == 4 {
+            let groups = labels[0].split(separator: "-")
+            return "\(groups.count == 4 ? "IPv4" : "IPv6") \(groups.first ?? "?")-… on server \(labels[1].prefix(6))…"
+        }
+        if host.contains(":") {
+            return "IPv6 \(host.split(separator: ":").first ?? "?"):…"
+        }
+        if labels.count == 4, labels.allSatisfy({ Int($0) != nil }) {
+            return "IPv4 \(labels[0]).…"
+        }
+        return "\(host.prefix(3))… (\(host.count) characters)"
     }
 
     /// Where a book's file streams from, for the log: this device, or the

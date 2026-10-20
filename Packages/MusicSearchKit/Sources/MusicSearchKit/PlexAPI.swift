@@ -1562,6 +1562,11 @@ public final class PlexAPI {
         return rebased
     }
 
+    /// The connection this server's requests go to now, once resolved.
+    public var currentConnection: URL? {
+        withCacheLock { resolvedBaseURL }
+    }
+
     /// Resolves this server's connection if nothing has yet (a launch with
     /// no Plex request so far), for `onCurrentConnection` to go by.
     public func prepareConnection() async {
