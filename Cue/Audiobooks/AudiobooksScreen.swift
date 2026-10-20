@@ -58,11 +58,10 @@ struct AudiobooksScreen: View {
 
                 if !others.isEmpty {
                     Section {
+                        AudiobookSectionTitle("Continue Listening")
                         ForEach(others) { book in
                             AudiobookRow(book: book)
                         }
-                    } header: {
-                        Text("Continue Listening")
                     }
                     .fontDesign(.rounded)
                     .listRowInsets(.default)
@@ -72,10 +71,9 @@ struct AudiobooksScreen: View {
                 // On this device or on their way: what plays with no network.
                 if !downloaded.isEmpty {
                     Section {
+                        AudiobookSectionTitle("Downloads")
                         AudiobookCoverRow(books: downloaded)
                             .listRowInsets(EdgeInsets())
-                    } header: {
-                        Text("Downloads")
                     }
                     .fontDesign(.rounded)
                     .listRowSeparator(.hidden)
@@ -83,10 +81,9 @@ struct AudiobooksScreen: View {
 
                 if showsAudiobookshelf, !isOffline, !shelf.recentlyAdded.isEmpty {
                     Section {
+                        AudiobookSectionTitle("Recently Added")
                         AudiobookCoverRow(books: shelf.recentlyAdded)
                             .listRowInsets(EdgeInsets())
-                    } header: {
-                        Text("Recently Added")
                     }
                     .fontDesign(.rounded)
                     .listRowSeparator(.hidden)
@@ -94,11 +91,10 @@ struct AudiobooksScreen: View {
 
                 if !recent.isEmpty {
                     Section {
+                        AudiobookSectionTitle("Recently Played")
                         ForEach(recent.prefix(Self.recentCount)) { book in
                             AudiobookRow(book: book)
                         }
-                    } header: {
-                        Text("Recently Played")
                     }
                     .fontDesign(.rounded)
                     .listRowInsets(.default)
@@ -111,7 +107,6 @@ struct AudiobooksScreen: View {
                 }
             }
             .listStyle(.plain)
-            .headerProminence(.increased)
             // Rounded is set on each part rather than here: the outermost
             // `.fontDesign` wins, and the book's title is New York.
             .contentMargins(.bottom, 120, for: .scrollContent)
@@ -143,6 +138,7 @@ struct AudiobooksScreen: View {
     private var libraries: some View {
         if showsPlex || showsAudiobookshelf {
             Section {
+                AudiobookSectionTitle("All Books")
                 if showsPlex {
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Plex",
@@ -184,8 +180,6 @@ struct AudiobooksScreen: View {
                         }
                     }
                 }
-            } header: {
-                Text("All Books")
             }
             .listRowInsets(.default)
             .listRowSeparator(.hidden)
@@ -361,5 +355,25 @@ extension PlayableContent {
     func isSameBook(as other: PlayableContent?) -> Bool {
         guard let other else { return false }
         return content.service == other.content.service && content.id == other.content.id
+    }
+}
+
+/// A section's title, as its first row rather than its header: a plain
+/// list pins a header to the top while its section scrolls under it, and
+/// these scroll away with their section. Drawn as the list's prominent
+/// header was.
+private struct AudiobookSectionTitle: View {
+    let title: LocalizedStringKey
+
+    init(_ title: LocalizedStringKey) {
+        self.title = title
+    }
+
+    var body: some View {
+        Text(title)
+            .font(.title3.bold())
+            .accessibilityAddTraits(.isHeader)
+            .listRowInsets(EdgeInsets(top: 24, leading: 16, bottom: 6, trailing: 16))
+            .listRowSeparator(.hidden)
     }
 }
