@@ -171,6 +171,7 @@ final class AudiobookPlayer {
 
     /// Plays `book` from `time` (book time), or from where it was left.
     func play(_ book: PlayableContent, from time: TimeInterval? = nil, on target: Target = .route) async {
+        forgetFailures()
         isLoading = true
         defer { isLoading = false }
         // Read again even when it's the book already loaded: another player
@@ -204,6 +205,7 @@ final class AudiobookPlayer {
     /// else the file it falls in, from there.
     func jump(to time: TimeInterval) async {
         guard let current else { return }
+        forgetFailures()
         let target = min(max(time, 0), current.duration)
         let location = current.timeline.location(at: target)
         let controller = PlaybackRoute.shared.controller
@@ -235,11 +237,26 @@ final class AudiobookPlayer {
     /// own spot is only as good as its last save (a file still loading
     /// reads as its top), and the book may have been moved since on
     /// another player.
-    func resumeOnDevice() async {
+    ///
+    /// `queueSpot` is the queue's own spot in the file it's on: where Play
+    /// goes when it's the book's place too, as a pause leaves it.
+    func resumeOnDevice(from queueSpot: TimeInterval) async {
         guard let current else { return }
-        let time = AudiobookProgressStore.shared.progress(for: current.book)?.resumePosition ?? position
-        let location = current.timeline.location(at: time)
+        forgetFailures()
         let local = LocalPlaybackService.shared
+        let kept = AudiobookProgressStore.shared.progress(for: current.book)
+        let queueTime = current.partIndex(of: local.nowPlaying).map { current.time(part: $0, offset: queueSpot) }
+        let time: TimeInterval
+        if let arriving {
+            // A place just picked, or where a file stopped: exactly there.
+            time = arriving
+        } else if let queueTime, kept.map({ abs($0.position - queueTime) <= Self.storeInterval + 1 }) ?? true {
+            time = queueTime
+        } else {
+            // Moved since the queue's spot was saved.
+            time = kept?.resumePosition ?? position
+        }
+        let location = current.timeline.location(at: time)
         guard let index = local.queue.firstIndex(where: { current.partIndex(of: $0) == location.part }) else {
             await start(current, at: time, on: .device)
             return
@@ -254,21 +271,64 @@ final class AudiobookPlayer {
         }
     }
 
-    /// A book's file wouldn't load on this device. An Audiobookshelf file
-    /// streams through its session, which the server may have ended (a
-    /// restart does): a new session, and the book again from where it was.
-    /// Once a minute at most, so a server that's simply down isn't asked
-    /// over and over.
-    func fileFailed(_ item: PlayableContent) {
-        guard let current, current.book.content.service == .audiobookshelf, contains(item),
-              Date.now.timeIntervalSince(lastRecovery) > 60 else { return }
-        lastRecovery = .now
-        let time = position
-        Self.log.notice("book file failed; opening a new session")
-        Task { await start(current, at: time, on: .device) }
+    /// A book's file wouldn't load on this device, or broke off: a network
+    /// lost on the way, a far seek over a slow one, an Audiobookshelf
+    /// session the server ended. The queue player goes on to the next file
+    /// by itself, which for a book is the next chapter, so the device's
+    /// queue is parked at once and the book played again from where the
+    /// file stopped (`offset` into it): a few times, waiting longer each
+    /// time, then left there for Play. A new start opens a new
+    /// Audiobookshelf session. False when it's left, for the caller to say
+    /// it couldn't play.
+    @discardableResult
+    func fileFailed(_ item: PlayableContent, at offset: TimeInterval?) -> Bool {
+        guard let current, let part = current.partIndex(of: item) else { return false }
+        // The player's reading of the file, or the book's last, further in,
+        // for a file that failed on its way there (it reads its top).
+        var time = current.time(part: part, offset: offset ?? 0)
+        if current.timeline.location(at: position).part == part {
+            time = max(time, position)
+        }
+        LocalPlaybackService.shared.park()
+        position = time
+        arriving = time
+        wasPlaying = false
+        failedAt = time
+        record(AudiobookProgress(position: time, duration: current.duration), of: current)
+        guard failures < Self.retryDelays.count else {
+            Self.log.error("book file \(part + 1) failed again at \(Int(time)) s; left there for Play")
+            return false
+        }
+        let delay = Self.retryDelays[failures]
+        failures += 1
+        Self.log.notice("book file \(part + 1) failed at \(Int(time)) s; playing from there again in \(delay, privacy: .public) (try \(self.failures))")
+        retry?.cancel()
+        let book = current.book
+        retry = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled, let self, let current = self.current, current.book.isSameBook(as: book) else { return }
+            self.retry = nil
+            await self.start(current, at: time, on: .device)
+        }
+        return true
     }
 
-    @ObservationIgnored private var lastRecovery: Date = .distantPast
+    /// A file failed and the book will be played again from there.
+    @ObservationIgnored private var retry: Task<Void, Never>?
+    /// Files failed in a row, with no stretch of listening between.
+    @ObservationIgnored private var failures = 0
+    /// Where the last file failed, until listening has gone well past it.
+    @ObservationIgnored private var failedAt: TimeInterval?
+    private static let retryDelays: [Duration] = [.seconds(1), .seconds(5), .seconds(15), .seconds(30)]
+
+    /// A play, a move or the book left: any retry waiting is off, and the
+    /// count starts over.
+    private func forgetFailures() {
+        retry?.cancel()
+        retry = nil
+        failures = 0
+        failedAt = nil
+    }
 
     /// Skips `seconds` (back when negative) through the book, across files.
     func skip(by seconds: TimeInterval) async {
@@ -478,16 +538,17 @@ final class AudiobookPlayer {
         guard let current, let part = current.partIndex(of: controller.nowPlayingDisplay) else { return nil }
         let offset = controller.position()
         let time = current.time(part: part, offset: offset)
-        if let arriving, isStillArriving(time: time, offset: offset) { return arriving }
+        if let arriving, isStillArriving(time: time, offset: offset, playing: controller.isPlaying) { return arriving }
         return time
     }
 
     /// Whether a reading at book time `time`, `offset` into its file, is the
-    /// file still loading on the way to `arriving`: at the top of the file
-    /// and short of it.
-    private func isStillArriving(time: TimeInterval, offset: TimeInterval) -> Bool {
-        guard let arriving else { return false }
-        return time < arriving - Self.arrivalTolerance && offset < Self.arrivalTolerance
+    /// player still on its way to `arriving`: loading at the top of a file
+    /// short of it, or stopped anywhere else (the queue parked after a
+    /// file failed, on whichever file the queue player had gone on to).
+    private func isStillArriving(time: TimeInterval, offset: TimeInterval, playing: Bool) -> Bool {
+        guard let arriving, abs(time - arriving) > Self.arrivalTolerance else { return false }
+        return !playing || (time < arriving && offset < Self.arrivalTolerance)
     }
 
     private func tick() {
@@ -516,14 +577,21 @@ final class AudiobookPlayer {
         misses = 0
         let offset = controller.position()
         let time = current.time(part: part, offset: offset)
+        let playing = controller.isPlaying
         if let arriving {
-            guard !isStillArriving(time: time, offset: offset) else {
-                Self.log.info("on its way to \(Int(arriving)) s; held back a reading of \(Int(time)) s")
+            guard !isStillArriving(time: time, offset: offset, playing: playing) else {
+                if playing {
+                    Self.log.info("on its way to \(Int(arriving)) s; held back a reading of \(Int(time)) s")
+                }
                 return
             }
             self.arriving = nil
         }
-        let playing = controller.isPlaying
+        // Listening has gone well past the file that failed.
+        if let failedAt, playing, time > failedAt + 30 {
+            self.failedAt = nil
+            failures = 0
+        }
         let finished = time >= current.duration - AudiobookProgress.finishedMargin && part == current.parts.count - 1
         // At the end the player goes back to the top of the queue and
         // waits there. That isn't the listener starting over — until they
@@ -654,6 +722,7 @@ final class AudiobookPlayer {
         }
         setCurrent(nil)
         sleepsAt = nil
+        forgetFailures()
         stopMonitoring()
         flush()
     }

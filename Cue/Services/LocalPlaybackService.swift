@@ -998,9 +998,11 @@ final class LocalPlaybackService {
             if let station {
                 Task { try? await playStation(station) }
             } else if AudiobookPlayer.shared.contains(queue[safe: currentIndex]) {
-                // A book's file: from the book's kept place, not the
-                // queue's own spot (see `AudiobookPlayer.resumeOnDevice`).
-                Task { await AudiobookPlayer.shared.resumeOnDevice() }
+                // A book's file: from the book's kept place, which the
+                // queue's own spot may not be (see
+                // `AudiobookPlayer.resumeOnDevice`).
+                let spot = resumePosition ?? 0
+                Task { await AudiobookPlayer.shared.resumeOnDevice(from: spot) }
             } else {
                 Task { try? await arm(at: currentIndex) }
             }
@@ -2310,14 +2312,17 @@ final class LocalPlaybackService {
         let key = ObjectIdentifier(item)
         let row = key == stationItem ? station : streamRun[key].flatMap { queue[safe: $0] }
         guard itemWatches.removeValue(forKey: key) != nil, let row else { return }
-        AlertService.shared.showAlert(with: "Couldn't play “\(row.title)”", imageName: "exclamationmark.triangle")
-        AudiobookPlayer.shared.fileFailed(row)
         // The item's error and the stream's path (not its query, which
         // carries the server's token).
         let error = item.error as NSError?
         let underlying = error?.userInfo[NSUnderlyingErrorKey] as? NSError
         let path = (item.asset as? AVURLAsset)?.url.path ?? "?"
-        Self.log.error("couldn't play \(row.title, privacy: .public) [\(row.metadata?.audioCodec ?? "?", privacy: .public)] from \(path, privacy: .public): \(error?.domain ?? "", privacy: .public) \(error?.code ?? 0) \(error?.localizedDescription ?? "", privacy: .public) / \(underlying?.domain ?? "", privacy: .public) \(underlying?.code ?? 0) \(underlying?.localizedDescription ?? "", privacy: .public)")
+        let offset = Self.finite(item.currentTime().seconds, else: 0)
+        Self.log.error("couldn't play \(row.title, privacy: .public) [\(row.metadata?.audioCodec ?? "?", privacy: .public)] from \(path, privacy: .public) at \(Int(offset)) s: \(error?.domain ?? "", privacy: .public) \(error?.code ?? 0) \(error?.localizedDescription ?? "", privacy: .public) / \(underlying?.domain ?? "", privacy: .public) \(underlying?.code ?? 0) \(underlying?.localizedDescription ?? "", privacy: .public)")
+        // A book's file is played again from where it stopped rather than
+        // left for the next one (`AudiobookPlayer.fileFailed`).
+        guard !AudiobookPlayer.shared.fileFailed(row, at: offset) else { return }
+        AlertService.shared.showAlert(with: "Couldn't play “\(row.title)”", imageName: "exclamationmark.triangle")
     }
 
     /// `streamURL(for:)` for anything but a station: answered at once.
@@ -2837,9 +2842,13 @@ final class LocalPlaybackService {
             // nil and the next poll ends the run.
             if current.status == .failed {
                 // Reported by its watch (`streamItemFailed`); this only
-                // moves on, in case the player hasn't.
+                // moves on, in case the player hasn't — unless the report
+                // took the run down (a book's file, played again from where
+                // it stopped).
                 streamItemFailed(current)
-                streamPlayer.advanceToNextItem()
+                if self.streamPlayer === streamPlayer {
+                    streamPlayer.advanceToNextItem()
+                }
                 return
             }
             // Only what changed, as above.
