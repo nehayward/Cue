@@ -51,7 +51,7 @@ struct PlaybackRouteButton: View {
                         }
                     }
                     .accessibilityLabel("AirPlay")
-                    .accessibilityValue(sonosService.isInCar ? "CarPlay" : "")
+                    .accessibilityValue(sonosService.isInCar ? "CarPlay" : AudioOutputName.shared.name ?? "")
             }
         }
         // Re-read on every appearance: the share extension writes this too, so
@@ -75,7 +75,7 @@ private struct SonosRouteButton: View {
             // glyph: the route is Cue's, not AirPlay's.
             Image("hifispeaker.arrow.forward.fill")
                 .accessibilityLabel("Play On")
-                .accessibilityValue(route.group?.nameWithCount ?? "This Device")
+                .accessibilityValue(route.group?.nameWithCount ?? AudioOutputName.shared.name ?? "This Device")
         }
         // The sheet grows out of the button and shrinks back into it,
         // rather than sliding up from the bottom edge, far from where the
