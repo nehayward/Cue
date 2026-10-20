@@ -2428,20 +2428,62 @@ final class LocalPlaybackService {
         let same = connection.map { $0.host == url.host && $0.port == url.port }
         let comparison = same == true ? ", the file's own" : same == false ? ", not the file's \(maskedAddress(url))" : ""
         log.notice("book file \(title, privacy: .public): Plex's connection now \(connection.map(maskedAddress) ?? "none", privacy: .public)\(comparison, privacy: .public)")
-        var request = URLRequest(url: url)
-        request.setValue("bytes=0-1", forHTTPHeaderField: "Range")
-        request.timeoutInterval = 15
+        // Asked a few ways, one after another: as the server gave it, with
+        // Cue's client id, on a fresh session past any cache, and with the
+        // token as a header. One getting through where the plain URL
+        // doesn't is something matching that exact URL.
+        func twoBytes(_ url: URL) -> URLRequest {
+            var request = URLRequest(url: url)
+            request.setValue("bytes=0-1", forHTTPHeaderField: "Range")
+            request.timeoutInterval = 15
+            return request
+        }
+        let plain = settingQuery(url, "X-Plex-Client-Identifier", to: nil)
+        var fresh = twoBytes(plain)
+        fresh.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        let freshSession = URLSession(configuration: .ephemeral)
+        var tries: [(name: String, request: URLRequest, session: URLSession)] = [
+            ("as the server gave it", twoBytes(plain), .shared),
+            ("with Cue's client id", twoBytes(withPlexClient(plain)), .shared),
+            ("on a fresh session", fresh, freshSession),
+        ]
+        if let token = URLComponents(url: plain, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "X-Plex-Token" })?.value {
+            var header = twoBytes(settingQuery(plain, "X-Plex-Token", to: nil))
+            header.setValue(token, forHTTPHeaderField: "X-Plex-Token")
+            tries.append(("with the token as a header", header, .shared))
+        }
         Task {
-            let asked = Date.now
-            do {
-                let (_, response) = try await URLSession.shared.data(for: request)
-                let http = response as? HTTPURLResponse
-                log.notice("book file \(title, privacy: .public): the same URL from Cue answered \(http?.statusCode ?? 0) \(http?.value(forHTTPHeaderField: "Content-Type") ?? "-", privacy: .public) \(http?.value(forHTTPHeaderField: "Content-Range") ?? "-", privacy: .public) after \(Date.now.timeIntervalSince(asked), format: .fixed(precision: 1)) s")
-            } catch {
-                let error = error as NSError
-                log.notice("book file \(title, privacy: .public): the same URL from Cue failed: \(error.domain, privacy: .public) \(error.code) \(error.localizedDescription, privacy: .public) after \(Date.now.timeIntervalSince(asked), format: .fixed(precision: 1)) s")
+            defer { freshSession.finishTasksAndInvalidate() }
+            for attempt in tries {
+                let asked = Date.now
+                do {
+                    let (_, response) = try await attempt.session.data(for: attempt.request)
+                    let http = response as? HTTPURLResponse
+                    log.notice("book file \(title, privacy: .public), \(attempt.name, privacy: .public): \(http?.statusCode ?? 0) \(http?.value(forHTTPHeaderField: "Content-Type") ?? "-", privacy: .public) \(http?.value(forHTTPHeaderField: "Content-Range") ?? "-", privacy: .public) after \(Date.now.timeIntervalSince(asked), format: .fixed(precision: 1)) s")
+                } catch {
+                    let error = error as NSError
+                    log.notice("book file \(title, privacy: .public), \(attempt.name, privacy: .public): failed \(error.domain, privacy: .public) \(error.code) \(error.localizedDescription, privacy: .public) after \(Date.now.timeIntervalSince(asked), format: .fixed(precision: 1)) s")
+                }
             }
         }
+    }
+
+    /// A Plex book file's URL as the player asks for it: with Cue's client
+    /// id, as Plex's own apps send it. The same file's URL without it
+    /// failed on the iPhone over the internet before reaching the server.
+    private static func withPlexClient(_ url: URL) -> URL {
+        settingQuery(url, "X-Plex-Client-Identifier", to: "Cue")
+    }
+
+    /// `url` with its query item `name` set to `value`, or taken out.
+    private static func settingQuery(_ url: URL, _ name: String, to value: String?) -> URL {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        var items = (components.queryItems ?? []).filter { $0.name != name }
+        if let value {
+            items.append(URLQueryItem(name: name, value: value))
+        }
+        components.queryItems = items.isEmpty ? nil : items
+        return components.url ?? url
     }
 
     /// An address for the log with most of it hidden: its kind, its first
@@ -2495,7 +2537,7 @@ final class LocalPlaybackService {
         // cellular kept the internet address at home.
         if AudiobookPlayer.shared.contains(item) {
             return DownloadManager.shared.localURL(for: item)
-                ?? (item.content.service == .plex ? item.previewURL.map(PlexAPI.shared.onCurrentConnection) : item.playbackStreamURL)
+                ?? (item.content.service == .plex ? item.previewURL.map { Self.withPlexClient(PlexAPI.shared.onCurrentConnection($0)) } : item.playbackStreamURL)
         }
         // A local copy beats the server URL. The server URL is built now,
         // not read off the item, so the Streaming Quality setting in force
