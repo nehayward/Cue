@@ -46,15 +46,17 @@ struct AudiobookHistoryList: View {
 
     private func row(_ place: AudiobookPlaceHistory.Place) -> some View {
         HStack(spacing: 12) {
+            // Opacities of primary, not `.secondary`, which flickers as the
+            // glass sheet changes.
             Image(systemName: Self.symbol(place.kind))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary.opacity(0.6))
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 2) {
                 Text(Self.title(place.kind))
                     .foregroundStyle(.primary)
                 Text([audiobook?.chapter(at: place.position)?.title, AudiobookFormat.clock(place.position)].compactMap { $0 }.joined(separator: " · "))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.6))
                     .monospacedDigit()
                     .lineLimit(1)
             }
