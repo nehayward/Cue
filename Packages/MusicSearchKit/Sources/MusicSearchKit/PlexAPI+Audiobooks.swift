@@ -54,8 +54,14 @@ extension PlexAPI {
     /// Every Music library on the selected server but the one chosen for
     /// music, with whether it's read as books.
     public func audiobookLibraryChoices() async -> [AudiobookLibrary] {
+        audiobookLibraryChoices(from: await getMusicLibraries())
+    }
+
+    /// `libraries` but the one chosen for music, with whether each is read
+    /// as books.
+    private func audiobookLibraryChoices(from libraries: [PlexLibrarySection]) -> [AudiobookLibrary] {
         let chosen = chosenAudiobookLibraryKeys
-        return await getMusicLibraries()
+        return libraries
             .filter { $0.key != librarySelectionID }
             .map { section in
                 let isBooks = chosen.map { $0.contains(section.key) }
@@ -75,7 +81,7 @@ extension PlexAPI {
         if !(await audiobookLibraries()).isEmpty { return true }
         guard includesGenreTaggedAudiobooks, let music = librarySelectionID,
               let server = await getPlexServer(), let base = getBaseURL(for: server) else { return false }
-        return !(await audiobookGenres(sectionKey: music, base: base)).isEmpty
+        return !(await audiobookGenres(sectionKey: music, base: base) ?? []).isEmpty
     }
 
     // MARK: - Books
@@ -92,14 +98,19 @@ extension PlexAPI {
               let clientID = server.clientIdentifier,
               let base = getBaseURL(for: server) else { return nil }
 
-        let libraries = await audiobookLibraries()
+        // A listing that failed isn't a server without books: nil, not a
+        // shelf read as empty.
+        guard let sections = await musicLibraries() else { return nil }
+        let libraries = audiobookLibraryChoices(from: sections).filter(\.isBooks).map(\.section)
         var sources: [(path: String, query: [URLQueryItem])] = libraries.map {
             ("/library/sections/\($0.key)/all", [])
         }
         if includesGenreTaggedAudiobooks,
            let music = librarySelectionID,
+           sections.contains(where: { $0.key == music }),
            !libraries.contains(where: { $0.key == music }) {
-            for genre in await audiobookGenres(sectionKey: music, base: base) {
+            guard let genres = await audiobookGenres(sectionKey: music, base: base) else { return nil }
+            for genre in genres {
                 sources.append(("/library/sections/\(music)/all", [URLQueryItem(name: "genre", value: genre.key)]))
             }
         }
@@ -117,12 +128,13 @@ extension PlexAPI {
         }
     }
 
-    /// The music library's album genres that mark books.
-    private func audiobookGenres(sectionKey: String, base: URL) async -> [PlexDirectoryItem] {
+    /// The music library's album genres that mark books; nil when they
+    /// couldn't be read.
+    private func audiobookGenres(sectionKey: String, base: URL) async -> [PlexDirectoryItem]? {
         var url = base.appending(path: "/library/sections/\(sectionKey)/genre")
         url.append(queryItems: [URLQueryItem(name: "type", value: "\(PlexMediaType.album.rawValue)")])
-        let container: PlexContainer<PlexDirectoryContainer>? = await loadAuthorized(url)
-        return container?.mediaContainer.directory?.filter { PlexAudiobookRules.isAudiobookGenre($0.title) } ?? []
+        guard let container: PlexContainer<PlexDirectoryContainer> = await loadAuthorized(url) else { return nil }
+        return container.mediaContainer.directory?.filter { PlexAudiobookRules.isAudiobookGenre($0.title) } ?? []
     }
 
     private static let audiobookPageSize = 200
