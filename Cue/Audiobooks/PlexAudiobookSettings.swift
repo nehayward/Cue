@@ -35,7 +35,7 @@ struct PlexAudiobookSettingsSection: View {
                 .font(.headline)
                 .foregroundStyle(.secondary)
         } footer: {
-            Text("Libraries switched on here show under Audiobooks in the Plex library, played from where you left off. Albums in your music library with the genre Audiobook or Spoken Word show there too. For your place to follow you between Cue and other Plex apps, turn on Store Track Progress in the library's advanced settings on your server.")
+            Text("Libraries switched on here show under Audiobooks in the Plex library, played from where you left off. Albums in your music library with the genre Audiobook show there too. For your place to follow you between Cue and other Plex apps, turn on Store Track Progress in the library's advanced settings on your server.")
         }
         .task(id: serverID) {
             choices = await PlexAPI.shared.audiobookLibraryChoices()

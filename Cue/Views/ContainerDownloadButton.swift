@@ -65,6 +65,16 @@ struct ContainerDownloadButton: View {
                             Label("Retry \(item.content.type.downloadCount(stopped).capitalized)", systemImage: "arrow.clockwise.circle")
                         }
                     }
+                    // Taken out on the way (cancelled, or gone from disk): a
+                    // book isn't whole without them.
+                    let removed = manager.removedTrackCount(forContentsOf: item)
+                    if removed > 0 {
+                        Button {
+                            downloadWhole()
+                        } label: {
+                            Label("Download \(item.content.type.downloadCount(removed).capitalized) Again", systemImage: "arrow.down.circle")
+                        }
+                    }
                     Button(role: .destructive) {
                         manager.removeDownload(contentsOf: item)
                     } label: {

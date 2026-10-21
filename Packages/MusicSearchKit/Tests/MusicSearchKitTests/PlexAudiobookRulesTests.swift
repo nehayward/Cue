@@ -19,7 +19,8 @@ final class PlexAudiobookRulesTests: XCTestCase {
     func testAudiobookGenres() {
         XCTAssertTrue(PlexAudiobookRules.isAudiobookGenre("Audiobook"))
         XCTAssertTrue(PlexAudiobookRules.isAudiobookGenre(" audiobooks "))
-        XCTAssertTrue(PlexAudiobookRules.isAudiobookGenre("SPOKEN WORD"))
+        // Comedy, poetry and speeches in a music library, not books.
+        XCTAssertFalse(PlexAudiobookRules.isAudiobookGenre("Spoken Word"))
         XCTAssertTrue(PlexAudiobookRules.isAudiobookGenre("Horbuch"))
         XCTAssertFalse(PlexAudiobookRules.isAudiobookGenre("Rock"))
         XCTAssertFalse(PlexAudiobookRules.isAudiobookGenre("Books & Spoken"))

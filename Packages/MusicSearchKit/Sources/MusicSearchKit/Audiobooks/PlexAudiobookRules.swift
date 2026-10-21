@@ -29,8 +29,11 @@ public enum PlexAudiobookRules {
     /// "Audiolibros", "Luisterboeken".
     static let titleHints = ["book", "horbuch", "horbucher", "livre", "libro", "boeken", "ljudbok", "lydbok"]
 
-    /// Album genres that mark a book kept among music.
-    public static let genres = ["Audiobook", "Audiobooks", "Audio Book", "Audio Books", "Spoken Word", "Hörbuch", "Hörbücher"]
+    /// Album genres that mark a book kept among music. Not "Spoken Word",
+    /// which music libraries give comedy, poetry and speeches: those are
+    /// albums, and one would turn the Audiobooks tab on for someone with no
+    /// books.
+    public static let genres = ["Audiobook", "Audiobooks", "Audio Book", "Audio Books", "Hörbuch", "Hörbücher"]
 
     /// Whether a genre tag is one of `genres`, ignoring case and accents.
     public static func isAudiobookGenre(_ tag: String) -> Bool {

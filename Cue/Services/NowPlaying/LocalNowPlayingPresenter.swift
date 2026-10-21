@@ -188,8 +188,9 @@ final class LocalNowPlayingPresenter {
         Self.set(center.stopCommand, enabled: snapshot.isLive)
         // The Sonos mirror switches these off for its card; this card is
         // back, and so are they — bar a station's, which has neither.
-        Self.set(center.changeShuffleModeCommand, enabled: !snapshot.isLive)
-        Self.set(center.changeRepeatModeCommand, enabled: !snapshot.isLive)
+        // A book has neither: its files are its chapters, in order, once.
+        Self.set(center.changeShuffleModeCommand, enabled: !snapshot.isLive && !snapshot.isBook)
+        Self.set(center.changeRepeatModeCommand, enabled: !snapshot.isLive && !snapshot.isBook)
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         MPNowPlayingInfoCenter.default().playbackState = snapshot.isPlaying ? .playing : .paused
@@ -338,12 +339,12 @@ final class LocalNowPlayingPresenter {
         // buttons drew but did nothing. Siri and accessories send them as
         // they are. A station has neither.
         add(center.changeShuffleModeCommand) { player, event in
-            guard let event = event as? MPChangeShuffleModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+            guard let event = event as? MPChangeShuffleModeCommandEvent, !player.isPlayingStation, !player.isOnBookFile else { return .commandFailed }
             player.setShuffle(event.shuffleType != .off)
             return .success
         }
         add(center.changeRepeatModeCommand) { player, event in
-            guard let event = event as? MPChangeRepeatModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+            guard let event = event as? MPChangeRepeatModeCommandEvent, !player.isPlayingStation, !player.isOnBookFile else { return .commandFailed }
             player.setRepeatMode(LocalPlaybackService.RepeatMode(event.repeatType))
             return .success
         }

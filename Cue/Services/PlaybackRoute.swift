@@ -679,6 +679,10 @@ final class PlaybackRoute {
         }
         step("snapshot at \(String(format: "%.1f", snapshot.position))s, playing: \(snapshot.isPlaying)")
 
+        // A book's Audiobookshelf files reach a speaker through a listening
+        // session, opened now if the book holds none.
+        await AudiobookPlayer.shared.prepareForSpeaker(snapshot.items)
+
         // Files live in a folder on this device; no speaker can fetch them.
         let items = snapshot.items.filter { !$0.content.service.playsOnDeviceOnly }
         guard let first = items.first else {

@@ -391,11 +391,22 @@ final class LocalPlaybackService {
         AudiobookPlayer.shared.contains(queue[safe: index])
     }
 
+    /// Whether the queue is on one of the loaded book's files. A book has no
+    /// shuffle or repeat: its files are its chapters, in order, once.
+    var isOnBookFile: Bool {
+        isBookFile(at: currentIndex)
+    }
+
+    /// The queue spot whose book file was playing when the file after it,
+    /// armed ahead, failed: the next one isn't asked for again until the
+    /// file playing hands over, where it's armed afresh.
+    private var bookFileFailedAheadOf: Int?
+
     /// Whether the book file playing lets the next one be asked for: a file
     /// on this device always does; one from a server once it has loaded to
     /// its end, so only one file is ever coming from the server at a time.
     private func mayArmNextBookFile() -> Bool {
-        guard let item = streamPlayer?.currentItem else { return false }
+        guard bookFileFailedAheadOf != currentIndex, let item = streamPlayer?.currentItem else { return false }
         guard let url = (item.asset as? AVURLAsset)?.url, !url.isFileURL else { return true }
         let duration = item.duration.seconds
         guard duration.isFinite, duration > 0 else { return false }
@@ -1050,6 +1061,11 @@ final class LocalPlaybackService {
                 // `AudiobookPlayer.resumeOnDevice`).
                 let spot = resumePosition ?? 0
                 Task { await AudiobookPlayer.shared.resumeOnDevice(from: spot) }
+            } else if let item = queue[safe: currentIndex], let book = AudiobookPlayer.shared.book(containing: item) {
+                // A file of the book last left, still parked here (it went
+                // on on a speaker, and was left there): the book again, from
+                // its kept place, not its file played as a song.
+                Task { await AudiobookPlayer.shared.play(book, on: .device) }
             } else {
                 Task { try? await arm(at: currentIndex) }
             }
@@ -1108,7 +1124,7 @@ final class LocalPlaybackService {
     }
 
     func setRepeatMode(_ mode: RepeatMode) {
-        guard mode != repeatMode else { return }
+        guard mode != repeatMode, mode == .off || !isOnBookFile else { return }
         repeatMode = mode
         savePosition()
         // The armed run would carry straight past the current track; end it
@@ -1123,7 +1139,7 @@ final class LocalPlaybackService {
     /// order it had before. Songs added while shuffled keep their places
     /// after the ones that were already there.
     func setShuffle(_ on: Bool) {
-        guard on != isShuffled else { return }
+        guard on != isShuffled, !on || !isOnBookFile else { return }
         let start = currentIndex + 1
         if on {
             isShuffled = true
@@ -1411,14 +1427,22 @@ final class LocalPlaybackService {
     /// to come back (or for the next Play on this device), where `stop()`
     /// would have thrown it away. Play arms the track again and picks up
     /// from this spot, via `resumePosition`.
-    func park() {
+    ///
+    /// A book file that broke off parks with `keepingAudioSession` and
+    /// `keepingSleepTimer`, to play again from there in a moment
+    /// (`AudiobookPlayer.fileFailed`): with the session let go, Cue in the
+    /// background isn't allowed to start audio again, and the timer set is
+    /// still the listener's.
+    func park(keepingAudioSession: Bool = false, keepingSleepTimer: Bool = false) {
         guard isActive else { return }
         poller?.invalidate()
         poller = nil
-        cancelSleepTimer()
+        if !keepingSleepTimer {
+            cancelSleepTimer()
+        }
         // Read before the teardown, which is what the poll's last tick left.
         let position = progress
-        teardownRun()
+        teardownRun(keepingAudioSession: keepingAudioSession)
         isPlaying = false
         isLoading = false
         // Under a couple of seconds is the start of the track, the same
@@ -1450,7 +1474,11 @@ final class LocalPlaybackService {
     /// its first note (see `play(_:startingAt:from:)`).
     func resume(at index: Int, from seconds: TimeInterval) async throws {
         guard queue.indices.contains(index) else { return }
-        // Same start-of-track cutoff as a restore.
+        // Same start-of-track cutoff as a restore: the top of the track,
+        // not a spot the queue was parked at before.
+        if seconds <= 2 {
+            resumePosition = nil
+        }
         try await arm(at: index, from: seconds > 2 ? seconds : nil)
     }
 
@@ -1708,6 +1736,7 @@ final class LocalPlaybackService {
         let resume = position ?? (index == currentIndex ? resumePosition : nil)
         resumePosition = nil
         currentIndex = index
+        bookFileFailedAheadOf = nil
         progress = 0
         // The catalog's length while the player loads: the scrubber keeps
         // its shape instead of dropping out until the first poll.
@@ -2482,15 +2511,25 @@ final class LocalPlaybackService {
             Self.log.error("couldn't play \(row.title, privacy: .public): \(event.errorStatusCode) \(event.errorDomain, privacy: .public) \(event.errorComment ?? "", privacy: .public); asked \(event.uri.flatMap(URL.init(string:)).map(Self.maskedAddress) ?? "-", privacy: .public), server \(Self.maskedAddress(event.serverAddress), privacy: .public)")
         }
         if let access = item.accessLog()?.events.last {
-            Self.log.notice("couldn't play \(row.title, privacy: .public): \(access.numberOfBytesTransferred) bytes in \(Int(access.transferDuration)) s, \(access.numberOfStalls) stalls, \(Int(access.observedBitrate / 1000)) kbps, server \(Self.maskedAddress(access.serverAddress), privacy: .public)")
+            Self.log.notice("couldn't play \(row.title, privacy: .public): \(access.numberOfBytesTransferred) bytes in \(Int(Self.finite(access.transferDuration, else: 0))) s, \(access.numberOfStalls) stalls, \(Int(Self.finite(access.observedBitrate, else: 0) / 1000)) kbps, server \(Self.maskedAddress(access.serverAddress), privacy: .public)")
         }
         if AudiobookPlayer.shared.contains(row), let url = (item.asset as? AVURLAsset)?.url, !url.isFileURL {
             Self.probe(url, of: row.title)
         }
+        // A book's next file, armed ahead, failing while the one before it
+        // plays on from its buffer: taken out of the run and armed afresh
+        // when that one hands over, not taken for the file playing breaking
+        // off, which would leave the rest of its chapter unheard.
+        let books = AudiobookPlayer.shared
+        if books.contains(row), let player = streamPlayer, player.currentItem !== item {
+            Self.log.notice("book file \(row.title, privacy: .public) failed while armed ahead; armed again at its turn")
+            bookFileFailedAheadOf = currentIndex
+            truncateArmedRunAfterCurrent()
+            return
+        }
         // A book's file is played again from where it stopped rather than
         // left for the next one (`AudiobookPlayer.fileFailed`), and said
         // only once that's given up.
-        let books = AudiobookPlayer.shared
         guard !books.fileFailed(row, at: offset), alerts || books.contains(row) else { return }
         AlertService.shared.showAlert(with: "Couldn't play “\(row.title)”", imageName: "exclamationmark.triangle")
     }

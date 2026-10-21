@@ -166,7 +166,7 @@ struct DownloadsScreen: View {
                     }
                 }
                 Button(role: .destructive) {
-                    manager.removeAllCompleted()
+                    manager.removeAllCompletedSongs()
                 } label: {
                     Text("Remove All Downloads")
                         .frame(maxWidth: .infinity)
