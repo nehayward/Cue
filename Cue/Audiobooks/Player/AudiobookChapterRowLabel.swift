@@ -28,9 +28,11 @@ struct AudiobookChapterRowLabel: View {
                     .monospacedDigit()
             }
             Spacer()
+            // Dimmed with a chapter that's done, never brighter than its
+            // title.
             Text(AudiobookFormat.duration(chapter.duration))
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isDone ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary.opacity(0.8)))
         }
         // The listener's chapter is the accent throughout: its levels
         // (primary, secondary) are the accent's.
