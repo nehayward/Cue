@@ -388,6 +388,12 @@ final class CarPlayInterface: NSObject {
         }
     }
 
+    /// Home's tiles and grids as last built, and what they were built from.
+    /// A play, a pause or a new recent changes only the rows above them, so
+    /// they're handed back as they are: built afresh each time, every grid
+    /// dropped to placeholders and loaded each of its covers again.
+    private var homeLibrary: (signature: String, sections: [CPListSection])?
+
     /// Resume and the newest plays as cards, then the tiles and the
     /// section's shelves as grids of covers, the way Radio lays out its
     /// stations: a provider's each, titled with its name when there's more
@@ -426,21 +432,26 @@ final class CarPlayInterface: NSObject {
                 list.append(CPListSection(items: [cards]))
             }
             guard !sections.isEmpty else { return list }
-            list.append(CPListSection(items: [libraryTiles(sections)]))
+            // Room for the grids under what's above them.
+            let room = max(CPListTemplate.maximumSectionCount - list.count - 1, 0)
+            let library = [tiles, body ?? "…", String(room)].joined(separator: "/")
+            if let kept = homeLibrary, kept.signature == library {
+                return list + kept.sections
+            }
+            var built = [CPListSection(items: [libraryTiles(sections)])]
             if let shelves, !shelves.isEmpty {
                 let named = shelves.count > 1
-                // Room for what's above them.
-                let room = max(CPListTemplate.maximumSectionCount - list.count, 0)
-                list += shelves.prefix(room).map { shelf -> CPListSection in
+                built += shelves.prefix(room).map { shelf -> CPListSection in
                     let title = named ? shelf.title : section.title
                     return CPListSection(items: [imageGrid(title: title, items: shelf.items)])
                 }
             } else if shelves == nil {
-                list.append(CPListSection(items: [note("Loading \(section.title)…")]))
+                built.append(CPListSection(items: [note("Loading \(section.title)…")]))
             } else {
-                list.append(CPListSection(items: [note("Nothing Here", detail: "Nothing in \(section.title) can play on this iPhone.")]))
+                built.append(CPListSection(items: [note("Nothing Here", detail: "Nothing in \(section.title) can play on this iPhone.")]))
             }
-            return list
+            homeLibrary = (library, built)
+            return list + built
         }
         updatePlayingIndicators()
     }
