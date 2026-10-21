@@ -65,7 +65,9 @@ enum AudiobookLibrary {
     /// and a blip shouldn't take the tab away.
     static func checkPlexBooks(afterChange: Bool = false) async {
         let has = await PlexAPI.shared.hasAudiobooks()
-        guard has || afterChange else { return }
+        // Written only when it changes: every view holding the key redraws
+        // on a write, and this runs each time the tab shows.
+        guard has || afterChange, UserDefaults.standard.bool(forKey: AppStorageKeys.hasPlexAudiobooks) != has else { return }
         UserDefaults.standard.set(has, forKey: AppStorageKeys.hasPlexAudiobooks)
     }
 
@@ -139,22 +141,75 @@ enum AudiobookLibrary {
         return copy
     }
 
-    /// Tells an Audiobookshelf server where this device has the listener
-    /// when that's newer than what the server holds: a place moved, or a
-    /// book finished, with no server to tell (offline), so its other
-    /// players pick up here. A minute's grace covers the reading this
-    /// device's own syncs already gave it. Plex hears a device's plays
-    /// from its timeline reports as they happen.
+    /// Tells the book's server where this device has the listener when
+    /// that's newer than what the server holds: a place moved, or a book
+    /// finished, with no server to tell (offline), so its other players
+    /// pick up here. A minute's grace covers the reading this device's own
+    /// syncs already gave it.
     private static func sendNewerPlace(of audiobook: Audiobook) {
-        guard audiobook.book.content.service == .audiobookshelf,
-              let local = AudiobookProgressStore.shared.progress(for: audiobook.book) else { return }
+        guard let local = AudiobookProgressStore.shared.progress(for: audiobook.book) else { return }
         if let server = audiobook.serverProgress, server.updatedAt.addingTimeInterval(AudiobookProgress.serverGrace) >= local.updatedAt { return }
+        switch audiobook.book.content.service {
+        case .audiobookshelf:
+            sendNewerAudiobookshelfPlace(local, of: audiobook)
+        case .plex:
+            sendNewerPlexPlace(local, of: audiobook)
+        default:
+            break
+        }
+    }
+
+    /// Plex hears this device's plays from its timeline reports as they
+    /// happen, but not those with no server to hear them (offline, a
+    /// downloaded book). A finish is marked; a place in a later file than
+    /// Plex's marks the files before it played (all Plex keeps, without
+    /// Store track progress) and reports the place in its file, paused, as
+    /// a Plex app's would be.
+    private static func sendNewerPlexPlace(_ local: AudiobookProgress, of audiobook: Audiobook) {
+        let server = audiobook.serverProgress
+        if local.isFinished {
+            guard server?.isFinished != true, let key = audiobook.book.plexRatingKey else { return }
+            log.notice("\(audiobook.book.title, privacy: .public): telling Plex it's finished")
+            Task { await PlexAPI.shared.markPlayed(ratingKey: key, true) }
+            return
+        }
+        let timeline = audiobook.timeline
+        let here = timeline.location(at: local.position)
+        let there = server.map { timeline.location(at: $0.position) } ?? (part: 0, offset: 0)
+        guard here.part > there.part || (here.part == there.part && there.offset > 0 && local.position > (server?.position ?? 0) + 60),
+              audiobook.parts.indices.contains(here.part), let key = audiobook.parts[here.part].plexRatingKey else { return }
+        let played = (there.part..<here.part).filter(audiobook.parts.indices.contains).compactMap { audiobook.parts[$0].plexRatingKey }
+        let length = timeline.partDurations[here.part]
+        log.notice("\(audiobook.book.title, privacy: .public): telling Plex this device's newer place, \(Int(local.position)) s (file \(here.part + 1))")
+        Task {
+            for file in played {
+                await PlexAPI.shared.markPlayed(ratingKey: file, true)
+            }
+            await PlexAPI.shared.reportTimeline(ratingKey: key, state: .paused, time: here.offset, duration: length)
+        }
+    }
+
+    private static func sendNewerAudiobookshelfPlace(_ local: AudiobookProgress, of audiobook: Audiobook) {
         let itemID = audiobook.book.content.id
         let duration = audiobook.duration
+        // Unmarking a book the server has finished takes it back to the
+        // start, and drops the place sent with it: the place goes again,
+        // once the book is unfinished there.
+        let unfinishes = audiobook.serverProgress?.isFinished == true && !local.isFinished
         log.notice("\(audiobook.book.title, privacy: .public): sending this device's newer place, \(Int(local.position)) s\(local.isFinished ? ", finished" : "", privacy: .public)")
         Task {
-            await AudiobookshelfAPI.shared.updateProgress(itemID: itemID, currentTime: local.position, duration: duration, isFinished: local.isFinished)
+            let api = AudiobookshelfAPI.shared
+            if unfinishes {
+                await api.updateProgress(itemID: itemID, currentTime: local.position, duration: duration, isFinished: false)
+            }
+            await api.updateProgress(itemID: itemID, currentTime: local.position, duration: duration, isFinished: local.isFinished)
         }
+    }
+
+    /// The Plex server a book's id names (`<server>:3:<rating key>`).
+    private static func plexServerID(of book: PlayableContent) -> String? {
+        let parts = (book.content.id.removingPercentEncoding ?? book.content.id).components(separatedBy: ":")
+        return parts.count >= 3 ? parts[0] : nil
     }
 
     /// The book read whole from its own server alone.
@@ -171,6 +226,13 @@ enum AudiobookLibrary {
 
     private static func loadPlex(_ book: PlayableContent) async -> Audiobook? {
         guard let key = book.plexRatingKey else { return nil }
+        // A book of another server than the one chosen now (from history,
+        // Continue Listening, Downloads): its rating key there is some other
+        // item here. Its download's copy, if any, opens instead.
+        if let server = plexServerID(of: book), let chosen = PlexAPI.shared.serverID, server != chosen {
+            log.notice("\(book.title, privacy: .public) is on another Plex server than the one chosen")
+            return nil
+        }
         async let details = PlexAPI.shared.audiobook(ratingKey: key)
         guard let files = await PlexAPI.shared.audiobookParts(ratingKey: key), !files.isEmpty else {
             log.error("plex book \(key, privacy: .public): no files")
@@ -385,7 +447,29 @@ enum AudiobookLibrary {
         guard audiobook.book.content.service == .plex else {
             return AudiobookProgress.preferring(local: local, server: server)
         }
+        if let local, let server, isFinishedElsewhere(local: local, server: server, in: audiobook) {
+            return server
+        }
         return PlexAudiobook.preferring(local: local, server: server, timeline: audiobook.timeline)
+    }
+
+    /// Whether Plex calling the book finished is another player finishing
+    /// it: clearly newer than this device's place, and nothing this device
+    /// did. Plex counts a file played once reports carry it past 90%, so
+    /// with this device's place that far into the last file, the finish
+    /// may be its own; and it counted a file played on the report sent as
+    /// this device left the book (before a book file left partway was
+    /// reported paused), so a finish dated then is this device's too.
+    private static func isFinishedElsewhere(local: AudiobookProgress, server: AudiobookProgress, in audiobook: Audiobook) -> Bool {
+        guard server.isFinished, !local.isFinished,
+              server.updatedAt > local.updatedAt.addingTimeInterval(AudiobookProgress.serverGrace) else { return false }
+        let timeline = audiobook.timeline
+        guard let last = timeline.partDurations.indices.last else { return false }
+        let ownScrobble = timeline.start(ofPart: last) + timeline.partDurations[last] * PlayReporter.playedThreshold
+        guard local.position < ownScrobble else { return false }
+        let left = AudiobookPlaceHistory.shared.places(for: audiobook.book).first { $0.kind == .left }
+        if let left, abs(left.date.timeIntervalSince(server.updatedAt)) < 120 { return false }
+        return true
     }
 
     /// Marks the book finished, or not started, here and on its server.

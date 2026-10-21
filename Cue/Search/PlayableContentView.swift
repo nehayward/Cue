@@ -281,6 +281,11 @@ struct PlayableContentView: View {
     
     private func play(position: QueuePosition? = nil) {
         if let add = adding?.add, add {
+            // A book has no address a speaker's alarm or a scene can play.
+            guard item.content.type != .audiobook else {
+                alertService.showAlert(with: "A book can’t be an alarm’s or a scene’s music", imageName: "book")
+                return
+            }
             adding?.content = item
             return
         }

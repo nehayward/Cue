@@ -89,6 +89,17 @@ final class AudiobookProgressStore {
         scheduleSave()
     }
 
+    /// Forgets every reading of `service`'s books, for a sign-out: they're
+    /// that account's places, and the next account signed in would
+    /// otherwise be sent them as its own (`AudiobookLibrary.load`).
+    func forgetAll(of service: MusicService) {
+        let prefix = "\(service.sonosRawValue)|"
+        let kept = readings.filter { !$0.key.hasPrefix(prefix) }
+        guard kept.count != readings.count else { return }
+        readings = kept
+        scheduleSave()
+    }
+
     /// Writes a beat after the last change: a playing book records every
     /// few seconds, and one write covers a burst.
     private func scheduleSave() {

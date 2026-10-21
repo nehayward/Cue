@@ -80,7 +80,8 @@ final class LocalPlaybackService {
         // A stream that breaks off partway (the network lost) can end its
         // item without its status ever reading failed, and the queue
         // player goes on to the next: a book's file is played again from
-        // where it stopped instead (`streamItemFailed`).
+        // where it stopped instead (`streamItemFailed`). A song's is left
+        // as it was, to its status watch.
         observers.append(Task { [weak self] in
             for await note in NotificationCenter.default.notifications(named: AVPlayerItem.failedToPlayToEndTimeNotification) {
                 guard let item = note.object as? AVPlayerItem else { continue }
@@ -2497,6 +2498,11 @@ final class LocalPlaybackService {
     private func streamItemFailed(_ item: AVPlayerItem, error noted: NSError? = nil, alerts: Bool = true) {
         let key = ObjectIdentifier(item)
         let row = key == stationItem ? station : streamRun[key].flatMap { queue[safe: $0] }
+        // A song or station breaking off partway is left to its status
+        // watch, which says it couldn't play; taken up here first, the
+        // watch was gone and the alert with it. Only a book's file is
+        // played again from where it stopped.
+        if !alerts, !AudiobookPlayer.shared.contains(row) { return }
         guard itemWatches.removeValue(forKey: key) != nil, let row else { return }
         // The item's error and the stream's path (not its query, which
         // carries the server's token).

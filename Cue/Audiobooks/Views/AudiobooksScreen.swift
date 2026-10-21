@@ -15,6 +15,7 @@ import SwiftUI
 /// place last moved (`AudiobookProgressStore`), newest first.
 struct AudiobooksScreen: View {
     @Environment(CoreFeatures.self) private var coreFeatures
+    @Environment(MusicSearchService.self) private var musicSearchService
     @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexBooks = false
 
     /// This tab's own stack, never a shared router: two stacks bound to one
@@ -23,8 +24,10 @@ struct AudiobooksScreen: View {
     @State private var store = AudiobookProgressStore.shared
     @State private var shelf = AudiobookshelfBrowseService.shared
     @State private var player = AudiobookPlayer.shared
-    /// Plex's newest books, for its section's row.
+    /// Plex's newest books, for its section's row, and the server they're
+    /// from.
     @State private var plexPreview: [PlayableContent] = []
+    @State private var plexPreviewServer: String?
     @State private var isLoadingPlex = false
 
     private var showsPlex: Bool { coreFeatures.isEnabled(.plex) && hasPlexBooks }
@@ -77,7 +80,9 @@ struct AudiobooksScreen: View {
             // `.fontDesign` wins, and the book's title is New York.
             .contentMargins(.bottom, 120, for: .scrollContent)
             .navigationTitle("Audiobooks")
-            .task {
+            // Again for another Plex server, or Plex's books turned on
+            // while the tab is open (the Plex sheet over it).
+            .task(id: "\(musicSearchService.plexServerID ?? "")|\(hasPlexBooks)") {
                 await load()
             }
             .refreshable {
@@ -98,11 +103,22 @@ struct AudiobooksScreen: View {
     /// (offline, only one downloaded: anything else won't play).
     private func continuing(_ listened: [PlayableContent], isOffline: Bool) -> [PlayableContent] {
         var books = listened.filter { store.progress(for: $0)?.isFinished != true }
-        if let loaded = player.current?.book, !isOffline || AudiobookDownloads.isDownloaded(loaded),
+        // Not one from a server signed out of, or switched off.
+        let shown = loaded(fromShownServer: player.current?.book)
+        if let loaded = shown, !isOffline || AudiobookDownloads.isDownloaded(loaded),
            store.progress(for: loaded)?.isFinished != true, !books.contains(where: { $0.isSameBook(as: loaded) }) {
             books.insert(loaded, at: 0)
         }
         return books
+    }
+
+    /// `book`, when its server's books are shown.
+    private func loaded(fromShownServer book: PlayableContent?) -> PlayableContent? {
+        switch book?.content.service {
+        case .plex: coreFeatures.isEnabled(.plex) ? book : nil
+        case .audiobookshelf: showsAudiobookshelf ? book : nil
+        default: nil
+        }
     }
 
     /// Every book listened to, once each, newest first.
@@ -189,6 +205,12 @@ struct AudiobooksScreen: View {
         }
         if coreFeatures.isEnabled(.plex) {
             await AudiobookLibrary.checkPlexBooks()
+            // Another server's books aren't this one's.
+            let server = musicSearchService.plexServerID
+            if server != plexPreviewServer {
+                plexPreview = []
+                plexPreviewServer = server
+            }
             // Once a launch, and on a pull: Plex's books are read whole.
             if hasPlexBooks, refreshing || plexPreview.isEmpty {
                 isLoadingPlex = true

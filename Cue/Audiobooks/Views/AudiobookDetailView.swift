@@ -235,16 +235,22 @@ struct AudiobookDetailView: View {
     // MARK: - Actions
 
     private var actions: some View {
-        HStack(spacing: 12) {
+        let isLoaded = player.isLoaded(shown)
+        let isPlaying = isLoaded && PlaybackRoute.shared.presented.isPlaying
+        return HStack(spacing: 12) {
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
-                Task { await player.play(shown) }
+                if isLoaded {
+                    Task { await PlaybackRoute.shared.presented.togglePlayback() }
+                } else {
+                    Task { await player.play(shown) }
+                }
             } label: {
                 VStack {
                     if player.isLoading {
                         ProgressView()
                     } else {
-                        Text("\(Image(systemName: "play.fill")) \(progress?.isStarted == true ? "Resume" : "Play")")
+                        Text("\(Image(systemName: isPlaying ? "pause.fill" : "play.fill")) \(isPlaying ? "Pause" : progress?.isStarted == true ? "Resume" : "Play")")
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                             .allowsTightening(true)
@@ -383,7 +389,7 @@ private struct AudiobookPlaceChapter: View {
 
     /// The player has this book, playing or paused.
     private var isLoaded: Bool {
-        player.current?.book.isSameBook(as: audiobook.book) == true && player.isPlayingBook(on: route.presented)
+        player.isLoaded(audiobook.book)
     }
 
     /// The chapter, and where in the book: the player's while it has the

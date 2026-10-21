@@ -67,7 +67,7 @@ struct AudiobookAuthorView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         sectionTitle("Continue Listening")
                         ForEach(partway) { book in
-                            AudiobookContinueRow(book: book)
+                            AudiobookContinueRow(book: book, opensByLink: true)
                                 .padding(.vertical, 6)
                         }
                     }

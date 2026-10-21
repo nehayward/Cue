@@ -44,7 +44,12 @@ final class CoreFeatures {
     /// Spotify selection falls out of search, browse, and the tabs on its
     /// own.
     func isEnabled(_ service: MediaSearchService) -> Bool {
-        service.isSupported && feature(service.title)
+        guard service.isSupported, feature(service.title) else { return false }
+        // Audiobookshelf is on only once signed in here: there's no Sonos
+        // account to find it by, and on an install from before Cue offered
+        // it, its flag was never stored, which reads as on — Search and
+        // Browse listed a server nobody had set up.
+        return service != .audiobookshelf || AudiobookshelfAPI.shared.isConfigured
     }
 
     /// Sync Cue's per-service enabled flags to whatever the user has actually

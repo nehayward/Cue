@@ -467,6 +467,9 @@ final class DownloadManager {
         containerPresence[Self.containerKey(for: container)]
     }
 
+    /// A `refreshContainerPresence` is on its way (`scheduleSave`).
+    @ObservationIgnored private var presenceRefreshPending = false
+
     private func refreshContainerPresence() {
         var presence: [String: ContainerPresence] = [:]
         for key in containers.keys {
@@ -1899,7 +1902,17 @@ final class DownloadManager {
     /// Coalesces saves: progress alone never writes, and bursts of state
     /// changes (an album finishing) write once.
     private func scheduleSave() {
-        refreshContainerPresence()
+        // Once after whatever's changing now, not once a change: Pause All,
+        // Cancel All or removing a playlist changes every track in turn,
+        // and each refresh reads every container's tracks.
+        if !presenceRefreshPending {
+            presenceRefreshPending = true
+            Task { [weak self] in
+                guard let self else { return }
+                self.presenceRefreshPending = false
+                self.refreshContainerPresence()
+            }
+        }
         saveTask?.cancel()
         saveTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(300))

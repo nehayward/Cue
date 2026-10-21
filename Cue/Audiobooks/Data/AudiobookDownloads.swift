@@ -44,9 +44,19 @@ enum AudiobookDownloads {
     }
 
     /// Keeps `audiobook` as its download's copy: when it's downloaded, or
-    /// on its way, read again from the server.
+    /// on its way, read again from the server — as long as it's the same
+    /// files. One whose files changed on the server since (re-encoded,
+    /// merged, renumbered) would leave the copy naming files that aren't on
+    /// this device, and the book unplayable offline; the copy stays as the
+    /// download was.
     static func refresh(_ audiobook: Audiobook) {
-        guard DownloadManager.shared.containerState(for: audiobook.book) != nil else { return }
+        let manager = DownloadManager.shared
+        guard let container = manager.containers[DownloadManager.containerKey(for: audiobook.book)] else { return }
+        let downloaded = Set(container.trackKeys + (container.removedKeys ?? []))
+        guard audiobook.parts.allSatisfy({ downloaded.contains(DownloadManager.key(for: $0)) }) else {
+            log.notice("\(audiobook.book.title, privacy: .public): its files changed on the server since it was downloaded; the copy stays as downloaded")
+            return
+        }
         save(audiobook)
     }
 

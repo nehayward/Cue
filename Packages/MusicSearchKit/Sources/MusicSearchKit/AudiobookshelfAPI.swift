@@ -508,7 +508,9 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         guard let base = Self.storedServerURL, let refresh = Self.storedTokens()?.refresh else { return false }
         var request = URLRequest(url: base.appending(path: "/auth/refresh"))
         request.httpMethod = "POST"
-        request.timeoutInterval = 15
+        // Longer than other requests: the server rotates the refresh token
+        // as it answers, so an answer given up on is a login lost.
+        request.timeoutInterval = 45
         request.addValue(refresh, forHTTPHeaderField: "x-refresh-token")
         guard let (data, response) = try? await session.data(for: request),
               let status = (response as? HTTPURLResponse)?.statusCode else {

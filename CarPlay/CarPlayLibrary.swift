@@ -244,9 +244,10 @@ enum CarPlayLibrary {
 
     /// Whether the Audiobooks tab is up: as on the phone, while
     /// Audiobookshelf is signed in or the Plex server had books when last
-    /// asked.
+    /// asked; offline, while a book is downloaded whole.
     static var showsAudiobooks: Bool {
-        showsBooks(from: .plex) || showsBooks(from: .audiobookshelf)
+        if OfflineMode.shared.isActive { return AudiobookDownloads.hasDownloadedBooks }
+        return showsBooks(from: .plex) || showsBooks(from: .audiobookshelf)
     }
 
     /// Whether `service`'s books are shown: Plex while it's on, signed in
@@ -267,9 +268,11 @@ enum CarPlayLibrary {
     static func booksInProgress() -> [PlayableContent] {
         let store = AudiobookProgressStore.shared
         let listened = AudiobookLibrary.listenedBooks(plex: showsBooks(from: .plex), audiobookshelf: showsBooks(from: .audiobookshelf))
+        // Offline, only those that can play: downloaded whole.
+        let offline = OfflineMode.shared.isActive
         return listened.filter { book in
             let progress = store.progress(for: book)
-            return progress?.isStarted == true && progress?.isFinished != true
+            return progress?.isStarted == true && progress?.isFinished != true && (!offline || AudiobookDownloads.isDownloaded(book))
         }
     }
 
@@ -277,6 +280,12 @@ enum CarPlayLibrary {
     /// library chosen on the phone. Loaded side by side; `arrived` gets the
     /// shelves so far each time a server answers, as for the Library's.
     static func bookShelves(arrived: ([Shelf]) -> Void = { _ in }) async -> [Shelf] {
+        // Offline, the books on this iPhone, as the phone's tab lists them:
+        // the servers can't be asked.
+        if OfflineMode.shared.isActive {
+            let books = AudiobookDownloads.downloadedBooks(completeOnly: true)
+            return books.isEmpty ? [] : [Shelf(title: "Downloaded", items: books)]
+        }
         var loads: [(Int, Task<Shelf?, Never>)] = []
         if showsBooks(from: .plex) {
             loads.append((0, Task {

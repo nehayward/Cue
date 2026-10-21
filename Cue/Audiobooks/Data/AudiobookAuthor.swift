@@ -17,7 +17,14 @@ struct AudiobookAuthor: Hashable {
     @MainActor
     init?(for content: PlayableContent) {
         guard let book = AudiobookPlayer.shared.book(containing: content) else { return nil }
-        let name = (book.metadata?.artist ?? book.subtitle).trimmingCharacters(in: .whitespaces)
+        var name = (book.metadata?.artist ?? book.subtitle).trimmingCharacters(in: .whitespaces)
+        // Audiobookshelf joins a book's authors with commas ("Terry
+        // Pratchett, Neil Gaiman"), a name no author goes by: the page is
+        // the first's. A Plex album artist can hold a comma of its own
+        // ("Tolkien, J. R. R."), so it's left whole.
+        if book.content.service == .audiobookshelf, let first = name.split(separator: ",").first {
+            name = first.trimmingCharacters(in: .whitespaces)
+        }
         guard !name.isEmpty else { return nil }
         self.name = name
         plexArtistID = book.content.service == .plex ? book.metadata?.artistID : nil

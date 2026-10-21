@@ -540,6 +540,11 @@ struct SearchScreen: View {
             router.path.append(RouterDestination.artistDetail(content: item, group: selectedGroupService.group))
         case .folder:
             router.path.append(RouterDestination.folderBrowse(item: item, title: item.title))
+        case .audiobook:
+            // Its page, as a tap opens; never an alarm's or a scene's music,
+            // nor queued on a speaker as a song.
+            guard contentToAdd?.add != true else { return }
+            router.path.append(RouterDestination.audiobookDetail(content: item))
         default:
             playItem(item)
         }
