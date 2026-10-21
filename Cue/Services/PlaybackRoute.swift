@@ -679,6 +679,10 @@ final class PlaybackRoute {
         }
         step("snapshot at \(String(format: "%.1f", snapshot.position))s, playing: \(snapshot.isPlaying)")
 
+        // A book's Audiobookshelf files reach a speaker through a listening
+        // session, opened now if the book holds none.
+        await AudiobookPlayer.shared.prepareForSpeaker(snapshot.items)
+
         // Files live in a folder on this device; no speaker can fetch them.
         let items = snapshot.items.filter { !$0.content.service.playsOnDeviceOnly }
         guard let first = items.first else {
@@ -1052,6 +1056,11 @@ final class PlaybackRoute {
     private func localItem(_ item: PlayableContent) async -> PlayableContent? {
         let playback = LocalPlaybackService.shared
         if playback.canPlayLocally(item) { return item }
+        // A file of the book playing: the book has it ready, stream URL and
+        // all, whatever the speaker's row kept of its id.
+        if let book = AudiobookPlayer.shared.current, let part = book.partIndex(of: item) {
+            return book.parts[part]
+        }
         guard item.content.type == .track, [.plex, .subsonic].contains(item.content.service) else { return nil }
         guard let resolved = await SonosService.shared.contentLookup(id: item.content.id, type: .track, service: item.content.service) else {
             return nil

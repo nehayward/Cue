@@ -1444,7 +1444,7 @@ public final class PlexAPI {
         }
     }
 
-    private func getPlexServer() async -> PlexServer? {
+    func getPlexServer() async -> PlexServer? {
 //        let jsonData = """
 // {
 //        "name": "The Mothership",
@@ -1519,7 +1519,7 @@ public final class PlexAPI {
         return preferredServer
     }
 
-    private func getBaseURL(for plexServer: PlexServer) -> URL? {
+    func getBaseURL(for plexServer: PlexServer) -> URL? {
         return withCacheLock { resolvedBaseURL } ?? plexServer.baseURL(preferring: connectionPreference)
     }
 
@@ -1530,7 +1530,7 @@ public final class PlexAPI {
     /// plex.tv round trip); only the stale connection is re-raced, and the retry
     /// only fires when re-resolution yields a different connection (avoids
     /// doubling the timeout when the server is simply down).
-    private func loadData(for request: URLRequest) async -> (Data, URLResponse)? {
+    func loadData(for request: URLRequest) async -> (Data, URLResponse)? {
         if let result = try? await session.data(for: request) {
             return result
         }
@@ -1551,6 +1551,48 @@ public final class PlexAPI {
         return try? await session.data(for: retryRequest)
     }
 
+    /// `url`, a stream from this server, on the connection resolved for it
+    /// now: one kept from another network (a queue saved on cellular,
+    /// played at home on the internet address) goes the way that's best
+    /// here. Unchanged for another server's, or before any connection has
+    /// been resolved.
+    public func onCurrentConnection(_ url: URL) -> URL {
+        guard let base = withCacheLock({ resolvedBaseURL }), Self.isSameServer(url, base),
+              let rebased = url.rebasing(to: base) else { return url }
+        return rebased
+    }
+
+    /// The connection this server's requests go to now, once resolved.
+    public var currentConnection: URL? {
+        withCacheLock { resolvedBaseURL }
+    }
+
+    /// Resolves this server's connection if nothing has yet (a launch with
+    /// no Plex request so far), for `onCurrentConnection` to go by.
+    public func prepareConnection() async {
+        _ = await getPlexServer()
+    }
+
+    /// Races this server's connections again, for a stream that failed: the
+    /// network may have changed under it (home Wi‑Fi to cellular), which
+    /// only a failed request here would otherwise notice.
+    public func refreshConnection() async {
+        guard let server = await getPlexServer(),
+              let newBase = await resolveBaseURL(for: server, forceRefresh: true) else { return }
+        withCacheLock { resolvedBaseURL = newBase }
+    }
+
+    /// Whether two of Plex's addresses are the same server's: the same host,
+    /// or plex.direct names (`<address>.<server's hash>.plex.direct`) with
+    /// the same hash.
+    static func isSameServer(_ url: URL, _ base: URL) -> Bool {
+        guard let host = url.host?.lowercased(), let baseHost = base.host?.lowercased() else { return false }
+        if host == baseHost { return true }
+        let labels = host.split(separator: "."), baseLabels = baseHost.split(separator: ".")
+        return host.hasSuffix(".plex.direct") && baseHost.hasSuffix(".plex.direct")
+            && labels.count == 4 && baseLabels.count == 4 && labels[1] == baseLabels[1]
+    }
+
     private func authorizedRequest(from url: URL) async -> URLRequest? {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else { 
@@ -1565,7 +1607,7 @@ public final class PlexAPI {
         return request
     }
 
-    private func loadAuthorized<T: Decodable>(_ url: URL) async -> T? {
+    func loadAuthorized<T: Decodable>(_ url: URL) async -> T? {
         guard let request = await authorizedRequest(from: url) else {
             return nil
         }
@@ -1599,7 +1641,7 @@ public final class PlexAPI {
         }
     }
 
-    private func enrichMetadata(metadata: [PlexMetadata]?) async -> [PlexMetadata] {
+    func enrichMetadata(metadata: [PlexMetadata]?) async -> [PlexMetadata] {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken,
                 let clientID = plexServer.clientIdentifier,

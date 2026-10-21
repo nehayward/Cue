@@ -15,7 +15,10 @@ struct LocalDownloadMenuSection: View {
 
     var body: some View {
         let manager = DownloadManager.shared
-        if [.plex, .subsonic].contains(item.content.service) {
+        // A book's file downloads with its book, never as a song of its own.
+        if let book = Self.book(of: item) {
+            bookSection(book)
+        } else if [.plex, .subsonic].contains(item.content.service) {
             if item.content.type == .track {
                 if manager.isDownloaded(item) {
                     Button {
@@ -213,6 +216,38 @@ struct LocalDownloadMenuSection: View {
         }
     }
 
+    /// The loaded book `item` is a file of, if it is one.
+    private static func book(of item: PlayableContent) -> PlayableContent? {
+        let books = AudiobookPlayer.shared
+        return books.contains(item) ? books.current?.book : nil
+    }
+
+    /// The whole book, as its page's download button has it.
+    @ViewBuilder
+    private func bookSection(_ book: PlayableContent) -> some View {
+        let manager = DownloadManager.shared
+        if manager.canDownload(contentsOf: book) {
+            // At a glance, not the progress: an open menu redrawn with every
+            // bit of progress flickers.
+            switch manager.containerPresence(for: book) {
+            case .downloaded:
+                Label("Book Downloaded", systemImage: "arrow.down.circle.fill")
+            case .downloading:
+                Label("Downloading Book…", systemImage: "arrow.down.circle.dotted")
+            case nil:
+                Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    guard FeatureGate.shared.unlock(.downloads) else { return }
+                    Task { @MainActor in
+                        await Self.download(book, alertService: alertService)
+                    }
+                } label: {
+                    Label("Download Book", systemImage: "arrow.down.circle")
+                }
+            }
+        }
+    }
+
     /// The banner for a song just queued or resumed — unless it's waiting
     /// for Wi‑Fi, when the cellular question says so instead.
     @MainActor
@@ -235,7 +270,7 @@ struct LocalDownloadMenuSection: View {
         let manager = DownloadManager.shared
         let result = await manager.download(contentsOf: item)
         guard !result.couldNotLoad else {
-            let server = item.content.service == .plex ? "Plex" : "the server"
+            let server = item.content.service == .plex ? "Plex" : item.content.service == .audiobookshelf ? "Audiobookshelf" : "the server"
             alertService.showAlertContent(with: item, subtitle: "Couldn't reach \(server). Try again.", symbolName: "exclamationmark.triangle")
             return
         }
@@ -252,7 +287,8 @@ struct LocalDownloadMenuSection: View {
             // Held for Wi‑Fi, the cellular question speaks for the batch.
             let held = Set(manager.cellularHeldKeys)
             guard !manager.waitingTrackKeys(forContentsOf: item).contains(where: held.contains) else { return }
-            alertService.showAlertContent(with: item, subtitle: queued == 1 ? "Downloading 1 song" : "Downloading \(queued) songs", symbolName: "arrow.down.circle")
+            let what = item.content.type == .audiobook ? "Downloading" : (queued == 1 ? "Downloading 1 song" : "Downloading \(queued) songs")
+            alertService.showAlertContent(with: item, subtitle: LocalizedStringKey(what), symbolName: "arrow.down.circle")
         case (let queued, let heldBack):
             // Part of the album made it in before the limit; say how much
             // didn't, and where the rest is.

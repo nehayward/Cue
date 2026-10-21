@@ -50,6 +50,10 @@ public enum DeviceStream {
             SubsonicAPI.streamURL(for: contentID, fileExtension: audioCodec, destination: .device) ?? sourceURL
         case .plex:
             plexRatingKey(contentID: contentID).map { PlexAPI.playbackStreamURL(from: sourceURL, ratingKey: $0) } ?? sourceURL
+        // Built fresh, for the session open now: the one the item was made
+        // with may have ended.
+        case .audiobookshelf:
+            AudiobookshelfAPI.streamURL(for: contentID, fileExtension: audioCodec, destination: .device) ?? sourceURL
         default:
             sourceURL
         }

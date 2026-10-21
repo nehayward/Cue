@@ -52,9 +52,39 @@ enum CarPlayPlayback {
         record(track)
     }
 
+    /// Plays a book on this device from where it was left, through the book
+    /// player, which keeps its place and puts it in Recently Played. Throws
+    /// when it didn't start, for the car to say so.
+    static func play(book: PlayableContent) async throws {
+        takeRoute()
+        log.notice("play book \(book.content.id, privacy: .public)")
+        let books = AudiobookPlayer.shared
+        await books.play(book, on: .device)
+        guard books.current?.book.isSameBook(as: book) == true, books.contains(LocalPlaybackService.shared.nowPlaying) else {
+            throw Failure(errorDescription: "Couldn't play “\(book.title)”")
+        }
+    }
+
+    /// The speeds a car's rate button steps through, back to normal after
+    /// the last: fewer than the phone's menu, for a tap at a time.
+    static let bookRates: [Double] = [1, 1.2, 1.5, 1.75, 2]
+
+    /// Moves the book's speed on to the next of `bookRates`.
+    static func nextBookRate() {
+        let books = AudiobookPlayer.shared
+        let next = bookRates.first { $0 > books.rate + 0.01 } ?? 1
+        log.notice("book rate \(books.rate) → \(next)")
+        books.setRate(next)
+    }
+
+    private struct Failure: LocalizedError {
+        let errorDescription: String?
+    }
+
     /// Plays the device's queue from where it stopped: just paused, or
     /// restored from the last launch or parked by a hand-off with nothing
-    /// armed yet, which Play arms at the saved spot.
+    /// armed yet, which Play arms at the saved spot (a book's files at the
+    /// book's kept place, `AudiobookPlayer.resumeOnDevice`).
     static func resume() {
         let player = LocalPlaybackService.shared
         guard player.isActive else { return }

@@ -182,6 +182,9 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return ""
         case (.unique, _):
             return id
+        // A book has no URI of its own: `AudiobookPlayer` queues its files.
+        case (.audiobook, _):
+            return ""
         default:
             assertionFailure("Failed")
             return ""
@@ -460,7 +463,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     /// carried as `audioCodec`, or the transcode target) identifies one,
     /// wildcard otherwise.
     private var directStreamProtocolInfo: String {
-        let suffix = StreamTranscoding.fileExtension(for: .speaker, original: metadata?.audioCodec)
+        // A book's file goes to the speaker as it is on the server.
+        let suffix = content.service == .audiobookshelf
+            ? metadata?.audioCodec
+            : StreamTranscoding.fileExtension(for: .speaker, original: metadata?.audioCodec)
         return "http-get:*:\(AudioMIMEType.forSuffix(suffix) ?? "*"):*"
     }
 

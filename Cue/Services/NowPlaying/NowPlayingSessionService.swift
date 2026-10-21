@@ -1016,12 +1016,28 @@ final class NowPlayingSessionService {
         }))
         commandTokens.append((center.nextTrackCommand, center.nextTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform { service, group in await service.next(ip: group.ip) } ?? .commandFailed
+                self?.perform { service, group in
+                    // A book's Next is a skip, as everywhere else in Cue: the
+                    // speaker's next file is the next chapter.
+                    if AudiobookPlayer.shared.contains(group.coordinatorRoom.track.toPlayable) {
+                        await AudiobookPlayer.shared.skip(by: AudiobookPlayer.skipForwardInterval)
+                    } else {
+                        await service.next(ip: group.ip)
+                    }
+                } ?? .commandFailed
             }
         }))
         commandTokens.append((center.previousTrackCommand, center.previousTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.perform { service, group in await service.previous(ip: group.ip) } ?? .commandFailed
+                self?.perform { service, group in
+                    // A book's Previous is a skip back: the speaker's would
+                    // restart the file, the top of the book for one file.
+                    if AudiobookPlayer.shared.contains(group.coordinatorRoom.track.toPlayable) {
+                        await AudiobookPlayer.shared.skip(by: -AudiobookPlayer.skipBackInterval)
+                    } else {
+                        await service.previous(ip: group.ip)
+                    }
+                } ?? .commandFailed
             }
         }))
         commandTokens.append((center.changePlaybackPositionCommand, center.changePlaybackPositionCommand.addTarget { [weak self] event in

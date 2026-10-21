@@ -36,6 +36,10 @@ final class LocalNowPlayingPresenter {
         var artworkURL: URL?
         var canSkip: Bool
         var isLive: Bool
+        /// A book's file: skips by interval instead of by track, at the
+        /// book's speed.
+        var isBook = false
+        var rate: Double = 1
     }
 
     private var published: Snapshot?
@@ -104,7 +108,7 @@ final class LocalNowPlayingPresenter {
         if isLive, let station = player?.nowPlaying?.title, station != item.title {
             album = station
         }
-        let snapshot = Snapshot(
+        var snapshot = Snapshot(
             identity: item.content.id,
             title: item.title,
             artist: item.metadata?.artist ?? item.subtitle,
@@ -115,13 +119,23 @@ final class LocalNowPlayingPresenter {
             canSkip: canSkip,
             isLive: isLive
         )
+        // A book reads as its chapter, by its author, in the book.
+        let books = AudiobookPlayer.shared
+        if let book = books.current, books.contains(item) {
+            snapshot.isBook = true
+            snapshot.rate = books.rate
+            snapshot.title = books.currentChapter?.title ?? item.title
+            snapshot.album = book.book.title
+            snapshot.artist = book.book.subtitle
+            snapshot.artworkURL = book.book.artwork ?? snapshot.artworkURL
+        }
         let cardIsOurs = isOurs(MPNowPlayingInfoCenter.default().nowPlayingInfo)
         // A stall or a hiccup can leave the system's clock well off; a
         // drift past a couple of seconds is worth a republish. The clock
         // runs on from the last publish while playing and stands still
         // while paused.
         let expected = published?.isPlaying == true
-            ? publishedElapsed + Date.now.timeIntervalSince(publishedAt)
+            ? publishedElapsed + Date.now.timeIntervalSince(publishedAt) * (published?.rate ?? 1)
             : publishedElapsed
         let drifted = !isLive && abs(elapsed - expected) > 2
         guard snapshot != published || !cardIsOurs || drifted else { return }
@@ -143,7 +157,7 @@ final class LocalNowPlayingPresenter {
             MPMediaItemPropertyAlbumTitle: snapshot.album,
             MPNowPlayingInfoPropertyExternalContentIdentifier: Self.identifierPrefix + snapshot.identity,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
-            MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying ? snapshot.rate : 0.0,
             MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
             MPNowPlayingInfoPropertyIsLiveStream: snapshot.isLive,
         ]
@@ -162,14 +176,21 @@ final class LocalNowPlayingPresenter {
         // Ahead of the card, so the card is drawn with the buttons that go
         // with it: a station's comes up with no skips to take away after.
         let center = MPRemoteCommandCenter.shared()
-        Self.set(center.nextTrackCommand, enabled: snapshot.canSkip)
-        Self.set(center.previousTrackCommand, enabled: !snapshot.isLive)
+        // A book's chapters run far too long to move through by track: the
+        // card's buttons skip back and forward instead, which it draws only
+        // while the track commands are off.
+        Self.set(center.nextTrackCommand, enabled: snapshot.canSkip && !snapshot.isBook)
+        Self.set(center.previousTrackCommand, enabled: !snapshot.isLive && !snapshot.isBook)
+        Self.set(center.skipForwardCommand, enabled: snapshot.isBook)
+        Self.set(center.skipBackwardCommand, enabled: snapshot.isBook)
+        Self.set(center.changePlaybackRateCommand, enabled: snapshot.isBook)
         Self.set(center.changePlaybackPositionCommand, enabled: !snapshot.isLive && snapshot.duration > 0)
         Self.set(center.stopCommand, enabled: snapshot.isLive)
         // The Sonos mirror switches these off for its card; this card is
         // back, and so are they — bar a station's, which has neither.
-        Self.set(center.changeShuffleModeCommand, enabled: !snapshot.isLive)
-        Self.set(center.changeRepeatModeCommand, enabled: !snapshot.isLive)
+        // A book has neither: its files are its chapters, in order, once.
+        Self.set(center.changeShuffleModeCommand, enabled: !snapshot.isLive && !snapshot.isBook)
+        Self.set(center.changeRepeatModeCommand, enabled: !snapshot.isLive && !snapshot.isBook)
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         MPNowPlayingInfoCenter.default().playbackState = snapshot.isPlaying ? .playing : .paused
@@ -253,6 +274,9 @@ final class LocalNowPlayingPresenter {
         center.changeRepeatModeCommand.isEnabled = true
         // Only a live card's (see `publish`).
         center.stopCommand.isEnabled = false
+        center.skipForwardCommand.preferredIntervals = [NSNumber(value: AudiobookPlayer.skipForwardInterval)]
+        center.skipBackwardCommand.preferredIntervals = [NSNumber(value: AudiobookPlayer.skipBackInterval)]
+        center.changePlaybackRateCommand.supportedPlaybackRates = AudiobookPlayer.rates.map { NSNumber(value: $0) }
 
         func add(_ command: MPRemoteCommand, _ action: @escaping @MainActor (LocalPlaybackService, MPRemoteCommandEvent) -> MPRemoteCommandHandlerStatus) {
             let token = command.addTarget { [weak self] event in
@@ -294,17 +318,33 @@ final class LocalNowPlayingPresenter {
             player.seek(to: event.positionTime)
             return .success
         }
+        // A book's skips go through the book, across its files.
+        add(center.skipForwardCommand) { _, event in
+            let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? AudiobookPlayer.skipForwardInterval
+            Task { await AudiobookPlayer.shared.skip(by: interval) }
+            return .success
+        }
+        add(center.skipBackwardCommand) { _, event in
+            let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? AudiobookPlayer.skipBackInterval
+            Task { await AudiobookPlayer.shared.skip(by: -interval) }
+            return .success
+        }
+        add(center.changePlaybackRateCommand) { _, event in
+            guard let event = event as? MPChangePlaybackRateCommandEvent else { return .commandFailed }
+            AudiobookPlayer.shared.setRate(Double(event.playbackRate))
+            return .success
+        }
         // A car's shuffle and repeat buttons (`CarPlayInterface`) take a tap
         // only while these commands are there to take one: without them the
         // buttons drew but did nothing. Siri and accessories send them as
         // they are. A station has neither.
         add(center.changeShuffleModeCommand) { player, event in
-            guard let event = event as? MPChangeShuffleModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+            guard let event = event as? MPChangeShuffleModeCommandEvent, !player.isPlayingStation, !player.isOnBookFile else { return .commandFailed }
             player.setShuffle(event.shuffleType != .off)
             return .success
         }
         add(center.changeRepeatModeCommand) { player, event in
-            guard let event = event as? MPChangeRepeatModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+            guard let event = event as? MPChangeRepeatModeCommandEvent, !player.isPlayingStation, !player.isOnBookFile else { return .commandFailed }
             player.setRepeatMode(LocalPlaybackService.RepeatMode(event.repeatType))
             return .success
         }
@@ -315,8 +355,13 @@ final class LocalNowPlayingPresenter {
             command.removeTarget(token)
         }
         commandTokens = []
-        // Nothing else takes it; left on, it would outlive the card.
-        MPRemoteCommandCenter.shared().stopCommand.isEnabled = false
+        // Nothing else takes these; left on, they would outlive the card.
+        // Only a live card has stop, only a book's the skips and the rate.
+        let center = MPRemoteCommandCenter.shared()
+        center.stopCommand.isEnabled = false
+        center.skipForwardCommand.isEnabled = false
+        center.skipBackwardCommand.isEnabled = false
+        center.changePlaybackRateCommand.isEnabled = false
     }
 }
 

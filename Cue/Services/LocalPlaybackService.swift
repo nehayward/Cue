@@ -2,6 +2,7 @@ import AVFoundation
 import Defaults
 import Foundation
 import MusicKit
+import MusicSearchKit
 import Observation
 import OSLog
 import SonosKit
@@ -74,6 +75,18 @@ final class LocalPlaybackService {
             for await note in NotificationCenter.default.notifications(named: AVPlayerItem.didPlayToEndTimeNotification) {
                 guard let item = note.object as? AVPlayerItem else { continue }
                 self?.streamItemDidFinish(ObjectIdentifier(item))
+            }
+        })
+        // A stream that breaks off partway (the network lost) can end its
+        // item without its status ever reading failed, and the queue
+        // player goes on to the next: a book's file is played again from
+        // where it stopped instead (`streamItemFailed`). A song's is left
+        // as it was, to its status watch.
+        observers.append(Task { [weak self] in
+            for await note in NotificationCenter.default.notifications(named: AVPlayerItem.failedToPlayToEndTimeNotification) {
+                guard let item = note.object as? AVPlayerItem else { continue }
+                let error = note.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? NSError
+                self?.streamItemFailed(item, error: error, alerts: false)
             }
         })
     }
@@ -360,6 +373,51 @@ final class LocalPlaybackService {
     /// The window is topped back up once fewer than this many armed songs
     /// are left after the current one.
     private static let streamTopUpThreshold = 4
+    /// How many of a book's files a stream run arms after the one playing:
+    /// at most one, and for a file from a server only once the one playing
+    /// has loaded to its end (`mayArmNextBookFile`). Plex refuses (503,
+    /// AVFoundation's -1008) or cuts off a transfer of one file while
+    /// another is under way, though not several ranges of the same file,
+    /// and iOS starts loading every armed item at once (its legibility pass
+    /// reads them all). Ten armed files, and then even one ahead of the file
+    /// still loading, were a race the file meant to play could lose — most
+    /// often over the internet, on cellular — and the queue went on to the
+    /// next chapter. Without the next file armed, a file that never loads
+    /// whole hands over at its end (`advancePastRun`), a moment's gap.
+    private static let bookFilesAhead = 1
+
+    /// Whether `index` is one of the loaded book's files, armed
+    /// `bookFilesAhead` at a time.
+    private func isBookFile(at index: Int) -> Bool {
+        AudiobookPlayer.shared.contains(queue[safe: index])
+    }
+
+    /// Whether the queue is on one of the loaded book's files. A book has no
+    /// shuffle or repeat: its files are its chapters, in order, once.
+    var isOnBookFile: Bool {
+        isBookFile(at: currentIndex)
+    }
+
+    /// The queue spot whose book file was playing when the file after it,
+    /// armed ahead, failed: the next one isn't asked for again until the
+    /// file playing hands over, where it's armed afresh.
+    private var bookFileFailedAheadOf: Int?
+
+    /// Whether the book file playing lets the next one be asked for: a file
+    /// on this device always does; one from a server once it has loaded to
+    /// its end, so only one file is ever coming from the server at a time.
+    private func mayArmNextBookFile() -> Bool {
+        guard bookFileFailedAheadOf != currentIndex, let item = streamPlayer?.currentItem else { return false }
+        guard let url = (item.asset as? AVURLAsset)?.url, !url.isFileURL else { return true }
+        let duration = item.duration.seconds
+        guard duration.isFinite, duration > 0 else { return false }
+        // One stretch from here to the end, not a probe of the file's tail.
+        let now = item.currentTime().seconds
+        return item.loadedTimeRanges.contains { value in
+            let range = value.timeRangeValue
+            return range.start.seconds <= now + 1 && range.end.seconds >= duration - 1
+        }
+    }
     /// How many songs an Apple run starts with. The rest follow into the
     /// player's queue once it's playing (`fillAppleRun`).
     ///
@@ -536,6 +594,10 @@ final class LocalPlaybackService {
         // path plays it, and the same download manager keeps a copy.
         case .subsonic where item.content.type == .track
             && (item.previewURL != nil || DownloadManager.shared.isDownloaded(item)):
+            .stream
+        // A book's file on an Audiobookshelf server: `previewURL` is the
+        // file, through the book's listening session.
+        case .audiobookshelf where item.content.type == .track && item.previewURL != nil:
             .stream
         // A file in the user's folder: `previewURL` is the file itself, and
         // only set once an iCloud file has actually downloaded.
@@ -761,7 +823,8 @@ final class LocalPlaybackService {
         // A stream run stays a window ahead of the current song; the poll
         // tops it up from there (`topUpStreamRun`).
         if backend == .stream {
-            end = min(end, currentIndex + Self.streamWindow)
+            let ahead = isBookFile(at: currentIndex) ? (mayArmNextBookFile() ? Self.bookFilesAhead : 0) : Self.streamWindow
+            end = min(end, currentIndex + ahead)
         }
         guard end > runEnd else { return }
         let token = playToken
@@ -993,6 +1056,17 @@ final class LocalPlaybackService {
             // stream dropped) — retry it.
             if let station {
                 Task { try? await playStation(station) }
+            } else if AudiobookPlayer.shared.contains(queue[safe: currentIndex]) {
+                // A book's file: from the book's kept place, which the
+                // queue's own spot may not be (see
+                // `AudiobookPlayer.resumeOnDevice`).
+                let spot = resumePosition ?? 0
+                Task { await AudiobookPlayer.shared.resumeOnDevice(from: spot) }
+            } else if let item = queue[safe: currentIndex], let book = AudiobookPlayer.shared.book(containing: item) {
+                // A file of the book last left, still parked here (it went
+                // on on a speaker, and was left there): the book again, from
+                // its kept place, not its file played as a song.
+                Task { await AudiobookPlayer.shared.play(book, on: .device) }
             } else {
                 Task { try? await arm(at: currentIndex) }
             }
@@ -1051,7 +1125,7 @@ final class LocalPlaybackService {
     }
 
     func setRepeatMode(_ mode: RepeatMode) {
-        guard mode != repeatMode else { return }
+        guard mode != repeatMode, mode == .off || !isOnBookFile else { return }
         repeatMode = mode
         savePosition()
         // The armed run would carry straight past the current track; end it
@@ -1066,7 +1140,7 @@ final class LocalPlaybackService {
     /// order it had before. Songs added while shuffled keep their places
     /// after the ones that were already there.
     func setShuffle(_ on: Bool) {
-        guard on != isShuffled else { return }
+        guard on != isShuffled, !on || !isOnBookFile else { return }
         let start = currentIndex + 1
         if on {
             isShuffled = true
@@ -1265,10 +1339,12 @@ final class LocalPlaybackService {
     /// outpace it — a track's URL needs no network.
     private func topUpStreamRun() {
         // A station's player holds the station alone; the queue waits.
+        let book = isBookFile(at: currentIndex)
         guard backend == .stream, station == nil, let player = streamPlayer, player.currentItem != nil,
               repeatMode != .one, !sleepsAtEndOfTrack,
-              runEnd - currentIndex < Self.streamTopUpThreshold else { return }
-        let limit = min(queue.count - 1, currentIndex + Self.streamWindow)
+              runEnd - currentIndex < (book ? Self.bookFilesAhead : Self.streamTopUpThreshold),
+              !book || mayArmNextBookFile() else { return }
+        let limit = min(queue.count - 1, currentIndex + (book ? Self.bookFilesAhead : Self.streamWindow))
         guard runEnd < limit else { return }
         for queueIndex in (runEnd + 1)...limit {
             let row = queue[queueIndex]
@@ -1281,6 +1357,9 @@ final class LocalPlaybackService {
             player.insert(item, after: nil)
             register(item, at: queueIndex)
             runEnd = queueIndex
+            if book {
+                Self.log.notice("book file \(row.title, privacy: .public) armed next, from \(Self.bookFileSource(url), privacy: .public), \(Int(self.progress)) s into the one playing")
+            }
         }
     }
 
@@ -1349,14 +1428,22 @@ final class LocalPlaybackService {
     /// to come back (or for the next Play on this device), where `stop()`
     /// would have thrown it away. Play arms the track again and picks up
     /// from this spot, via `resumePosition`.
-    func park() {
+    ///
+    /// A book file that broke off parks with `keepingAudioSession` and
+    /// `keepingSleepTimer`, to play again from there in a moment
+    /// (`AudiobookPlayer.fileFailed`): with the session let go, Cue in the
+    /// background isn't allowed to start audio again, and the timer set is
+    /// still the listener's.
+    func park(keepingAudioSession: Bool = false, keepingSleepTimer: Bool = false) {
         guard isActive else { return }
         poller?.invalidate()
         poller = nil
-        cancelSleepTimer()
+        if !keepingSleepTimer {
+            cancelSleepTimer()
+        }
         // Read before the teardown, which is what the poll's last tick left.
         let position = progress
-        teardownRun()
+        teardownRun(keepingAudioSession: keepingAudioSession)
         isPlaying = false
         isLoading = false
         // Under a couple of seconds is the start of the track, the same
@@ -1388,8 +1475,114 @@ final class LocalPlaybackService {
     /// its first note (see `play(_:startingAt:from:)`).
     func resume(at index: Int, from seconds: TimeInterval) async throws {
         guard queue.indices.contains(index) else { return }
-        // Same start-of-track cutoff as a restore.
+        // Same start-of-track cutoff as a restore: the top of the track,
+        // not a spot the queue was parked at before.
+        if seconds <= 2 {
+            resumePosition = nil
+        }
         try await arm(at: index, from: seconds > 2 ? seconds : nil)
+    }
+
+    // MARK: - A queue set aside for a book
+
+    /// The music a book took the player from, to go back to: a book plays
+    /// as its files in the queue, so starting one would lose the album it
+    /// interrupted. `AudiobookPlayer` sets the music aside as a book starts
+    /// on this device, and `returnToSetAsideQueue()` plays it again at the
+    /// same song and spot, or the station that was in front of it. Kept
+    /// beside the queue file through a relaunch; the next book started over
+    /// music replaces it.
+    private(set) var setAsideQueue: SetAsideQueue?
+
+    /// A queue and its state as it was when a book took its place.
+    struct SetAsideQueue: Codable, Equatable {
+        var queue: [PlayableContent]
+        var index: Int
+        /// Seconds into the song that was current: where it was playing,
+        /// or where it waited behind `station`.
+        var position: TimeInterval
+        var repeatMode: RepeatMode
+        var isShuffled: Bool
+        var unshuffled: [PlayableContent]?
+        var origins: [String: PlayableContent]
+        /// The station playing in front of the queue, if one was.
+        var station: PlayableContent?
+
+        /// What it's called: the station, else where the song playing came
+        /// from (the album or playlist), else the song.
+        var title: String {
+            if let station { return station.title }
+            guard let item = queue[safe: index] else { return "" }
+            return origins[item.id]?.title ?? item.title
+        }
+
+        /// The station, else the song that was current.
+        var nowPlaying: PlayableContent? { station ?? queue[safe: index] }
+    }
+
+    /// Sets what's playing aside for a book about to take its place: the
+    /// queue and any station in front of it. Nothing at all leaves nothing
+    /// to go back to.
+    func setQueueAside() {
+        guard isActive else {
+            forgetSetAsideQueue()
+            return
+        }
+        let aside = SetAsideQueue(
+            queue: queue,
+            index: currentIndex,
+            position: station == nil ? progress : (resumePosition ?? 0),
+            repeatMode: repeatMode,
+            isShuffled: isShuffled,
+            unshuffled: unshuffledUpNext,
+            origins: origins,
+            station: station
+        )
+        setAsideQueue = aside
+        LocalQueueStore.save(setAside: aside)
+        Self.log.notice("queue set aside for a book: \(aside.queue.count) songs, at \(aside.index) (\(Int(aside.position)) s)\(aside.station == nil ? "" : ", behind a station", privacy: .public)")
+    }
+
+    private func forgetSetAsideQueue() {
+        guard setAsideQueue != nil else { return }
+        setAsideQueue = nil
+        LocalQueueStore.save(setAside: nil)
+    }
+
+    /// Plays the music set aside again: the queue at the song and spot it
+    /// was left on, with its order, shuffle, repeat and origins, or the
+    /// station that was in front of it, the queue waiting behind. The queue
+    /// is in place before anything plays, so a play that fails leaves the
+    /// music there, paused, rather than lost; one with nothing it can play
+    /// keeps it set aside.
+    func returnToSetAsideQueue() async throws {
+        guard let aside = setAsideQueue else { return }
+        let songs = queueable(aside.queue)
+        guard !songs.isEmpty || aside.station != nil else { throw LocalPlaybackError.nothingPlayable }
+        // The same song, even one queued twice, unless rows were dropped.
+        let index = songs.count == aside.queue.count
+            ? aside.index
+            : aside.queue[safe: aside.index].flatMap { songs.firstIndex(of: $0) } ?? 0
+        Self.log.notice("back to the queue set aside: \(songs.count) songs, at \(index) (\(Int(aside.position)) s)\(aside.station == nil ? "" : ", behind a station", privacy: .public)")
+        forgetSetAsideQueue()
+        // As `play(_:startingAt:from:)` lays a queue out, with the state
+        // it had.
+        origins = aside.origins
+        queue = songs
+        isShuffled = aside.isShuffled
+        unshuffledUpNext = aside.isShuffled ? aside.unshuffled : nil
+        repeatMode = aside.repeatMode
+        resumePosition = nil
+        if let station = aside.station {
+            // The queue waits behind the station at its song and spot:
+            // `playStation` keeps the queue's spot as it finds it.
+            currentIndex = min(index, max(songs.count - 1, 0))
+            progress = aside.position
+            try await playStation(station)
+        } else {
+            try await arm(at: index, from: aside.position > 2 ? aside.position : nil)
+        }
+        savePosition()
     }
 
     // MARK: - Stations
@@ -1544,6 +1737,7 @@ final class LocalPlaybackService {
         let resume = position ?? (index == currentIndex ? resumePosition : nil)
         resumePosition = nil
         currentIndex = index
+        bookFileFailedAheadOf = nil
         progress = 0
         // The catalog's length while the player loads: the scrubber keeps
         // its shape instead of dropping out until the first poll.
@@ -1590,8 +1784,33 @@ final class LocalPlaybackService {
 
     private func runningProgress(at date: Date) -> TimeInterval {
         guard progressAnchoredAt != .distantPast else { return progressAnchor }
-        let elapsed = progressAnchor + max(date.timeIntervalSince(progressAnchoredAt), 0)
+        let elapsed = progressAnchor + max(date.timeIntervalSince(progressAnchoredAt), 0) * playbackRate
         return duration > 0 ? min(elapsed, duration) : elapsed
+    }
+
+    /// How fast the clock runs: the stream run's rate (a book at speed),
+    /// else normal. Apple runs always play at normal speed.
+    private var playbackRate: Double {
+        backend == .stream ? appliedRate : 1
+    }
+
+    /// The rate the stream player was last set to (`applyPlaybackRate`).
+    @ObservationIgnored private var appliedRate: Double = 1
+
+    /// Plays the stream run at the book speed while a book's file is on,
+    /// and at normal speed for anything else (`AudiobookPlayer.rate`). The
+    /// clock is set where it is first, so the time already run counts at
+    /// the rate it ran at.
+    private func applyPlaybackRate() {
+        guard let streamPlayer else { return }
+        // What's on air, not the queue's row: a station plays in front of
+        // a book's files without taking their speed.
+        let rate = AudiobookPlayer.shared.playbackRate(for: nowPlaying)
+        guard Double(rate) != appliedRate || streamPlayer.defaultRate != rate else { return }
+        if isPlaying { progress = runningProgress(at: .now) }
+        appliedRate = Double(rate)
+        streamPlayer.defaultRate = rate
+        if streamPlayer.rate != 0 { streamPlayer.rate = rate }
     }
 
     /// Records a reading of the player's clock from the poll.
@@ -2252,6 +2471,12 @@ final class LocalPlaybackService {
 
     /// Hands `item` to the armed stream run as queue row `queueIndex`.
     private func register(_ item: AVPlayerItem, at queueIndex: Int) {
+        // Played faster, audio keeps its pitch. A book is speech, which the
+        // time-domain stretch keeps clear: the spectral one (a phase
+        // vocoder, Apple's choice for music) smears a voice at 1.5× and
+        // over, the echoey, underwater sound of a sped-up book. At normal
+        // speed nothing is stretched either way.
+        item.audioTimePitchAlgorithm = AudiobookPlayer.shared.contains(queue[safe: queueIndex]) ? .timeDomain : .spectral
         streamRun[ObjectIdentifier(item)] = queueIndex
         watch(item)
     }
@@ -2267,25 +2492,204 @@ final class LocalPlaybackService {
         }
     }
 
-    private func streamItemFailed(_ item: AVPlayerItem) {
+    /// `error` is the one a notification carried, for an item that broke off
+    /// partway without failing; `alerts` false leaves a song's skip silent,
+    /// as the queue player's own move on always was.
+    private func streamItemFailed(_ item: AVPlayerItem, error noted: NSError? = nil, alerts: Bool = true) {
         let key = ObjectIdentifier(item)
         let row = key == stationItem ? station : streamRun[key].flatMap { queue[safe: $0] }
+        // A song or station breaking off partway is left to its status
+        // watch, which says it couldn't play; taken up here first, the
+        // watch was gone and the alert with it. Only a book's file is
+        // played again from where it stopped.
+        if !alerts, !AudiobookPlayer.shared.contains(row) { return }
         guard itemWatches.removeValue(forKey: key) != nil, let row else { return }
-        AlertService.shared.showAlert(with: "Couldn't play “\(row.title)”", imageName: "exclamationmark.triangle")
         // The item's error and the stream's path (not its query, which
         // carries the server's token).
-        let error = item.error as NSError?
+        let error = item.error as NSError? ?? noted
         let underlying = error?.userInfo[NSUnderlyingErrorKey] as? NSError
         let path = (item.asset as? AVURLAsset)?.url.path ?? "?"
-        Self.log.error("couldn't play \(row.title, privacy: .public) [\(row.metadata?.audioCodec ?? "?", privacy: .public)] from \(path, privacy: .public): \(error?.domain ?? "", privacy: .public) \(error?.code ?? 0) \(error?.localizedDescription ?? "", privacy: .public) / \(underlying?.domain ?? "", privacy: .public) \(underlying?.code ?? 0) \(underlying?.localizedDescription ?? "", privacy: .public)")
+        let offset = Self.finite(item.currentTime().seconds, else: 0)
+        Self.log.error("couldn't play \(row.title, privacy: .public) [\(row.metadata?.audioCodec ?? "?", privacy: .public)] from \(path, privacy: .public) at \(Int(offset)) s: \(error?.domain ?? "", privacy: .public) \(error?.code ?? 0) \(error?.localizedDescription ?? "", privacy: .public) / \(underlying?.domain ?? "", privacy: .public) \(underlying?.code ?? 0) \(underlying?.localizedDescription ?? "", privacy: .public)")
+        // What the transfer saw: the server's answer, and how it went, with
+        // the address the player went to (none when it never connected).
+        for event in item.errorLog()?.events.suffix(5) ?? [] {
+            Self.log.error("couldn't play \(row.title, privacy: .public): \(event.errorStatusCode) \(event.errorDomain, privacy: .public) \(event.errorComment ?? "", privacy: .public); asked \(event.uri.flatMap(URL.init(string:)).map(Self.maskedAddress) ?? "-", privacy: .public), server \(Self.maskedAddress(event.serverAddress), privacy: .public)")
+        }
+        if let access = item.accessLog()?.events.last {
+            Self.log.notice("couldn't play \(row.title, privacy: .public): \(access.numberOfBytesTransferred) bytes in \(Int(Self.finite(access.transferDuration, else: 0))) s, \(access.numberOfStalls) stalls, \(Int(Self.finite(access.observedBitrate, else: 0) / 1000)) kbps, server \(Self.maskedAddress(access.serverAddress), privacy: .public)")
+        }
+        if AudiobookPlayer.shared.contains(row), let url = (item.asset as? AVURLAsset)?.url, !url.isFileURL {
+            Self.probe(url, of: row.title)
+        }
+        // A book's next file, armed ahead, failing while the one before it
+        // plays on from its buffer: taken out of the run and armed afresh
+        // when that one hands over, not taken for the file playing breaking
+        // off, which would leave the rest of its chapter unheard.
+        let books = AudiobookPlayer.shared
+        if books.contains(row), let player = streamPlayer, player.currentItem !== item {
+            Self.log.notice("book file \(row.title, privacy: .public) failed while armed ahead; armed again at its turn")
+            bookFileFailedAheadOf = currentIndex
+            truncateArmedRunAfterCurrent()
+            return
+        }
+        // A book's file is played again from where it stopped rather than
+        // left for the next one (`AudiobookPlayer.fileFailed`), and said
+        // only once that's given up.
+        guard !books.fileFailed(row, at: offset), alerts || books.contains(row) else { return }
+        AlertService.shared.showAlert(with: "Couldn't play “\(row.title)”", imageName: "exclamationmark.triangle")
+    }
+
+    /// What a book's file is doing, as last logged (`noteBookFileState`).
+    @ObservationIgnored private var bookFileState: String?
+
+    /// Logs a book's file waiting to play and why (loading, a stall, a
+    /// slow network), and going on again, as it changes: what a log of a
+    /// book that won't play on a slow network needs.
+    private func noteBookFileState(_ player: AVQueuePlayer) {
+        guard let item = nowPlaying, AudiobookPlayer.shared.contains(item) else {
+            bookFileState = nil
+            return
+        }
+        let state = switch player.timeControlStatus {
+        case .paused: "paused"
+        case .playing: "playing"
+        case .waitingToPlayAtSpecifiedRate: "waiting (\(player.reasonForWaitingToPlay?.rawValue ?? "?"))"
+        @unknown default: "?"
+        }
+        let key = "\(item.content.id)|\(state)"
+        guard key != bookFileState else { return }
+        // A file the queue player went on to by itself: where it's from.
+        let isNewFile = bookFileState?.hasPrefix("\(item.content.id)|") != true
+        bookFileState = key
+        let source = isNewFile ? ", from \(Self.bookFileSource((player.currentItem?.asset as? AVURLAsset)?.url))" : ""
+        Self.log.notice("book file \(item.title, privacy: .public) \(state, privacy: .public) at \(Int(self.progress)) s\(source, privacy: .public)")
+    }
+
+    /// Asks for a failed book file's first two bytes from Cue itself, beside
+    /// the player's own try, with the connection Plex's requests go to now:
+    /// an answer here and none there is the player's networking failing,
+    /// not the server.
+    private static func probe(_ url: URL, of title: String) {
+        let connection = PlexAPI.shared.currentConnection
+        let same = connection.map { $0.host == url.host && $0.port == url.port }
+        let comparison = same == true ? ", the file's own" : same == false ? ", not the file's \(maskedAddress(url))" : ""
+        log.notice("book file \(title, privacy: .public): Plex's connection now \(connection.map(maskedAddress) ?? "none", privacy: .public)\(comparison, privacy: .public)")
+        // Asked a few ways, one after another: as the server gave it, with
+        // Cue's client id, on a fresh session past any cache, and with the
+        // token as a header. One getting through where the plain URL
+        // doesn't is something matching that exact URL.
+        func twoBytes(_ url: URL) -> URLRequest {
+            var request = URLRequest(url: url)
+            request.setValue("bytes=0-1", forHTTPHeaderField: "Range")
+            request.timeoutInterval = 15
+            return request
+        }
+        let plain = settingQuery(url, "X-Plex-Client-Identifier", to: nil)
+        var fresh = twoBytes(plain)
+        fresh.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        let freshSession = URLSession(configuration: .ephemeral)
+        var tries: [(name: String, request: URLRequest, session: URLSession)] = [
+            ("as the server gave it", twoBytes(plain), .shared),
+            ("with Cue's client id", twoBytes(withPlexClient(plain)), .shared),
+            ("on a fresh session", fresh, freshSession),
+        ]
+        if let token = URLComponents(url: plain, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "X-Plex-Token" })?.value {
+            var header = twoBytes(settingQuery(plain, "X-Plex-Token", to: nil))
+            header.setValue(token, forHTTPHeaderField: "X-Plex-Token")
+            tries.append(("with the token as a header", header, .shared))
+        }
+        Task {
+            defer { freshSession.finishTasksAndInvalidate() }
+            for attempt in tries {
+                let asked = Date.now
+                do {
+                    let (_, response) = try await attempt.session.data(for: attempt.request)
+                    let http = response as? HTTPURLResponse
+                    log.notice("book file \(title, privacy: .public), \(attempt.name, privacy: .public): \(http?.statusCode ?? 0) \(http?.value(forHTTPHeaderField: "Content-Type") ?? "-", privacy: .public) \(http?.value(forHTTPHeaderField: "Content-Range") ?? "-", privacy: .public) after \(Date.now.timeIntervalSince(asked), format: .fixed(precision: 1)) s")
+                } catch {
+                    let error = error as NSError
+                    log.notice("book file \(title, privacy: .public), \(attempt.name, privacy: .public): failed \(error.domain, privacy: .public) \(error.code) \(error.localizedDescription, privacy: .public) after \(Date.now.timeIntervalSince(asked), format: .fixed(precision: 1)) s")
+                }
+            }
+        }
+    }
+
+    /// A Plex book file's URL as the player asks for it: with Cue's client
+    /// id, as Plex's own apps send it. The same file's URL without it
+    /// failed on the iPhone over the internet before reaching the server.
+    private static func withPlexClient(_ url: URL) -> URL {
+        settingQuery(url, "X-Plex-Client-Identifier", to: "Cue")
+    }
+
+    /// `url` with its query item `name` set to `value`, or taken out.
+    private static func settingQuery(_ url: URL, _ name: String, to value: String?) -> URL {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        var items = (components.queryItems ?? []).filter { $0.name != name }
+        if let value {
+            items.append(URLQueryItem(name: name, value: value))
+        }
+        components.queryItems = items.isEmpty ? nil : items
+        return components.url ?? url
+    }
+
+    /// An address for the log with most of it hidden: its kind, its first
+    /// part and its port, enough to tell two apart (the internet address
+    /// from the network's, IPv4 from IPv6, another server) without writing
+    /// the listener's IP down.
+    private static func maskedAddress(_ url: URL) -> String {
+        "\(maskedHost(url.host ?? "?")):\(url.port ?? 0)"
+    }
+
+    private static func maskedAddress(_ address: String?) -> String {
+        guard let address, !address.isEmpty else { return "none" }
+        return maskedHost(address)
+    }
+
+    private static func maskedHost(_ host: String) -> String {
+        // Plex's names are <address in dashes>.<server's hash>.plex.direct.
+        let labels = host.split(separator: ".")
+        if host.hasSuffix(".plex.direct"), labels.count == 4 {
+            let groups = labels[0].split(separator: "-")
+            return "\(groups.count == 4 ? "IPv4" : "IPv6") \(groups.first ?? "?")-… on server \(labels[1].prefix(6))…"
+        }
+        if host.contains(":") {
+            return "IPv6 \(host.split(separator: ":").first ?? "?"):…"
+        }
+        if labels.count == 4, labels.allSatisfy({ Int($0) != nil }) {
+            return "IPv4 \(labels[0]).…"
+        }
+        return "\(host.prefix(3))… (\(host.count) characters)"
+    }
+
+    /// Where a book's file streams from, for the log: this device, or the
+    /// server on this network or over the internet (Plex's addresses name
+    /// the server's IP), never the address itself.
+    private static func bookFileSource(_ url: URL?) -> String {
+        guard let url else { return "nowhere" }
+        if url.isFileURL { return "the file on this device" }
+        let host = url.host ?? ""
+        let local = ["192-168-", "10-", "172-16-", "172-17-", "172-18-", "172-19-", "172-2", "172-30-", "172-31-", "127-"].contains { host.hasPrefix($0) }
+            || host.hasPrefix("192.168.") || host.hasPrefix("10.") || host.hasSuffix(".local")
+        return "the server \(local ? "on this network" : "over the internet"), port \(url.port ?? 0)"
     }
 
     /// `streamURL(for:)` for anything but a station: answered at once.
     private func trackStreamURL(for item: PlayableContent) -> URL? {
+        // A book's file plays as it is on the server, whatever the
+        // Streaming Quality: a file hours long converted on the fly can't
+        // be seeked into, and the chapter list is all seeks.
+        // A Plex file's address is the one the book was loaded with, so it
+        // goes on the connection Plex is reached by now: a book loaded on
+        // cellular kept the internet address at home.
+        if AudiobookPlayer.shared.contains(item) {
+            return DownloadManager.shared.localURL(for: item)
+                ?? (item.content.service == .plex ? item.previewURL.map { Self.withPlexClient(PlexAPI.shared.onCurrentConnection($0)) } : item.playbackStreamURL)
+        }
         // A local copy beats the server URL. The server URL is built now,
         // not read off the item, so the Streaming Quality setting in force
         // is the one used.
-        DownloadManager.shared.localURL(for: item)
+        return DownloadManager.shared.localURL(for: item)
             ?? PlaybackCache.shared.localURL(for: item)
             ?? item.playbackStreamURL
     }
@@ -2312,8 +2716,10 @@ final class LocalPlaybackService {
 
         var rows: [(queueIndex: Int, item: AVPlayerItem)] = []
         var lastArmed = index
-        // A window of the run, not all of it — see `streamWindow`.
-        for queueIndex in index...min(end, index + Self.streamWindow - 1) {
+        // A window of the run, not all of it — see `streamWindow`, and
+        // `bookFilesAhead` for a book's.
+        let last = index + (isBookFile(at: index) ? Self.bookFilesAhead : Self.streamWindow - 1)
+        for queueIndex in index...min(end, last) {
             let item = queue[queueIndex]
             // A later song still in iCloud ends the run here; the next arm
             // fetches it.
@@ -2321,6 +2727,9 @@ final class LocalPlaybackService {
             guard let url = await streamURL(for: item) else { continue }
             rows.append((queueIndex, AVPlayerItem(url: url)))
             lastArmed = queueIndex
+            // A book's file from a server is armed alone; the next follows
+            // once it has loaded (`bookFilesAhead`).
+            if queueIndex == index, isBookFile(at: index), !url.isFileURL { break }
         }
         // The user skipped elsewhere meanwhile — that call owns playback now.
         guard playToken == token else { return }
@@ -2333,14 +2742,29 @@ final class LocalPlaybackService {
 
         streamRun = [:]
         for row in rows { register(row.item, at: row.queueIndex) }
+        if let first = queue[safe: rows[0].queueIndex], AudiobookPlayer.shared.contains(first) {
+            let source = Self.bookFileSource((rows[0].item.asset as? AVURLAsset)?.url)
+            Self.log.notice("book file \(first.title, privacy: .public) from \(source, privacy: .public), \(Int(resume ?? 0)) s in; \(rows.count - 1) more armed after it")
+        }
         let player = AVQueuePlayer(items: rows.map(\.item))
         streamPlayer = player
         player.volume = streamVolume
+        // Set before Play, which starts the player at its default rate.
+        let rate = AudiobookPlayer.shared.playbackRate(for: queue[safe: rows[0].queueIndex])
+        player.defaultRate = rate
+        appliedRate = Double(rate)
         if let resume, resume > 0 {
             // Partway in before the first note, so nothing from the top of
             // the track is heard first. Pending until the item is ready, so
             // not awaited — it lands before playback does.
-            player.seek(to: CMTime(seconds: resume, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { _ in }
+            // A book's file is logged landing: a far seek into a long file
+            // over a slow network is the slowest start there is.
+            let book = AudiobookPlayer.shared.contains(queue[safe: rows[0].queueIndex]) ? queue[safe: rows[0].queueIndex]?.title : nil
+            let asked = Date.now
+            player.seek(to: CMTime(seconds: resume, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { finished in
+                guard let book else { return }
+                Self.log.notice("book file \(book, privacy: .public): seek to \(Int(resume)) s \(finished ? "landed" : "didn't land", privacy: .public) after \(Date.now.timeIntervalSince(asked), format: .fixed(precision: 1)) s")
+            }
         }
         player.play()
 
@@ -2380,6 +2804,8 @@ final class LocalPlaybackService {
         watch(playerItem)
         let player = AVQueuePlayer(items: [playerItem])
         streamPlayer = player
+        // A station plays at normal speed, whatever the book behind it.
+        appliedRate = 1
         player.volume = streamVolume
         player.play()
 
@@ -2784,11 +3210,16 @@ final class LocalPlaybackService {
             // nil and the next poll ends the run.
             if current.status == .failed {
                 // Reported by its watch (`streamItemFailed`); this only
-                // moves on, in case the player hasn't.
+                // moves on, in case the player hasn't — unless the report
+                // took the run down (a book's file, played again from where
+                // it stopped).
                 streamItemFailed(current)
-                streamPlayer.advanceToNextItem()
+                if self.streamPlayer === streamPlayer {
+                    streamPlayer.advanceToNextItem()
+                }
                 return
             }
+            noteBookFileState(streamPlayer)
             // Only what changed, as above.
             let playing = reconcilePlaying(streamPlayer.timeControlStatus != .paused)
             let paused = isPlaying && !playing
@@ -2807,6 +3238,7 @@ final class LocalPlaybackService {
             if let queueIndex = streamRun[ObjectIdentifier(current)], currentIndex != queueIndex {
                 currentIndex = queueIndex
             }
+            applyPlaybackRate()
             topUpStreamRun()
             // `AVPlayerItem.duration` is indefinite until the item is ready
             // to play — and for good if it never gets there. The catalog's
@@ -2854,6 +3286,7 @@ final class LocalPlaybackService {
         defer { isRestoring = false }
         // The station that was playing in front of the queue, if one was.
         let savedStation = LocalQueueStore.loadStation().flatMap { playableStation(in: [$0]) }
+        setAsideQueue = LocalQueueStore.loadSetAside()
         station = savedStation
         guard let saved = LocalQueueStore.load(), !saved.queue.isEmpty else { return }
         // Only what the queue would take today: a row an earlier build let
@@ -3181,6 +3614,30 @@ private enum LocalQueueStore {
         stationURL
             .flatMap { try? Data(contentsOf: $0) }
             .flatMap { try? JSONDecoder().decode(PlayableContent.self, from: $0) }
+    }
+
+    /// The queue a book took the player from (`setAsideQueue`), beside the
+    /// queue file.
+    private static var setAsideURL: URL? {
+        queueURL?.deletingLastPathComponent().appendingPathComponent("LocalQueueSetAside.json")
+    }
+
+    static func loadSetAside() -> LocalPlaybackService.SetAsideQueue? {
+        setAsideURL
+            .flatMap { try? Data(contentsOf: $0) }
+            .flatMap { try? JSONDecoder().decode(LocalPlaybackService.SetAsideQueue.self, from: $0) }
+    }
+
+    /// Written on the same serial queue as the queue file; nil removes it.
+    static func save(setAside: LocalPlaybackService.SetAsideQueue?) {
+        io.async {
+            guard let url = Self.setAsideURL else { return }
+            guard let setAside, let data = try? JSONEncoder().encode(setAside) else {
+                try? FileManager.default.removeItem(at: url)
+                return
+            }
+            try? data.write(to: url, options: .atomic)
+        }
     }
 
     /// Written on the same serial queue as the queue file; nil removes it.

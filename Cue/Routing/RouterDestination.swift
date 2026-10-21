@@ -13,6 +13,8 @@ public enum RouterDestination: Hashable, Identifiable {
     /// one: the screen then zooms out of it instead of sliding in.
     case mediaDetail(content: PlayableContent, group: GroupRoom?, zoomSource: ZoomTransitionSource? = nil)
     case artistDetail(content: PlayableContent, group: GroupRoom?)
+    /// A book's page: where it was left, its chapters, Resume.
+    case audiobookDetail(content: PlayableContent)
     case alarms
     case addAlarm(group: GroupRoom? = nil)
     case editAlarm(alarm: Alarm)
@@ -26,6 +28,8 @@ public enum RouterDestination: Hashable, Identifiable {
     /// The download manager: what's coming down, what's here, and the
     /// iCloud Drive side of the Files folder.
     case downloads
+    /// The same, open on the books downloaded whole.
+    case bookDownloads
     /// What's on this device from one provider — or every provider for
     /// nil — as a small library: Artists, Albums and Songs. A provider's
     /// Downloaded row opens its own.
@@ -59,6 +63,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return content.id
         case let .artistDetail(content, _):
             return content.id
+        case let .audiobookDetail(content):
+            return "audiobook.\(content.id)"
         case .createScene:
             return "scene"
         case .alarms:
@@ -85,6 +91,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "servicePreferenceScreen"
         case .downloads:
             return "downloads"
+        case .bookDownloads:
+            return "bookDownloads"
         case let .downloaded(service):
             return "downloaded.\(service?.sonosRawValue ?? "all")"
         case let .onDeviceCollection(collection, service):
@@ -120,6 +128,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return content1 == content2 && group1 == group2
         case let (.artistDetail(content1, group1), .artistDetail(content2, group2)):
             return content1 == content2 && group1 == group2
+        case let (.audiobookDetail(content1), .audiobookDetail(content2)):
+            return content1 == content2
         case (.alarms, .alarms):
             return true
         case let (.addAlarm(group1), .addAlarm(group2)):
@@ -147,6 +157,8 @@ public enum RouterDestination: Hashable, Identifiable {
         case (.fullPlayHistoryList, .fullPlayHistoryList):
             return true
         case (.downloads, .downloads):
+            return true
+        case (.bookDownloads, .bookDownloads):
             return true
         case let (.downloaded(service1), .downloaded(service2)):
             return service1 == service2
@@ -176,6 +188,9 @@ public enum RouterDestination: Hashable, Identifiable {
         case let .artistDetail(content, group):
             hasher.combine(content)
             hasher.combine(group)
+        case let .audiobookDetail(content):
+            hasher.combine("audiobookDetail")
+            hasher.combine(content)
         case .createScene:
             hasher.combine("scene")
         case .alarms:
@@ -203,6 +218,8 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("servicePreferenceScreen")
         case .downloads:
             hasher.combine("downloads")
+        case .bookDownloads:
+            hasher.combine("bookDownloads")
         case let .downloaded(service):
             hasher.combine("downloaded")
             hasher.combine(service)

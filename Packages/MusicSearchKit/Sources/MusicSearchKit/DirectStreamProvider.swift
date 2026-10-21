@@ -28,7 +28,7 @@ public enum AudioMIMEType {
         switch suffix?.lowercased() ?? "" {
         case "flac": "audio/flac"
         case "mp3": "audio/mpeg"
-        case "m4a", "aac", "mp4", "alac": "audio/mp4"
+        case "m4a", "m4b", "aac", "mp4", "alac": "audio/mp4"
         case "ogg", "oga", "vorbis": "audio/ogg"
         case "opus": "audio/opus"
         case "wav": "audio/wav"

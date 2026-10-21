@@ -59,6 +59,19 @@ public enum AppStorageKeys {
     /// Whether the Radio tab shows at all. On when unset; the tab also
     /// needs a radio provider switched on, and hides itself offline.
     public static let showRadioTab = "\(Prefix.id).showRadioTab"
+    /// Whether the Audiobooks tab shows at all. On when unset; the tab also
+    /// needs books on Plex or an Audiobookshelf sign-in, and hides itself
+    /// offline.
+    public static let showAudiobooksTab = "\(Prefix.id).showAudiobooksTab"
+    /// The selected Plex server had books the last time it was asked
+    /// (`PlexAPI.hasAudiobooks()`), so the Audiobooks tab shows at launch
+    /// without waiting on the server.
+    public static let hasPlexAudiobooks = "\(Prefix.id).hasPlexAudiobooks"
+    /// Whether a book's time left is the whole book's ("14h 24m left in
+    /// book") rather than the chapter's, in the player and the mini player.
+    /// A tap on the player's time left switches it. The chapter's when
+    /// unset.
+    public static let audiobookTimeLeftShowsBook = "\(Prefix.id).audiobookTimeLeftShowsBook"
     /// How the library's album lists are laid out — `"list"` (rows) or
     /// `"grid"` (artwork tiles). One setting for every provider's Albums
     /// page, so a choice made on Plex holds on Subsonic. Rows when unset.

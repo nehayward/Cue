@@ -165,7 +165,10 @@ final class PlaybackCache {
         fillFromCloud(queue: queue, start: start)
 
         let manager = DownloadManager.shared
-        let cacheable = window.filter { manager.canDownload($0) && !manager.isDownloaded($0) }
+        // A book's files run for hours: fetched whole ahead of time they'd
+        // fill the cache with one book, and the player streams them fine.
+        let books = AudiobookPlayer.shared
+        let cacheable = window.filter { manager.canDownload($0) && !manager.isDownloaded($0) && !books.contains($0) }
         wanted = cacheable.map { DownloadManager.key(for: $0) }
 
         // Fetches for songs no longer coming up are wasted bytes.
