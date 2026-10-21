@@ -857,7 +857,7 @@ final class CarPlayInterface: NSObject {
         let shuffle = commands.changeShuffleModeCommand.addTarget { event in
             MainActor.assumeIsolated {
                 let player = LocalPlaybackService.shared
-                guard let event = event as? MPChangeShuffleModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+                guard let event = event as? MPChangeShuffleModeCommandEvent, !player.isPlayingStation, !player.isOnBookFile else { return .commandFailed }
                 player.setShuffle(event.shuffleType != .off)
                 return .success
             }
@@ -865,7 +865,7 @@ final class CarPlayInterface: NSObject {
         let repeatMode = commands.changeRepeatModeCommand.addTarget { event in
             MainActor.assumeIsolated {
                 let player = LocalPlaybackService.shared
-                guard let event = event as? MPChangeRepeatModeCommandEvent, !player.isPlayingStation else { return .commandFailed }
+                guard let event = event as? MPChangeRepeatModeCommandEvent, !player.isPlayingStation, !player.isOnBookFile else { return .commandFailed }
                 player.setRepeatMode(LocalPlaybackService.RepeatMode(event.repeatType))
                 return .success
             }

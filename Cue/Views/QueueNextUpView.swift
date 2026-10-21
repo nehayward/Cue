@@ -99,6 +99,16 @@ private struct LocalNextUpControls: View {
     @State private var clearConfirmation = false
 
     var body: some View {
+        // A book has no shuffle or repeat: its files are its chapters, in
+        // order, once.
+        if !playback.isOnBookFile {
+            modes
+        }
+        menu
+    }
+
+    @ViewBuilder
+    private var modes: some View {
         Button {
             HapticManager.shared.fireHaptic(.selection)
             withAnimation(.easeInOut(duration: 0.35)) {
@@ -129,7 +139,9 @@ private struct LocalNextUpControls: View {
         .foregroundStyle(playback.repeatMode == .off ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.accentColor))
         .accessibilityValue(playback.repeatMode.title)
         .help(playback.repeatMode.title)
+    }
 
+    private var menu: some View {
         Menu {
             Button {
                 withAnimation {
@@ -439,46 +451,50 @@ private struct GroupNextUpView: View {
 
     @ViewBuilder
     private var controls: some View {
-        let shuffleOn = group.playMode.contains(.shuffle)
-        Button {
-            HapticManager.shared.fireHaptic(.buttonPress)
-            var mode = group.playMode
-            if shuffleOn { mode.remove(.shuffle) } else { mode.insert(.shuffle) }
-            setPlayMode(mode)
-        } label: {
-            Label("Shuffle", systemImage: "shuffle")
-                .labelStyle(.iconOnly)
-        }
-        .tint(shuffleOn ? Color.accentColor : Color.secondary)
-        .foregroundStyle(shuffleOn ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
-        .accessibilityValue(shuffleOn ? "On" : "Off")
-        .help("Shuffle")
-
-        Button {
-            HapticManager.shared.fireHaptic(.selection)
-            // Off → Repeat All → Repeat One → Off, as the queue screen does.
-            var mode = group.playMode
-            if mode.contains(.normal) && !mode.isRepeatEnabled {
-                mode.remove(.normal)
-                mode.insert(.repeatAll)
-            } else if mode.isRepeatAllEnabled {
-                mode.remove(.normal)
-                mode.remove(.repeatAll)
-                mode.insert(.repeatOne)
-            } else {
-                mode.remove(.repeatOne)
-                mode.remove(.repeatAll)
+        // A book has no shuffle or repeat: its files are its chapters, in
+        // order, once.
+        if !AudiobookPlayer.shared.contains(group.coordinatorRoom.track.toPlayable) {
+            let shuffleOn = group.playMode.contains(.shuffle)
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                var mode = group.playMode
+                if shuffleOn { mode.remove(.shuffle) } else { mode.insert(.shuffle) }
+                setPlayMode(mode)
+            } label: {
+                Label("Shuffle", systemImage: "shuffle")
+                    .labelStyle(.iconOnly)
             }
-            setPlayMode(mode)
-        } label: {
-            Label("Repeat", systemImage: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
-                .labelStyle(.iconOnly)
-                .contentTransition(.symbolEffect(.automatic))
+            .tint(shuffleOn ? Color.accentColor : Color.secondary)
+            .foregroundStyle(shuffleOn ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+            .accessibilityValue(shuffleOn ? "On" : "Off")
+            .help("Shuffle")
+
+            Button {
+                HapticManager.shared.fireHaptic(.selection)
+                // Off → Repeat All → Repeat One → Off, as the queue screen does.
+                var mode = group.playMode
+                if mode.contains(.normal) && !mode.isRepeatEnabled {
+                    mode.remove(.normal)
+                    mode.insert(.repeatAll)
+                } else if mode.isRepeatAllEnabled {
+                    mode.remove(.normal)
+                    mode.remove(.repeatAll)
+                    mode.insert(.repeatOne)
+                } else {
+                    mode.remove(.repeatOne)
+                    mode.remove(.repeatAll)
+                }
+                setPlayMode(mode)
+            } label: {
+                Label("Repeat", systemImage: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
+                    .labelStyle(.iconOnly)
+                    .contentTransition(.symbolEffect(.automatic))
+            }
+            .tint(group.playMode.isRepeatEnabled ? Color.accentColor : Color.secondary)
+            .foregroundStyle(group.playMode.isRepeatEnabled ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+            .accessibilityValue(group.playMode.repeatAccessibilityValue)
+            .help("Repeat")
         }
-        .tint(group.playMode.isRepeatEnabled ? Color.accentColor : Color.secondary)
-        .foregroundStyle(group.playMode.isRepeatEnabled ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
-        .accessibilityValue(group.playMode.repeatAccessibilityValue)
-        .help("Repeat")
 
         Button {
             clearConfirmation = true

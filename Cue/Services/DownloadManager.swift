@@ -492,9 +492,12 @@ final class DownloadManager {
         guard let container = containers[key], !container.trackKeys.isEmpty else { return nil }
         let entries = container.trackKeys.compactMap { items[$0] }
         guard entries.count == container.trackKeys.count else { return nil }
-        if entries.allSatisfy({ $0.state == .completed }) { return .downloaded }
+        // A book is all its files: one with any taken out (cancelled, or
+        // gone from disk) isn't on this device to play, however many landed.
+        let missing = container.type == .audiobook ? container.removedKeys?.count ?? 0 : 0
+        if missing == 0, entries.allSatisfy({ $0.state == .completed }) { return .downloaded }
         let landed = entries.reduce(0.0) { $0 + ($1.state == .completed ? 1 : $1.progress) }
-        return .downloading(landed / Double(entries.count))
+        return .downloading(landed / Double(entries.count + missing))
     }
 
     /// How many of a container's tracks paused or failed, and so won't
@@ -717,6 +720,9 @@ final class DownloadManager {
             container.trackKeys.removeAll { items[$0] == nil }
             guard !container.trackKeys.isEmpty else {
                 containers[container.key] = nil
+                if container.type == .audiobook {
+                    AudiobookDownloads.removeCopy(containerKey: container.key)
+                }
                 continue
             }
             container.removedKeys = (container.removedKeys ?? []) + gone
@@ -1076,8 +1082,10 @@ final class DownloadManager {
         scheduleSave()
     }
 
-    func removeAllCompleted() {
-        for entry in completed {
+    /// Deletes every song downloaded, as the Songs list shows them. Books
+    /// are left: each is removed whole, from the Books list.
+    func removeAllCompletedSongs() {
+        for entry in completedSongs {
             try? FileManager.default.removeItem(at: Self.fileURL(key: entry.key, fileExtension: entry.fileExtension))
             items[entry.key] = nil
             DownloadLyrics.shared.forget(entry)
@@ -1574,13 +1582,25 @@ final class DownloadManager {
     /// up. It stays queued meanwhile, so it reads as still coming rather
     /// than stopped, and only fails once the retries are spent. With no
     /// network at all it fails as before, and retries when one is back.
+    ///
+    /// An Audiobookshelf book's file refused for its token goes again too,
+    /// asked for afresh: the token it was signed with ran out while it
+    /// waited (behind others, for Wi‑Fi) or before a restart from its
+    /// resume data, whose request carries the old one.
     private func retryAutomatically(_ entry: inout Item, after error: Error) -> Bool {
         let retries = entry.automaticRetries ?? 0
-        guard network != .none, retries < Self.retryDelays.count, Self.isTransient(error) else { return false }
+        let status = (error as? StreamResponseCheck.Refused)?.statusCode
+        let tokenRanOut = entry.needsAudiobookshelfToken && (status == 401 || status == 403)
+        guard network != .none, retries < Self.retryDelays.count, tokenRanOut || Self.isTransient(error) else { return false }
         entry.automaticRetries = retries + 1
         entry.state = .queued
         entry.error = nil
         entry.failedOnNetwork = nil
+        if tokenRanOut {
+            // Signed again as it starts (`refreshBookFileURL`).
+            entry.resumeData = nil
+            entry.bytesReceived = 0
+        }
         let key = entry.key
         // Spread out, so a burst refused together doesn't come back together.
         let delay = Self.retryDelays[retries] * Double.random(in: 0.7 ... 1.3)

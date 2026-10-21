@@ -253,6 +253,8 @@ final class AudiobookPlayer {
             AudiobookPlaceHistory.shared.record(.jumpedFrom, at: from, for: current.book)
         }
         lastReading = nil
+        // A move the listener made, not the queue running out at the end.
+        reachedEnd = false
         position = target
         arriving = target
         // A move the listener made: kept now, even if nothing plays after it.
@@ -343,7 +345,12 @@ final class AudiobookPlayer {
         if current.timeline.location(at: position).part == part {
             time = max(time, position)
         }
-        LocalPlaybackService.shared.park()
+        // Parked so the queue player doesn't go on to the next file, the
+        // next chapter. The sleep timer set stays, and while the file is to
+        // be tried again so does the audio session: let go of in the
+        // background, it can't be taken back to play.
+        let retrying = failures < Self.retryDelays.count
+        LocalPlaybackService.shared.park(keepingAudioSession: retrying, keepingSleepTimer: true)
         position = time
         arriving = time
         wasPlaying = false
@@ -359,6 +366,18 @@ final class AudiobookPlayer {
         retry?.cancel()
         let book = current.book
         retry = Task { [weak self] in
+            // With nothing playing, Cue in the background is suspended
+            // before the retry comes round: the time is asked for.
+            var background = UIBackgroundTaskIdentifier.invalid
+            background = UIApplication.shared.beginBackgroundTask(withName: "Book file retry") {
+                UIApplication.shared.endBackgroundTask(background)
+                background = .invalid
+            }
+            defer {
+                if background != .invalid {
+                    UIApplication.shared.endBackgroundTask(background)
+                }
+            }
             try? await Task.sleep(for: delay)
             // The network may have changed under the file (home Wi‑Fi to
             // cellular): Plex's connection is raced again first, and the
@@ -367,8 +386,9 @@ final class AudiobookPlayer {
                 await PlexAPI.shared.refreshConnection()
             }
             // Not over something played meanwhile: the queue still parked
-            // on the book's file.
+            // on the book's file, and the route still this device's.
             guard !Task.isCancelled, let self, let current = self.current, current.book.isSameBook(as: book),
+                  PlaybackRoute.shared.group == nil,
                   self.contains(LocalPlaybackService.shared.nowPlaying) else { return }
             self.retry = nil
             await self.start(current, at: time, on: .device)
@@ -473,12 +493,12 @@ final class AudiobookPlayer {
     }
 
     /// Keeps the player's sleep timer on the chapter's end. A timer that's
-    /// gone means it went off, or was turned off: either way End of Chapter
-    /// is done.
+    /// gone, or past its time (a speaker's keeps the time it went off at),
+    /// went off or was turned off: either way End of Chapter is done.
     private func followChapterSleep(on controller: any PlaybackController, force: Bool = false) async {
         guard let sleepsAt, let current else { return }
         guard let time = readPosition(on: controller) else { return }
-        if !force, controller.sleepTimerEndDate == nil {
+        if !force, controller.sleepTimerEndDate.map({ $0 <= .now }) ?? true {
             self.sleepsAt = nil
             return
         }
@@ -565,6 +585,9 @@ final class AudiobookPlayer {
         if replacesMusic {
             local.setQueueAside()
         }
+        // A book plays its files in order, once: the music's repeat goes
+        // aside with the music (a new queue isn't shuffled).
+        local.setRepeatMode(.off)
         do {
             try await local.play(audiobook.parts, startingAt: location.part, from: location.offset)
             return true
@@ -655,6 +678,21 @@ final class AudiobookPlayer {
         }
     }
 
+    /// Opens a listening session for the loaded Audiobookshelf book when
+    /// its files in `items` are about to go to a speaker and it holds none
+    /// (it was started from its download, or picked up long after): a
+    /// speaker is given the session's URLs, which need no sign-in, and
+    /// without one, file URLs signed with a token that runs out in an hour,
+    /// when the speaker would stop.
+    func prepareForSpeaker(_ items: [PlayableContent]) async {
+        guard let current, current.book.content.service == .audiobookshelf, !OfflineMode.shared.isActive,
+              !AudiobookshelfAPI.hasOpenSession(for: current.book.content.id),
+              items.contains(where: { current.partIndex(of: $0) != nil }) else { return }
+        if await AudiobookshelfAPI.shared.startSession(itemID: current.book.content.id) == nil {
+            Self.log.error("no session for \(current.book.title, privacy: .public) to hand to a speaker")
+        }
+    }
+
     /// The speaker's queue becomes the book's files from `part` on, the
     /// first set `offset` in before it starts (see `SonosService.cue`).
     private func playOnSpeaker(_ audiobook: Audiobook, part: Int, offset: TimeInterval, group: GroupRoom) async -> Bool {
@@ -662,6 +700,11 @@ final class AudiobookPlayer {
         LocalPlaybackService.shared.park()
         let first = audiobook.parts[part]
         do {
+            // In order, once: not the shuffle or repeat the speaker was left
+            // on for music.
+            if group.playMode != .normal {
+                await sonos.setPlayMode(group.ip, mode: .normal)
+            }
             let landed = try await sonos.cue(first, on: group, at: offset)
             await sonos.play(ip: group.ip)
             if !landed, offset > 0 {
@@ -671,7 +714,12 @@ final class AudiobookPlayer {
             group.coordinatorRoom.beginSeek(to: offset * 1000)
             let rest = Array(audiobook.parts.dropFirst(part + 1))
             if !rest.isEmpty {
-                try await sonos.queue(contents: rest, group: group, position: .end)
+                do {
+                    try await sonos.queue(contents: rest, group: group, position: .end)
+                } catch {
+                    // Playing already: the files after it are what's missing.
+                    Self.log.error("speaker play: the files after the first didn't queue: \(error.localizedDescription, privacy: .public)")
+                }
             }
             return true
         } catch {
