@@ -132,9 +132,18 @@ final class AudiobookshelfBrowseService {
         ]
     }
 
+    /// The selected library, reading the server's list first when nothing
+    /// has yet: a page opened from the player before the Audiobooks tab.
+    private func loadedLibrary() async -> AudiobookshelfLibrary? {
+        if libraries.isEmpty, isAuthenticated, let fetched = await api.libraries() {
+            libraries = fetched
+        }
+        return selectedLibrary
+    }
+
     /// Books matching `query` in the selected library.
     func search(_ query: String) async -> [PlayableContent] {
-        guard let library = selectedLibrary else { return [] }
+        guard let library = await loadedLibrary() else { return [] }
         return await api.search(libraryID: library.id, query: query).map(\.toPlayable)
     }
 
@@ -142,7 +151,7 @@ final class AudiobookshelfBrowseService {
     /// their picture and biography when the server has them. Nil when
     /// there's no such author.
     func author(named name: String) async -> (books: [PlayableContent], image: URL?, about: String?)? {
-        guard let library = selectedLibrary else { return nil }
+        guard let library = await loadedLibrary() else { return nil }
         let match = await api.authors(libraryID: library.id, query: name)
             .first { $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }
         guard let match, let author = await api.author(id: match.id) else { return nil }

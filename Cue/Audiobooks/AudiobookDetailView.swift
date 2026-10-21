@@ -155,6 +155,8 @@ struct AudiobookDetailView: View {
                 .disabled(audiobook == nil)
             }
         }
+        // No pull to refresh: it's read afresh each time it opens, and in a
+        // sheet (from the player) the pull is the sheet's, to dismiss it.
         .task {
             // The book as it last read, at once; the server's read replaces it.
             if audiobook == nil {
@@ -162,7 +164,6 @@ struct AudiobookDetailView: View {
             }
             await load()
         }
-        .refreshable { await load() }
     }
 
     // MARK: - Header
