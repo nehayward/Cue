@@ -9,7 +9,7 @@ import OSLog
 /// ffprobe found them. AVFoundation reads the marks over HTTP with a few
 /// range requests, not the whole file.
 ///
-/// What a file gave is kept in Caches (`AudiobookChapters-2.json`), so a
+/// What a file gave is kept in Caches (`AudiobookChapterMarks.json`), so a
 /// book opened again doesn't fetch them again, and so are the marks a
 /// server listed (`keepListed`), by `ChapterMarkCache`. A file that had
 /// none is believed for a day, then read again. Each read logs what the
@@ -234,16 +234,15 @@ enum AudiobookChapterReader {
 
 /// The chapter marks read from each file or listed by its server, and
 /// Audible's chapters for each edition, by key, in Caches
-/// (`AudiobookChapters-2.json`; a new name drops what an earlier reader
-/// kept, "none"s it may have got wrong included). An actor: it reads its
-/// file the first time it's asked, and writes it after each change, both
-/// off the main thread and in order.
+/// (`AudiobookChapterMarks.json`). An actor: it reads its file the first
+/// time it's asked, and writes it after each change, both off the main
+/// thread and in order.
 private actor ChapterMarkCache {
     static let shared = ChapterMarkCache()
 
     /// How long "none" is believed before the file is read again.
     private static let noneLifetime: TimeInterval = 24 * 60 * 60
-    private static let fileName = "AudiobookChapters-2.json"
+    private static let fileName = "AudiobookChapterMarks.json"
 
     /// What was read, and when: "none" is believed only for a while.
     private struct Entry: Codable, Sendable {

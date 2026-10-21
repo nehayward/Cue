@@ -104,8 +104,6 @@ final class AudiobookPlayer {
     /// Each book's speed, by `AudiobookProgressStore.key`; a book at 1× has
     /// none.
     private static let ratesKey = "dance.cue.audiobookRates"
-    /// The one speed every book shared before each kept its own.
-    private static let sharedRateKey = "dance.cue.audiobookRate"
     private static let serverSyncInterval: TimeInterval = 15
     private static let storeInterval: TimeInterval = 10
     /// How near the top of a file a reading still counts as the file
@@ -113,7 +111,6 @@ final class AudiobookPlayer {
     private static let arrivalTolerance: TimeInterval = 3
 
     private init() {
-        UserDefaults.standard.removeObject(forKey: Self.sharedRateKey)
         leftBook = UserDefaults.standard.data(forKey: Self.leftBookKey).flatMap { try? JSONDecoder().decode(LeftBook.self, from: $0) }
         current = Self.loadCurrent()
         updateChapter()
