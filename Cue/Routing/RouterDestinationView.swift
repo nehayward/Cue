@@ -37,6 +37,8 @@ struct RouterDestinationView: View {
                 }
             case let .artistDetail(content, _):
                 ArtistDetailView(playableContent: content)
+            case let .audiobookDetail(content):
+                AudiobookDetailView(book: content)
             case let .createScene(content):
                 NavigationStack {
                     SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))
@@ -99,6 +101,8 @@ struct RouterDestinationView: View {
                 ServicePreferenceScreen()
             case .downloads:
                 DownloadsScreen()
+            case .bookDownloads:
+                DownloadsScreen(showsBooks: true)
             case let .downloaded(service):
                 DownloadedScreen(service: service)
             case let .onDeviceCollection(collection, service):

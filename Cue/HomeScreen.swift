@@ -99,7 +99,7 @@ struct HomeScreen: View {
                         Text("Downloads")
                         Text(downloads.hasActiveDownloads
                              ? (downloads.active.count == 1 ? "1 downloading" : "\(downloads.active.count) downloading")
-                             : (downloads.completed.isEmpty ? "Nothing kept yet" : "\(downloads.completed.count) songs on this device"))
+                             : (downloads.completedSongs.isEmpty ? "Nothing kept yet" : "\(downloads.completedSongs.count) songs on this device"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

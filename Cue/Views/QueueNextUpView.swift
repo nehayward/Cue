@@ -69,6 +69,12 @@ private struct LocalNextUpView: View {
             .padding(.top, 14)
             .padding(.bottom, 10)
 
+            // The music a book was started over, or the book left for
+            // music, to go back to.
+            BookMusicSwitchRow()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+
             if playback.queue.isEmpty {
                 Spacer()
                 Text(isParked ? "Live radio — nothing queued" : "Nothing queued")

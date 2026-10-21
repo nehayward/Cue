@@ -83,7 +83,9 @@ extension MediaSearchService {
             [.artists, .albums, .songs, .playlists]
         case .files:
             [.artists, .albums, .songs, .playlists, .recentlyAdded]
-        case .tidal, .tuneIn, .sonosRadio, .pandora:
+        // Books have a screen of their own (`AudiobookshelfBrowseScreen`),
+        // not collections of songs.
+        case .tidal, .tuneIn, .sonosRadio, .pandora, .audiobookshelf:
             []
         }
     }

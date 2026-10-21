@@ -38,6 +38,9 @@ struct PlayableContentView: View {
 
     /// When set (track shown inside an editable playlist), adds a "Remove from Playlist" menu action.
     var onRemoveFromPlaylist: (() -> Void)? = nil
+    /// How far through it the listener is, as a thin bar under the text:
+    /// a book's. Nil draws none.
+    var progress: Double? = nil
     
     private var isCurrentlyPlaying: Bool {
         guard let trackID = selectedGroupService?.group?.coordinatorRoom.track.trackID else { return false }
@@ -90,6 +93,10 @@ struct PlayableContentView: View {
                 case .folder:
                     NavigationLink(value: RouterDestination.folderBrowse(item: item, title: item.title)) {
                         folderContent
+                    }
+                case .audiobook:
+                    NavigationLink(value: RouterDestination.audiobookDetail(content: item)) {
+                        content
                     }
                 case .track, .favorite, .radio, .songRadio, .artistRadio, .libraryTrack, .unique, .liveRadio:
                     content
@@ -162,6 +169,14 @@ struct PlayableContentView: View {
                         .lineLimit(1)
                         .opacity(0.7)
                         .font(.footnote)
+
+                    // In the text's column and as wide as it, so it lines up
+                    // with the title; at the default text size it ends level
+                    // with the cover's foot.
+                    if let progress {
+                        AudiobookProgressBar(fraction: progress, height: 2)
+                            .padding(.top, 4)
+                    }
                 }
 
                 Spacer(minLength: 0)

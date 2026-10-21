@@ -14,6 +14,8 @@ struct FilesBrowseScreen: View {
     var body: some View {
         NavigationStack(path: $router.path) {
             List {
+                // Above the library, a section of its own.
+                MusicLeftOffSection()
                 if !library.isConfigured {
                     // No folder yet: the one way in is from here.
                     ContentUnavailableView {

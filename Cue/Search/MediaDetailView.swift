@@ -67,8 +67,28 @@ struct MediaDetailView: View {
     private var canReorderTracks: Bool {
         playableContent.isReorderablePlaylist && serviceEditable
     }
-    
+
+    /// The book, for an album page opened on a book or one of its files
+    /// (the player's title on a book): its page is the book's, not an
+    /// album of its files. Decided once, as the page opens, so playing
+    /// something else meanwhile doesn't turn it into an album.
+    @State private var book: PlayableContent?
+
+    init(playableContent: PlayableContent) {
+        self.playableContent = playableContent
+        _book = State(initialValue: AudiobookPlayer.shared.book(containing: playableContent))
+    }
+
     var body: some View {
+        if let book {
+            AudiobookDetailView(book: book)
+        } else {
+            albumPage
+        }
+    }
+
+    @ViewBuilder
+    private var albumPage: some View {
         @Bindable var router = router
         List(selection: $selection) {
             artworkSection

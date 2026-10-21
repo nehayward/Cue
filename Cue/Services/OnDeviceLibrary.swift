@@ -42,7 +42,7 @@ enum OnDeviceLibrary {
     /// player finds the file through the download manager, so these play
     /// with the server unreachable.
     static var downloadedSongs: [PlayableContent] {
-        DownloadManager.shared.completed
+        DownloadManager.shared.completedSongs
             .map(\.playableContent)
             .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     }
@@ -79,8 +79,8 @@ enum OnDeviceLibrary {
         switch service {
         case .apple: appleSongs.isEmpty
         case .files: fileSongs.isEmpty
-        case .plex, .subsonic: !DownloadManager.shared.completed.contains { $0.service == service }
-        case nil: DownloadManager.shared.completed.isEmpty && appleSongs.isEmpty && fileSongs.isEmpty
+        case .plex, .subsonic: !DownloadManager.shared.completedSongs.contains { $0.service == service }
+        case nil: DownloadManager.shared.completedSongs.isEmpty && appleSongs.isEmpty && fileSongs.isEmpty
         default: true
         }
     }
@@ -146,7 +146,7 @@ enum OnDeviceLibrary {
 
     private static var songs: [Song] {
         let apple = AppleDownloadsIndex.shared
-        return DownloadManager.shared.completed.map { Song(track: $0.playableContent, added: $0.createdAt) }
+        return DownloadManager.shared.completedSongs.map { Song(track: $0.playableContent, added: $0.createdAt) }
             + appleSongs.map { Song(track: $0, added: apple.addedDate(for: $0) ?? .distantPast) }
             + fileSongs.map { Song(track: $0, added: .distantPast) }
     }

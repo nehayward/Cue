@@ -159,6 +159,8 @@ struct PlayableContentRowView: View {
                 router?.navigate(to: .artistDetail(content: item, group: selectedGroupService?.group))
             case .folder:
                 router?.navigate(to:  .folderBrowse(item: item, title: item.title))
+            case .audiobook:
+                router?.navigate(to: .audiobookDetail(content: item))
             case .track, .favorite, .radio, .songRadio, .artistRadio, .libraryTrack, .unique, .liveRadio:
                 // Tapping a cell that's auditioning stops it, matching the list row.
                 if isPreviewing {

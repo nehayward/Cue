@@ -1964,6 +1964,10 @@ public final class SonosService {
         case .subsonic:
             guard let track = await musicSearch.lookupSubsonicTrack(with: track.trackID) else { return nil }
             return track.artwork
+        case .audiobookshelf:
+            // A book's file: the book's cover.
+            guard let part = AudiobookshelfPartID(track.trackID) else { return nil }
+            return AudiobookshelfAPI.coverURL(itemID: part.itemID)
         case .tuneIn:
             return nil
         case .airplay, .unknown, .library, .sonosRadio, .pandora, .files:
@@ -2093,6 +2097,11 @@ public final class SonosService {
                 ),
                 subsonicTrack.artwork
             )
+        case .audiobookshelf:
+            // The speaker already has the book's title and author from the
+            // metadata it was queued with; only the cover is worth looking up.
+            guard let part = AudiobookshelfPartID(track.trackID) else { return (nil, nil) }
+            return (nil, AudiobookshelfAPI.coverURL(itemID: part.itemID))
         case .unknown:
             if track.metadata?.contentType != .track { return (nil, nil) }
             guard let artworkURL = await musicSearch.searchSpotifySong(song: track.name, artist: track.artist)?.tracks?.items.first else {

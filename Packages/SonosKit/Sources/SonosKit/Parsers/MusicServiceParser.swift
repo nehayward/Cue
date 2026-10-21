@@ -1,4 +1,5 @@
 import Foundation
+import MusicSearchKit
 
 public final class MusicServiceParser {
     public typealias TrackID = String
@@ -90,6 +91,9 @@ public final class MusicServiceParser {
             let id = extractSubsonicTrackID(from: uri.removingPercentEncoding ?? uri)
             guard !id.isEmpty else { return nil }
             return (id, .track)
+        case .audiobookshelf:
+            guard let id = AudiobookshelfAPI.partID(fromStreamURL: uri) else { return nil }
+            return (id, .track)
         case .library:
             return (uri, nil)
         default:
@@ -129,6 +133,9 @@ public final class MusicServiceParser {
         // endpoint. Checked before the positional `:3:` Plex heuristic so a
         // server address containing that shape can't flip the player to Plex.
         if decodedURI.contains("/rest/stream") { return .subsonic }
+        // A book's file from Audiobookshelf: a listening session's track, or
+        // the file itself.
+        if AudiobookshelfURLs.isStreamURL(decodedURI) { return .audiobookshelf }
 
         if decodedURI.contains(":3:") { return .plex }
 
@@ -180,6 +187,7 @@ public final class MusicServiceParser {
         // (e.g. sonos:2997, ST:12345).
         case .sonosRadio, .pandora: return extractTuneInTrackID(from: uri)
         case .subsonic: return extractSubsonicTrackID(from: uri)
+        case .audiobookshelf: return AudiobookshelfAPI.partID(fromStreamURL: uri) ?? ""
         case .library, .unknown, .files: return uri
         case .airplay: return ""
         }

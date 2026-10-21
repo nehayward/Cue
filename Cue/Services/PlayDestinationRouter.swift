@@ -53,6 +53,12 @@ enum PlayDestinationRouter {
         queue: @escaping (GroupRoom, QueuePosition) async throws -> Void
     ) async {
         guard let first = contents.first else { return }
+        // A book plays from where it was left, as its files, never into the
+        // queue's positions.
+        if first.content.type == .audiobook {
+            await AudiobookPlayer.shared.play(first)
+            return
+        }
         // A speaker remembered from before Sonos was switched off, or from
         // before the phone left Wi‑Fi, is not a destination now.
         let destination = SonosService.shared.isAvailable ? (PlayDestination.remembered ?? .device) : .device

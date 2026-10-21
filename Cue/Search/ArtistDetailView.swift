@@ -36,6 +36,16 @@ struct ArtistDetailView: View {
     
     @AppStorage("isTopSongsExpanded") private var isTopSongsExpanded: Bool = true
     @AppStorage("isAlbumsExpanded") private var isAlbumsExpanded: Bool = true
+
+    /// The author, for an artist opened from a book or a book's file: their
+    /// page is their books. Decided once, as the page opens, so playing
+    /// something else meanwhile doesn't turn it into an artist's.
+    @State private var author: AudiobookAuthor?
+
+    init(playableContent: PlayableContent) {
+        self.playableContent = playableContent
+        _author = State(initialValue: AudiobookAuthor(for: playableContent))
+    }
     
     var maxHeight: Double {
         UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
@@ -96,8 +106,16 @@ struct ArtistDetailView: View {
     }
     
     // MARK: - Body
-    
+
     var body: some View {
+        if let author {
+            AudiobookAuthorView(author: author)
+        } else {
+            artistPage
+        }
+    }
+
+    private var artistPage: some View {
         List {
             artworkSection
             latestReleaseSection

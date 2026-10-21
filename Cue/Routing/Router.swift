@@ -15,6 +15,10 @@ enum AppTab: Hashable {
     /// stations near the user and TuneIn's directory, Apple Music's, and
     /// Sonos Radio's. Shown while any of those providers is switched on.
     case radio
+    /// Books: the one listened to last, ready to resume, what else is
+    /// partway through, and every book on Plex and Audiobookshelf. Shown
+    /// while either has books.
+    case audiobooks
     /// A provider the user added to the tab view, as one tab: its library's
     /// front page (Artists, Albums, … as rows). This is the tab bar's entry
     /// on iPhone, where a section's worth of tabs would overflow the bar.
@@ -27,7 +31,7 @@ enum AppTab: Hashable {
     /// take its selection with it.
     var provider: MediaSearchService? {
         switch self {
-        case .home, .search, .browse, .radio: nil
+        case .home, .search, .browse, .radio, .audiobooks: nil
         case let .provider(service): service
         case let .providerCollection(service, _): service
         }
@@ -79,7 +83,7 @@ enum AppTab: Hashable {
     func handleReselection(of tab: AppTab) {
         switch tab {
         case .search: SearchActivator.shared.requestFocus()
-        case .home, .browse, .radio, .provider, .providerCollection: break
+        case .home, .browse, .radio, .audiobooks, .provider, .providerCollection: break
         }
     }
 
