@@ -145,6 +145,17 @@ final class AudiobookPlayer {
         current?.partIndex(of: item) != nil
     }
 
+    /// The book `content` is, or is one of the files of: itself for a book,
+    /// the loaded book or the one last left for one of their files. Nil for
+    /// anything else. For pages opened from a book's file (the player's
+    /// title and artist lines), which are then the book's and its author's.
+    func book(containing content: PlayableContent) -> PlayableContent? {
+        if content.content.type == .audiobook { return content }
+        if let current, current.partIndex(of: content) != nil { return current.book }
+        if let leftBook, leftBook.partIDs.contains(content.id) { return leftBook.book }
+        return nil
+    }
+
     /// The rate this device plays `item` at: the book speed for a book's
     /// file, normal for anything else.
     func playbackRate(for item: PlayableContent?) -> Float {

@@ -16,17 +16,7 @@ struct AudiobookAuthor: Hashable {
     /// author are a book's files. Nil for anything else.
     @MainActor
     init?(for content: PlayableContent) {
-        let player = AudiobookPlayer.shared
-        let book: PlayableContent? = if content.content.type == .audiobook {
-            content
-        } else if let current = player.current, current.partIndex(of: content) != nil {
-            current.book
-        } else if let left = player.leftBook, left.partIDs.contains(content.id) {
-            left.book
-        } else {
-            nil
-        }
-        guard let book else { return nil }
+        guard let book = AudiobookPlayer.shared.book(containing: content) else { return nil }
         let name = (book.metadata?.artist ?? book.subtitle).trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return nil }
         self.name = name
