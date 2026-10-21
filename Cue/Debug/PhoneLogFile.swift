@@ -54,25 +54,55 @@ enum PhoneLogFile {
         // A player that fails in the background — a play from CarPlay or
         // the Lock Screen that doesn't start — leaves Cue nothing to keep it
         // running, so it's written a moment after, once the failure's own
-        // lines are in.
+        // lines are in. One such write at a time: a struggling stream logs
+        // an error entry for every stall, and each would read the log
+        // store again.
         for name in [AVPlayerItem.newErrorLogEntryNotification, AVPlayerItem.failedToPlayToEndTimeNotification] {
             NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
-                MainActor.assumeIsolated { writeHoldingTheApp(writer, after: 1) }
+                MainActor.assumeIsolated {
+                    guard !errorWritePending else { return }
+                    errorWritePending = true
+                    writeHoldingTheApp(writer, after: 1) { errorWritePending = false }
+                }
             }
         }
     }
 
-    /// Writes with time asked of iOS to finish, `after` seconds from now.
+    /// A write for a player error is on its way.
+    @MainActor private static var errorWritePending = false
+
+    /// Writes with time asked of iOS to finish, `after` seconds from now,
+    /// then `done` on the main thread.
     @MainActor
-    private static func writeHoldingTheApp(_ writer: Writer, after delay: TimeInterval = 0) {
-        let application = UIApplication.shared
-        var task = UIBackgroundTaskIdentifier.invalid
-        task = application.beginBackgroundTask(withName: "Cue log") {
-            application.endBackgroundTask(task)
-        }
+    private static func writeHoldingTheApp(_ writer: Writer, after delay: TimeInterval = 0, done: @escaping @MainActor () -> Void = {}) {
+        let task = BackgroundTask(name: "Cue log")
         queue.asyncAfter(deadline: .now() + delay) {
             writer.append()
-            DispatchQueue.main.async { application.endBackgroundTask(task) }
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    task.end()
+                    done()
+                }
+            }
+        }
+    }
+
+    /// Time asked of iOS, given back once: when the work is done, or when
+    /// iOS runs out of patience first, whichever comes first.
+    @MainActor
+    private final class BackgroundTask {
+        private var id = UIBackgroundTaskIdentifier.invalid
+
+        init(name: String) {
+            id = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+                MainActor.assumeIsolated { self?.end() }
+            }
+        }
+
+        func end() {
+            guard id != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(id)
+            id = .invalid
         }
     }
 

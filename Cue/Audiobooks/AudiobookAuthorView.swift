@@ -23,15 +23,19 @@ struct AudiobookAuthor: Hashable {
         plexArtistID = book.content.service == .plex ? book.metadata?.artistID : nil
     }
 
-    /// Whether `book` is theirs: their Plex artist's, or by their name,
-    /// any one of the authors of a book with several.
+    /// Whether `book` is theirs: their Plex artist's, or by their name —
+    /// the whole author line, or any one of the authors of a book with
+    /// several, listed with commas. The whole line first: a name can hold
+    /// a comma itself ("Tolkien, J. R. R.").
     func wrote(_ book: PlayableContent) -> Bool {
         if let plexArtistID, book.content.service == .plex, book.metadata?.artistID == plexArtistID {
             return true
         }
-        return (book.metadata?.artist ?? book.subtitle)
-            .split(separator: ",")
-            .contains { $0.trimmingCharacters(in: .whitespaces).localizedCaseInsensitiveCompare(name) == .orderedSame }
+        let line = book.metadata?.artist ?? book.subtitle
+        let isName = { (text: Substring) in
+            text.trimmingCharacters(in: .whitespaces).localizedCaseInsensitiveCompare(name) == .orderedSame
+        }
+        return isName(line[...]) || line.split(separator: ",").contains(where: isName)
     }
 }
 
@@ -292,9 +296,14 @@ struct AudiobookAuthorView: View {
         }
     }
 
+    /// Their artist's books in one request; for an author known only by
+    /// name, every book read and theirs kept.
     private func plexBooks() async -> [PlayableContent] {
         guard coreFeatures.isEnabled(.plex), hasPlexBooks else { return [] }
-        return (await AudiobookLibrary.plexBooks() ?? []).filter(author.wrote)
+        guard let artistKey = author.plexArtistID else {
+            return (await AudiobookLibrary.plexBooks() ?? []).filter(author.wrote)
+        }
+        return await AudiobookLibrary.plexBooks(byArtist: artistKey, isTheirs: author.wrote)
     }
 
     /// Their author entry's books and picture; for a name it lists another

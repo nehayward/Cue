@@ -96,6 +96,9 @@ final class AudiobookPlayer {
     @ObservationIgnored private var reachedEnd = false
     /// The server has been told the book is finished.
     @ObservationIgnored private var finishReported = false
+    /// A mark set the book's place (Mark as Finished, Mark as Unfinished):
+    /// no reading is kept until it plays again (`noteMarked`).
+    @ObservationIgnored private var holdsReadings = false
     @ObservationIgnored private var backgroundObserver: (any NSObjectProtocol)?
 
     /// Each book's speed, by `AudiobookProgressStore.key`; a book at 1× has
@@ -539,6 +542,10 @@ final class AudiobookPlayer {
             audiobook.partIndex(of: item) != nil || contains(item) || leftBook?.partIDs.contains(item.id) == true
         }
         let replacesMusic = local.isActive && !local.queue.contains(where: isBookFile)
+        // What was loaded, for a start that fails before the book gets to
+        // the player (`undoStart`).
+        let previous = current
+        let previousLeft = leftBook
         setCurrent(audiobook)
         if leftBook?.book.isSameBook(as: audiobook.book) == true {
             leftBook = nil
@@ -554,7 +561,11 @@ final class AudiobookPlayer {
         case let .group(group): group
         }
         if !OfflineMode.shared.isActive, let group {
-            return await playOnSpeaker(audiobook, part: location.part, offset: location.offset, group: group)
+            guard await playOnSpeaker(audiobook, part: location.part, offset: location.offset, group: group) else {
+                undoStart(of: audiobook, previous: previous, previousLeft: previousLeft, onDevice: false)
+                return false
+            }
+            return true
         }
         if replacesMusic {
             local.setQueueAside()
@@ -565,7 +576,25 @@ final class AudiobookPlayer {
         } catch {
             Self.log.error("device play failed: \(error.localizedDescription, privacy: .public)")
             AlertService.shared.showAlert(with: "Couldn't play “\(audiobook.book.title)” on this device", imageName: "exclamationmark.triangle")
+            undoStart(of: audiobook, previous: previous, previousLeft: previousLeft, onDevice: true)
             return false
+        }
+    }
+
+    /// Puts back what was loaded before a start of `audiobook` that failed
+    /// short of the player: the book wasn't heard, so it isn't left, nor
+    /// offered back, nor a place in its history. On this device a play that
+    /// got as far as putting the book's files in the queue stands, paused
+    /// there for Play to try again (`resumeOnDevice`).
+    private func undoStart(of audiobook: Audiobook, previous: Audiobook?, previousLeft: LeftBook?, onDevice: Bool) {
+        guard current?.book.isSameBook(as: audiobook.book) == true else { return }
+        if onDevice, LocalPlaybackService.shared.queue.contains(where: { audiobook.partIndex(of: $0) != nil }) { return }
+        Self.log.notice("start of \(audiobook.book.title, privacy: .public) undone: it never reached the player")
+        setCurrent(previous)
+        leftBook = previousLeft
+        if previous != nil {
+            graceUntil = .now.addingTimeInterval(15)
+            misses = 0
         }
     }
 
@@ -739,6 +768,16 @@ final class AudiobookPlayer {
         }
         lastPart = part
         lastOffset = offset
+        // A mark set the place: what the player says is kept only once it
+        // plays again.
+        if holdsReadings {
+            guard playing else {
+                wasPlaying = playing
+                return
+            }
+            holdsReadings = false
+            lastReading = nil
+        }
         // Listening has gone well past the file that failed.
         if let failedAt, playing, time > failedAt + 30 {
             self.failedAt = nil
@@ -880,6 +919,25 @@ final class AudiobookPlayer {
         AudiobookPlaceHistory.shared.save()
     }
 
+    /// Steps aside for a mark that sets `book`'s place (Mark as Finished,
+    /// Mark as Unfinished), when it's the book loaded: what was heard is
+    /// kept first, the book is stopped, and nothing it reads is kept again
+    /// until it plays, or the next reading would put back where it was
+    /// playing. On this device the player is taken down, so Play starts
+    /// from the marked place (`resumeOnDevice`), not where it stopped.
+    func noteMarked(_ book: PlayableContent) async {
+        guard let current, current.book.isSameBook(as: book) else { return }
+        keepUnrecorded()
+        holdsReadings = true
+        let controller = PlaybackRoute.shared.controller
+        guard isPlayingBook(on: controller) else { return }
+        if controller.group == nil {
+            LocalPlaybackService.shared.park()
+        } else if controller.isPlaying {
+            await controller.togglePlayback()
+        }
+    }
+
     /// The book is no longer what's playing.
     private func end() {
         guard let current else { return }
@@ -916,6 +974,7 @@ final class AudiobookPlayer {
         lastReading = nil
         reachedEnd = false
         finishReported = false
+        holdsReadings = false
         wasPlaying = false
         Self.saveCurrent(audiobook)
         if audiobook != nil { startMonitoring() }

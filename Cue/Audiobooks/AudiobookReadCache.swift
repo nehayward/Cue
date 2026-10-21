@@ -27,6 +27,12 @@ enum AudiobookReadCache {
 
     private static var memory: [String: Audiobook] = [:]
 
+    /// Holds `audiobook` as its book's last read for this launch, without
+    /// writing it: a copy from elsewhere (a download's) to hand back fast.
+    static func remember(_ audiobook: Audiobook) {
+        memory[AudiobookProgressStore.key(for: audiobook.book)] = audiobook
+    }
+
     /// Keeps `audiobook` as its book's last read.
     static func keep(_ audiobook: Audiobook) {
         var kept = audiobook
