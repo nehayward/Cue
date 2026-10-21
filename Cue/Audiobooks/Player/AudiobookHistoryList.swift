@@ -59,9 +59,12 @@ struct AudiobookHistoryList: View {
                     .lineLimit(1)
             }
             Spacer()
-            Text(Self.when(place.date))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            // Ticks once a minute, so "Just now" moves on while it's open.
+            TimelineView(.everyMinute) { context in
+                Text(Self.when(place.date, now: context.date))
+            }
+            .font(.caption)
+            .foregroundStyle(.primary.opacity(0.8))
         }
         .padding(.vertical, 10)
         .contentShape(.rect)
@@ -100,13 +103,27 @@ struct AudiobookHistoryList: View {
         }
     }
 
-    /// "2:41 PM" today, "Mon 2:41 PM" this week, "Oct 12" before.
-    private static func when(_ date: Date) -> String {
+    /// "Just now", "12 min. ago" within the hour, "2:41 PM" earlier today,
+    /// "Yesterday 10:08 PM", "Mon 2:41 PM" this week, "Oct 12" before.
+    /// Past the hour the clock reads better: pauses minutes apart would all
+    /// read "2 hr. ago".
+    private static func when(_ date: Date, now: Date) -> String {
         let calendar = Calendar.current
-        if calendar.isDateInToday(date) {
-            return date.formatted(.dateTime.hour().minute())
+        let elapsed = now.timeIntervalSince(date)
+        if elapsed < 60 {
+            return String(localized: "Just now")
         }
-        if let days = calendar.dateComponents([.day], from: date, to: .now).day, days < 7 {
+        if elapsed < 60 * 60 {
+            return date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated))
+        }
+        let time = date.formatted(.dateTime.hour().minute())
+        if calendar.isDateInToday(date) {
+            return time
+        }
+        if calendar.isDateInYesterday(date) {
+            return String(localized: "Yesterday \(time)")
+        }
+        if let days = calendar.dateComponents([.day], from: date, to: now).day, days < 7 {
             return date.formatted(.dateTime.weekday(.abbreviated).hour().minute())
         }
         return date.formatted(.dateTime.month(.abbreviated).day())
