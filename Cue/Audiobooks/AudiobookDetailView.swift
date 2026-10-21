@@ -438,7 +438,7 @@ private struct AudiobookPlaceChapter: View {
 /// layout of the text to another (a changing `lineLimit` re-wraps it
 /// mid-animation); as a geometry group it reaches the page as a single
 /// change of size, which the rows below follow in step.
-private struct AudiobookSummary: View {
+struct AudiobookSummary: View {
     let text: String
 
     @State private var isExpanded = false
