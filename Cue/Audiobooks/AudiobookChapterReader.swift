@@ -11,8 +11,8 @@ import OSLog
 ///
 /// What a file gave is kept in Caches (`AudiobookChapters-2.json`), so a
 /// book opened again doesn't fetch them again, and so are the marks a
-/// server listed (`keepListed`). A file that had none is kept for a day
-/// (`noneLifetime`), then read again. Each read logs what the
+/// server listed (`keepListed`), by `ChapterMarkCache`. A file that had
+/// none is believed for a day, then read again. Each read logs what the
 /// file holds under the `audiobooks` category.
 @MainActor
 enum AudiobookChapterReader {
@@ -22,9 +22,6 @@ enum AudiobookChapterReader {
 
     /// How long one file gets before it counts as having none.
     static let timeout: Duration = .seconds(12)
-
-    /// How long "none" is believed before the file is read again.
-    static let noneLifetime: TimeInterval = 24 * 60 * 60
 
     private nonisolated static let log = Logger(subsystem: "dance.cue", category: "audiobooks")
 
@@ -38,7 +35,7 @@ enum AudiobookChapterReader {
         var found: [String: [AudiobookChapterMark]] = [:]
         var toRead: [(key: String, url: URL)] = []
         for file in files {
-            if let cached = cached(file.key) {
+            if let cached = await ChapterMarkCache.shared.marks(for: file.key) {
                 if !cached.isEmpty { found[file.key] = cached }
             } else if let url = file.url {
                 toRead.append((key: file.key, url: url))
@@ -58,14 +55,15 @@ enum AudiobookChapterReader {
             }
             return read
         }
+        // A file that timed out or failed (nil) is tried again next time;
+        // one read with no marks is kept as none.
+        var kept: [String: [AudiobookChapterMark]] = [:]
         for file in read {
-            // A file that timed out or failed (nil) is tried again next
-            // time; one read with no marks is kept as none.
             guard let marks = file.marks else { continue }
-            cache[file.key] = Entry(marks: marks)
+            kept[file.key] = marks
             if !marks.isEmpty { found[file.key] = marks }
         }
-        save()
+        await ChapterMarkCache.shared.keep(kept)
         return found
     }
 
@@ -73,18 +71,13 @@ enum AudiobookChapterReader {
     /// a read that won't stop when cancelled doesn't hold the book up.
     private static func readWithTimeout(_ url: URL) async -> [AudiobookChapterMark]? {
         let reading = Task.detached { await read(url) }
-        let answer = FirstAnswer<[AudiobookChapterMark]?>()
-        return await withCheckedContinuation { continuation in
-            answer.continuation = continuation
-            Task { answer.give(await reading.value) }
-            Task {
-                try? await Task.sleep(for: timeout)
-                guard answer.continuation != nil else { return }
-                log.error("chapters: \(url.lastPathComponent, privacy: .public) timed out")
-                reading.cancel()
-                answer.give(nil)
-            }
+        // Nil within: the read is still going (a nil read is one that failed).
+        guard let marks = await reading.value(within: timeout) else {
+            log.error("chapters: \(url.lastPathComponent, privacy: .public) timed out")
+            reading.cancel()
+            return nil
         }
+        return marks
     }
 
     /// The file's chapters in the listener's languages, else in each
@@ -161,7 +154,7 @@ enum AudiobookChapterReader {
         lookup: () async -> AudnexusChapters?
     ) async -> AudibleAnswer {
         let key = "audnexus:\(asin):\(Int(duration.rounded()))"
-        if let cached = cached(key) {
+        if let cached = await ChapterMarkCache.shared.marks(for: key) {
             guard !cached.isEmpty else { return .noFit }
             return .fitted(.from(files: [(title: "", marks: cached)], timeline: AudiobookTimeline(partDurations: [duration])))
         }
@@ -176,8 +169,7 @@ enum AudiobookChapterReader {
             let reason = answer.error ?? ""
             log.notice("chapters: Audible's for \(asin, privacy: .public) don't fit: \(count) chapters over \(runtime) s, the book \(Int(duration)) s \(reason, privacy: .public)")
         }
-        cache[key] = Entry(marks: fitted.map { AudiobookChapterMark(title: $0.title, start: $0.start, end: $0.end) })
-        save()
+        await ChapterMarkCache.shared.keep([key: fitted.map { AudiobookChapterMark(title: $0.title, start: $0.start, end: $0.end) }])
         return fitted.isEmpty ? .noFit : .fitted(fitted)
     }
 
@@ -191,7 +183,7 @@ enum AudiobookChapterReader {
         let region = AudibleCatalog.region()
         let query = AudibleCatalog.searchTitle(title)
         let key = "audible-search:\(region):\(query.lowercased()):\(author?.lowercased() ?? ""):\(Int(duration.rounded()))"
-        if let cached = cached(key) {
+        if let cached = await ChapterMarkCache.shared.marks(for: key) {
             guard !cached.isEmpty else { return nil }
             return .from(files: [(title: "", marks: cached)], timeline: AudiobookTimeline(partDurations: [duration]))
         }
@@ -219,8 +211,7 @@ enum AudiobookChapterReader {
             log.notice("chapters: no edition of \(query, privacy: .public) on Audible fits \(Int(duration)) s (\(products.count) found, \(editions.count) about as long\(unanswered ? ", some unanswered" : "", privacy: .public))")
             guard !unanswered else { return nil }
         }
-        cache[key] = Entry(marks: (found ?? []).map { AudiobookChapterMark(title: $0.title, start: $0.start, end: $0.end) })
-        save()
+        await ChapterMarkCache.shared.keep([key: (found ?? []).map { AudiobookChapterMark(title: $0.title, start: $0.start, end: $0.end) }])
         return found
     }
 
@@ -229,23 +220,30 @@ enum AudiobookChapterReader {
     /// The marks kept for a file by `key`, a server's or the file's own;
     /// nil for none. A file's marks change only with the file, and its key
     /// with it, so they're asked for once.
-    static func keptMarks(_ key: String) -> [AudiobookChapterMark]? {
-        guard let entry = cache[key], !entry.marks.isEmpty else { return nil }
-        return entry.marks
+    static func keptMarks(_ key: String) async -> [AudiobookChapterMark]? {
+        guard let marks = await ChapterMarkCache.shared.marks(for: key), !marks.isEmpty else { return nil }
+        return marks
     }
 
     /// Keeps marks a server listed, by each file's key, beside those read
     /// from files.
-    static func keepListed(_ marks: [String: [AudiobookChapterMark]]) {
-        let found = marks.filter { !$0.value.isEmpty }
-        guard !found.isEmpty else { return }
-        for (key, marks) in found {
-            cache[key] = Entry(marks: marks)
-        }
-        save()
+    static func keepListed(_ marks: [String: [AudiobookChapterMark]]) async {
+        await ChapterMarkCache.shared.keep(marks.filter { !$0.value.isEmpty })
     }
+}
 
-    // MARK: - Cache
+/// The chapter marks read from each file or listed by its server, and
+/// Audible's chapters for each edition, by key, in Caches
+/// (`AudiobookChapters-2.json`; a new name drops what an earlier reader
+/// kept, "none"s it may have got wrong included). An actor: it reads its
+/// file the first time it's asked, and writes it after each change, both
+/// off the main thread and in order.
+private actor ChapterMarkCache {
+    static let shared = ChapterMarkCache()
+
+    /// How long "none" is believed before the file is read again.
+    private static let noneLifetime: TimeInterval = 24 * 60 * 60
+    private static let fileName = "AudiobookChapters-2.json"
 
     /// What was read, and when: "none" is believed only for a while.
     private struct Entry: Codable, Sendable {
@@ -253,51 +251,22 @@ enum AudiobookChapterReader {
         var readAt: Date = .now
     }
 
-    private static var cache: [String: Entry] = load()
+    private lazy var entries = CachesWriter.read([String: Entry].self, from: Self.fileName) ?? [:]
 
-    /// The marks kept for `key`; nil when there are none kept, or "none"
-    /// has gone stale.
-    private static func cached(_ key: String) -> [AudiobookChapterMark]? {
-        guard let entry = cache[key] else { return nil }
-        if entry.marks.isEmpty, Date.now.timeIntervalSince(entry.readAt) > noneLifetime { return nil }
+    /// The marks kept for `key`, empty for "none"; nil when nothing's
+    /// kept, or "none" has gone stale.
+    func marks(for key: String) -> [AudiobookChapterMark]? {
+        guard let entry = entries[key] else { return nil }
+        if entry.marks.isEmpty, Date.now.timeIntervalSince(entry.readAt) > Self.noneLifetime { return nil }
         return entry.marks
     }
 
-    /// A new name drops what an earlier reader kept, "none"s it may have
-    /// got wrong included.
-    private static var cacheURL: URL? {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
-            .appending(path: "AudiobookChapters-2.json")
-    }
-
-    private static func load() -> [String: Entry] {
-        guard let url = cacheURL,
-              let data = try? Data(contentsOf: url),
-              let cache = try? JSONDecoder().decode([String: Entry].self, from: data) else { return [:] }
-        return cache
-    }
-
-    /// Encoded and written off the main thread: the cache holds every
-    /// book's marks, and a book opened can add to it.
-    private static func save() {
-        guard let url = cacheURL else { return }
-        let snapshot = cache
-        io.async {
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
-            try? data.write(to: url, options: .atomic)
+    /// Keeps each key's marks, an empty list as "none".
+    func keep(_ marks: [String: [AudiobookChapterMark]]) async {
+        guard !marks.isEmpty else { return }
+        for (key, found) in marks {
+            entries[key] = Entry(marks: found)
         }
-    }
-
-    private static let io = DispatchQueue(label: "dance.cue.audiobookChapters", qos: .utility)
-}
-
-/// Resumes its continuation with the first value it's given.
-@MainActor
-private final class FirstAnswer<Value> {
-    var continuation: CheckedContinuation<Value, Never>?
-
-    func give(_ value: Value) {
-        continuation?.resume(returning: value)
-        continuation = nil
+        await CachesWriter.shared.write(entries, to: Self.fileName)
     }
 }

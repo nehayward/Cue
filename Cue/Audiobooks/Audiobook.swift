@@ -9,7 +9,7 @@ import SonosKit
 /// `.track`s the player plays. Everything the listener sees — the position,
 /// the chapter, what's left — is in book time (`timeline`), which the
 /// player's file and offset map onto.
-struct Audiobook: Equatable, Codable {
+struct Audiobook: Equatable, Codable, Sendable {
     let book: PlayableContent
     var parts: [PlayableContent]
     let timeline: AudiobookTimeline

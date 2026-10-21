@@ -12,7 +12,8 @@ import SwiftUI
 struct AudiobookDetailView: View {
     let book: PlayableContent
 
-    @State private var audiobook: Audiobook?
+    /// The book as its server read it as the page opened.
+    @State private var loaded: Audiobook?
     @State private var failed = false
     /// The list under the summary shows the book's place history rather
     /// than its chapters.
@@ -21,11 +22,10 @@ struct AudiobookDetailView: View {
     @State private var player = AudiobookPlayer.shared
     @State private var store = AudiobookProgressStore.shared
 
-    init(book: PlayableContent) {
-        self.book = book
-        // The book as it last read, from the first frame: the page opens
-        // whole rather than filling in. The server's read replaces it.
-        _audiobook = State(initialValue: AudiobookLibrary.lastRead(of: book))
+    /// The book as the server read it, else as it last read, which is there
+    /// from the first frame: the page opens whole rather than filling in.
+    private var audiobook: Audiobook? {
+        loaded ?? AudiobookLibrary.lastRead(of: book)
     }
 
     private var shown: PlayableContent { audiobook?.book ?? book }
@@ -102,7 +102,7 @@ struct AudiobookDetailView: View {
                     if let audiobook {
                         let hasChapters = audiobook.chapters.count > 1
                         if hasChapters || !history.places(for: shown).isEmpty {
-                            Group {
+                            VStack(alignment: .leading) {
                                 if hasChapters {
                                     Picker("Show", selection: $showsHistory) {
                                         Text("Chapters").tag(false)
@@ -193,29 +193,29 @@ struct AudiobookDetailView: View {
                     .font(.title3.bold())
                     .fontDesign(.serif)
                     .multilineTextAlignment(.center)
-                Group {
-                    // The author opens their page: their other books.
-                    if !shown.subtitle.isEmpty {
-                        NavigationLink(value: RouterDestination.artistDetail(content: shown, group: nil)) {
-                            Text(shown.subtitle)
-                                .font(.body)
-                                .foregroundStyle(.tint)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityHint("Shows their books")
+                // The author opens their page: their other books.
+                if !shown.subtitle.isEmpty {
+                    NavigationLink(value: RouterDestination.artistDetail(content: shown, group: nil)) {
+                        Text(shown.subtitle)
+                            .font(.body)
+                            .fontDesign(.rounded)
+                            .foregroundStyle(.tint)
                     }
-                    if let narrator = audiobook?.narrator {
-                        Text("Narrated by \(narrator)")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    if let detail = detailLine {
-                        Text(detail)
-                            .font(.footnote)
-                            .foregroundStyle(.tertiary)
-                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Shows their books")
                 }
-                .fontDesign(.rounded)
+                if let narrator = audiobook?.narrator {
+                    Text("Narrated by \(narrator)")
+                        .font(.footnote)
+                        .fontDesign(.rounded)
+                        .foregroundStyle(.secondary)
+                }
+                if let detail = detailLine {
+                    Text(detail)
+                        .font(.footnote)
+                        .fontDesign(.rounded)
+                        .foregroundStyle(.tertiary)
+                }
             }
             .frame(maxWidth: .infinity)
         }
@@ -240,7 +240,7 @@ struct AudiobookDetailView: View {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 Task { await player.play(shown) }
             } label: {
-                Group {
+                VStack {
                     if player.isLoading {
                         ProgressView()
                     } else {
@@ -362,7 +362,7 @@ struct AudiobookDetailView: View {
             return
         }
         store.recordServerProgress(of: loaded)
-        audiobook = loaded
+        self.loaded = loaded
     }
 }
 
