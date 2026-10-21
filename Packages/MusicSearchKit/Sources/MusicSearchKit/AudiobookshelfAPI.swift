@@ -261,6 +261,20 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         return (result?.book ?? []).map(\.libraryItem).filter(\.hasAudio)
     }
 
+    /// The authors in a library whose names match `query`.
+    public func authors(libraryID: String, query: String) async -> [AudiobookshelfAuthor] {
+        let result: AudiobookshelfSearchResult? = await get("/api/libraries/\(libraryID)/search", query: [
+            URLQueryItem(name: "q", value: query),
+            URLQueryItem(name: "limit", value: "10")
+        ])
+        return result?.authors ?? []
+    }
+
+    /// An author with their books.
+    public func author(id: String) async -> AudiobookshelfAuthor? {
+        await get("/api/authors/\(id)", query: [URLQueryItem(name: "include", value: "items")])
+    }
+
     /// Where the listener is in every book, by item id, for the shelves'
     /// progress bars (list pages carry none).
     public func progressByItem() async -> [String: AudiobookshelfMediaProgress]? {
@@ -400,6 +414,11 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
     public static func coverURL(itemID: String, width: Int? = artworkSize) -> URL? {
         guard let base = storedServerURL else { return nil }
         return AudiobookshelfURLs.coverURL(base: base, itemID: itemID, width: width)
+    }
+
+    public static func authorImageURL(authorID: String, width: Int? = artworkSize) -> URL? {
+        guard let base = storedServerURL else { return nil }
+        return AudiobookshelfURLs.authorImageURL(base: base, authorID: authorID, width: width)
     }
 
     // MARK: - Request plumbing

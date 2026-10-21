@@ -137,4 +137,17 @@ final class AudiobookshelfBrowseService {
         guard let library = selectedLibrary else { return [] }
         return await api.search(libraryID: library.id, query: query).map(\.toPlayable)
     }
+
+    /// The author called `name` in the selected library: their books, and
+    /// their picture when the server has one. Nil when there's no such
+    /// author.
+    func author(named name: String) async -> (books: [PlayableContent], image: URL?)? {
+        guard let library = selectedLibrary else { return nil }
+        let match = await api.authors(libraryID: library.id, query: name)
+            .first { $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }
+        guard let match, let author = await api.author(id: match.id) else { return nil }
+        let books = (author.libraryItems ?? []).filter(\.hasAudio).map(\.toPlayable)
+        let image = author.imagePath == nil ? nil : AudiobookshelfAPI.authorImageURL(authorID: author.id)
+        return (books, image)
+    }
 }

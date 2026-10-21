@@ -497,38 +497,36 @@ struct AudiobookChapterRowLabel: View {
 /// The loaded book's chapters, as a sheet from the player's chapter line
 /// and its menu: a long book's were a menu taller than the screen. It opens
 /// on the chapter playing and follows it; a chapter picked plays from its
-/// start and the sheet goes. Previous and Next Chapter sit under the list
-/// and leave it open. Its other tab is the book's place history.
+/// start and the sheet goes. Its other page, a swipe or the switch on top
+/// away, is the book's place history.
 struct AudiobookChaptersSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var player = AudiobookPlayer.shared
-    @State private var showsHistory = false
+    @State private var page = Page.chapters
+
+    private enum Page: Hashable {
+        case chapters
+        case history
+    }
 
     var body: some View {
         let chapters = player.current?.chapters ?? []
         NavigationStack {
-            Group {
-                if showsHistory, let book = player.current {
-                    ScrollView {
-                        AudiobookHistoryList(book: book.book, audiobook: book) { dismiss() }
-                            .padding(.horizontal, 20)
-                    }
-                } else {
-                    chapterList(chapters)
-                }
+            // Side by side: a swipe moves between them, as the switch does.
+            TabView(selection: $page) {
+                chapterList(chapters)
+                    .tag(Page.chapters)
+                historyPage
+                    .tag(Page.history)
             }
-            .safeAreaInset(edge: .bottom) {
-                if !showsHistory {
-                    chapterButtons
-                }
-            }
-            .navigationTitle(showsHistory ? "History" : "Chapters")
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .navigationTitle(page == .history ? "History" : "Chapters")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Picker("Show", selection: $showsHistory) {
-                        Text("Chapters").tag(false)
-                        Text("History").tag(true)
+                    Picker("Show", selection: $page.animation()) {
+                        Text("Chapters").tag(Page.chapters)
+                        Text("History").tag(Page.history)
                     }
                     .pickerStyle(.segmented)
                     .fixedSize()
@@ -543,6 +541,18 @@ struct AudiobookChaptersSheet: View {
             }
         }
         .fontDesign(.rounded)
+    }
+
+    @ViewBuilder
+    private var historyPage: some View {
+        if let book = player.current {
+            ScrollView {
+                AudiobookHistoryList(book: book.book, audiobook: book) { dismiss() }
+                    .padding(.horizontal, 20)
+            }
+        } else {
+            Color.clear
+        }
     }
 
     private func chapterList(_ chapters: [AudiobookChapter]) -> some View {
@@ -580,31 +590,6 @@ struct AudiobookChaptersSheet: View {
                 }
             }
         }
-    }
-
-    private var chapterButtons: some View {
-        HStack(spacing: 12) {
-            Button {
-                HapticManager.shared.fireHaptic(.selection)
-                Task { await player.skipToPreviousChapter() }
-            } label: {
-                Label("Previous", systemImage: "backward.end.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            Button {
-                HapticManager.shared.fireHaptic(.selection)
-                Task { await player.skipToNextChapter() }
-            } label: {
-                Label("Next", systemImage: "forward.end.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .disabled(player.nextChapter == nil)
-        }
-        .glassButton()
-        .foregroundStyle(.primary)
-        .bold()
-        .padding(.horizontal, 20)
-        .padding(.bottom, 8)
     }
 }
 

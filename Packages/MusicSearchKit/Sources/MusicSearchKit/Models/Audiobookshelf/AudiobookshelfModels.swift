@@ -62,7 +62,21 @@ public struct AudiobookshelfSearchResult: Decodable, Sendable {
     public struct Match: Decodable, Sendable {
         public let libraryItem: AudiobookshelfItem
     }
+    /// Books matched by their title (an author's name finds the author,
+    /// not their books).
     public let book: [Match]?
+    public let authors: [AudiobookshelfAuthor]?
+}
+
+/// An author in a library: their name and picture, and with
+/// `include=items`, their books.
+public struct AudiobookshelfAuthor: Decodable, Sendable, Identifiable {
+    public let id: String
+    public let name: String
+    public let description: String?
+    /// Where the server keeps their picture; nil for none.
+    public let imagePath: String?
+    public let libraryItems: [AudiobookshelfItem]?
 }
 
 /// A library item: a book (or a podcast, which Cue leaves out).

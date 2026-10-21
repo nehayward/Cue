@@ -879,11 +879,16 @@ extension PlexAudiobookItem {
                 artistID: parentRatingKey,
                 album: title,
                 albumID: ratingKey,
-                albumYear: nil,
+                albumYear: bookYear(year),
                 librarySectionID: librarySectionID.map(String.init)
             )
         )
     }
+}
+
+/// A book's year as albums carry theirs: its first day.
+private func bookYear(_ year: Int?) -> Date? {
+    year.flatMap { DateComponents(calendar: Calendar(identifier: .gregorian), year: $0, month: 1, day: 1).date }
 }
 
 extension PlexUserPlaylist {
@@ -1101,7 +1106,8 @@ extension AudiobookshelfItem {
                 popularity: nil,
                 artist: bookAuthor,
                 album: bookTitle,
-                albumID: id
+                albumID: id,
+                albumYear: bookYear(media?.metadata?.publishedYear.flatMap { Int($0) })
             )
         )
     }

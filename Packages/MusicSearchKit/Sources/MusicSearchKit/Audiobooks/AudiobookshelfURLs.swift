@@ -71,6 +71,15 @@ public enum AudiobookshelfURLs {
         return url(base: base, path: "/api/items/\(itemID)/cover", query: query, fileExtension: nil)
     }
 
+    /// An author's picture, as a book's cover is asked for.
+    public static func authorImageURL(base: URL, authorID: String, width: Int? = nil) -> URL? {
+        var query = [URLQueryItem(name: "format", value: "jpeg")]
+        if let width {
+            query.append(URLQueryItem(name: "width", value: "\(width)"))
+        }
+        return url(base: base, path: "/api/authors/\(authorID)/image", query: query, fileExtension: nil)
+    }
+
     /// The file a stream URL Cue built plays, read back off the URL — for a
     /// speaker's queue, which hands back only the URL. A session's track
     /// names its item through the session (`itemForSession`) and its index

@@ -185,10 +185,15 @@ struct AudiobookDetailView: View {
                     .fontDesign(.serif)
                     .multilineTextAlignment(.center)
                 Group {
+                    // The author opens their page: their other books.
                     if !shown.subtitle.isEmpty {
-                        Text(shown.subtitle)
-                            .font(.body)
-                            .foregroundStyle(.secondary)
+                        NavigationLink(value: RouterDestination.artistDetail(content: shown, group: nil)) {
+                            Text(shown.subtitle)
+                                .font(.body)
+                                .foregroundStyle(.tint)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Shows their books")
                     }
                     if let narrator = audiobook?.narrator {
                         Text("Narrated by \(narrator)")
