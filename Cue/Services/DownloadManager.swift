@@ -908,10 +908,38 @@ final class DownloadManager {
             self.tokenRenewal = nil
             guard renewed else {
                 Self.log.error("Couldn't renew the Audiobookshelf token for book downloads")
+                if AudiobookshelfAPI.shared.isConfigured {
+                    // No answer (the network, the server): asked again in a
+                    // while, or the files would wait for some other
+                    // download to come along.
+                    try? await Task.sleep(for: Self.renewalRetryDelay)
+                    self.admit()
+                } else {
+                    // The login is over: they can't start until it's made
+                    // again, and they say so rather than wait unseen.
+                    self.failBookFilesAwaitingToken()
+                }
                 return
             }
             self.admit()
         }
+    }
+
+    private static let renewalRetryDelay: Duration = .seconds(60)
+
+    /// Marks the Audiobookshelf book files still in line failed, for a
+    /// login the server ended: Retry tries them again once signed in.
+    private func failBookFilesAwaitingToken() {
+        var updated = items
+        for (key, entry) in items where entry.state == .queued && entry.needsAudiobookshelfToken {
+            var failed = entry
+            failed.state = .failed
+            failed.error = "Sign in to Audiobookshelf again to download this book."
+            updated[key] = failed
+        }
+        guard updated != items else { return }
+        items = updated
+        scheduleSave()
     }
 
     /// Plex ends a transcode when the same client starts another, so each

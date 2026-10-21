@@ -55,10 +55,13 @@ public struct PlexTag: Codable, Sendable, Hashable {
 public struct PlexAudiobookContainer: Codable, Sendable {
     public let size: Int?
     public let totalSize: Int?
+    /// The library the items are in, for a list of one library's (an
+    /// artist's albums), whose items may not each say.
+    public let librarySectionID: Int?
     public let metadata: [PlexAudiobookItem]?
 
     enum CodingKeys: String, CodingKey {
-        case size, totalSize
+        case size, totalSize, librarySectionID
         case metadata = "Metadata"
     }
 }

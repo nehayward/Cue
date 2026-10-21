@@ -20,6 +20,20 @@ enum AudiobookLibrary {
         return books.compactMap(\.toPlayable)
     }
 
+    /// The books of a Plex author, by their artist's rating key: the
+    /// artist's albums when it's in a library kept for books, else every
+    /// book read and theirs kept (`isTheirs`), for an author whose books
+    /// are genre-tagged albums in the music library.
+    static func plexBooks(byArtist artistKey: String, isTheirs: (PlayableContent) -> Bool) async -> [PlayableContent] {
+        if let books = await PlexAPI.shared.audiobooks(byArtist: artistKey) {
+            log.info("plex author \(artistKey, privacy: .public): \(books.count) books from the artist's albums")
+            return books.compactMap(\.toPlayable)
+        }
+        let books = (await plexBooks() ?? []).filter(isTheirs)
+        log.info("plex author \(artistKey, privacy: .public): not in a book library; \(books.count) books from the whole shelf")
+        return books
+    }
+
     /// The Plex shelf's rows: every book, with what's left of each in its
     /// subtitle. Plex's own reading of where each book is comes only with
     /// the book's files, so this is this device's.
@@ -117,7 +131,12 @@ enum AudiobookLibrary {
     /// the read kept in Caches, else the copy kept with its download. Nil
     /// for a book never read on this device.
     static func lastRead(of book: PlayableContent) -> Audiobook? {
-        AudiobookReadCache.read(of: book) ?? AudiobookDownloads.copy(of: book)
+        if let read = AudiobookReadCache.read(of: book) { return read }
+        // Kept in memory once read: a page asks each time it's made, and
+        // the copy is a file to decode.
+        guard let copy = AudiobookDownloads.copy(of: book) else { return nil }
+        AudiobookReadCache.remember(copy)
+        return copy
     }
 
     /// Tells an Audiobookshelf server where this device has the listener
@@ -372,6 +391,9 @@ enum AudiobookLibrary {
     /// Marks the book finished, or not started, here and on its server.
     static func markFinished(_ audiobook: Audiobook, _ finished: Bool) async {
         let store = AudiobookProgressStore.shared
+        // The book playing: stopped, and what was heard kept first, or its
+        // next reading would undo the mark.
+        await AudiobookPlayer.shared.noteMarked(audiobook.book)
         // Where it was stays in the book's history, so a mark made by
         // mistake loses no place.
         if let reading = store.progress(for: audiobook.book), !reading.isFinished, reading.position > 0 {

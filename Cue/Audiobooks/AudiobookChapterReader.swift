@@ -248,7 +248,7 @@ enum AudiobookChapterReader {
     // MARK: - Cache
 
     /// What was read, and when: "none" is believed only for a while.
-    private struct Entry: Codable {
+    private struct Entry: Codable, Sendable {
         var marks: [AudiobookChapterMark]
         var readAt: Date = .now
     }
@@ -277,10 +277,18 @@ enum AudiobookChapterReader {
         return cache
     }
 
+    /// Encoded and written off the main thread: the cache holds every
+    /// book's marks, and a book opened can add to it.
     private static func save() {
-        guard let url = cacheURL, let data = try? JSONEncoder().encode(cache) else { return }
-        try? data.write(to: url, options: .atomic)
+        guard let url = cacheURL else { return }
+        let snapshot = cache
+        io.async {
+            guard let data = try? JSONEncoder().encode(snapshot) else { return }
+            try? data.write(to: url, options: .atomic)
+        }
     }
+
+    private static let io = DispatchQueue(label: "dance.cue.audiobookChapters", qos: .utility)
 }
 
 /// Resumes its continuation with the first value it's given.

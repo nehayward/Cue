@@ -149,6 +149,27 @@ extension PlexAPI {
         return albums
     }
 
+    /// One author's books in a library kept for books: their artist's
+    /// albums (`artistKey`, a book's `parentRatingKey`), in one request
+    /// rather than the whole shelf read to pick theirs out. Nil when the
+    /// server couldn't be read, or the artist is in a library that isn't
+    /// for books (the music library, where only albums under an audiobook
+    /// genre are books, which the artist's list doesn't say): the caller
+    /// reads the shelf then.
+    public func audiobooks(byArtist artistKey: String) async -> [PlexAudiobookItem]? {
+        guard let server = await getPlexServer(),
+              let token = server.accessToken,
+              let clientID = server.clientIdentifier,
+              let base = getBaseURL(for: server) else { return nil }
+        let url = base.appending(path: "/library/metadata/\(artistKey)/children")
+        guard let container: PlexContainer<PlexAudiobookContainer> = await loadAuthorized(url) else { return nil }
+        let albums = container.mediaContainer.metadata ?? []
+        let bookLibraries = Set(await audiobookLibraries().map(\.key))
+        let section = (albums.first?.librarySectionID ?? container.mediaContainer.librarySectionID).map(String.init)
+        guard let section, bookLibraries.contains(section) else { return nil }
+        return albums.map { decorated($0, base: base, token: token, clientID: clientID) }
+    }
+
     /// One book by its rating key, for a book opened from history or a
     /// link rather than the shelf.
     public func audiobook(ratingKey: String) async -> PlexAudiobookItem? {
