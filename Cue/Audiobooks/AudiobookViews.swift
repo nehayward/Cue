@@ -461,20 +461,23 @@ extension LocalPlaybackService.SetAsideQueue {
 }
 
 /// A chapter's row: a bookmark, its title, where it starts and how long it
-/// runs. `isHere` marks the listener's chapter, in the accent. The book's
-/// page and the chapters sheet both list them so.
+/// runs. `isHere` marks the listener's chapter, in the accent; `isDone` one
+/// before their place, its bookmark filled and its title dimmed, so the
+/// list reads as how far the book has got. The book's page and the
+/// chapters sheet both list them so.
 struct AudiobookChapterRowLabel: View {
     let chapter: AudiobookChapter
     let isHere: Bool
+    var isDone = false
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: isHere ? "bookmark.fill" : "bookmark")
-                .foregroundStyle(isHere ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+            Image(systemName: isHere || isDone ? "bookmark.fill" : "bookmark")
+                .foregroundStyle(isHere ? AnyShapeStyle(.primary) : isDone ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 2) {
                 Text(chapter.title)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(isDone ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                     .fontWeight(isHere ? .semibold : .regular)
                 Text(AudiobookFormat.clock(chapter.start))
                     .font(.caption)
@@ -559,14 +562,15 @@ struct AudiobookChaptersSheet: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
+                    let here = player.currentChapter
                     ForEach(chapters) { chapter in
-                        let isHere = chapter.id == player.currentChapter?.id
+                        let isHere = chapter.id == here?.id
                         Button {
                             HapticManager.shared.fireHaptic(.selection)
                             dismiss()
                             Task { await player.play(chapter: chapter) }
                         } label: {
-                            AudiobookChapterRowLabel(chapter: chapter, isHere: isHere)
+                            AudiobookChapterRowLabel(chapter: chapter, isHere: isHere, isDone: here.map { chapter.start < $0.start } ?? false)
                         }
                         .buttonStyle(.plain)
                         .accessibilityAddTraits(isHere ? .isSelected : [])

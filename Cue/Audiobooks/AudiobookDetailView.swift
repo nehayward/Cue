@@ -113,8 +113,15 @@ struct AudiobookDetailView: View {
                                 AudiobookHistoryList(book: shown, audiobook: audiobook)
                             } else {
                                 let here = placeChapter
+                                let isFinished = progress?.isFinished == true
                                 ForEach(audiobook.chapters) { chapter in
-                                    chapterRow(chapter, in: audiobook, isHere: chapter.id == here?.id)
+                                    chapterRow(
+                                        chapter,
+                                        in: audiobook,
+                                        isHere: chapter.id == here?.id,
+                                        // Before the place, or all of a book finished.
+                                        isDone: isFinished || here.map { chapter.start < $0.start } == true
+                                    )
                                         .id(chapter.id)
                                     if chapter.id != audiobook.chapters.last?.id {
                                         Divider()
@@ -324,8 +331,9 @@ struct AudiobookDetailView: View {
     // MARK: - Chapters
 
     /// A chapter, playing the book from its start at a tap. `isHere` marks
-    /// the one the listener is in, playing or not.
-    private func chapterRow(_ chapter: AudiobookChapter, in audiobook: Audiobook, isHere: Bool) -> some View {
+    /// the one the listener is in, playing or not, and `isDone` those
+    /// before it.
+    private func chapterRow(_ chapter: AudiobookChapter, in audiobook: Audiobook, isHere: Bool, isDone: Bool) -> some View {
         Button {
             HapticManager.shared.fireHaptic(.selection)
             Task {
@@ -336,10 +344,11 @@ struct AudiobookDetailView: View {
                 }
             }
         } label: {
-            AudiobookChapterRowLabel(chapter: chapter, isHere: isHere)
+            AudiobookChapterRowLabel(chapter: chapter, isHere: isHere, isDone: isDone)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isHere ? .isSelected : [])
+        .accessibilityValue(isDone ? "Listened" : "")
     }
 
     // MARK: - Loading
