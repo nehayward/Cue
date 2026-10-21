@@ -16,15 +16,15 @@ struct AudiobookChapterRowLabel: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: isHere || isDone ? "bookmark.fill" : "bookmark")
-                .foregroundStyle(isHere ? AnyShapeStyle(.primary) : isDone ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                .foregroundStyle(.primary.opacity(isHere ? 1 : isDone ? 0.6 : 0.35))
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 2) {
                 Text(chapter.title)
-                    .foregroundStyle(isDone ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+                    .foregroundStyle(.primary.opacity(isDone ? 0.6 : 1))
                     .fontWeight(isHere ? .semibold : .regular)
                 Text(AudiobookFormat.clock(chapter.start))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.6))
                     .monospacedDigit()
             }
             Spacer()
@@ -32,10 +32,11 @@ struct AudiobookChapterRowLabel: View {
             // title.
             Text(AudiobookFormat.duration(chapter.duration))
                 .font(.caption)
-                .foregroundStyle(isDone ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary.opacity(0.8)))
+                .foregroundStyle(.primary.opacity(isDone ? 0.6 : 0.8))
         }
-        // The listener's chapter is the accent throughout: its levels
-        // (primary, secondary) are the accent's.
+        // The listener's chapter is the accent throughout: its primary is
+        // the accent. Levels are opacities of primary, never `.secondary`
+        // or `.tertiary`, which flicker as the glass sheet changes.
         .foregroundStyle(isHere ? AnyShapeStyle(.tint) : AnyShapeStyle(.foreground))
         .padding(.vertical, 10)
         .contentShape(.rect)
