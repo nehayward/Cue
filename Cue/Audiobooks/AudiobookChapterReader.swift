@@ -10,8 +10,9 @@ import OSLog
 /// range requests, not the whole file.
 ///
 /// What a file gave is kept in Caches (`AudiobookChapters-2.json`), so a
-/// book opened again doesn't fetch them again. A file that had none is kept
-/// for a day (`noneLifetime`), then read again. Each read logs what the
+/// book opened again doesn't fetch them again, and so are the marks a
+/// server listed (`keepListed`). A file that had none is kept for a day
+/// (`noneLifetime`), then read again. Each read logs what the
 /// file holds under the `audiobooks` category.
 @MainActor
 enum AudiobookChapterReader {
@@ -221,6 +222,27 @@ enum AudiobookChapterReader {
         cache[key] = Entry(marks: (found ?? []).map { AudiobookChapterMark(title: $0.title, start: $0.start, end: $0.end) })
         save()
         return found
+    }
+
+    // MARK: - Marks a server listed
+
+    /// The marks kept for a file by `key`, a server's or the file's own;
+    /// nil for none. A file's marks change only with the file, and its key
+    /// with it, so they're asked for once.
+    static func keptMarks(_ key: String) -> [AudiobookChapterMark]? {
+        guard let entry = cache[key], !entry.marks.isEmpty else { return nil }
+        return entry.marks
+    }
+
+    /// Keeps marks a server listed, by each file's key, beside those read
+    /// from files.
+    static func keepListed(_ marks: [String: [AudiobookChapterMark]]) {
+        let found = marks.filter { !$0.value.isEmpty }
+        guard !found.isEmpty else { return }
+        for (key, marks) in found {
+            cache[key] = Entry(marks: marks)
+        }
+        save()
     }
 
     // MARK: - Cache

@@ -79,12 +79,6 @@ final class AudiobookPlaceHistory {
         scheduleSave()
     }
 
-    /// Forgets a book's places, for one marked unplayed.
-    func forget(_ book: PlayableContent) {
-        guard places.removeValue(forKey: AudiobookProgressStore.key(for: book)) != nil else { return }
-        scheduleSave()
-    }
-
     private func scheduleSave() {
         saveTask?.cancel()
         saveTask = Task { [weak self] in

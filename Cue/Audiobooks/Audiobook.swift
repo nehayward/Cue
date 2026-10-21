@@ -13,7 +13,7 @@ struct Audiobook: Equatable, Codable {
     let book: PlayableContent
     var parts: [PlayableContent]
     let timeline: AudiobookTimeline
-    let chapters: [AudiobookChapter]
+    var chapters: [AudiobookChapter]
     /// Narrator and the like, for the book's page; nil where the server
     /// doesn't say.
     var narrator: String?

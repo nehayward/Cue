@@ -1454,6 +1454,108 @@ final class LocalPlaybackService {
         try await arm(at: index, from: seconds > 2 ? seconds : nil)
     }
 
+    // MARK: - A queue set aside for a book
+
+    /// The music a book took the player from, to go back to: a book plays
+    /// as its files in the queue, so starting one would lose the album it
+    /// interrupted. `AudiobookPlayer` sets the music aside as a book starts
+    /// on this device, and `returnToSetAsideQueue()` plays it again at the
+    /// same song and spot, or the station that was in front of it. Kept
+    /// beside the queue file through a relaunch; the next book started over
+    /// music replaces it.
+    private(set) var setAsideQueue: SetAsideQueue?
+
+    /// A queue and its state as it was when a book took its place.
+    struct SetAsideQueue: Codable, Equatable {
+        var queue: [PlayableContent]
+        var index: Int
+        /// Seconds into the song that was current: where it was playing,
+        /// or where it waited behind `station`.
+        var position: TimeInterval
+        var repeatMode: RepeatMode
+        var isShuffled: Bool
+        var unshuffled: [PlayableContent]?
+        var origins: [String: PlayableContent]
+        /// The station playing in front of the queue, if one was.
+        var station: PlayableContent?
+
+        /// What it's called: the station, else where the song playing came
+        /// from (the album or playlist), else the song.
+        var title: String {
+            if let station { return station.title }
+            guard let item = queue[safe: index] else { return "" }
+            return origins[item.id]?.title ?? item.title
+        }
+
+        /// The station, else the song that was current.
+        var nowPlaying: PlayableContent? { station ?? queue[safe: index] }
+    }
+
+    /// Sets what's playing aside for a book about to take its place: the
+    /// queue and any station in front of it. Nothing at all leaves nothing
+    /// to go back to.
+    func setQueueAside() {
+        guard isActive else {
+            forgetSetAsideQueue()
+            return
+        }
+        let aside = SetAsideQueue(
+            queue: queue,
+            index: currentIndex,
+            position: station == nil ? progress : (resumePosition ?? 0),
+            repeatMode: repeatMode,
+            isShuffled: isShuffled,
+            unshuffled: unshuffledUpNext,
+            origins: origins,
+            station: station
+        )
+        setAsideQueue = aside
+        LocalQueueStore.save(setAside: aside)
+        Self.log.notice("queue set aside for a book: \(aside.queue.count) songs, at \(aside.index) (\(Int(aside.position)) s)\(aside.station == nil ? "" : ", behind a station", privacy: .public)")
+    }
+
+    private func forgetSetAsideQueue() {
+        guard setAsideQueue != nil else { return }
+        setAsideQueue = nil
+        LocalQueueStore.save(setAside: nil)
+    }
+
+    /// Plays the music set aside again: the queue at the song and spot it
+    /// was left on, with its order, shuffle, repeat and origins, or the
+    /// station that was in front of it, the queue waiting behind. The queue
+    /// is in place before anything plays, so a play that fails leaves the
+    /// music there, paused, rather than lost; one with nothing it can play
+    /// keeps it set aside.
+    func returnToSetAsideQueue() async throws {
+        guard let aside = setAsideQueue else { return }
+        let songs = queueable(aside.queue)
+        guard !songs.isEmpty || aside.station != nil else { throw LocalPlaybackError.nothingPlayable }
+        // The same song, even one queued twice, unless rows were dropped.
+        let index = songs.count == aside.queue.count
+            ? aside.index
+            : aside.queue[safe: aside.index].flatMap { songs.firstIndex(of: $0) } ?? 0
+        Self.log.notice("back to the queue set aside: \(songs.count) songs, at \(index) (\(Int(aside.position)) s)\(aside.station == nil ? "" : ", behind a station", privacy: .public)")
+        forgetSetAsideQueue()
+        // As `play(_:startingAt:from:)` lays a queue out, with the state
+        // it had.
+        origins = aside.origins
+        queue = songs
+        isShuffled = aside.isShuffled
+        unshuffledUpNext = aside.isShuffled ? aside.unshuffled : nil
+        repeatMode = aside.repeatMode
+        resumePosition = nil
+        if let station = aside.station {
+            // The queue waits behind the station at its song and spot:
+            // `playStation` keeps the queue's spot as it finds it.
+            currentIndex = min(index, max(songs.count - 1, 0))
+            progress = aside.position
+            try await playStation(station)
+        } else {
+            try await arm(at: index, from: aside.position > 2 ? aside.position : nil)
+        }
+        savePosition()
+    }
+
     // MARK: - Stations
 
     /// Plays `station` in front of the queue. The queue isn't touched: its
@@ -3139,6 +3241,7 @@ final class LocalPlaybackService {
         defer { isRestoring = false }
         // The station that was playing in front of the queue, if one was.
         let savedStation = LocalQueueStore.loadStation().flatMap { playableStation(in: [$0]) }
+        setAsideQueue = LocalQueueStore.loadSetAside()
         station = savedStation
         guard let saved = LocalQueueStore.load(), !saved.queue.isEmpty else { return }
         // Only what the queue would take today: a row an earlier build let
@@ -3466,6 +3569,30 @@ private enum LocalQueueStore {
         stationURL
             .flatMap { try? Data(contentsOf: $0) }
             .flatMap { try? JSONDecoder().decode(PlayableContent.self, from: $0) }
+    }
+
+    /// The queue a book took the player from (`setAsideQueue`), beside the
+    /// queue file.
+    private static var setAsideURL: URL? {
+        queueURL?.deletingLastPathComponent().appendingPathComponent("LocalQueueSetAside.json")
+    }
+
+    static func loadSetAside() -> LocalPlaybackService.SetAsideQueue? {
+        setAsideURL
+            .flatMap { try? Data(contentsOf: $0) }
+            .flatMap { try? JSONDecoder().decode(LocalPlaybackService.SetAsideQueue.self, from: $0) }
+    }
+
+    /// Written on the same serial queue as the queue file; nil removes it.
+    static func save(setAside: LocalPlaybackService.SetAsideQueue?) {
+        io.async {
+            guard let url = Self.setAsideURL else { return }
+            guard let setAside, let data = try? JSONEncoder().encode(setAside) else {
+                try? FileManager.default.removeItem(at: url)
+                return
+            }
+            try? data.write(to: url, options: .atomic)
+        }
     }
 
     /// Written on the same serial queue as the queue file; nil removes it.

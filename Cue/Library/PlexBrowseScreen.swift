@@ -44,6 +44,8 @@ struct PlexBrowseScreen: View {
 
         NavigationStack(path: $router.path) {
             List {
+                // Above the library, a section of its own.
+                MusicLeftOffSection()
                 if musicSearchService.isPlexAuthorized, musicSearchService.plexServerID != nil {
                     // Artists and Albums still page in from the server, a
                     // hundred rows a request, so the section index is off for

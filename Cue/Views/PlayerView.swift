@@ -1635,6 +1635,13 @@ private struct LocalPlayerMenuView: View {
         Menu {
             if isBook {
                 AudiobookPlayerMenuItems(isOnDevice: true)
+            }
+            // A book and the music it was started over, each one tap from
+            // the other.
+            Section {
+                BookMusicSwitchMenuItems(isBook: isBook)
+            }
+            if isBook {
                 Divider()
             }
             OpenInServiceView(item: song)

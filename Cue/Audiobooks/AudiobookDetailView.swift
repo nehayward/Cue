@@ -63,6 +63,22 @@ struct AudiobookDetailView: View {
                     actions
                         .padding(.top, 20)
 
+                    // The server didn't answer: under the book as it last
+                    // read, a word that it's that; with nothing kept, why
+                    // there's nothing.
+                    if failed {
+                        if audiobook == nil {
+                            unreachableNotice
+                                .padding(.top, 32)
+                        } else {
+                            Label("Couldn't reach \(book.content.service.title). This is the book as it last read.", systemImage: "wifi.exclamationmark")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .fontDesign(.rounded)
+                                .padding(.top, 12)
+                        }
+                    }
+
                     if audiobook?.filesMissing == true {
                         missingFilesNotice
                             .padding(.top, 20)
@@ -119,18 +135,6 @@ struct AudiobookDetailView: View {
                 .padding(.bottom, 24)
             }
         }
-        .overlay {
-            if failed, audiobook == nil {
-                ContentUnavailableView {
-                    Label("Couldn't Open This Book", systemImage: "book.closed")
-                } description: {
-                    Text("Check that \(book.content.service.title) is reachable, then try again.")
-                } actions: {
-                    Button("Try Again") { Task { await load() } }
-                        .buttonStyle(.bordered)
-                }
-            }
-        }
         .navigationTitle(shown.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -144,7 +148,13 @@ struct AudiobookDetailView: View {
                 .disabled(audiobook == nil)
             }
         }
-        .task { await load() }
+        .task {
+            // The book as it last read, at once; the server's read replaces it.
+            if audiobook == nil {
+                audiobook = AudiobookLibrary.lastRead(of: book)
+            }
+            await load()
+        }
         .refreshable { await load() }
     }
 
@@ -255,6 +265,19 @@ struct AudiobookDetailView: View {
         .disabled(audiobook == nil || player.isLoading)
     }
 
+    /// Nothing to show: the server didn't answer, and the book was never
+    /// read on this device. Under the cover and the buttons, not over them.
+    private var unreachableNotice: some View {
+        ContentUnavailableView {
+            Label("Couldn't Open This Book", systemImage: "book.closed")
+        } description: {
+            Text("Check that \(book.content.service.title) is reachable, then try again.")
+        } actions: {
+            Button("Try Again") { Task { await load() } }
+                .buttonStyle(.bordered)
+        }
+    }
+
     /// The server lists the book but can't open its files, so it won't play
     /// and shows no chapters: said here, where the missing chapters show.
     private var missingFilesNotice: some View {
@@ -319,7 +342,7 @@ struct AudiobookDetailView: View {
     private func load() async {
         failed = false
         guard let loaded = await AudiobookLibrary.load(book) else {
-            failed = audiobook == nil
+            failed = true
             return
         }
         store.recordServerProgress(of: loaded)

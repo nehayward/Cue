@@ -111,6 +111,7 @@ final class AudiobookPlayer {
 
     private init() {
         UserDefaults.standard.removeObject(forKey: Self.sharedRateKey)
+        leftBook = UserDefaults.standard.data(forKey: Self.leftBookKey).flatMap { try? JSONDecoder().decode(LeftBook.self, from: $0) }
         current = Self.loadCurrent()
         updateChapter()
         rate = Self.rate(for: current?.book)
@@ -356,7 +357,10 @@ final class AudiobookPlayer {
             if book.content.service == .plex {
                 await PlexAPI.shared.refreshConnection()
             }
-            guard !Task.isCancelled, let self, let current = self.current, current.book.isSameBook(as: book) else { return }
+            // Not over something played meanwhile: the queue still parked
+            // on the book's file.
+            guard !Task.isCancelled, let self, let current = self.current, current.book.isSameBook(as: book),
+                  self.contains(LocalPlaybackService.shared.nowPlaying) else { return }
             self.retry = nil
             await self.start(current, at: time, on: .device)
         }
@@ -515,7 +519,19 @@ final class AudiobookPlayer {
             }
         }
         let location = audiobook.timeline.location(at: time)
+        // The music the book takes this device's player from is set aside,
+        // to go back to (`returnToMusic`). A queue holding a book's files
+        // isn't music, whatever plays in front of it (a station, a song
+        // played next): the music set aside before it stands.
+        let local = LocalPlaybackService.shared
+        let isBookFile = { [self, audiobook] (item: PlayableContent) in
+            audiobook.partIndex(of: item) != nil || contains(item) || leftBook?.partIDs.contains(item.id) == true
+        }
+        let replacesMusic = local.isActive && !local.queue.contains(where: isBookFile)
         setCurrent(audiobook)
+        if leftBook?.book.isSameBook(as: audiobook.book) == true {
+            leftBook = nil
+        }
         position = time
         arriving = time
         graceUntil = .now.addingTimeInterval(15)
@@ -529,13 +545,78 @@ final class AudiobookPlayer {
         if !OfflineMode.shared.isActive, let group {
             return await playOnSpeaker(audiobook, part: location.part, offset: location.offset, group: group)
         }
+        if replacesMusic {
+            local.setQueueAside()
+        }
         do {
-            try await LocalPlaybackService.shared.play(audiobook.parts, startingAt: location.part, from: location.offset)
+            try await local.play(audiobook.parts, startingAt: location.part, from: location.offset)
             return true
         } catch {
             Self.log.error("device play failed: \(error.localizedDescription, privacy: .public)")
             AlertService.shared.showAlert(with: "Couldn't play “\(audiobook.book.title)” on this device", imageName: "exclamationmark.triangle")
             return false
+        }
+    }
+
+    // MARK: - Between a book and music
+
+    /// The book last left for something else, to offer back from the music
+    /// player, and its files' IDs, to know them in the queue. Nil once it
+    /// plays again. Kept through a relaunch.
+    struct LeftBook: Codable, Equatable {
+        let book: PlayableContent
+        let partIDs: Set<String>
+    }
+
+    private(set) var leftBook: LeftBook? {
+        didSet {
+            guard leftBook != oldValue else { return }
+            UserDefaults.standard.set(leftBook.flatMap { try? JSONEncoder().encode($0) }, forKey: Self.leftBookKey)
+        }
+    }
+
+    /// The book Back to Book offers from the music: the one last left,
+    /// unless it was finished since (a tap would start it over).
+    var bookToReturnTo: PlayableContent? {
+        guard let leftBook, AudiobookProgressStore.shared.progress(for: leftBook.book)?.isFinished != true else { return nil }
+        return leftBook.book
+    }
+
+    private static let leftBookKey = "dance.cue.audiobookLeftBook"
+
+    /// The music the book was started over, while the book plays on this
+    /// device: what Back to Music and Where You Left Off bring back. Nil
+    /// while the route is a speaker, where the device's queue isn't what's
+    /// heard and its music would play beside the book.
+    var musicSetAside: LocalPlaybackService.SetAsideQueue? {
+        let local = LocalPlaybackService.shared
+        guard PlaybackRoute.shared.destination == .device, contains(local.nowPlaying) else { return nil }
+        return local.setAsideQueue
+    }
+
+    /// Leaves the book for the music queue it was started over, at the song
+    /// and spot it was left on (`LocalPlaybackService.setAsideQueue`). The
+    /// book keeps its place, and the music player offers it back. Throws
+    /// what kept the music from playing, which `alert` also says on the
+    /// phone; CarPlay says it on the car's screen instead.
+    func returnToMusic(alert: Bool = true) async throws {
+        // A file that failed waits to play again: not over the music.
+        forgetFailures()
+        if let current {
+            leftBook = LeftBook(book: current.book, partIDs: Set(current.parts.map(\.id)))
+            // The place as it is now, not as the last follow read it: Back
+            // to Book a moment later picks up here.
+            let now = readPosition(on: PlaybackRoute.shared.controller) ?? position
+            record(AudiobookProgress(position: now, duration: current.duration), of: current)
+        }
+        do {
+            try await LocalPlaybackService.shared.returnToSetAsideQueue()
+        } catch {
+            Self.log.error("back to music failed: \(error.localizedDescription, privacy: .public)")
+            if alert {
+                AlertService.shared.showAlert(with: "Couldn't go back to your music", imageName: "exclamationmark.triangle")
+            }
+            throw error
         }
     }
 
@@ -793,6 +874,7 @@ final class AudiobookPlayer {
         guard let current else { return }
         Self.log.notice("book left: \(current.book.title, privacy: .public)")
         AudiobookPlaceHistory.shared.record(.left, at: position, for: current.book)
+        leftBook = LeftBook(book: current.book, partIDs: Set(current.parts.map(\.id)))
         // Offline the session is left to lapse on the server.
         if current.book.content.service == .audiobookshelf, !OfflineMode.shared.isActive {
             let itemID = current.book.content.id

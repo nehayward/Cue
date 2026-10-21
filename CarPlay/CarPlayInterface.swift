@@ -16,7 +16,8 @@ import UIKit
 /// - **Audiobooks** — while there are books (as the phone's tab): the books
 ///   partway through, each with how far in it is, then each server's books.
 ///   A book plays from where it was left (`AudiobookPlayer`), with its speed
-///   on Now Playing in place of shuffle and repeat.
+///   on Now Playing in place of shuffle and repeat. While one plays over
+///   music, Your Music on top plays the music again where it was left.
 /// - **Downloads** — what's on this iPhone, which plays with no signal:
 ///   Shuffle All, Albums, Artists and Songs, and the newest albums.
 /// - **Radio** — TuneIn's and Apple Music's stations, as on the phone, as
@@ -209,8 +210,10 @@ final class CarPlayInterface: NSObject {
         _ = OnDeviceLibrary.changeToken
         // Library empties when the network goes, and says where to look.
         _ = OfflineMode.shared.isActive
-        // A book loaded or put away; Audiobookshelf's books in progress.
+        // A book loaded or put away; Audiobookshelf's books in progress;
+        // the music a book was started over.
         _ = AudiobookPlayer.shared.current
+        _ = player.setAsideQueue
         _ = AudiobookshelfBrowseService.shared.continueListening
     }
 
@@ -598,14 +601,21 @@ final class CarPlayInterface: NSObject {
         let store = AudiobookProgressStore.shared
         let inProgress = Array(CarPlayLibrary.booksInProgress().prefix(Self.inProgressRowCount))
         let shelves = bookShelves
+        // While a book plays, the music it was started over, one tap away:
+        // the phone's Where You Left Off.
+        let music = AudiobookPlayer.shared.musicSetAside
         audiobooksTemplate.emptyViewTitleVariants = ["No Books"]
         audiobooksTemplate.emptyViewSubtitleVariants = ["Nothing on Plex or Audiobookshelf can play on this iPhone."]
         let reading = inProgress.map { "\($0.id):\(Int((store.progress(for: $0)?.fraction ?? 0) * 100))" }.joined(separator: ",")
         let body = shelves.map { shelves in
             shelves.map { ([$0.title] + $0.items.map(\.id)).joined(separator: ",") }.joined(separator: "|")
         }
-        update(audiobooksTemplate, signature: reading + "/" + (body ?? "…")) {
+        let musicSignature = music.map { "\($0.title):\($0.nowPlaying?.id ?? "")" } ?? ""
+        update(audiobooksTemplate, signature: musicSignature + "/" + reading + "/" + (body ?? "…")) {
             var list: [CPListSection] = []
+            if let music {
+                list.append(CPListSection(items: [musicRow(music)], header: "Your Music", sectionIndexTitle: nil))
+            }
             if !inProgress.isEmpty {
                 list.append(CPListSection(items: inProgress.map { bookRow($0) }, header: "Continue Listening", sectionIndexTitle: nil))
             }
@@ -642,6 +652,28 @@ final class CarPlayInterface: NSObject {
                 }
                 self.perform(completion: completion) {
                     try await CarPlayPlayback.play(book: book)
+                }
+            }
+        }
+        return row
+    }
+
+    /// The music a book was started over (`AudiobookPlayer.musicSetAside`):
+    /// its album or playlist, the song it was on and who by. A tap plays it
+    /// again from the spot it was left on, and the book keeps its place.
+    private func musicRow(_ music: LocalPlaybackService.SetAsideQueue) -> CPListItem {
+        let row = CPListItem(text: music.title, detailText: music.songLine, image: music.nowPlaying.flatMap { CarPlayArtwork.placeholder(for: $0) })
+        if let song = music.nowPlaying {
+            CarPlayArtwork.load(song, into: row)
+        }
+        row.handler = { [weak self] _, completion in
+            MainActor.assumeIsolated {
+                guard let self else {
+                    completion()
+                    return
+                }
+                self.perform(completion: completion) {
+                    try await AudiobookPlayer.shared.returnToMusic(alert: false)
                 }
             }
         }

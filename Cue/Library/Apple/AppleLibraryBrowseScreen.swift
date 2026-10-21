@@ -27,6 +27,8 @@ struct AppleLibraryBrowseScreen: View {
         
         NavigationStack(path: $router.path) {
             List {
+                // Above the library, a section of its own.
+                MusicLeftOffSection()
                 ForEach(configStore.configuration.visibleSections(), id: \.self) { section in
                     sectionView(for: section)
                 }

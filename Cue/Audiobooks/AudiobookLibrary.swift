@@ -97,6 +97,13 @@ enum AudiobookLibrary {
             }
             return nil
         }
+        // A read whose chapter marks didn't come — a request that failed on
+        // a poor connection — keeps those of the last read of the same files.
+        if loaded.chapters.count <= 1, let last = AudiobookReadCache.read(of: book), last.chapters.count > 1, last.timeline == loaded.timeline {
+            log.notice("\(book.title, privacy: .public): no chapters this read, kept the last read's \(last.chapters.count)")
+            loaded.chapters = last.chapters
+        }
+        AudiobookReadCache.keep(loaded)
         AudiobookDownloads.refresh(loaded)
         // Its files on this device play whatever the server can open.
         if loaded.filesMissing == true, AudiobookDownloads.hasAllFiles(loaded) {
@@ -104,6 +111,13 @@ enum AudiobookLibrary {
         }
         sendNewerPlace(of: loaded)
         return loaded
+    }
+
+    /// The book as last read, for its page to show while it's read again:
+    /// the read kept in Caches, else the copy kept with its download. Nil
+    /// for a book never read on this device.
+    static func lastRead(of book: PlayableContent) -> Audiobook? {
+        AudiobookReadCache.read(of: book) ?? AudiobookDownloads.copy(of: book)
     }
 
     /// Tells an Audiobookshelf server where this device has the listener
@@ -147,14 +161,30 @@ enum AudiobookLibrary {
         // Side by side: whether Plex can open the files, and the marks it
         // lists for them. Only reading the files themselves waits on the
         // first.
+        // Marks kept from an earlier read, Plex's or the file's own, are
+        // the file's as it is now: Plex is asked only for the rest.
+        var kept: [String: [AudiobookChapterMark]] = [:]
+        for part in files {
+            kept[part.ratingKey] = AudiobookChapterReader.keptMarks(chapterCacheKey(part))
+        }
+        let unknown = files.filter { kept[$0.ratingKey] == nil }
         async let missingCheck = isMissing(files.first?.streamURL)
-        async let listed = PlexAPI.shared.audiobookChapterMarks(parts: files)
+        async let listed = PlexAPI.shared.audiobookChapterMarks(parts: unknown)
         let missing = await missingCheck
         if missing {
             let folder = files.first?.media?.first?.part.first.map { ($0.file as NSString).deletingLastPathComponent } ?? "?"
             log.error("plex book \(key, privacy: .public): Plex can't open its files (404), kept in \(folder, privacy: .public)")
         }
-        let marks = await plexChapterMarks(files, listed: await listed, readingFiles: !missing)
+        let listedNow = await listed
+        var byFile: [String: [AudiobookChapterMark]] = [:]
+        for part in unknown {
+            byFile[chapterCacheKey(part)] = listedNow[part.ratingKey]
+        }
+        AudiobookChapterReader.keepListed(byFile)
+        if !kept.isEmpty {
+            log.info("plex book \(key, privacy: .public): marks kept for \(kept.count) of \(files.count) files")
+        }
+        let marks = await plexChapterMarks(files, listed: kept.merging(listedNow) { old, _ in old }, readingFiles: !missing)
         let item = await details
         var chapters = PlexAudiobook.chapters(parts: files, marks: marks, timeline: timeline)
         if chapters.count <= 1 {
@@ -342,6 +372,11 @@ enum AudiobookLibrary {
     /// Marks the book finished, or not started, here and on its server.
     static func markFinished(_ audiobook: Audiobook, _ finished: Bool) async {
         let store = AudiobookProgressStore.shared
+        // Where it was stays in the book's history, so a mark made by
+        // mistake loses no place.
+        if let reading = store.progress(for: audiobook.book), !reading.isFinished, reading.position > 0 {
+            AudiobookPlaceHistory.shared.record(.jumpedFrom, at: reading.position, for: audiobook.book)
+        }
         if finished {
             store.record(AudiobookProgress(position: audiobook.duration, duration: audiobook.duration, isFinished: true), for: audiobook.book)
         } else {

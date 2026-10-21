@@ -295,6 +295,171 @@ struct AudiobookHistoryList: View {
     }
 }
 
+/// The way between a book and the music it was started over, for the
+/// player's menu: Back to Music while a book plays on this device with a
+/// music queue set aside, and Back to Book while music plays after a book
+/// was left for it.
+struct BookMusicSwitchMenuItems: View {
+    let isBook: Bool
+
+    @State private var player = AudiobookPlayer.shared
+
+    var body: some View {
+        if isBook, let aside = player.musicSetAside {
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                Task { try? await player.returnToMusic() }
+            } label: {
+                Label("Back to Music", systemImage: "music.note.list")
+                Text(aside.title)
+            }
+        } else if !isBook, let book = player.bookToReturnTo {
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                Task { await player.play(book) }
+            } label: {
+                Label("Back to Book", systemImage: "book")
+                Text(book.title)
+            }
+        }
+    }
+}
+
+/// The same, as a row under Up Next's header, where the queue it brings
+/// back is thought of: the music set aside while a book plays, or the book
+/// left while music plays, its cover and a Play.
+struct BookMusicSwitchRow: View {
+    @State private var player = AudiobookPlayer.shared
+    private var playback: LocalPlaybackService { .shared }
+
+    var body: some View {
+        let isBook = player.contains(playback.nowPlaying)
+        if isBook, let aside = player.musicSetAside {
+            row(cover: aside.nowPlaying, title: "Your Music", detail: aside.title) {
+                try? await player.returnToMusic()
+            }
+        } else if !isBook, let book = player.bookToReturnTo {
+            row(cover: book, title: book.title, detail: "Back to your book") {
+                await player.play(book)
+            }
+        }
+    }
+
+    private func row(cover: PlayableContent?, title: String, detail: String, action: @escaping @MainActor () async -> Void) -> some View {
+        Button {
+            HapticManager.shared.fireHaptic(.buttonPress)
+            Task { await action() }
+        } label: {
+            HStack(spacing: 12) {
+                if let cover {
+                    ContentArtworkView(content: cover, showMusicSource: false, preferredSize: 120, cornerRadius: 6)
+                        .frame(width: 40, height: 40)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "play.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+            }
+            .padding(10)
+            .background(.fill.quaternary, in: .rect(cornerRadius: 12))
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(detail)")
+        .accessibilityHint("Plays it from where it was left")
+    }
+}
+
+/// `MusicLeftOffCard` as a section of its own, at the top of a music
+/// library: apart from the library's rows, so it doesn't cut into their
+/// group, and only while it has something to show, so it leaves no gap.
+struct MusicLeftOffSection: View {
+    @State private var player = AudiobookPlayer.shared
+
+    var body: some View {
+        if player.musicSetAside != nil {
+            Section {
+                MusicLeftOffCard()
+            }
+        }
+    }
+}
+
+/// In each music library while a book plays on this device: the music it
+/// was started over, Where You Left Off, one tap from playing again at the
+/// song and spot it was left on. Nothing otherwise.
+struct MusicLeftOffCard: View {
+    @State private var player = AudiobookPlayer.shared
+
+    var body: some View {
+        if let aside = player.musicSetAside {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Where You Left Off")
+                    .font(.title3.bold())
+                    .accessibilityAddTraits(.isHeader)
+                Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    Task { try? await player.returnToMusic() }
+                } label: {
+                    HStack(spacing: 12) {
+                        if let song = aside.nowPlaying {
+                            ContentArtworkView(content: song, showMusicSource: false, preferredSize: 160, cornerRadius: 8)
+                                .frame(width: 56, height: 56)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(aside.title)
+                                .font(.headline)
+                                .lineLimit(1)
+                            if let line = aside.songLine {
+                                Text(line)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 36))
+                            .foregroundStyle(.tint)
+                    }
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Play \(aside.title) from where you left it")
+            }
+            .padding(16)
+            .background(.fill.quaternary, in: .rect(cornerRadius: 20))
+            // A section of its own, as wide as the library's group under it:
+            // the list's spacing between sections is the room around it.
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+        }
+    }
+}
+
+extension LocalPlaybackService.SetAsideQueue {
+    /// The song it was on, and who it's by, under the album or playlist it
+    /// came from (`title`); just who it's by when the title is the song's.
+    /// Where You Left Off and CarPlay's Your Music both show it.
+    var songLine: String? {
+        guard let song = nowPlaying else { return nil }
+        let artist = song.metadata?.artist ?? song.subtitle
+        let parts = title == song.title ? [artist] : [song.title, artist]
+        let line = parts.filter { !$0.isEmpty }.joined(separator: " · ")
+        return line.isEmpty ? nil : line
+    }
+}
+
 /// A chapter's row: a bookmark, its title, where it starts and how long it
 /// runs. `isHere` marks the listener's chapter, in the accent. The book's
 /// page and the chapters sheet both list them so.
