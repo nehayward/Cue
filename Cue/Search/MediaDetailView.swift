@@ -68,19 +68,12 @@ struct MediaDetailView: View {
         playableContent.isReorderablePlaylist && serviceEditable
     }
 
-    /// The book, for an album page opened on a book or one of its files
-    /// (the player's title on a book): its page is the book's, not an
-    /// album of its files. Decided once, as the page opens, so playing
-    /// something else meanwhile doesn't turn it into an album.
-    @State private var book: PlayableContent?
-
-    init(playableContent: PlayableContent) {
-        self.playableContent = playableContent
-        _book = State(initialValue: AudiobookPlayer.shared.book(containing: playableContent))
-    }
-
+    /// The book's page for an album page opened on a book or one of its
+    /// files (the player's title on a book), not an album of its files. It
+    /// stays the book's while the book is the one loaded or the one last
+    /// left (`AudiobookPlayer.book(containing:)`).
     var body: some View {
-        if let book {
+        if let book = AudiobookPlayer.shared.book(containing: playableContent) {
             AudiobookDetailView(book: book)
         } else {
             albumPage

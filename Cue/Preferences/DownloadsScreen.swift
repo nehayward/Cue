@@ -35,13 +35,16 @@ struct DownloadsScreen: View {
     @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
     @State private var cloudSummary: (local: Int, remote: Int)?
-    @State private var tab: Tab
+    /// The face picked here; until one is, the one the screen opened on.
+    @State private var picked: Tab?
     @State private var isConfirmingClearCache = false
     @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexBooks = false
 
-    /// `showsBooks` opens on the books rather than the songs.
-    init(showsBooks: Bool = false) {
-        _tab = State(initialValue: showsBooks ? .books : .songs)
+    /// Opens on the books rather than the songs.
+    var opensOnBooks = false
+
+    private var tab: Tab {
+        picked ?? (opensOnBooks ? .books : .songs)
     }
 
     var body: some View {
@@ -67,7 +70,7 @@ struct DownloadsScreen: View {
         // rather than wherever the last was scrolled to.
         .id(tab)
         .pinnedUnderTitle {
-            Picker("Show", selection: $tab) {
+            Picker("Show", selection: Binding { tab } set: { picked = $0 }) {
                 ForEach(Tab.allCases.filter { $0 != .books || showsBooks }) { tab in
                     Text(tab.title).tag(tab)
                 }

@@ -47,7 +47,7 @@ struct AudiobooksScreen: View {
                 // On this device or on their way: what plays with no network.
                 if !downloaded.isEmpty {
                     Section {
-                        AudiobookSectionTitle("Downloads", destination: .bookDownloads)
+                        AudiobookSectionTitle(title: "Downloads", destination: .bookDownloads)
                         AudiobookCoverRow(books: downloaded)
                             .listRowInsets(EdgeInsets())
                     }
@@ -62,7 +62,7 @@ struct AudiobooksScreen: View {
 
                 if !finished.isEmpty {
                     Section {
-                        AudiobookSectionTitle("Finished")
+                        AudiobookSectionTitle(title: "Finished")
                         ForEach(finished.prefix(Self.recentCount)) { book in
                             AudiobookRow(book: book)
                         }
@@ -118,7 +118,7 @@ struct AudiobooksScreen: View {
     private var libraries: some View {
         if showsPlex {
             Section {
-                AudiobookSectionTitle("Plex", destination: plexBooks)
+                AudiobookSectionTitle(title: "Plex", destination: plexBooks)
                 if !plexPreview.isEmpty {
                     AudiobookCoverRow(books: plexPreview)
                         .listRowInsets(EdgeInsets())
@@ -134,7 +134,7 @@ struct AudiobooksScreen: View {
         if showsAudiobookshelf, let library = shelf.selectedLibrary {
             Section {
                 AudiobookSectionTitle(
-                    LocalizedStringKey(shelf.libraries.count > 1 ? "Audiobookshelf · \(library.name)" : "Audiobookshelf"),
+                    title: LocalizedStringKey(shelf.libraries.count > 1 ? "Audiobookshelf · \(library.name)" : "Audiobookshelf"),
                     destination: audiobookshelfBooks(in: library)
                 )
                 if !shelf.recentlyAdded.isEmpty {
@@ -305,19 +305,18 @@ struct AudiobookContinueRow: View {
                             .font(.headline)
                             .fontDesign(.serif)
                             .lineLimit(2)
-                        Group {
-                            if !book.subtitle.isEmpty {
-                                Text(book.subtitle)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            if let progress {
-                                progressLine(progress)
-                                    .padding(.top, 2)
-                            }
+                        if !book.subtitle.isEmpty {
+                            Text(book.subtitle)
+                                .font(.subheadline)
+                                .fontDesign(.rounded)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
                         }
-                        .fontDesign(.rounded)
+                        if let progress {
+                            progressLine(progress)
+                                .fontDesign(.rounded)
+                                .padding(.top, 2)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -338,7 +337,7 @@ struct AudiobookContinueRow: View {
                     }
                 }
             } label: {
-                Group {
+                VStack {
                     if isStarting {
                         ProgressView()
                     } else {
@@ -490,13 +489,8 @@ private struct AudiobookSectionTitle: View {
 
     @Environment(Router.self) private var router
 
-    init(_ title: LocalizedStringKey, destination: RouterDestination? = nil) {
-        self.title = title
-        self.destination = destination
-    }
-
     var body: some View {
-        Group {
+        VStack(alignment: .leading) {
             if let destination {
                 // A button, not a link: a link in a plain list draws its
                 // own disclosure arrow, small and grey.

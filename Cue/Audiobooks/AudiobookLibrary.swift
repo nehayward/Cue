@@ -184,7 +184,7 @@ enum AudiobookLibrary {
         // the file's as it is now: Plex is asked only for the rest.
         var kept: [String: [AudiobookChapterMark]] = [:]
         for part in files {
-            kept[part.ratingKey] = AudiobookChapterReader.keptMarks(chapterCacheKey(part))
+            kept[part.ratingKey] = await AudiobookChapterReader.keptMarks(chapterCacheKey(part))
         }
         let unknown = files.filter { kept[$0.ratingKey] == nil }
         async let missingCheck = isMissing(files.first?.streamURL)
@@ -199,7 +199,7 @@ enum AudiobookLibrary {
         for part in unknown {
             byFile[chapterCacheKey(part)] = listedNow[part.ratingKey]
         }
-        AudiobookChapterReader.keepListed(byFile)
+        await AudiobookChapterReader.keepListed(byFile)
         if !kept.isEmpty {
             log.info("plex book \(key, privacy: .public): marks kept for \(kept.count) of \(files.count) files")
         }

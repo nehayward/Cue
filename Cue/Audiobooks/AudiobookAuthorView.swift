@@ -51,30 +51,44 @@ struct AudiobookAuthorView: View {
     @Environment(CoreFeatures.self) private var coreFeatures
     @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexBooks = false
     @State private var store = AudiobookProgressStore.shared
+    @State private var audibleInfo = AudiobookAuthorInfo.shared
     @State private var books: [PlayableContent] = []
-    /// Their picture: their Plex artist's, else Audiobookshelf's, else
-    /// Audible's.
-    @State private var portrait: URL?
-    /// Their biography: Audiobookshelf's, else Audible's.
-    @State private var about: String?
-    /// The genres Audible files them under.
-    @State private var genres: [String] = []
+    /// Their picture as their servers keep it: their Plex artist's, else
+    /// Audiobookshelf's.
+    @State private var serverPortrait: URL?
+    /// Their biography as Audiobookshelf keeps it.
+    @State private var serverAbout: String?
     @State private var isLoading = true
 
-    init(author: AudiobookAuthor) {
-        self.author = author
-        // What Audible said last time, from the first frame: the page opens
-        // whole rather than filling in.
-        let kept = AudiobookAuthorInfo.cached(named: author.name)
-        _portrait = State(initialValue: kept?.imageURL)
-        _about = State(initialValue: Self.about(kept, server: nil))
-        _genres = State(initialValue: Self.genres(kept))
+    /// What Audible knows of them, as last kept: there from the first
+    /// frame, so the page opens whole, and redrawn when an answer lands.
+    private var audible: AudnexusAuthor? {
+        audibleInfo.author(named: author.name)
+    }
+
+    /// Their picture: their servers', else Audible's.
+    private var portrait: URL? {
+        serverPortrait ?? audible?.imageURL
+    }
+
+    /// Their biography: Audiobookshelf's, else Audible's.
+    private var about: String? {
+        serverAbout ?? audible?.description.map(AudiobookText.plain).flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    /// The genres Audible files them under: two, which keep to a line.
+    private var genres: [String] {
+        (audible?.genres ?? []).filter { $0.type == "genre" }.prefix(2).map(\.name)
+    }
+
+    /// Their books partway through.
+    private var partway: [PlayableContent] {
+        books.filter { book in
+            store.progress(for: book).map { $0.isStarted && !$0.isFinished } ?? false
+        }
     }
 
     var body: some View {
-        let partway = books.filter { book in
-            store.progress(for: book).map { $0.isStarted && !$0.isFinished } ?? false
-        }
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 header
@@ -128,17 +142,12 @@ struct AudiobookAuthorView: View {
 
     private var header: some View {
         VStack(spacing: 10) {
-            Group {
-                if let portrait {
-                    LazyImage(url: portrait) { state in
-                        if let image = state.image {
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } else {
-                            monogram
-                        }
-                    }
+            // Their initials while there's no picture, or none at all.
+            LazyImage(url: portrait) { state in
+                if let image = state.image {
+                    image
+                        .resizable()
+                        .scaledToFill()
                 } else {
                     monogram
                 }
@@ -147,27 +156,27 @@ struct AudiobookAuthorView: View {
             .clipShape(.circle)
             .accessibilityHidden(true)
 
-            // New York, as their books' titles are.
+            // New York, as their books' titles are; the lines under it set
+            // rounded on themselves.
             Text(author.name)
                 .font(.title.bold())
                 .fontDesign(.serif)
                 .multilineTextAlignment(.center)
                 .accessibilityAddTraits(.isHeader)
 
-            Group {
-                if !books.isEmpty {
-                    Text(countLine)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                if !genres.isEmpty {
-                    Text(genres.joined(separator: " · "))
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
-                        .multilineTextAlignment(.center)
-                }
+            if !books.isEmpty {
+                Text(countLine)
+                    .font(.subheadline)
+                    .fontDesign(.rounded)
+                    .foregroundStyle(.secondary)
             }
-            .fontDesign(.rounded)
+            if !genres.isEmpty {
+                Text(genres.joined(separator: " · "))
+                    .font(.footnote)
+                    .fontDesign(.rounded)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 12)
@@ -240,60 +249,27 @@ struct AudiobookAuthorView: View {
 
     // MARK: - Loading
 
-    /// Their books from each server and what's known of them, all at once,
-    /// shown in one change: the page lays out once rather than shifting
-    /// as each part lands. Audible is waited for only so long; with it slow
-    /// or out of reach the books don't wait, and its answer fills in when
-    /// it comes. Offline, the books downloaded.
+    /// Their books from each server and what the servers keep of them, all
+    /// at once, shown in one change: the page lays out once rather than
+    /// shifting as each part lands. Audible's record isn't waited for: it
+    /// lands in `AudiobookAuthorInfo`, which the page reads, so one kept
+    /// from before is there from the first frame and a new one fills in
+    /// when it comes. Offline, the books downloaded.
     private func load() async {
         if OfflineMode.shared.isActive {
             books = Self.ordered(AudiobookDownloads.downloadedBooks().filter(author.wrote))
             isLoading = false
             return
         }
-        let lookup = Task { await AudiobookAuthorInfo.author(named: author.name) }
+        audibleInfo.refresh(named: author.name)
         async let plex = plexBooks()
         async let shelf = audiobookshelfBooks()
         async let picture = plexPortrait()
         let (plexFound, shelfFound, plexImage) = await (plex, shelf, picture)
-        let image = plexImage ?? shelfFound.image
-        let audible = await Self.answer(of: lookup, within: .seconds(3))
         books = Self.ordered(plexFound + shelfFound.books)
+        serverPortrait = plexImage ?? shelfFound.image
+        serverAbout = shelfFound.about
         isLoading = false
-        show(audible ?? AudiobookAuthorInfo.cached(named: author.name), image: image, about: shelfFound.about)
-        if audible == nil {
-            show(await lookup.value, image: image, about: shelfFound.about)
-        }
-    }
-
-    /// The servers' picture and biography where they have them, Audible's
-    /// for the rest.
-    private func show(_ audible: AudnexusAuthor?, image: URL?, about server: String?) {
-        portrait = image ?? audible?.imageURL
-        about = Self.about(audible, server: server)
-        genres = Self.genres(audible)
-    }
-
-    private static func about(_ audible: AudnexusAuthor?, server: String?) -> String? {
-        server ?? audible?.description.map(AudiobookText.plain).flatMap { $0.isEmpty ? nil : $0 }
-    }
-
-    /// Two, which keep to a line.
-    private static func genres(_ audible: AudnexusAuthor?) -> [String] {
-        (audible?.genres ?? []).filter { $0.type == "genre" }.prefix(2).map(\.name)
-    }
-
-    /// `lookup`'s answer, or nil once `limit` has passed; the lookup goes
-    /// on either way.
-    private static func answer(of lookup: Task<AudnexusAuthor?, Never>, within limit: Duration) async -> AudnexusAuthor?? {
-        await withCheckedContinuation { continuation in
-            let first = FirstAnswer(continuation)
-            Task { @MainActor in first.give(.some(await lookup.value)) }
-            Task { @MainActor in
-                try? await Task.sleep(for: limit)
-                first.give(nil)
-            }
-        }
     }
 
     /// Their artist's books in one request; for an author known only by
@@ -417,77 +393,61 @@ private struct AudiobookAuthorBookTile: View {
 
 /// What Audible knows of each author (`AudnexusAuthor`: picture, biography,
 /// genres), kept in Caches by name, so an author's page opened again
-/// doesn't ask. Someone Audible doesn't know is asked again after a day,
+/// doesn't ask. Observed: a page reads its author here and redraws when an
+/// answer lands. Someone Audible doesn't know is asked again after a day,
 /// someone it does after a month; with Audnexus out of reach, what was
 /// kept stands.
 @MainActor
-enum AudiobookAuthorInfo {
-    private struct Entry: Codable {
+@Observable
+final class AudiobookAuthorInfo {
+    static let shared = AudiobookAuthorInfo()
+
+    private struct Entry: Codable, Sendable {
         var author: AudnexusAuthor?
         var askedAt: Date
-    }
 
-    private static var entries: [String: Entry] = load()
-    private static let knownLifetime: TimeInterval = 30 * 24 * 60 * 60
-    private static let unknownLifetime: TimeInterval = 24 * 60 * 60
-    private static let io = DispatchQueue(label: "dance.cue.audiobookAuthors", qos: .utility)
-
-    /// Audible's record of `name`; nil when it has none or couldn't be
-    /// asked.
-    static func author(named name: String) async -> AudnexusAuthor? {
-        let key = name.lowercased()
-        if let entry = entries[key],
-           Date.now.timeIntervalSince(entry.askedAt) < (entry.author == nil ? unknownLifetime : knownLifetime) {
-            return entry.author
-        }
-        switch await AudnexusAPI.author(named: name) {
-        case let .found(author):
-            remember(author, for: key)
-            return author
-        case .notFound:
-            remember(nil, for: key)
-            return nil
-        case .unreachable:
-            return entries[key]?.author
+        /// Asked recently enough to stand.
+        var isFresh: Bool {
+            let lifetime: TimeInterval = author == nil ? 24 * 60 * 60 : 30 * 24 * 60 * 60
+            return Date.now.timeIntervalSince(askedAt) < lifetime
         }
     }
 
-    /// What was kept for `name`, without asking: offline.
-    static func cached(named name: String) -> AudnexusAuthor? {
+    private static let fileName = "AudiobookAuthors.json"
+
+    private var entries = CachesWriter.read([String: Entry].self, from: AudiobookAuthorInfo.fileName) ?? [:]
+    /// Names being asked about now, so a page opened twice asks once.
+    @ObservationIgnored private var asking: Set<String> = []
+
+    private init() {}
+
+    /// Audible's record of `name` as last kept, without asking; nil when it
+    /// has none, or hasn't been asked.
+    func author(named name: String) -> AudnexusAuthor? {
         entries[name.lowercased()]?.author
     }
 
-    private static func remember(_ author: AudnexusAuthor?, for key: String) {
-        entries[key] = Entry(author: author, askedAt: .now)
-        guard let url = fileURL, let data = try? JSONEncoder().encode(entries) else { return }
-        io.async {
-            try? data.write(to: url, options: .atomic)
+    /// Asks Audible about `name` unless what's kept is recent enough. The
+    /// answer lands in `author(named:)`.
+    func refresh(named name: String) {
+        let key = name.lowercased()
+        guard entries[key]?.isFresh != true, asking.insert(key).inserted else { return }
+        Task {
+            defer { asking.remove(key) }
+            switch await AudnexusAPI.author(named: name) {
+            case let .found(author):
+                remember(author, for: key)
+            case .notFound:
+                remember(nil, for: key)
+            case .unreachable:
+                break
+            }
         }
     }
 
-    private static var fileURL: URL? {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
-            .appending(path: "AudiobookAuthors.json")
-    }
-
-    private static func load() -> [String: Entry] {
-        guard let url = fileURL, let data = try? Data(contentsOf: url),
-              let entries = try? JSONDecoder().decode([String: Entry].self, from: data) else { return [:] }
-        return entries
-    }
-}
-
-/// Resumes its continuation with the first answer it's given.
-@MainActor
-private final class FirstAnswer<Value> {
-    private var continuation: CheckedContinuation<Value, Never>?
-
-    init(_ continuation: CheckedContinuation<Value, Never>) {
-        self.continuation = continuation
-    }
-
-    func give(_ value: Value) {
-        continuation?.resume(returning: value)
-        continuation = nil
+    private func remember(_ author: AudnexusAuthor?, for key: String) {
+        entries[key] = Entry(author: author, askedAt: .now)
+        let entries = entries
+        Task { await CachesWriter.shared.write(entries, to: Self.fileName) }
     }
 }

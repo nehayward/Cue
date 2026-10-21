@@ -322,12 +322,7 @@ final class AudiobookPlayer {
     /// network, Play isn't held up for it.
     private func prepareConnection(for audiobook: Audiobook) async {
         guard audiobook.book.content.service == .plex, !OfflineMode.shared.isActive else { return }
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { await PlexAPI.shared.prepareConnection() }
-            group.addTask { try? await Task.sleep(for: .seconds(3)) }
-            await group.next()
-            group.cancelAll()
-        }
+        _ = await Task { await PlexAPI.shared.prepareConnection() }.value(within: .seconds(3))
     }
 
     /// A book's file wouldn't load on this device, or broke off: a network
