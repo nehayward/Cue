@@ -4,41 +4,6 @@ import NukeUI
 import SonosKit
 import SwiftUI
 
-/// Someone who writes books: their name, and their Plex artist (a book's
-/// album artist, whose picture is theirs) when there is one.
-struct AudiobookAuthor: Hashable {
-    let name: String
-    var plexArtistID: String?
-
-    /// The author of what an artist page was opened for, when it's a book
-    /// or one of a book's files (the player's artist line on a book): their
-    /// page is their books, not an artist's popular songs, which for an
-    /// author are a book's files. Nil for anything else.
-    @MainActor
-    init?(for content: PlayableContent) {
-        guard let book = AudiobookPlayer.shared.book(containing: content) else { return nil }
-        let name = (book.metadata?.artist ?? book.subtitle).trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return nil }
-        self.name = name
-        plexArtistID = book.content.service == .plex ? book.metadata?.artistID : nil
-    }
-
-    /// Whether `book` is theirs: their Plex artist's, or by their name —
-    /// the whole author line, or any one of the authors of a book with
-    /// several, listed with commas. The whole line first: a name can hold
-    /// a comma itself ("Tolkien, J. R. R.").
-    func wrote(_ book: PlayableContent) -> Bool {
-        if let plexArtistID, book.content.service == .plex, book.metadata?.artistID == plexArtistID {
-            return true
-        }
-        let line = book.metadata?.artist ?? book.subtitle
-        let isName = { (text: Substring) in
-            text.trimmingCharacters(in: .whitespaces).localizedCaseInsensitiveCompare(name) == .orderedSame
-        }
-        return isName(line[...]) || line.split(separator: ",").contains(where: isName)
-    }
-}
-
 /// An author's page, in place of an artist's for someone who writes books:
 /// their picture, name and biography, the genres they write in, the books
 /// of theirs partway through, each with its Play, and every book of theirs
@@ -388,66 +353,5 @@ private struct AudiobookAuthorBookTile: View {
             parts.append(year.formatted(.dateTime.year()))
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
-}
-
-/// What Audible knows of each author (`AudnexusAuthor`: picture, biography,
-/// genres), kept in Caches by name, so an author's page opened again
-/// doesn't ask. Observed: a page reads its author here and redraws when an
-/// answer lands. Someone Audible doesn't know is asked again after a day,
-/// someone it does after a month; with Audnexus out of reach, what was
-/// kept stands.
-@MainActor
-@Observable
-final class AudiobookAuthorInfo {
-    static let shared = AudiobookAuthorInfo()
-
-    private struct Entry: Codable, Sendable {
-        var author: AudnexusAuthor?
-        var askedAt: Date
-
-        /// Asked recently enough to stand.
-        var isFresh: Bool {
-            let lifetime: TimeInterval = author == nil ? 24 * 60 * 60 : 30 * 24 * 60 * 60
-            return Date.now.timeIntervalSince(askedAt) < lifetime
-        }
-    }
-
-    private static let fileName = "AudiobookAuthors.json"
-
-    private var entries = CachesWriter.read([String: Entry].self, from: AudiobookAuthorInfo.fileName) ?? [:]
-    /// Names being asked about now, so a page opened twice asks once.
-    @ObservationIgnored private var asking: Set<String> = []
-
-    private init() {}
-
-    /// Audible's record of `name` as last kept, without asking; nil when it
-    /// has none, or hasn't been asked.
-    func author(named name: String) -> AudnexusAuthor? {
-        entries[name.lowercased()]?.author
-    }
-
-    /// Asks Audible about `name` unless what's kept is recent enough. The
-    /// answer lands in `author(named:)`.
-    func refresh(named name: String) {
-        let key = name.lowercased()
-        guard entries[key]?.isFresh != true, asking.insert(key).inserted else { return }
-        Task {
-            defer { asking.remove(key) }
-            switch await AudnexusAPI.author(named: name) {
-            case let .found(author):
-                remember(author, for: key)
-            case .notFound:
-                remember(nil, for: key)
-            case .unreachable:
-                break
-            }
-        }
-    }
-
-    private func remember(_ author: AudnexusAuthor?, for key: String) {
-        entries[key] = Entry(author: author, askedAt: .now)
-        let entries = entries
-        Task { await CachesWriter.shared.write(entries, to: Self.fileName) }
     }
 }

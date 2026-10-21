@@ -201,7 +201,7 @@ extension View {
                     case .shareToWatch:
                         ShareToWatchView()
                     case .audiobookChapters:
-                        AudiobookChaptersSheet()
+                        AudiobookChaptersView()
                             .presentationDetents([.medium, .large])
                     case .paywall, .onboard:
                         // Routed via `withFullScreenCoverDestinations` —
