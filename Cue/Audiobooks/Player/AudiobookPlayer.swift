@@ -140,6 +140,13 @@ final class AudiobookPlayer {
         current?.partIndex(of: controller.nowPlayingDisplay) != nil
     }
 
+    /// Whether `book` is the book loaded and what the player is on, playing
+    /// or paused: its Play is then the player's own play and pause, not a
+    /// start from its kept place, which lags what's heard by a few seconds.
+    func isLoaded(_ book: PlayableContent) -> Bool {
+        current?.book.isSameBook(as: book) == true && isPlayingBook(on: PlaybackRoute.shared.presented)
+    }
+
     /// Whether `item` is one of the loaded book's files.
     func contains(_ item: PlayableContent?) -> Bool {
         current?.partIndex(of: item) != nil

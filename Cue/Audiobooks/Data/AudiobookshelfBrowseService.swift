@@ -36,7 +36,6 @@ final class AudiobookshelfBrowseService {
 
     func select(_ library: AudiobookshelfLibrary) {
         api.defaultLibraryID = library.id
-        pages = [:]
         Task { await loadShelves() }
     }
 
@@ -85,18 +84,21 @@ final class AudiobookshelfBrowseService {
 
     // MARK: - Every book
 
-    /// Which server page holds the books from each offset the list asks
-    /// for. The list counts the rows it was given, and pages drop the
-    /// library's ebooks, so an offset isn't a multiple of a page.
-    private var pages: [Int: Int] = [0: 0]
+    /// Which server page holds the books from each offset a list asks for,
+    /// by library and order: the list counts the rows it was given, and
+    /// pages drop the library's ebooks, so an offset isn't a multiple of a
+    /// page. Each order has its own, so two lists open at once (the Library
+    /// tab's and the Audiobooks tab's, or CarPlay's) don't read each
+    /// other's, and one starting over doesn't cut another short.
+    private var pages: [String: [Int: Int]] = [:]
     private static let pageSize = 50
 
     /// The books from `offset` on, in the selected library, by `sort` (a
     /// server sort key). Empty at the end.
     func books(offset: Int, sort: String = "media.metadata.title", descending: Bool = false) async -> [PlayableContent] {
         guard let library = selectedLibrary else { return [] }
-        if offset == 0 { pages = [0: 0] }
-        guard var page = pages[offset] else { return [] }
+        let order = "\(library.id)|\(sort)|\(descending)"
+        guard var page = offset == 0 ? 0 : pages[order]?[offset] else { return [] }
         // A page of nothing but ebooks isn't the end: carry on to the next.
         for _ in 0..<20 {
             guard let result = await api.items(libraryID: library.id, page: page, limit: Self.pageSize, sort: sort, descending: descending) else { return [] }
@@ -104,7 +106,7 @@ final class AudiobookshelfBrowseService {
             let isLast = result.results.count < Self.pageSize || (result.total.map { (page + 1) * Self.pageSize >= $0 } ?? false)
             page += 1
             if !books.isEmpty {
-                if !isLast { pages[offset + books.count] = page }
+                if !isLast { pages[order, default: [:]][offset + books.count] = page }
                 return books.map { $0.withAudiobookProgress(AudiobookProgressStore.shared.progress(for: $0)) }
             }
             if isLast { return [] }
@@ -147,13 +149,18 @@ final class AudiobookshelfBrowseService {
         return await api.search(libraryID: library.id, query: query).map(\.toPlayable)
     }
 
-    /// The author called `name` in the selected library: their books, and
-    /// their picture and biography when the server has them. Nil when
-    /// there's no such author.
+    /// The author called `name`: their books, and their picture and
+    /// biography when the server has them. In the selected library first,
+    /// then the others, which a book from Continue Listening can be in. Nil
+    /// when there's no such author.
     func author(named name: String) async -> (books: [PlayableContent], image: URL?, about: String?)? {
-        guard let library = await loadedLibrary() else { return nil }
-        let match = await api.authors(libraryID: library.id, query: name)
-            .first { $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }
+        guard let selected = await loadedLibrary() else { return nil }
+        var match: AudiobookshelfAuthor?
+        for library in [selected] + libraries.filter({ $0.id != selected.id }) {
+            match = await api.authors(libraryID: library.id, query: name)
+                .first { $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }
+            if match != nil { break }
+        }
         guard let match, let author = await api.author(id: match.id) else { return nil }
         let books = (author.libraryItems ?? []).filter(\.hasAudio).map(\.toPlayable)
         let image = author.imagePath == nil ? nil : AudiobookshelfAPI.authorImageURL(authorID: author.id)

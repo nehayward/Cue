@@ -15,49 +15,41 @@ struct AudiobookContinueRow: View {
     /// This row's Play is starting the book, read from its server first.
     @State private var isStarting = false
 
+    /// Opens the book's page with a link rather than the router: outside a
+    /// list (the author's page), where the stack it's in may not be the
+    /// router's (that page in the player's sheet), and the book's page may
+    /// be in the path already (the author opened from it).
+    var opensByLink = false
+
     private var route: PlaybackRoute { .shared }
 
     /// The book is loaded and the player has it.
     private var isLoaded: Bool {
-        player.current?.book.isSameBook(as: book) == true && player.isPlayingBook(on: route.presented)
+        player.isLoaded(book)
     }
 
     var body: some View {
         let progress = store.progress(for: book)
         let isPlaying = isLoaded && route.presented.isPlaying
         HStack(spacing: 12) {
-            Button {
-                HapticManager.shared.fireHaptic(.buttonPress)
-                router.navigate(to: .audiobookDetail(content: book))
-            } label: {
-                HStack(spacing: 14) {
-                    cover
-                    VStack(alignment: .leading, spacing: 3) {
-                        // New York, a book's own face, for its title; the
-                        // lines under it are rounded, set on themselves.
-                        Text(book.title)
-                            .font(.headline)
-                            .fontDesign(.serif)
-                            .lineLimit(2)
-                        if !book.subtitle.isEmpty {
-                            Text(book.subtitle)
-                                .font(.subheadline)
-                                .fontDesign(.rounded)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                        if let progress {
-                            progressLine(progress)
-                                .fontDesign(.rounded)
-                                .padding(.top, 2)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            // A link in a list row makes the whole row one, Play and all:
+            // there, a button that goes through the router.
+            if opensByLink {
+                NavigationLink(value: RouterDestination.audiobookDetail(content: book)) {
+                    details(progress)
                 }
-                .contentShape(.rect)
+                .buttonStyle(.plain)
+                .accessibilityLabel("View \(book.title)")
+            } else {
+                Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    router.navigate(to: .audiobookDetail(content: book))
+                } label: {
+                    details(progress)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("View \(book.title)")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("View \(book.title)")
 
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
@@ -93,6 +85,35 @@ struct AudiobookContinueRow: View {
         .contextMenu {
             PlayableMenuView(item: book)
         }
+    }
+
+    /// The cover, title, author and how far in.
+    private func details(_ progress: AudiobookProgress?) -> some View {
+        HStack(spacing: 14) {
+            cover
+            VStack(alignment: .leading, spacing: 3) {
+                // New York, a book's own face, for its title; the lines
+                // under it are rounded, set on themselves.
+                Text(book.title)
+                    .font(.headline)
+                    .fontDesign(.serif)
+                    .lineLimit(2)
+                if !book.subtitle.isEmpty {
+                    Text(book.subtitle)
+                        .font(.subheadline)
+                        .fontDesign(.rounded)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if let progress {
+                    progressLine(progress)
+                        .fontDesign(.rounded)
+                        .padding(.top, 2)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .contentShape(.rect)
     }
 
     private var cover: some View {

@@ -11,10 +11,20 @@ struct AudiobookMenuItems: View {
 
     var body: some View {
         let progress = AudiobookProgressStore.shared.progress(for: book)
+        let player = AudiobookPlayer.shared
+        // The book in the player already: its own play and pause.
+        let isLoaded = player.isLoaded(book)
+        let isPlaying = isLoaded && PlaybackRoute.shared.presented.isPlaying
         Button {
-            Task { await AudiobookPlayer.shared.play(book) }
+            if isLoaded {
+                Task { await PlaybackRoute.shared.presented.togglePlayback() }
+            } else {
+                Task { await player.play(book) }
+            }
         } label: {
-            if progress?.isStarted == true {
+            if isPlaying {
+                Label("Pause", systemImage: "pause.fill")
+            } else if progress?.isStarted == true {
                 Label("Resume", systemImage: "play.fill")
             } else {
                 Label("Play", systemImage: "play.fill")

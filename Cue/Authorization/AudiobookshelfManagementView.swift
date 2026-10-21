@@ -184,6 +184,7 @@ struct AudiobookshelfManagementView: View {
         password = ""
         result = nil
         AudiobookshelfBrowseService.shared.clear()
+        AudiobookProgressStore.shared.forgetAll(of: .audiobookshelf)
         CoreFeatures.shared.enabledServices(.audiobookshelf).wrappedValue = false
     }
 }
