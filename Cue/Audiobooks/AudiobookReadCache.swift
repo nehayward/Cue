@@ -13,16 +13,25 @@ import SonosKit
 @MainActor
 enum AudiobookReadCache {
     /// The book's last read, with no reading of where the server had the
-    /// listener (that's stale; this device's own stands).
+    /// listener (that's stale; this device's own stands). From memory once
+    /// read: a book's page asks as it's made, which can be often.
     static func read(of book: PlayableContent) -> Audiobook? {
+        let key = AudiobookProgressStore.key(for: book)
+        if let kept = memory[key] { return kept }
         guard let url = url(for: book), let data = try? Data(contentsOf: url),
               var audiobook = try? JSONDecoder().decode(Audiobook.self, from: data) else { return nil }
         audiobook.serverProgress = nil
+        memory[key] = audiobook
         return audiobook
     }
 
+    private static var memory: [String: Audiobook] = [:]
+
     /// Keeps `audiobook` as its book's last read.
     static func keep(_ audiobook: Audiobook) {
+        var kept = audiobook
+        kept.serverProgress = nil
+        memory[AudiobookProgressStore.key(for: audiobook.book)] = kept
         guard let url = url(for: audiobook.book), let data = try? JSONEncoder().encode(audiobook) else { return }
         io.async {
             try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

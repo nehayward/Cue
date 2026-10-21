@@ -21,6 +21,13 @@ struct AudiobookDetailView: View {
     @State private var player = AudiobookPlayer.shared
     @State private var store = AudiobookProgressStore.shared
 
+    init(book: PlayableContent) {
+        self.book = book
+        // The book as it last read, from the first frame: the page opens
+        // whole rather than filling in. The server's read replaces it.
+        _audiobook = State(initialValue: AudiobookLibrary.lastRead(of: book))
+    }
+
     private var shown: PlayableContent { audiobook?.book ?? book }
 
     private var progress: AudiobookProgress? {
@@ -157,13 +164,7 @@ struct AudiobookDetailView: View {
         }
         // No pull to refresh: it's read afresh each time it opens, and in a
         // sheet (from the player) the pull is the sheet's, to dismiss it.
-        .task {
-            // The book as it last read, at once; the server's read replaces it.
-            if audiobook == nil {
-                audiobook = AudiobookLibrary.lastRead(of: book)
-            }
-            await load()
-        }
+        .task { await load() }
     }
 
     // MARK: - Header
@@ -447,7 +448,10 @@ private struct AudiobookPlaceChapter: View {
 /// grows, so it opens as one smooth reveal rather than jumping from one
 /// layout of the text to another (a changing `lineLimit` re-wraps it
 /// mid-animation); as a geometry group it reaches the page as a single
-/// change of size, which the rows below follow in step.
+/// change of size, which the rows below follow in step. Until it's been
+/// measured (its first frame) it's its first four lines, the height it
+/// then keeps: drawn at no height until then, it opened a frame late and
+/// pushed the page under it down.
 struct AudiobookSummary: View {
     let text: String
 
@@ -463,8 +467,9 @@ struct AudiobookSummary: View {
 
     var body: some View {
         Text(text)
+            .lineLimit(isMeasured ? nil : Self.collapsedLines)
             .fixedSize(horizontal: false, vertical: true)
-            .frame(height: isMeasured ? (isCollapsed ? collapsedHeight : fullHeight) : 0, alignment: .top)
+            .frame(height: isMeasured ? (isCollapsed ? collapsedHeight : fullHeight) : nil, alignment: .top)
             .frame(maxWidth: .infinity, alignment: .leading)
             .clipped()
             // The last line fading out says there's more.
@@ -476,7 +481,6 @@ struct AudiobookSummary: View {
                 }
             }
             .background(alignment: .top) { measurements }
-            .opacity(isMeasured ? 1 : 0)
             .geometryGroup()
             .font(.callout)
             // New York, a reading face at this size.
