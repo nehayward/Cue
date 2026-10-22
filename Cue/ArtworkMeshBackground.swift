@@ -46,18 +46,23 @@ struct ArtworkMeshBackground: View {
     nonisolated private static let bitmapSize = 48
 
     var body: some View {
-        ZStack {
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .interpolation(.high)
-                    .id(imageKey)
-                    .transition(.opacity)
+        // Full size with or without a gradient. An empty ZStack had no
+        // size and sat in the middle, so the first gradient, put in with an
+        // animation, rode the container's growth out to the corner: it came
+        // in sliding from the bottom right instead of fading.
+        Color.clear
+            .overlay {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .interpolation(.high)
+                        .id(imageKey)
+                        .transition(.opacity)
+                }
             }
-        }
-        .task(id: "\(sourceID)|\(artworkKey)|\(artworkURL?.absoluteString ?? "")") {
-            await load()
-        }
+            .task(id: "\(sourceID)|\(artworkKey)|\(artworkURL?.absoluteString ?? "")") {
+                await load()
+            }
     }
 
     private func load() async {
