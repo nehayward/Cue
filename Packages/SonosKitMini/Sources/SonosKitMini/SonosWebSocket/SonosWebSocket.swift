@@ -69,7 +69,7 @@ public enum SonosWebSocketError: Error, LocalizedError {
  * All public methods are thread-safe and can be called from any queue.
  * Stream events are delivered on the main actor for UI updates.
  */
-public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSessionDelegate, @unchecked Sendable {
+public final class SonosWebSocket: NSObject, @unchecked Sendable {
     // MARK: - Type Aliases
     
     /// AsyncStream for receiving track metadata events including song info, artist, album, and artwork
@@ -108,9 +108,6 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         get { stateQueue.sync { _task } }
         set { stateQueue.sync { _task = newValue } }
     }
-    
-    /// URL session configured for WebSocket connections with SSL certificate handling
-    private var session: URLSession?
     
     // MARK: - Stream Management
     
@@ -257,9 +254,9 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
                         // Socket not connected - likely during graceful shutdown, just exit quietly
                         isAlive = false
                     } else {
-                        // Other errors — finish continuations and tear the session
-                        // down so the URLSession→delegate retain cycle is broken
-                        // and the socket can actually deallocate.
+                        // Other errors — finish continuations and close the
+                        // socket, so its task and receive loop stop and it can
+                        // deallocate.
                         self.volumeContinuation?.finish(throwing: error)
                         self.playbackContinuation?.finish(throwing: error)
                         self.trackInfoContinuation?.finish(throwing: error)
@@ -358,10 +355,9 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
             trackInfoContinuation?.finish(throwing: URLError(.networkConnectionLost))
             groupVolumeContinuation?.finish(throwing: URLError(.networkConnectionLost))
             groupContinuation?.finish(throwing: URLError(.networkConnectionLost))
-            // Tear down the session too. URLSession strongly retains its delegate
-            // (self) until invalidated, so a dead socket that is never closed can
-            // never deallocate — it would sit fully allocated until the next
-            // refresh cycle happened to replace it.
+            // Close it too, so its task and receive loop stop: a dead socket
+            // left open would sit allocated until the next refresh cycle
+            // happened to replace it.
             close()
             return
         }
@@ -558,13 +554,6 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         
         super.init()
         
-        // Use ephemeral config - no persistent caching, cookies, or credentials.
-        // .default maintains internal storage that grows over long-running sessions.
-        let configuration = URLSessionConfiguration.ephemeral
-        // Use nil delegateQueue to avoid memory retention issues with custom OperationQueue
-        // The delegate methods will run on a system-managed queue
-        self.session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
-        
         createWebSocketTask()
     }
     
@@ -577,7 +566,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         request.setValue(apiKey, forHTTPHeaderField: "X-Sonos-Api-Key")
         request.setValue("v1.api.smartspeaker.audio", forHTTPHeaderField: "Sec-WebSocket-Protocol")
         
-        self.task = session?.webSocketTask(with: request)
+        self.task = Self.session.webSocketTask(with: request)
     }
     
     deinit {
@@ -599,10 +588,6 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         
         // Cancel background tasks
         messageReceiveTask?.cancel()
-        
-        // Invalidate session and clear reference to break retain cycles
-        session?.invalidateAndCancel()
-        session = nil
     }
     
     
@@ -643,10 +628,6 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         groupVolumeContinuation = nil
         groupContinuation = nil
         task = nil
-        
-        // Invalidate session and clear reference - critical for memory cleanup
-        session?.invalidateAndCancel()
-        session = nil
         
         // Clear active subscriptions
         activeSubscriptions.removeAll()
@@ -695,20 +676,15 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         // Clear task reference
         task = nil
         
-        // Invalidate and clear session to break all references
-        // This is critical - the session must be invalidated AND set to nil
-        session?.invalidateAndCancel()
-        session = nil
-        
         // Clear active subscriptions
         activeSubscriptions.removeAll()
     }
     
     public func connectAndSubscribeToGroupVolume(groupId: String) async throws -> SonosVolumeWebSocketStream? {
-        // A closed socket has no session/task: without this guard we would hand
+        // A closed socket has no task: without this guard we would hand
         // back a stream that nothing ever feeds or finishes, suspending the
         // caller's for-await forever and leaking its task + this socket.
-        guard session != nil, task != nil else { return nil }
+        guard task != nil else { return nil }
         // Only connect if not already connected
         task?.resume()
         startMessageReceiver()
@@ -774,7 +750,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
      */
     public func connectAndSubscribeToPlayerVolume(playerId: String) async throws -> SonosVolumeWebSocketStream? {
         // See connectAndSubscribeToGroupVolume — never vend a stream after close().
-        guard session != nil, task != nil else { return nil }
+        guard task != nil else { return nil }
         // Only connect if not already connected
         task?.resume()
         startMessageReceiver()
@@ -837,7 +813,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
      */
     public func connectAndSubscribeToPlayback(groupID: String) async throws -> SonosPlaybackWebSocketStream? {
         // See connectAndSubscribeToGroupVolume — never vend a stream after close().
-        guard session != nil, task != nil else { return nil }
+        guard task != nil else { return nil }
         // Only connect if not already connected
         task?.resume()
         startMessageReceiver()
@@ -904,7 +880,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
      */
     public func connectAndSubscribeToMetadata(groupId: String) async throws -> SonosTrackWebSocketStream? {
         // See connectAndSubscribeToGroupVolume — never vend a stream after close().
-        guard session != nil, task != nil else { return nil }
+        guard task != nil else { return nil }
         // Only connect if not already connected
         task?.resume()
         startMessageReceiver()
@@ -969,7 +945,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
      */
     public func connectAndSubscribeToGroup(householdId: String) async throws -> SonosGroupWebSocketStream? {
         // See connectAndSubscribeToGroupVolume — never vend a stream after close().
-        guard session != nil, task != nil else { return nil }
+        guard task != nil else { return nil }
         // Only connect if not already connected
         task?.resume()
         startMessageReceiver()
@@ -1055,32 +1031,32 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
 //        return try await sendCommand(command, options: options)
 //    }
 
-    // MARK: - URLSessionDelegate
-    
-    /**
-     * Handles SSL certificate validation for local Sonos device connections.
-     *
-     * Since Sonos devices use self-signed certificates for local connections,
-     * this method accepts server trust challenges to allow secure WebSocket
-     * connections to work properly.
-     */
-    public func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+    // MARK: - Session
+
+    /// The one session every socket's task runs on, for the life of the app. It's
+    /// never invalidated. A socket used to make its own and invalidate it on close,
+    /// dropping the last reference, but a cancelled handshake's task can outlive
+    /// that: the Network framework holds it until it tears the connection down,
+    /// seconds later, and the task's dealloc then read the freed session
+    /// (EXC_BAD_ACCESS in `-[__NSCFLocalSessionTask dealloc]`). Closing a socket
+    /// now only cancels its task.
+    private static let session = URLSession(
+        configuration: .ephemeral,
+        delegate: SelfSignedTrust(),
+        delegateQueue: nil
+    )
+}
+
+/// Accepts the self-signed certificate Sonos speakers present for local
+/// WebSocket connections.
+private final class SelfSignedTrust: NSObject, URLSessionDelegate {
+    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
         if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
            let serverTrust = challenge.protectionSpace.serverTrust {
-            let credential = URLCredential(trust: serverTrust)
-            completionHandler(.useCredential, credential)
+            completionHandler(.useCredential, URLCredential(trust: serverTrust))
             return
         }
         completionHandler(.performDefaultHandling, nil)
-    }
-
-    /// Called when the session has been invalidated - this is when URLSession finally
-    /// releases its strong reference to the delegate (self). Critical for memory cleanup.
-    public func urlSession(_ session: URLSession, didBecomeInvalidWithError error: Error?) {
-        // URLSession has released its delegate reference, clear our reference too
-        if self.session === session {
-            self.session = nil
-        }
     }
 }
 
