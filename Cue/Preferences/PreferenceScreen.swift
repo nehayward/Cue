@@ -941,7 +941,7 @@ struct PreferenceScreen: View {
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
         .withAlert()
         .task {
-            try? await subscriptionService.checkSubscription()
+            await subscriptionService.checkSubscription()
             libraryShare = await sonosService.libraryShare()
 #if DEBUG
             servers = await sonosService.services()
@@ -1067,10 +1067,14 @@ struct PreferenceScreen: View {
 
     private var subscriptionStatusLine: Text {
         let info = subscriptionService.subscription.info
-        let plan = info.flatMap { planName(for: $0.productIdentifier) }
+        var plan = info.flatMap { planName(for: $0.productIdentifier) }
 
         if plan == "Lifetime" {
             return Text("Lifetime")
+        }
+        // "Annual Free Trial · Renews …": the renewal is the first payment.
+        if info?.isTrial == true {
+            plan = [plan, "Free Trial"].compactMap { $0 }.joined(separator: " ")
         }
         if let info, let expiration = info.expirationDate {
             let dateText = Text(expiration, style: .date)

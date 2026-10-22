@@ -394,7 +394,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				SubscriptionDetailScreen.swift,
 			);
 			target = E92B3E862B60249B00724FA1 /* Cue (Vision) */;
 		};

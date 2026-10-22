@@ -1,5 +1,5 @@
 import AppIntents
-import CloudStorage
+import Defaults
 import SonosKit
 #if canImport(WidgetKit)
 import WidgetKit
@@ -34,8 +34,8 @@ struct SeparateRoomsIntent: LiveActivityIntent {
     init() { }
 
     func perform() async throws -> some IntentResult {
-        guard CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false else {
-            throw IntentError.message("Subscribe to Super in Cue to use this action.")
+        guard GroupStorageKeys.defaults.hasSuper else {
+            throw IntentError.superRequired
         }
         
         var rooms = rooms.map(\.toRoom)
