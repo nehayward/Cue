@@ -47,19 +47,24 @@ private enum HomeLibrary: Hashable {
 }
 
 /// The watch's home: what's playing at the top, a card on its cover's
-/// gradient that opens Now Playing, then Downloads (the count of songs here
-/// in its title), then the library picked top right: a music server's
-/// lists, or Audiobooks, the books on the watch and the servers' shelves of
-/// them. Settings is top left; the bottom bar has search (a music
-/// library's) and play on the right edge (double tap presses it), hidden
-/// while the list scrolls down. No title: the rows say what's what.
-/// Screens zoom out of the row that opens them. The widget opens it on
-/// Downloads or Now Playing. The first time there's music to fetch, it asks
-/// at what quality.
+/// gradient that opens Now Playing (the iPhone's while the watch has
+/// nothing playing), then the library picked top right, led by Downloads
+/// (the count of songs here in its title): a music server's lists with
+/// search as the last row, or Audiobooks, the books on the watch and the
+/// servers' shelves of them. With the iPhone out of reach, what's on the
+/// watch leads instead: Downloads and the book last listened to, over the
+/// library. Settings is top left; while
+/// something's loaded, the bottom bar has play and pause on the right edge
+/// (double tap presses it), hidden while the list scrolls down. No title:
+/// the rows say what's what. Screens zoom out of the row that opens them.
+/// The widget opens it on Downloads or Now Playing. The first time there's
+/// music to fetch, it asks at what quality.
 struct LibraryScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
+    @Environment(PhoneNowPlaying.self) private var phone
     @Environment(WatchAccounts.self) private var accounts
+    @Environment(WatchBookStore.self) private var bookStore
     @AppStorage("librarySource") private var chosenSource = WatchSource.plex.rawValue
     @State private var path = NavigationPath()
     @State private var sheet: Sheet?
@@ -92,30 +97,33 @@ struct LibraryScreen: View {
         libraries.first { $0.rawValue == chosenSource } ?? libraries.first
     }
 
-    /// The music library on show, for search.
-    private var source: WatchSource? {
-        guard case let .music(source)? = library else { return nil }
-        return source
+    /// The card and the play button are the iPhone's while the watch has
+    /// nothing playing: nothing loaded here, paused while the iPhone plays,
+    /// or both paused and the iPhone the one that played last (or the only
+    /// one this launch).
+    private var showsPhone: Bool {
+        guard let playing = phone.current, !player.isPlaying else { return false }
+        if player.current == nil || playing.isPlaying { return true }
+        return (phone.lastPlayedAt ?? .distantPast) >= (player.lastPlayedAt ?? .distantPast)
     }
 
     var body: some View {
         NavigationStack(path: $path) {
             List {
-                if player.current != nil {
+                if player.current != nil || showsPhone {
                     Button {
                         path.append(HomeRoute.nowPlaying)
                     } label: {
-                        NowPlayingCard()
+                        NowPlayingCard(showsPhone: showsPhone)
                     }
                     .buttonStyle(CardButtonStyle())
                     .zoomSource(HomeRoute.nowPlaying, in: zoom)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                 }
-                NavigationLink(value: HomeRoute.downloads) {
-                    DownloadsRow()
+                if !phone.isPhoneInReach {
+                    onThisWatch
                 }
-                .zoomSource(HomeRoute.downloads, in: zoom)
                 switch library {
                 case let .music(source)?:
                     lists(of: source)
@@ -145,20 +153,19 @@ struct LibraryScreen: View {
                     }
                     .accessibilityLabel("Library")
                 }
-                // Search left, play on the right edge (double tap presses
-                // it); Now Playing is the card at the top of the list.
+                // Play on the right edge (double tap presses it); Now
+                // Playing is the card at the top of the list.
                 ToolbarItemGroup(placement: .bottomBar) {
-                    if let source {
-                        TextFieldLink(prompt: Text("Search \(source.title)")) {
-                            Image(systemName: "magnifyingglass")
-                        } onSubmit: { text in
-                            search(text, in: source)
+                    if showsPhone {
+                        Spacer()
+                        PrimaryPlayButton(isPlaying: phone.current?.isPlaying == true) {
+                            phone.togglePlayPause()
                         }
-                        .accessibilityLabel("Search \(source.title)")
-                    }
-                    Spacer()
-                    if player.current != nil || store.downloadedCount > 0 {
-                        PrimaryPlayButton()
+                    } else if player.current != nil {
+                        Spacer()
+                        PrimaryPlayButton(isPlaying: player.isPlaying) {
+                            player.togglePlayPause()
+                        }
                     }
                 }
             }
@@ -248,8 +255,33 @@ struct LibraryScreen: View {
 
     // MARK: - Library
 
+    /// What's on the watch, at the top of whichever library is on show, or
+    /// over it with the iPhone out of reach.
+    private var downloads: some View {
+        NavigationLink(value: HomeRoute.downloads) {
+            DownloadsRow()
+        }
+        .zoomSource(HomeRoute.downloads, in: zoom)
+    }
+
+    /// With the iPhone out of reach, the watch plays what's on it: that
+    /// leads, Downloads and the book last listened to, to play at once.
+    private var onThisWatch: some View {
+        Section {
+            downloads
+            if let latest = recentBooks.first {
+                bookBanner(latest)
+            }
+        } header: {
+            Text("On This Watch")
+        }
+    }
+
     private func lists(of source: WatchSource) -> some View {
         Section {
+            if phone.isPhoneInReach {
+                downloads
+            }
             ForEach(WatchBrowseSection.allCases, id: \.self) { section in
                 let route = BrowseRoute.path(.section(source, section))
                 NavigationLink(value: route) {
@@ -257,6 +289,12 @@ struct LibraryScreen: View {
                 }
                 .zoomSource(route, in: zoom)
             }
+            TextFieldLink(prompt: Text("Search \(source.title)")) {
+                Label("Search", systemImage: "magnifyingglass")
+            } onSubmit: { text in
+                search(text, in: source)
+            }
+            .accessibilityLabel("Search \(source.title)")
         } header: {
             Text(source.title)
         }
@@ -264,6 +302,9 @@ struct LibraryScreen: View {
 
     private var noLibrary: some View {
         Section {
+            if phone.isPhoneInReach {
+                downloads
+            }
             Text("Open Cue on your iPhone, signed in to Plex, Subsonic or Audiobookshelf, to browse your library here.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -275,11 +316,53 @@ struct LibraryScreen: View {
 
     // MARK: - Audiobooks
 
-    /// The books on the watch, to pick up where they were left, then the
-    /// servers' shelves: what's in progress, and every book on each.
+    /// The three books on the watch last listened to and not finished,
+    /// newest first.
+    private var recentBooks: [WatchPick] {
+        let places = bookStore.places
+        return store.books
+            .compactMap { pick in places[pick.key].map { (pick: pick, place: $0) } }
+            .filter { !$0.place.isFinished && $0.place.position > 0 }
+            .sorted { $0.place.updatedAt > $1.place.updatedAt }
+            .prefix(3)
+            .map(\.pick)
+    }
+
+    /// The books last listened to — the latest a banner that plays it (on
+    /// top with Downloads while the iPhone's out of reach), the two before
+    /// it side by side — then Downloads, the other books on the watch, and
+    /// the servers' shelves: what's in progress, and every book on each.
     private var audiobooks: some View {
-        Section {
-            ForEach(store.books, id: \.key) { pick in
+        let recent = recentBooks
+        return Section {
+            if phone.isPhoneInReach, let latest = recent.first {
+                bookBanner(latest)
+            }
+            if recent.count > 1 {
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(recent.dropFirst(), id: \.key) { pick in
+                        let route = BookRoute(key: pick.key)
+                        Button {
+                            path.append(route)
+                        } label: {
+                            BookTile(pick: pick)
+                        }
+                        .buttonStyle(CardButtonStyle())
+                        .zoomSource(route, in: zoom)
+                    }
+                    // One book beside the banner keeps a tile's width.
+                    if recent.count == 2 {
+                        Color.clear
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+            if phone.isPhoneInReach {
+                downloads
+            }
+            ForEach(store.books.filter { pick in !recent.contains { $0.key == pick.key } }, id: \.key) { pick in
                 let route = BookRoute(key: pick.key)
                 NavigationLink(value: route) {
                     BookRow(pick: pick)
@@ -300,6 +383,26 @@ struct LibraryScreen: View {
         }
     }
 
+    private func bookBanner(_ pick: WatchPick) -> some View {
+        Button {
+            playOrPause(pick)
+        } label: {
+            BookBanner(pick: pick)
+        }
+        .buttonStyle(CardButtonStyle())
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
+    }
+
+    /// Plays a book from where it was left, or pauses it while it plays.
+    private func playOrPause(_ pick: WatchPick) {
+        if player.book?.key == pick.key, player.isPlaying {
+            player.pause()
+        } else if !player.playBook(pick) {
+            WKInterfaceDevice.current().play(.failure)
+        }
+    }
+
     private func shelf(_ shelf: WatchBookShelf, title: String, symbol: String) -> some View {
         let route = BrowseRoute.path(.books(shelf))
         return NavigationLink(value: route) {
@@ -309,23 +412,18 @@ struct LibraryScreen: View {
     }
 }
 
-/// Play and pause what's playing, or shuffle the downloads when nothing
-/// is: the screen's primary action, so double tap (and the pinch on watches
-/// that have it) presses it.
+/// Play and pause what's playing, here or on the iPhone: the screen's
+/// primary action, so double tap (and the pinch on watches that have it)
+/// presses it.
 private struct PrimaryPlayButton: View {
-    @Environment(WatchPlayer.self) private var player
+    let isPlaying: Bool
+    let toggle: () -> Void
 
     var body: some View {
-        Button {
-            if player.current == nil {
-                player.playDownloads(shuffled: true)
-            } else {
-                player.togglePlayPause()
-            }
-        } label: {
-            Image(systemName: player.current == nil ? "shuffle" : player.isPlaying ? "pause.fill" : "play.fill")
+        Button(action: toggle) {
+            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
         }
-        .accessibilityLabel(player.current == nil ? "Shuffle Downloads" : player.isPlaying ? "Pause" : "Play")
+        .accessibilityLabel(isPlaying ? "Pause" : "Play")
         .primaryHandGesture()
     }
 }

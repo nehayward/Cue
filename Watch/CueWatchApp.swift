@@ -15,12 +15,14 @@ struct CueWatchApp: App {
     @State private var player = WatchPlayer.shared
     @State private var accounts = WatchAccounts.shared
     @State private var books = WatchBookStore.shared
+    @State private var phone = PhoneNowPlaying.shared
 
     var body: some Scene {
         WindowGroup {
             LibraryScreen()
                 .environment(store)
                 .environment(player)
+                .environment(phone)
                 .environment(accounts)
                 .environment(books)
         }
@@ -28,9 +30,11 @@ struct CueWatchApp: App {
             switch phase {
             case .active:
                 store.appDidBecomeActive()
+                phone.refresh()
             case .background:
                 store.appDidEnterBackground()
                 books.flush()
+                player.saveNow()
                 WidgetStatePublisher.publishNow()
             default:
                 break
@@ -46,6 +50,8 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate {
         // Makes the store, and with it the background session, so events
         // for transfers that finished while Cue was closed are delivered.
         _ = WatchDownloadStore.shared
+        // What was loaded when the app last ended, back paused.
+        WatchPlayer.shared.restore()
         // Nothing's playing yet, whatever the widgets were last told.
         WidgetStatePublisher.publishNow()
     }

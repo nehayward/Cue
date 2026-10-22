@@ -147,6 +147,25 @@ final class WatchSyncMessageTests: XCTestCase {
         XCTAssertEqual(WatchSyncMessage.picks(in: context)?.items.count, 200)
     }
 
+    func testWhatTheiPhonePlaysCrossesAndNothingIsSaidToo() throws {
+        let playing = WatchPhoneNowPlaying(title: "Song", artist: "Artist", destination: "Living Room", isOnSpeaker: true, isPlaying: true, artwork: Data([1, 2, 3]))
+        let message = try WatchSyncMessage.nowPlayingMessage(playing)
+        XCTAssertTrue(WatchSyncMessage.carriesNowPlaying(message))
+        XCTAssertEqual(WatchSyncMessage.nowPlaying(in: message), playing)
+
+        let nothing = try WatchSyncMessage.nowPlayingMessage(nil)
+        XCTAssertTrue(WatchSyncMessage.carriesNowPlaying(nothing))
+        XCTAssertNil(WatchSyncMessage.nowPlaying(in: nothing))
+        XCTAssertFalse(WatchSyncMessage.carriesNowPlaying(WatchSyncMessage.nowPlayingRequest))
+    }
+
+    func testRequestsAreToldApart() {
+        XCTAssertTrue(WatchSyncMessage.isNowPlayingRequest(WatchSyncMessage.nowPlayingRequest))
+        XCTAssertTrue(WatchSyncMessage.isTogglePlayPauseRequest(WatchSyncMessage.togglePlayPauseRequest))
+        XCTAssertFalse(WatchSyncMessage.isNowPlayingRequest(WatchSyncMessage.credentialsRequest))
+        XCTAssertFalse(WatchSyncMessage.isCredentialsRequest(WatchSyncMessage.togglePlayPauseRequest))
+    }
+
     func testQualitiesSayWhatTheyCost() {
         XCTAssertEqual(WatchDownloadQuality.high.megabytesPerSong, 8)
         XCTAssertEqual(WatchDownloadQuality.small.detail, "MP3 128 kbps • about 4 MB a song")

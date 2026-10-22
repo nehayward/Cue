@@ -6,6 +6,7 @@ import OSLog
 import SonosKit
 import WatchSync
 #if os(iOS) && !targetEnvironment(macCatalyst)
+import Nuke
 import UIKit
 import WatchConnectivity
 #endif
@@ -29,6 +30,11 @@ import WatchConnectivity
 /// watch holds is about to run out it asks for the next one
 /// (`WatchSyncMessage.credentialsRequest`), and this iPhone renews its own
 /// to answer.
+///
+/// While the watch app is open (reachable) the watch also hears what this
+/// iPhone plays — `PlaybackRoute.presented`, here or on a Sonos group — as
+/// it changes, for its home screen's card, and plays or pauses it from
+/// there (`WatchPhoneNowPlaying`).
 ///
 /// Only Plex, Subsonic and Audiobookshelf, as with the download manager:
 /// their files are plain URLs the watch can fetch. Apple Music on the watch
@@ -64,6 +70,16 @@ final class WatchSyncService {
     @ObservationIgnored private var takenFromWatch: [String: AudiobookProgress] = [:]
     @ObservationIgnored private var backgroundObserver: NSObjectProtocol?
     @ObservationIgnored private var foregroundObserver: NSObjectProtocol?
+    #if os(iOS) && !targetEnvironment(macCatalyst)
+    /// The watch app is open and in reach: what plays here goes across as
+    /// it changes.
+    @ObservationIgnored private var isWatchReachable = false
+    /// An observation of what plays is armed; one at a time.
+    @ObservationIgnored private var isTrackingNowPlaying = false
+    /// What the watch last heard plays here.
+    @ObservationIgnored private var sentNowPlaying: NowPlayingState?
+    @ObservationIgnored private var nowPlayingTask: Task<Void, Never>?
+    #endif
 
     private init() {
         picks = (try? Data(contentsOf: Self.picksURL)).flatMap { try? WatchPicks.decoded(from: $0) } ?? .empty
@@ -336,6 +352,134 @@ final class WatchSyncService {
         }
     }
 
+    // MARK: - Now Playing
+
+    #if os(iOS) && !targetEnvironment(macCatalyst)
+    /// What the watch's card shows of the playback here, short of the cover
+    /// itself: a change to any of it goes across.
+    private struct NowPlayingState: Equatable {
+        var title: String
+        var artist: String?
+        var destination: String
+        var isOnSpeaker: Bool
+        var isPlaying: Bool
+        var artworkURL: URL?
+    }
+
+    /// What the player shows, here or on a speaker: a book as itself, by
+    /// its author, as the watch's own card has it.
+    private func currentNowPlaying() -> (state: NowPlayingState, item: PlayableContent)? {
+        let controller = PlaybackRoute.shared.presented
+        guard let item = controller.nowPlayingDisplay else { return nil }
+        var state = NowPlayingState(
+            title: item.title,
+            artist: item.metadata?.artist ?? item.subtitle,
+            destination: controller.name,
+            isOnSpeaker: controller.group != nil,
+            isPlaying: controller.isPlaying,
+            artworkURL: item.artwork ?? item.thumbnail
+        )
+        let books = AudiobookPlayer.shared
+        if let book = books.current, books.contains(item) {
+            state.title = book.book.title
+            state.artist = book.book.subtitle
+            state.artworkURL = book.book.artwork ?? state.artworkURL
+        }
+        return (state, item)
+    }
+
+    fileprivate func reachabilityDidChange(_ isReachable: Bool) {
+        isWatchReachable = isReachable
+        if isReachable {
+            // The watch app just opened: it hears afresh.
+            sentNowPlaying = nil
+            trackNowPlaying()
+        } else {
+            nowPlayingTask?.cancel()
+        }
+    }
+
+    /// Sends what plays when it changes, while the watch app is open. One
+    /// observation at a time: each change arms the next.
+    private func trackNowPlaying() {
+        guard isWatchReachable, !isTrackingNowPlaying else { return }
+        isTrackingNowPlaying = true
+        let now = withObservationTracking {
+            currentNowPlaying()
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.isTrackingNowPlaying = false
+                self.trackNowPlaying()
+            }
+        }
+        guard now?.state != sentNowPlaying else { return }
+        sentNowPlaying = now?.state
+        nowPlayingTask?.cancel()
+        nowPlayingTask = Task { [weak self] in
+            // A burst (a skip, a load and its buffering) goes as one.
+            try? await Task.sleep(for: .milliseconds(300))
+            guard let self, !Task.isCancelled else { return }
+            let message = await self.nowPlayingMessage(now)
+            guard !Task.isCancelled, WCSession.default.isReachable else { return }
+            WCSession.default.sendMessage(message, replyHandler: nil) { [logger] error in
+                logger.error("Couldn't tell the watch what's playing: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
+    /// The watch asking what plays, or to play or pause: answered with what
+    /// plays then, the play state as it's been asked to be (a speaker says
+    /// so a moment later; if it doesn't, the watch hears what it does say).
+    fileprivate func answerNowPlaying(toggling: Bool) async -> [String: Any] {
+        isWatchReachable = WCSession.default.isReachable
+        trackNowPlaying()
+        let controller = PlaybackRoute.shared.presented
+        let wasPlaying = controller.isPlaying
+        if toggling {
+            await controller.togglePlayback()
+        }
+        var now = currentNowPlaying()
+        if toggling {
+            now?.state.isPlaying = !wasPlaying
+        }
+        sentNowPlaying = now?.state
+        return await nowPlayingMessage(now)
+    }
+
+    private func nowPlayingMessage(_ now: (state: NowPlayingState, item: PlayableContent)?) async -> [String: Any] {
+        var nowPlaying: WatchPhoneNowPlaying?
+        if let now {
+            nowPlaying = WatchPhoneNowPlaying(
+                title: now.state.title,
+                artist: now.state.artist,
+                destination: now.state.destination,
+                isOnSpeaker: now.state.isOnSpeaker,
+                isPlaying: now.state.isPlaying,
+                artwork: await Self.watchArtwork(for: now.item, url: now.state.artworkURL)
+            )
+        }
+        return (try? WatchSyncMessage.nowPlayingMessage(nowPlaying)) ?? [:]
+    }
+
+    /// The cover, 160 px square as a JPEG of a few KB: from the player's
+    /// own copy, which is in memory while it's on screen.
+    private static func watchArtwork(for item: PlayableContent, url: URL?) async -> Data? {
+        guard let url else { return nil }
+        let request = ContentArtworkView.artworkRequest(for: item, url: url, preferredSize: ContentArtworkView.playerPreferredSize)
+        guard let image = try? await ImagePipeline.shared.image(for: request), image.size.width > 0, image.size.height > 0 else { return nil }
+        let side: CGFloat = 160
+        let scale = max(side / image.size.width, side / image.size.height)
+        let drawn = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let small = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).image { _ in
+            image.draw(in: CGRect(x: (side - drawn.width) / 2, y: (side - drawn.height) / 2, width: drawn.width, height: drawn.height))
+        }
+        return small.jpegData(compressionQuality: 0.7)
+    }
+    #endif
+
     // MARK: - Storage
 
     private static var picksURL: URL {
@@ -388,6 +532,14 @@ private final class WatchSessionRelay: NSObject, WCSessionDelegate, @unchecked S
         }
     }
 
+    /// The watch app opened or closed (or went out of reach).
+    func sessionReachabilityDidChange(_ session: WCSession) {
+        let reachable = session.isReachable
+        Task { @MainActor in
+            self.service?.reachabilityDidChange(reachable)
+        }
+    }
+
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         let picks = WatchSyncMessage.picks(in: applicationContext)
         let places = WatchSyncMessage.places(in: applicationContext)
@@ -397,14 +549,26 @@ private final class WatchSessionRelay: NSObject, WCSessionDelegate, @unchecked S
         }
     }
 
-    /// The watch asking for the sign-ins afresh: its Audiobookshelf token is
-    /// about to run out. The system wakes Cue to answer.
+    /// The watch asking for the sign-ins afresh (its Audiobookshelf token is
+    /// about to run out), what plays here, or to play or pause it. The
+    /// system wakes Cue to answer.
     func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
+        let reply = UncheckedReply(send: replyHandler)
+        let toggling = WatchSyncMessage.isTogglePlayPauseRequest(message)
+        if toggling || WatchSyncMessage.isNowPlayingRequest(message) {
+            Task { @MainActor in
+                guard let service = self.service else {
+                    reply.send([:])
+                    return
+                }
+                reply.send(await service.answerNowPlaying(toggling: toggling))
+            }
+            return
+        }
         guard WatchSyncMessage.isCredentialsRequest(message) else {
             replyHandler([:])
             return
         }
-        let reply = UncheckedReply(send: replyHandler)
         Task { @MainActor in
             guard let service = self.service else {
                 reply.send([:])

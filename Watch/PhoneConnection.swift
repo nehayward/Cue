@@ -9,6 +9,8 @@ import WatchSync
 /// the picks (merged into the download store's) and the places in the books
 /// among them (merged into `WatchBookStore`'s). To the iPhone it sends its
 /// own: the picks and places as the watch has them, when they change here.
+/// While the app is open, what the iPhone plays comes as messages, to
+/// `PhoneNowPlaying`.
 @MainActor
 final class PhoneConnection {
     static let shared = PhoneConnection()
@@ -68,6 +70,26 @@ final class PhoneConnection {
         })
     }
 
+    /// Asks the iPhone what it plays, or to play or pause it; its answer is
+    /// what it plays then. Only with the iPhone in reach (the system wakes
+    /// Cue there to answer).
+    func askPhone(_ request: [String: Any]) {
+        let session = WCSession.default
+        guard session.activationState == .activated, session.isReachable else { return }
+        session.sendMessage(request, replyHandler: { @Sendable reply in
+            guard WatchSyncMessage.carriesNowPlaying(reply) else { return }
+            let nowPlaying = WatchSyncMessage.nowPlaying(in: reply)
+            Task { @MainActor in
+                PhoneNowPlaying.shared.apply(nowPlaying)
+            }
+        }, errorHandler: { @Sendable error in
+            let message = error.localizedDescription
+            Task { @MainActor in
+                PhoneConnection.shared.logger.error("The iPhone didn't answer about what it plays: \(message, privacy: .public)")
+            }
+        })
+    }
+
     /// Keeps a WatchConnectivity wake open until what the iPhone sent has
     /// arrived and been looked up — or 20 seconds, past which the system
     /// would end it anyway.
@@ -92,6 +114,11 @@ final class PhoneConnection {
             hasPending = false
             send()
         }
+        PhoneNowPlaying.shared.reachabilityDidChange(WCSession.default.isReachable)
+    }
+
+    fileprivate func reachabilityDidChange(_ isReachable: Bool) {
+        PhoneNowPlaying.shared.reachabilityDidChange(isReachable)
     }
 
     /// The iPhone's context: sign-ins first, so the picks that come with
@@ -143,6 +170,22 @@ private final class PhoneSessionRelay: NSObject, WCSessionDelegate, @unchecked S
         let places = WatchSyncMessage.places(in: applicationContext)
         Task { @MainActor in
             self.connection?.didReceive(credentials: credentials, picks: picks, places: places)
+        }
+    }
+
+    /// What the iPhone plays, sent as it changes while the app is open.
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        guard WatchSyncMessage.carriesNowPlaying(message) else { return }
+        let nowPlaying = WatchSyncMessage.nowPlaying(in: message)
+        Task { @MainActor in
+            PhoneNowPlaying.shared.apply(nowPlaying)
+        }
+    }
+
+    func sessionReachabilityDidChange(_ session: WCSession) {
+        let reachable = session.isReachable
+        Task { @MainActor in
+            self.connection?.reachabilityDidChange(reachable)
         }
     }
 }

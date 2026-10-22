@@ -23,6 +23,12 @@ import WatchSync
 /// moment the next one starts (a boundary observer at its start). Its place is kept every few seconds as it plays,
 /// and at once on a pause. A file not here yet stops it there rather than
 /// skipping part of the story.
+///
+/// What's loaded outlives the app (player.json): the songs, the one
+/// playing and the place in it, or the book, whose place is the book
+/// store's. A launch puts it back paused with nothing loaded into the
+/// player (`restore()`), so the home screen's card and Now Playing show it
+/// and Play starts the audio session and loads it from there.
 @MainActor
 @Observable
 final class WatchPlayer {
@@ -38,6 +44,9 @@ final class WatchPlayer {
     private(set) var bookPosition: TimeInterval = 0
     /// How fast it plays: a book's own speed, 1 for music.
     private(set) var rate: Double = 1
+    /// When it started or stopped playing last, this launch: with the
+    /// iPhone paused too, the home screen's card is whichever played last.
+    private(set) var lastPlayedAt: Date?
 
     var current: WatchSong? {
         queue.indices.contains(index) ? queue[index] : nil
@@ -82,10 +91,17 @@ final class WatchPlayer {
                 guard let self else { return }
                 let paused = self.isPlaying && !playing
                 self.isPlaying = playing
+                if playing || paused {
+                    self.lastPlayedAt = .now
+                }
                 // A pause keeps the book's place, and tells the iPhone; not
                 // the pause a load makes on its way to a place.
                 if paused, self.book != nil, self.pendingOffset == nil {
                     self.notePlace(tellPhoneNow: true)
+                }
+                // A song's place, for a relaunch.
+                if paused {
+                    self.saveNow()
                 }
                 self.updateNowPlaying()
                 WidgetStatePublisher.schedule()
@@ -173,6 +189,17 @@ final class WatchPlayer {
             resume()
             return true
         }
+        guard loadBook(pick, from: time) else { return false }
+        pendingPlay = true
+        let offset = pendingOffset ?? 0
+        Task { await startPlayback(from: offset) }
+        return true
+    }
+
+    /// Makes a book the one loaded, at `time` (book time) or where it was
+    /// left, without loading its file: Play does that. False when the file
+    /// it falls in isn't here yet.
+    private func loadBook(_ pick: WatchPick, from time: TimeInterval?) -> Bool {
         let store = WatchDownloadStore.shared
         let files = store.songs(in: [pick.key])
         guard !files.isEmpty else { return false }
@@ -182,7 +209,7 @@ final class WatchPlayer {
         let location = timeline.location(at: start)
         guard files.indices.contains(location.part), store.localURL(for: files[location.part]) != nil else { return false }
         leaveBook()
-        logger.info("Playing \(pick.title, privacy: .public) from \(Int(start)) s (file \(location.part + 1) of \(files.count))")
+        logger.info("Loading \(pick.title, privacy: .public) at \(Int(start)) s (file \(location.part + 1) of \(files.count))")
         // What played before goes now, not once the session is up: until
         // then its clock would read as the book's.
         player.pause()
@@ -197,8 +224,7 @@ final class WatchPlayer {
         bookPosition = start
         shownChapter = nil
         pendingOffset = location.offset
-        pendingPlay = true
-        Task { await startPlayback(from: location.offset) }
+        pendingPlay = false
         return true
     }
 
@@ -370,20 +396,40 @@ final class WatchPlayer {
             return
         }
         index += 1
-        loadCurrent()
+        if player.currentItem == nil {
+            moveWithNothingLoaded()
+        } else {
+            loadCurrent()
+        }
     }
 
     /// Back to the start of the song, or to the one before when it's only
     /// just begun.
     func previous() {
-        let elapsed = player.currentTime().seconds
-        if index == 0 || (elapsed.isFinite && elapsed > 3) {
+        let elapsed = player.currentItem == nil ? pendingOffset ?? 0 : player.currentTime().seconds
+        let toStart = index == 0 || (elapsed.isFinite && elapsed > 3)
+        if player.currentItem == nil {
+            if !toStart {
+                index -= 1
+            }
+            moveWithNothingLoaded()
+        } else if toStart {
             player.seek(to: .zero)
             updateNowPlaying()
         } else {
             index -= 1
             loadCurrent()
         }
+    }
+
+    /// A move before anything's loaded (put back at launch, or the session
+    /// still coming up): only the song changes, from its top. Play, or the
+    /// session, loads it.
+    private func moveWithNothingLoaded() {
+        pendingOffset = nil
+        updateNowPlaying()
+        WidgetStatePublisher.schedule()
+        saveNow()
     }
 
     private func stop() {
@@ -398,6 +444,7 @@ final class WatchPlayer {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         WidgetStatePublisher.schedule()
+        saveNow()
     }
 
     private func startPlayback(from offset: TimeInterval = 0) async {
@@ -452,6 +499,7 @@ final class WatchPlayer {
                 // A skip can keep playing straight through, so the widgets
                 // don't hear of the new song from the play state.
                 WidgetStatePublisher.schedule()
+                saveNow()
                 return
             }
             // Reached by playing on into it (a jump or a resume goes only to
@@ -661,5 +709,69 @@ final class WatchPlayer {
         center.skipForwardCommand.isEnabled = isBook
         center.skipBackwardCommand.isEnabled = isBook
         center.changePlaybackRateCommand.isEnabled = isBook
+    }
+
+    // MARK: - Relaunch
+
+    /// What's loaded, as player.json keeps it: the songs and the place in
+    /// the one playing, or only the book (its files are the download
+    /// store's, its place the book store's).
+    private struct Saved: Codable {
+        var queue: [WatchSong]
+        var index: Int
+        var position: TimeInterval
+        var bookKey: String?
+    }
+
+    /// At launch: what was loaded when the app last ended, back as it was,
+    /// paused, with nothing in the player yet. Songs taken off the watch
+    /// since are left out, and the one playing, if it went, gives way to
+    /// the next still here, from its top.
+    func restore() {
+        guard current == nil, let saved = Self.load() else { return }
+        let store = WatchDownloadStore.shared
+        if let key = saved.bookKey {
+            guard let pick = store.books.first(where: { $0.key == key }), loadBook(pick, from: nil) else { return }
+        } else {
+            guard saved.queue.indices.contains(saved.index) else { return }
+            let isHere = { (song: WatchSong) in store.localURL(for: song) != nil }
+            let songs = saved.queue.filter(isHere)
+            guard !songs.isEmpty else { return }
+            queue = songs
+            index = min(saved.queue[..<saved.index].filter(isHere).count, songs.count - 1)
+            pendingOffset = isHere(saved.queue[saved.index]) && saved.position > 0.5 ? saved.position : nil
+        }
+        logger.info("Put back \(self.nowPlayingTitle ?? "", privacy: .public), paused")
+        // Now Playing shows it, and its Play starts it.
+        configureCommandsIfNeeded()
+        updateCommands()
+        updateNowPlaying()
+    }
+
+    /// Keeps what's loaded for a relaunch, or forgets it once nothing is:
+    /// on each new song, a pause, a stop and leaving the screen.
+    func saveNow() {
+        guard current != nil else {
+            try? FileManager.default.removeItem(at: Self.fileURL)
+            return
+        }
+        let position = pendingOffset ?? player.currentTime().seconds
+        let saved = Saved(queue: book == nil ? queue : [], index: index, position: position.isFinite ? position : 0, bookKey: book?.key)
+        do {
+            try JSONEncoder().encode(saved).write(to: Self.fileURL, options: .atomic)
+        } catch {
+            logger.error("Couldn't keep what's loaded: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private static var fileURL: URL {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return support.appendingPathComponent("player.json")
+    }
+
+    private static func load() -> Saved? {
+        guard let data = try? Data(contentsOf: fileURL) else { return nil }
+        return try? JSONDecoder().decode(Saved.self, from: data)
     }
 }
