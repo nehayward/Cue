@@ -59,6 +59,9 @@ struct VolumeControlView: View {
                 if !isEditing, volumeTask == nil { lastSentVolume = nil }
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
+                    // A drag that began within the 2 s keeps its hold: with
+                    // the write only on a change, nothing else sets it back.
+                    guard self.isEditing == isEditing else { return }
                     group.isEditingVolume = isEditing
                 }
             }
