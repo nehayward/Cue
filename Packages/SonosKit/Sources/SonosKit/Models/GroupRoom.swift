@@ -9,6 +9,14 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public let coordinatorID: String
     public var rooms: [Room] = []
     public var TVMode: Bool { playbackService == .tv }
+    /// True while the group is playing an AirPlay stream. Read off both the
+    /// transport (`GetMediaInfo`) and the current track's URI
+    /// (`x-sonos-vli:…,airplay:…`): the track lands with the first position
+    /// poll, the media info a separate round trip later, and a caller deciding
+    /// whether to touch the phone's audio can't afford that window.
+    public var isAirPlay: Bool {
+        playbackService == .airplay || coordinatorRoom.track.musicService == .airplay
+    }
     public var isCrossfaded: Bool? = nil
     public var tvSettings: TVSettings?
 

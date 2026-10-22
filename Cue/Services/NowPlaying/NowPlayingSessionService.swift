@@ -499,8 +499,22 @@ final class NowPlayingSessionService {
 
     /// TV mode has no transport to mirror and an empty track means the speaker is
     /// idle — neither is worth holding the audio session for.
+    ///
+    /// An AirPlay stream is excluded for a different reason: its sender may well
+    /// be *this phone*. Holding the session interrupts whatever the device itself
+    /// is playing, and when that is Apple Music streaming to the very group on
+    /// the card, "interrupts other audio" means "stops the speakers". Pressing
+    /// play then fails too — Sonos resumes the sender, the sender's session
+    /// interrupts ours, the socket reports playing, and re-starting the silent
+    /// loop interrupts the sender straight back. And with the stream live, the
+    /// phone's system volume *is* the group's volume, so the bridge's writes land
+    /// on every grouped speaker. `AudioOutputRoute.isExternal` doesn't catch it:
+    /// Apple Music's in-app picker routes only Apple Music, and our own session
+    /// still reads as the built-in speaker. The speaker's own report of its
+    /// source is the dependable signal. The sender has its own Now Playing card,
+    /// so nothing is lost by standing down.
     private func isMirrorable(_ group: GroupRoom) -> Bool {
-        guard !group.TVMode else { return false }
+        guard !group.TVMode, !group.isAirPlay else { return false }
         return !group.coordinatorRoom.track.isEmpty || group.coordinatorRoom.radioStation != nil
     }
 
