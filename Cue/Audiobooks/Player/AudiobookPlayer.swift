@@ -220,7 +220,15 @@ final class AudiobookPlayer {
             return
         }
         let reading = AudiobookLibrary.progress(for: audiobook)
-        let startTime = min(max(time ?? reading?.resumePosition(at: .now, chapters: audiobook.chapters) ?? 0, 0), audiobook.duration)
+        let resumeFrom: TimeInterval
+        if let time {
+            resumeFrom = time
+        } else if let reading, reading.isStarted {
+            resumeFrom = await resumeTime(for: audiobook, from: reading.position, afterPausing: Date.now.timeIntervalSince(reading.updatedAt))
+        } else {
+            resumeFrom = 0
+        }
+        let startTime = min(max(resumeFrom, 0), audiobook.duration)
         let local = AudiobookProgressStore.shared.progress(for: audiobook.book)
         let from = time != nil ? "asked" : reading == nil ? "the top" : reading == local ? "this device's place" : "the server's place"
         Self.log.notice("play \(audiobook.book.title, privacy: .public) at \(Int(startTime)) s (\(audiobook.chapter(at: startTime)?.title ?? "-", privacy: .public)), from \(from, privacy: .public); this device \(local.map { "\(Int($0.position)) s" } ?? "none", privacy: .public), server \(audiobook.serverProgress.map { "\(Int($0.position)) s" } ?? "none", privacy: .public)")
@@ -304,10 +312,16 @@ final class AudiobookPlayer {
             time = arriving
         } else if let queueTime, kept.map({ abs($0.position - queueTime) <= Self.storeInterval + 1 }) ?? true {
             // A little back from it, as from a pause (`SmartResume`).
-            time = kept.map { SmartResume.resumeTime(from: queueTime, afterPausing: Date.now.timeIntervalSince($0.updatedAt), chapters: current.chapters) } ?? queueTime
-        } else {
+            if let kept {
+                time = await resumeTime(for: current, from: queueTime, afterPausing: Date.now.timeIntervalSince(kept.updatedAt))
+            } else {
+                time = queueTime
+            }
+        } else if let kept, kept.isStarted {
             // Moved since the queue's spot was saved.
-            time = kept?.resumePosition(at: .now, chapters: current.chapters) ?? position
+            time = await resumeTime(for: current, from: kept.position, afterPausing: Date.now.timeIntervalSince(kept.updatedAt))
+        } else {
+            time = kept?.resumePosition ?? position
         }
         let location = current.timeline.location(at: time)
         guard let index = local.queue.firstIndex(where: { current.partIndex(of: $0) == location.part }) else {
@@ -326,15 +340,49 @@ final class AudiobookPlayer {
 
     /// Smart Resume on this device: where in `item`, one of the loaded
     /// book's files, paused at `offset` since `pausedAt`, Play goes back to
-    /// (`SmartResume`), held to the top of the file. Nil when it isn't one
-    /// of the loaded book's files.
-    func smartResumeOffset(in item: PlayableContent?, from offset: TimeInterval, pausedAt: Date) -> TimeInterval? {
+    /// (`SmartResume`), in a pause in the speech `heard` up to there (the
+    /// file's audio, on its clock) when there's one near, and held to the
+    /// top of the file. Nil when it isn't one of the loaded book's files.
+    func smartResumeOffset(in item: PlayableContent?, from offset: TimeInterval, pausedAt: Date, heard: LoudnessTrace?) -> TimeInterval? {
         guard let current, let part = current.partIndex(of: item) else { return nil }
         let pause = Date.now.timeIntervalSince(pausedAt)
         let time = current.time(part: part, offset: offset)
-        let target = SmartResume.resumeTime(from: time, afterPausing: pause, chapters: current.chapters)
-        Self.log.notice("smart resume: back \(time - target, format: .fixed(precision: 1)) s to \(Int(target)) s after \(Int(pause)) s paused")
-        return max(offset - (time - target), 0)
+        let fileStart = time - offset
+        let target = SmartResume.resumeTime(from: time, afterPausing: pause, chapters: current.chapters, heard: heard?.shifted(by: fileStart))
+        logSmartResume(from: time, to: target, afterPausing: pause, heard: heard != nil, chapters: current.chapters)
+        return max(target - fileStart, 0)
+    }
+
+    /// Smart Resume for a book played again from a kept place, `place`,
+    /// left `pause` seconds ago: back a little, into a pause in the speech
+    /// when the file it falls in is on this device, read around there (a
+    /// few milliseconds). A streamed file isn't fetched for it: the plain
+    /// rewind.
+    private func resumeTime(for audiobook: Audiobook, from place: TimeInterval, afterPausing pause: TimeInterval) async -> TimeInterval {
+        let plain = SmartResume.resumeTime(from: place, afterPausing: pause, chapters: audiobook.chapters)
+        let part = audiobook.timeline.location(at: plain).part
+        guard audiobook.parts.indices.contains(part),
+              let url = DownloadManager.shared.localURL(for: audiobook.parts[part]) else {
+            logSmartResume(from: place, to: plain, afterPausing: pause, heard: false, chapters: audiobook.chapters)
+            return plain
+        }
+        let fileStart = audiobook.timeline.start(ofPart: part)
+        // A few seconds around the plain rewind: as far as a pause is
+        // looked for, and the voice around it.
+        let from = plain - fileStart - 3
+        let to = min(place, plain + 3) - fileStart
+        let heard = await Task.detached(priority: .userInitiated) {
+            LoudnessTrace.reading(url, from: from, to: to)
+        }.value
+        let time = SmartResume.resumeTime(from: place, afterPausing: pause, chapters: audiobook.chapters, heard: heard?.shifted(by: fileStart))
+        logSmartResume(from: place, to: time, afterPausing: pause, heard: heard != nil, chapters: audiobook.chapters)
+        return time
+    }
+
+    private func logSmartResume(from time: TimeInterval, to target: TimeInterval, afterPausing pause: TimeInterval, heard: Bool, chapters: [AudiobookChapter]) {
+        let plain = SmartResume.resumeTime(from: time, afterPausing: pause, chapters: chapters)
+        let landing = !heard ? "nothing heard to look in" : target == plain ? "no pause in the speech near" : "a pause in the speech, \(String(format: "%+.2f", target - plain)) s from the plain rewind"
+        Self.log.notice("smart resume: back \(time - target, format: .fixed(precision: 2)) s to \(Int(target)) s after \(Int(pause)) s paused; \(landing, privacy: .public)")
     }
 
     /// Resolves Plex's connection first when nothing has yet since launch,

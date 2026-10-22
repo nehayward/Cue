@@ -358,10 +358,18 @@ final class WatchPlayer {
         } else if let book, let paused = bookPause, player.currentItem != nil, pendingOffset == nil,
                   abs(currentBookTime - paused.time) < 1 {
             // Smart Resume, unless it moved while paused: within the file
-            // playing, as on the iPhone.
+            // playing, as on the iPhone, and into a pause in the speech
+            // read from the file around there (a few milliseconds).
             let chapters = WatchBookStore.shared.chapters(for: book.key)
-            let target = SmartResume.resumeTime(from: paused.time, afterPausing: Date.now.timeIntervalSince(paused.at), chapters: chapters)
-            jump(to: max(target, timeline?.start(ofPart: index) ?? 0))
+            let pause = Date.now.timeIntervalSince(paused.at)
+            let fileStart = timeline?.start(ofPart: index) ?? 0
+            let plain = SmartResume.resumeTime(from: paused.time, afterPausing: pause, chapters: chapters)
+            let heard = current.flatMap { WatchDownloadStore.shared.localURL(for: $0) }.flatMap {
+                LoudnessTrace.reading($0, from: plain - fileStart - 3, to: min(paused.time, plain + 3) - fileStart)
+            }
+            let target = SmartResume.resumeTime(from: paused.time, afterPausing: pause, chapters: chapters, heard: heard?.shifted(by: fileStart))
+            logger.notice("smart resume: back \(paused.time - target, format: .fixed(precision: 2)) s after \(Int(pause)) s paused, \(target == plain ? "the plain rewind" : "into a pause in the speech", privacy: .public)")
+            jump(to: max(target, fileStart))
         }
         bookPause = nil
         if player.currentItem == nil {

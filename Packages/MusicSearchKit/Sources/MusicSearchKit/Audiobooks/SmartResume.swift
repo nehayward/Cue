@@ -20,6 +20,19 @@ public enum SmartResume {
         return max(time - rewind(afterPausing: pause), chapterStart, 0)
     }
 
+    /// `resumeTime(from:afterPausing:chapters:)`, moved into the nearest
+    /// pause in the speech (`SpeechGaps`) in `heard`, the audio up to
+    /// `time` on the book's clock: after a minute or more, the end of a
+    /// sentence if there's one a little further back, else a gap between
+    /// words. Not past the chapter's start, where it already starts clean.
+    public static func resumeTime(from time: TimeInterval, afterPausing pause: TimeInterval, chapters: [AudiobookChapter] = [], heard: LoudnessTrace?) -> TimeInterval {
+        let target = resumeTime(from: time, afterPausing: pause, chapters: chapters)
+        let chapterStart = min(chapters.chapter(at: time)?.start ?? 0, time)
+        guard let heard, target > chapterStart else { return target }
+        let prefersSentences = rewind(afterPausing: pause) >= 3
+        return SpeechGaps.landing(near: target, before: time, notBefore: chapterStart, prefersSentences: prefersSentences, in: heard) ?? target
+    }
+
     /// Up to each length of pause, how far back.
     private static let steps: [(pause: TimeInterval, rewind: TimeInterval)] = [
         (10, 1),

@@ -1108,15 +1108,22 @@ final class LocalPlaybackService {
 
     /// Smart Resume: a book's file played again after a pause goes back a
     /// little first, so the listener hears again what the pause cut off,
+    /// into a pause in the speech heard before it (`BookAudioListener`),
     /// unless its place moved while it was paused.
     private func smartResume(_ player: AVQueuePlayer) {
         defer { bookPause = nil }
         guard station == nil, let paused = bookPause, let item = player.currentItem else { return }
         let offset = Self.finite(item.currentTime().seconds, else: progress)
+        let heard = BookAudioListener.shared.heard(item, upTo: offset)
         guard abs(offset - paused.offset) < 1,
-              let target = AudiobookPlayer.shared.smartResumeOffset(in: nowPlaying, from: offset, pausedAt: paused.at),
+              let target = AudiobookPlayer.shared.smartResumeOffset(in: nowPlaying, from: offset, pausedAt: paused.at, heard: heard),
               target < offset else { return }
-        seek(to: target)
+        // To the frame: a seek left to the player's tolerance can land in
+        // the word beside the pause.
+        progress = target
+        savePosition()
+        player.seek(to: CMTime(seconds: target, preferredTimescale: 1000), toleranceBefore: .zero, toleranceAfter: .zero)
+        nowPlayingCard.noteSeek(elapsed: target)
     }
 
     /// Stamps when a station's stream was paused, at the pause itself: the
@@ -2505,7 +2512,12 @@ final class LocalPlaybackService {
         // vocoder, Apple's choice for music) smears a voice at 1.5× and
         // over, the echoey, underwater sound of a sped-up book. At normal
         // speed nothing is stretched either way.
-        item.audioTimePitchAlgorithm = AudiobookPlayer.shared.contains(queue[safe: queueIndex]) ? .timeDomain : .spectral
+        let isBook = AudiobookPlayer.shared.contains(queue[safe: queueIndex])
+        item.audioTimePitchAlgorithm = isBook ? .timeDomain : .spectral
+        // Heard as it plays, for Smart Resume to start again between words.
+        if isBook {
+            BookAudioListener.shared.listen(to: item)
+        }
         streamRun[ObjectIdentifier(item)] = queueIndex
         watch(item)
     }
