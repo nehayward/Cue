@@ -51,7 +51,7 @@
 - Plex songs playing on a speaker now always show their heart and rating
 - Apple Music artists shared to Cue or dropped on a speaker now play their albums instead of failing with an error
 - Improved Search: results land without a stutter while you type, and No Results no longer flashes before a search has started
-- Sliders now let a list scroll or a sheet close when you swipe up or down over them, and only move when you drag sideways
+- Sliders in lists and sheets now let them scroll or close when you swipe up or down over them, and only move when you drag sideways
 - The volume number on sliders is easier to read over the empty part of the track
 - The player's background now fades in for the first song instead of sliding in from the corner
 

@@ -528,7 +528,7 @@ struct PlayerView: View {
     @ViewBuilder
     private var volumeRow: some View {
         if let group {
-            VolumeControlView(group: group)
+            VolumeControlView(group: group, immediateDrag: true)
         } else {
             LocalVolumeControlView()
         }
@@ -574,7 +574,7 @@ struct PlayerView: View {
         .transition(.opacity)
 
         VStack {
-            VolumeControlView(group: group)
+            VolumeControlView(group: group, immediateDrag: true)
                 .padding(.bottom, 20)
                 .padding(.horizontal, -12)
                 .frame(maxWidth: 500)
@@ -1061,6 +1061,7 @@ private struct PlayerScrubber: View {
                     step: 1,
                     baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24,
                     delayDrag: false,
+                    immediateDrag: true,
                     valueAnimation: nil
                 ) { isEditing in
                     scrubbingChanged(isEditing, on: controller)
@@ -1348,6 +1349,7 @@ private struct LocalVolumeControlView: View {
                 step: 1,
                 baseHeight: sliderHeight,
                 delayDrag: false,
+                immediateDrag: true,
                 showValue: true
             ) { editing in
                 if !editing { dragging = nil }

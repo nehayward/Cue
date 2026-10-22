@@ -251,7 +251,7 @@ Clic (2026.8 to 2026.11) fixed these in code Cue shares.
 
 ### Ported from Clic: Search, sliders, playlists
 - **Search**: no animation for a new result set (an animated List diff cost ~100 ms on an iPhone SE); favorites and the Apple Music playlists are written only when `PlayableContent.displaysSame` says they changed; "No Results" waits for `answeredSearchKey`; stable header tags.
-- **Sliders**: `VibeSlider.swift`, `SidewaysPan.swift`, `SliderMath.swift` and `PlaybackIconView.swift` are now the same files as Clic's. Every `VibeSlider` drags through `SidewaysPan` on iOS (`immediateDrag` begins on touch-down), `onLongPress` is available, the value readout is split where the fill ends, and it isn't built when hidden. Play On uses VibesDS's `SidewaysPan`.
+- **Sliders**: `VibeSlider.swift`, `SidewaysPan.swift`, `SliderMath.swift` and `PlaybackIconView.swift` are now the same files as Clic's. Every `VibeSlider` drags through `SidewaysPan` on iOS, except the player's scrubbers and volume sliders, which pass `immediateDrag` to begin on touch-down as before (as Clic's large player does; `VolumeControlView` takes it too), `onLongPress` is available, the value readout is split where the fill ends, and it isn't built when hidden. Play On uses VibesDS's `SidewaysPan`.
 - **Add to Playlist** (`appleUserPlaylists()`): follows `next` past Apple's 100 a page.
 
 ### Ported from Clic: tooling

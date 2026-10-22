@@ -140,7 +140,7 @@ struct LargePlayerView: View {
                 }
                 if !showArtworkOnly || group.TVMode {
                     VStack {
-                        VolumeControlView(group: group)
+                        VolumeControlView(group: group, immediateDrag: true)
                             .padding(.bottom, 20)
                             .padding(.horizontal, -12)
                             .frame(maxWidth: 500)
@@ -503,7 +503,7 @@ struct GroupPlaybackScrubber: View {
             position: { isScrubbing ? room.playbackPosition : room.estimatedPlaybackPosition() }
         ) { position in
             VStack(spacing: 0) {
-                VibeSlider(value: Binding(get: { position }, set: { room.playbackPosition = $0 }), in: scrubRange, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, valueAnimation: nil, onEditingChanged: scrubbingChanged)
+                VibeSlider(value: Binding(get: { position }, set: { room.playbackPosition = $0 }), in: scrubRange, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, immediateDrag: true, valueAnimation: nil, onEditingChanged: scrubbingChanged)
                 .frame(maxWidth: 500)
                 .frame(height: 40)
                 .foregroundStyle(.primary)
