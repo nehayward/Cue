@@ -178,19 +178,17 @@ struct MusicPlaybackView: View {
                         .foregroundStyle(.secondary)
                 }
                 VStack(alignment: .leading) {
-                    Group {
-                        // A long title scrolls, as Clic's mini player does,
-                        // rather than cutting off.
-                        if let title = item?.title {
-                            MarqueeText(title)
-                                .font(.callout.bold())
-                        } else {
-                            Text("Not Playing")
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                        }
+                    // A long title scrolls, as Clic's mini player does,
+                    // rather than cutting off.
+                    if let title = item?.title {
+                        MarqueeText(title)
+                            .font(.callout.bold())
+                    } else {
+                        Text("Not Playing")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
-                    .lineLimit(1)
                     if placement != .inline, let line = subtitle(for: item, on: group) {
                         Group {
                             if isBook {
