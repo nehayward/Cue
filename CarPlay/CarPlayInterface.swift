@@ -132,9 +132,15 @@ final class CarPlayInterface: NSObject {
         // of Cue's two Now Playing cards it was showing, its own or
         // MusicKit's (FB24840951), and the template that does so was
         // reworked with the MiniPlayer. Without it the car may read the card
-        // afresh each time Now Playing opens.
+        // afresh each time Now Playing opens. Off in Debug builds until
+        // that's known; release builds keep it.
         if #available(iOS 27.0, *) {
-            let allowsMiniPlayer = UserDefaults.standard.object(forKey: AppStorageKeys.carPlayMiniPlayer) as? Bool ?? true
+#if DEBUG
+            let unset = false
+#else
+            let unset = true
+#endif
+            let allowsMiniPlayer = UserDefaults.standard.object(forKey: AppStorageKeys.carPlayMiniPlayer) as? Bool ?? unset
             nowPlaying.allowsMiniPlayer = allowsMiniPlayer
             Self.log.notice("connected, MiniPlayer \(allowsMiniPlayer ? "on" : "off", privacy: .public)")
         }

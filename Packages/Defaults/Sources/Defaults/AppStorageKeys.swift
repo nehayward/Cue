@@ -121,9 +121,10 @@ public enum AppStorageKeys {
     /// points]` — so it opens at its height rather than growing to it once
     /// the rows are measured.
     public static let playOnSheetHeights = "\(Prefix.id).playOnSheetHeights"
-    /// Whether the car shows iOS 27's MiniPlayer for Cue (on when unset).
-    /// A Debug switch for now: whether the car's Now Playing follows Cue's
-    /// own player after Apple Music without it (FB24840951).
+    /// Whether the car shows iOS 27's MiniPlayer for Cue: when unset, off in
+    /// Debug builds and on in release ones. A Debug switch for now: whether
+    /// the car's Now Playing follows Cue's own player after Apple Music
+    /// without it (FB24840951).
     public static let carPlayMiniPlayer = "\(Prefix.id).carPlayMiniPlayer"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
     public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
