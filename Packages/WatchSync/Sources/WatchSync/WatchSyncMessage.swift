@@ -9,16 +9,21 @@ import Foundation
 /// `WatchBookPlaces.merged`). The picks and places travel packed, with a
 /// `sentAt` stamp so sending them again always counts as a change.
 ///
-/// One message goes the other way, with a reply: the watch asking for the
+/// Messages go the other way, with a reply: the watch asking for the
 /// sign-ins afresh (`credentialsRequest`), when the Audiobookshelf token it
-/// was lent is about to run out. The iPhone renews its own and answers
-/// with the context's sign-ins (`credentialsReply`).
+/// was lent is about to run out — the iPhone renews its own and answers
+/// with the context's sign-ins (`credentialsReply`) — and asking what the
+/// iPhone plays (`nowPlayingRequest`) or to play or pause it
+/// (`togglePlayPauseRequest`), answered with what it plays then. While the
+/// watch app is open the iPhone also sends what it plays unasked, as it
+/// changes (`nowPlayingMessage`).
 public enum WatchSyncMessage {
     public static let picksKey = "picks"
     public static let placesKey = "places"
     public static let credentialsKey = "credentials"
     public static let sentAtKey = "sentAt"
     public static let requestKey = "request"
+    public static let nowPlayingKey = "nowPlaying"
 
     public static func context(picks: WatchPicks, places: WatchBookPlaces? = nil, credentials: WatchCredentials? = nil, sentAt: Date = .now) throws -> [String: Any] {
         var context: [String: Any] = [
@@ -61,6 +66,38 @@ public enum WatchSyncMessage {
     /// The iPhone's answer: the sign-ins, read back with `credentials(in:)`.
     public static func credentialsReply(_ credentials: WatchCredentials) throws -> [String: Any] {
         [credentialsKey: try JSONEncoder().encode(credentials)]
+    }
+
+    // MARK: - What the iPhone plays
+
+    /// The watch asking what the iPhone plays.
+    public static var nowPlayingRequest: [String: Any] { [requestKey: "nowPlaying"] }
+
+    /// The watch asking the iPhone to play or pause.
+    public static var togglePlayPauseRequest: [String: Any] { [requestKey: "togglePlayPause"] }
+
+    public static func isNowPlayingRequest(_ message: [String: Any]) -> Bool {
+        message[requestKey] as? String == "nowPlaying"
+    }
+
+    public static func isTogglePlayPauseRequest(_ message: [String: Any]) -> Bool {
+        message[requestKey] as? String == "togglePlayPause"
+    }
+
+    /// What the iPhone plays, nil for nothing: sent unasked, and as the
+    /// answer to either request.
+    public static func nowPlayingMessage(_ nowPlaying: WatchPhoneNowPlaying?) throws -> [String: Any] {
+        [nowPlayingKey: try nowPlaying.map { try JSONEncoder().encode($0) } ?? Data()]
+    }
+
+    /// Whether a message says what the iPhone plays, nothing included.
+    public static func carriesNowPlaying(_ message: [String: Any]) -> Bool {
+        message[nowPlayingKey] is Data
+    }
+
+    public static func nowPlaying(in message: [String: Any]) -> WatchPhoneNowPlaying? {
+        guard let data = message[nowPlayingKey] as? Data, !data.isEmpty else { return nil }
+        return try? JSONDecoder().decode(WatchPhoneNowPlaying.self, from: data)
     }
 
     // MARK: - Packing

@@ -3,7 +3,7 @@ import WatchSync
 
 /// The watch's settings, top left on the home screen: the quality songs
 /// come down at, the room they and the books take (and taking them all
-/// off), and which sign-ins the iPhone has shared.
+/// off), which sign-ins the iPhone has shared, and the version and build.
 struct SettingsScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchAccounts.self) private var accounts
@@ -48,6 +48,10 @@ struct SettingsScreen: View {
             } footer: {
                 Text("Sign in on your iPhone, then open Cue there once to bring the sign-ins here.")
             }
+
+            Section {
+                LabeledContent("Version", value: Self.version)
+            }
         }
         .navigationTitle("Settings")
         .sheet(isPresented: $isChoosingQuality) {
@@ -64,6 +68,14 @@ struct SettingsScreen: View {
             Text("They come off this watch and your iPhone's list. They stay on your server.")
         }
     }
+
+    /// The version and build, as "2026.8 (674)".
+    private static let version: String = {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "\(version) (\(build))"
+    }()
 }
 
 /// Which quality songs come down at — asked the first time there's music
