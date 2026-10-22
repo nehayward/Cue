@@ -1134,7 +1134,7 @@ struct CueApp: App {
             }
 
             Task {
-                try? await subscriptionService.checkSubscription()
+                await subscriptionService.checkSubscription()
             }
 
             Task {
@@ -1274,7 +1274,12 @@ struct CueApp: App {
             }
             
             if components.host?.lowercased() == "subscribe" {
-                router.presentedFullScreenCover = .paywall
+                // A Shortcuts action that ran before this device had its
+                // answer still opens this; opening Cue is all someone with
+                // Super needs.
+                if !subscriptionService.subscription.isActive {
+                    router.presentedFullScreenCover = .paywall
+                }
                 return
             }
             
@@ -1654,11 +1659,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         #endif
         // RevenueCat, analytics, remote flags and the image pipeline. Before
         // any view body: `Purchases.shared` is a fatal error until
-        // `Purchases.configure` has run, and Preferences reads it for the
-        // app user ID it shows — opening Settings crashed once this stopped
-        // being called from the root view's onAppear.
+        // `Purchases.configure` has run (`SubscriptionService.userID` reads
+        // empty until then). Every answer goes to `SuperPublisher`, so it's
+        // set first.
         if !AppBootstrapper.shared.didLaunch {
             AppBootstrapper.shared.didLaunch = true
+            SubscriptionService.shared.subscriptionUpdated = SuperPublisher.publish
             AppBootstrapper.shared.bootstrap()
         }
         // The continued-processing task's launch handler has to be in place

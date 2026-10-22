@@ -91,9 +91,15 @@ public final class AppleMusicBrowseService {
         let offset = Int(container.next?.components(separatedBy: "=").last ?? "0") ?? 0
         offsets["updateUsersApplePlaylists"] = offset
         let newUserPlaylists = container.data.compactMap(\.toPlayable)
+        // One write, and only for a change: each `updateOrAppend` on the
+        // observed set counted as a write, so every open of Search updated
+        // the Apple Playlists row for nothing.
+        var updated = userPlaylists
         for newUserPlaylist in newUserPlaylists {
-            userPlaylists.updateOrAppend(newUserPlaylist)
+            updated.updateOrAppend(newUserPlaylist)
         }
+        guard !updated.displaysSame(as: userPlaylists) else { return }
+        userPlaylists = updated
     }
     
     public func updateUsersApplePlaylistFolders(offset: Int = 0) async {

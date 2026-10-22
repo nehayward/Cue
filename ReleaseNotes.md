@@ -39,6 +39,21 @@
 - Removing a downloaded album no longer takes the songs it shares with another downloaded album or playlist
 - Fixed songs in your Files folder losing the last letter of their title, artist or album when their tags were written by some Windows taggers
 - Fixed Switch to Line In missing from the player's menu while the speaker with the line-in was grouped under another room
+- Fixed a rare crash when Cue reconnected to your speakers, such as after switching rooms or coming back to the app
+- Fixed the player, mini player and Lock Screen sometimes not following play and pause on a speaker after another speaker in the house woke, slept or was regrouped
+- Fixed the player briefly switching to This Device after taking the room that was playing out of a group
+- Fixed opening Cue stopping music that another app on this device was AirPlaying to a Sonos group, and setting its speakers to zero
+- Fixed Shortcuts actions asking you to subscribe to Super after you'd bought it
+- Super now unlocks on any iPhone, iPad or Mac signed in to the App Store with the Apple ID that bought it, without Restore Purchases and even offline
+- Fixed Super features looking locked for a moment when opening Cue, and the paywall now closes as soon as Super unlocks, after Restore Purchases too
+- Settings now says when your Super plan is a free trial
+- Add to Playlist now lists all your Apple Music playlists, not just the first 100
+- Plex songs playing on a speaker now always show their heart and rating
+- Apple Music artists shared to Cue or dropped on a speaker now play their albums instead of failing with an error
+- Improved Search: results land without a stutter while you type, and No Results no longer flashes before a search has started
+- Sliders in lists and sheets now let them scroll or close when you swipe up or down over them, and only move when you drag sideways
+- The volume number on sliders is easier to read over the empty part of the track
+- The player's background now fades in for the first song instead of sliding in from the corner
 
 # 2026.7
 

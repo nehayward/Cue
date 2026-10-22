@@ -470,8 +470,19 @@ public final class SonosService {
     /// describes: the coordinator's stream survives a membership change. A
     /// room newly promoted to coordinator keeps the parse's empty track
     /// rather than showing the song it heard as a member of its old group.
-    private func adoptGroups(_ newGroups: [GroupRoom]) {
-        for newGroup in newGroups {
+    private func adoptGroups(_ parsedGroups: [GroupRoom]) {
+        // A group the refresh didn't touch keeps its instance. A new one is a
+        // change to every view holding it (GroupRoom is equal only to itself),
+        // so swapping in the parse's copy of an unchanged group would redraw
+        // them all, and restart anything keyed on it, for nothing.
+        let newGroups = parsedGroups.map { parsed in
+            groups.first {
+                $0.coordinatorID == parsed.coordinatorID && $0.id == parsed.id && $0.adoptionKey == parsed.adoptionKey
+            } ?? parsed
+        }
+        let replaced = newGroups.filter { new in !groups.contains { $0 === new } }
+
+        for newGroup in replaced {
             guard let current = groups.first(where: { $0.coordinatorID == newGroup.coordinatorID }) else { continue }
             newGroup.groupVolume = current.groupVolume
             newGroup.isMuted = current.isMuted
@@ -497,7 +508,7 @@ public final class SonosService {
         // Per-room state that `updateGroupsRooms` refreshes after the swap:
         // carry it by room ID so a regroup doesn't drop every slider to 0
         // until that read lands.
-        for room in newGroups.flatMap(\.rooms) {
+        for room in replaced.flatMap(\.rooms) {
             guard let current = rooms.first(where: { $0.id == room.id }) else { continue }
             room.volume = current.volume
             room.isMuted = current.isMuted
@@ -505,6 +516,12 @@ public final class SonosService {
         }
         groups = newGroups
         rooms = newGroups.flatMap(\.rooms)
+        // In the same step, so nothing reads the new groups against the old
+        // selected one (tvOS selects its tab by it).
+        if let selected = selectedGroup,
+           let live = newGroups.first(where: { $0.coordinatorID == selected.coordinatorID }) {
+            selectedGroup = live
+        }
     }
 
     @MainActor
@@ -2913,7 +2930,11 @@ public final class SonosService {
 
     public func getFavoriteList() async {
         guard let ip = prioritizedIP() else { return }
-        self.favorites = await api.getFavorites(for: ip)
+        let favorites = await api.getFavorites(for: ip)
+        // Usually unchanged. Writing anyway updated every view showing
+        // favorites, as Search opened.
+        guard !favorites.displaysSame(as: self.favorites) else { return }
+        self.favorites = favorites
     }
 
     public func deleteFavorite(on group: GroupRoom?, favoriteID: String) async {
@@ -3029,6 +3050,31 @@ public final class SonosService {
                 try await playNext(Array(tracks[start...]), on: group)
             default:
                 try await queue(contents: tracks, group: group, position: position)
+            }
+            return
+        }
+        // An Apple Music artist has no container on Sonos: it plays as its
+        // albums, or a library artist without any as its songs.
+        if playable.content.type.isArtist, let contents = await musicSearch.artistContents(for: playable) {
+            guard !contents.isEmpty else { throw SonosServiceError.cantPlayContent(upnpCode: nil) }
+            switch position {
+            case .replace:
+                try await queue(contents: contents, group: group, position: .replace, startIndex: 0)
+            case .now where contents.allSatisfy(\.content.type.isTrack):
+                try await playNext(contents, on: group)
+            case .now:
+                // Not `playNext`: each album lands after the playing track,
+                // which by then is the first album's opening song, so the
+                // rest of that album would follow every other album. Queued
+                // in order after the playing track, then stepped onto; an
+                // empty queue starts on the first album by itself.
+                let count = await api.getQueueCount(IP: group.ip) ?? 0
+                try await queue(contents: contents, group: group, position: .next)
+                if count > 0 {
+                    await next(ip: group.ip)
+                }
+            default:
+                try await queue(contents: contents, group: group, position: position)
             }
             return
         }

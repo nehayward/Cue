@@ -610,6 +610,28 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         hasher.combine(title)
         hasher.combine(metadata?.position ?? 0)
     }
+
+    /// Whether `other` would draw the same on screen. `==` only compares
+    /// what identifies an item (content, title, position), so it misses a
+    /// new cover, subtitle or duration.
+    public func displaysSame(as other: PlayableContent) -> Bool {
+        self == other
+            && subtitle == other.subtitle
+            && artwork == other.artwork
+            && thumbnail == other.thumbnail
+            && previewURL == other.previewURL
+            && metadata == other.metadata
+    }
+}
+
+extension Sequence where Element == PlayableContent {
+    /// Whether two lists would draw the same: the same items in the same
+    /// order, each looking the same. A refresh that fetched nothing new
+    /// skips its write with this, so the views reading the list don't
+    /// update for nothing.
+    public func displaysSame<Other: Sequence>(as other: Other) -> Bool where Other.Element == PlayableContent {
+        elementsEqual(other) { $0.displaysSame(as: $1) }
+    }
 }
 
 extension PlayableContent: Transferable {

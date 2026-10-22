@@ -157,7 +157,8 @@ struct AppleLibraryBrowseScreen: View {
                         .fontDesign(.rounded)
                         .fontWeight(.semibold)
                 }
-                .tag(UUID().uuidString)
+                // Stable: a fresh UUID re-tagged the row on every pass.
+                .tag("appleRecentlyPlayedHeader")
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 

@@ -269,7 +269,7 @@ public final class SonosStreamingService {
         // This allows AsyncStreams and continuations to properly terminate
         try? await Task.sleep(for: .milliseconds(100))
         
-        // Close connection gracefully - this releases URLSession and all resources
+        // Close connection gracefully: cancels its task and finishes its streams
         if let socket = socket {
             socket.close() // This properly finishes all continuations and clears references
             if debug {
@@ -292,10 +292,6 @@ public final class SonosStreamingService {
             }
         }
         // Note: Don't remove playerConfigs during graceful disconnect - we need them for reconnection
-        
-        // Additional wait to ensure URLSession invalidation completes
-        // This prevents accumulation of URLSession instances
-        try? await Task.sleep(for: .milliseconds(50))
         
         // Notify connection status change
         await notifyConnectionStatusChanged()
@@ -772,7 +768,7 @@ public final class SonosStreamingService {
         }
         connectionTasks.removeAll()
         
-        // Close all sockets synchronously to release URLSession resources
+        // Close all sockets synchronously
         for socket in connections.values {
             socket.close()
         }

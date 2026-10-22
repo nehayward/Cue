@@ -230,6 +230,34 @@ Timed and plain lyrics in the player, for this device and a speaker alike, from 
 ### Files tags written in UTF-16 lost their last letter
 - `TagText.string` trimmed trailing zero bytes one at a time, which in UTF-16LE took the zero half of a last ASCII letter ("Radiohead" → "Radiohea"). It now trims whole zero code units for the UTF-16 encodings. `TagReaderTests.testID3v23TextFramesInEveryEncodingPictureAndCBRDuration` already covered it, but the SonosKit tests haven't built standalone for a while.
 
+
+### Ported from Clic: speakers and the player
+Clic (2026.8 to 2026.11) fixed these in code Cue shares.
+
+- **WebSocket crash** (`SonosWebSocket`, SonosKit and SonosKitMini): every socket's task runs on one `URLSession` that lives as long as the app and is never invalidated. Each socket used to make its own and invalidate it on close, and a cancelled handshake's task could outlive it, crashing in `-[__NSCFLocalSessionTask dealloc]`.
+- **Identity** (`GroupRoom`, `Room`): `==` is `===` and the hash is `ObjectIdentifier`. Content equality meant `@Observable` skipped notifying when a topology refresh swapped in an equal copy, so `PlaybackRoute.group`, `SonosGroupController`, `SelectedGroupService` and the Lock Screen card kept an instance nothing updated. `adoptGroups` keeps unchanged groups' instances and moves `selectedGroup` to the live one; `FeatureGate.isRoomUnlocked` finds the group by coordinator.
+- **AirPlay groups** (`GroupRoom.isAirPlay`): `NowPlayingSessionService.isMirrorable` and `HardwareVolumeControlModifier` stand down for a group playing AirPlay, whose sender may be this phone; claiming the session stopped it and the volume bridge wrote the phone's level onto its speakers. `Docs/LockScreenNowPlaying.md` rule 4.
+- **Regroup follow** (`GroupMembership`): following a promoted coordinator waits, up to 6 s, for a group under it, and only moves the route if it's still on the old group; `isSettled` keeps rooms from being toggled meanwhile. Moving at once found no group, so the route read as This Device for the 3.5 s SonosKit holds topology reads.
+- **Plex on a speaker** (`MusicServiceParser`): `sid=212` and the account `Svc54279` identify Plex before the positional `:3:` check; `plexRatingKey` reads past any number in the middle.
+- **Apple Music artists** (`SonosService.queue(playable:)`, `MusicSearchService.artistContents`, `AppleMusicAPI.librarySongs(byArtist:)`): an artist has no container on Sonos (UPnP 804), so it queues its albums oldest first, or a library artist without albums its songs. Not on the device.
+- **Backdrop** (`ArtworkMeshBackground`): draws on a full-size `Color.clear`, so the first gradient fades instead of riding an empty `ZStack`'s growth.
+- **Apple TV** (`TVApp.reselect`): keeps a group selected whenever there are groups, since SonosKit lets go of a selected group whose coordinator has gone and its poll then reads no song.
+
+### Ported from Clic: Super
+- `SubscriptionKit` is Clic's final version: `apply(_:)` settles from RevenueCat (now also an active entitlement alone) or StoreKit's `Transaction.currentEntitlements` (`StoreKitEntitlements`), longer yes wins, Lifetime over a subscription; RevenueCat is configured once protected data is available, with Analytics in `configured`; the TestFlight check uses `targetEnvironment(simulator)`. Kept from Cue: `userID` is empty until RevenueCat is configured.
+- `SuperPublisher` writes `Subscription.activeUntil` to the App Group (`UserDefaults.superUntil`); `AppBootstrapper` resumes from it. The 17 Shortcuts actions compiled into the app read `GroupStorageKeys.defaults.hasSuper` and throw `IntentError.superRequired`: they read `com.cue.subscriptions`, which only Debug and TestFlight builds wrote, so App Store subscribers were told to subscribe.
+- `CuePaywall` closes when `isActive` turns on; `cue://subscribe` opens it only without Super; Settings names a free trial. `SubscriptionDetailScreen` (unreferenced) is gone.
+- Not ported: per-device iCloud claims and the paywall's "Super on another device" card; the RevenueCat 5.96 bump.
+
+### Ported from Clic: Search, sliders, playlists
+- **Search**: no animation for a new result set (an animated List diff cost ~100 ms on an iPhone SE); favorites and the Apple Music playlists are written only when `PlayableContent.displaysSame` says they changed; "No Results" waits for `answeredSearchKey`; stable header tags.
+- **Sliders**: `VibeSlider.swift`, `SidewaysPan.swift`, `SliderMath.swift` and `PlaybackIconView.swift` are now the same files as Clic's. Every `VibeSlider` drags through `SidewaysPan` on iOS, except the player's scrubbers and volume sliders, which pass `immediateDrag` to begin on touch-down as before (as Clic's large player does; `VolumeControlView` takes it too), `onLongPress` is available, the value readout is split where the fill ends, and it isn't built when hidden. Play On uses VibesDS's `SidewaysPan`.
+- **Add to Playlist** (`appleUserPlaylists()`): follows `next` past Apple's 100 a page.
+
+### Ported from Clic: tooling
+- `Scripts/deploy-to-mac.sh`, `mac-logs.sh`, `mac-crashes.sh`, `mac-profile.sh` and `lib/mac.sh` for `Cue (Mac)`; `crash-report.py --mac`. `deploy-to-iphone.sh` prints the end of the build log when a failure has no `error:` line.
+- The MusicSearchKit tests compile again (`nonLocalURIs`, `MockTokenRefreshHandler.getCredentials(for:)`); `SubscriptionTests` and three Plex identification tests are new.
+
 ---
 
 ## 2026.7

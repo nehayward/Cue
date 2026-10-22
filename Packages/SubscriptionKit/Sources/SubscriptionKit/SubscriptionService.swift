@@ -1,8 +1,5 @@
-import CloudStorage
-import CloudKit
-#if canImport(UIKit)
+import Combine
 import UIKit
-#endif
 import Observation
 import RevenueCat
 import Foundation
@@ -12,208 +9,206 @@ import Security
 public final class SubscriptionService {
     public static var shared = SubscriptionService()
 
-    private var subscriptionTask: Task<Void, Error>?
-    private let sync = CloudStorageSync.shared
-    public var subscription: Subscription = .notActive
-    public var subscriptionUpdated: ((Subscription) -> ())?
-    private var keyID: String?
+    private static let apiKey = "appl_ukLcssJkMdgCvraYWRsnWlqegvP"
 
-    /// Empty until `initialize(key:)` has configured RevenueCat.
-    /// `Purchases.shared` is a fatal error before then, and an ID shown in
-    /// Preferences and a support email isn't worth taking the app down for.
+    private var subscriptionTask: Task<Void, Never>?
+    public var subscription: Subscription = .notActive
+    /// Each answer, for the app to publish outside it (`SuperPublisher`). Only
+    /// ever an answer: `subscription` is `.notActive` until one comes, and
+    /// publishing that at launch locked the widgets and Shortcuts actions
+    /// whenever Cue was suspended (overnight, in the background) before it came.
+    public var subscriptionUpdated: ((Subscription) -> ())?
+    /// TestFlight and Debug builds have Super without a purchase. TestFlight
+    /// builds carry the App Store bundle ID, so this is how the answer's
+    /// readers tell a tester's Super from a bought one.
+    public private(set) var isGrantedByBuild = false
+    private var protectedDataWait: AnyCancellable?
+    private var evaluation = 0
+
+    /// Empty until RevenueCat is configured, which waits for protected data
+    /// (see `whenProtectedDataIsAvailable`). `Purchases.shared` is a fatal
+    /// error before then, and an ID shown in Settings and a support email
+    /// isn't worth taking the app down for.
     public var userID: String {
         guard Purchases.isConfigured else { return "" }
         return Purchases.shared.appUserID
     }
 
-    public func initialize(key: String, mock: Bool = false) {
-        self.keyID = key
-        guard let keyID else { return }
+    /// Starts from this device's last answer (`Subscription.activeUntil`, as
+    /// published) until RevenueCat or StoreKit gives a new one, so someone with
+    /// Super doesn't see the free tier for a moment at launch. Called first in
+    /// `AppBootstrapper.bootstrap`, from the app delegate, so background
+    /// launches (CarPlay, downloads, a Shortcuts action) start from it too.
+    /// Not an answer, so never announced.
+    public func resume(activeUntil: Date?) {
+        guard let activeUntil, activeUntil > .now, !subscription.isActive else { return }
+        subscription = Subscription(isActive: true, expiration: activeUntil == .distantFuture ? nil : activeUntil)
+    }
 
+    /// Every answer goes to `subscriptionUpdated`, so set it first. `configured`
+    /// runs once RevenueCat is, which can be later than this returns (see
+    /// `whenProtectedDataIsAvailable`): don't touch `Purchases.shared` before.
+    public func initialize(configured: @escaping () -> Void = {}) {
+        Purchases.logLevel = .error
 #if DEBUG && SUPER
-        Purchases.logLevel = .error
-        Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP", appUserID: "DEBUG")
+        configure(environment: "DEBUG", appUserID: "DEBUG")
+        configured()
+        grantByBuild()
+        return
+#endif
+        if UIApplication.shared.isRunningInTestFlightEnvironment() {
+            configure(environment: "TESTFLIGHT")
+            configured()
+            grantByBuild()
+            return
+        }
 
-//        if let subscribe = ProcessInfo.processInfo.environment["SUBSCRIBED"], subscribe == "false" {
-//            subscription = Subscription(isActive: false)
-//            sync.set(false, for: keyID)
-//        } else {
-//            subscription = Subscription(isActive: true)
-//            sync.set(true, for: keyID)
-//        }
+        whenProtectedDataIsAvailable { [self] in
+            configure(environment: "PRODUCTION")
+            configured()
+            followCustomerInfo()
+        }
+    }
 
-//        subscription = .notActive
-//        sync.set(false, for: keyID)
-    
+    /// `appUserID` is a `String?` so a literal doesn't pick RevenueCat's
+    /// deprecated `StaticString` overload.
+    private func configure(environment: String, appUserID: String? = nil) {
+        Purchases.configure(withAPIKey: Self.apiKey, appUserID: appUserID)
+        Purchases.shared.attribution.setAttributes(["ENVIRONMENT": environment])
+    }
+
+    private func grantByBuild() {
+        isGrantedByBuild = true
         subscription = .active
-        sync.set(true, for: keyID)
+        subscriptionUpdated?(subscription)
+    }
 
-//        Task { @MainActor in
-//            setup()
-//        }
-//
-//        monitorChanges()
-
-        NSUbiquitousKeyValueStore.default.synchronize()
-        Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "DEBUG"])
-        return
+    /// RevenueCat reads its anonymous user ID from UserDefaults, which can't be
+    /// read until the first unlock after a restart. Configured before then (a
+    /// background launch after an overnight update), it starts a new user that
+    /// owns nothing. `isProtectedDataAvailable` is false whenever the device
+    /// is locked, so a background launch while locked waits too; that costs
+    /// nothing, since nothing outside the app asks RevenueCat and the app
+    /// starts from its last answer (`resume(activeUntil:)`).
+    private func whenProtectedDataIsAvailable(_ body: @escaping () -> Void) {
+#if targetEnvironment(macCatalyst)
+        // A Mac app runs in a logged-in session, so its data is readable; and
+        // waiting there for nothing would leave the paywall with RevenueCat
+        // never configured.
+        body()
+#else
+        guard !UIApplication.shared.isProtectedDataAvailable else {
+            body()
+            return
+        }
+        // The unlock is announced; coming forward also means it happened.
+        let center = NotificationCenter.default
+        protectedDataWait = center.publisher(for: UIApplication.protectedDataDidBecomeAvailableNotification)
+            .merge(with: center.publisher(for: UIApplication.didBecomeActiveNotification))
+            .first { _ in UIApplication.shared.isProtectedDataAvailable }
+            .sink { _ in body() }
 #endif
-        #if canImport(UIKit)
-        if UIApplication.shared.isRunningInTestFlightEnvironment() {
-            Purchases.logLevel = .error
-            Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
-            subscription = Subscription(isActive: true)
-            sync.set(true, for: keyID)
-            Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "TESTFLIGHT"])
-            return
-        }
-        #endif
-
-        Purchases.logLevel = .error
-        Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
-        Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "PRODUCTION"])
-        
-        Task { @MainActor in
-            setup()
-        }
-
-        monitorChanges()
     }
 
-    @MainActor
-    private func setup() {
-        Task {
-            let customerInfo = try await Purchases.shared.customerInfo()
-            if !customerInfo.activeSubscriptions.isEmpty {
-                let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
-                let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate, info: subscriptionInfo)
-                subscription = newSubscription
-            } else if !customerInfo.nonSubscriptions.isEmpty {
-                let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
-                let newSubscription = Subscription(isActive: true, expiration: nil, info: subscriptionInfo)
-                subscription = newSubscription
-            } else {
-                subscription = .notActive
-            }
-            subscriptionUpdated?(subscription)
-        }
-    }
-
-    private func monitorChanges() {
-        #if canImport(UIKit)
-        if UIApplication.shared.isRunningInTestFlightEnvironment() {
-            return
-        }
-        #endif
-
-        subscriptionTask?.cancel()
+    /// RevenueCat's answer now (its cache, even a stale one, else the network;
+    /// none offline), then each change it reports.
+    private func followCustomerInfo() {
         subscriptionTask = Task { @MainActor in
-            for try await customerInfo in Purchases.shared.customerInfoStream {
-                if !customerInfo.activeSubscriptions.isEmpty {
-                    let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
-                    let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate, info: subscriptionInfo)
-                    subscription = newSubscription
-                } else if !customerInfo.nonSubscriptions.isEmpty {
-                    let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
-                    let newSubscription = Subscription(isActive: true, expiration: nil, info: subscriptionInfo)
-                    subscription = newSubscription
-                } else {
-                    subscription = .notActive
-                }
-                subscriptionUpdated?(subscription)
+            await apply(try? await Purchases.shared.customerInfo())
+            for await customerInfo in Purchases.shared.customerInfoStream {
+                await apply(customerInfo)
             }
         }
     }
 
+    /// Asks again (coming forward, Settings, after a restore). Nothing to ask
+    /// in TestFlight and Debug builds, or before RevenueCat is configured.
     @MainActor
-    public func checkSubscription() async throws {
-#if DEBUG
-//        if let subscribe = ProcessInfo.processInfo.environment["SUBSCRIBED"], subscribe == "false" {
-//            subscription = .notActive
-//        }
-        return
-#endif
-        #if canImport(UIKit)
-        if await UIApplication.shared.isRunningInTestFlightEnvironment() {
-            subscription = .active
+    public func checkSubscription() async {
+        guard !isGrantedByBuild, Purchases.isConfigured else { return }
+        await apply(try? await Purchases.shared.customerInfo())
+    }
+
+    /// Settles Super from RevenueCat's answer (nil when it couldn't give one)
+    /// and StoreKit's. Either saying yes is enough, and of two yeses the one
+    /// that lasts longer counts. It's no only when RevenueCat answered no and
+    /// StoreKit has nothing either; with no answer from RevenueCat and nothing
+    /// in StoreKit, the last answer stands.
+    @MainActor
+    private func apply(_ customerInfo: CustomerInfo?) async {
+        // RevenueCat's answers settle in the order they came, even when an
+        // older one's StoreKit read finishes last. One without RevenueCat can
+        // only add StoreKit's yes, which any of them would, so it isn't ordered.
+        var thisEvaluation: Int?
+        if customerInfo != nil {
+            evaluation += 1
+            thisEvaluation = evaluation
+        }
+        let fromRevenueCat = customerInfo.flatMap { Self.subscription(from: $0) }
+        // A yes that never ends settles it without waiting on StoreKit. One
+        // that ends (a cancelled plan) still asks: this install's RevenueCat
+        // user may not know a Lifetime bought from another install.
+        if let fromRevenueCat, fromRevenueCat.activeUntil == .distantFuture {
+            subscription = fromRevenueCat
+            subscriptionUpdated?(subscription)
             return
         }
-        #endif
+        let fromStoreKit = await StoreKitEntitlements.subscription()
+        if let thisEvaluation, thisEvaluation != evaluation { return }
 
-        let customerInfo = try await Purchases.shared.customerInfo()
-        if !customerInfo.activeSubscriptions.isEmpty {
-            let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
-            let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate, info: subscriptionInfo)
-            subscription = newSubscription
-        } else if !customerInfo.nonSubscriptions.isEmpty {
-            let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
-            let newSubscription = Subscription(isActive: true, expiration: nil, info: subscriptionInfo)
-            subscription = newSubscription
-        } else {
+        if let longer = Self.longer(fromRevenueCat, fromStoreKit) {
+            subscription = longer
+        } else if customerInfo != nil {
             subscription = .notActive
+        } else {
+            return
         }
         subscriptionUpdated?(subscription)
     }
 
+    /// Of two answers, the yes that lasts longer; RevenueCat's on a tie.
+    private static func longer(_ fromRevenueCat: Subscription?, _ fromStoreKit: Subscription?) -> Subscription? {
+        guard let fromRevenueCat else { return fromStoreKit }
+        guard let fromStoreKit else { return fromRevenueCat }
+        let revenueCatUntil = fromRevenueCat.activeUntil ?? .distantPast
+        let storeKitUntil = fromStoreKit.activeUntil ?? .distantPast
+        return storeKitUntil > revenueCatUntil ? fromStoreKit : fromRevenueCat
+    }
+
+    /// RevenueCat's view: an active entitlement or subscription, or any one-off
+    /// purchase (Lifetime).
+    private static func subscription(from customerInfo: CustomerInfo) -> Subscription? {
+        let info = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
+        // Lifetime first: it never ends, whatever subscription runs alongside.
+        // Keep the entitlement only if it's Lifetime's (no end) too.
+        if !customerInfo.nonSubscriptions.isEmpty {
+            return Subscription(isActive: true, expiration: nil, info: info?.expirationDate == nil ? info : nil)
+        }
+        if !customerInfo.activeSubscriptions.isEmpty {
+            return Subscription(isActive: true, expiration: customerInfo.latestExpirationDate, info: info)
+        }
+        if let info {
+            return Subscription(isActive: true, expiration: info.expirationDate, info: info)
+        }
+        return nil
+    }
+
 }
 
-#if canImport(UIKit)
+
 extension UIApplication {
-
-    // MARK: Public
+    /// A TestFlight build: its receipt is a sandbox one (on the Mac, its
+    /// signature says so). Never in the simulator.
     func isRunningInTestFlightEnvironment() -> Bool {
-        if isSimulator() {
-            return false
-        } else {
-            if isAppStoreReceiptSandbox() {
-                return true
-            } else {
-                return false
-            }
-        }
-    }
-
-    func isRunningInAppStoreEnvironment() -> Bool {
-        if isSimulator(){
-            return false
-        } else {
-            if isAppStoreReceiptSandbox() || hasEmbeddedMobileProvision() {
-                return false
-            } else {
-                return true
-            }
-        }
-    }
-
-    // MARK: Private
-    private func hasEmbeddedMobileProvision() -> Bool {
-        guard Bundle.main.path(forResource: "embedded", ofType: "mobileprovision") == nil else {
-            return true
-        }
+#if targetEnvironment(simulator)
         return false
-    }
-
-    private func isAppStoreReceiptSandbox() -> Bool {
-        if isSimulator() {
-            return false
-        } else {
-#if targetEnvironment(macCatalyst) || os(macOS)
-            return Bundle.main.isTestFlight
+#elseif targetEnvironment(macCatalyst) || os(macOS)
+        return Bundle.main.isTestFlight
 #else
-            return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
-#endif
-        }
-    }
-
-    private func isSimulator() -> Bool {
-#if arch(i386) || arch(x86_64)
-        return true
-#else
-        return false
+        return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
 #endif
     }
 }
-#endif
 
 #if targetEnvironment(macCatalyst) || os(macOS)
 extension Bundle {
