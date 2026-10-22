@@ -2930,7 +2930,11 @@ public final class SonosService {
 
     public func getFavoriteList() async {
         guard let ip = prioritizedIP() else { return }
-        self.favorites = await api.getFavorites(for: ip)
+        let favorites = await api.getFavorites(for: ip)
+        // Usually unchanged. Writing anyway updated every view showing
+        // favorites, as Search opened.
+        guard !favorites.displaysSame(as: self.favorites) else { return }
+        self.favorites = favorites
     }
 
     public func deleteFavorite(on group: GroupRoom?, favoriteID: String) async {
