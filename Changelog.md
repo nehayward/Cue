@@ -88,7 +88,7 @@ The direct-HTTP mechanism is service-agnostic, ready for a Jellyfin/Emby port:
 ### Plex and Subsonic sign-in
 Plex sign-in stays on Plex's PIN flow in an `ASWebAuthenticationSession` rather than a password form in Cue. The session is Safari: it shares Safari's plex.tv cookies (`prefersEphemeralWebBrowserSession = false`), so Password AutoFill, password managers and Sign in with Apple or Google all work there. A native form could not offer AutoFill for plex.tv (that needs Plex's associated domain) and would fail every account without a password.
 
-- `PlexAuthenticator` keeps its client identifier in `UserDefaults` (`com.cue.plexClientID`). A new UUID per launch added another "Cue" under the account's Authorized Devices with each sign-in.
+- `PlexAuthenticator` signs in as a fixed "Cue", the client identifier every other Plex request already sends. A new UUID per launch added another "Cue" under the account's Authorized Devices with each sign-in.
 - Creating the PIN no longer force-decodes the reply (`try!`), which crashed on any non-PIN response. `PinResponse` decodes only `id`, `code` and `authToken`.
 - New observable state for the sign-in screens: `isStartingSignIn` (the PIN round trip, shown on the button) and `signInError`. The raw auth URL under the button is now an "Open in Browser Instead" link, and the poll picks up an approval made there.
 - The poll runs every second instead of every half second. A failed request is retried; before, the first error ended the poll for good. It stops on success, or when Plex answers 404 for an expired PIN. `stopMonitor` keeps the PIN, so `restartMonitor` can resume it.
