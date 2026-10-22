@@ -15,7 +15,10 @@ import WatchSync
 /// file only counted played doesn't move it. The iPhone hears the places of
 /// the books picked for the watch with the picks (`placesToShare`), and
 /// picks a book up where the watch left it, telling the server when it next
-/// opens the book.
+/// opens the book. The places go through iCloud's key-value store too
+/// (`CloudBookPlaces`), read at launch, on coming back to Cue and whenever
+/// it changes, so they cross with the iPhone out of reach: the watch
+/// reaches iCloud over its own Wi‑Fi or cellular.
 ///
 /// Chapters come with the book's files from the server (the marks in a
 /// Plex `.m4b`, Audiobookshelf's own), else from the files themselves once
@@ -38,6 +41,8 @@ final class WatchBookStore {
 
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var sendTask: Task<Void, Never>?
+    @ObservationIgnored private let cloud = CloudBookPlaces()
+    @ObservationIgnored private var cloudObserver: NSObjectProtocol?
     /// Books whose files have been read for chapters this launch.
     @ObservationIgnored private var readFiles: Set<String> = []
     @ObservationIgnored private let logger = Logger(subsystem: "dance.cue.watch", category: "Books")
@@ -196,14 +201,14 @@ final class WatchBookStore {
 
     // MARK: - Telling the iPhone
 
-    /// Sends the places with the picks: at once for a pause, else a minute
-    /// after the first change since the last send, so listening doesn't
-    /// send every few seconds.
+    /// Sends the places with the picks, and puts them in iCloud: at once
+    /// for a pause, else a minute after the first change since the last
+    /// send, so listening doesn't send every few seconds.
     private func tellPhone(now: Bool) {
         if now {
             sendTask?.cancel()
             sendTask = nil
-            PhoneConnection.shared.send()
+            share()
             return
         }
         guard sendTask == nil else { return }
@@ -211,7 +216,45 @@ final class WatchBookStore {
             try? await Task.sleep(for: .seconds(60))
             guard !Task.isCancelled, let self else { return }
             self.sendTask = nil
-            PhoneConnection.shared.send()
+            self.share()
+        }
+    }
+
+    private func share() {
+        PhoneConnection.shared.send()
+        let written = cloud.write(placesToShare)
+        if !written.isEmpty {
+            logger.info("Put \(written.count) book places in iCloud")
+        }
+    }
+
+    // MARK: - iCloud
+
+    /// Follows the places in iCloud, from launch.
+    func startCloudSync() {
+        guard cloudObserver == nil else { return }
+        cloudObserver = NotificationCenter.default.addObserver(forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification, object: NSUbiquitousKeyValueStore.default, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                self?.reconcileWithCloud()
+            }
+        }
+        NSUbiquitousKeyValueStore.default.synchronize()
+        reconcileWithCloud()
+    }
+
+    /// iCloud's places in, where they're newer than the watch's — the
+    /// iPhone's, from when it was out of reach — and the watch's up, where
+    /// they're newer than iCloud's: what was there may have been an older
+    /// place that reached iCloud last.
+    func reconcileWithCloud() {
+        let before = places
+        _ = apply(cloud.read())
+        for (key, place) in places.places where before[key] != place {
+            logger.info("\(key, privacy: .public): iCloud's place, \(Int(place.position)) s, is newer")
+        }
+        let written = cloud.write(placesToShare)
+        if !written.isEmpty {
+            logger.info("Put \(written.count) book places in iCloud")
         }
     }
 
