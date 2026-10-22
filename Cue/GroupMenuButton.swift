@@ -8,9 +8,8 @@ import VibesDS
 /// Shared by `GroupMenuItems` and the Play On sheet, so the two can't drift.
 /// The rules mirror `GroupScreen`'s exactly: membership changes go through
 /// `smartGroup` with the same diff, the last room can't leave its own group,
-/// and when the change promotes a new coordinator the player follows it —
-/// through the route when it points at this group, through the router
-/// otherwise.
+/// and when the change promotes a new coordinator the player follows it,
+/// through the route when it points at this group.
 @MainActor
 struct GroupMembership {
     let group: GroupRoom
@@ -31,13 +30,20 @@ struct GroupMembership {
 
     var canUngroup: Bool { group.rooms.count > 1 }
 
+    /// False while a regroup that dropped the coordinator is still landing:
+    /// `smartGroup` has put the promoted room at the group's head but left
+    /// it under the old coordinator's id until the speakers' topology
+    /// arrives, and a room added then would be grouped onto the room that
+    /// just left.
+    var isSettled: Bool { group.coordinatorRoom.id == group.coordinatorID }
+
     func isMember(_ room: Room) -> Bool {
         group.rooms.contains { $0.id == room.id }
     }
 
     /// A solo room is its own group — there's nothing to leave.
     func canToggle(_ room: Room) -> Bool {
-        !(isMember(room) && group.rooms.count == 1)
+        isSettled && !(isMember(room) && group.rooms.count == 1)
     }
 
     /// One tap, one membership change: drop the room if it's in the group,
@@ -77,7 +83,7 @@ struct GroupMembership {
     /// first room still there when the coordinator goes, so taking them all
     /// at once could promote a room the same call then drops.
     func playOnly(_ room: Room) {
-        guard isMember(room), group.rooms.count > 1 else { return }
+        guard isSettled, isMember(room), group.rooms.count > 1 else { return }
         HapticManager.shared.fireHaptic(.buttonPress)
         let original = group.rooms
         let coordinator = group.coordinatorRoom
@@ -113,14 +119,32 @@ struct GroupMembership {
     }
 
     /// The player the mini player opens follows the route, so the route is
-    /// what moves to the promoted coordinator; the sidebar's player is
-    /// reached through the router and moves with it.
+    /// what moves to the promoted coordinator, when it was on this group.
+    ///
+    /// Not until a group stands under the new coordinator. `smartGroup`
+    /// answers before the speakers' topology lands, and SonosKit holds
+    /// topology reads for 3.5 s after grouping; a route pointed at the new
+    /// id meanwhile found no group, so the player, its transport and the
+    /// volume read as this device until the topology came in. Under the old
+    /// id the group is still there, with the promoted room at its head.
+    ///
+    /// Whether the route goes is decided once the wait is over, so a
+    /// destination chosen meanwhile isn't pulled back. A regroup of a group
+    /// the route isn't on moves only the router's selection (the Lock Screen
+    /// card's choice), and no longer pushes a player for it.
     private static func follow(from coordinatorID: String, to newCoordinatorID: String) {
-        if PlaybackRoute.shared.destination == .group(coordinatorID) {
-            PlaybackRoute.shared.follow(groupID: newCoordinatorID)
-        } else {
-            Router.main.selectedID = newCoordinatorID
-            Router.main.navigate(to: .player(groupID: newCoordinatorID))
+        guard newCoordinatorID != coordinatorID else { return }
+        Task { @MainActor in
+            let deadline = ContinuousClock.now + .seconds(6)
+            while ContinuousClock.now < deadline,
+                  !SonosService.shared.groups.contains(where: { $0.coordinatorID == newCoordinatorID }) {
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            if PlaybackRoute.shared.destination == .group(coordinatorID) {
+                PlaybackRoute.shared.follow(groupID: newCoordinatorID)
+            } else if Router.main.selectedID == coordinatorID {
+                Router.main.selectedID = newCoordinatorID
+            }
         }
     }
 }
