@@ -494,6 +494,11 @@ final class LocalPlaybackService {
     /// since (a skip, a chapter, a scrub), which plays from exactly there.
     /// Nil while it plays.
     @ObservationIgnored private var bookPause: (at: Date, offset: TimeInterval)?
+    /// Watches a book's file for playing after Play, to log how long that
+    /// took (`logPlayTime`); `playTimeToken` tells its report from a later
+    /// Play's.
+    @ObservationIgnored private var playTiming: NSKeyValueObservation?
+    @ObservationIgnored private var playTimeToken = 0
     /// Each armed stream item's status, watched so a song that won't load is
     /// reported the moment it fails — see `watch(_:)`.
     @ObservationIgnored private var itemWatches: [ObjectIdentifier: NSKeyValueObservation] = [:]
@@ -1050,8 +1055,13 @@ final class LocalPlaybackService {
                     Task { try? await playStation(station) }
                     return
                 }
-                smartResume(streamPlayer)
+                let pressed = Date.now
+                let back = smartResume(streamPlayer)
+                let decided = Date.now.timeIntervalSince(pressed)
                 streamPlayer.play()
+                if isOnBookFile {
+                    logPlayTime(of: streamPlayer, pressed: pressed, back: back, decidedIn: decided)
+                }
                 showRequested(playing: true)
             } else {
                 streamPlayer.pause()
@@ -1102,6 +1112,8 @@ final class LocalPlaybackService {
     /// Stamps when and where a book's file was paused, at the pause itself:
     /// the poll does it too, but may not run before the app is suspended.
     private func noteBookPause() {
+        // A Play that never got to playing has nothing to report.
+        playTiming = nil
         guard station == nil, isOnBookFile, bookPause == nil, let item = streamPlayer?.currentItem else { return }
         bookPause = (at: Date.now, offset: Self.finite(item.currentTime().seconds, else: progress))
     }
@@ -1109,21 +1121,41 @@ final class LocalPlaybackService {
     /// Smart Resume: a book's file played again after a pause goes back a
     /// little first, so the listener hears again what the pause cut off,
     /// into a pause in the speech heard before it (`BookAudioListener`),
-    /// unless its place moved while it was paused.
-    private func smartResume(_ player: AVQueuePlayer) {
+    /// unless its place moved while it was paused. Returns how far back it
+    /// went; nil when it didn't.
+    private func smartResume(_ player: AVQueuePlayer) -> TimeInterval? {
         defer { bookPause = nil }
-        guard station == nil, let paused = bookPause, let item = player.currentItem else { return }
+        guard station == nil, let paused = bookPause, let item = player.currentItem else { return nil }
         let offset = Self.finite(item.currentTime().seconds, else: progress)
         let heard = BookAudioListener.shared.heard(item, upTo: offset)
         guard abs(offset - paused.offset) < 1,
               let target = AudiobookPlayer.shared.smartResumeOffset(in: nowPlaying, from: offset, pausedAt: paused.at, heard: heard),
-              target < offset else { return }
+              target < offset else { return nil }
         // To the frame: a seek left to the player's tolerance can land in
         // the word beside the pause.
         progress = target
         savePosition()
         player.seek(to: CMTime(seconds: target, preferredTimescale: 1000), toleranceBefore: .zero, toleranceAfter: .zero)
         nowPlayingCard.noteSeek(elapsed: target)
+        return offset - target
+    }
+
+    /// Logs how long a book's file took to play after Play, once it does:
+    /// a seek back on a streamed file may fetch those seconds again, where
+    /// Play on its own goes on from what's buffered.
+    private func logPlayTime(of player: AVQueuePlayer, pressed: Date, back: TimeInterval?, decidedIn decided: TimeInterval) {
+        playTimeToken += 1
+        let token = playTimeToken
+        playTiming = player.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self] player, _ in
+            guard player.timeControlStatus == .playing else { return }
+            let wait = Date.now.timeIntervalSince(pressed)
+            Task { @MainActor in
+                guard let self, self.playTimeToken == token, self.playTiming != nil else { return }
+                self.playTiming = nil
+                let rewind = back.map { String(format: "back %.2f s", $0) } ?? "no rewind"
+                Self.log.notice("smart resume: playing \(Int(wait * 1000)) ms after Play, \(rewind, privacy: .public), decided in \(decided * 1000, format: .fixed(precision: 1)) ms")
+            }
+        }
     }
 
     /// Stamps when a station's stream was paused, at the pause itself: the

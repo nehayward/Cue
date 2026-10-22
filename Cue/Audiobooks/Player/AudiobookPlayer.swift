@@ -371,18 +371,20 @@ final class AudiobookPlayer {
         // looked for, and the voice around it.
         let from = plain - fileStart - 3
         let to = min(place, plain + 3) - fileStart
+        let started = Date.now
         let heard = await Task.detached(priority: .userInitiated) {
             LoudnessTrace.reading(url, from: from, to: to)
         }.value
         let time = SmartResume.resumeTime(from: place, afterPausing: pause, chapters: audiobook.chapters, heard: heard?.shifted(by: fileStart))
-        logSmartResume(from: place, to: time, afterPausing: pause, heard: heard != nil, chapters: audiobook.chapters)
+        logSmartResume(from: place, to: time, afterPausing: pause, heard: heard != nil, chapters: audiobook.chapters, readIn: Date.now.timeIntervalSince(started))
         return time
     }
 
-    private func logSmartResume(from time: TimeInterval, to target: TimeInterval, afterPausing pause: TimeInterval, heard: Bool, chapters: [AudiobookChapter]) {
+    private func logSmartResume(from time: TimeInterval, to target: TimeInterval, afterPausing pause: TimeInterval, heard: Bool, chapters: [AudiobookChapter], readIn: TimeInterval? = nil) {
         let plain = SmartResume.resumeTime(from: time, afterPausing: pause, chapters: chapters)
         let landing = !heard ? "nothing heard to look in" : target == plain ? "no pause in the speech near" : "a pause in the speech, \(String(format: "%+.2f", target - plain)) s from the plain rewind"
-        Self.log.notice("smart resume: back \(time - target, format: .fixed(precision: 2)) s to \(Int(target)) s after \(Int(pause)) s paused; \(landing, privacy: .public)")
+        let read = readIn.map { "; read the file in \(Int($0 * 1000)) ms" } ?? ""
+        Self.log.notice("smart resume: back \(time - target, format: .fixed(precision: 2)) s to \(Int(target)) s after \(Int(pause)) s paused; \(landing, privacy: .public)\(read, privacy: .public)")
     }
 
     /// Resolves Plex's connection first when nothing has yet since launch,

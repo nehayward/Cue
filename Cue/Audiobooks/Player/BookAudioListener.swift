@@ -18,9 +18,12 @@ import OSLog
 final class BookAudioListener {
     static let shared = BookAudioListener()
 
+    /// Both weak: the meter belongs to the item's tap, which goes with the
+    /// item (its audio mix lets go of the tap, whose finalize lets go of
+    /// the meter), so nothing here outlives the file.
     private struct Entry {
         weak var item: AVPlayerItem?
-        let meter: TapMeter
+        weak var meter: TapMeter?
     }
 
     /// The items listened to, while they live.
@@ -31,11 +34,13 @@ final class BookAudioListener {
     /// Listens to `item`, one of a book's files, from when its audio track
     /// has loaded (which the player needs too, so it's no extra wait).
     func listen(to item: AVPlayerItem) {
-        entries.removeAll { $0.item == nil }
+        forgetGone()
         guard !entries.contains(where: { $0.item === item }) else { return }
         let meter = TapMeter()
         entries.append(Entry(item: item, meter: meter))
         let asset = item.asset
+        // Holds the meter until the tap does; one that never gets a tap (the
+        // track didn't load, the item went first) goes when this ends.
         Task { [weak item] in
             guard let track = try? await asset.loadTracks(withMediaType: .audio).first, let item else { return }
             guard let tap = meter.makeTap() else {
@@ -55,6 +60,7 @@ final class BookAudioListener {
     /// there: the tap runs a moment ahead of what's heard, but more than
     /// that and its clock isn't the player's.
     func heard(_ item: AVPlayerItem, upTo offset: TimeInterval) -> LoudnessTrace? {
+        forgetGone()
         guard let meter = entries.first(where: { $0.item === item })?.meter else { return nil }
         let (trace, isAnchored) = meter.snapshot()
         guard let end = trace.end else { return nil }
@@ -64,6 +70,10 @@ final class BookAudioListener {
             return nil
         }
         return heard
+    }
+
+    private func forgetGone() {
+        entries.removeAll { $0.item == nil || $0.meter == nil }
     }
 }
 

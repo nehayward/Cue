@@ -73,6 +73,11 @@ final class WatchPlayer {
     /// goes back a little first, further the longer it rested. Nil while it
     /// plays.
     @ObservationIgnored private var bookPause: (at: Date, time: TimeInterval)?
+    /// How loud the file was up to that pause, on the book's clock: read in
+    /// the background as it paused (`hearBeforePause`), so Play never waits
+    /// on it.
+    @ObservationIgnored private var heardBeforePause: (pausedAt: Date, trace: LoudnessTrace)?
+    @ObservationIgnored private var hearing: Task<Void, Never>?
     /// The chapter Now Playing last showed.
     @ObservationIgnored private var shownChapter: Int?
     /// Fires where the next chapter starts in the file playing, to show it.
@@ -91,8 +96,9 @@ final class WatchPlayer {
                 if paused, self.book != nil, self.pendingOffset == nil {
                     self.notePlace(tellPhoneNow: true)
                     self.bookPause = (at: Date.now, time: self.bookPosition)
+                    self.hearBeforePause()
                 } else if playing {
-                    self.bookPause = nil
+                    self.forgetPause()
                 }
                 self.updateNowPlaying()
                 WidgetStatePublisher.schedule()
@@ -305,8 +311,39 @@ final class WatchPlayer {
         dropBook()
     }
 
+    /// Reads how loud the book's file was before the pause, in the
+    /// background: as far back as the longest rewind and the pause in the
+    /// speech looked for beyond it. A tenth of a second or so of the
+    /// watch's time, taken while nothing waits on it.
+    private func hearBeforePause() {
+        hearing?.cancel()
+        heardBeforePause = nil
+        guard let paused = bookPause, let url = current.flatMap({ WatchDownloadStore.shared.localURL(for: $0) }) else { return }
+        let fileStart = timeline?.start(ofPart: index) ?? 0
+        let offset = paused.time - fileStart
+        let started = Date.now
+        hearing = Task { [weak self] in
+            let trace = await Task.detached(priority: .utility) {
+                LoudnessTrace.reading(url, from: offset - 20, to: offset)
+            }.value
+            // Played, moved or left meanwhile: not this pause's any more.
+            guard !Task.isCancelled, let self, self.bookPause?.at == paused.at, let trace else { return }
+            self.heardBeforePause = (paused.at, trace.shifted(by: fileStart))
+            self.logger.notice("smart resume: read \(Int(min(offset, 20))) s before the pause in \(Int(Date.now.timeIntervalSince(started) * 1000)) ms")
+        }
+    }
+
+    /// Done with a pause: played, left, or the book put away.
+    private func forgetPause() {
+        hearing?.cancel()
+        hearing = nil
+        heardBeforePause = nil
+        bookPause = nil
+    }
+
     /// Lets go of the book without keeping a place.
     private func dropBook() {
+        forgetPause()
         book = nil
         timeline = nil
         rate = 1
@@ -364,14 +401,13 @@ final class WatchPlayer {
             let pause = Date.now.timeIntervalSince(paused.at)
             let fileStart = timeline?.start(ofPart: index) ?? 0
             let plain = SmartResume.resumeTime(from: paused.time, afterPausing: pause, chapters: chapters)
-            let heard = current.flatMap { WatchDownloadStore.shared.localURL(for: $0) }.flatMap {
-                LoudnessTrace.reading($0, from: plain - fileStart - 3, to: min(paused.time, plain + 3) - fileStart)
-            }
-            let target = SmartResume.resumeTime(from: paused.time, afterPausing: pause, chapters: chapters, heard: heard?.shifted(by: fileStart))
-            logger.notice("smart resume: back \(paused.time - target, format: .fixed(precision: 2)) s after \(Int(pause)) s paused, \(target == plain ? "the plain rewind" : "into a pause in the speech", privacy: .public)")
+            let heard = heardBeforePause.flatMap { $0.pausedAt == paused.at ? $0.trace : nil }
+            let target = SmartResume.resumeTime(from: paused.time, afterPausing: pause, chapters: chapters, heard: heard)
+            let landing = heard == nil ? "the plain rewind, the file not read yet" : target == plain ? "no pause in the speech near" : "into a pause in the speech"
+            logger.notice("smart resume: back \(paused.time - target, format: .fixed(precision: 2)) s after \(Int(pause)) s paused, \(landing, privacy: .public)")
             jump(to: max(target, fileStart))
         }
-        bookPause = nil
+        forgetPause()
         if player.currentItem == nil {
             pendingPlay = true
             Task { await startPlayback(from: pendingOffset ?? 0) }
