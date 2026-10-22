@@ -92,4 +92,8 @@ private class MockTokenRefreshHandler: TokenRefreshHandler {
         }
         return nil
     }
+
+    func getCredentials(for service: String) async throws -> Credentials? {
+        try await getCredentials()
+    }
 }

@@ -29,11 +29,11 @@ final class PlexTests: XCTestCase {
             XCTAssertNotNil(server.accessToken, "Server should have an access token")
             XCTAssertNotNil(server.name, "Server should have a name")
             XCTAssertNotNil(server.clientIdentifier, "Server should have a client identifier")
-            XCTAssertFalse(server.externalURIs.isEmpty, "Server should have external URIs")
+            XCTAssertFalse(server.nonLocalURIs.isEmpty, "Server should have non-local URIs")
             
             print("Server: \(server.name)")
             print("  - Client ID: \(server.clientIdentifier ?? "N/A")")
-            print("  - External URIs: \(server.externalURIs)")
+            print("  - Non-local URIs: \(server.nonLocalURIs)")
             print("  - Access Token: \(server.accessToken ?? "N/A")")
         }
     }
