@@ -7,8 +7,9 @@ import WatchSync
 /// cover, the song and its artist (a book and its author), and a waveform
 /// that moves while it plays, on the cover's own gradient
 /// (`WatchArtworkMesh`), as behind the iPhone's player. The home screen
-/// opens Now Playing from it; play and pause stay on the bottom bar's
-/// right edge.
+/// opens the player of the one it shows from it (`NowPlayingScreen` for
+/// the watch's, `PhoneNowPlayingScreen` for the iPhone's); play and pause
+/// stay on the bottom bar's right edge.
 struct NowPlayingCard: View {
     @Environment(WatchPlayer.self) private var player
     @Environment(PhoneNowPlaying.self) private var phone
@@ -18,7 +19,7 @@ struct NowPlayingCard: View {
     var body: some View {
         if showsPhone, let playing = phone.current {
             CardLayout(title: playing.title, subtitle: playing.artist ?? "", isPlaying: playing.isPlaying) {
-                PhoneArtwork(image: phone.artwork, symbol: "music.note")
+                PhoneArtwork(image: phone.artwork, symbol: playing.isBook ? "book.closed" : "music.note")
             } place: {
                 Label(playing.destination, systemImage: playing.isOnSpeaker ? "hifispeaker.fill" : "iphone")
             } fill: {
@@ -91,7 +92,7 @@ struct CardButtonStyle: ButtonStyle {
 }
 
 /// The cover the iPhone sent, as `ArtworkView` draws one.
-private struct PhoneArtwork: View {
+struct PhoneArtwork: View {
     let image: UIImage?
     let symbol: String
 
@@ -161,7 +162,7 @@ struct CoverMeshFill: View {
 }
 
 /// The gradient of the cover the iPhone sent, made off the main thread.
-private struct ImageMeshFill: View {
+struct ImageMeshFill: View {
     let image: UIImage?
 
     @State private var gradient: UIImage?

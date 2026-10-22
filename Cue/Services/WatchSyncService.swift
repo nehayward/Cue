@@ -402,11 +402,15 @@ final class WatchSyncService {
         var destination: String
         var isOnSpeaker: Bool
         var isPlaying: Bool
+        var isBook: Bool
+        var canGoBack: Bool
+        var hasNext: Bool
         var artworkURL: URL?
     }
 
     /// What the player shows, here or on a speaker: a book as itself, by
-    /// its author, as the watch's own card has it.
+    /// its author, as the watch's own card has it, with the player's skips
+    /// (a book's 15 and 30 s).
     private func currentNowPlaying() -> (state: NowPlayingState, item: PlayableContent)? {
         let controller = PlaybackRoute.shared.presented
         guard let item = controller.nowPlayingDisplay else { return nil }
@@ -416,6 +420,9 @@ final class WatchSyncService {
             destination: controller.name,
             isOnSpeaker: controller.group != nil,
             isPlaying: controller.isPlaying,
+            isBook: false,
+            canGoBack: controller.showsPrevious && controller.canGoBack,
+            hasNext: controller.showsNext && controller.hasNext,
             artworkURL: item.artwork ?? item.thumbnail
         )
         let books = AudiobookPlayer.shared
@@ -423,6 +430,9 @@ final class WatchSyncService {
             state.title = book.book.title
             state.artist = book.book.subtitle
             state.artworkURL = book.book.artwork ?? state.artworkURL
+            state.isBook = true
+            state.canGoBack = true
+            state.hasNext = true
         }
         return (state, item)
     }
@@ -467,19 +477,37 @@ final class WatchSyncService {
         }
     }
 
-    /// The watch asking what plays, or to play or pause: answered with what
-    /// plays then, the play state as it's been asked to be (a speaker says
-    /// so a moment later; if it doesn't, the watch hears what it does say).
-    fileprivate func answerNowPlaying(toggling: Bool) async -> [String: Any] {
+    /// The watch asking what plays, or to play, pause or skip it, as the
+    /// player's own buttons do (a book skips back 15 s and ahead 30 s):
+    /// answered with what plays then, the play state as it's been asked to
+    /// be (a speaker says so a moment later; if it doesn't, the watch hears
+    /// what it does say).
+    fileprivate func answerNowPlaying(to command: WatchPhoneCommand?) async -> [String: Any] {
         isWatchReachable = WCSession.default.isReachable
         trackNowPlaying()
         let controller = PlaybackRoute.shared.presented
         let wasPlaying = controller.isPlaying
-        if toggling {
+        let books = AudiobookPlayer.shared
+        switch command {
+        case .togglePlayPause:
             await controller.togglePlayback()
+        case .previous:
+            if books.isPlayingBook(on: controller) {
+                await books.skip(by: -AudiobookPlayer.skipBackInterval)
+            } else if controller.showsPrevious, controller.canGoBack {
+                await controller.previous()
+            }
+        case .next:
+            if books.isPlayingBook(on: controller) {
+                await books.skip(by: AudiobookPlayer.skipForwardInterval)
+            } else if controller.showsNext, controller.hasNext {
+                await controller.next()
+            }
+        case nil:
+            break
         }
         var now = currentNowPlaying()
-        if toggling {
+        if command == .togglePlayPause {
             now?.state.isPlaying = !wasPlaying
         }
         sentNowPlaying = now?.state
@@ -495,6 +523,9 @@ final class WatchSyncService {
                 destination: now.state.destination,
                 isOnSpeaker: now.state.isOnSpeaker,
                 isPlaying: now.state.isPlaying,
+                isBook: now.state.isBook,
+                canGoBack: now.state.canGoBack,
+                hasNext: now.state.hasNext,
                 artwork: await Self.watchArtwork(for: now.item, url: now.state.artworkURL)
             )
         }
@@ -589,18 +620,18 @@ private final class WatchSessionRelay: NSObject, WCSessionDelegate, @unchecked S
     }
 
     /// The watch asking for the sign-ins afresh (its Audiobookshelf token is
-    /// about to run out), what plays here, or to play or pause it. The
-    /// system wakes Cue to answer.
+    /// about to run out), what plays here, or to play, pause or skip it.
+    /// The system wakes Cue to answer.
     func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         let reply = UncheckedReply(send: replyHandler)
-        let toggling = WatchSyncMessage.isTogglePlayPauseRequest(message)
-        if toggling || WatchSyncMessage.isNowPlayingRequest(message) {
+        let command = WatchSyncMessage.command(in: message)
+        if command != nil || WatchSyncMessage.isNowPlayingRequest(message) {
             Task { @MainActor in
                 guard let service = self.service else {
                     reply.send([:])
                     return
                 }
-                reply.send(await service.answerNowPlaying(toggling: toggling))
+                reply.send(await service.answerNowPlaying(to: command))
             }
             return
         }

@@ -13,8 +13,8 @@ import Foundation
 /// sign-ins afresh (`credentialsRequest`), when the Audiobookshelf token it
 /// was lent is about to run out — the iPhone renews its own and answers
 /// with the context's sign-ins (`credentialsReply`) — and asking what the
-/// iPhone plays (`nowPlayingRequest`) or to play or pause it
-/// (`togglePlayPauseRequest`), answered with what it plays then. While the
+/// iPhone plays (`nowPlayingRequest`) or to play, pause or skip it
+/// (`commandRequest`), answered with what it plays then. While the
 /// watch app is open the iPhone also sends what it plays unasked, as it
 /// changes (`nowPlayingMessage`).
 public enum WatchSyncMessage {
@@ -74,18 +74,29 @@ public enum WatchSyncMessage {
     public static var nowPlayingRequest: [String: Any] { [requestKey: "nowPlaying"] }
 
     /// The watch asking the iPhone to play or pause.
-    public static var togglePlayPauseRequest: [String: Any] { [requestKey: "togglePlayPause"] }
+    public static var togglePlayPauseRequest: [String: Any] { commandRequest(.togglePlayPause) }
+
+    /// The watch asking the iPhone to play or pause, or to skip.
+    public static func commandRequest(_ command: WatchPhoneCommand) -> [String: Any] {
+        [requestKey: command.rawValue]
+    }
 
     public static func isNowPlayingRequest(_ message: [String: Any]) -> Bool {
         message[requestKey] as? String == "nowPlaying"
     }
 
     public static func isTogglePlayPauseRequest(_ message: [String: Any]) -> Bool {
-        message[requestKey] as? String == "togglePlayPause"
+        command(in: message) == .togglePlayPause
+    }
+
+    /// The press a request asks the iPhone to carry out, nil for any other
+    /// message.
+    public static func command(in message: [String: Any]) -> WatchPhoneCommand? {
+        (message[requestKey] as? String).flatMap(WatchPhoneCommand.init(rawValue:))
     }
 
     /// What the iPhone plays, nil for nothing: sent unasked, and as the
-    /// answer to either request.
+    /// answer to every request about it.
     public static func nowPlayingMessage(_ nowPlaying: WatchPhoneNowPlaying?) throws -> [String: Any] {
         [nowPlayingKey: try nowPlaying.map { try JSONEncoder().encode($0) } ?? Data()]
     }
