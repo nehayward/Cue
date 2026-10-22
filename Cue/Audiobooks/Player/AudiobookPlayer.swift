@@ -220,7 +220,7 @@ final class AudiobookPlayer {
             return
         }
         let reading = AudiobookLibrary.progress(for: audiobook)
-        let startTime = min(max(time ?? reading?.resumePosition ?? 0, 0), audiobook.duration)
+        let startTime = min(max(time ?? reading?.resumePosition(at: .now, chapters: audiobook.chapters) ?? 0, 0), audiobook.duration)
         let local = AudiobookProgressStore.shared.progress(for: audiobook.book)
         let from = time != nil ? "asked" : reading == nil ? "the top" : reading == local ? "this device's place" : "the server's place"
         Self.log.notice("play \(audiobook.book.title, privacy: .public) at \(Int(startTime)) s (\(audiobook.chapter(at: startTime)?.title ?? "-", privacy: .public)), from \(from, privacy: .public); this device \(local.map { "\(Int($0.position)) s" } ?? "none", privacy: .public), server \(audiobook.serverProgress.map { "\(Int($0.position)) s" } ?? "none", privacy: .public)")
@@ -289,7 +289,8 @@ final class AudiobookPlayer {
     /// another player.
     ///
     /// `queueSpot` is the queue's own spot in the file it's on: where Play
-    /// goes when it's the book's place too, as a pause leaves it.
+    /// goes back a little from (`SmartResume`) when it's the book's place
+    /// too, as a pause leaves it.
     func resumeOnDevice(from queueSpot: TimeInterval) async {
         guard let current else { return }
         forgetFailures()
@@ -302,10 +303,11 @@ final class AudiobookPlayer {
             // A place just picked, or where a file stopped: exactly there.
             time = arriving
         } else if let queueTime, kept.map({ abs($0.position - queueTime) <= Self.storeInterval + 1 }) ?? true {
-            time = queueTime
+            // A little back from it, as from a pause (`SmartResume`).
+            time = kept.map { SmartResume.resumeTime(from: queueTime, afterPausing: Date.now.timeIntervalSince($0.updatedAt), chapters: current.chapters) } ?? queueTime
         } else {
             // Moved since the queue's spot was saved.
-            time = kept?.resumePosition ?? position
+            time = kept?.resumePosition(at: .now, chapters: current.chapters) ?? position
         }
         let location = current.timeline.location(at: time)
         guard let index = local.queue.firstIndex(where: { current.partIndex(of: $0) == location.part }) else {
@@ -320,6 +322,19 @@ final class AudiobookPlayer {
         } catch {
             Self.log.error("resume at \(index) failed: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// Smart Resume on this device: where in `item`, one of the loaded
+    /// book's files, paused at `offset` since `pausedAt`, Play goes back to
+    /// (`SmartResume`), held to the top of the file. Nil when it isn't one
+    /// of the loaded book's files.
+    func smartResumeOffset(in item: PlayableContent?, from offset: TimeInterval, pausedAt: Date) -> TimeInterval? {
+        guard let current, let part = current.partIndex(of: item) else { return nil }
+        let pause = Date.now.timeIntervalSince(pausedAt)
+        let time = current.time(part: part, offset: offset)
+        let target = SmartResume.resumeTime(from: time, afterPausing: pause, chapters: current.chapters)
+        Self.log.notice("smart resume: back \(time - target, format: .fixed(precision: 1)) s to \(Int(target)) s after \(Int(pause)) s paused")
+        return max(offset - (time - target), 0)
     }
 
     /// Resolves Plex's connection first when nothing has yet since launch,

@@ -114,10 +114,35 @@ final class AudiobookProgressTests: XCTestCase {
         XCTAssertEqual(progress.resumePosition, 0)
     }
 
-    func testResumeRewindsAFewSeconds() {
-        XCTAssertEqual(AudiobookProgress(position: 1000, duration: 3600).resumePosition, 995)
+    func testResumeGoesBackFurtherTheLongerItRested() {
+        let left = Date(timeIntervalSince1970: 1_000_000)
+        let progress = AudiobookProgress(position: 1000, duration: 3600, updatedAt: left)
+        XCTAssertEqual(progress.resumePosition(at: left.addingTimeInterval(5), chapters: []), 999)
+        XCTAssertEqual(progress.resumePosition(at: left.addingTimeInterval(30 * 60), chapters: []), 995)
+        XCTAssertEqual(progress.resumePosition(at: left.addingTimeInterval(3 * 24 * 60 * 60), chapters: []), 985)
         // The first half minute is a sample, not a start.
         XCTAssertEqual(AudiobookProgress(position: 20, duration: 3600).resumePosition, 0)
+    }
+
+    func testSmartResumeStopsAtTheChapterStart() {
+        let chapters = [
+            AudiobookChapter(id: 0, title: "One", start: 0, end: 998),
+            AudiobookChapter(id: 1, title: "Two", start: 998, end: 2000),
+        ]
+        XCTAssertEqual(SmartResume.resumeTime(from: 500, afterPausing: 2 * 60 * 60, chapters: chapters), 490)
+        XCTAssertEqual(SmartResume.resumeTime(from: 1000, afterPausing: 2 * 60 * 60, chapters: chapters), 998)
+        // Just short of the next chapter: it stays put, never goes forward.
+        XCTAssertEqual(SmartResume.resumeTime(from: 997.9, afterPausing: 2 * 60 * 60, chapters: chapters), 997.9)
+        XCTAssertEqual(SmartResume.resumeTime(from: 3, afterPausing: 2 * 60 * 60), 0)
+    }
+
+    func testSmartResumeRewindGrowsWithThePause() {
+        XCTAssertEqual(SmartResume.rewind(afterPausing: 2), 1)
+        XCTAssertEqual(SmartResume.rewind(afterPausing: 30), 2)
+        XCTAssertEqual(SmartResume.rewind(afterPausing: 3 * 60), 3)
+        XCTAssertEqual(SmartResume.rewind(afterPausing: 20 * 60), 5)
+        XCTAssertEqual(SmartResume.rewind(afterPausing: 8 * 60 * 60), 10)
+        XCTAssertEqual(SmartResume.rewind(afterPausing: 3 * 24 * 60 * 60), 15)
     }
 
     func testNewerWins() {

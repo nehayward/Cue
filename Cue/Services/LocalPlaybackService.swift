@@ -488,6 +488,12 @@ final class LocalPlaybackService {
     /// Since when a TuneIn station's stream has stood paused, for
     /// `liveResumeLimit`. Nil while it plays.
     @ObservationIgnored private var stationPausedAt: Date?
+    /// When a book's file was paused, and where in it, for Smart Resume:
+    /// Play goes back a little first, further the longer it rested
+    /// (`AudiobookPlayer.smartResumeOffset`). Not once the place has moved
+    /// since (a skip, a chapter, a scrub), which plays from exactly there.
+    /// Nil while it plays.
+    @ObservationIgnored private var bookPause: (at: Date, offset: TimeInterval)?
     /// Each armed stream item's status, watched so a song that won't load is
     /// reported the moment it fails — see `watch(_:)`.
     @ObservationIgnored private var itemWatches: [ObjectIdentifier: NSKeyValueObservation] = [:]
@@ -1044,11 +1050,13 @@ final class LocalPlaybackService {
                     Task { try? await playStation(station) }
                     return
                 }
+                smartResume(streamPlayer)
                 streamPlayer.play()
                 showRequested(playing: true)
             } else {
                 streamPlayer.pause()
                 notePausedStation()
+                noteBookPause()
                 showRequested(playing: false)
             }
         case nil:
@@ -1084,10 +1092,31 @@ final class LocalPlaybackService {
         case .stream:
             streamPlayer?.pause()
             notePausedStation()
+            noteBookPause()
         case nil:
             return
         }
         showRequested(playing: false)
+    }
+
+    /// Stamps when and where a book's file was paused, at the pause itself:
+    /// the poll does it too, but may not run before the app is suspended.
+    private func noteBookPause() {
+        guard station == nil, isOnBookFile, bookPause == nil, let item = streamPlayer?.currentItem else { return }
+        bookPause = (at: Date.now, offset: Self.finite(item.currentTime().seconds, else: progress))
+    }
+
+    /// Smart Resume: a book's file played again after a pause goes back a
+    /// little first, so the listener hears again what the pause cut off,
+    /// unless its place moved while it was paused.
+    private func smartResume(_ player: AVQueuePlayer) {
+        defer { bookPause = nil }
+        guard station == nil, let paused = bookPause, let item = player.currentItem else { return }
+        let offset = Self.finite(item.currentTime().seconds, else: progress)
+        guard abs(offset - paused.offset) < 1,
+              let target = AudiobookPlayer.shared.smartResumeOffset(in: nowPlaying, from: offset, pausedAt: paused.at),
+              target < offset else { return }
+        seek(to: target)
     }
 
     /// Stamps when a station's stream was paused, at the pause itself: the
@@ -3232,6 +3261,13 @@ final class LocalPlaybackService {
                 } else if stationPausedAt == nil {
                     stationPausedAt = .now
                 }
+            } else if isOnBookFile, streamPlayer.timeControlStatus == .paused {
+                // And a book's file, for Smart Resume.
+                if bookPause == nil {
+                    bookPause = (at: Date.now, offset: Self.finite(current.currentTime().seconds, else: progress))
+                }
+            } else {
+                bookPause = nil
             }
             noteProgress(Self.finite(current.currentTime().seconds, else: progress))
             savePositionIfDue(paused: paused)

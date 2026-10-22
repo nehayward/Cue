@@ -69,6 +69,10 @@ final class WatchPlayer {
     @ObservationIgnored private var pendingOffset: TimeInterval?
     /// Whether that load plays once it gets there.
     @ObservationIgnored private var pendingPlay = false
+    /// When the book paused, and where (book time), for Smart Resume: Play
+    /// goes back a little first, further the longer it rested. Nil while it
+    /// plays.
+    @ObservationIgnored private var bookPause: (at: Date, time: TimeInterval)?
     /// The chapter Now Playing last showed.
     @ObservationIgnored private var shownChapter: Int?
     /// Fires where the next chapter starts in the file playing, to show it.
@@ -86,6 +90,9 @@ final class WatchPlayer {
                 // the pause a load makes on its way to a place.
                 if paused, self.book != nil, self.pendingOffset == nil {
                     self.notePlace(tellPhoneNow: true)
+                    self.bookPause = (at: Date.now, time: self.bookPosition)
+                } else if playing {
+                    self.bookPause = nil
                 }
                 self.updateNowPlaying()
                 WidgetStatePublisher.schedule()
@@ -348,7 +355,15 @@ final class WatchPlayer {
                 return
             }
             jump(to: place.resumePosition)
+        } else if let book, let paused = bookPause, player.currentItem != nil, pendingOffset == nil,
+                  abs(currentBookTime - paused.time) < 1 {
+            // Smart Resume, unless it moved while paused: within the file
+            // playing, as on the iPhone.
+            let chapters = WatchBookStore.shared.chapters(for: book.key)
+            let target = SmartResume.resumeTime(from: paused.time, afterPausing: Date.now.timeIntervalSince(paused.at), chapters: chapters)
+            jump(to: max(target, timeline?.start(ofPart: index) ?? 0))
         }
+        bookPause = nil
         if player.currentItem == nil {
             pendingPlay = true
             Task { await startPlayback(from: pendingOffset ?? 0) }

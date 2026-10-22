@@ -198,14 +198,19 @@ public struct AudiobookProgress: Sendable, Equatable, Codable, Hashable {
     static let startedThreshold: TimeInterval = 30
 
     /// Where to start playing: back at the top for a finished book, else
-    /// a few seconds before where it was left, so the listener hears the
-    /// end of the sentence they stopped in again.
+    /// a little before where it was left, further the longer ago that was
+    /// (`SmartResume`), so the listener hears the end of the sentence they
+    /// stopped in again.
     public var resumePosition: TimeInterval {
-        guard isStarted else { return 0 }
-        return Swift.max(position - Self.resumeRewind, 0)
+        resumePosition(at: .now, chapters: [])
     }
 
-    static let resumeRewind: TimeInterval = 5
+    /// `resumePosition` for a play at `date`, held to the start of the
+    /// chapter it was left in.
+    public func resumePosition(at date: Date, chapters: [AudiobookChapter]) -> TimeInterval {
+        guard isStarted else { return 0 }
+        return SmartResume.resumeTime(from: position, afterPausing: date.timeIntervalSince(updatedAt), chapters: chapters)
+    }
 
     /// A listen counts as finished this close to the end: closing credits
     /// and the publisher's sign-off aren't worth waiting out.
