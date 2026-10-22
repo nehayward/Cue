@@ -66,6 +66,7 @@ final class WatchBookStore {
         let changed = places.record(WatchBookPlace(progress), for: key)
         if changed {
             scheduleSave()
+            WatchDownloadStore.shared.bookPlaceDidMove()
         }
         if changed || tellPhoneNow {
             tellPhone(now: tellPhoneNow)
@@ -79,6 +80,7 @@ final class WatchBookStore {
         if merged != places {
             places = merged
             scheduleSave()
+            WatchDownloadStore.shared.bookPlaceDidMove()
         }
         return placesToShare.hasNews(for: theirs)
     }

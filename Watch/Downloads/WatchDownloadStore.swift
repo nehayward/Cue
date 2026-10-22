@@ -1,4 +1,5 @@
 import Foundation
+import MusicSearchKit
 import Observation
 import OSLog
 import WatchKit
@@ -35,6 +36,12 @@ import WatchSync
 /// Plex converts a song as it sends it, one at a time for a client, so its
 /// conversions come down one at a time; a conversion that breaks off
 /// (`cannot parse response`, mostly) is tried again by itself.
+///
+/// A book's files come down one at a time, from the file its place is in
+/// to the end and then the ones before it, the book loaded in the player
+/// ahead of everything else: the next chapter to hear is the next to land,
+/// and a file under way makes way when the place moves to one that isn't
+/// here.
 ///
 /// Files live in Application Support/Downloads as `<key>.<ext>`, with the
 /// manifest beside them; the picks and their songs are kept alongside.
@@ -128,6 +135,9 @@ final class WatchDownloadStore {
     /// task for the same key — one replaced, cancelled, or left on the
     /// other session — are stale and ignored.
     @ObservationIgnored private var tasks: [String: TaskRef] = [:]
+    /// What each download had when its current task started, to tell an
+    /// attempt that got somewhere from one that didn't.
+    @ObservationIgnored private var attemptStart: [String: Int64] = [:]
     @ObservationIgnored private var lookedUpAt: Date?
     @ObservationIgnored private var resumesFastOnReturn = false
     @ObservationIgnored private var fastBytes: Int64 = 0
@@ -171,11 +181,17 @@ final class WatchDownloadStore {
     /// doesn't sit on the session as hundreds of tasks.
     static let backgroundConcurrency = 16
     /// Times a song the server broke off is tried again before it counts
-    /// as failed.
+    /// as failed. A try that brought in `retryProgress` and can carry on
+    /// from there doesn't count: a long book file can lose its connection
+    /// more than twice on the way down.
     static let retryLimit = 2
-    /// The Plex clients conversions run as, one each: as many conversions
-    /// at once as there are names. A single conversion goes as fast as the
-    /// server encodes, around 2 MB/s, so a second one fills more of Wi‑Fi.
+    static let retryProgress: Int64 = 1_000_000
+    /// The Plex clients conversions run as, one each, and how many Plex
+    /// downloads run at once, converted or not: Plex serves a couple at a
+    /// time, as on the iPhone. Four of a book's files at once had all but
+    /// one stall a few hundred KB in, until the connection was lost. A
+    /// single conversion goes as fast as the server encodes, around 2 MB/s,
+    /// so a second one fills more of Wi‑Fi.
     static let plexClients = ["Cue-Watch", "Cue-Watch-2"]
     /// How old the songs looked up for the picks get before they're looked
     /// up again, so playlists follow the server.
@@ -319,16 +335,46 @@ final class WatchDownloadStore {
         }
     }
 
-    /// What's coming down on the fast session now, in play order.
+    /// What's coming down on the fast session now, in the order it's wanted.
     var fastActive: [Item] {
         orderedKeys().compactMap { key in
             tasks[key]?.kind == .fast ? items[key] : nil
         }
     }
 
-    /// Every wanted song's key, newest pick first, each once.
+    /// Every wanted song's key in the order they come down, each once: the
+    /// book loaded in the player first, then the picks newest first, each
+    /// book from the file its place is in to its end, then the files before
+    /// it, heard already.
     private func orderedKeys() -> [String] {
-        songs(in: picks.items.map(\.key)).map(\.key)
+        var order = picks.items
+        if let loaded = WatchPlayer.shared.book?.key, let at = order.firstIndex(where: { $0.key == loaded }) {
+            order.insert(order.remove(at: at), at: 0)
+        }
+        var seen = Set<String>()
+        return order.flatMap { pick -> [WatchSong] in
+            let songs = songsByPick[pick.key] ?? []
+            guard pick.kind == .audiobook else { return songs }
+            let first = placeFile(of: pick.key, in: songs)
+            return Array(songs[first...] + songs[..<first])
+        }
+        .map(\.key)
+        .filter { seen.insert($0).inserted }
+    }
+
+    /// The file a book picks up in: where its place is, the first for a
+    /// book not started or finished.
+    private func placeFile(of key: String, in files: [WatchSong]) -> Int {
+        let timeline = AudiobookTimeline(partDurations: files.map { $0.duration ?? 0 })
+        // With no lengths, every place reads as the last file.
+        guard timeline.duration > 0, let place = WatchBookStore.shared.progress(for: key) else { return 0 }
+        return timeline.location(at: place.resumePosition).part
+    }
+
+    /// The book file that should be coming down: the first wanted that's
+    /// waiting or under way.
+    private func nextBookFile(in order: [String], bookFiles: Set<String>) -> String? {
+        order.first { bookFiles.contains($0) && (items[$0]?.state == .queued || tasks[$0] != nil) }
     }
 
     // MARK: - Picks
@@ -410,6 +456,15 @@ final class WatchDownloadStore {
             scheduleSave()
         }
         lookUp(shelfPicks.filter { songsByPick[$0.key] == nil || unreachable.contains($0.key) })
+    }
+
+    /// A book's place moved, here or on another device: the file it's in
+    /// now comes down next, if it isn't already.
+    func bookPlaceDidMove() {
+        let bookFiles = bookFileKeys
+        guard let next = nextBookFile(in: orderedKeys(), bookFiles: bookFiles), tasks[next] == nil else { return }
+        pump()
+        scheduleSave()
     }
 
     /// Looks a pick up again now: a book's page, opened, reads its place on
@@ -706,29 +761,41 @@ final class WatchDownloadStore {
 
     // MARK: - Moving songs
 
-    /// Puts waiting songs on their way, in play order: up to the background
-    /// session's share, or the next few on the fast one while Fast Download
-    /// runs — finishing the run when nothing's left. Plex conversions run
-    /// one per client name (`plexClients`), whichever session they're on.
+    /// Puts waiting songs on their way, in the order they're wanted
+    /// (`orderedKeys`): up to the background session's share, or the next
+    /// few on the fast one while Fast Download runs — finishing the run
+    /// when nothing's left. Plex gets as many at once as there are client
+    /// names (`plexClients`), whichever session they're on, and books one
+    /// file at a time.
     private func pump() {
         let kind: SessionKind = fastPhase == .running ? .fast : .background
         let limit = kind == .fast ? Self.fastConcurrency : Self.backgroundConcurrency
-        let queued = orderedKeys().filter { items[$0]?.state == .queued }
+        let order = orderedKeys()
+        let bookFiles = bookFileKeys
+        // The place moved, or another book was loaded: a book file under way
+        // that isn't the one wanted next makes way for it.
+        let nextBookFile = nextBookFile(in: order, bookFiles: bookFiles)
+        for key in Array(tasks.keys) where bookFiles.contains(key) && key != nextBookFile {
+            setAside(key)
+        }
+        let queued = order.filter { items[$0]?.state == .queued }
         // Audiobookshelf files are signed with a token lent for an hour: a
         // fresh one is asked for before it runs out.
         if queued.contains(where: { items[$0]?.song.source == .audiobookshelf }) {
             WatchAccounts.shared.renewTokenIfNeeded()
         }
         var running = tasks.values.filter { $0.kind == kind }.count
-        var converting = tasks.keys.filter { key in
-            items[key].map { $0.song.isPlexConversion(at: $0.quality) } ?? false
-        }.count
+        var fromPlex = tasks.keys.filter { items[$0]?.song.source == .plex }.count
+        var bookFileRunning = tasks.keys.contains { bookFiles.contains($0) }
         for key in queued where running < limit {
             guard let item = items[key] else { continue }
-            if item.song.isPlexConversion(at: item.quality) {
-                if converting >= Self.plexClients.count { continue }
-                converting += 1
+            let isBookFile = bookFiles.contains(key)
+            if isBookFile && bookFileRunning { continue }
+            if item.song.source == .plex {
+                if fromPlex >= Self.plexClients.count { continue }
+                fromPlex += 1
             }
+            bookFileRunning = bookFileRunning || isBookFile
             start(key, on: kind)
             running += 1
         }
@@ -760,6 +827,7 @@ final class WatchDownloadStore {
         task.taskDescription = DownloadTaskName.description(key: key, fileExtension: item.fileExtension)
         task.priority = kind == .fast ? URLSessionTask.highPriority : URLSessionTask.defaultPriority
         tasks[key] = TaskRef(kind: kind, task: task)
+        attemptStart[key] = item.bytesReceived
         item.state = .downloading
         item.resumeData = nil
         item.resumeOn = nil
@@ -783,6 +851,29 @@ final class WatchDownloadStore {
         tasks.removeValue(forKey: key)?.task.cancel()
     }
 
+    /// Takes a download off its session and back in line, keeping what it
+    /// fetched to carry on from when its turn comes again.
+    private func setAside(_ key: String) {
+        guard let ref = tasks.removeValue(forKey: key) else { return }
+        items[key]?.state = .queued
+        scheduleSave()
+        logger.info("\(self.items[key]?.song.title ?? key, privacy: .public) makes way")
+        guard let download = ref.task as? URLSessionDownloadTask else {
+            ref.task.cancel()
+            return
+        }
+        let kind = ref.kind
+        download.cancel(byProducingResumeData: { [weak self] data in
+            Task { @MainActor in
+                // Unless it's on its way again already.
+                guard let self, let data, self.items[key]?.state == .queued else { return }
+                self.items[key]?.resumeData = data
+                self.items[key]?.resumeOn = kind
+                self.scheduleSave()
+            }
+        })
+    }
+
     private func delete(key: String) {
         stopTask(for: key)
         if let item = items[key] {
@@ -793,6 +884,7 @@ final class WatchDownloadStore {
         }
         items[key] = nil
         lastProgressPublish[key] = nil
+        attemptStart[key] = nil
     }
 
     // MARK: - Relay callbacks
@@ -862,6 +954,7 @@ final class WatchDownloadStore {
         item.retries = nil
         items[key] = item
         lastProgressPublish[key] = nil
+        attemptStart[key] = nil
         if fastPhase == .running {
             fastCompleted += 1
         }
@@ -874,6 +967,7 @@ final class WatchDownloadStore {
         tasks[key] = nil
         let nsError = error as NSError
         let cancelled = nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
+        let gotSomewhere = resumeData != nil && item.bytesReceived - (attemptStart.removeValue(forKey: key) ?? 0) >= Self.retryProgress
         item.resumeData = resumeData
         item.resumeOn = resumeData == nil ? nil : kind
         if cancelled {
@@ -881,9 +975,11 @@ final class WatchDownloadStore {
             // they report): the system's, after a force quit say. Back in
             // line, rather than failed until the app is next opened.
             item.state = .queued
-        } else if Self.isBrokenOff(nsError), (item.retries ?? 0) < Self.retryLimit {
+        } else if Self.isBrokenOff(nsError) || Self.isBusy(error), gotSomewhere || (item.retries ?? 0) < Self.retryLimit {
             item.state = .queued
-            item.retries = (item.retries ?? 0) + 1
+            if !gotSomewhere {
+                item.retries = (item.retries ?? 0) + 1
+            }
         } else {
             item.state = .failed
             item.error = error.localizedDescription
@@ -916,6 +1012,14 @@ final class WatchDownloadStore {
             NSURLErrorNetworkConnectionLost,
             NSURLErrorZeroByteResource,
         ].contains(error.code)
+    }
+
+    /// The server turned the song away for now — too busy, or briefly down
+    /// (Plex answers 503 beyond the downloads it's serving) — rather than
+    /// for good.
+    private static func isBusy(_ error: Error) -> Bool {
+        guard let refused = error as? DownloadRelay.Refused else { return false }
+        return refused.statusCode == 408 || refused.statusCode == 429 || refused.statusCode >= 500
     }
 
     // MARK: - Startup

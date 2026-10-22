@@ -28,6 +28,12 @@ struct FastDownloadScreen: View {
                         finished
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if store.fastPhase == .running {
+                    overallProgress
+                }
             }
             .navigationTitle("Fast Download")
         }
@@ -70,14 +76,23 @@ struct FastDownloadScreen: View {
 
     // MARK: - While it runs
 
-    private var running: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    /// The run as a whole, pinned over the list so it stays in sight while
+    /// the list scrolls under it.
+    private var overallProgress: some View {
+        VStack(alignment: .leading, spacing: 4) {
             ProgressView(value: Double(store.fastCompleted), total: Double(max(store.fastTotal, 1)))
                 .tint(.accentColor)
             Text("\(store.fastCompleted) of \(WatchDownloadStore.countText(store.fastTotal, files: store.fastIncludesBooks))")
                 .font(.headline)
                 .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 8)
+        .background(.background)
+    }
 
+    private var running: some View {
+        VStack(alignment: .leading, spacing: 10) {
             routeRow
 
             if store.isWaitingForNetwork {
@@ -107,12 +122,15 @@ struct FastDownloadScreen: View {
                 }
             }
 
+            // Centred whatever width the button style gives it.
             Button(role: .destructive) {
                 store.stopFastDownload()
             } label: {
                 Text("Stop")
                     .frame(maxWidth: .infinity)
             }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity)
         }
     }
 

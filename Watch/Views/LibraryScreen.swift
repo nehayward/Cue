@@ -199,7 +199,13 @@ struct LibraryScreen: View {
                 }
                 .zoomDestination(route, in: zoom)
             }
-            .sheet(item: $sheet) { sheet in
+            .sheet(item: $sheet, onDismiss: {
+                // Closed without a choice: the recommended quality it's been
+                // using stands, and it isn't asked again.
+                if hasAskedQuality, !store.hasChosenQuality {
+                    store.setQuality(store.quality)
+                }
+            }) { sheet in
                 switch sheet {
                 case .quality:
                     QualityPicker(current: store.hasChosenQuality ? store.quality : nil) { quality in
@@ -221,8 +227,9 @@ struct LibraryScreen: View {
                 default: break
                 }
             }
-            // Asked once a launch until answered; songs come down at the
-            // recommended quality meanwhile.
+            // Asked once, the first time there's music to fetch; songs come
+            // down at the recommended quality meanwhile, and closing it
+            // keeps that.
             .task(id: needsQuality) {
                 if needsQuality, sheet == nil, !hasAskedQuality {
                     hasAskedQuality = true
