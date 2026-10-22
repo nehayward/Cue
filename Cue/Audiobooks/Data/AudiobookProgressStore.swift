@@ -14,6 +14,10 @@ import SonosKit
 ///
 /// Books are keyed by service and id (`key(for:)`), so a book reads the
 /// same wherever it's opened from.
+///
+/// The books on the Apple Watch keep their places there too: the watch's
+/// newer ones come in here, and these go out to it
+/// (`WatchSyncService.bookPlacesDidChange`).
 @MainActor
 @Observable
 final class AudiobookProgressStore {
@@ -61,6 +65,7 @@ final class AudiobookProgressStore {
         guard readings[key] != reading else { return }
         readings[key] = reading
         scheduleSave()
+        WatchSyncService.shared.bookPlacesDidChange()
     }
 
     /// Notes the server's reading of a book read whole, kept only when it

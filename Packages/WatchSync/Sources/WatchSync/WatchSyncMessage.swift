@@ -2,21 +2,32 @@ import Foundation
 
 /// What crosses WatchConnectivity: each side's application context — only
 /// the latest matters, the system keeps it for an app that isn't running,
-/// and it works between simulators. The iPhone's carries the picks and its
-/// sign-ins (`WatchCredentials`); the watch's carries the picks as it has
-/// them. Each side merges what arrives (`WatchPicks.merged`). The picks
-/// travel packed, with a `sentAt` stamp so sending them again always counts
-/// as a change.
+/// and it works between simulators. The iPhone's carries the picks, the
+/// places in the books among them (`WatchBookPlaces`) and its sign-ins
+/// (`WatchCredentials`); the watch's carries the picks and places as it has
+/// them. Each side merges what arrives (`WatchPicks.merged`,
+/// `WatchBookPlaces.merged`). The picks and places travel packed, with a
+/// `sentAt` stamp so sending them again always counts as a change.
+///
+/// One message goes the other way, with a reply: the watch asking for the
+/// sign-ins afresh (`credentialsRequest`), when the Audiobookshelf token it
+/// was lent is about to run out. The iPhone renews its own and answers
+/// with the context's sign-ins (`credentialsReply`).
 public enum WatchSyncMessage {
     public static let picksKey = "picks"
+    public static let placesKey = "places"
     public static let credentialsKey = "credentials"
     public static let sentAtKey = "sentAt"
+    public static let requestKey = "request"
 
-    public static func context(picks: WatchPicks, credentials: WatchCredentials? = nil, sentAt: Date = .now) throws -> [String: Any] {
+    public static func context(picks: WatchPicks, places: WatchBookPlaces? = nil, credentials: WatchCredentials? = nil, sentAt: Date = .now) throws -> [String: Any] {
         var context: [String: Any] = [
             picksKey: pack(try picks.encoded()),
             sentAtKey: sentAt.timeIntervalSince1970,
         ]
+        if let places {
+            context[placesKey] = pack(try places.encoded())
+        }
         if let credentials {
             context[credentialsKey] = try JSONEncoder().encode(credentials)
         }
@@ -28,9 +39,28 @@ public enum WatchSyncMessage {
         return try? WatchPicks.decoded(from: data)
     }
 
+    public static func places(in context: [String: Any]) -> WatchBookPlaces? {
+        guard let packed = context[placesKey] as? Data, let data = unpack(packed) else { return nil }
+        return try? WatchBookPlaces.decoded(from: data)
+    }
+
     public static func credentials(in context: [String: Any]) -> WatchCredentials? {
         guard let data = context[credentialsKey] as? Data else { return nil }
         return try? JSONDecoder().decode(WatchCredentials.self, from: data)
+    }
+
+    // MARK: - Asking for the sign-ins
+
+    /// The watch's message asking for fresh sign-ins.
+    public static var credentialsRequest: [String: Any] { [requestKey: "credentials"] }
+
+    public static func isCredentialsRequest(_ message: [String: Any]) -> Bool {
+        message[requestKey] as? String == "credentials"
+    }
+
+    /// The iPhone's answer: the sign-ins, read back with `credentials(in:)`.
+    public static func credentialsReply(_ credentials: WatchCredentials) throws -> [String: Any] {
+        [credentialsKey: try JSONEncoder().encode(credentials)]
     }
 
     // MARK: - Packing

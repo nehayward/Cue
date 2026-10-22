@@ -109,6 +109,13 @@ final class PlayReporter {
         }
     }
 
+    /// Lets the play go without telling the server where it got to: a book
+    /// whose place another device has moved since (the Apple Watch), where
+    /// this device's last spot would take the book back.
+    func forget() {
+        play = nil
+    }
+
     /// How far into a track Plex counts it played from its reports.
     static let playedThreshold = 0.9
 

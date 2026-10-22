@@ -985,6 +985,41 @@ final class AudiobookPlayer {
         }
     }
 
+    /// Another device moved `book`'s place to `place` (the Apple Watch,
+    /// listened to since): when it's the book loaded here and not playing,
+    /// it gives way, so Play picks up there rather than where this device
+    /// paused. In the same file the player moves there; in another, this
+    /// device's player is taken down (Play then starts from the kept place,
+    /// `resumeOnDevice`) without telling Plex where it had paused, which
+    /// would take the book back. Nothing read here is kept until it plays,
+    /// a session closed later closes at the new place, and the server hears
+    /// of it now. One playing here keeps playing; its own place, newer,
+    /// goes to the watch.
+    func notePlaceMoved(_ book: PlayableContent, to place: AudiobookProgress) async {
+        guard let current, current.book.isSameBook(as: book) else { return }
+        let controller = PlaybackRoute.shared.controller
+        guard !controller.isPlaying else { return }
+        Self.log.notice("\(book.title, privacy: .public): its place moved on another device, to \(Int(place.position)) s; Play starts there")
+        unrecorded = nil
+        holdsReadings = true
+        lastReading = nil
+        position = place.position
+        lastStoredPosition = place.position
+        lastServerPosition = place.position
+        let location = current.timeline.location(at: place.resumePosition)
+        if isPlayingBook(on: controller) {
+            if current.partIndex(of: controller.nowPlayingDisplay) == location.part {
+                await controller.seek(to: location.offset)
+            } else if controller.group == nil {
+                PlayReporter.shared.forget()
+                LocalPlaybackService.shared.park()
+            }
+        }
+        if !OfflineMode.shared.isActive {
+            AudiobookLibrary.sendNewerPlace(of: current)
+        }
+    }
+
     /// The book is no longer what's playing.
     private func end() {
         guard let current else { return }

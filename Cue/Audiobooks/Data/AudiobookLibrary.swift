@@ -146,7 +146,7 @@ enum AudiobookLibrary {
     /// finished, with no server to tell (offline), so its other players
     /// pick up here. A minute's grace covers the reading this device's own
     /// syncs already gave it.
-    private static func sendNewerPlace(of audiobook: Audiobook) {
+    static func sendNewerPlace(of audiobook: Audiobook) {
         guard let local = AudiobookProgressStore.shared.progress(for: audiobook.book) else { return }
         if let server = audiobook.serverProgress, server.updatedAt.addingTimeInterval(AudiobookProgress.serverGrace) >= local.updatedAt { return }
         switch audiobook.book.content.service {

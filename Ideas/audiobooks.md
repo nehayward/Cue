@@ -169,6 +169,14 @@ One item per branch, as in the roadmap.
   repeat, and the queue's ring, with the chapter's place, opens the chapter
   playing and the ones to come. Checked with `-AudiobookAuditCarPlay` in the Simulator, not yet
   in a car or the CarPlay simulator.
+- [x] **Apple Watch** — books are watch picks like albums: added from the
+  watch's Audiobooks shelves or Add to Apple Watch on the iPhone, their
+  files downloaded as the server keeps them, played from their place with
+  ±15/30 s skips, chapters and each book's speed. Places cross with the
+  picks both ways (newer wins), and Audiobookshelf's token is lent, the
+  iPhone keeping the refresh token. Not yet built or tried on a watch.
+  Left: a sleep timer, and the watch telling the server itself (the iPhone
+  does when it next opens the book).
 - [x] **Sleep timer: end of chapter** — End of Chapter, on this device and
   a speaker.
 - [x] **Chapter navigation** — Previous / Next Chapter and the chapter line

@@ -1,9 +1,10 @@
 import SwiftUI
 
 /// A cover from `ArtworkStore`, fetched the first time it's shown, with a
-/// note glyph until it's here.
+/// glyph until it's here: a note, or a book's.
 struct ArtworkView: View {
     let url: URL?
+    var symbol = "music.note"
 
     var body: some View {
         let artwork = ArtworkStore.shared
@@ -16,7 +17,7 @@ struct ArtworkView: View {
                 Rectangle()
                     .fill(.gray.opacity(0.3))
                     .overlay {
-                        Image(systemName: "music.note")
+                        Image(systemName: symbol)
                             .foregroundStyle(.secondary)
                     }
             }
