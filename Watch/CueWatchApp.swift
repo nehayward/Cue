@@ -30,6 +30,7 @@ struct CueWatchApp: App {
             switch phase {
             case .active:
                 store.appDidBecomeActive()
+                books.reconcileWithCloud()
                 phone.refresh()
             case .background:
                 store.appDidEnterBackground()
@@ -52,6 +53,8 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate {
         _ = WatchDownloadStore.shared
         // What was loaded when the app last ended, back paused.
         WatchPlayer.shared.restore()
+        // The places iCloud brought while Cue was closed.
+        WatchBookStore.shared.startCloudSync()
         // Nothing's playing yet, whatever the widgets were last told.
         WidgetStatePublisher.publishNow()
     }
