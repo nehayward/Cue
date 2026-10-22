@@ -127,7 +127,9 @@ final class FeatureGate {
     /// Kept here so the speaker list and the mini player agree on it.
     func isRoomUnlocked(_ group: GroupRoom, in sorted: [GroupRoom]) -> Bool {
         if isAvailable(.allRooms) { return true }
-        guard let index = sorted.firstIndex(of: group) else { return false }
+        // By coordinator: a group is equal only to itself, and a caller
+        // may hold an instance a topology refresh has since replaced.
+        guard let index = sorted.firstIndex(where: { $0.coordinatorID == group.coordinatorID }) else { return false }
         return index < 1
     }
 

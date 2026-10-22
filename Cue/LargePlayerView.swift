@@ -331,7 +331,7 @@ struct LargePlayerView: View {
                 try? await Task.sleep(for: .milliseconds(400))
                 shouldFade = true
             }
-            // Was `.onChange(of: group)` — GroupRoom.== includes track content
+            // Was `.onChange(of: group)` — GroupRoom.== compared track content
             // so it fired on every song change and reset the crossfade. We only
             // care about identity (speaker switch).
             .onChange(of: coordinatorID) {

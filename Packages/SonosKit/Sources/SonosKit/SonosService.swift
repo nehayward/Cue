@@ -470,8 +470,19 @@ public final class SonosService {
     /// describes: the coordinator's stream survives a membership change. A
     /// room newly promoted to coordinator keeps the parse's empty track
     /// rather than showing the song it heard as a member of its old group.
-    private func adoptGroups(_ newGroups: [GroupRoom]) {
-        for newGroup in newGroups {
+    private func adoptGroups(_ parsedGroups: [GroupRoom]) {
+        // A group the refresh didn't touch keeps its instance. A new one is a
+        // change to every view holding it (GroupRoom is equal only to itself),
+        // so swapping in the parse's copy of an unchanged group would redraw
+        // them all, and restart anything keyed on it, for nothing.
+        let newGroups = parsedGroups.map { parsed in
+            groups.first {
+                $0.coordinatorID == parsed.coordinatorID && $0.id == parsed.id && $0.adoptionKey == parsed.adoptionKey
+            } ?? parsed
+        }
+        let replaced = newGroups.filter { new in !groups.contains { $0 === new } }
+
+        for newGroup in replaced {
             guard let current = groups.first(where: { $0.coordinatorID == newGroup.coordinatorID }) else { continue }
             newGroup.groupVolume = current.groupVolume
             newGroup.isMuted = current.isMuted
@@ -497,7 +508,7 @@ public final class SonosService {
         // Per-room state that `updateGroupsRooms` refreshes after the swap:
         // carry it by room ID so a regroup doesn't drop every slider to 0
         // until that read lands.
-        for room in newGroups.flatMap(\.rooms) {
+        for room in replaced.flatMap(\.rooms) {
             guard let current = rooms.first(where: { $0.id == room.id }) else { continue }
             room.volume = current.volume
             room.isMuted = current.isMuted
@@ -505,6 +516,12 @@ public final class SonosService {
         }
         groups = newGroups
         rooms = newGroups.flatMap(\.rooms)
+        // In the same step, so nothing reads the new groups against the old
+        // selected one (tvOS selects its tab by it).
+        if let selected = selectedGroup,
+           let live = newGroups.first(where: { $0.coordinatorID == selected.coordinatorID }) {
+            selectedGroup = live
+        }
     }
 
     @MainActor
