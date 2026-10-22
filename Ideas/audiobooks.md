@@ -166,8 +166,8 @@ One item per branch, as in the roadmap.
   progress bar, then each server's books; a book plays from where it was
   left; Now Playing's skips are the Lock Screen's, and a
   `CPNowPlayingPlaybackRateButton` steps 1× to 2× in place of shuffle and
-  repeat, and the queue's ring, with the chapter's place, opens the chapter
-  playing and the ones to come. Checked with `-AudiobookAuditCarPlay` in the Simulator, not yet
+  repeat, and the chapter's place in a circle opens the chapter playing
+  (with a bar and its time left) and the ones to come. Checked with `-AudiobookAuditCarPlay` in the Simulator, not yet
   in a car or the CarPlay simulator.
 - [x] **Apple Watch** — books are watch picks like albums: added from the
   watch's Audiobooks shelves or Add to Apple Watch on the iPhone, their
