@@ -36,6 +36,13 @@ These rules apply to every session on the Mac (started with `Scripts/claude-remo
 - When the user says the app crashed, run `Scripts/iphone-crashes.sh` (`--count N` for more) before reading code. It pulls Cue's newest crash report into `build/crashes` and prints the exception, the crash message and the crashed thread with Cue's frames symbolicated. If it says the phone's build doesn't match the local one, deploy again and ask the user to reproduce the crash.
 - For crashes in an extension, pass `--process Widgets` (or the extension's executable name).
 
+### Cue (Mac) on this Mac
+- `Cue (Mac)` is a Mac Catalyst build of the iOS app (code paths use `targetEnvironment(macCatalyst)`; `os(macOS)` is false there). When working on it, run `Scripts/deploy-to-mac.sh` after building: it builds the scheme (Debug) into `~/Library/Developer/Xcode/DerivedData/Cue-Mac` (`Debug-maccatalyst`), quits any running Cue and launches the new build on this Mac through LaunchServices. Build errors go to `build/mac-build.log`.
+- Console: `Scripts/deploy-to-mac.sh --logs [seconds]`, or relaunch without rebuilding with `Scripts/mac-logs.sh [seconds]` (`CUE_LOG_FILTER` works the same). The running app keeps writing to `build/mac-console.log` (a link to `~/Library/Logs/Cue-dev/mac-console.log`).
+- Release: prefix any Mac script with `CUE_CONFIGURATION=Release`. A locally built Release has no App Store receipt, so it runs as the free tier.
+- Crashes: `Scripts/mac-crashes.sh` (`--count N`, `--process "Cue Mini"`) reads `~/Library/Logs/DiagnosticReports` and symbolicates against the last Mac build.
+- Memory: `Scripts/mac-profile.sh [seconds]` relaunches the last Mac build, samples its footprint and its GPU share (default 120 s, every 1 s) while the user reproduces the problem, then captures a memory graph and reports the peak, the biggest jumps with timestamps, leaks, the largest regions (vmmap) and the largest heap types, into `build/profiles/<time>/`. `--stacks` adds allocation call stacks (`MallocStackLogging`), `--attach` profiles the Cue already running, `--trace <template> [seconds]` records an Instruments trace. GPU memory (`footprint`'s "(graphics)" rows) is invisible to `vmmap`, `heap` and the memgraph: a spike in `gpu_mb` alone is offscreen rendering or animation (see Mac GPU cost under Key Patterns), not an allocation leak. Profile the Debug build; Release builds can't be inspected by `leaks`/`heap`. These scripts are Clic's, renamed.
+
 ## Build & Development Commands
 
 This is an Xcode project with multiple targets and schemes:
