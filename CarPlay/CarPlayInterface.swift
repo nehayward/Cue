@@ -16,8 +16,9 @@ import UIKit
 /// - **Audiobooks** — while there are books (as the phone's tab): the books
 ///   partway through, each with how far in it is, then each server's books.
 ///   A book plays from where it was left (`AudiobookPlayer`), with its speed
-///   on Now Playing in place of shuffle and repeat. While one plays over
-///   music, Your Music on top plays the music again where it was left.
+///   on Now Playing in place of shuffle and repeat, and its chapters in
+///   place of the queue. While one plays over music, Your Music on top
+///   plays the music again where it was left.
 /// - **Downloads** — what's on this iPhone, which plays with no signal:
 ///   Shuffle All, Albums, Artists and Songs, and the newest albums.
 /// - **Radio** — TuneIn's and Apple Music's stations, as on the phone, as
@@ -51,6 +52,9 @@ final class CarPlayInterface: NSObject {
 
     /// Up Next, pushed from Now Playing, follows the player while it's up.
     private weak var upNextTemplate: CPListTemplate?
+    /// A book's chapters, pushed from Now Playing, follow the book the same
+    /// way.
+    private weak var chaptersTemplate: CPListTemplate?
     /// What Now Playing's buttons were last set to show (`updateNowPlaying`);
     /// nil until they've been set this connection.
     private var nowPlayingButtons: String?
@@ -213,6 +217,9 @@ final class CarPlayInterface: NSObject {
         // A book loaded or put away; Audiobookshelf's books in progress;
         // the music a book was started over.
         _ = AudiobookPlayer.shared.current
+        // The chapter playing, for the chapter button and its list. Not
+        // the book's place, which moves every couple of seconds.
+        _ = AudiobookPlayer.shared.currentChapter
         _ = player.setAsideQueue
         _ = AudiobookshelfBrowseService.shared.continueListening
     }
@@ -225,6 +232,9 @@ final class CarPlayInterface: NSObject {
         reloadDownloads()
         if let upNextTemplate {
             fillUpNext(upNextTemplate)
+        }
+        if let chaptersTemplate {
+            fillChapters(chaptersTemplate)
         }
         updatePlayingIndicators()
     }
@@ -766,11 +776,14 @@ final class CarPlayInterface: NSObject {
     }
 
     /// The album button while the device has a queue; shuffle and repeat for
-    /// a queue of songs (a station has neither); and the queue button.
+    /// a queue of songs (a station has neither); and the queue button. A
+    /// book has its speed and its chapters in their place.
     ///
     /// The queue button is Cue's own, the phone's ring with the song's place
     /// in it (`CarPlayArtwork.queueGauge`), in place of the system's Up Next
-    /// button, which only takes a word or the car's own icon.
+    /// button, which only takes a word or the car's own icon. A book's
+    /// chapter button is the same ring, with the chapter's place in the
+    /// book.
     ///
     /// Runs on every change the tabs follow (a play, the history, the
     /// downloads), so each part is only handed to the car when it differs
@@ -788,18 +801,24 @@ final class CarPlayInterface: NSObject {
             nowPlaying.isAlbumArtistButtonEnabled = albumArtist
         }
 
-        // A book has its speed in place of shuffle and repeat, and no queue:
-        // its files in order aren't anything to pick from.
-        let isBook = onDevice && AudiobookPlayer.shared.contains(player.nowPlaying)
+        // A book has its speed in place of shuffle and repeat, and its
+        // chapters in place of the queue: its files in order aren't anything
+        // to pick from.
+        let books = AudiobookPlayer.shared
+        let isBook = onDevice && books.contains(player.nowPlaying)
         let hasModes = onDevice && !player.isPlayingStation && !isBook
         // Whenever there's a queue of songs, on its last song too, as the
         // Music app's is — and under a station, which leaves the queue
         // waiting behind it, at place zero. A station alone has no queue.
         let hasQueue = onDevice && !player.queue.isEmpty && !isBook
+        // A book that's one chapter, itself, has none to list.
+        let chapters = isBook && books.hasChapters ? books.current?.chapters ?? [] : []
+        let chapterPlace = Self.place(of: books.currentChapter, in: chapters)
         let signature = [
             hasModes ? "\(player.isShuffled),\(player.repeatMode.rawValue)" : "",
             hasQueue ? "\(player.queuePosition)/\(player.queueCount)" : "",
             isBook ? "book" : "",
+            chapters.isEmpty ? "" : "\(chapterPlace)/\(chapters.count)",
         ].joined(separator: "|")
         guard signature != nowPlayingButtons else { return }
         nowPlayingButtons = signature
@@ -841,6 +860,14 @@ final class CarPlayInterface: NSObject {
             buttons.append(CPNowPlayingPlaybackRateButton { _ in
                 MainActor.assumeIsolated {
                     CarPlayPlayback.nextBookRate()
+                }
+            })
+        }
+        if !chapters.isEmpty {
+            let image = CarPlayArtwork.queueGauge(position: chapterPlace, total: chapters.count)
+            buttons.append(CPNowPlayingImageButton(image: image) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.showChapters()
                 }
             })
         }
@@ -980,6 +1007,64 @@ final class CarPlayInterface: NSObject {
         guard let index = upcoming.first(where: { player.queue[$0] == content }) else { return }
         player.play(at: index)
         interfaceController.popTemplate(animated: true, completion: nil)
+    }
+
+    private func showChapters() {
+        let template = CPListTemplate(title: "Chapters", sections: [])
+        template.emptyViewTitleVariants = ["No Chapters"]
+        chaptersTemplate = template
+        fillChapters(template)
+        push(template)
+    }
+
+    /// The chapter playing, then the ones to come, each with how long it
+    /// runs. Not the ones before: a car can't open a list partway down, and
+    /// a long book's chapters heard would be a long scroll while driving.
+    /// The list follows the book, so a chapter that ends leaves the top. A
+    /// chapter picked plays from its start, as on the phone's Chapters
+    /// sheet: the one playing goes back to its own.
+    private func fillChapters(_ template: CPListTemplate) {
+        let player = LocalPlaybackService.shared
+        let books = AudiobookPlayer.shared
+        let isBook = PlaybackRoute.shared.destination == .device && player.isActive && books.contains(player.nowPlaying)
+        let chapters = isBook ? books.current?.chapters ?? [] : []
+        let here = books.currentChapter
+        let from = max(Self.place(of: here, in: chapters) - 1, 0)
+        let shown = Array(chapters[from...].prefix(CarPlayLibrary.rowLimit))
+        let signature = ([books.current?.book.id ?? "", "\(here?.id ?? -1)"] + shown.map { "\($0.id)" }).joined(separator: "|")
+        update(template, signature: signature) {
+            let rows: [CPListTemplateItem] = shown.map { chapter -> CPListTemplateItem in
+                let isHere = chapter.id == here?.id
+                let row = CPListItem(
+                    text: chapter.title,
+                    detailText: AudiobookFormat.duration(chapter.duration),
+                    image: CarPlayArtwork.symbol(isHere ? "bookmark.fill" : "bookmark")
+                )
+                // No `userInfo`: `updatePlayingIndicators` marks content,
+                // and leaves these as set here.
+                row.isPlaying = isHere
+                row.handler = { [weak self] _, completion in
+                    MainActor.assumeIsolated {
+                        guard let self else {
+                            completion()
+                            return
+                        }
+                        self.perform(completion: completion) {
+                            await AudiobookPlayer.shared.play(chapter: chapter)
+                        }
+                    }
+                }
+                return row
+            }
+            return rows.isEmpty ? [] : [CPListSection(items: rows)]
+        }
+    }
+
+    /// `chapter`'s place among `chapters`, from one; zero when it isn't one
+    /// of them (before the first has begun).
+    private static func place(of chapter: AudiobookChapter?, in chapters: [AudiobookChapter]) -> Int {
+        guard let chapter, let index = chapters.firstIndex(where: { $0.id == chapter.id }) else { return 0 }
+        return index + 1
     }
 
     private func showNowPlaying() {

@@ -166,7 +166,8 @@ One item per branch, as in the roadmap.
   progress bar, then each server's books; a book plays from where it was
   left; Now Playing's skips are the Lock Screen's, and a
   `CPNowPlayingPlaybackRateButton` steps 1× to 2× in place of shuffle and
-  repeat. Checked with `-AudiobookAuditCarPlay` in the Simulator, not yet
+  repeat, and the queue's ring, with the chapter's place, opens the chapter
+  playing and the ones to come. Checked with `-AudiobookAuditCarPlay` in the Simulator, not yet
   in a car or the CarPlay simulator.
 - [x] **Sleep timer: end of chapter** — End of Chapter, on this device and
   a speaker.

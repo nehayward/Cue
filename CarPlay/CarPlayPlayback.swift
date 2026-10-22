@@ -201,6 +201,7 @@ enum CarPlayArtwork {
     /// waiting, as a speaker's reads on radio: the ring stays, its place
     /// doesn't. Past 999 the ring is shown alone, as on the phone. Drawn
     /// whole at the size the car draws a Now Playing button's image at.
+    /// A book's chapter button is the same ring, through its chapters.
     static func queueGauge(position: Int, total: Int) -> UIImage {
         let maximum = CPNowPlayingButtonMaximumImageSize
         let side = min(maximum.width, maximum.height) > 0 ? min(maximum.width, maximum.height) : 40
