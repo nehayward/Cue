@@ -46,15 +46,16 @@ private enum HomeLibrary: Hashable {
     }
 }
 
-/// The watch's home: Downloads at the top (the count of songs here in its
-/// title), then the library picked top right: a music server's lists, or
-/// Audiobooks, the books on the watch and the servers' shelves of them.
-/// Settings is top left; the bottom bar has search (a music library's),
-/// Now Playing in the middle and play on the right edge (double tap
-/// presses it), hidden while the list scrolls down. No title: the rows say
-/// what's what. Screens zoom out of the row that opens them. The widget
-/// opens it on Downloads or Now Playing. The first time there's music to
-/// fetch, it asks at what quality.
+/// The watch's home: what's playing at the top, a card on its cover's
+/// gradient that opens Now Playing, then Downloads (the count of songs here
+/// in its title), then the library picked top right: a music server's
+/// lists, or Audiobooks, the books on the watch and the servers' shelves of
+/// them. Settings is top left; the bottom bar has search (a music
+/// library's) and play on the right edge (double tap presses it), hidden
+/// while the list scrolls down. No title: the rows say what's what.
+/// Screens zoom out of the row that opens them. The widget opens it on
+/// Downloads or Now Playing. The first time there's music to fetch, it asks
+/// at what quality.
 struct LibraryScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
@@ -100,6 +101,17 @@ struct LibraryScreen: View {
     var body: some View {
         NavigationStack(path: $path) {
             List {
+                if player.current != nil {
+                    Button {
+                        path.append(HomeRoute.nowPlaying)
+                    } label: {
+                        NowPlayingCard()
+                    }
+                    .buttonStyle(CardButtonStyle())
+                    .zoomSource(HomeRoute.nowPlaying, in: zoom)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                }
                 NavigationLink(value: HomeRoute.downloads) {
                     DownloadsRow()
                 }
@@ -133,9 +145,8 @@ struct LibraryScreen: View {
                     }
                     .accessibilityLabel("Library")
                 }
-                // Search left, Now Playing in the middle with its waveform
-                // moving while music plays, play on the right edge (double
-                // tap presses it).
+                // Search left, play on the right edge (double tap presses
+                // it); Now Playing is the card at the top of the list.
                 ToolbarItemGroup(placement: .bottomBar) {
                     if let source {
                         TextFieldLink(prompt: Text("Search \(source.title)")) {
@@ -144,17 +155,6 @@ struct LibraryScreen: View {
                             search(text, in: source)
                         }
                         .accessibilityLabel("Search \(source.title)")
-                    }
-                    Spacer()
-                    if player.current != nil {
-                        Button {
-                            path.append(HomeRoute.nowPlaying)
-                        } label: {
-                            Image(systemName: player.isPlaying ? "waveform" : "play.fill")
-                                .symbolEffect(.variableColor.iterative, isActive: player.isPlaying)
-                        }
-                        .accessibilityLabel("Now Playing")
-                        .zoomSource(HomeRoute.nowPlaying, in: zoom)
                     }
                     Spacer()
                     if player.current != nil || store.downloadedCount > 0 {
