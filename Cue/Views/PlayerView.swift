@@ -1434,14 +1434,16 @@ private struct PlayerBottomToolbarView: View {
 
     private var route: PlaybackRoute { .shared }
 
-    /// The group the route picker plays on, or `nil` on this device. The
-    /// group on screen first, then the route's, so a solo room reads too.
-    /// While a hand-off holds the player on its source, where it's going.
+    /// The group the route picker plays on. The group on screen first, then
+    /// the route's, so a solo room reads too. On this device, the AirPods,
+    /// car or AirPlay receiver it plays through, so it's plain that
+    /// Bluetooth is on; nothing on the phone's own speaker. While a hand-off
+    /// holds the player on its source, where it's going.
     private var routeName: String? {
         if route.isHolding {
             return "Moving to \(route.group?.nameWithCount ?? "This Device")…"
         }
-        return (group ?? route.group)?.nameWithCount
+        return (group ?? route.group)?.nameWithCount ?? AudioOutputName.shared.name
     }
 
     var body: some View {
@@ -1468,12 +1470,12 @@ private struct PlayerBottomToolbarView: View {
                         .frame(maxWidth: .infinity)
                 }
 
-                // The speaker it plays on, on its own line under the route
-                // picker. Laid out here rather than in the picker's label:
-                // iOS flattens a Menu's label, and an overlay on the Menu
-                // gets clipped by the button behind it. The whole row's width,
-                // centred under the button: nothing else is on this line, and
-                // a third of it cut most group names short.
+                // The speaker or headphones it plays on, on its own line
+                // under the route picker. Laid out here rather than in the
+                // picker's label: iOS flattens a Menu's label, and an overlay
+                // on the Menu gets clipped by the button behind it. The whole
+                // row's width, centred under the button: nothing else is on
+                // this line, and a third of it cut most group names short.
                 Text(routeName ?? " ")
                     .font(.caption)
                     .foregroundStyle(.secondary)
