@@ -539,6 +539,9 @@ final class LocalPlaybackService {
     /// `prepareNextRun()`. `armApple` only has to press play when the run it
     /// is asked for is still these songs.
     @ObservationIgnored private var preparedAppleRun: (start: Int, songIDs: [MusicItemID])?
+    /// The Apple player was stopped with its run still in it (`teardownRun`),
+    /// for `releaseAppleQueue()` to empty once the stream player takes over.
+    @ObservationIgnored private var appleQueueLeftOver = false
 
     private static let log = Logger(subsystem: "dance.cue", category: "localplayback")
     /// Debounces the queue's write to disk, for the same bursts as the cache.
@@ -2024,6 +2027,7 @@ final class LocalPlaybackService {
 
         if previous == .appleMusic || previous == .appleStation {
             musicPlayer.stop()
+            appleQueueLeftOver = true
         }
         if streamPlayer != nil {
             streamPlayer?.pause()
@@ -2039,6 +2043,25 @@ final class LocalPlaybackService {
                 releaseAudioSession()
             }
         }
+    }
+
+    /// Empties the Apple player once the stream player has taken over from
+    /// it. Stopped, MusicKit's player still holds the song it was on, and
+    /// keeps it on a Now Playing card of its own: it publishes from a
+    /// process of its own (RemotePlayerService), a second card for Cue beside
+    /// the stream player's. On iOS 27 a car's Now Playing stays on whichever
+    /// of the two it was showing (FB24840951), and a book started after an
+    /// Apple Music song showed that song there, paused, while the book
+    /// played; its Play would have started the song over the book. With
+    /// nothing left in MusicKit's queue, its card has nothing to show. Each
+    /// Apple run loads the queue afresh, so nothing is lost.
+    private func releaseAppleQueue() {
+        guard appleQueueLeftOver else { return }
+        appleQueueLeftOver = false
+        let held = musicPlayer.queue.entries.count
+        guard held > 0 else { return }
+        musicPlayer.queue.entries = []
+        Self.log.notice("emptied the Apple player for the stream player (it held \(held) songs, now \(self.musicPlayer.queue.entries.count))")
     }
 
     /// Hands the audio session back to whatever held it behind us (see
@@ -2739,6 +2762,7 @@ final class LocalPlaybackService {
         }
 
         activateAudioSession(for: "the stream run at \(index)")
+        releaseAppleQueue()
 
         streamRun = [:]
         for row in rows { register(row.item, at: row.queueIndex) }
@@ -2797,6 +2821,7 @@ final class LocalPlaybackService {
         guard playToken == token else { return }
 
         activateAudioSession(for: "the station \(station.content.id)")
+        releaseAppleQueue()
         let playerItem = AVPlayerItem(url: url)
         listenForStreamTitles(on: playerItem, token: token)
         streamRun = [:]

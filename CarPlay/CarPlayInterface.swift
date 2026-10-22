@@ -4,6 +4,7 @@ import Defaults
 import MediaPlayer
 import MusicSearchKit
 import Observation
+import OSLog
 import SonosKit
 import UIKit
 
@@ -100,6 +101,8 @@ final class CarPlayInterface: NSObject {
     /// CarPlay refuses a push past this many templates, root included.
     private static let maximumDepth = 5
 
+    private static let log = Logger(subsystem: "dance.cue", category: "carplay")
+
     init(interfaceController: CPInterfaceController) {
         self.interfaceController = interfaceController
         homeTemplate = CarPlayInterface.tab(title: "Home", image: UIImage(systemName: "house"))
@@ -125,6 +128,16 @@ final class CarPlayInterface: NSObject {
         let nowPlaying = CPNowPlayingTemplate.shared
         nowPlaying.add(self)
         registerModeCommands()
+        // A Debug switch for now: the car's Now Playing stays on whichever
+        // of Cue's two Now Playing cards it was showing, its own or
+        // MusicKit's (FB24840951), and the template that does so was
+        // reworked with the MiniPlayer. Without it the car may read the card
+        // afresh each time Now Playing opens.
+        if #available(iOS 27.0, *) {
+            let allowsMiniPlayer = UserDefaults.standard.object(forKey: AppStorageKeys.carPlayMiniPlayer) as? Bool ?? true
+            nowPlaying.allowsMiniPlayer = allowsMiniPlayer
+            Self.log.notice("connected, MiniPlayer \(allowsMiniPlayer ? "on" : "off", privacy: .public)")
+        }
 
         guard FeatureGate.shared.isAvailable(.carPlay) else {
             showUnavailable()
@@ -1125,13 +1138,21 @@ final class CarPlayInterface: NSObject {
         return index + 1
     }
 
+    /// Logged with what's playing, to line up with what the car's Now
+    /// Playing showed (`Scripts/carplay-nowplaying-log.sh`).
     private func showNowPlaying() {
         let nowPlaying = CPNowPlayingTemplate.shared
         let stack = interfaceController.templates
-        if stack.last === nowPlaying { return }
+        let playing = LocalPlaybackService.shared.nowPlaying?.content.id ?? "-"
+        if stack.last === nowPlaying {
+            Self.log.notice("Now Playing already showing, for \(playing, privacy: .public)")
+            return
+        }
         if stack.contains(where: { $0 === nowPlaying }) {
+            Self.log.notice("Now Playing shown again, for \(playing, privacy: .public)")
             interfaceController.pop(to: nowPlaying, animated: true, completion: nil)
         } else {
+            Self.log.notice("Now Playing pushed, for \(playing, privacy: .public)")
             push(nowPlaying)
         }
     }
