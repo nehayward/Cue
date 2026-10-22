@@ -83,6 +83,8 @@ The app is built around several Swift packages in `/Packages`:
 
 6. **VibesDS** - Custom UI design system
    - Reusable SwiftUI components and styles
+   - `sidewaysPan(...)`: a drag that only starts sideways (`SidewaysPan`, a `UIPanGestureRecognizer` through `UIGestureRecognizerRepresentable`). It fails at once on a vertical drag and every other pan waits for it, so a volume row in a list or a sheet never takes a scroll or a pull to dismiss (Play On's rows use it)
+   - `VibeSlider` (shared with Clic, file for file, as are `SidewaysPan` and `SliderMath`) drags with `SidewaysPan` on iOS, except `immediateDrag` sliders, which begin on touch-down (`TouchDownDrag`) to beat a navigation stack's back swipe. `onLongPress` fires when the slider is held still for half a second, and a held touch then never starts an edit (Clic's volume sliders mute with it). The Mac and visionOS keep the SwiftUI drag. No value animation while a drag is under way, and every division by the range goes through `SliderMath`, so a radio position past a zero duration can't make an infinite fill
 
 7. **WatchSync** - What the iPhone and the watch app share (pure Foundation, tested with `swift test`)
    - `WatchPicks`/`WatchPick` (what's chosen to be on the watch, by id, merged per pick), `WatchCredentials` (the iPhone's sign-ins), `WatchKeys`, `WatchDownloadQuality`, `WatchSyncMessage` (the application context each side sends)
