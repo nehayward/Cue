@@ -126,7 +126,7 @@ final class WatchAccounts {
             if !sameLogin {
                 shelf.adopt(address: shared.serverAddress, username: shared.username, accessToken: shared.accessToken)
                 changed = true
-            } else if AudiobookshelfAPI.currentAccessToken != shared.accessToken {
+            } else if AudiobookshelfAPI.currentAccessToken != shared.accessToken, Self.outlasts(shared.accessToken) {
                 shelf.adopt(address: shared.serverAddress, username: shared.username, accessToken: shared.accessToken)
                 renewed = true
             }
@@ -151,6 +151,16 @@ final class WatchAccounts {
         guard hasAudiobookshelf, let expiry = AudiobookshelfAPI.accessTokenExpiry,
               expiry.timeIntervalSinceNow < Self.tokenMargin else { return }
         PhoneConnection.shared.requestCredentials()
+    }
+
+    /// Whether a token for the login held runs out later than the one held:
+    /// an older context, read again as the session starts, mustn't put back
+    /// a token the iPhone's answer has since replaced. One that can't be
+    /// read either way is taken.
+    private static func outlasts(_ token: String) -> Bool {
+        guard let held = AudiobookshelfAPI.accessTokenExpiry,
+              let offered = AudiobookshelfAPI.expiry(ofToken: token) else { return true }
+        return offered > held
     }
 
     private func refresh() {

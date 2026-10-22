@@ -110,9 +110,7 @@ struct BookScreen: View {
 
             Section {
                 Button(role: .destructive) {
-                    if isLoaded {
-                        player.pause()
-                    }
+                    // Playing, it stops first (`WatchPlayer.picksDidChange`).
                     store.remove(key: key)
                     dismiss()
                 } label: {
@@ -178,7 +176,8 @@ struct BookScreen: View {
             }
             .accessibilityLabel(isPlaying ? "Pause" : isStarted ? "Resume" : "Play")
             .primaryHandGesture()
-            .disabled(!isLoaded && !player.canPlayBook(pick))
+            // Its place in a part not on the watch yet: nothing to play.
+            .disabled(!isPlaying && !player.canPlayBook(pick))
             Button {
                 player.skip(by: WatchPlayer.skipAhead)
             } label: {

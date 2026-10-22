@@ -509,7 +509,7 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
 
     /// When a token runs out: its `exp`, a JWT's claims being the base64url
     /// JSON between its two dots. Nil with no `exp`, or not a JWT.
-    static func expiry(ofToken token: String) -> Date? {
+    public static func expiry(ofToken token: String) -> Date? {
         let parts = token.split(separator: ".", omittingEmptySubsequences: false)
         guard parts.count == 3 else { return nil }
         var payload = parts[1].replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")

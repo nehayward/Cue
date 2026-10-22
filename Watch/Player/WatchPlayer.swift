@@ -67,6 +67,8 @@ final class WatchPlayer {
     /// Where in the file a load is on its way to, until the file is ready
     /// to be moved there: until then the player reads the file's top.
     @ObservationIgnored private var pendingOffset: TimeInterval?
+    /// Whether that load plays once it gets there.
+    @ObservationIgnored private var pendingPlay = false
     /// The chapter Now Playing last showed.
     @ObservationIgnored private var shownChapter: Int?
     /// Fires where the next chapter starts in the file playing, to show it.
@@ -80,8 +82,9 @@ final class WatchPlayer {
                 guard let self else { return }
                 let paused = self.isPlaying && !playing
                 self.isPlaying = playing
-                // A pause keeps the book's place, and tells the iPhone.
-                if paused, self.book != nil {
+                // A pause keeps the book's place, and tells the iPhone; not
+                // the pause a load makes on its way to a place.
+                if paused, self.book != nil, self.pendingOffset == nil {
                     self.notePlace(tellPhoneNow: true)
                 }
                 self.updateNowPlaying()
@@ -180,6 +183,12 @@ final class WatchPlayer {
         guard files.indices.contains(location.part), store.localURL(for: files[location.part]) != nil else { return false }
         leaveBook()
         logger.info("Playing \(pick.title, privacy: .public) from \(Int(start)) s (file \(location.part + 1) of \(files.count))")
+        // What played before goes now, not once the session is up: until
+        // then its clock would read as the book's.
+        player.pause()
+        player.replaceCurrentItem(with: nil)
+        itemObservation = nil
+        stopWatchingChapter()
         book = pick
         self.timeline = timeline
         rate = books.rate(for: pick.key)
@@ -187,6 +196,8 @@ final class WatchPlayer {
         index = location.part
         bookPosition = start
         shownChapter = nil
+        pendingOffset = location.offset
+        pendingPlay = true
         Task { await startPlayback(from: location.offset) }
         return true
     }
@@ -204,19 +215,29 @@ final class WatchPlayer {
         guard book != nil, let timeline else { return }
         let target = min(max(time, 0), timeline.duration)
         let location = timeline.location(at: target)
+        // A file not on the watch yet: the book stays where it is.
+        guard queue.indices.contains(location.part), WatchDownloadStore.shared.localURL(for: queue[location.part]) != nil else {
+            WKInterfaceDevice.current().play(.failure)
+            return
+        }
+        let play = isPlaying || (pendingOffset != nil && pendingPlay)
         bookPosition = target
         if location.part == index, let item = player.currentItem, pendingOffset == nil {
-            player.seek(to: CMTime(seconds: location.offset, preferredTimescale: 1000)) { [weak self] _ in
+            player.seek(to: CMTime(seconds: location.offset, preferredTimescale: 1000), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
                 Task { @MainActor in
                     guard let self, self.player.currentItem === item else { return }
                     self.updateNowPlaying()
                 }
             }
+        } else if player.currentItem == nil {
+            // Nothing loaded (the session didn't start): Play loads it here.
+            index = location.part
+            pendingOffset = location.offset
         } else {
             index = location.part
-            loadCurrent(from: location.offset, andPlay: isPlaying)
+            loadCurrent(from: location.offset, andPlay: play)
         }
-        notePlace(at: target, tellPhoneNow: !isPlaying)
+        notePlace(at: target, tellPhoneNow: !play)
     }
 
     /// Sets a book's speed, kept for that book; at once when it's playing.
@@ -265,14 +286,25 @@ final class WatchPlayer {
         }
     }
 
-    /// The book, before something else takes the player: its place kept.
+    /// The book, before something else takes the player: its place kept
+    /// while it plays. A paused book's place was kept as it paused or
+    /// moved, and the iPhone may have moved it since: read off the paused
+    /// player now, it would take the book back.
     private func leaveBook() {
         guard book != nil else { return }
-        notePlace(tellPhoneNow: true)
+        if isPlaying {
+            notePlace(tellPhoneNow: true)
+        }
+        dropBook()
+    }
+
+    /// Lets go of the book without keeping a place.
+    private func dropBook() {
         book = nil
         timeline = nil
         rate = 1
         shownChapter = nil
+        pendingPlay = false
     }
 
     /// The end of the book's last file.
@@ -280,9 +312,15 @@ final class WatchPlayer {
         guard let book, let timeline else { return }
         logger.info("Finished \(book.title, privacy: .public)")
         WatchBookStore.shared.record(AudiobookProgress(position: timeline.duration, duration: timeline.duration, isFinished: true), for: book.key, tellPhoneNow: true)
-        self.book = nil
-        self.timeline = nil
-        rate = 1
+        dropBook()
+        stop()
+    }
+
+    /// The picks changed: a book taken off the watch while it's loaded
+    /// stops, before its files go, with no place kept for it.
+    func picksDidChange() {
+        guard let book, !WatchDownloadStore.shared.picks.contains(key: book.key) else { return }
+        dropBook()
         stop()
     }
 
@@ -293,19 +331,30 @@ final class WatchPlayer {
     }
 
     func pause() {
+        pendingPlay = false
         player.pause()
     }
 
     func resume() {
         guard current != nil else { return }
         // The book moved elsewhere since it paused here (the iPhone's place
-        // arrived): it plays from there.
+        // arrived): it plays from there — once that part is on the watch.
+        // Until then it doesn't play, rather than take the place back.
         if let book, let place = WatchBookStore.shared.progress(for: book.key),
            abs(place.position - bookPosition) > 15 {
+            guard canPlayBook(book, from: place.resumePosition) else {
+                logger.notice("\(book.title, privacy: .public): its place moved to a part not on the watch yet")
+                WKInterfaceDevice.current().play(.failure)
+                return
+            }
             jump(to: place.resumePosition)
         }
         if player.currentItem == nil {
+            pendingPlay = true
             Task { await startPlayback(from: pendingOffset ?? 0) }
+        } else if pendingOffset != nil {
+            // On its way to a place: it plays once it's there.
+            pendingPlay = true
         } else {
             playAtRate()
         }
@@ -355,7 +404,8 @@ final class WatchPlayer {
         guard await activateSession() else { return }
         configureCommandsIfNeeded()
         updateCommands()
-        loadCurrent(from: offset)
+        // A book paused while the session came up stays paused.
+        loadCurrent(from: offset, andPlay: book == nil || pendingPlay)
     }
 
     /// Long-form audio, so the system routes it to headphones or a speaker
@@ -383,11 +433,20 @@ final class WatchPlayer {
         while let song = current {
             if let url = store.localURL(for: song) {
                 let item = AVPlayerItem(url: url)
-                player.replaceCurrentItem(with: item)
                 if offset > 0.5 {
+                    // Paused until it's there, rather than play the file's
+                    // top first.
+                    player.pause()
+                    player.replaceCurrentItem(with: item)
                     seekWhenReady(item, to: offset, andPlay: play)
-                } else if play {
-                    playAtRate()
+                } else {
+                    player.replaceCurrentItem(with: item)
+                    if book != nil {
+                        watchForFailure(of: item)
+                    }
+                    if play {
+                        playAtRate()
+                    }
                 }
                 updateNowPlaying()
                 // A skip can keep playing straight through, so the widgets
@@ -395,14 +454,14 @@ final class WatchPlayer {
                 WidgetStatePublisher.schedule()
                 return
             }
+            // Reached by playing on into it (a jump or a resume goes only to
+            // a file that's here), so its start is where listening got to.
             if let book, let timeline {
                 logger.notice("\(book.title, privacy: .public): file \(self.index + 1) isn't on the watch yet; stopping there")
                 notePlace(at: timeline.start(ofPart: index), tellPhoneNow: true)
                 // Let go of before stopping: the player still holds the file
                 // before, which would read as a place in this one.
-                self.book = nil
-                self.timeline = nil
-                rate = 1
+                dropBook()
                 stop()
                 return
             }
@@ -412,9 +471,11 @@ final class WatchPlayer {
     }
 
     /// Moves a file just loaded to `offset` once it can be (a file not yet
-    /// ready has nothing to seek in), then plays it.
+    /// ready has nothing to seek in), then plays it, unless a pause came
+    /// meanwhile.
     private func seekWhenReady(_ item: AVPlayerItem, to offset: TimeInterval, andPlay play: Bool) {
         pendingOffset = offset
+        pendingPlay = play
         itemObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
             let status = item.status
             guard status != .unknown else { return }
@@ -422,15 +483,15 @@ final class WatchPlayer {
                 guard let self, self.player.currentItem === item, self.itemObservation != nil else { return }
                 self.itemObservation = nil
                 guard status == .readyToPlay else {
-                    self.logger.error("Couldn't open the file: \(item.error?.localizedDescription ?? "unknown", privacy: .public)")
-                    self.pendingOffset = nil
+                    self.fileFailed(item)
                     return
                 }
-                self.player.seek(to: CMTime(seconds: offset, preferredTimescale: 1000)) { _ in
+                let time = CMTime(seconds: offset, preferredTimescale: 1000)
+                self.player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
                     Task { @MainActor in
                         guard self.player.currentItem === item else { return }
                         self.pendingOffset = nil
-                        if play {
+                        if self.pendingPlay {
                             self.playAtRate()
                         }
                         self.updateNowPlaying()
@@ -438,6 +499,30 @@ final class WatchPlayer {
                 }
             }
         }
+    }
+
+    /// A book's file played from its top: watched only in case it won't
+    /// open.
+    private func watchForFailure(of item: AVPlayerItem) {
+        itemObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+            guard item.status == .failed else { return }
+            Task { @MainActor in
+                guard let self, self.player.currentItem === item, self.itemObservation != nil else { return }
+                self.itemObservation = nil
+                self.fileFailed(item)
+            }
+        }
+    }
+
+    /// A file that won't open (damaged, or a format the watch can't play):
+    /// a book stops with its place as it was, since the player's clock
+    /// reads the file's top.
+    private func fileFailed(_ item: AVPlayerItem) {
+        logger.error("Couldn't open the file: \(item.error?.localizedDescription ?? "unknown", privacy: .public)")
+        pendingOffset = nil
+        guard book != nil else { return }
+        dropBook()
+        stop()
     }
 
     private func playAtRate() {

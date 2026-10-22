@@ -375,6 +375,8 @@ final class WatchDownloadStore {
     /// up new ones, and saves at once: this can run in a WatchConnectivity
     /// wake that ends soon after.
     private func picksDidChange(tellPhone: Bool) {
+        // A book playing that's no longer wanted stops before its files go.
+        WatchPlayer.shared.picksDidChange()
         let keys = Set(picks.items.map(\.key))
         songsByPick = songsByPick.filter { keys.contains($0.key) }
         unreachable.formIntersection(keys)

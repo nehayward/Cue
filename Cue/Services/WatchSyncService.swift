@@ -58,6 +58,10 @@ final class WatchSyncService {
     /// The places last sent, so a book listened to here goes across.
     @ObservationIgnored private var sentPlaces: WatchBookPlaces?
     @ObservationIgnored private var placesTask: Task<Void, Never>?
+    /// The watch's places taken in this launch, by pick: a place this
+    /// iPhone holds only because the watch sent it isn't this iPhone's to
+    /// keep in the book's history.
+    @ObservationIgnored private var takenFromWatch: [String: AudiobookProgress] = [:]
     @ObservationIgnored private var backgroundObserver: NSObjectProtocol?
     @ObservationIgnored private var foregroundObserver: NSObjectProtocol?
 
@@ -187,23 +191,34 @@ final class WatchSyncService {
     /// The watch's places in its books, kept where they're newer than this
     /// iPhone's: the book picks up here where it was left there, and its
     /// server hears of the place when the book next opens
-    /// (`AudiobookLibrary.load`). This iPhone's place stays in the book's
-    /// history, and a book loaded here but paused gives way, so Play starts
-    /// from the watch's place.
+    /// (`AudiobookLibrary.load`). This iPhone's own place stays in the
+    /// book's history, and a book loaded here but paused gives way, so Play
+    /// starts from the watch's place. Only for a server this iPhone is
+    /// signed in to: a sign-out forgets that account's places, and the
+    /// watch's mustn't bring them back.
     private func apply(_ theirs: WatchBookPlaces) {
         let store = AudiobookProgressStore.shared
-        for pick in picks.items where pick.kind == .audiobook {
+        for pick in picks.items where pick.kind == .audiobook && Self.isSignedIn(to: pick.source) {
             guard let place = theirs[pick.key] else { continue }
             let book = Self.book(for: pick)
             let held = store.progress(for: book)
             if let held, !place.supersedes(WatchBookPlace(held)) { continue }
             let reading = AudiobookProgress(place)
-            if let held, !held.isFinished, held.position > 0, abs(held.position - reading.position) > 60 {
+            if let held, held != takenFromWatch[pick.key], !held.isFinished, held.position > 0, abs(held.position - reading.position) > 60 {
                 AudiobookPlaceHistory.shared.record(.replaced, at: held.position, for: book)
             }
             logger.info("\(pick.title, privacy: .public): the watch's place, \(Int(reading.position)) s, is newer")
+            takenFromWatch[pick.key] = reading
             store.record(reading, for: book)
-            Task { await AudiobookPlayer.shared.notePlaceMoved(book) }
+            Task { await AudiobookPlayer.shared.notePlaceMoved(book, to: reading) }
+        }
+    }
+
+    private static func isSignedIn(to source: WatchSource) -> Bool {
+        switch source {
+        case .plex: !(PlexAuthenticator.shared.authToken ?? "").isEmpty
+        case .subsonic: SubsonicAPI.shared.isConfigured
+        case .audiobookshelf: AudiobookshelfAPI.shared.isConfigured
         }
     }
 
@@ -254,13 +269,16 @@ final class WatchSyncService {
     private static let lentTokenLife: TimeInterval = 20 * 60
 
     /// The sign-ins for the watch's request: Audiobookshelf's token renewed
-    /// first when it runs out soon.
+    /// first when it runs out soon, and the context sent again with it, so
+    /// the watch reading that again later finds the new one.
     fileprivate func credentialsForWatch() async -> WatchCredentials {
         if AudiobookshelfAPI.shared.isConfigured, AudiobookshelfAPI.accessTokenExpires(within: Self.lentTokenLife) {
             _ = await AudiobookshelfAPI.shared.renewAccessToken()
         }
         let credentials = currentCredentials()
-        sentCredentials = credentials
+        if credentials != sentCredentials {
+            send()
+        }
         return credentials
     }
 
