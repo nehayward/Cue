@@ -723,6 +723,42 @@ public final class AppleMusicAPI {
         }
     }
     
+    /// The library's songs credited to `artistName`, up to `limit`. A library
+    /// artist has no songs relationship, and one whose songs all sit on other
+    /// artists' albums (a soundtrack, a feature, songs saved from a playlist)
+    /// has no albums either, so they're found by searching the library.
+    public func librarySongs(byArtist artistName: String, limit: Int = 50) async -> [AppleLibraryItem] {
+        guard await requestMusicAuthorization() else { return [] }
+
+        let pageSize = 25
+        var matches: [AppleLibraryItem] = []
+        var offset = 0
+        while offset < 200 {
+            var components = URLComponents(string: "https://api.music.apple.com/v1/me/library/search")!
+            components.queryItems = [
+                URLQueryItem(name: "term", value: artistName),
+                URLQueryItem(name: "types", value: "library-songs"),
+                URLQueryItem(name: "limit", value: "\(pageSize)"),
+                URLQueryItem(name: "offset", value: "\(offset)"),
+            ]
+            guard let url = components.url,
+                  let data = try? await MusicDataRequest(urlRequest: .init(url: url)).response().data,
+                  let page = try? decoder.decode(AppleLibrarySearchContainer.self, from: data).results.librarySongs?.data,
+                  !page.isEmpty else { break }
+            matches += page
+            guard page.count == pageSize else { break }
+            offset += pageSize
+        }
+
+        // The term also matches titles and albums. Songs credited to the
+        // artist alone, else ones they share ("Noah Kahan & Hozier").
+        let solo = matches.filter { $0.attributes.artistName?.localizedCaseInsensitiveCompare(artistName) == .orderedSame }
+        let songs = solo.isEmpty
+            ? matches.filter { $0.attributes.artistName?.localizedCaseInsensitiveContains(artistName) ?? false }
+            : solo
+        return Array(songs.prefix(limit))
+    }
+
     public func librarySearch(term: String) async throws -> AppleLibrarySearchContainer? {
         guard await requestMusicAuthorization() else { return nil }
 

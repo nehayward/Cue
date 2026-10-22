@@ -3053,6 +3053,31 @@ public final class SonosService {
             }
             return
         }
+        // An Apple Music artist has no container on Sonos: it plays as its
+        // albums, or a library artist without any as its songs.
+        if playable.content.type.isArtist, let contents = await musicSearch.artistContents(for: playable) {
+            guard !contents.isEmpty else { throw SonosServiceError.cantPlayContent(upnpCode: nil) }
+            switch position {
+            case .replace:
+                try await queue(contents: contents, group: group, position: .replace, startIndex: 0)
+            case .now where contents.allSatisfy(\.content.type.isTrack):
+                try await playNext(contents, on: group)
+            case .now:
+                // Not `playNext`: each album lands after the playing track,
+                // which by then is the first album's opening song, so the
+                // rest of that album would follow every other album. Queued
+                // in order after the playing track, then stepped onto; an
+                // empty queue starts on the first album by itself.
+                let count = await api.getQueueCount(IP: group.ip) ?? 0
+                try await queue(contents: contents, group: group, position: .next)
+                if count > 0 {
+                    await next(ip: group.ip)
+                }
+            default:
+                try await queue(contents: contents, group: group, position: position)
+            }
+            return
+        }
         try await queuePlayable(playable: playable, group: group, position: position, index: index)
         try? await Task.sleep(for: .milliseconds(120))
         try? await updateGroups(from: [group])

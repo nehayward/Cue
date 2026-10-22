@@ -2688,6 +2688,41 @@ public final class MusicSearchService {
         return songs.isEmpty ? nil : songs
     }
 
+    /// What an Apple Music artist plays as on a speaker: their albums oldest
+    /// first, as the artist page's Discography plays them. A library artist
+    /// plays the library's albums, or its songs when it has no albums of its
+    /// own. Apple Music has no artist container on Sonos, so the artist's own
+    /// URI is empty and the speaker turns it down (UPnP 804). `nil` for an
+    /// artist Sonos queues itself (Plex) or that `containerTracks` expands.
+    public func artistContents(for content: PlayableContent) async -> [PlayableContent]? {
+        // "yyyy-MM-dd" sorts as text; undated ones go last.
+        func released(_ item: AppleLibraryItem) -> String { item.attributes.releaseDate ?? "~" }
+        let id = content.content.id
+        switch (content.content.type, content.content.service) {
+        case (.libraryArtist, .apple):
+            let albums = await appleLibraryArtistAlbumLookup(id: id)?.data ?? []
+            guard albums.isEmpty else {
+                return albums.sorted { released($0) < released($1) }.compactMap(\.toPlayable)
+            }
+            // Album by album, in track order.
+            return await apple.librarySongs(byArtist: content.title)
+                .sorted {
+                    (released($0), $0.attributes.albumName ?? "", $0.attributes.trackNumber ?? 0)
+                        < (released($1), $1.attributes.albumName ?? "", $1.attributes.trackNumber ?? 0)
+                }
+                .compactMap(\.toPlayable)
+        case (.artist, .apple):
+            let artist: Artist? = try? await lookup(id: id)
+            let albums = (artist?.albums ?? []).map(\.toPlayable)
+                .sorted { ($0.metadata?.albumYear ?? .distantFuture) < ($1.metadata?.albumYear ?? .distantFuture) }
+            // Singles only when the artist has nothing else.
+            let full = albums.filter { $0.metadata?.isSingle != true }
+            return full.isEmpty ? albums : full
+        default:
+            return nil
+        }
+    }
+
     /// The tracks inside a direct-HTTP service's container, in play order —
     /// the expansion behind `MusicService.queuesContainersAsTracks`, since
     /// those services have no container URI for Sonos to browse. Add a
