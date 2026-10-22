@@ -123,7 +123,7 @@ struct LibraryScreen: View {
                     case .downloads:
                         DownloadsScreen()
                     case .nowPlaying:
-                        NowPlayingView()
+                        NowPlayingScreen()
                     }
                 }
                 .zoomDestination(route, in: zoom)

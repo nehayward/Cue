@@ -17,8 +17,10 @@ import WatchSync
 ///
 /// A book plays as a book (`playBook`): its files are the queue, from where
 /// it was left (`WatchBookStore`), at its own speed, with skips back 15 s
-/// and ahead 30 s in place of Previous and Next, and its chapter as the
-/// title in Now Playing. Its place is kept every few seconds as it plays,
+/// and ahead 30 s in place of Previous and Next. Now Playing shows its
+/// chapter as Apple Books does: the chapter's title over the book's, and
+/// the time into the chapter against the chapter's length, moved on the
+/// moment the next one starts (a boundary observer at its start). Its place is kept every few seconds as it plays,
 /// and at once on a pause. A file not here yet stops it there rather than
 /// skipping part of the story.
 @MainActor
@@ -67,6 +69,8 @@ final class WatchPlayer {
     @ObservationIgnored private var pendingOffset: TimeInterval?
     /// The chapter Now Playing last showed.
     @ObservationIgnored private var shownChapter: Int?
+    /// Fires where the next chapter starts in the file playing, to show it.
+    @ObservationIgnored private var chapterObserver: Any?
     @ObservationIgnored private let logger = Logger(subsystem: "dance.cue.watch", category: "Player")
 
     private init() {
@@ -339,6 +343,7 @@ final class WatchPlayer {
         player.replaceCurrentItem(with: nil)
         itemObservation = nil
         pendingOffset = nil
+        stopWatchingChapter()
         queue = []
         index = 0
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
@@ -459,12 +464,24 @@ final class WatchPlayer {
         if let duration = song.duration {
             info[MPMediaItemPropertyPlaybackDuration] = duration
         }
-        // A book shows its chapter, under the book's title.
+        // A book shows its chapter under the book's title, and the time
+        // into the chapter against its length; one without chapters, the
+        // file's.
+        stopWatchingChapter()
         if let book {
-            let chapter = currentChapter
-            shownChapter = chapter?.id
-            info[MPMediaItemPropertyTitle] = chapter?.title ?? song.title
             info[MPMediaItemPropertyAlbumTitle] = book.title
+            let chapters = WatchBookStore.shared.chapters(for: book.key)
+            let time = currentBookTime
+            let chapter = chapters.chapter(at: time)
+            shownChapter = chapter?.id
+            if let chapter {
+                info[MPMediaItemPropertyTitle] = chapter.title
+                info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = min(max(time - chapter.start, 0), chapter.duration)
+                info[MPMediaItemPropertyPlaybackDuration] = chapter.duration
+                info[MPNowPlayingInfoPropertyChapterNumber] = chapter.id
+                info[MPNowPlayingInfoPropertyChapterCount] = chapters.count
+                watchForChapter(after: chapter, in: chapters)
+            }
         }
         if let image = ArtworkStore.shared.image(for: song.artworkURL) {
             info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
@@ -477,6 +494,27 @@ final class WatchPlayer {
             }
         }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    }
+
+    /// Shows the next chapter the moment it starts, when it starts in the
+    /// file playing; one in a later file shows as that file loads.
+    private func watchForChapter(after chapter: AudiobookChapter, in chapters: [AudiobookChapter]) {
+        guard let timeline, let next = chapters.first(where: { $0.start > chapter.start }),
+              timeline.location(at: next.start).part == index else { return }
+        let offset = next.start - timeline.start(ofPart: index)
+        let boundary = NSValue(time: CMTime(seconds: offset + 0.05, preferredTimescale: 1000))
+        chapterObserver = player.addBoundaryTimeObserver(forTimes: [boundary], queue: .main) { [weak self] in
+            Task { @MainActor in
+                self?.updateNowPlaying()
+            }
+        }
+    }
+
+    private func stopWatchingChapter() {
+        if let chapterObserver {
+            player.removeTimeObserver(chapterObserver)
+        }
+        chapterObserver = nil
     }
 
     /// The Now Playing controls, headphone buttons and the system's own
