@@ -27,7 +27,7 @@ enum WatchBrowseSection: String, CaseIterable, Hashable {
     }
 }
 
-/// A list of books, on the Audiobooks screen.
+/// A list of books, under Audiobooks on the home screen.
 enum WatchBookShelf: Hashable {
     /// Books started and not finished on each server, the one listened to
     /// last first.
