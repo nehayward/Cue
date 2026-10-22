@@ -37,6 +37,11 @@ struct PreferenceScreen: View {
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     @AppStorage(Defaults.AppStorageKeys.routeQueueTransfer) private var routeQueueTransfer: QueueTransferPreference = .ask
     @AppStorage(Defaults.AppStorageKeys.lyricsOnlineLookup) private var lyricsOnlineLookup: Bool = false
+#if DEBUG
+    // Off until it's known whether the car's Now Playing follows without it
+    // (`CarPlayInterface.start`).
+    @AppStorage(Defaults.AppStorageKeys.carPlayMiniPlayer) private var carPlayMiniPlayer: Bool = false
+#endif
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
@@ -913,13 +918,24 @@ struct PreferenceScreen: View {
                 }
 
 #if DEBUG
-                Section("Debug") {
+                Section {
                     NavigationLink {
                         FeatureGateDebugView()
                             .withEnvironments()
                     } label: {
                         Label("Feature Gates", systemImage: "lock.open")
                     }
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                    Toggle(isOn: $carPlayMiniPlayer) {
+                        Label("CarPlay MiniPlayer", systemImage: "car")
+                    }
+#endif
+                } header: {
+                    Text("Debug")
+                } footer: {
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                    Text("Off (the default in Debug builds for now) hides the MiniPlayer in CarPlay, to see whether the car's Now Playing then follows Cue's own player after Apple Music. Takes effect the next time the car connects.")
+#endif
                 }
 #endif
             }

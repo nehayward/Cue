@@ -4,6 +4,7 @@ import Defaults
 import MediaPlayer
 import MusicSearchKit
 import Observation
+import OSLog
 import SonosKit
 import UIKit
 
@@ -55,6 +56,14 @@ final class CarPlayInterface: NSObject {
     /// A book's chapters, pushed from Now Playing, follow the book the same
     /// way.
     private weak var chaptersTemplate: CPListTemplate?
+    /// The row of the chapter playing on that list, and that chapter, for
+    /// its bar and time left to follow the book (`showChapterProgress`).
+    private weak var playingChapterRow: CPListItem?
+    private var playingChapterID: Int?
+    /// What that row's bar and time left were last set to.
+    private var chapterProgressShown: String?
+    /// Whether the book's place is being followed for that row.
+    private var followsChapterProgress = false
     /// What Now Playing's buttons were last set to show (`updateNowPlaying`);
     /// nil until they've been set this connection.
     private var nowPlayingButtons: String?
@@ -92,6 +101,8 @@ final class CarPlayInterface: NSObject {
     /// CarPlay refuses a push past this many templates, root included.
     private static let maximumDepth = 5
 
+    private static let log = Logger(subsystem: "dance.cue", category: "carplay")
+
     init(interfaceController: CPInterfaceController) {
         self.interfaceController = interfaceController
         homeTemplate = CarPlayInterface.tab(title: "Home", image: UIImage(systemName: "house"))
@@ -117,6 +128,22 @@ final class CarPlayInterface: NSObject {
         let nowPlaying = CPNowPlayingTemplate.shared
         nowPlaying.add(self)
         registerModeCommands()
+        // A Debug switch for now: the car's Now Playing stays on whichever
+        // of Cue's two Now Playing cards it was showing, its own or
+        // MusicKit's (FB24840951), and the template that does so was
+        // reworked with the MiniPlayer. Without it the car may read the card
+        // afresh each time Now Playing opens. Off in Debug builds until
+        // that's known; release builds keep it.
+        if #available(iOS 27.0, *) {
+#if DEBUG
+            let unset = false
+#else
+            let unset = true
+#endif
+            let allowsMiniPlayer = UserDefaults.standard.object(forKey: AppStorageKeys.carPlayMiniPlayer) as? Bool ?? unset
+            nowPlaying.allowsMiniPlayer = allowsMiniPlayer
+            Self.log.notice("connected, MiniPlayer \(allowsMiniPlayer ? "on" : "off", privacy: .public)")
+        }
 
         guard FeatureGate.shared.isAvailable(.carPlay) else {
             showUnavailable()
@@ -779,11 +806,10 @@ final class CarPlayInterface: NSObject {
     /// a queue of songs (a station has neither); and the queue button. A
     /// book has its speed and its chapters in their place.
     ///
-    /// The queue button is Cue's own, the phone's ring with the song's place
-    /// in it (`CarPlayArtwork.queueGauge`), in place of the system's Up Next
-    /// button, which only takes a word or the car's own icon. A book's
-    /// chapter button is the same ring, with the chapter's place in the
-    /// book.
+    /// The queue button is Cue's own, the song's place in the queue in a
+    /// circle (`CarPlayArtwork.placeButton`), in place of the system's Up
+    /// Next button, which only takes a word or the car's own icon. A book's
+    /// chapter button is the same, with the chapter's place in the book.
     ///
     /// Runs on every change the tabs follow (a play, the history, the
     /// downloads), so each part is only handed to the car when it differs
@@ -816,9 +842,9 @@ final class CarPlayInterface: NSObject {
         let chapterPlace = Self.place(of: books.currentChapter, in: chapters)
         let signature = [
             hasModes ? "\(player.isShuffled),\(player.repeatMode.rawValue)" : "",
-            hasQueue ? "\(player.queuePosition)/\(player.queueCount)" : "",
+            hasQueue ? "\(player.queuePosition)" : "",
             isBook ? "book" : "",
-            chapters.isEmpty ? "" : "\(chapterPlace)/\(chapters.count)",
+            chapters.isEmpty ? "" : "\(chapterPlace)",
         ].joined(separator: "|")
         guard signature != nowPlayingButtons else { return }
         nowPlayingButtons = signature
@@ -864,16 +890,14 @@ final class CarPlayInterface: NSObject {
             })
         }
         if !chapters.isEmpty {
-            let image = CarPlayArtwork.queueGauge(position: chapterPlace, total: chapters.count)
-            buttons.append(CPNowPlayingImageButton(image: image) { [weak self] _ in
+            buttons.append(CPNowPlayingImageButton(image: CarPlayArtwork.placeButton(chapterPlace)) { [weak self] _ in
                 MainActor.assumeIsolated {
                     self?.showChapters()
                 }
             })
         }
         if hasQueue {
-            let image = CarPlayArtwork.queueGauge(position: player.queuePosition, total: player.queueCount)
-            buttons.append(CPNowPlayingImageButton(image: image) { [weak self] _ in
+            buttons.append(CPNowPlayingImageButton(image: CarPlayArtwork.placeButton(player.queuePosition)) { [weak self] _ in
                 MainActor.assumeIsolated {
                     self?.showUpNext()
                 }
@@ -1015,14 +1039,18 @@ final class CarPlayInterface: NSObject {
         chaptersTemplate = template
         fillChapters(template)
         push(template)
+        if !followsChapterProgress {
+            followChapterProgress()
+        }
     }
 
     /// The chapter playing, then the ones to come, each with how long it
-    /// runs. Not the ones before: a car can't open a list partway down, and
-    /// a long book's chapters heard would be a long scroll while driving.
-    /// The list follows the book, so a chapter that ends leaves the top. A
-    /// chapter picked plays from its start, as on the phone's Chapters
-    /// sheet: the one playing goes back to its own.
+    /// runs; the one playing with how far into it the book is instead
+    /// (`showChapterProgress`). Not the ones before: a car can't open a list
+    /// partway down, and a long book's chapters heard would be a long scroll
+    /// while driving. The list follows the book, so a chapter that ends
+    /// leaves the top. A chapter picked plays from its start, as on the
+    /// phone's Chapters sheet: the one playing goes back to its own.
     private func fillChapters(_ template: CPListTemplate) {
         let player = LocalPlaybackService.shared
         let books = AudiobookPlayer.shared
@@ -1033,6 +1061,9 @@ final class CarPlayInterface: NSObject {
         let shown = Array(chapters[from...].prefix(CarPlayLibrary.rowLimit))
         let signature = ([books.current?.book.id ?? "", "\(here?.id ?? -1)"] + shown.map { "\($0.id)" }).joined(separator: "|")
         update(template, signature: signature) {
+            playingChapterRow = nil
+            playingChapterID = nil
+            chapterProgressShown = nil
             let rows: [CPListTemplateItem] = shown.map { chapter -> CPListTemplateItem in
                 let isHere = chapter.id == here?.id
                 let row = CPListItem(
@@ -1043,6 +1074,10 @@ final class CarPlayInterface: NSObject {
                 // No `userInfo`: `updatePlayingIndicators` marks content,
                 // and leaves these as set here.
                 row.isPlaying = isHere
+                if isHere {
+                    playingChapterRow = row
+                    playingChapterID = chapter.id
+                }
                 row.handler = { [weak self] _, completion in
                     MainActor.assumeIsolated {
                         guard let self else {
@@ -1058,6 +1093,48 @@ final class CarPlayInterface: NSObject {
             }
             return rows.isEmpty ? [] : [CPListSection(items: rows)]
         }
+        showChapterProgress()
+    }
+
+    /// The playing chapter's row, the way a podcast app shows an episode
+    /// partway through: a bar as far into the chapter as the book is, and
+    /// what's left of it in place of its length, at the book's speed. Set
+    /// on the row the list already has, not by filling the list again,
+    /// which would build every row afresh each time, and only when the bar
+    /// has moved a percent or the time left a minute.
+    private func showChapterProgress() {
+        let books = AudiobookPlayer.shared
+        guard let row = playingChapterRow, let chapter = books.currentChapter,
+              chapter.id == playingChapterID, chapter.duration > 0 else { return }
+        let fraction = min(1, max(0, (books.position - chapter.start) / chapter.duration))
+        let left = books.timeLeftText(compact: true)
+        let shown = "\(Int(fraction * 100))|\(left ?? "")"
+        guard shown != chapterProgressShown else { return }
+        chapterProgressShown = shown
+        row.playbackProgress = CGFloat(fraction)
+        if let left {
+            row.setDetailText(left)
+        }
+    }
+
+    /// Follows the book's place while Chapters is up, for the playing
+    /// chapter's bar. `trackedState` leaves the place out: it moves every
+    /// couple of seconds, and nothing else here draws it.
+    private func followChapterProgress() {
+        guard isConnected, chaptersTemplate != nil else {
+            followsChapterProgress = false
+            return
+        }
+        followsChapterProgress = true
+        withObservationTracking {
+            _ = AudiobookPlayer.shared.position
+        } onChange: {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.showChapterProgress()
+                self.followChapterProgress()
+            }
+        }
     }
 
     /// `chapter`'s place among `chapters`, from one; zero when it isn't one
@@ -1067,13 +1144,21 @@ final class CarPlayInterface: NSObject {
         return index + 1
     }
 
+    /// Logged with what's playing, to line up with what the car's Now
+    /// Playing showed (`Scripts/carplay-nowplaying-log.sh`).
     private func showNowPlaying() {
         let nowPlaying = CPNowPlayingTemplate.shared
         let stack = interfaceController.templates
-        if stack.last === nowPlaying { return }
+        let playing = LocalPlaybackService.shared.nowPlaying?.content.id ?? "-"
+        if stack.last === nowPlaying {
+            Self.log.notice("Now Playing already showing, for \(playing, privacy: .public)")
+            return
+        }
         if stack.contains(where: { $0 === nowPlaying }) {
+            Self.log.notice("Now Playing shown again, for \(playing, privacy: .public)")
             interfaceController.pop(to: nowPlaying, animated: true, completion: nil)
         } else {
+            Self.log.notice("Now Playing pushed, for \(playing, privacy: .public)")
             push(nowPlaying)
         }
     }
