@@ -6,13 +6,19 @@ import WatchSync
 
 /// Keeps the music on the watch, on the watch.
 ///
-/// What's wanted is a list of picks — albums, playlists, artists and songs
-/// by id (`WatchPicks`) — made on either device: browsing here, Add to
-/// Apple Watch on the iPhone (`PhoneConnection`). The watch looks each pick
-/// up on its server itself (`WatchLibraryBrowser.songs(for:)`), downloads
-/// the songs at the quality chosen here, and deletes what no pick holds any
-/// more. It looks the picks up again when the sign-ins change, and every few
-/// hours, so a playlist follows the server. Two ways down:
+/// What's wanted is a list of picks — albums, playlists, artists, songs and
+/// books by id (`WatchPicks`) — made on either device: browsing here, Add
+/// to Apple Watch on the iPhone (`PhoneConnection`). The watch looks each
+/// pick up on its server itself (`WatchLibraryBrowser.songs(for:)`),
+/// downloads the songs at the quality chosen here, and deletes what no pick
+/// holds any more. It looks the picks up again when the sign-ins change, and
+/// every few hours, so a playlist follows the server.
+///
+/// A book's files are songs here too, but they come down as the server
+/// keeps them, whatever the quality (an `.m4b` is smaller than any MP3 of
+/// it, and keeps its chapters), and they stay out of the music: its counts,
+/// and Shuffle Downloads. What a book needs besides its files — its place,
+/// chapters and speed — is `WatchBookStore`'s. Two ways down:
 ///
 /// - **In the background**, on a background `URLSession`: it carries on with
 ///   Cue closed, and the system relaunches the app to finish up. While the
@@ -110,6 +116,8 @@ final class WatchDownloadStore {
     /// Songs this run set out to fetch, and how many have landed.
     private(set) var fastTotal = 0
     private(set) var fastCompleted = 0
+    /// Books' files were among what this run set out to fetch.
+    private(set) var fastIncludesBooks = false
 
     struct TaskRef {
         let kind: SessionKind
@@ -234,7 +242,29 @@ final class WatchDownloadStore {
         picks.contains(key: pick.key) || (pick.kind == .song && items[WatchKeys.song(source: pick.source, id: pick.id)] != nil)
     }
 
-    /// Songs not here yet, failed ones included: what Fast Download fetches.
+    /// The books picked, newest first.
+    var books: [WatchPick] {
+        picks.items.filter { $0.kind == .audiobook }
+    }
+
+    /// The music picked: everything but the books.
+    var musicPicks: [WatchPick] {
+        picks.items.filter { $0.kind != .audiobook }
+    }
+
+    /// The keys of the books' files.
+    var bookFileKeys: Set<String> {
+        Set(songs(in: books.map(\.key)).map(\.key))
+    }
+
+    /// Whether every file of a pick is here.
+    func isComplete(_ key: String) -> Bool {
+        guard let songs = songsByPick[key], !songs.isEmpty else { return false }
+        return songs.allSatisfy { isDownloaded($0.key) }
+    }
+
+    /// Songs and book files not here yet, failed ones included: what Fast
+    /// Download fetches.
     var remainingCount: Int {
         items.values.filter { $0.state != .completed }.count
     }
@@ -243,8 +273,38 @@ final class WatchDownloadStore {
         items.values.filter { $0.state == .failed }.count
     }
 
+    /// Songs on the watch, books' files left out.
     var downloadedCount: Int {
-        items.values.filter { $0.state == .completed }.count
+        let bookFiles = bookFileKeys
+        return items.values.filter { $0.state == .completed && !bookFiles.contains($0.key) }.count
+    }
+
+    /// Books with every file here.
+    var downloadedBookCount: Int {
+        books.filter { isComplete($0.key) }.count
+    }
+
+    /// Whether books' files are among what's still to come, so a count of
+    /// it says files rather than songs.
+    var remainingIncludesBooks: Bool {
+        let bookFiles = bookFileKeys
+        return items.values.contains { $0.state != .completed && bookFiles.contains($0.key) }
+    }
+
+    /// A count of downloads: songs, or files once a book's are among them.
+    static func countText(_ count: Int, files: Bool) -> String {
+        if files {
+            return count == 1 ? "1 file" : "\(count) files"
+        }
+        return count == 1 ? "1 song" : "\(count) songs"
+    }
+
+    /// What's on the watch, for a summary: songs and books.
+    var contentsText: String {
+        let songs = Self.countText(downloadedCount, files: false)
+        let books = downloadedBookCount
+        guard books > 0 else { return songs }
+        return "\(songs), \(books == 1 ? "1 book" : "\(books) books")"
     }
 
     var bytesUsed: Int64 {
@@ -300,16 +360,15 @@ final class WatchDownloadStore {
         picksDidChange(tellPhone: true)
     }
 
-    /// The iPhone's picks, merged with these. When it was missing something
-    /// of the watch's, it hears back.
-    func apply(_ theirs: WatchPicks) {
+    /// The iPhone's picks, merged with these. True when it was missing
+    /// something of the watch's, and should hear back.
+    func apply(_ theirs: WatchPicks) -> Bool {
         let merged = picks.merged(with: theirs)
         if merged != picks {
             picks = merged
-            picksDidChange(tellPhone: merged != theirs)
-        } else if merged != theirs {
-            PhoneConnection.shared.send(picks: picks)
+            picksDidChange(tellPhone: false)
         }
+        return merged != theirs
     }
 
     /// Fetches what the picks want now and deletes what they don't, looks
@@ -324,8 +383,9 @@ final class WatchDownloadStore {
         saveNow()
         lookUp(picks.items.filter { songsByPick[$0.key] == nil })
         ArtworkStore.shared.prefetch(picks.items.compactMap(\.artworkURL))
+        WatchBookStore.shared.picksDidChange()
         if tellPhone {
-            PhoneConnection.shared.send(picks: picks)
+            PhoneConnection.shared.send()
         }
     }
 
@@ -336,6 +396,25 @@ final class WatchDownloadStore {
         retryFailed(Array(items.keys))
         pump()
         lookUpAll()
+    }
+
+    /// The iPhone renewed the Audiobookshelf token it lent: the books' files
+    /// it turned away, and the books it couldn't look up, try again.
+    func tokenDidRenew() {
+        let shelfPicks = picks.items.filter { $0.source == .audiobookshelf }
+        let shelfFiles = items.keys.filter { items[$0]?.song.source == .audiobookshelf }
+        if retryFailed(Array(shelfFiles)) {
+            pump()
+            scheduleSave()
+        }
+        lookUp(shelfPicks.filter { songsByPick[$0.key] == nil || unreachable.contains($0.key) })
+    }
+
+    /// Looks a pick up again now: a book's page, opened, reads its place on
+    /// the server.
+    func refresh(_ pick: WatchPick) {
+        guard picks.contains(key: pick.key) else { return }
+        lookUp([pick])
     }
 
     private func lookUpAll() {
@@ -353,7 +432,18 @@ final class WatchDownloadStore {
         lookingUp.formUnion(fresh.map(\.key))
         Task { @MainActor in
             for pick in fresh {
-                let songs = await WatchLibraryBrowser.shared.songs(for: pick)
+                let songs: [WatchSong]?
+                if pick.kind == .audiobook {
+                    // Its chapters are asked after only until there are some.
+                    let bookStore = WatchBookStore.shared
+                    let book = await WatchLibraryBrowser.shared.book(for: pick, withChapters: bookStore.needsChapters(for: pick.key))
+                    if let book, picks.contains(key: pick.key) {
+                        bookStore.noteLookedUp(book, for: pick)
+                    }
+                    songs = book?.songs
+                } else {
+                    songs = await WatchLibraryBrowser.shared.songs(for: pick)
+                }
                 lookingUp.remove(pick.key)
                 guard picks.contains(key: pick.key) else { continue }
                 if let songs, !songs.isEmpty || songsByPick[pick.key] == nil {
@@ -392,13 +482,16 @@ final class WatchDownloadStore {
         for key in items.keys where wanted[key] == nil {
             delete(key: key)
         }
+        let bookFiles = bookFileKeys
         for (key, song) in wanted {
             if let item = items[key] {
                 if item.song != song {
                     items[key]?.song = song
                 }
             } else {
-                items[key] = Item(song: song, quality: quality, fileExtension: song.stream(at: quality).fileExtension, state: .queued)
+                // A book's files as the server keeps them.
+                let fetchedAt: WatchDownloadQuality = bookFiles.contains(key) ? .original : quality
+                items[key] = Item(song: song, quality: fetchedAt, fileExtension: song.stream(at: fetchedAt).fileExtension, state: .queued)
             }
         }
     }
@@ -406,13 +499,14 @@ final class WatchDownloadStore {
     // MARK: - Quality
 
     /// Sets what songs come down at; each song here comes down again,
-    /// playing its old file meanwhile.
+    /// playing its old file meanwhile. Books' files stay as they are.
     func setQuality(_ newQuality: WatchDownloadQuality) {
         UserDefaults.standard.set(newQuality.rawValue, forKey: Self.qualityKey)
         hasChosenQuality = true
         guard newQuality != quality else { return }
         quality = newQuality
-        for (key, existing) in items where existing.quality != newQuality {
+        let bookFiles = bookFileKeys
+        for (key, existing) in items where existing.quality != newQuality && !bookFiles.contains(key) {
             stopTask(for: key)
             var item = existing
             if item.state == .completed {
@@ -455,9 +549,11 @@ final class WatchDownloadStore {
         }
         if continuing {
             fastTotal = fastCompleted + count
+            fastIncludesBooks = fastIncludesBooks || remainingIncludesBooks
         } else {
             fastTotal = count
             fastCompleted = 0
+            fastIncludesBooks = remainingIncludesBooks
         }
         fastBytes = 0
         meter.reset()
@@ -616,6 +712,11 @@ final class WatchDownloadStore {
         let kind: SessionKind = fastPhase == .running ? .fast : .background
         let limit = kind == .fast ? Self.fastConcurrency : Self.backgroundConcurrency
         let queued = orderedKeys().filter { items[$0]?.state == .queued }
+        // Audiobookshelf files are signed with a token lent for an hour: a
+        // fresh one is asked for before it runs out.
+        if queued.contains(where: { items[$0]?.song.source == .audiobookshelf }) {
+            WatchAccounts.shared.renewTokenIfNeeded()
+        }
         var running = tasks.values.filter { $0.kind == kind }.count
         var converting = tasks.keys.filter { key in
             items[key].map { $0.song.isPlexConversion(at: $0.quality) } ?? false
@@ -784,6 +885,11 @@ final class WatchDownloadStore {
         } else {
             item.state = .failed
             item.error = error.localizedDescription
+            // Turned away, perhaps for a token that ran out: the iPhone's
+            // next one tries it again (`tokenDidRenew`).
+            if item.song.source == .audiobookshelf {
+                WatchAccounts.shared.renewTokenIfNeeded()
+            }
         }
         items[key] = item
         logger.error("\(item.song.title, privacy: .public) failed on the \(kind.rawValue, privacy: .public) session: \(error.localizedDescription, privacy: .public)")
@@ -979,17 +1085,20 @@ final class WatchDownloadStore {
     }
 }
 
-/// How a download is named on its session task: `<key>|<extension>`.
+/// How a download is named on its session task: `<key>|<extension>`. A key
+/// can hold bars of its own (an Audiobookshelf file's), so it's split at
+/// the last.
 enum DownloadTaskName {
     static func description(key: String, fileExtension: String) -> String {
         "\(key)|\(fileExtension)"
     }
 
     static func parse(_ description: String?) -> (key: String, fileExtension: String)? {
-        guard let description else { return nil }
-        let parts = description.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
-        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
-        return (parts[0], parts[1])
+        guard let description, let bar = description.lastIndex(of: "|") else { return nil }
+        let key = String(description[..<bar])
+        let fileExtension = String(description[description.index(after: bar)...])
+        guard !key.isEmpty, !fileExtension.isEmpty else { return nil }
+        return (key, fileExtension)
     }
 }
 

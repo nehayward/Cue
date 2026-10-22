@@ -1,11 +1,12 @@
 import SwiftUI
 import WatchKit
 
-/// Cue on Apple Watch: Plex and Subsonic music downloaded to the watch and
-/// played from it. What's here is chosen on the watch (its home screen
-/// browses the servers with the sign-ins the iPhone shared) or on the
-/// iPhone (Add to Apple Watch); the watch fetches it from the server itself,
-/// and Fast Download does that over Wi‑Fi.
+/// Cue on Apple Watch: Plex and Subsonic music, and books from Plex and
+/// Audiobookshelf, downloaded to the watch and played from it. What's here
+/// is chosen on the watch (its home screen browses the servers with the
+/// sign-ins the iPhone shared) or on the iPhone (Add to Apple Watch); the
+/// watch fetches it from the server itself, and Fast Download does that
+/// over Wi‑Fi.
 @main
 struct CueWatchApp: App {
     @WKApplicationDelegateAdaptor(WatchAppDelegate.self) private var delegate
@@ -13,6 +14,7 @@ struct CueWatchApp: App {
     @State private var store = WatchDownloadStore.shared
     @State private var player = WatchPlayer.shared
     @State private var accounts = WatchAccounts.shared
+    @State private var books = WatchBookStore.shared
 
     var body: some Scene {
         WindowGroup {
@@ -20,6 +22,7 @@ struct CueWatchApp: App {
                 .environment(store)
                 .environment(player)
                 .environment(accounts)
+                .environment(books)
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
@@ -27,6 +30,7 @@ struct CueWatchApp: App {
                 store.appDidBecomeActive()
             case .background:
                 store.appDidEnterBackground()
+                books.flush()
                 WidgetStatePublisher.publishNow()
             default:
                 break

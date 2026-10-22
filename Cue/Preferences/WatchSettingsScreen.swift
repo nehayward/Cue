@@ -2,9 +2,9 @@ import NukeUI
 import SwiftUI
 import WatchSync
 
-/// What's set to go on the Apple Watch — the albums, playlists, artists and
-/// songs added here or on the watch — and how to make the watch download
-/// faster. The watch does the downloading and owns the quality. Reached
+/// What's set to go on the Apple Watch — the albums, playlists, artists,
+/// songs and books added here or on the watch — and how to make the watch
+/// download faster. The watch does the downloading and owns the quality. Reached
 /// from Settings › Storage when a watch is paired.
 struct WatchSettingsScreen: View {
     @State private var watch = WatchSyncService.shared
@@ -25,7 +25,7 @@ struct WatchSettingsScreen: View {
                     ContentUnavailableView(
                         "Nothing on Your Watch",
                         systemImage: "applewatch",
-                        description: Text("Choose Add to Apple Watch from a Plex or Subsonic album, playlist or song's menu, or browse your library in Cue on your watch.")
+                        description: Text("Choose Add to Apple Watch from a Plex or Subsonic album, playlist or song's menu, or a book's, or browse your library in Cue on your watch.")
                     )
                 }
             } else {
@@ -43,7 +43,7 @@ struct WatchSettingsScreen: View {
                 } header: {
                     Text("On Apple Watch")
                 } footer: {
-                    Text("Your watch downloads these from your server by itself, at the quality set on the watch. Swipe to remove.")
+                    Text("Your watch downloads these from your server by itself: songs at the quality set on the watch, books as your server keeps them. A book picks up on either device where you left it on the other. Swipe to remove.")
                 }
 
                 Section {
@@ -78,7 +78,7 @@ struct WatchSettingsScreen: View {
                 watch.removeAll()
             }
         } message: {
-            Text("The songs are deleted from your watch. They stay on your server and can be added again.")
+            Text("The songs and books are deleted from your watch. They stay on your server and can be added again.")
         }
     }
 
@@ -111,6 +111,7 @@ struct WatchSettingsScreen: View {
         case .playlist: "Playlist"
         case .artist: "Artist"
         case .song: "Song"
+        case .audiobook: "Book"
         }
     }
 }

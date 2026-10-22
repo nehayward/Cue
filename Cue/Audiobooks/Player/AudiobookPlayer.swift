@@ -985,6 +985,17 @@ final class AudiobookPlayer {
         }
     }
 
+    /// Another device moved `book`'s place (the Apple Watch, listened to
+    /// since): when it's the book loaded here and not playing, it gives way
+    /// as for a mark, so Play picks up at the new place rather than where
+    /// this device paused. One playing here keeps playing; its own place,
+    /// newer, goes to the watch.
+    func notePlaceMoved(_ book: PlayableContent) async {
+        guard let current, current.book.isSameBook(as: book), !PlaybackRoute.shared.controller.isPlaying else { return }
+        Self.log.notice("\(book.title, privacy: .public): its place moved on another device; Play starts there")
+        await noteMarked(book)
+    }
+
     /// The book is no longer what's playing.
     private func end() {
         guard let current else { return }

@@ -17,12 +17,13 @@ enum HomeRoute: Hashable {
 }
 
 /// The watch's home: Downloads at the top (the count of songs here in its
-/// title), then the lists of the library picked top right. Settings is top
-/// left; the bottom bar has search, Now Playing in the middle and play on
-/// the right edge (double tap presses it), hidden while the list scrolls
-/// down. No title: the rows say what's what. Screens zoom out of the row
-/// that opens them. The widget opens it on Downloads or Now Playing. The
-/// first time there's music to fetch, it asks at what quality.
+/// title), then the lists of the library picked top right, then
+/// Audiobooks: the books on the watch, and the servers' shelves of them.
+/// Settings is top left; the bottom bar has search, Now Playing in the
+/// middle and play on the right edge (double tap presses it), hidden while
+/// the list scrolls down. No title: the rows say what's what. Screens zoom
+/// out of the row that opens them. The widget opens it on Downloads or Now
+/// Playing. The first time there's music to fetch, it asks at what quality.
 struct LibraryScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
@@ -39,13 +40,14 @@ struct LibraryScreen: View {
         var id: String { rawValue }
     }
 
+    /// Books come down as they are, so only music asks.
     private var needsQuality: Bool {
-        !store.hasChosenQuality && !store.picks.items.isEmpty
+        !store.hasChosenQuality && !store.musicPicks.isEmpty
     }
 
-    /// The libraries there are sign-ins for.
+    /// The music libraries there are sign-ins for.
     private var sources: [WatchSource] {
-        WatchSource.allCases.filter { $0 == .plex ? accounts.hasPlex : accounts.hasSubsonic }
+        WatchSource.music.filter { $0 == .plex ? accounts.hasPlex : accounts.hasSubsonic }
     }
 
     /// The one chosen, while there's a sign-in for it; else the one there is.
@@ -61,6 +63,7 @@ struct LibraryScreen: View {
                 }
                 .zoomSource(HomeRoute.downloads, in: zoom)
                 library
+                audiobooks
             }
             .modifier(HidesBottomBarScrollingDown(isHidden: $isBottomBarHidden))
             .toolbar(isBottomBarHidden ? .hidden : .visible, for: .bottomBar)
@@ -129,13 +132,21 @@ struct LibraryScreen: View {
                 CollectionScreen(route: route)
                     .zoomDestination(route, in: zoom)
             }
+            .navigationDestination(for: BookRoute.self) { route in
+                BookScreen(key: route.key)
+                    .zoomDestination(route, in: zoom)
+            }
             .navigationDestination(for: BrowseRoute.self) { route in
                 Group {
                     switch route {
                     case let .path(path):
                         BrowseScreen(path: path)
                     case let .item(item):
-                        BrowseItemScreen(item: item)
+                        if item.pick?.kind == .audiobook {
+                            BrowseBookScreen(item: item)
+                        } else {
+                            BrowseItemScreen(item: item)
+                        }
                     }
                 }
                 .zoomDestination(route, in: zoom)
@@ -206,6 +217,45 @@ struct LibraryScreen: View {
                 Text("Library")
             }
         }
+    }
+
+    // MARK: - Audiobooks
+
+    /// The books on the watch, to pick up where they were left, then the
+    /// servers' shelves: what's in progress, and every book on each.
+    @ViewBuilder
+    private var audiobooks: some View {
+        let onWatch = store.books
+        if !onWatch.isEmpty || accounts.hasBooks {
+            Section {
+                ForEach(onWatch, id: \.key) { pick in
+                    let route = BookRoute(key: pick.key)
+                    NavigationLink(value: route) {
+                        BookRow(pick: pick)
+                    }
+                    .zoomSource(route, in: zoom)
+                }
+                if accounts.hasBooks {
+                    shelf(.listening, title: "Continue Listening", symbol: "clock.arrow.circlepath")
+                    if accounts.hasPlex, accounts.plexHasBooks {
+                        shelf(.all(.plex), title: "Plex Books", symbol: "server.rack")
+                    }
+                    if accounts.hasAudiobookshelf {
+                        shelf(.all(.audiobookshelf), title: "Audiobookshelf", symbol: "book.closed.fill")
+                    }
+                }
+            } header: {
+                Text("Audiobooks")
+            }
+        }
+    }
+
+    private func shelf(_ shelf: WatchBookShelf, title: String, symbol: String) -> some View {
+        let route = BrowseRoute.path(.books(shelf))
+        return NavigationLink(value: route) {
+            Label(title, systemImage: symbol)
+        }
+        .zoomSource(route, in: zoom)
     }
 }
 

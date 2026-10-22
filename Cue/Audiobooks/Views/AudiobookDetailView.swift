@@ -155,6 +155,7 @@ struct AudiobookDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     finishedButton
+                    WatchMenuSection(item: shown)
                     OpenInServiceView(item: shown)
                 } label: {
                     Label("More", systemImage: "ellipsis")

@@ -4,8 +4,9 @@ import SonosKit
 import SwiftUI
 
 /// A book's long-press menu: Resume (or Play), from the start, and
-/// finished or not. A book plays from where it was left, never into the
-/// queue, so there are none of the queue's positions.
+/// finished or not, then the book on this device and on the Apple Watch.
+/// A book plays from where it was left, never into the queue, so there are
+/// none of the queue's positions.
 struct AudiobookMenuItems: View {
     let book: PlayableContent
 
@@ -42,6 +43,7 @@ struct AudiobookMenuItems: View {
         }
         Section {
             AudiobookDownloadMenuItems(book: book)
+            WatchMenuSection(item: book)
         }
     }
 }

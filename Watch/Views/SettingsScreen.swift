@@ -2,8 +2,8 @@ import SwiftUI
 import WatchSync
 
 /// The watch's settings, top left on the home screen: the quality songs
-/// come down at, the room they take (and taking them all off), and which
-/// sign-ins the iPhone has shared.
+/// come down at, the room they and the books take (and taking them all
+/// off), and which sign-ins the iPhone has shared.
 struct SettingsScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchAccounts.self) private var accounts
@@ -19,11 +19,14 @@ struct SettingsScreen: View {
                     LabeledContent("Quality", value: store.quality.title)
                 }
             } footer: {
-                Text(store.quality.detail)
+                Text("\(store.quality.detail). Books come down as your server keeps them.")
             }
 
             Section {
                 LabeledContent("Songs", value: "\(store.downloadedCount)")
+                if !store.books.isEmpty {
+                    LabeledContent("Books", value: "\(store.downloadedBookCount)")
+                }
                 LabeledContent("Space Used", value: ByteCountFormatter.string(fromByteCount: store.bytesUsed, countStyle: .file))
                 if !store.picks.items.isEmpty {
                     Button(role: .destructive) {
@@ -39,6 +42,7 @@ struct SettingsScreen: View {
             Section {
                 LabeledContent("Plex", value: accounts.hasPlex ? "Signed In" : "Off")
                 LabeledContent("Subsonic", value: accounts.hasSubsonic ? "Signed In" : "Off")
+                LabeledContent("Audiobookshelf", value: accounts.hasAudiobookshelf ? "Signed In" : "Off")
             } header: {
                 Text("Accounts")
             } footer: {

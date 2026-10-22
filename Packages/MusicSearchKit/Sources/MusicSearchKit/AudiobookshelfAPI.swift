@@ -125,6 +125,40 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         isConfigured = false
     }
 
+    // MARK: - A login lent by another device
+
+    /// Takes a login another device holds — the iPhone's, lent to the
+    /// Apple Watch: the server, the username and an access token, with no
+    /// refresh token. The server hands out a new refresh token with every
+    /// renewal and turns the old one away, so a second device renewing
+    /// with it would sign the first out. This one never renews (a 401
+    /// stays a 401) and takes the other device's next token instead.
+    @MainActor
+    public func adopt(address: String, username: String, accessToken: String) {
+        if serverAddress != address || self.username != username {
+            UserDefaults.standard.removeObject(forKey: StorageKey.sessions)
+            Self.sessionCache.withLock { $0 = [:] }
+        }
+        UserDefaults.standard.set(address, forKey: StorageKey.server)
+        UserDefaults.standard.set(username, forKey: StorageKey.username)
+        Self.setTokens(Tokens(access: accessToken, refresh: nil))
+        Self.forgetStoredLogin()
+        serverAddress = address
+        self.username = username
+        isConfigured = true
+    }
+
+    /// The access token held, to lend to another device (`adopt`).
+    public static var currentAccessToken: String? {
+        storedTokens()?.access
+    }
+
+    /// When the access token held runs out, read from the token itself;
+    /// nil for one that never does (servers before 2.26) or can't be read.
+    public static var accessTokenExpiry: Date? {
+        storedTokens().flatMap { expiry(ofToken: $0.access) }
+    }
+
     struct Tokens: Sendable, Equatable {
         var access: String
         /// Nil on a server older than 2.26, whose one token never expires.
