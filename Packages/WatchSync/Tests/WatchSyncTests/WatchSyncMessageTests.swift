@@ -164,6 +164,38 @@ final class WatchSyncMessageTests: XCTestCase {
         XCTAssertTrue(WatchSyncMessage.isTogglePlayPauseRequest(WatchSyncMessage.togglePlayPauseRequest))
         XCTAssertFalse(WatchSyncMessage.isNowPlayingRequest(WatchSyncMessage.credentialsRequest))
         XCTAssertFalse(WatchSyncMessage.isCredentialsRequest(WatchSyncMessage.togglePlayPauseRequest))
+        XCTAssertNil(WatchSyncMessage.command(in: WatchSyncMessage.nowPlayingRequest))
+        XCTAssertNil(WatchSyncMessage.command(in: WatchSyncMessage.credentialsRequest))
+    }
+
+    func testEachPressCrossesAsItself() {
+        for command in WatchPhoneCommand.allCases {
+            let request = WatchSyncMessage.commandRequest(command)
+            XCTAssertEqual(WatchSyncMessage.command(in: request), command)
+            XCTAssertFalse(WatchSyncMessage.isNowPlayingRequest(request))
+            XCTAssertFalse(WatchSyncMessage.isCredentialsRequest(request))
+        }
+        // The same as before there were skips, so either side a version
+        // behind still plays and pauses.
+        XCTAssertEqual(WatchSyncMessage.togglePlayPauseRequest[WatchSyncMessage.requestKey] as? String, "togglePlayPause")
+        XCTAssertFalse(WatchSyncMessage.isTogglePlayPauseRequest(WatchSyncMessage.commandRequest(.next)))
+    }
+
+    func testABookAndItsSkipsCross() throws {
+        let book = WatchPhoneNowPlaying(title: "Book", artist: "Author", destination: "iPhone", isPlaying: false, isBook: true, canGoBack: true, hasNext: false)
+        XCTAssertEqual(WatchSyncMessage.nowPlaying(in: try WatchSyncMessage.nowPlayingMessage(book)), book)
+    }
+
+    /// An iPhone a version behind says nothing of skips: music, with both.
+    func testAnOlderiPhonesNowPlayingStillReads() throws {
+        let older = #"{"title":"Song","artist":"Artist","destination":"Kitchen","isOnSpeaker":true,"isPlaying":true}"#
+        let message: [String: Any] = [WatchSyncMessage.nowPlayingKey: Data(older.utf8)]
+        let playing = try XCTUnwrap(WatchSyncMessage.nowPlaying(in: message))
+        XCTAssertEqual(playing.title, "Song")
+        XCTAssertFalse(playing.isBook)
+        XCTAssertTrue(playing.canGoBack)
+        XCTAssertTrue(playing.hasNext)
+        XCTAssertNil(playing.artwork)
     }
 
     func testQualitiesSayWhatTheyCost() {

@@ -14,6 +14,8 @@ enum HomeRoute: Hashable {
     case settings
     case downloads
     case nowPlaying
+    /// What the iPhone plays, while the card shows it.
+    case phoneNowPlaying
 }
 
 /// A library the home screen lists under Downloads, picked top right: a
@@ -47,8 +49,9 @@ private enum HomeLibrary: Hashable {
 }
 
 /// The watch's home: what's playing at the top, a card on its cover's
-/// gradient that opens Now Playing (the iPhone's while the watch has
-/// nothing playing), then the library picked top right, led by Downloads
+/// gradient that opens its player (the iPhone's, in a player of its own,
+/// while the watch has nothing playing), then the library picked top
+/// right, led by Downloads
 /// (the count of songs here in its title): a music server's lists with
 /// search as the last row, or Audiobooks, the books on the watch and the
 /// servers' shelves of them. With the iPhone out of reach, what's on the
@@ -111,13 +114,17 @@ struct LibraryScreen: View {
         NavigationStack(path: $path) {
             List {
                 if player.current != nil || showsPhone {
+                    // The player of what the card shows: the system's Now
+                    // Playing picks its own source, which with a book
+                    // loaded here is the watch's, not the iPhone's.
+                    let route = showsPhone ? HomeRoute.phoneNowPlaying : .nowPlaying
                     Button {
-                        path.append(HomeRoute.nowPlaying)
+                        path.append(route)
                     } label: {
                         NowPlayingCard(showsPhone: showsPhone)
                     }
                     .buttonStyle(CardButtonStyle())
-                    .zoomSource(HomeRoute.nowPlaying, in: zoom)
+                    .zoomSource(route, in: zoom)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                 }
@@ -179,6 +186,8 @@ struct LibraryScreen: View {
                         DownloadsScreen()
                     case .nowPlaying:
                         NowPlayingScreen()
+                    case .phoneNowPlaying:
+                        PhoneNowPlayingScreen()
                     }
                 }
                 .zoomDestination(route, in: zoom)

@@ -5,8 +5,9 @@ import WatchSync
 /// What Cue on the iPhone is playing, for the home screen's card while the
 /// watch itself isn't playing: asked for as the app opens and the iPhone
 /// comes in reach, then sent by the iPhone as it changes while the app is
-/// open. Forgotten when the iPhone goes out of reach. Play and pause go
-/// back to the iPhone (`PhoneConnection.askPhone`).
+/// open. Forgotten when the iPhone goes out of reach. Play, pause and the
+/// skips go back to the iPhone (`PhoneConnection.askPhone`), which carries
+/// them out as its player's own buttons do.
 @MainActor
 @Observable
 final class PhoneNowPlaying {
@@ -32,10 +33,18 @@ final class PhoneNowPlaying {
 
     /// Plays or pauses the iPhone, shown at once; its answer settles it.
     func togglePlayPause() {
+        perform(.togglePlayPause)
+    }
+
+    /// A press for the iPhone's player: play and pause show at once, a skip
+    /// once the iPhone answers with where it went.
+    func perform(_ command: WatchPhoneCommand) {
         guard current != nil else { return }
-        current?.isPlaying.toggle()
-        lastPlayedAt = .now
-        PhoneConnection.shared.askPhone(WatchSyncMessage.togglePlayPauseRequest)
+        if command == .togglePlayPause {
+            current?.isPlaying.toggle()
+            lastPlayedAt = .now
+        }
+        PhoneConnection.shared.askPhone(WatchSyncMessage.commandRequest(command))
     }
 
     func apply(_ nowPlaying: WatchPhoneNowPlaying?) {
