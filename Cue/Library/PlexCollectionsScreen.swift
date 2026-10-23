@@ -529,6 +529,8 @@ struct PlexCollectionScreen: View {
                     }
                 }
                 .bold()
+                // Dark glass in Light Mode too, as on an album's page.
+                .environment(\.colorScheme, .dark)
             }
         }
         .fontDesign(.rounded)

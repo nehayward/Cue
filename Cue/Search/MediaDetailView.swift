@@ -440,6 +440,9 @@ struct MediaDetailView: View {
             }
             .bold()
             .fontDesign(.rounded)
+            // Dark glass in Light Mode too: the buttons sit on the cover,
+            // under the header's dark fade, where light glass washed out.
+            .environment(\.colorScheme, .dark)
         }
         .fontDesign(.rounded)
         .foregroundStyle(.white)

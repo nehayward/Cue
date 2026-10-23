@@ -276,6 +276,8 @@ struct ArtistDetailView: View {
         .animation(.smooth(duration: 0.3), value: tracks.isEmpty)
         .animation(.smooth(duration: 0.3), value: currentAlbums.isEmpty)
         .lineLimit(1)
+        // Dark glass in Light Mode too, as on an album's page.
+        .environment(\.colorScheme, .dark)
     }
 
     private var artistActionsMenu: some View {
