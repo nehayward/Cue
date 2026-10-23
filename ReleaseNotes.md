@@ -1,4 +1,4 @@
-# 2026.8
+# 2026.1
 
 –– New Features ––
 - CarPlay: Play your Apple Music, Plex, Subsonic and Files libraries, your downloads and your radio stations from the car's screen — Recents, Library, Downloads and Radio, with Up Next, shuffle and repeat in Now Playing and Up Next. Library switches between your playlists, Recently Added and Albums from the buttons on top, Downloads plays what's on your iPhone with no signal, Radio lays out your stations as a grid, and albums and playlists open with their cover, Play and Shuffle
@@ -16,7 +16,9 @@
 - Lyrics: Tap the speech bubble on the player to follow along with the words. Cue shows your Plex, Subsonic and Files songs' own lyrics — a .lrc beside the song or lyrics in its tags — and finds the rest on LRCLIB, Apple Music songs included. On iPhone they fill the screen like Apple Music, each line lighting up as it's sung; tap a line to jump there, scroll away and Back to Now brings you back, and the controls tuck away while you sing along. Works on this device and on your Sonos speakers, and downloaded Plex and Subsonic songs keep their lyrics for listening offline. Turn off the online lookup in Settings ▸ Playback ▸ Look Up Lyrics Online
 - Line In from any speaker: Play the line-in of any speaker on any room or group, say the turntable on your Living Room Port in the Kitchen. Switch to Line In in the player's ••• menu lists every speaker with a line-in and checks the one playing, and the player shows which speaker the sound comes from
 - Sort your Plex playlists: Order them by title, date added, last played, play count, duration or number of songs, and flip any of them. Cue remembers your pick, and the playlists on the Plex library's front page follow it. Inside a playlist, sort its songs by title, artist, album or length; Play and a tapped song follow the order you see, and each playlist remembers its own
-- Smart Resume for audiobooks: Press play after a pause and your book goes back a moment so you don't lose the thread — a second after a quick pause, up to 15 seconds after a day away — and starts again in a natural pause between words, or at the start of the sentence after a longer break. It never goes back past the start of the chapter, and works on iPhone, iPad, Mac, Apple Vision Pro, CarPlay and Apple Watch
+- Audiobooks: Listen to your books from Audiobookshelf, which you connect under Settings ▸ Services, and from Plex — a library you set aside for books, or albums tagged as audiobooks. The new Audiobooks tab leads with the books you're partway through, and each one picks up where you left off, keeping its place in step with your server and your Apple Watch. Skip back 15 or ahead 30 seconds, jump between chapters, give each book its own speed, set the sleep timer for the end of the chapter, download a whole book to listen offline, or play it on your Sonos speakers
+- Smart Resume for audiobooks: Press play after a pause and your book goes back a moment so you don't lose the thread — a second after a quick pause, up to 15 seconds after a day away — and starts again in a natural pause between words, or at the start of the sentence after a longer break. It never goes back past the start of the chapter, and works on iPhone, iPad, CarPlay and Apple Watch
+- Radio map: Find stations on a map — the map under Local Radio in the Radio tab opens on the stations around you, grouped where they're crowded. Tap a pin to see its stations, or move the map and tap Search This Area to hear what's on the air somewhere else
 
 –– Bug Fixes & Improvements ––
 - Smoother changes between songs from different services on this device: Cue starts the next song the moment the last one ends, and looks up Apple Music songs ahead of time, so there's barely a pause going from your server to Apple Music and back
@@ -302,7 +304,7 @@
 - Fixed shuffle not being applied correctly when queueing albums and playlists
 - Navigation within album and artist detail sheets now works (e.g. tapping artist name from an album)
 
-# 2026.1
+# 2026.1 (Clic)
 
 –– New Features ––
 - Fullscreen artwork mode: Toggle with Shift+Command+F or via the Player Screen menu

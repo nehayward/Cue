@@ -4,7 +4,7 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ---
 
-## 2026.8
+## 2026.1
 
 ### CarPlay
 Cue now has a CarPlay screen, using the `com.apple.developer.carplay-audio` entitlement. It is the device player on the car's display, with no Sonos UI, because the car plays through the phone.
@@ -282,6 +282,24 @@ Play after a pause goes back a little, further the longer the book rested, and l
 - **Reading the file** (`LoudnessTrace.reading`, `AVAudioFile`): a start from a kept place (Continue Listening, a relaunch) reads about 6 s of a downloaded file around the rewind; the watch, which has no audio taps, reads the 20 s before a pause in the background as it pauses (`WatchPlayer.hearBeforePause`, dropped by `forgetPause` on Play, a move or leaving the book), so Play never waits on a read. A streamed file with nothing heard gets the plain rewind.
 - **Logs**: `smart resume:` under `audiobooks` (the watch's under `Player`): how far back, whether it found a pause and how far that moved it, how long a file read took, and on the iPhone how long Play took to play (`logPlayTime`), since a seek back on a streamed file may fetch those seconds again.
 - Not on a speaker yet. Tests: `SpeechGapsTests` and `AudiobookTimelineTests`, pure Swift.
+
+### Audiobooks
+Books from Plex and Audiobookshelf, in `Cue/Audiobooks/` (`Player/` plays a book, `Views/` its screens, `Data/` the stores, caches and servers). The plan and what's left are in `Ideas/audiobooks.md`.
+
+- **A book** is `ContentType.audiobook`: a Plex album in a library switched on for books in the Plex sheet (`PlexAudiobookSettings`) or tagged with an audiobook genre, or an Audiobookshelf item. Its files are ordinary `.track`s.
+- **Playing**: `AudiobookPlayer` replaces the queue with the book's files from its place, on this device or the route's speaker, and follows `PlaybackRoute.presented` every 2 s to keep the place (`AudiobookProgressStore`) and sync the server. Positions the listener sees are book time (`AudiobookTimeline`). It owns speed (this device only, `LocalPlaybackService.applyPlaybackRate`), the 15 s back and 30 s ahead skips that replace Previous/Next, Previous/Next Chapter and End of Chapter.
+- **Chapters** are each `.m4b`'s marks: Plex's (`audiobookChapterMarks`), else read from the file (`AudiobookChapterReader`), cached in Caches under `chapterCacheKey`, which changes with the file.
+- **Places**: the server's reading wins only when over a minute newer, and a Plex reading that only counts a file played never moves this device past the file it's in (`PlexAudiobook.preferring`). A file left partway is reported to Plex paused, not stopped (`PlayReporter`), and a place moved with no server in reach goes to it when the book is next read (`sendNewerPlace`). Each book keeps a place history (`AudiobookPlaceHistory`) on the Chapters sheet's History page.
+- **Music set aside**: a book started over music keeps that queue (`LocalPlaybackService.setAsideQueue`, `LocalQueueSetAside.json`) for Back to Music.
+- **Audiobookshelf** (`AudiobookshelfAPI`, a `DirectStreamProvider`) plays through a listening session whose `/public/session/<id>/track/<n>` URLs a speaker can fetch with no sign-in.
+- **Elsewhere**: the Audiobooks tab (`AppTab.audiobooks`, `AudiobooksScreen`), whole-book downloads (`AudiobookDownloads`; a book counts as one against the free limit), CarPlay's Audiobooks tab, and books as watch picks (`WatchPick.Kind.audiobook`), their places crossing both ways (`WatchBookPlaces`, `CloudBookPlaces`).
+- Not on a speaker yet: speed and Smart Resume.
+
+### Radio map
+- The Radio tab's map tile (`RadioMapTile`, under Local Radio) pushes `RadioMapScreen` (`RouterDestination.radioMap`). The tile is an `MKMapSnapshotter` picture with the pins drawn over it, not a live `Map`, which stayed alive under the pushed one (two map views' worth of memory). The full map is flat.
+- TuneIn's browse pages carry no place, so `RadioMap.shared` asks each station's `Describe.ashx` (`TuneInAPI.place(for:)`: its `latlon`, else its `location` geocoded with `MKGeocodingRequest`), four at a time and once a station, and keeps the answers in `Caches/RadioMapPlaces.json`. Answers reach `places` in one change every 0.5 s.
+- Pins group on a screen-sized grid (`RadioMapCluster`). Search This Area asks TuneIn's local page for the map's centre (`TuneInBrowsePage.nearby`). No location permission: "near you" is TuneIn's IP-placed local page.
+- Each lookup run logs `placed N of M` under the `radioMap` category.
 
 ---
 

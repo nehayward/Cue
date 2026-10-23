@@ -20,6 +20,9 @@ let package = Package(
         .target(
             name: "MusicSearchKit",
             dependencies: ["SWXMLHash", "SwiftyBeaver"],
+            resources: [
+                .copy("PrivacyInfo.xcprivacy")
+            ],
             swiftSettings: [
 //                .define("MUSICSEARCHKIT_VERBOSE_LOGGING")
             ]),
