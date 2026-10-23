@@ -114,9 +114,14 @@ struct PlexBrowseScreen: View {
                         }
                     }
 
-                    NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $plexBrowseService.userPlaylists, action: { offset in
-                        await plexBrowseService.updateUserPlaylists(offset: offset)
-                    })) {
+                    NavigationLink(value: RouterDestination.playableGridScreen(
+                        title: "Playlists",
+                        items: $plexBrowseService.userPlaylists,
+                        sort: PlexLibraryLists.playlistSort(plexBrowseService: plexBrowseService),
+                        action: { offset in
+                            await plexBrowseService.updateUserPlaylists(offset: offset)
+                        }
+                    )) {
                         Label("Playlists (\(plexBrowseService.userPlaylists.count))", systemImage: "rectangle.stack.badge.play")
                     }
                     

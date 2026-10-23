@@ -38,6 +38,11 @@ struct PlayableContentView: View {
 
     /// When set (track shown inside an editable playlist), adds a "Remove from Playlist" menu action.
     var onRemoveFromPlaylist: (() -> Void)? = nil
+    /// When set, what a tap on the row plays, in place of the row within
+    /// `parent`: a playlist listed in an order of its own (sorted by title,
+    /// say) plays the songs as they're listed, which the playlist itself
+    /// doesn't know. The menu's Play Next and Play Last still take the song.
+    var playAction: (() -> Void)? = nil
     /// How far through it the listener is, as a thin bar under the text:
     /// a book's. Nil draws none.
     var progress: Double? = nil
@@ -278,6 +283,10 @@ struct PlayableContentView: View {
             return
         }
         hideKeyboard()
+        if position == nil, let playAction {
+            playAction()
+            return
+        }
         Task { @MainActor in
             let defaultPosition = position ?? QueuePosition.defaultPosition(
                 for: (parent ?? item).content.type,
