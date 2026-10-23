@@ -46,22 +46,27 @@ struct AudiobookHistoryList: View {
 
     private func row(_ place: AudiobookPlaceHistory.Place) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: Self.symbol(place.kind))
-                .foregroundStyle(.secondary)
+            // Opacities of primary, not `.secondary`, which flickers as the
+            // glass sheet changes.
+            Image(systemName: Self.symbol(place))
+                .foregroundStyle(.primary.opacity(0.6))
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 2) {
-                Text(Self.title(place.kind))
+                Text(Self.title(place))
                     .foregroundStyle(.primary)
                 Text([audiobook?.chapter(at: place.position)?.title, AudiobookFormat.clock(place.position)].compactMap { $0 }.joined(separator: " · "))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.6))
                     .monospacedDigit()
                     .lineLimit(1)
             }
             Spacer()
-            Text(Self.when(place.date))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            // Ticks once a minute, so "Just now" moves on while it's open.
+            TimelineView(.everyMinute) { context in
+                Text(Self.when(place.date, now: context.date))
+            }
+            .font(.caption)
+            .foregroundStyle(.primary.opacity(0.8))
         }
         .padding(.vertical, 10)
         .contentShape(.rect)
@@ -69,33 +74,58 @@ struct AudiobookHistoryList: View {
         .accessibilityHint("Plays from here")
     }
 
-    private static func title(_ kind: AudiobookPlaceHistory.Place.Kind) -> LocalizedStringKey {
-        switch kind {
+    private static func title(_ place: AudiobookPlaceHistory.Place) -> LocalizedStringKey {
+        switch place.kind {
         case .started: "Started"
         case .paused: "Paused"
         case .jumpedFrom: "Moved away from here"
-        case .replaced: "Before another device's place"
+        case .replaced:
+            switch place.source {
+            case .watch: "Before Apple Watch's place"
+            case .plex: "Before Plex's place"
+            case .audiobookshelf: "Before Audiobookshelf's place"
+            case nil: "Before another device's place"
+            }
         case .left: "Left the book"
         }
     }
 
-    private static func symbol(_ kind: AudiobookPlaceHistory.Place.Kind) -> String {
-        switch kind {
+    private static func symbol(_ place: AudiobookPlaceHistory.Place) -> String {
+        switch place.kind {
         case .started: "play.fill"
         case .paused: "pause.fill"
         case .jumpedFrom: "arrow.uturn.backward"
-        case .replaced: "iphone.and.arrow.forward"
+        case .replaced:
+            switch place.source {
+            case .watch: "applewatch"
+            case .plex, .audiobookshelf: "server.rack"
+            case nil: "iphone.and.arrow.forward"
+            }
         case .left: "rectangle.portrait.and.arrow.right"
         }
     }
 
-    /// "2:41 PM" today, "Mon 2:41 PM" this week, "Oct 12" before.
-    private static func when(_ date: Date) -> String {
+    /// "Just now", "12 min. ago" within the hour, "2:41 PM" earlier today,
+    /// "Yesterday 10:08 PM", "Mon 2:41 PM" this week, "Oct 12" before.
+    /// Past the hour the clock reads better: pauses minutes apart would all
+    /// read "2 hr. ago".
+    private static func when(_ date: Date, now: Date) -> String {
         let calendar = Calendar.current
-        if calendar.isDateInToday(date) {
-            return date.formatted(.dateTime.hour().minute())
+        let elapsed = now.timeIntervalSince(date)
+        if elapsed < 60 {
+            return String(localized: "Just now")
         }
-        if let days = calendar.dateComponents([.day], from: date, to: .now).day, days < 7 {
+        if elapsed < 60 * 60 {
+            return date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated))
+        }
+        let time = date.formatted(.dateTime.hour().minute())
+        if calendar.isDateInToday(date) {
+            return time
+        }
+        if calendar.isDateInYesterday(date) {
+            return String(localized: "Yesterday \(time)")
+        }
+        if let days = calendar.dateComponents([.day], from: date, to: now).day, days < 7 {
             return date.formatted(.dateTime.weekday(.abbreviated).hour().minute())
         }
         return date.formatted(.dateTime.month(.abbreviated).day())
