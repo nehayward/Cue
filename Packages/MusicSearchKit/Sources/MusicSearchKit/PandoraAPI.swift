@@ -6,32 +6,17 @@ import os
 /// within the service's search categories — using the household's stored
 /// loginToken/key plus the controller deviceId, exactly like Sonos Radio.
 ///
-/// The token-refresh state is guarded by an unfair lock — never held across
-/// an await — so concurrent requests that both hit an expired-token fault
-/// share a single in-flight `refreshAuthToken` exchange instead of firing
-/// duplicate (mutually invalidating) ones.
+/// Token refresh is shared with Sonos Radio through `SMAPILoginSession`.
 public final class PandoraAPI: Sendable {
     private let session: URLSession
-    /// Called after a successful token refresh so the owner can persist the
-    /// rotated pair (the stored household token is stale once rotated).
-    private let onTokenRefreshed: (@Sendable (_ token: String, _ key: String) -> Void)?
-
-    private struct LoginState {
-        /// A token/key pair returned by `refreshAuthToken` this session,
-        /// substituted into every subsequent request.
-        var refreshedLogin: (token: String, key: String)?
-        /// The in-flight refresh, joined by concurrent auth failures instead
-        /// of starting a second exchange.
-        var refreshTask: Task<(token: String, key: String)?, Never>?
-    }
-    private let loginState = OSAllocatedUnfairLock(initialState: LoginState())
+    private let login: SMAPILoginSession
 
     public init(
         session: URLSession = .shared,
         onTokenRefreshed: (@Sendable (_ token: String, _ key: String) -> Void)? = nil
     ) {
         self.session = session
-        self.onTokenRefreshed = onTokenRefreshed
+        self.login = SMAPILoginSession(onTokenRefreshed: onTokenRefreshed)
     }
 
     // MARK: - SMAPI (SOAP)
@@ -122,44 +107,16 @@ public final class PandoraAPI: Sendable {
         ).xml
     }
 
-    /// Refreshes the login token after a request using `failedToken` was
-    /// rejected. Deduplicates: if another request already rotated past that
-    /// token there is nothing to do, and a refresh already in flight is
-    /// joined rather than duplicated (a second exchange could invalidate the
-    /// first's token). Returns whether a valid login is now available.
+    /// Refreshes the login after a request using `failedToken` was rejected
+    /// (see `SMAPILoginSession`).
     private func refreshLogin(
         afterFailureOf failedToken: String,
         endpoint: URL,
         credentials: SMAPICredentials
     ) async -> Bool {
-        let currentCredentials = effectiveCredentials(credentials)
-
-        let (task, startedHere): (Task<(token: String, key: String)?, Never>?, Bool) = loginState.withLock { state in
-            // Another request already rotated past the failed token.
-            if (state.refreshedLogin?.token ?? credentials.token) != failedToken {
-                return (nil, false)
-            }
-            if let existing = state.refreshTask {
-                return (existing, false)
-            }
-            let started = Task { await self.requestRefreshedLogin(endpoint: endpoint, credentials: currentCredentials) }
-            state.refreshTask = started
-            return (started, true)
+        await login.refresh(afterFailureOf: failedToken, credentials: credentials) { current in
+            await self.requestRefreshedLogin(endpoint: endpoint, credentials: current)
         }
-        guard let task else { return true }
-
-        let refreshed = await task.value
-
-        loginState.withLock { state in
-            state.refreshTask = nil
-            if let refreshed { state.refreshedLogin = refreshed }
-        }
-
-        guard let refreshed else { return false }
-        if startedHere {
-            onTokenRefreshed?(refreshed.token, refreshed.key)
-        }
-        return true
     }
 
     /// Exchanges the current loginToken for a fresh authToken/privateKey pair.
@@ -232,15 +189,8 @@ public final class PandoraAPI: Sendable {
 
     // MARK: - Helpers
 
-    /// Substitutes a session-refreshed token for the stored household one.
     private func effectiveCredentials(_ credentials: SMAPICredentials) -> SMAPICredentials {
-        guard let refreshed = loginState.withLock({ $0.refreshedLogin }) else { return credentials }
-        return SMAPICredentials(
-            token: refreshed.token,
-            key: refreshed.key,
-            householdId: credentials.householdId,
-            deviceId: credentials.deviceId
-        )
+        login.effectiveCredentials(credentials)
     }
 
     /// Extracts the text content of the first `<tag>…</tag>` pair.

@@ -37,6 +37,8 @@ struct RouterDestinationView: View {
                 }
             case let .artistDetail(content, _):
                 ArtistDetailView(playableContent: content)
+            case let .audiobookDetail(content):
+                AudiobookDetailView(book: content)
             case let .createScene(content):
                 NavigationStack {
                     SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))
@@ -90,8 +92,8 @@ struct RouterDestinationView: View {
                     action: action
                 )
                 .navigationTitle(title)
-            case let .playableGridScreen(title: title, items: items, action: action):
-                PlayableGridScreen(items: items, action: action)
+            case let .playableGridScreen(title: title, items: items, sort: sort, action: action):
+                PlayableGridScreen(items: items, sort: sort, action: action)
                     .navigationTitle(title)
             case .houseHold:
                 HouseholdScreen()
@@ -99,6 +101,8 @@ struct RouterDestinationView: View {
                 ServicePreferenceScreen()
             case .downloads:
                 DownloadsScreen()
+            case .bookDownloads:
+                DownloadsScreen(opensOnBooks: true)
             case let .downloaded(service):
                 DownloadedScreen(service: service)
             case let .onDeviceCollection(collection, service):
@@ -114,6 +118,13 @@ struct RouterDestinationView: View {
                 FolderBrowseView(item: item, title: title)
             case let .tuneInBrowse(title: title, url: url):
                 TuneInBrowseScreen(title: title, url: url)
+            case let .radioMap(zoomSource):
+                if let zoomSource, let zoomNamespace {
+                    RadioMapScreen()
+                        .zoomTransition(from: zoomSource, in: zoomNamespace)
+                } else {
+                    RadioMapScreen()
+                }
             case .connectByIP:
                 ConnectByIPScreen()
             }

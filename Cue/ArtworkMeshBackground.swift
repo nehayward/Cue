@@ -34,26 +34,35 @@ struct ArtworkMeshBackground: View {
     @State private var imageKey: String?
     /// The player `image` was made for.
     @State private var imageSourceID: String?
+    /// When the gradient last changed, so skips in quick succession swap it
+    /// rather than stacking one 0.8 s crossfade on another — each a
+    /// full-screen layer kept alive under the blur until it finishes.
+    @State private var lastChange: Date = .distantPast
 
-    private static let grid = 4
+    nonisolated private static let grid = 4
     /// Output size in pixels. The interpolated field is smooth, so a small
     /// bitmap scaled up with high-quality filtering looks the same as a
     /// full-resolution one.
-    private static let bitmapSize = 48
+    nonisolated private static let bitmapSize = 48
 
     var body: some View {
-        ZStack {
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .interpolation(.high)
-                    .id(imageKey)
-                    .transition(.opacity)
+        // Full size with or without a gradient. An empty ZStack had no
+        // size and sat in the middle, so the first gradient, put in with an
+        // animation, rode the container's growth out to the corner: it came
+        // in sliding from the bottom right instead of fading.
+        Color.clear
+            .overlay {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .interpolation(.high)
+                        .id(imageKey)
+                        .transition(.opacity)
+                }
             }
-        }
-        .task(id: "\(sourceID)|\(artworkKey)|\(artworkURL?.absoluteString ?? "")") {
-            await load()
-        }
+            .task(id: "\(sourceID)|\(artworkKey)|\(artworkURL?.absoluteString ?? "")") {
+                await load()
+            }
     }
 
     private func load() async {
@@ -73,10 +82,13 @@ struct ArtworkMeshBackground: View {
         request.imageID = key
         request.thumbnail = ImageRequest.ThumbnailOptions(maxPixelSize: 32)
         request.userInfo[.realCover] = true
-        guard let cover = try? await ImagePipeline.shared.image(for: request),
-              let colors = Self.sampleColors(from: cover),
-              let gradient = Self.renderGradient(colors) else { return }
-        guard !Task.isCancelled else { return }
+        guard let cover = try? await ImagePipeline.shared.image(for: request) else { return }
+        // Sampled and drawn off the main thread, which a song change keeps
+        // busy enough already.
+        let rendered = await Task.detached(priority: .userInitiated) {
+            Self.sampleColors(from: cover).flatMap(Self.renderGradient)
+        }.value
+        guard let gradient = rendered, !Task.isCancelled else { return }
         Self.store(gradient, for: key)
         set(gradient, key: key, animated: !isSourceSwitch)
     }
@@ -84,7 +96,10 @@ struct ArtworkMeshBackground: View {
     private func set(_ new: UIImage?, key: String?, animated: Bool) {
         imageSourceID = sourceID
         guard key != imageKey else { return }
-        if animated {
+        let now = Date.now
+        let isQuickSkip = now.timeIntervalSince(lastChange) < 1
+        lastChange = now
+        if animated, !isQuickSkip {
             withAnimation(.smooth(duration: 0.8)) {
                 image = new
                 imageKey = key
@@ -215,7 +230,8 @@ extension ArtworkMeshBackground {
             sourceID: group.coordinatorID,
             artworkURL: track.artworkURL,
             artworkKey: track.playerArtworkCacheKey,
-            isEmpty: track.isEmpty
+            // Line-in never gets a cover, so there's none to hold out for.
+            isEmpty: track.isEmpty || track.lineInSourceID != nil
         )
     }
 

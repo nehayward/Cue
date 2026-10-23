@@ -1,11 +1,12 @@
 import SwiftUI
 import WatchKit
 
-/// Cue on Apple Watch: Plex and Subsonic music downloaded to the watch and
-/// played from it. What's here is chosen on the watch (its home screen
-/// browses the servers with the sign-ins the iPhone shared) or on the
-/// iPhone (Add to Apple Watch); the watch fetches it from the server itself,
-/// and Fast Download does that over Wi‑Fi.
+/// Cue on Apple Watch: Plex and Subsonic music, and books from Plex and
+/// Audiobookshelf, downloaded to the watch and played from it. What's here
+/// is chosen on the watch (its home screen browses the servers with the
+/// sign-ins the iPhone shared) or on the iPhone (Add to Apple Watch); the
+/// watch fetches it from the server itself, and Fast Download does that
+/// over Wi‑Fi.
 @main
 struct CueWatchApp: App {
     @WKApplicationDelegateAdaptor(WatchAppDelegate.self) private var delegate
@@ -13,20 +14,28 @@ struct CueWatchApp: App {
     @State private var store = WatchDownloadStore.shared
     @State private var player = WatchPlayer.shared
     @State private var accounts = WatchAccounts.shared
+    @State private var books = WatchBookStore.shared
+    @State private var phone = PhoneNowPlaying.shared
 
     var body: some Scene {
         WindowGroup {
             LibraryScreen()
                 .environment(store)
                 .environment(player)
+                .environment(phone)
                 .environment(accounts)
+                .environment(books)
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
                 store.appDidBecomeActive()
+                books.reconcileWithCloud()
+                phone.refresh()
             case .background:
                 store.appDidEnterBackground()
+                books.flush()
+                player.saveNow()
                 WidgetStatePublisher.publishNow()
             default:
                 break
@@ -42,6 +51,10 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate {
         // Makes the store, and with it the background session, so events
         // for transfers that finished while Cue was closed are delivered.
         _ = WatchDownloadStore.shared
+        // What was loaded when the app last ended, back paused.
+        WatchPlayer.shared.restore()
+        // The places iCloud brought while Cue was closed.
+        WatchBookStore.shared.startCloudSync()
         // Nothing's playing yet, whatever the widgets were last told.
         WidgetStatePublisher.publishNow()
     }

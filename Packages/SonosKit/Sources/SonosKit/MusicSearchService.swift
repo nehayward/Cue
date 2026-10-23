@@ -14,6 +14,11 @@ public final class MusicSearchService {
             }
         }
     }
+
+    /// `query` as it's searched for.
+    private var trimmedQuery: String {
+        query.trimmingCharacters(in: .whitespaces)
+    }
     
     public var appleMusicAuthorizationStatus: AppleMusicAuthorization = .denied
     
@@ -183,7 +188,10 @@ public final class MusicSearchService {
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
 
-    private let debounceDuration: Duration = .milliseconds(150)
+    /// The pause after a keystroke before the services are asked. At 150 ms,
+    /// about the gap between two keystrokes, most keystrokes still sent a
+    /// search to every selected service.
+    private let debounceDuration: Duration = .milliseconds(250)
 
     public var suggestions: [MusicCatalogSearchSuggestionsResponse.Suggestion] = []
 
@@ -209,13 +217,14 @@ public final class MusicSearchService {
     @discardableResult
     public func search(for providers: Set<MediaSearchService>, recentlyPlayedIDs: Set<String> = []) async -> Bool {
         self.recentlyPlayedIDs = recentlyPlayedIDs
-        if query.isEmpty {
+        // Spaces around the query don't change what the services return.
+        let capturedQuery = trimmedQuery
+        if capturedQuery.isEmpty {
             results = []
             return true
         }
 
         var allProvidersAnswered = true
-        let capturedQuery = query
         searchSuggestionTask.cancel()
         searchSuggestionTask = Task { [weak self] in
             guard let self else { return nil }
@@ -237,6 +246,7 @@ public final class MusicSearchService {
         // rebuild itself as results came in or when the view re-rendered.
         var resultsByProvider: [MediaSearchService: [PlayableContent]] = [:]
 
+        await Self.$ranksMergedResults.withValue(isMultiServiceSearch) {
         await withTaskGroup(of: (MediaSearchService, [PlayableContent]?).self) { group in
             for provider in providers {
                 group.addTask { [weak self] in
@@ -277,6 +287,8 @@ public final class MusicSearchService {
                             await self.searchPandora(query: capturedQuery)
                         case .subsonic:
                             await self.searchSubsonic(query: capturedQuery)
+                        case .audiobookshelf:
+                            await self.searchAudiobookshelf(query: capturedQuery)
                         case .files:
                             await self.searchFiles(query: capturedQuery)
                         }
@@ -295,7 +307,7 @@ public final class MusicSearchService {
                 if Task.isCancelled { continue }
                 // The user may have edited the query while we were awaiting; the new
                 // search() call will handle the fresh query, so drop these.
-                if self.query != capturedQuery { continue }
+                if self.trimmedQuery != capturedQuery { continue }
                 guard let providerResults else {
                     // Not cancelled and still the current query: the provider
                     // timed out or failed. A single-service search must clear
@@ -317,9 +329,10 @@ public final class MusicSearchService {
                 }
             }
         }
+        }
 
         if Task.isCancelled { return false }
-        if self.query != capturedQuery { return false }
+        if self.trimmedQuery != capturedQuery { return false }
 
         if isMultiServiceSearch {
             // Publish the merged list once, after every provider has drained.
@@ -336,12 +349,15 @@ public final class MusicSearchService {
             let mergedResults = MediaSearchService.allCases
                 .compactMap { resultsByProvider[$0] }
                 .flatMap { $0 }
-            self.results = SearchRanking.sort(
+            let ranked = await Self.ranked(
                 mergedResults,
                 query: capturedQuery,
                 recentlyPlayedIDs: recentlyPlayedIDs,
                 groupArtists: true
             )
+            // Ranked off the main thread: the query may have moved on.
+            if Task.isCancelled || self.trimmedQuery != capturedQuery { return false }
+            self.results = ranked
         }
 
         if let suggestionResults = await searchSuggestionTask.value {
@@ -487,19 +503,40 @@ public final class MusicSearchService {
     // MARK: - Playlist Management
 
     /// The user's editable Apple Music library playlists, as `PlayableContent`.
+    ///
+    /// Apple caps `/me/library/playlists` at 100 items per page, so this follows the `next` link
+    /// until the library is exhausted — otherwise anyone with more than 100 playlists would never
+    /// see the rest in the Add to Playlist sheet.
     public func appleUserPlaylists() async -> [PlayableContent] {
-        guard let container = try? await apple.getUserPlaylists(limit: 100) else { return [] }
-        return container.data.compactMap { item in
-            guard let name = item.attributes.name else { return nil }
-            return PlayableContent(
-                title: name,
-                subtitle: "",
-                thumbnail: item.attributes.artwork?.urlWithSize(width: 100, height: 100),
-                artwork: item.attributes.artwork?.urlWithSize(width: 600, height: 600),
-                content: MediaContent(service: .apple, id: item.id, type: .libraryPlaylist, location: nil),
-                metadata: .init()
-            )
+        let pageSize = 100
+        // Safety valve against a server that keeps handing back a `next` link: 50 pages is 5,000
+        // playlists, far beyond any real library.
+        let maxPages = 50
+
+        var results: [PlayableContent] = []
+        var offset = 0
+        for _ in 0..<maxPages {
+            guard let container = try? await apple.getUserPlaylists(offset: offset, limit: pageSize) else { break }
+            results.append(contentsOf: container.data.compactMap { item in
+                guard let name = item.attributes.name else { return nil }
+                return PlayableContent(
+                    title: name,
+                    subtitle: "",
+                    thumbnail: item.attributes.artwork?.urlWithSize(width: 100, height: 100),
+                    artwork: item.attributes.artwork?.urlWithSize(width: 600, height: 600),
+                    content: MediaContent(service: .apple, id: item.id, type: .libraryPlaylist, location: nil),
+                    metadata: .init()
+                )
+            })
+            guard !container.data.isEmpty, let next = container.next else { break }
+            // `next` is a relative path like `/v1/me/library/playlists?offset=100`. Fall back to
+            // stepping by page size if the offset can't be read, and stop if it doesn't advance.
+            let nextOffset = URLComponents(string: next)?.queryItems?
+                .first(where: { $0.name == "offset" })?.value.flatMap(Int.init) ?? (offset + pageSize)
+            guard nextOffset > offset else { break }
+            offset = nextOffset
         }
+        return results
     }
 
     /// Creates a new Apple Music library playlist, optionally seeded with `track`.
@@ -889,7 +926,7 @@ public final class MusicSearchService {
 
         playableContent = await enrichSpotifyAlbums(playableContent)
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        return await sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     /// Spotify's search API returns simplified albums with no popularity and
@@ -1015,7 +1052,7 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: libResults)
         playableContent.append(contentsOf: appleResults)
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        return await sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     public func lookup(id: String) async throws -> Song? {
@@ -1332,7 +1369,7 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
         playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        return await sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     // MARK: - PLex
@@ -1367,7 +1404,7 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
         playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        return await sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     public func lookupPlexSong(with id: String) async -> PlayableContent? {
@@ -1470,6 +1507,43 @@ public final class MusicSearchService {
         return (result.totalSize ?? result.size, playableContent, duration)
     }
 
+    /// Every song of a Plex album, or nil if the server couldn't list them
+    /// — for a download, which mustn't take a failed lookup for an empty
+    /// album. Each request is tried three times before giving up.
+    public func allPlexAlbumSongs(id: String) async -> [PlayableContent]? {
+        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return nil }
+        guard let metadata = await Self.retrying({ await self.plex.lookupAlbumTracks(key: key)?.metadata }),
+              !metadata.isEmpty else { return nil }
+        return metadata.map(\.toPlayable)
+    }
+
+    /// Every song of a Plex playlist, page after page, or nil if any page
+    /// fails (each tried three times) — for a download, which would
+    /// otherwise remember a list cut short as the whole playlist. Plex caps
+    /// a page at 200 and answers a page past the end with no items, which
+    /// doesn't decode, so the playlist's `totalSize` says when to stop.
+    public func allPlexPlaylistSongs(id: String) async -> [PlayableContent]? {
+        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return nil }
+        let songs = await PagedList.all(pageSize: 200) { offset -> (items: [PlexMetadata], total: Int?)? in
+            guard let page = await Self.retrying({
+                await self.plex.lookupPlaylist(key: key, type: .song, ascending: true, offset: offset)
+            }) else { return nil }
+            return (page.metadata, page.totalSize)
+        }
+        guard let songs, !songs.isEmpty else { return nil }
+        return songs.map(\.toPlayable)
+    }
+
+    /// `attempt` until it answers, three tries at most, a moment apart.
+    private static func retrying<T>(_ attempt: @escaping () async -> T?) async -> T? {
+        for delay in [0.5, 1.5, 0] {
+            if let answer = await attempt() { return answer }
+            guard delay > 0, !Task.isCancelled else { break }
+            try? await Task.sleep(for: .seconds(delay))
+        }
+        return nil
+    }
+
     public func getPlexServers() async -> [PlexServer] {
         let plexServers = await plex.getPlexServers()
         return plexServers
@@ -1488,7 +1562,7 @@ public final class MusicSearchService {
         let playableContent = results.map(\.toPlayable)
         // Ranking is safe here now that score ties preserve TuneIn's own
         // order — exact station-name matches float, the rest stay put.
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        return await sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     /// TuneIn stations matching `query`, ranked — the Radio tab's search.
@@ -1904,8 +1978,28 @@ public final class MusicSearchService {
         }
     }
 
-    func sortContentByIntelligentSearch(playableContent: [PlayableContent], query: String) -> [PlayableContent] {
-        SearchRanking.sort(playableContent, query: query, recentlyPlayedIDs: recentlyPlayedIDs)
+    func sortContentByIntelligentSearch(playableContent: [PlayableContent], query: String) async -> [PlayableContent] {
+        // Part of a merged search: the merged list is ranked once, whole,
+        // so ranking each provider's share first was work thrown away.
+        guard !Self.ranksMergedResults else { return playableContent }
+        return await Self.ranked(playableContent, query: query, recentlyPlayedIDs: recentlyPlayedIDs)
+    }
+
+    /// Set for the providers of a merged search (see `search(for:)`). Task
+    /// local, so a search elsewhere meanwhile — the Radio tab's — still ranks.
+    @TaskLocal static var ranksMergedResults = false
+
+    /// `SearchRanking.sort`, off the main thread: it normalizes every title
+    /// and subtitle several times over, for each of a few hundred results.
+    nonisolated static func ranked(
+        _ content: [PlayableContent],
+        query: String,
+        recentlyPlayedIDs: Set<String>,
+        groupArtists: Bool = false
+    ) async -> [PlayableContent] {
+        await Task.detached(priority: .userInitiated) {
+            SearchRanking.sort(content, query: query, recentlyPlayedIDs: recentlyPlayedIDs, groupArtists: groupArtists)
+        }.value
     }
 
     /// Returns `content` with its metadata's popularity set (preserving the
@@ -1983,7 +2077,7 @@ public final class MusicSearchService {
             )
         })
         
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        return await sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
     
     // SoundCloud track lookup
@@ -2033,9 +2127,10 @@ public final class MusicSearchService {
 
     private func plexRatingKey(from trackID: String) -> String? {
         let decoded = trackID.removingPercentEncoding ?? trackID
-        // Format: clientID:3:ratingKey
-        guard let separatorRange = decoded.range(of: ":3:") else { return nil }
-        return String(decoded[separatorRange.upperBound...])
+        // Format: clientID:3:ratingKey. Read past any number in the middle,
+        // not only 3, the same shape `MusicServiceParser` takes the id in.
+        guard let match = decoded.firstMatch(of: #/:\d+:(\d+)/#) else { return nil }
+        return String(match.1)
     }
     
     public func getSoundCloudLikedPlaylists(cursor: String? = nil) async -> (playlists: [PlayableContent], nextCursor: String?) {
@@ -2101,7 +2196,7 @@ public final class MusicSearchService {
         content.append(contentsOf: await albums.map { createDeezerAlbumContent(from: $0) })
         content.append(contentsOf: await artists.map { createDeezerArtistContent(from: $0) })
         content.append(contentsOf: await playlists.map { createDeezerPlaylistContent(from: $0) })
-        return sortContentByIntelligentSearch(playableContent: content, query: query)
+        return await sortContentByIntelligentSearch(playableContent: content, query: query)
     }
 
     public func lookupDeezerTrack(with id: String) async -> PlayableContent? {
@@ -2484,7 +2579,7 @@ public final class MusicSearchService {
         let library = FilesLibraryService.shared
         guard library.isConfigured else { return [] }
         await library.scanIfNeeded()
-        return sortContentByIntelligentSearch(playableContent: library.search(query: query), query: query)
+        return await sortContentByIntelligentSearch(playableContent: library.searchInBackground(query: query), query: query)
     }
 
     private func searchSubsonic(query: String) async -> [PlayableContent] {
@@ -2493,7 +2588,26 @@ public final class MusicSearchService {
         content.append(contentsOf: (result.song ?? []).map(\.toPlayable))
         content.append(contentsOf: (result.album ?? []).map(\.toPlayable))
         content.append(contentsOf: (result.artist ?? []).map(\.toPlayable))
-        return sortContentByIntelligentSearch(playableContent: content, query: query)
+        return await sortContentByIntelligentSearch(playableContent: content, query: query)
+    }
+
+    /// Books matching a query, in each of the listener's book libraries.
+    private func searchAudiobookshelf(query: String) async -> [PlayableContent] {
+        let shelf = AudiobookshelfAPI.shared
+        guard shelf.isConfigured, let libraries = await shelf.libraries() else { return [] }
+        // Every library at once, kept in the server's order.
+        let found = await withTaskGroup(of: (Int, [PlayableContent]).self) { group in
+            for (index, library) in libraries.enumerated() {
+                group.addTask { (index, await shelf.search(libraryID: library.id, query: query).map(\.toPlayable)) }
+            }
+            var found: [Int: [PlayableContent]] = [:]
+            for await (index, books) in group {
+                found[index] = books
+            }
+            return found
+        }
+        let books = found.keys.sorted().flatMap { found[$0] ?? [] }
+        return await sortContentByIntelligentSearch(playableContent: books, query: query)
     }
 
     public func lookupSubsonicTrack(with id: String) async -> PlayableContent? {
@@ -2533,6 +2647,80 @@ public final class MusicSearchService {
 
     public func lookupSubsonicPlaylistTracks(id: String) async -> [PlayableContent] {
         (await subsonic.playlist(for: id)?.entry ?? []).map(\.toPlayable)
+    }
+
+    /// Every song of a Subsonic album, playlist or artist, or nil if the
+    /// server couldn't list them (each request tried three times) — for a
+    /// download, which would otherwise take an artist with an album that
+    /// failed to load for the whole artist. Bounded like the queue's
+    /// expansion (`subsonicContainerTracks`): 30 albums, 200 songs.
+    public func allSubsonicSongs(for content: PlayableContent) async -> [PlayableContent]? {
+        let id = content.content.id
+        let songs: [PlayableContent]
+        switch content.content.type {
+        case .album:
+            guard let album = await Self.retrying({ await self.subsonic.album(for: id) }) else { return nil }
+            songs = (album.song ?? []).map(\.toPlayable)
+        case .playlist:
+            guard let playlist = await Self.retrying({ await self.subsonic.playlist(for: id) }) else { return nil }
+            songs = (playlist.entry ?? []).map(\.toPlayable)
+        case .artist:
+            guard let artist = await Self.retrying({ await self.subsonic.artist(for: id) }) else { return nil }
+            let albums = (artist.album ?? []).sorted { ($0.year ?? 0) < ($1.year ?? 0) }.prefix(30)
+            let byAlbum = await withTaskGroup(of: (Int, [PlayableContent]?).self) { group in
+                for (index, album) in albums.enumerated() {
+                    group.addTask {
+                        let full = await Self.retrying({ await self.subsonic.album(for: album.id) })
+                        return (index, full.map { ($0.song ?? []).map(\.toPlayable) })
+                    }
+                }
+                var results = [[PlayableContent]?](repeating: nil, count: albums.count)
+                for await (index, songs) in group {
+                    results[index] = songs
+                }
+                return results
+            }
+            guard !byAlbum.contains(where: { $0 == nil }) else { return nil }
+            songs = Array(byAlbum.compactMap { $0 }.flatMap { $0 }.prefix(200))
+        default:
+            return nil
+        }
+        return songs.isEmpty ? nil : songs
+    }
+
+    /// What an Apple Music artist plays as on a speaker: their albums oldest
+    /// first, as the artist page's Discography plays them. A library artist
+    /// plays the library's albums, or its songs when it has no albums of its
+    /// own. Apple Music has no artist container on Sonos, so the artist's own
+    /// URI is empty and the speaker turns it down (UPnP 804). `nil` for an
+    /// artist Sonos queues itself (Plex) or that `containerTracks` expands.
+    public func artistContents(for content: PlayableContent) async -> [PlayableContent]? {
+        // "yyyy-MM-dd" sorts as text; undated ones go last.
+        func released(_ item: AppleLibraryItem) -> String { item.attributes.releaseDate ?? "~" }
+        let id = content.content.id
+        switch (content.content.type, content.content.service) {
+        case (.libraryArtist, .apple):
+            let albums = await appleLibraryArtistAlbumLookup(id: id)?.data ?? []
+            guard albums.isEmpty else {
+                return albums.sorted { released($0) < released($1) }.compactMap(\.toPlayable)
+            }
+            // Album by album, in track order.
+            return await apple.librarySongs(byArtist: content.title)
+                .sorted {
+                    (released($0), $0.attributes.albumName ?? "", $0.attributes.trackNumber ?? 0)
+                        < (released($1), $1.attributes.albumName ?? "", $1.attributes.trackNumber ?? 0)
+                }
+                .compactMap(\.toPlayable)
+        case (.artist, .apple):
+            let artist: Artist? = try? await lookup(id: id)
+            let albums = (artist?.albums ?? []).map(\.toPlayable)
+                .sorted { ($0.metadata?.albumYear ?? .distantFuture) < ($1.metadata?.albumYear ?? .distantFuture) }
+            // Singles only when the artist has nothing else.
+            let full = albums.filter { $0.metadata?.isSingle != true }
+            return full.isEmpty ? albums : full
+        default:
+            return nil
+        }
     }
 
     /// The tracks inside a direct-HTTP service's container, in play order —

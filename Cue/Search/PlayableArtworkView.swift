@@ -55,6 +55,8 @@ struct PlayableArtworkView: View {
             router?.navigate(to: .mediaDetail(content: item, group: selectedGroupService?.group))
         case .artist, .libraryArtist:
             router?.navigate(to: .artistDetail(content: item, group: selectedGroupService?.group))
+        case .audiobook:
+            router?.navigate(to: .audiobookDetail(content: item))
         case .track, .favorite, .radio, .artistRadio, .liveRadio, .songRadio, .unique:
             play()
         case .libraryTrack:

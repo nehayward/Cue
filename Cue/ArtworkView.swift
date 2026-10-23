@@ -76,6 +76,12 @@ struct ArtworkView: View {
         return currentImage ?? cachedImage
     }
 
+    /// From the stream the speaker reports as well as the source, which a
+    /// switch updates a poll later.
+    private var isLineIn: Bool {
+        group.playbackService == .lineIn || group.coordinatorRoom.track.lineInSourceID != nil
+    }
+
     var body: some View {
         VStack {
             decoratedArtwork
@@ -136,7 +142,10 @@ struct ArtworkView: View {
                         // TV) has no artwork to hold and still clears, and so
                         // does a room switch: there is nothing to hold on to
                         // when the image belongs to the room we just left.
-                        if group.coordinatorRoom.track.isEmpty || isShowingAnotherRoomsImage {
+                        // Line-in never gets a cover, so it clears too
+                        // rather than keeping the last song's.
+                        let track = group.coordinatorRoom.track
+                        if track.isEmpty || track.lineInSourceID != nil || isShowingAnotherRoomsImage {
                             setImage(nil, fade: fade)
                         }
                         return
@@ -203,7 +212,7 @@ struct ArtworkView: View {
                     .foregroundStyle(.thickMaterial)
                     .aspectRatio(contentMode: .fit)
                     .overlay {
-                        if group.playbackService != .lineIn && group.coordinatorRoom.track.sonosAlbumArtURL == nil && showBadge && displayImage == nil {
+                        if !isLineIn && group.coordinatorRoom.track.sonosAlbumArtURL == nil && showBadge && displayImage == nil {
                             Image(systemName: "music.note")
                                 .resizable()
                                 .scaledToFit()
@@ -212,7 +221,7 @@ struct ArtworkView: View {
                                 .scaleEffect(0.5)
                                 .tint(Color.primary.gradient)
                         }
-                        if group.playbackService == .lineIn, showBadge {
+                        if isLineIn, showBadge {
                             Image(systemName: "audio.jack.stereo")
                                 .resizable()
                                 .scaledToFit()

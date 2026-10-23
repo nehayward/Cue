@@ -18,6 +18,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
     case sonosRadio
     case pandora
     case subsonic
+    /// An Audiobookshelf server: books, signed in to in Cue.
+    case audiobookshelf
     /// Audio files in a folder the user picked — on this device or in
     /// iCloud Drive. Indexed and played by the app itself; there is no
     /// account and no server.
@@ -47,6 +49,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             "Pandora"
         case .subsonic:
             "Subsonic"
+        case .audiobookshelf:
+            "Audiobookshelf"
         case .files:
             "Files"
         }
@@ -76,6 +80,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             true
         case .subsonic:
             true
+        case .audiobookshelf:
+            true
         case .files:
             true
         }
@@ -89,6 +95,9 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             .aspectRatio(contentMode: .fit)
     }
     
+    /// Audiobookshelf's mark: a book, as `MusicService` draws it.
+    public static let audiobookshelfSymbolName = "book.closed.fill"
+
     private var librarySymbolName: String {
         if #available(iOS 26.0, macOS 26.0, visionOS 26.0, watchOS 26.0, *) {
             return "music.pages.fill"
@@ -117,6 +126,12 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .foregroundStyle(brandColor.gradient)
         case .files:
             SwiftUI.Image(systemName: "folder.fill")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor.gradient)
+        case .audiobookshelf:
+            // No badge in the asset catalog: a symbol, as for Subsonic.
+            SwiftUI.Image(systemName: Self.audiobookshelfSymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .foregroundStyle(brandColor.gradient)
@@ -198,6 +213,11 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
+        case .audiobookshelf:
+            Image(systemName: Self.audiobookshelfSymbolName)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(brandColor.gradient)
         case .sonosRadio, .pandora:
 #if targetEnvironment(macCatalyst)
             // Catalyst renders unrasterized asset images at full size inside menus,
@@ -267,6 +287,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             Image(systemName: "externaldrive.fill.badge.icloud")
         case .files:
             Image(systemName: "folder.fill")
+        case .audiobookshelf:
+            Image(systemName: Self.audiobookshelfSymbolName)
         case .sonosRadio, .pandora:
             // Full-colour badges: left in their original rendering, as
             // `image` does, so they don't collapse into a solid blob.
@@ -290,11 +312,12 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         // that stays dynamic where a converted Color might not.
         let tint: UIColor = brandColor == .primary ? .label : UIColor(brandColor)
         switch self {
-        case .apple, .library, .subsonic, .files:
+        case .apple, .library, .subsonic, .audiobookshelf, .files:
             let name = switch self {
             case .apple: "apple.logo"
             case .library: librarySymbolName
             case .subsonic: "externaldrive.fill.badge.icloud"
+            case .audiobookshelf: Self.audiobookshelfSymbolName
             default: "folder.fill"
             }
             if let symbol = UIImage(systemName: name) {
@@ -364,6 +387,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             Color(red: 54.0 / 255.0, green: 104.0 / 255.0, blue: 255.0 / 255.0)
         case .subsonic:
             Color(red: 255.0 / 255.0, green: 184.0 / 255.0, blue: 0 / 255.0)
+        case .audiobookshelf:
+            Color(red: 205.0 / 255.0, green: 140.0 / 255.0, blue: 80.0 / 255.0)
         case .files:
             // The Files app's folder blue.
             Color(red: 50.0 / 255.0, green: 150.0 / 255.0, blue: 255.0 / 255.0)

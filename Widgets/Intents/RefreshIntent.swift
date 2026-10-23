@@ -1,5 +1,5 @@
 import AppIntents
-import CloudStorage
+import Defaults
 import SonosKit
 #if canImport(WidgetKit)
 import WidgetKit
@@ -16,8 +16,8 @@ struct RefreshIntent: LiveActivityIntent {
     init() { }
 
     func perform() async throws -> some IntentResult {
-        guard CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false else {
-            throw IntentError.message("Subscribe to Super in Cue")
+        guard GroupStorageKeys.defaults.hasSuper else {
+            throw IntentError.superRequired
         }
 
         await Self.liveActivityManager.refresh()

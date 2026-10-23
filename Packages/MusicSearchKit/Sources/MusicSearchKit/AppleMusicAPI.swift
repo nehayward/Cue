@@ -692,12 +692,19 @@ public final class AppleMusicAPI {
     
     public func artistArtwork(for name: String, size: Int = 100) async -> URL? {
         guard await requestMusicAuthorization() else { return nil }
-        var request = MusicCatalogSearchRequest(term: name, types: [Artist.self])
-        request.includeTopResults = true
-        request.limit = 2
-        guard let results = try? await request.response() else { return nil }
-        return results.artists.first?.artwork?.url(width: size, height: size)
+        return await Self.artistArtworkLookups.url(for: "\(name)|\(size)") {
+            var request = MusicCatalogSearchRequest(term: name, types: [Artist.self])
+            request.includeTopResults = true
+            request.limit = 2
+            guard let results = try? await request.response() else { return nil }
+            return results.artists.first?.artwork?.url(width: size, height: size)
+        }
     }
+
+    /// Artist pictures found by name, kept for the session. A library artist
+    /// row with no picture of its own searched the catalog for one each
+    /// time it appeared — scrolling back over a list repeated the lot.
+    private static let artistArtworkLookups = ArtistArtworkLookups()
     
     public func libraryArtistAlbums(id: String) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
@@ -716,6 +723,42 @@ public final class AppleMusicAPI {
         }
     }
     
+    /// The library's songs credited to `artistName`, up to `limit`. A library
+    /// artist has no songs relationship, and one whose songs all sit on other
+    /// artists' albums (a soundtrack, a feature, songs saved from a playlist)
+    /// has no albums either, so they're found by searching the library.
+    public func librarySongs(byArtist artistName: String, limit: Int = 50) async -> [AppleLibraryItem] {
+        guard await requestMusicAuthorization() else { return [] }
+
+        let pageSize = 25
+        var matches: [AppleLibraryItem] = []
+        var offset = 0
+        while offset < 200 {
+            var components = URLComponents(string: "https://api.music.apple.com/v1/me/library/search")!
+            components.queryItems = [
+                URLQueryItem(name: "term", value: artistName),
+                URLQueryItem(name: "types", value: "library-songs"),
+                URLQueryItem(name: "limit", value: "\(pageSize)"),
+                URLQueryItem(name: "offset", value: "\(offset)"),
+            ]
+            guard let url = components.url,
+                  let data = try? await MusicDataRequest(urlRequest: .init(url: url)).response().data,
+                  let page = try? decoder.decode(AppleLibrarySearchContainer.self, from: data).results.librarySongs?.data,
+                  !page.isEmpty else { break }
+            matches += page
+            guard page.count == pageSize else { break }
+            offset += pageSize
+        }
+
+        // The term also matches titles and albums. Songs credited to the
+        // artist alone, else ones they share ("Noah Kahan & Hozier").
+        let solo = matches.filter { $0.attributes.artistName?.localizedCaseInsensitiveCompare(artistName) == .orderedSame }
+        let songs = solo.isEmpty
+            ? matches.filter { $0.attributes.artistName?.localizedCaseInsensitiveContains(artistName) ?? false }
+            : solo
+        return Array(songs.prefix(limit))
+    }
+
     public func librarySearch(term: String) async throws -> AppleLibrarySearchContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
@@ -762,9 +805,22 @@ public final class AppleMusicAPI {
     /// the path that turns a search result back into something playable here.
     public func songs(ids: [String]) async throws -> [Song] {
         guard await requestMusicAuthorization() else { return [] }
-        let request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: ids.map { MusicItemID($0) })
-        let response = try await request.response()
-        return Array(response.items)
+        // The catalog takes a limited number of ids per request, so a long
+        // queue goes in several, side by side.
+        let chunks = stride(from: 0, to: ids.count, by: 100).map { Array(ids[$0..<min($0 + 100, ids.count)]) }
+        return try await withThrowingTaskGroup(of: [Song].self) { group in
+            for chunk in chunks {
+                group.addTask {
+                    let request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: chunk.map { MusicItemID($0) })
+                    return Array(try await request.response().items)
+                }
+            }
+            var songs: [Song] = []
+            for try await page in group {
+                songs += page
+            }
+            return songs
+        }
     }
 
     public func requestMusicAuthorization() async -> Bool {
@@ -801,3 +857,17 @@ public final class AppleMusicAPI {
     }
 }
 
+
+/// Lookups by key, each made once: a second caller waits on the first
+/// one's answer, and an answer of none is remembered too.
+private actor ArtistArtworkLookups {
+    private var lookups: [String: Task<URL?, Never>] = [:]
+
+    func url(for key: String, lookUp: @escaping @Sendable () async -> URL?) async -> URL? {
+        if let lookup = lookups[key] { return await lookup.value }
+        if lookups.count >= 1000 { lookups.removeAll() }
+        let lookup = Task { await lookUp() }
+        lookups[key] = lookup
+        return await lookup.value
+    }
+}

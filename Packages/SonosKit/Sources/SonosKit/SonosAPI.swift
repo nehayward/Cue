@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import os
 import Network
 import Defaults
 
@@ -17,6 +18,13 @@ final class SonosAPI: NSObject {
     private lazy var transportSession: URLSession = transportSessionConfig
 
     var xmlParser = XMLParserSonos()
+    /// Each speaker's household id, by IP. A speaker doesn't change household,
+    /// and the id was read with a SOAP round trip from eight places — one of
+    /// them every time the app became active, where a failed read used to
+    /// sign every service out (see `KeychainTokenRefreshHandler.householdId`).
+    /// Kept for a while rather than forever in case an IP is reused.
+    private let householdIDs = OSAllocatedUnfairLock(initialState: [String: (id: String, readAt: ContinuousClock.Instant)]())
+    private static let householdIDLifetime: Duration = .seconds(600)
     lazy var decoder = JSONDecoder()
     lazy var encoder = JSONEncoder()
 
@@ -883,6 +891,18 @@ final class SonosAPI: NSObject {
     }
 
     func getHouseHoldID(for IP: String) async -> String {
+        if let cached = householdIDs.withLock({ $0[IP] }),
+           cached.readAt.duration(to: .now) < Self.householdIDLifetime {
+            return cached.id
+        }
+        let id = await readHouseHoldID(for: IP)
+        if !id.isEmpty {
+            householdIDs.withLock { $0[IP] = (id, .now) }
+        }
+        return id
+    }
+
+    private func readHouseHoldID(for IP: String) async -> String {
         if let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [], endpoint: "ZoneGroupTopology") {
             let xmlString = String(decoding: data, as: UTF8.self)
             let houseID = xmlParser.parseHouseID(xml: xmlString)
@@ -909,18 +929,19 @@ final class SonosAPI: NSObject {
         return ""
     }
     
-    func switchToLineIn(IP: String, ID: String) async {
+    /// Plays the line-in of speaker `ID` on the coordinator at `IP`, which
+    /// can be any speaker's: a line-in belongs to the household.
+    ///
+    /// - Returns: Whether the speaker took it.
+    @discardableResult
+    func switchToLineIn(IP: String, ID: String) async -> Bool {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),
             ("CurrentURI", "x-rincon-stream:\(ID)"),
             ("CurrentURIMetaData", "")
         ]
-        
-        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
-            if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
-            }
-        }
+
+        return await sendTransportCommand(ip: IP, action: "SetAVTransportURI", arguments: arguments)
     }
 
     // MARK: - Favorites

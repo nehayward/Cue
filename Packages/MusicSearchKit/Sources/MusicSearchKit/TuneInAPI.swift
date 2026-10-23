@@ -60,6 +60,29 @@ public final class TuneInAPI: Sendable {
         await streams(for: stationID).preferred?.url
     }
 
+    /// Where a station is, for the Radio map. Nil when TuneIn couldn't be
+    /// asked (offline, or turned away three times), so the caller asks again
+    /// later; a station TuneIn places nowhere comes back empty.
+    public func place(for stationID: String) async -> TuneInPlace? {
+        var url = URL(string: "https://opml.radiotime.com/describe.ashx")!
+        url.append(queryItems: [URLQueryItem(name: "id", value: stationID)])
+        let request = URLRequest(url: url)
+
+        let attempts = 3
+        for attempt in 1...attempts {
+            guard let (data, response) = try? await session.data(for: request) else { return nil }
+            // A 403 is TuneIn asking callers to slow down, the way
+            // `lookupStation` reads it: wait longer each time, half a
+            // second, then a second.
+            if (response as? HTTPURLResponse)?.statusCode == 403 {
+                if attempt < attempts { try? await Task.sleep(for: .milliseconds(500 * attempt)) }
+                continue
+            }
+            return parser.parsePlace(xmlData: data)
+        }
+        return nil
+    }
+
     public func lookupStation(for stationID: String) async -> TuneInStation? {
         var searchURL = URL(string: "https://opml.radiotime.com/describe.ashx")!
         let queryItems: [URLQueryItem] = [

@@ -32,9 +32,16 @@ struct PreferenceScreen: View {
 
     @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(Defaults.AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
+    @AppStorage(Defaults.AppStorageKeys.showAudiobooksTab) private var showAudiobooksTab: Bool = true
     @AppStorage(Defaults.AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     @AppStorage(Defaults.AppStorageKeys.routeQueueTransfer) private var routeQueueTransfer: QueueTransferPreference = .ask
+    @AppStorage(Defaults.AppStorageKeys.lyricsOnlineLookup) private var lyricsOnlineLookup: Bool = false
+#if DEBUG
+    // Off until it's known whether the car's Now Playing follows without it
+    // (`CarPlayInterface.start`).
+    @AppStorage(Defaults.AppStorageKeys.carPlayMiniPlayer) private var carPlayMiniPlayer: Bool = false
+#endif
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
@@ -487,6 +494,30 @@ struct PreferenceScreen: View {
                             )
                             .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
+                    Label {
+                        Toggle(isOn: $lyricsOnlineLookup) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Look Up Lyrics Online")
+                                Text("When a song's service has no timed lyrics, Cue asks LRCLIB, sending the song's title, artist, album and length.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .tint(.accent)
+                    } icon: {
+                        Image(systemName: "quote.bubble.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(7)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 1.0, green: 0.45, blue: 0.5), Color(red: 0.9, green: 0.25, blue: 0.4)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
                     // *Use iPhone Volume Buttons* used to sit here. It moved to
                     // the Lock Screen section, under the surface picker: it now
                     // gates that surface's slider as well as the buttons, and
@@ -898,10 +929,20 @@ struct PreferenceScreen: View {
                     Toggle(isOn: $screenshotArtwork) {
                         Label("Screenshot Artwork", systemImage: "photo.artframe")
                     }
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                    Toggle(isOn: $carPlayMiniPlayer) {
+                        Label("CarPlay MiniPlayer", systemImage: "car")
+                    }
+#endif
                 } header: {
                     Text("Debug")
                 } footer: {
-                    Text("Draws every cover as the player's background gradient, for App Store screenshots. Covers already on screen change when they load again.")
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Screenshot Artwork draws every cover as the player's background gradient, for App Store screenshots. Covers already on screen change when they load again.")
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                        Text("CarPlay MiniPlayer off (the default in Debug builds for now) hides the MiniPlayer in CarPlay, to see whether the car's Now Playing then follows Cue's own player after Apple Music. Takes effect the next time the car connects.")
+#endif
+                    }
                 }
 #endif
             }
@@ -923,7 +964,7 @@ struct PreferenceScreen: View {
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
         .withAlert()
         .task {
-            try? await subscriptionService.checkSubscription()
+            await subscriptionService.checkSubscription()
             libraryShare = await sonosService.libraryShare()
 #if DEBUG
             servers = await sonosService.services()
@@ -1035,7 +1076,9 @@ struct PreferenceScreen: View {
         Binding(
             get: { sonosService.isEnabled },
             set: { enabled in
-                if !enabled, PlaybackRoute.shared.destination != .device {
+                // The choice, not the route, which already reads as this
+                // device on cellular while a speaker is still chosen.
+                if !enabled, PlaybackRoute.shared.chosen != .device {
                     PlaybackRoute.shared.switchTo(.device, carrying: false)
                 }
                 withAnimation {
@@ -1047,10 +1090,14 @@ struct PreferenceScreen: View {
 
     private var subscriptionStatusLine: Text {
         let info = subscriptionService.subscription.info
-        let plan = info.flatMap { planName(for: $0.productIdentifier) }
+        var plan = info.flatMap { planName(for: $0.productIdentifier) }
 
         if plan == "Lifetime" {
             return Text("Lifetime")
+        }
+        // "Annual Free Trial · Renews …": the renewal is the first payment.
+        if info?.isTrial == true {
+            plan = [plan, "Free Trial"].compactMap { $0 }.joined(separator: " ")
         }
         if let info, let expiration = info.expirationDate {
             let dateText = Text(expiration, style: .date)
@@ -1095,6 +1142,29 @@ struct PreferenceScreen: View {
                         .background(
                             RoundedRectangle(cornerRadius: 8)
                                 .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.35, blue: 0.45), Color(red: 0.8, green: 0.2, blue: 0.35)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        )
+                        .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                }
+            }
+            Toggle(isOn: $showAudiobooksTab) {
+                Label {
+                    VStack(alignment: .leading) {
+                        Text("Show Audiobooks Tab")
+                        Text("The book you're listening to, ready to resume, and every book on Plex and Audiobookshelf. Hidden on its own while offline.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "book.fill")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white)
+                        .bold()
+                        .padding(8)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(LinearGradient(colors: [Color(red: 0.98, green: 0.6, blue: 0.2), Color(red: 0.9, green: 0.42, blue: 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
                         )
                         .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                 }

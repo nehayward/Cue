@@ -69,7 +69,7 @@ struct ProviderLibrary {
         case .library: libraryDestination(for: collection)
         case .plex: plexDestination(for: collection)
         case .files: Self.filesDestination(for: collection)
-        case .tidal, .tuneIn, .sonosRadio, .pandora: nil
+        case .tidal, .tuneIn, .sonosRadio, .pandora, .audiobookshelf: nil
         }
     }
 
@@ -354,7 +354,7 @@ struct ProviderLibrary {
                 sortKey: "files.songs",
                 refreshAction: { await files.scan() },
                 searchAction: { query, offset in
-                    offset == 0 ? files.search(query: query).filter { $0.content.type == .track } : []
+                    offset == 0 ? await files.searchInBackground(query: query).filter { $0.content.type == .track } : []
                 },
                 loadingStatus: {
                     if files.isScanning {
@@ -420,9 +420,14 @@ struct ProviderLibrary {
                 loadingStatus: PlexLibraryLists.songSyncStatus(musicSearchService: musicSearchService)
             )
         case .playlists:
-            return .playableGridScreen(title: "Playlists", items: Bindable(plex).userPlaylists, action: { offset in
-                await plex.updateUserPlaylists(offset: offset)
-            })
+            return .playableGridScreen(
+                title: "Playlists",
+                items: Bindable(plex).userPlaylists,
+                sort: PlexLibraryLists.playlistSort(plexBrowseService: plex),
+                action: { offset in
+                    await plex.updateUserPlaylists(offset: offset)
+                }
+            )
         default:
             return nil
         }

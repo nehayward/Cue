@@ -10,15 +10,21 @@ final class AppBootstrapper {
 
     func bootstrap() {
         UITextField.appearance().clearButtonMode = .whileEditing
-        SubscriptionService.shared.initialize(key: CloudKeys.hasSubscription)
-        Analytics.shared.configure(token: "343f1efbe07acecdefdcd6f71f351673", userID: SubscriptionService.shared.userID)
-        RemoteFeatureFlags.shared.fetch()
-
-        // First entry of the ordered selection list is the primary service.
-        if let stored = UserDefaults.standard.string(forKey: AppStorageKeys.selectedSearchServices),
-           let primary = stored.split(separator: ",").first {
-            Analytics.shared.setSelection(metadata: ["MusicService": String(primary)])
+        // The last answer stands in for one until RevenueCat or StoreKit gives
+        // it, so Super doesn't flash the free tier at launch (the Lock Screen
+        // card, the volume buttons, every room past the first).
+        SubscriptionService.shared.resume(activeUntil: GroupStorageKeys.defaults.superUntil)
+        // Analytics identifies by the RevenueCat user, so it waits for
+        // RevenueCat, which waits for the first unlock after a restart.
+        SubscriptionService.shared.initialize {
+            Analytics.shared.configure(token: "343f1efbe07acecdefdcd6f71f351673", userID: SubscriptionService.shared.userID)
+            // First entry of the ordered selection list is the primary service.
+            if let stored = UserDefaults.standard.string(forKey: AppStorageKeys.selectedSearchServices),
+               let primary = stored.split(separator: ",").first {
+                Analytics.shared.setSelection(metadata: ["MusicService": String(primary)])
+            }
         }
+        RemoteFeatureFlags.shared.fetch()
 
         configureNuke()
     }

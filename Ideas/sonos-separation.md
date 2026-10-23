@@ -107,21 +107,40 @@ Measured at the start of this work:
 
 ## Phase 2 — One playback layer
 
-- [ ] **`PlaybackController` protocol** — `claude/playback-controller`
-  Play, pause, next, previous, seek, queue (read, add, move, remove), volume,
-  and now-playing state, with two implementations: `LocalPlaybackService` and
-  a new `SonosGroupController` wrapping `SonosService` for one group.
-  `PlaybackRoute` exposes whichever is active.
-  Done when: the protocol exists with both implementations and
-  `PlaybackRoute.controller` returns the right one.
+- [x] **`PlaybackController` protocol** — `claude/modest-gates-wgmawc`
+  `Cue/Services/PlaybackController.swift`: now-playing state, transport,
+  seek and scrubbing, shuffle and repeat, the queue gauge and the sleep
+  timer, in seconds on both sides. `LocalPlaybackService` conforms (most of
+  it was its API already); `SonosGroupController` wraps one group by
+  coordinator id. `PlaybackRoute.controller` is the route's,
+  `PlaybackRoute.presented` the one on screen (see below). Not in it yet:
+  queue editing (add, move, remove) and volume — the panel and the volume
+  row still have a view per backend.
 
 - [ ] **Move the player screens onto it** — `claude/player-on-controller`
-  `Views/PlayerView.swift`, `LargePlayerView.swift`,
-  `ContainerLargePlayerView.swift`, `Queue/QueueScreen.swift`,
-  `Views/QueueNextUpView.swift` (`GroupNextUpView`), `VolumeMultiControlView`,
-  `VolumeControlsScreen`, `HardwareVolumeService`. Speaker-only extras
-  (grouping, sleep timer on the speaker, EQ) stay behind
-  `controller as? SonosGroupController`.
+  Done for `Views/PlayerView.swift`, the mini player (`MusicPlaybackView` in
+  `CueApp.swift`) and the choice in `Views/QueueNextUpView.swift`: one set
+  of views reads `presented`, and a switch no longer rebuilds the player
+  (`PlayerSessionModifier` had put the whole screen in one of two `if`
+  branches, which rebuilt it, state and all, on every switch).
+  **The hand-off hold**: while a switch carries a queue across,
+  `presented` stays on the source until the target is playing the same
+  song with its cover in the player's cache entry (`PlaybackRoute.hold`,
+  `releaseHold(whenShowing:on:)`), so the player carries on with the song
+  instead of showing the speaker's last track, then jumping. Held,
+  `presented` is a `HeldPlaybackController` (the source's song, the hold's
+  clock, no commands), so the views need no special cases: the transport
+  rests, the bar follows what's heard (running through an overlap, waiting
+  while neither end plays), and the route label reads "Moving to …". The
+  queue panel and the player's menus rest too. Speaker → phone goes over
+  once the phone is armed. Ends 12 s after the source stops, 30 s at most.
+  Left: `LargePlayerView.swift` / `ContainerLargePlayerView.swift` (the
+  speaker-list player), `Queue/QueueScreen.swift`, the two queue panels
+  (`LocalNextUpView` / `GroupNextUpView`), `VolumeMultiControlView`,
+  `VolumeControlsScreen`, `HardwareVolumeService`, and volume and queue
+  editing on the protocol so the volume row and the panel can be one view.
+  Speaker-only extras (grouping, sleep timer on the speaker, EQ) stay
+  behind `controller.group`.
   Done when: none of these files branch on `route.group` for transport,
   queue or volume.
 

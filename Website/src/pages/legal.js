@@ -7,7 +7,7 @@ import { blocks } from '../lib/markdown.js';
 // Update `updated` whenever the wording changes.
 
 const privacy = {
-	updated: '2026-10-01',
+	updated: '2026-10-06',
 	summary: 'Cue doesn’t sell or share your data, has no accounts, and keeps your music logins on your device.',
 	sections: [
 		{
@@ -17,6 +17,10 @@ const privacy = {
 		{
 			title: 'Music services',
 			body: 'Cue talks directly to the services you connect — Apple Music, Plex, your Subsonic server, TuneIn — and to your Sonos speakers on your local network. Those requests go from your device to that service; they don’t pass through us. Songs you play may be reported to your own Plex or Subsonic server so its play counts stay accurate.',
+		},
+		{
+			title: 'Lyrics',
+			body: 'When a song’s own service has no timed lyrics, Cue asks LRCLIB (lrclib.net), a free lyrics database, sending only the song’s title, artist, album and length — nothing about you. Lyrics found are kept on your device. You can turn this off in Settings ▸ Playback ▸ Look Up Lyrics Online.',
 		},
 		{
 			title: 'Usage analytics',

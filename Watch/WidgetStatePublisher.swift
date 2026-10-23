@@ -36,8 +36,8 @@ enum WidgetStatePublisher {
             // Still coming, not failed: failed ones wait for Cue to open.
             songsToDownload: store.remainingCount - store.failedCount,
             bytesUsed: store.bytesUsed,
-            nowPlayingTitle: player.current?.title,
-            nowPlayingArtist: player.current?.artist,
+            nowPlayingTitle: player.nowPlayingTitle,
+            nowPlayingArtist: player.nowPlayingArtist,
             isPlaying: player.isPlaying
         )
         guard state != published else { return }

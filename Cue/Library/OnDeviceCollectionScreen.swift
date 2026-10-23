@@ -1,3 +1,4 @@
+import Nuke
 import NukeUI
 import SonosKit
 import SwiftUI
@@ -104,7 +105,14 @@ struct OnDeviceGroupRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            LazyImage(url: group.artwork) { phase in
+            // Decoded at the row's size: a Files cover is the file's own
+            // embedded picture, often 1500–3000 px — 9 to 36 MB once decoded
+            // in full, for a 48 pt square.
+            LazyImage(request: group.artwork.map { url in
+                var request = ImageRequest(url: url)
+                request.thumbnail = .init(maxPixelSize: ContentArtworkView.maxPixelSize(for: 48))
+                return request
+            }) { phase in
                 if let image = phase.image {
                     image.resizable().scaledToFill()
                 } else {

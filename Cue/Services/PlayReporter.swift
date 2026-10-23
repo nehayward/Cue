@@ -42,6 +42,8 @@ final class PlayReporter {
         var duration: TimeInterval
         var sentNowPlaying = false
         var lastTimeline: (state: PlexAPI.TimelineState, at: Date)?
+        /// One of a book's files (`AudiobookPlayer`).
+        var isBookFile = false
     }
 
     private var play: Play?
@@ -53,7 +55,8 @@ final class PlayReporter {
         if play?.playID != playID {
             end()
             guard let item, let server = Self.server(for: item) else { return }
-            play = Play(playID: playID, server: server, startedAt: .now, tracker: ListenTracker(duration: duration), duration: duration)
+            play = Play(playID: playID, server: server, startedAt: .now, tracker: ListenTracker(duration: duration), duration: duration,
+                        isBookFile: AudiobookPlayer.shared.contains(item))
         }
         guard var current = play else { return }
         current.position = position
@@ -93,14 +96,28 @@ final class PlayReporter {
     }
 
     /// The play is over — the song was left, or playback came down. Plex
-    /// hears where it got to.
+    /// hears where it got to. A book's file left short of its end is
+    /// reported paused there, not stopped: Plex counts a file stopped
+    /// partway played, which for a book reads as the listener past it
+    /// (and, for a book of one file, finished).
     func end() {
         guard let finished = play else { return }
         play = nil
         if case .plex(let ratingKey) = finished.server, finished.lastTimeline != nil {
-            Self.sendTimeline(ratingKey: ratingKey, state: .stopped, time: finished.position, duration: finished.duration)
+            let partway = finished.isBookFile && finished.position < finished.duration * Self.playedThreshold
+            Self.sendTimeline(ratingKey: ratingKey, state: partway ? .paused : .stopped, time: finished.position, duration: finished.duration)
         }
     }
+
+    /// Lets the play go without telling the server where it got to: a book
+    /// whose place another device has moved since (the Apple Watch), where
+    /// this device's last spot would take the book back.
+    func forget() {
+        play = nil
+    }
+
+    /// How far into a track Plex counts it played from its reports.
+    static let playedThreshold = 0.9
 
     private static func sendTimeline(ratingKey: String, state: PlexAPI.TimelineState, time: TimeInterval, duration: TimeInterval) {
         Task { await PlexAPI.shared.reportTimeline(ratingKey: ratingKey, state: state, time: time, duration: duration) }

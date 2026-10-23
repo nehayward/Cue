@@ -19,8 +19,7 @@ struct URLPlayMediaView: View {
         SelectGroupView(content: content, defaultPosition: position, onQueueSelection: { group, selectedPosition in
             guard let content else { return }
             try await sonosService.queue(playable: content, group: group, position: selectedPosition)
-            playHistoryService.history.remove(content)
-            playHistoryService.history.insert(content, at: 0)
+            playHistoryService.record(content)
             await sonosService.play(ip: group.ip)
         })
         .task {

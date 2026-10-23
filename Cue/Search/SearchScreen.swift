@@ -56,6 +56,10 @@ struct SearchScreen: View {
     /// `.task` below skip an identical re-search when it re-fires on
     /// navigation back from a detail.
     @State private var lastCompletedSearchKey: String?
+    /// The search key the shown results answer, partial answers included.
+    /// "No Results" waits for it to match: between a keystroke and its
+    /// search starting, the old results and `isLoading` are both stale.
+    @State private var answeredSearchKey: String?
     @State private var isLoading: Bool = false
     @State private var keyboardSelectedIndex: Int?
 
@@ -118,7 +122,9 @@ struct SearchScreen: View {
     /// picks the single-service results view. Separators prevent key
     /// collisions between adjacent components.
     private var searchTaskKey: String {
-        ([offline.isActive ? "offline" : "online", musicSearchService.query, searchSelection.primary.rawValue]
+        // Trimmed, as the search itself is: a space typed between words
+        // doesn't search every service again for the same thing.
+        ([offline.isActive ? "offline" : "online", musicSearchService.query.trimmingCharacters(in: .whitespaces), searchSelection.primary.rawValue]
             + selectedSearchServices.map(\.rawValue).sorted())
             .joined(separator: "|")
     }
@@ -179,7 +185,7 @@ struct SearchScreen: View {
                                 plexLibrariesFilters: $plexLibrariesFilters
                             )
 
-                            if !isLoading, currentFilteredResults.isEmpty, !showsApplePermissionsPrompt {
+                            if !isLoading, answeredSearchKey == searchTaskKey, currentFilteredResults.isEmpty, !showsApplePermissionsPrompt {
                                 ContentUnavailableView.search(text: musicSearchService.query)
                                     .listRowSeparator(.hidden)
                                     .listRowBackground(Color.clear)
@@ -284,13 +290,15 @@ struct SearchScreen: View {
                 // which a detail screen may have changed.
                 // Offline, the rows come from the on-device library as the
                 // query changes; there's no service to ask.
+                let searchedKey = searchTaskKey
                 guard !offline.isActive else {
                     isLoading = false
+                    answeredSearchKey = searchedKey
                     return
                 }
-                let searchedKey = searchTaskKey
                 if searchedKey == lastCompletedSearchKey, !musicSearchService.results.isEmpty {
                     isLoading = false
+                    answeredSearchKey = searchedKey
                     return
                 }
                 isLoading = true
@@ -311,11 +319,13 @@ struct SearchScreen: View {
                 // memoized as done — the next re-fire retries the search so
                 // the missing service's rows can appear.
                 lastCompletedSearchKey = allProvidersAnswered ? searchedKey : nil
+                answeredSearchKey = searchedKey
                 suggestion = nil
                 isLoading = false
             }
-            .animation(.snappy, value: playHistoryService.history)
-            .animation(.snappy, value: musicSearchService.results)
+            // No animation for a new result set: animating one made the List
+            // diff and resize every changed row inside a single frame, 100 ms
+            // on an iPhone SE each time a search answered while typing.
             .animation(.snappy, value: filters)
             .animation(.snappy, value: searchCompletionTapped)
             .addDismiss(override: contentToAdd != nil) {
@@ -495,15 +505,6 @@ struct SearchScreen: View {
     }
 #endif
 
-    @MainActor
-    private func showKeyboard() {
-        UIView.setAnimationsEnabled(false)
-        Task {
-            try await Task.sleep(for: .milliseconds(300))
-            UIView.setAnimationsEnabled(true)
-        }
-    }
-
     /// Drops services the user disabled in Settings from the stored
     /// selection, falling back to the first enabled service so the selection
     /// is never empty.
@@ -539,6 +540,11 @@ struct SearchScreen: View {
             router.path.append(RouterDestination.artistDetail(content: item, group: selectedGroupService.group))
         case .folder:
             router.path.append(RouterDestination.folderBrowse(item: item, title: item.title))
+        case .audiobook:
+            // Its page, as a tap opens; never an alarm's or a scene's music,
+            // nor queued on a speaker as a song.
+            guard contentToAdd?.add != true else { return }
+            router.path.append(RouterDestination.audiobookDetail(content: item))
         default:
             playItem(item)
         }

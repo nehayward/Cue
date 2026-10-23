@@ -101,6 +101,8 @@ enum ID3v2Parser {
                 if tags.duration == nil, let ms = TagText.number(in: text(frame).first), ms > 0 {
                     tags.duration = Double(ms) / 1000
                 }
+            case "USLT", "ULT":
+                tags.lyrics = tags.lyrics ?? lyrics(frame)
             case "APIC", "PIC":
                 if let picture = picture(frame, major: major), picture.type == 3 || pictureType != 3 {
                     tags.artwork = picture.data
@@ -176,6 +178,40 @@ enum ID3v2Parser {
             return TagText.string(view.bytes(2, view.count - 2), encoding: .utf16BigEndian)
         }
         return TagText.string(data, encoding: defaultLittleEndian ? .utf16LittleEndian : .utf16BigEndian)
+    }
+
+    // MARK: - Lyrics
+
+    /// USLT: an encoding byte, a three-letter language, a description
+    /// ended by a null in that encoding, then the words.
+    static func lyrics(_ frame: Data) -> String? {
+        let view = ByteView(frame)
+        guard view.count > 4 else { return nil }
+        let encoding = view.u8(0)
+        var cursor = 4
+        if encoding == 1 || encoding == 2 {
+            while cursor + 1 < view.count {
+                if view.u8(cursor) == 0, view.u8(cursor + 1) == 0 {
+                    cursor += 2
+                    break
+                }
+                cursor += 2
+            }
+        } else {
+            while cursor < view.count {
+                let byte = view.u8(cursor)
+                cursor += 1
+                if byte == 0 { break }
+            }
+        }
+        let body = view.bytes(cursor, view.count - cursor)
+        switch encoding {
+        case 0: return TagText.string(body, encoding: .isoLatin1)
+        case 3: return TagText.string(body, encoding: .utf8)
+        case 1: return decodeUTF16(body, defaultLittleEndian: true)
+        case 2: return decodeUTF16(body, defaultLittleEndian: false)
+        default: return nil
+        }
     }
 
     // MARK: - Pictures

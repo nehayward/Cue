@@ -18,13 +18,15 @@ struct PlayHistoryView: View {
         return Set(active.flatMap(\.filter.toContentType))
     }
 
-    private var filteredHistory: [PlayableContent] {
-        guard let activeTypes else { return Array(playHistoryService.history) }
-        return playHistoryService.history.filter { activeTypes.contains($0.content.type) }
+    /// The five rows shown, taken without copying or filtering the rest of
+    /// the history.
+    private var recentHistory: [PlayableContent] {
+        guard let activeTypes else { return Array(playHistoryService.history.prefix(5)) }
+        return Array(playHistoryService.history.lazy.filter { activeTypes.contains($0.content.type) }.prefix(5))
     }
 
     var body: some View {
-        let history = filteredHistory
+        let history = recentHistory
 
         Section {
             NavigationLink(value: RouterDestination.fullPlayHistoryList) {
@@ -33,12 +35,16 @@ struct PlayHistoryView: View {
                     .fontWeight(.semibold)
             }
             .listRowSeparator(.hidden)
-            .tag(UUID().uuidString)
+            // Stable: a fresh UUID re-tagged the row on every pass.
+            .tag("playHistoryHeader")
 
-            ForEach(history.prefix(5)) { item in
+            ForEach(history) { item in
                 PlayableContentView(item: item)
             }
         }
+        // Here rather than on the whole search screen, which then read (and
+        // compared) the entire synced history on every update.
+        .animation(.snappy, value: history)
         .listRowSpacing(0)
         .listSectionSpacing(0)
         .listRowInsets(.default)

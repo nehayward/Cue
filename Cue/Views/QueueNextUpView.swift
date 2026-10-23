@@ -7,15 +7,24 @@ import SwiftUI
 ///
 /// Sits beside the tab content the same way the bottom accessory does, and
 /// follows the same route, so the two never disagree about what "next" means.
+/// The presented route, like the player: while a hand-off carries the queue
+/// to a speaker, this keeps showing the queue being carried rather than the
+/// speaker's old one.
 struct QueueNextUpView: View {
     private var route: PlaybackRoute { .shared }
 
     var body: some View {
-        if let group = route.group {
-            GroupNextUpView(group: group)
-        } else {
-            LocalNextUpView()
+        Group {
+            if let group = route.presentedGroup {
+                GroupNextUpView(group: group)
+            } else {
+                LocalNextUpView()
+            }
         }
+        // Through a hand-off the rows are the source's, on their way out: a
+        // tap or an edit would play or change a queue the hand-off has
+        // already carried.
+        .disabled(route.isHolding)
     }
 }
 
@@ -23,44 +32,83 @@ struct QueueNextUpView: View {
 /// clear in the header, and the rows after the current track can be
 /// removed (swipe, or the context menu), moved to play next, or dragged into
 /// a new order. Played rows and the current one stay put.
+///
+/// While a station plays, the queue waits behind it (`station`) and the list
+/// says so the way a speaker's does on radio: "Not Active" in the header,
+/// the rows dimmed with no current one, and a row tapped goes back to the
+/// queue there.
 private struct LocalNextUpView: View {
     private var playback: LocalPlaybackService { .shared }
 
     @State private var editMode: EditMode = .inactive
-    @State private var clearConfirmation = false
 
+    /// Kept small: the rows, the header's buttons and the scroll that
+    /// follows the current song are views of their own, each reading only
+    /// what it shows — a skip used to rebuild the whole 1,700-row list from
+    /// here. This reads the queue and whether a station is in front of it.
     var body: some View {
+        let isParked = playback.isPlayingStation
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 14) {
-                Text("Next Up")
-                    .font(.title3.bold())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Next Up")
+                        .font(.title3.bold())
+                    if isParked, !playback.queue.isEmpty {
+                        Text("Not Active")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 Spacer(minLength: 8)
-                if !playback.isPlayingStation {
-                    controls
+                // A station alone has no queue to shuffle or repeat.
+                if !isParked || !playback.queue.isEmpty {
+                    LocalNextUpControls(editMode: $editMode)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.top, 14)
             .padding(.bottom, 10)
 
-            // A station is live: nothing follows it, so the panel reads as
-            // empty rather than listing the station as a one-row queue.
-            if playback.queue.isEmpty || playback.isPlayingStation {
+            // The music a book was started over, or the book left for
+            // music, to go back to.
+            BookMusicSwitchRow()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+
+            if playback.queue.isEmpty {
                 Spacer()
-                Text(playback.isPlayingStation ? "Live radio — nothing queued" : "Nothing queued")
+                Text(isParked ? "Live radio — nothing queued" : "Nothing queued")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                 Spacer()
             } else {
-                list
+                LocalQueueList(editMode: $editMode)
+                    .opacity(isParked ? 0.6 : 1)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
+}
+
+/// Shuffle, repeat, and the edit and clear menu, for the header.
+private struct LocalNextUpControls: View {
+    private var playback: LocalPlaybackService { .shared }
+
+    @Binding var editMode: EditMode
+    @State private var clearConfirmation = false
+
+    var body: some View {
+        // A book has no shuffle or repeat: its files are its chapters, in
+        // order, once.
+        if !playback.isOnBookFile {
+            modes
+        }
+        menu
+    }
 
     @ViewBuilder
-    private var controls: some View {
+    private var modes: some View {
         Button {
             HapticManager.shared.fireHaptic(.selection)
             withAnimation(.easeInOut(duration: 0.35)) {
@@ -76,7 +124,7 @@ private struct LocalNextUpView: View {
         .foregroundStyle(playback.isShuffled ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
         .accessibilityValue(playback.isShuffled ? "On" : "Off")
         // Off stays reachable with nothing left to shuffle.
-        .disabled(!playback.isShuffled && playback.upNext.count < 2)
+        .disabled(!playback.isShuffled && playback.upNextCount < 2)
         .help(playback.isShuffled ? "Shuffle On" : "Shuffle Off")
 
         Button {
@@ -91,7 +139,9 @@ private struct LocalNextUpView: View {
         .foregroundStyle(playback.repeatMode == .off ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.accentColor))
         .accessibilityValue(playback.repeatMode.title)
         .help(playback.repeatMode.title)
+    }
 
+    private var menu: some View {
         Menu {
             Button {
                 withAnimation {
@@ -101,14 +151,14 @@ private struct LocalNextUpView: View {
                 Label(editMode.isEditing ? "Done" : "Edit",
                       systemImage: editMode.isEditing ? "checkmark" : "pencil")
             }
-            .disabled(playback.upNext.isEmpty && !editMode.isEditing)
+            .disabled(playback.upNextCount == 0 && !editMode.isEditing)
 
             Button(role: .destructive) {
                 clearConfirmation = true
             } label: {
                 Label("Clear Up Next", systemImage: "trash")
             }
-            .disabled(playback.upNext.isEmpty)
+            .disabled(playback.upNextCount == 0)
         } label: {
             Image(systemName: "ellipsis")
                 .frame(width: 24, height: 24)
@@ -132,122 +182,176 @@ private struct LocalNextUpView: View {
             Text("The current song keeps playing.")
         }
     }
+}
+
+/// A queue row's identity: the song, and which copy of it in the queue.
+///
+/// Not a string: rebuilt for every row whenever the queue changes, and
+/// describing the service enum into each one was a measurable part of a
+/// skip with a long queue open.
+private struct QueueRowID: Hashable {
+    let service: MusicService
+    let songID: String
+    let occurrence: Int
+
+    /// The current song's row, counted from the rows before it rather than
+    /// by building all of them.
+    @MainActor static func current(in playback: LocalPlaybackService) -> QueueRowID? {
+        let index = playback.currentIndex
+        guard playback.queue.indices.contains(index) else { return nil }
+        let content = playback.queue[index].content
+        let occurrence = playback.queue[..<index].reduce(0) { count, item in
+            item.content.id == content.id && item.content.service == content.service ? count + 1 : count
+        }
+        return QueueRowID(service: content.service, songID: content.id, occurrence: occurrence)
+    }
+}
+
+/// The queue's rows. Reads the queue and nothing else, so a skip — which
+/// only moves `currentIndex` — leaves the list as it is; each row reads the
+/// current song itself (`LocalQueueRow`).
+private struct LocalQueueList: View {
+    private var playback: LocalPlaybackService { .shared }
+
+    @Binding var editMode: EditMode
 
     /// The queue's rows with an identity that follows the song rather than
     /// its position: keyed by position, a dragged row and every row between
     /// its old and new place changed identity, so the list swapped their
     /// contents instead of sliding the one row. The same song queued twice
     /// tells its copies apart by which occurrence each is.
-    private var rows: [(id: String, index: Int, item: PlayableContent)] {
-        var occurrences: [String: Int] = [:]
+    private var rows: [(id: QueueRowID, index: Int, item: PlayableContent)] {
+        var occurrences: [QueueRowID: Int] = [:]
         return playback.queue.enumerated().map { index, item in
-            let key = "\(item.content.service)/\(item.content.id)"
+            let key = QueueRowID(service: item.content.service, songID: item.content.id, occurrence: 0)
             let occurrence = occurrences[key, default: 0]
             occurrences[key] = occurrence + 1
-            return ("\(key)#\(occurrence)", index, item)
+            return (QueueRowID(service: key.service, songID: key.songID, occurrence: occurrence), index, item)
         }
     }
 
-    /// The current song's row, which the list opens on.
-    private var currentRowID: String? {
-        rows.first { $0.index == playback.currentIndex }?.id
-    }
-
-    /// Opens on the current song, with what's played above it to scroll
-    /// back to, and follows it as the queue moves on. Not while editing: a
-    /// reorder shouldn't yank the list away. Near the end of a short queue
-    /// the list can't scroll the current song all the way up, so the played
-    /// ones above it fill the space.
-    ///
-    /// By row id through `ScrollViewReader`: `List` ignores
-    /// `ScrollPosition.scrollTo(id:)`, which only drives a `ScrollView`, and
-    /// this has to stay a `List` for swipe-to-remove and drag-to-reorder.
-    private var list: some View {
+    var body: some View {
         ScrollViewReader { proxy in
-            rowList
-                // After the first layout: scrolled in the same pass as the
-                // list appears, it stays at the top.
-                .task {
-                    guard let currentRowID else { return }
-                    proxy.scrollTo(currentRowID, anchor: .top)
+            List {
+                ForEach(rows, id: \.id) { row in
+                    LocalQueueRow(index: row.index, item: row.item)
                 }
-                .onChange(of: playback.currentIndex) {
-                    guard !editMode.isEditing, let currentRowID else { return }
-                    withAnimation(.snappy) { proxy.scrollTo(currentRowID, anchor: .top) }
+                .onDelete { offsets in
+                    withAnimation { playback.removeFromQueue(at: offsets) }
                 }
+                .onMove { source, destination in
+                    withAnimation(.snappy) {
+                        playback.moveInQueue(from: source, to: destination)
+                    }
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .contentMargins(.bottom, 12, for: .scrollContent)
+            .environment(\.editMode, $editMode)
+            .background {
+                QueueScrollFollower(proxy: proxy, isEditing: editMode.isEditing)
+            }
         }
     }
+}
 
-    private var rowList: some View {
-        List {
-            ForEach(rows, id: \.id) { row in
-                let index = row.index
-                let item = row.item
-                let isUpcoming = index > playback.currentIndex
-                QueueNextUpRow(
-                    item: item,
-                    isCurrent: index == playback.currentIndex
-                )
-                .opacity(index < playback.currentIndex ? 0.5 : 1)
-                .onTapGesture { playback.play(at: index) }
-                .accessibilityAddTraits(.isButton)
-                .accessibilityHint("Plays this song")
-                .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .moveDisabled(!isUpcoming)
-                .deleteDisabled(!isUpcoming)
-                .swipeActions(edge: .leading) {
-                    if index > playback.currentIndex + 1 {
+/// Opens the list on the current song, with what's played above it to
+/// scroll back to, and follows it as the queue moves on. Not while editing:
+/// a reorder shouldn't yank the list away. Near the end of a short queue the
+/// list can't scroll the current song all the way up, so the played ones
+/// above it fill the space.
+///
+/// By row id through `ScrollViewReader`: `List` ignores
+/// `ScrollPosition.scrollTo(id:)`, which only drives a `ScrollView`, and
+/// this has to stay a `List` for swipe-to-remove and drag-to-reorder. A view
+/// of its own, so following the current song doesn't make the list read it.
+private struct QueueScrollFollower: View {
+    private var playback: LocalPlaybackService { .shared }
+
+    let proxy: ScrollViewProxy
+    let isEditing: Bool
+
+    var body: some View {
+        Color.clear
+            // After the first layout: scrolled in the same pass as the list
+            // appears, it stays at the top.
+            .task {
+                guard let row = QueueRowID.current(in: playback) else { return }
+                proxy.scrollTo(row, anchor: .top)
+            }
+            .onChange(of: playback.currentIndex) {
+                guard !isEditing, let row = QueueRowID.current(in: playback) else { return }
+                // A turn later: when the change came from a tap on a row,
+                // the list is still handling that tap and drops a scroll
+                // asked for in the same pass.
+                Task { @MainActor in
+                    withAnimation(.snappy) { proxy.scrollTo(row, anchor: .top) }
+                }
+            }
+    }
+}
+
+/// One queue row, with its swipes and menu. Reads the current song itself,
+/// so a skip redraws the rows on screen and nothing else.
+private struct LocalQueueRow: View {
+    private var playback: LocalPlaybackService { .shared }
+
+    let index: Int
+    let item: PlayableContent
+
+    var body: some View {
+        let current = playback.currentIndex
+        let isUpcoming = index > current
+        // Behind a station the queue's song isn't playing, so no row is
+        // current; a tap goes back to the queue from this one.
+        QueueNextUpRow(item: item, isCurrent: index == current && !playback.isPlayingStation)
+            .opacity(index < current ? 0.5 : 1)
+            .onTapGesture { playback.play(at: index) }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint("Plays this song")
+            .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .moveDisabled(!isUpcoming)
+            .deleteDisabled(!isUpcoming)
+            .swipeActions(edge: .leading) {
+                if index > current + 1 {
+                    Button {
+                        withAnimation { playback.moveToNext(at: index) }
+                    } label: {
+                        Label("Play Next", systemImage: "text.insert")
+                    }
+                    .tint(.accentColor)
+                }
+            }
+            // Any `swipeActions` turns off the Delete swipe `onDelete`
+            // would synthesize, so the trailing one is spelled out.
+            .swipeActions(edge: .trailing) {
+                if isUpcoming {
+                    Button(role: .destructive) {
+                        withAnimation { playback.removeFromQueue(at: [index]) }
+                    } label: {
+                        Label("Remove", systemImage: "xmark")
+                    }
+                }
+            }
+            .contextMenu {
+                if isUpcoming {
+                    if index > current + 1 {
                         Button {
                             withAnimation { playback.moveToNext(at: index) }
                         } label: {
                             Label("Play Next", systemImage: "text.insert")
                         }
-                        .tint(.accentColor)
                     }
-                }
-                // Any `swipeActions` turns off the Delete swipe `onDelete`
-                // would synthesize, so the trailing one is spelled out.
-                .swipeActions(edge: .trailing) {
-                    if isUpcoming {
-                        Button(role: .destructive) {
-                            withAnimation { playback.removeFromQueue(at: [index]) }
-                        } label: {
-                            Label("Remove", systemImage: "xmark")
-                        }
-                    }
-                }
-                .contextMenu {
-                    if isUpcoming {
-                        if index > playback.currentIndex + 1 {
-                            Button {
-                                withAnimation { playback.moveToNext(at: index) }
-                            } label: {
-                                Label("Play Next", systemImage: "text.insert")
-                            }
-                        }
-                        Button(role: .destructive) {
-                            withAnimation { playback.removeFromQueue(at: [index]) }
-                        } label: {
-                            Label("Remove", systemImage: "xmark")
-                        }
+                    Button(role: .destructive) {
+                        withAnimation { playback.removeFromQueue(at: [index]) }
+                    } label: {
+                        Label("Remove", systemImage: "xmark")
                     }
                 }
             }
-            .onDelete { offsets in
-                withAnimation { playback.removeFromQueue(at: offsets) }
-            }
-            .onMove { source, destination in
-                withAnimation(.snappy) {
-                    playback.moveInQueue(from: source, to: destination)
-                }
-            }
-        }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .contentMargins(.bottom, 12, for: .scrollContent)
-        .environment(\.editMode, $editMode)
     }
 }
 
@@ -347,46 +451,50 @@ private struct GroupNextUpView: View {
 
     @ViewBuilder
     private var controls: some View {
-        let shuffleOn = group.playMode.contains(.shuffle)
-        Button {
-            HapticManager.shared.fireHaptic(.buttonPress)
-            var mode = group.playMode
-            if shuffleOn { mode.remove(.shuffle) } else { mode.insert(.shuffle) }
-            setPlayMode(mode)
-        } label: {
-            Label("Shuffle", systemImage: "shuffle")
-                .labelStyle(.iconOnly)
-        }
-        .tint(shuffleOn ? Color.accentColor : Color.secondary)
-        .foregroundStyle(shuffleOn ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
-        .accessibilityValue(shuffleOn ? "On" : "Off")
-        .help("Shuffle")
-
-        Button {
-            HapticManager.shared.fireHaptic(.selection)
-            // Off → Repeat All → Repeat One → Off, as the queue screen does.
-            var mode = group.playMode
-            if mode.contains(.normal) && !mode.isRepeatEnabled {
-                mode.remove(.normal)
-                mode.insert(.repeatAll)
-            } else if mode.isRepeatAllEnabled {
-                mode.remove(.normal)
-                mode.remove(.repeatAll)
-                mode.insert(.repeatOne)
-            } else {
-                mode.remove(.repeatOne)
-                mode.remove(.repeatAll)
+        // A book has no shuffle or repeat: its files are its chapters, in
+        // order, once.
+        if !AudiobookPlayer.shared.contains(group.coordinatorRoom.track.toPlayable) {
+            let shuffleOn = group.playMode.contains(.shuffle)
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                var mode = group.playMode
+                if shuffleOn { mode.remove(.shuffle) } else { mode.insert(.shuffle) }
+                setPlayMode(mode)
+            } label: {
+                Label("Shuffle", systemImage: "shuffle")
+                    .labelStyle(.iconOnly)
             }
-            setPlayMode(mode)
-        } label: {
-            Label("Repeat", systemImage: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
-                .labelStyle(.iconOnly)
-                .contentTransition(.symbolEffect(.automatic))
+            .tint(shuffleOn ? Color.accentColor : Color.secondary)
+            .foregroundStyle(shuffleOn ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+            .accessibilityValue(shuffleOn ? "On" : "Off")
+            .help("Shuffle")
+
+            Button {
+                HapticManager.shared.fireHaptic(.selection)
+                // Off → Repeat All → Repeat One → Off, as the queue screen does.
+                var mode = group.playMode
+                if mode.contains(.normal) && !mode.isRepeatEnabled {
+                    mode.remove(.normal)
+                    mode.insert(.repeatAll)
+                } else if mode.isRepeatAllEnabled {
+                    mode.remove(.normal)
+                    mode.remove(.repeatAll)
+                    mode.insert(.repeatOne)
+                } else {
+                    mode.remove(.repeatOne)
+                    mode.remove(.repeatAll)
+                }
+                setPlayMode(mode)
+            } label: {
+                Label("Repeat", systemImage: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
+                    .labelStyle(.iconOnly)
+                    .contentTransition(.symbolEffect(.automatic))
+            }
+            .tint(group.playMode.isRepeatEnabled ? Color.accentColor : Color.secondary)
+            .foregroundStyle(group.playMode.isRepeatEnabled ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+            .accessibilityValue(group.playMode.repeatAccessibilityValue)
+            .help("Repeat")
         }
-        .tint(group.playMode.isRepeatEnabled ? Color.accentColor : Color.secondary)
-        .foregroundStyle(group.playMode.isRepeatEnabled ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
-        .accessibilityValue(group.playMode.repeatAccessibilityValue)
-        .help("Repeat")
 
         Button {
             clearConfirmation = true

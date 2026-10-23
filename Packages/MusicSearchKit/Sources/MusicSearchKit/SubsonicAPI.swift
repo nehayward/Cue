@@ -36,11 +36,17 @@ public final class SubsonicAPI: DirectStreamProvider {
     /// since most Subsonic servers live on the LAN — where the speakers must
     /// be able to reach them anyway.
     public var serverAddress: String {
-        didSet { UserDefaults.standard.set(serverAddress, forKey: StorageKey.server) }
+        didSet {
+            UserDefaults.standard.set(serverAddress, forKey: StorageKey.server)
+            Self.forgetStoredLogin()
+        }
     }
 
     public var username: String {
-        didSet { UserDefaults.standard.set(username, forKey: StorageKey.username) }
+        didSet {
+            UserDefaults.standard.set(username, forKey: StorageKey.username)
+            Self.forgetStoredLogin()
+        }
     }
 
     /// Kept in the keychain (with the salt) so stream/cover URLs can be
@@ -225,6 +231,29 @@ public final class SubsonicAPI: DirectStreamProvider {
     /// The playlist with its songs populated.
     public func playlist(for id: String) async -> SubsonicPlaylist? {
         await get("getPlaylist", queryItems: [URLQueryItem(name: "id", value: id)])?.playlist
+    }
+
+    // MARK: - Lyrics
+
+    /// The song's lyrics from the server: OpenSubsonic's structured lyrics
+    /// (timed when the server has them so, the main set before a
+    /// translation), else the original `getLyrics` by artist and title,
+    /// which is plain text. A server without the OpenSubsonic call answers
+    /// it with an error, which falls through to the original.
+    public func lyrics(songID: String, artist: String?, title: String?) async -> Lyrics? {
+        if let sets = await get("getLyricsBySongId", queryItems: [URLQueryItem(name: "id", value: songID)])?.lyricsList?.structuredLyrics {
+            let main = sets.filter { $0.kind == nil || $0.kind == "main" }
+            let ordered = main.filter { $0.synced == true } + main.filter { $0.synced != true }
+            if let lyrics = ordered.lazy.compactMap(\.lyrics).first {
+                return lyrics
+            }
+        }
+        guard let artist, !artist.isEmpty, let title, !title.isEmpty,
+              let value = await get("getLyrics", queryItems: [
+                  URLQueryItem(name: "artist", value: artist),
+                  URLQueryItem(name: "title", value: title)
+              ])?.lyrics?.value else { return nil }
+        return Lyrics.parse(value, source: .subsonic)
     }
 
     // MARK: - Library
@@ -433,14 +462,11 @@ public final class SubsonicAPI: DirectStreamProvider {
             }
             hint = format.fileExtension ?? hint
         }
-        guard let url = storedURL(endpoint: "stream", queryItems: queryItems) else { return nil }
-        guard !hint.isEmpty,
-              var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        else { return url }
-        components.queryItems = (components.queryItems ?? []) + [
-            URLQueryItem(name: "ext", value: ".\(hint)")
-        ]
-        return components.url ?? url
+        // The extension hint goes after the login, where it always has, so
+        // the address of a song (which caches and downloads are keyed by)
+        // stays the same.
+        let hintItems = hint.isEmpty ? [] : [URLQueryItem(name: "ext", value: ".\(hint)")]
+        return storedURL(endpoint: "stream", queryItems: queryItems, trailingQueryItems: hintItems)
     }
 
     /// The size the full artwork is asked for, matching Plex's
@@ -473,20 +499,57 @@ public final class SubsonicAPI: DirectStreamProvider {
     /// Builds `<server>/rest/<endpoint>` with the auth parameters appended.
     /// Reads everything from `UserDefaults` so it works without touching the
     /// observable instance (safe from `PlayableContent.uri` on any thread).
-    static func storedURL(endpoint: String, queryItems: [URLQueryItem] = []) -> URL? {
-        guard let base = storedServerURL,
-              let username = UserDefaults.standard.string(forKey: StorageKey.username), !username.isEmpty,
-              let secrets = storedSecrets()
-        else { return nil }
-
+    static func storedURL(endpoint: String, queryItems: [URLQueryItem] = [], trailingQueryItems: [URLQueryItem] = []) -> URL? {
+        guard let login = storedLogin() else { return nil }
         return url(
             endpoint: endpoint,
-            base: base,
-            username: username,
-            password: secrets.password,
-            salt: secrets.salt,
-            queryItems: queryItems
+            base: login.base,
+            username: login.username,
+            token: login.token,
+            salt: login.salt,
+            queryItems: queryItems,
+            trailingQueryItems: trailingQueryItems
         )
+    }
+
+    /// What a stored-login URL is built from, worked out once per login:
+    /// reading the stored address and user, parsing the address and hashing
+    /// the token took most of the time spent turning a synced library into
+    /// rows (three URLs a song, 1,700 songs).
+    private struct StoredLogin {
+        let base: URL
+        let username: String
+        let token: String
+        let salt: String
+    }
+
+    /// The stored login once read (`nil` inside when there is none), until
+    /// the address, user name or password change (`forgetStoredLogin`).
+    private static let storedLoginCache = OSAllocatedUnfairLock<StoredLogin??>(initialState: nil)
+
+    private static func storedLogin() -> StoredLogin? {
+        storedLoginCache.withLock { cached in
+            if let login = cached { return login }
+            var login: StoredLogin?
+            if let server = UserDefaults.standard.string(forKey: StorageKey.server),
+               let address = normalizedAddress(server), let base = URL(string: address),
+               let username = UserDefaults.standard.string(forKey: StorageKey.username), !username.isEmpty,
+               let secrets = storedSecrets() {
+                login = StoredLogin(
+                    base: base,
+                    username: username,
+                    token: token(password: secrets.password, salt: secrets.salt),
+                    salt: secrets.salt
+                )
+            }
+            cached = .some(login)
+            return login
+        }
+    }
+
+    /// Drops the cached login, for the next URL to read the stored one again.
+    static func forgetStoredLogin() {
+        storedLoginCache.withLock { $0 = nil }
     }
 
     /// Builds `<base>/rest/<endpoint>` with the auth parameters appended.
@@ -500,16 +563,37 @@ public final class SubsonicAPI: DirectStreamProvider {
         salt: String,
         queryItems: [URLQueryItem] = []
     ) -> URL? {
+        url(
+            endpoint: endpoint,
+            base: base,
+            username: username,
+            token: token(password: password, salt: salt),
+            salt: salt,
+            queryItems: queryItems
+        )
+    }
+
+    /// `url(endpoint:base:username:password:salt:queryItems:)` with the
+    /// token already made.
+    private static func url(
+        endpoint: String,
+        base: URL,
+        username: String,
+        token: String,
+        salt: String,
+        queryItems: [URLQueryItem],
+        trailingQueryItems: [URLQueryItem] = []
+    ) -> URL? {
         guard var components = URLComponents(url: base, resolvingAgainstBaseURL: false) else { return nil }
         components.path = components.path.appending("/rest/\(endpoint)")
         components.queryItems = queryItems + [
             URLQueryItem(name: "u", value: username),
-            URLQueryItem(name: "t", value: token(password: password, salt: salt)),
+            URLQueryItem(name: "t", value: token),
             URLQueryItem(name: "s", value: salt),
             URLQueryItem(name: "v", value: apiVersion),
             URLQueryItem(name: "c", value: clientName),
             URLQueryItem(name: "f", value: "json")
-        ]
+        ] + trailingQueryItems
         return components.url
     }
 
@@ -674,12 +758,14 @@ public final class SubsonicAPI: DirectStreamProvider {
             }
             cache.loaded = true
         }
+        forgetStoredLogin()
     }
 
     /// Testing hook: forget the in-memory cache so the next read hits the
     /// keychain (and the legacy-migration path) again.
     static func resetSecretsCache() {
         secretsCache.withLock { $0 = SecretsCache() }
+        forgetStoredLogin()
     }
 
     private static func keychainRead(account: String) -> String? {

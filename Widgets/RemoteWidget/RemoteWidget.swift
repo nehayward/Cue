@@ -8,7 +8,7 @@ import Collections
 
 struct Provider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> RemoteWidgetEntry {
-        let activeSubscription = CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false
+        let activeSubscription = GroupStorageKeys.defaults.hasSuper
         return RemoteWidgetEntry(
             date: Date(),
             configuration: RemoteWidgetConfigurationIntent(),
@@ -21,7 +21,7 @@ struct Provider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: RemoteWidgetConfigurationIntent, in context: Context) async -> RemoteWidgetEntry {
-        let activeSubscription = CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false
+        let activeSubscription = GroupStorageKeys.defaults.hasSuper
         return RemoteWidgetEntry(
             date: Date(),
             configuration: configuration,
@@ -34,7 +34,7 @@ struct Provider: AppIntentTimelineProvider {
     }
     
     func timeline(for configuration: RemoteWidgetConfigurationIntent, in context: Context) async -> Timeline<RemoteWidgetEntry> {
-        let activeSubscription = CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false
+        let activeSubscription = GroupStorageKeys.defaults.hasSuper
 
         if let room = configuration.room {
             if let group = await SonosService.shared.getGroupCoordinatorWithRoom(roomID: room.id),

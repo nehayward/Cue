@@ -18,7 +18,12 @@ import WidgetKit
 
 /// Tab bar accessory mini player for wherever the route points: this device,
 /// or the Sonos group chosen in the route button. Tapping the track opens the
-/// matching full player; the trailing controls act in place.
+/// player; the trailing controls act in place.
+///
+/// One row for either, read through `PlaybackRoute.presented` like the
+/// player: a route switch changes what it reads, and while a hand-off
+/// carries the queue across it stays on the song being carried, with where
+/// it's going under the title.
 struct MusicPlaybackView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -33,7 +38,6 @@ struct MusicPlaybackView: View {
     /// `fullScreenCover` — is declared up there now.
     let zoomNamespace: Namespace.ID
 
-    private var playback: LocalPlaybackService { .shared }
     /// Singletons rather than the environment: the accessory is hosted
     /// outside what `withEnvironments()` installs on the tab content.
     private var route: PlaybackRoute { .shared }
@@ -41,11 +45,7 @@ struct MusicPlaybackView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if let group = route.group {
-                groupContent(group)
-            } else {
-                deviceContent
-            }
+            nowPlayingContent
 
             // Always present, playing or not: the route is set ahead of Play,
             // which is the whole point of it no longer asking.
@@ -65,21 +65,15 @@ struct MusicPlaybackView: View {
                     }
                 } label: {
                     // The player's queue gauge: how far through the queue
-                    // playback is, where the route points.
-                    Group {
-                        if let group = route.group {
-                            QueueIconView(group: group)
-                        } else {
-                            LocalQueueIconView()
-                        }
-                    }
-                    .font(.title3)
-                    // Shown: a soft accent disc behind the gauge rather
-                    // than the gauge itself in accent, so its number stays
-                    // easy to read.
-                    .padding(5)
-                    .background(Color("Accent").opacity(showQueue ? 0.25 : 0), in: .circle)
-                    .contentShape(.circle)
+                    // playback is, for what's on screen.
+                    PresentedQueueIconView()
+                        .font(.title3)
+                        // Shown: a soft accent disc behind the gauge rather
+                        // than the gauge itself in accent, so its number stays
+                        // easy to read.
+                        .padding(5)
+                        .background(Color("Accent").opacity(showQueue ? 0.25 : 0), in: .circle)
+                        .contentShape(.circle)
                 }
                 .buttonStyle(.plain)
                 .animation(.snappy, value: showQueue)
@@ -115,171 +109,149 @@ struct MusicPlaybackView: View {
         progressSpansFullWidth && placement != .inline
     }
 
-    /// The progress line for whatever is playing: the speaker's track when a
-    /// group holds the route, this device's otherwise.
+    /// The progress line for what's on screen, in seconds whichever it is.
     @ViewBuilder
     private var progressLine: some View {
-        if let group = route.group {
-            let room = group.coordinatorRoom
-            if !room.track.isEmpty {
-                MiniPlayerProgressLine(
-                    duration: room.track.duration,
-                    isRunning: room.isClockRunning,
-                    unitsPerSecond: 1000,
-                    position: { room.estimatedPlaybackPosition() }
-                )
-            }
-        } else if playback.nowPlayingDisplay != nil {
+        // Through a hand-off, the hold's clock (`HeldPlaybackController`).
+        let controller = route.presented
+        if controller.nowPlayingDisplay != nil {
             MiniPlayerProgressLine(
-                duration: playback.duration,
-                isRunning: playback.isPlaying,
-                position: { playback.progress }
+                duration: controller.duration,
+                isRunning: controller.isClockRunning,
+                position: { controller.position() }
             )
         }
     }
 
-    // MARK: - This device
+    /// Under the title: where a hand-off is taking the song while it runs,
+    /// else the speaker's name for a speaker and the artist here.
+    private func subtitle(for item: PlayableContent?, on group: GroupRoom?) -> String? {
+        if route.isHolding {
+            return "Moving to \(route.group?.nameWithCount ?? "This Device")…"
+        }
+        if let group {
+            return group.nameWithCount
+        }
+        return item?.subtitle
+    }
 
+    /// The glyph in the cover's place with nothing playing.
+    private func idleSymbol(for group: GroupRoom?) -> String {
+        guard let group else { return "iphone.radiowaves.left.and.right" }
+        return group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"
+    }
+
+    // MARK: - Now playing
+
+    /// The track and its transport. The display item, not the queue row: a
+    /// station reads as the song on air here just as it does in the player.
+    /// `GroupRoom` is `@Observable`, so a speaker's pushed track and playing
+    /// state redraw this in place.
     @ViewBuilder
-    private var deviceContent: some View {
+    private var nowPlayingContent: some View {
+        let controller = route.presented
+        let group = controller.group
+        let item = controller.nowPlayingDisplay
+        // While a hand-off holds the row on its source, the source is on its
+        // way out: the buttons rest and Play reads as it did
+        // (`HeldPlaybackController`).
+        let isPlaying = controller.isPlaying
+        // A book reads as what's left of its chapter, and skips 30 s where a
+        // song goes to the next: a book's file is a chapter or more.
+        let isBook = AudiobookPlayer.shared.isPlayingBook(on: controller) && !route.isHolding
+
         Button {
             showPlayer.toggle()
         } label: {
             HStack(spacing: 12) {
-                // The display item, not the queue row: a station reads
-                // as the song on air here just as it does in the player.
-                if let item = playback.nowPlayingDisplay {
+                // A switch with nothing to carry across has nothing to keep
+                // on screen meanwhile.
+                if group != nil, route.isSwitching, !route.isHolding {
+                    ProgressView()
+                        .frame(width: 40, height: 40)
+                } else if let item {
                     ContentArtworkView(content: item, showMusicSource: false)
                         .frame(width: 40, height: 40)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                    VStack(alignment: .leading) {
-                        Text(item.title)
-                            .font(.callout.bold())
-                            .lineLimit(1)
-                        if placement != .inline {
-                            Text(item.subtitle)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                            if !progressSpansFullWidth {
-                                progressLine
-                            }
-                        }
-                    }
                 } else {
-                    Image(systemName: "iphone.radiowaves.left.and.right")
-                        .foregroundStyle(.secondary)
-                    Text("Not Playing")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-            .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .zoomSource(.miniPlayer, in: zoomNamespace)
-
-        if playback.isActive {
-            Button {
-                playback.togglePlayback()
-            } label: {
-                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                    .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
-            }
-            .buttonStyle(.plain)
-            .font(.title3)
-            .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
-
-            if placement != .inline {
-                Button {
-                    playback.next()
-                } label: {
-                    Image(systemName: "forward.fill")
-                }
-                .buttonStyle(.plain)
-                .font(.title3)
-                .accessibilityLabel("Next")
-            }
-        }
-    }
-
-    // MARK: - A speaker
-
-    /// The same row for a Sonos group: its current track, and transport that
-    /// acts on the speaker. `GroupRoom` is `@Observable`, so the pushed track
-    /// and playing state redraw this in place.
-    @ViewBuilder
-    private func groupContent(_ group: GroupRoom) -> some View {
-        let room = group.coordinatorRoom
-        let track = room.track
-
-        Button {
-            showPlayer.toggle()
-        } label: {
-            HStack(spacing: 12) {
-                if route.isSwitching {
-                    ProgressView()
-                        .frame(width: 40, height: 40)
-                } else if !track.isEmpty {
-                    ContentArtworkView(content: track.toPlayable, showMusicSource: false)
-                        .frame(width: 40, height: 40)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                } else {
-                    Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
+                    Image(systemName: idleSymbol(for: group))
                         .foregroundStyle(.secondary)
                 }
                 VStack(alignment: .leading) {
-                    Text(track.isEmpty ? "Not Playing" : track.song)
-                        .font(track.isEmpty ? .callout : .callout.bold())
-                        .foregroundStyle(track.isEmpty ? .secondary : .primary)
-                        .lineLimit(1)
-                    if placement != .inline {
-                        Text(group.nameWithCount)
-                            .font(.caption)
+                    // A long title scrolls, as Clic's mini player does,
+                    // rather than cutting off.
+                    if let title = item?.title {
+                        MarqueeText(title)
+                            .font(.callout.bold())
+                    } else {
+                        Text("Not Playing")
+                            .font(.callout)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                    }
+                    if placement != .inline, let line = subtitle(for: item, on: group) {
+                        Group {
+                            if isBook {
+                                AudiobookTimeLeft(prefix: group?.nameWithCount ?? AudiobookPlayer.shared.current?.book.subtitle, isCompact: true)
+                            } else {
+                                Text(line)
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                         if !progressSpansFullWidth {
                             progressLine
                         }
                     }
                 }
-                Spacer(minLength: 0)
+                // The text takes the rest of the row itself, so a scrolling
+                // title runs up to Pause. A spacer after it took a second
+                // 12pt of the row's spacing and stopped the title 24pt short.
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .zoomSource(.miniPlayer, in: zoomNamespace)
 
-        if !track.isEmpty {
+        if item != nil || controller.isPlaying {
             Button {
-                Task {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    await sonosService.togglePlayPause(for: group)
-                }
+                HapticManager.shared.fireHaptic(.buttonPress)
+                Task { await controller.togglePlayback() }
             } label: {
-                Image(systemName: room.isPlaying ? "pause.fill" : "play.fill")
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                     .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
-                    .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && room.isTransitioning)
+                    .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && controller.isLoading)
             }
             .buttonStyle(.plain)
             .font(.title3)
-            .accessibilityLabel(room.isPlaying ? "Pause" : "Play")
+            .accessibilityLabel(isPlaying ? "Pause" : "Play")
+            .disabled(!controller.isActive)
 
-            if placement != .inline {
+            // A live station on this device has nothing to skip to.
+            if placement != .inline, controller.showsNext || isBook {
                 Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    if isBook {
+                        Task { await AudiobookPlayer.shared.skip(by: AudiobookPlayer.skipForwardInterval) }
+                        return
+                    }
                     Task {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        await sonosService.next(ip: group.ip)
-                        try? await sonosService.updateGroups(from: [group])
+                        await controller.next()
+                        // Nothing may be listening to the speaker with the
+                        // player closed; this brings the new song in.
+                        if let group = controller.group {
+                            try? await sonosService.updateGroups(from: [group])
+                        }
                     }
                 } label: {
-                    Image(systemName: "forward.fill")
+                    Image(systemName: isBook ? "goforward.\(Int(AudiobookPlayer.skipForwardInterval))" : "forward.fill")
                 }
                 .buttonStyle(.plain)
                 .font(.title3)
-                .accessibilityLabel("Next")
-                .disabled(!group.availableActions.contains(.next))
+                .accessibilityLabel(isBook ? "Forward \(Int(AudiobookPlayer.skipForwardInterval)) Seconds" : "Next")
+                .disabled(!isBook && !controller.hasNext)
             }
         }
     }
@@ -356,6 +328,8 @@ struct CueApp: App {
     @State private var offline = OfflineMode.shared
     /// Settings › Appearance › Show Radio Tab.
     @AppStorage(AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
+    @AppStorage(AppStorageKeys.showAudiobooksTab) private var showAudiobooksTab: Bool = true
+    @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexAudiobooks: Bool = false
     /// The sidebar's edits — which of the provider tabs show, and the order
     /// of their sections — kept across launches. This is the whole of tab
     /// customization: the sidebar's own edit mode writes it, and the
@@ -400,6 +374,20 @@ struct CueApp: App {
             && [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
     }
 
+    /// Whether the Audiobooks tab has books to show: an Audiobookshelf
+    /// sign-in, or a Plex server that had books when last asked
+    /// (`AudiobookLibrary.checkPlexBooks`). Hidden in Settings › Appearance.
+    /// While Offline Mode is active only books downloaded whole can play,
+    /// so it stays while there are any.
+    private var showsAudiobooksTab: Bool {
+        guard showAudiobooksTab else { return false }
+        if offline.isActive {
+            return AudiobookDownloads.hasDownloadedBooks
+        }
+        return (coreFeatures.isEnabled(.audiobookshelf) && AudiobookshelfAPI.shared.isConfigured)
+            || (coreFeatures.isEnabled(.plex) && hasPlexAudiobooks)
+    }
+
     /// Search. The search role only on the phone, where it draws the tab as
     /// the bar's separate search bubble. Elsewhere the role exists to hoist
     /// a `.searchable` out of the tab, and `SearchScreen` draws its own
@@ -420,6 +408,16 @@ struct CueApp: App {
         if showsRadioTab {
             Tab("Radio", systemImage: "radio", value: AppTab.radio) {
                 Screens.radio
+            }
+        }
+    }
+
+    /// Audiobooks, after Radio, while there are books (`showsAudiobooksTab`).
+    @TabContentBuilder<AppTab>
+    private var audiobooksTab: some TabContent<AppTab> {
+        if showsAudiobooksTab {
+            Tab("Audiobooks", systemImage: "book", value: AppTab.audiobooks) {
+                Screens.audiobooks
             }
         }
     }
@@ -519,6 +517,9 @@ struct CueApp: App {
         if showsRadioTab {
             tabs.insert(.radio)
         }
+        if showsAudiobooksTab {
+            tabs.insert(.audiobooks)
+        }
         if showsLibrarySections {
             tabs.insert(.home)
             for service in tabProviders {
@@ -568,6 +569,7 @@ struct CueApp: App {
                     }
                     searchTab
                     radioTab
+                    audiobooksTab
                 } else {
                     Tab("Home", image: "home.fill", value: AppTab.home) {
                         Screens.home
@@ -577,6 +579,7 @@ struct CueApp: App {
                         Screens.browse
                     }
                     radioTab
+                    audiobooksTab
 
                     // The providers twice over, both driven by the switched-on
                     // set: once as tabs in one section, which is how the
@@ -697,6 +700,11 @@ struct CueApp: App {
             .onOpenURL(perform: handle)
             .onAppear {
                 coreFeatures.restoreDeviceServicesOnce()
+                // Whether Plex has books, for the Audiobooks tab: a server
+                // that gained some since last time brings the tab in.
+                if coreFeatures.isEnabled(.plex), !offline.isActive {
+                    Task { await AudiobookLibrary.checkPlexBooks() }
+                }
                 // Asks whether there are speakers before anything looks for
                 // them. Onboarding writes `hasOnboarded` however it ends,
                 // so this is once per install, and starts monitoring itself
@@ -1136,7 +1144,7 @@ struct CueApp: App {
             }
 
             Task {
-                try? await subscriptionService.checkSubscription()
+                await subscriptionService.checkSubscription()
             }
 
             Task {
@@ -1276,7 +1284,12 @@ struct CueApp: App {
             }
             
             if components.host?.lowercased() == "subscribe" {
-                router.presentedFullScreenCover = .paywall
+                // A Shortcuts action that ran before this device had its
+                // answer still opens this; opening Cue is all someone with
+                // Super needs.
+                if !subscriptionService.subscription.isActive {
+                    router.presentedFullScreenCover = .paywall
+                }
                 return
             }
             
@@ -1649,21 +1662,43 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // call `monitor()`, which is what would put up the Local Network
         // prompt on a device that has never seen a speaker.
         SonosService.shared.loadEnabledPreference()
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        // In a car, speakers are put away and not looked for; known before
+        // the first `monitor()` for the same reason.
+        CarConnection.start()
+        #endif
         // RevenueCat, analytics, remote flags and the image pipeline. Before
         // any view body: `Purchases.shared` is a fatal error until
-        // `Purchases.configure` has run, and Preferences reads it for the
-        // app user ID it shows — opening Settings crashed once this stopped
-        // being called from the root view's onAppear.
+        // `Purchases.configure` has run (`SubscriptionService.userID` reads
+        // empty until then). Every answer goes to `SuperPublisher`, so it's
+        // set first.
         if !AppBootstrapper.shared.didLaunch {
             AppBootstrapper.shared.didLaunch = true
+            SubscriptionService.shared.subscriptionUpdated = SuperPublisher.publish
             AppBootstrapper.shared.bootstrap()
         }
         // The continued-processing task's launch handler has to be in place
         // before a download batch submits it.
         ContinuedDownloadTask.shared.register()
+        #if DEBUG
+        DownloadAudit.runIfAsked()
+        #endif
         // Early, so a status the watch sent while Cue was closed, and the
         // end of a library transfer, are delivered.
         WatchSyncService.shared.activate()
+        // Lyrics for downloads that don't have them yet, slowly.
+        DownloadLyrics.shared.start()
+        #if DEBUG
+        // `-LyricsAudit <count>`: checks lyrics lookups across the Plex library.
+        LyricsAudit.startIfRequested()
+        // `-AudiobookAudit <title>`: what a Plex book's server and files
+        // hold about its chapters.
+        AudiobookAudit.startIfRequested()
+        #if os(iOS)
+        // Cue's log as a file the Mac can copy off the phone.
+        PhoneLogFile.start()
+        #endif
+        #endif
         // A Files scan gets the same card: progress on the Lock Screen and
         // the app kept running until it's done. The pass that reads the
         // tags of songs still in iCloud follows the scan on the same card,

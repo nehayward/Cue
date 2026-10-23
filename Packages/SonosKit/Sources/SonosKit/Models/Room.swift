@@ -12,6 +12,20 @@ public final class Room: Identifiable, @unchecked Sendable {
     public let satChannelMap: String?
     public var volume: Double = 0
     public var isMuted: Bool = false
+
+    /// Until when a mute Cue just set holds against the poll. A read that
+    /// left before the change landed would otherwise put the old state back.
+    @ObservationIgnored public private(set) var muteHeldUntil: Date = .distantPast
+    public var isMuteHeld: Bool { muteHeldUntil > .now }
+
+    /// Shows `mute` at once and keeps the poll from undoing it while the
+    /// speaker catches up.
+    public func holdMute(_ mute: Bool) {
+        muteHeldUntil = .now.addingTimeInterval(2.5)
+        if isMuted != mute {
+            isMuted = mute
+        }
+    }
     public var isPlaying: Bool = false {
         didSet {
             guard isPlaying != oldValue else { return }
@@ -248,7 +262,16 @@ extension Room {
         guard isClockRunning else {
             // Writing the same number still invalidates every view reading
             // it — for a paused room that was every poll.
-            if newValue != playbackPosition { playbackPosition = newValue }
+            //
+            // A poll reads whole seconds, rounded down; the socket reads the
+            // same position to the millisecond. Paused, they took turns —
+            // 1:48.65 from the socket, 1:48 from the next poll — so a time
+            // rounded to the second, and the lyrics' fill, flickered between
+            // them. A whole second that's what's held, rounded down, says
+            // nothing new.
+            let isHeldRoundedDown = newValue.truncatingRemainder(dividingBy: 1000) == 0
+                && playbackPosition >= newValue && playbackPosition < newValue + 1000
+            if newValue != playbackPosition, !isHeldRoundedDown { playbackPosition = newValue }
             return
         }
         guard abs(newValue - position(at: now, running: true)) >= Self.reportTolerance else { return }
@@ -386,26 +409,16 @@ extension Room {
     }
 }
 
+/// A room is equal only to itself, for the reasons `GroupRoom` is: it's an
+/// `@Observable` reference that views hold and updates write into. Compare
+/// `id` to ask whether two rooms are the same speaker.
 extension Room: Hashable {
     public static func == (lhs: Room, rhs: Room) -> Bool {
-        lhs.id == rhs.id &&
-        lhs.ip == rhs.ip &&
-        lhs.name == rhs.name &&
-        lhs.track.id == rhs.track.id &&
-        lhs.track.artist == rhs.track.artist &&
-        lhs.track.song == rhs.track.song &&
-        lhs.radioStation == rhs.radioStation
+        lhs === rhs
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(name)
-        hasher.combine(ip)
-        hasher.combine(state)
-        hasher.combine(macAddress)
-        hasher.combine(track.id)
-        hasher.combine(track.artist)
-        hasher.combine(track.song)
-        hasher.combine(radioStation)
+        hasher.combine(ObjectIdentifier(self))
     }
 }
 

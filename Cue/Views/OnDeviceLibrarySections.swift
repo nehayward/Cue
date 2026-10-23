@@ -99,8 +99,8 @@ struct OnDeviceLibrarySections: View {
     /// folder — so the counts above have a source.
     private var sourcesLine: String {
         let downloaded = service == nil
-            ? downloads.completed.count
-            : downloads.completed.filter { $0.service == service }.count
+            ? downloads.completedSongs.count
+            : downloads.completedSongs.filter { $0.service == service }.count
         let appleCount = service == nil || service == .apple ? OnDeviceLibrary.appleSongs.count : 0
         let fileCount = service == nil || service == .files ? OnDeviceLibrary.fileSongs.count : 0
 

@@ -83,7 +83,9 @@ public final class SonosService {
         }
     }
 
-    @ObservationIgnored private lazy var sonosSystemDiscoverService = SonosSystemDiscoverService()
+    @ObservationIgnored private lazy var sonosSystemDiscoverService: SonosSystemDiscoverService = SonosSystemDiscoverService { [weak self] isCellular in
+        self?.localNetworkChanged(isCellular: isCellular)
+    }
     @ObservationIgnored lazy var api = SonosAPI()
     @ObservationIgnored private lazy var mediaServerHandler = MediaServerHandler()
 
@@ -98,6 +100,56 @@ public final class SonosService {
     public var lastKnownIP: String { sonosSystemDiscoverService.cachedIP }
     public var state: String { sonosSystemDiscoverService.lastKnownState }
     public var isCellular: Bool { sonosSystemDiscoverService.isCellular }
+
+    /// Whether speakers can be reached from here: Sonos is on, this device
+    /// is on Wi‑Fi or Ethernet, and it isn't in a car. Speakers are only ever
+    /// on the local network, so on cellular alone there are none to show or
+    /// play to, and in a car there's no place for one (`isInCar`).
+    /// Observable, so anything derived from it follows by itself. Gate
+    /// speaker UI and routing on this; `isEnabled` is the setting.
+    public var isAvailable: Bool { isEnabled && !isCellular && !isInCar }
+
+    /// True while this iPhone is in a car: CarPlay's screen is up or the
+    /// sound goes to CarPlay. Set by the app (`CarConnection`). Speakers have
+    /// no place in a car, so while it's true Cue acts as if Sonos were off:
+    /// the groups are put away, and nothing looks for speakers or loads
+    /// their groups, even on Wi‑Fi (a garage within reach of home, or the
+    /// car's own Wi‑Fi). Out of the car they're looked for again.
+    public private(set) var isInCar = false
+
+    /// Whether looking for speakers or loading their groups may touch the
+    /// network: Sonos is on and this device isn't in a car.
+    private var mayLookForSpeakers: Bool { isEnabled && !isInCar }
+
+    /// Into a car, the groups are put away as on cellular (`clearDevices`);
+    /// out of one, on Wi‑Fi, they're looked for again.
+    @MainActor
+    public func setInCar(_ inCar: Bool) {
+        guard inCar != isInCar else { return }
+        isInCar = inCar
+        guard isEnabled else { return }
+        if inCar {
+            clearDevices()
+        } else if !isCellular {
+            monitor()
+        }
+    }
+
+    /// Off Wi‑Fi the groups on hand are the last ones seen, and nothing can
+    /// reach them, so they're put away as if Sonos were off (`clearDevices`
+    /// also drops the verified IP). Back on Wi‑Fi they're looked for again.
+    /// A poll begun on cellular has stopped by then: requests to a speaker
+    /// fail at once without Wi‑Fi (`SonosAPI` sessions don't use cellular
+    /// or wait for a connection), and a failed poll cancels itself.
+    @MainActor
+    private func localNetworkChanged(isCellular: Bool) {
+        guard isEnabled else { return }
+        if isCellular {
+            clearDevices()
+        } else {
+            monitor()
+        }
+    }
 
     @MainActor
     public func clearDevices() {
@@ -242,6 +294,12 @@ public final class SonosService {
     /// the list on it. Kept so the next change or `clearDevices` can cancel
     /// a read still waiting on a speaker that doesn't answer.
     @ObservationIgnored private var roomStateTask: Task<Void, Never>?
+    /// When `load` last asked each coordinator (by address) for its sleep
+    /// timer.
+    @ObservationIgnored private var sleepTimerCheckedAt: [String: ContinuousClock.Instant] = [:]
+    /// How long `load` leaves a speaker that has no sleep timer before
+    /// asking again.
+    private static let sleepTimerRecheck: Duration = .seconds(15)
     @ObservationIgnored private var hasAppliedGroupsCache = false
     @ObservationIgnored private var cachedIPVerified = false
     @ObservationIgnored private var attemptedTrackInfoUniques = Set<String>()
@@ -324,7 +382,7 @@ public final class SonosService {
     }
 
     public func updateGroups() async throws {
-        guard isEnabled else { return }
+        guard mayLookForSpeakers else { return }
         let newGroup = try await getGroups(useCache: true)
         system = try await findSystem(useCache: true)
 
@@ -412,8 +470,19 @@ public final class SonosService {
     /// describes: the coordinator's stream survives a membership change. A
     /// room newly promoted to coordinator keeps the parse's empty track
     /// rather than showing the song it heard as a member of its old group.
-    private func adoptGroups(_ newGroups: [GroupRoom]) {
-        for newGroup in newGroups {
+    private func adoptGroups(_ parsedGroups: [GroupRoom]) {
+        // A group the refresh didn't touch keeps its instance. A new one is a
+        // change to every view holding it (GroupRoom is equal only to itself),
+        // so swapping in the parse's copy of an unchanged group would redraw
+        // them all, and restart anything keyed on it, for nothing.
+        let newGroups = parsedGroups.map { parsed in
+            groups.first {
+                $0.coordinatorID == parsed.coordinatorID && $0.id == parsed.id && $0.adoptionKey == parsed.adoptionKey
+            } ?? parsed
+        }
+        let replaced = newGroups.filter { new in !groups.contains { $0 === new } }
+
+        for newGroup in replaced {
             guard let current = groups.first(where: { $0.coordinatorID == newGroup.coordinatorID }) else { continue }
             newGroup.groupVolume = current.groupVolume
             newGroup.isMuted = current.isMuted
@@ -439,7 +508,7 @@ public final class SonosService {
         // Per-room state that `updateGroupsRooms` refreshes after the swap:
         // carry it by room ID so a regroup doesn't drop every slider to 0
         // until that read lands.
-        for room in newGroups.flatMap(\.rooms) {
+        for room in replaced.flatMap(\.rooms) {
             guard let current = rooms.first(where: { $0.id == room.id }) else { continue }
             room.volume = current.volume
             room.isMuted = current.isMuted
@@ -447,11 +516,17 @@ public final class SonosService {
         }
         groups = newGroups
         rooms = newGroups.flatMap(\.rooms)
+        // In the same step, so nothing reads the new groups against the old
+        // selected one (tvOS selects its tab by it).
+        if let selected = selectedGroup,
+           let live = newGroups.first(where: { $0.coordinatorID == selected.coordinatorID }) {
+            selectedGroup = live
+        }
     }
 
     @MainActor
     public func monitor(retry: Bool = true, useCache: Bool = true) {
-        guard isEnabled, allowsMonitoring else { return }
+        guard mayLookForSpeakers, allowsMonitoring else { return }
         if isRunning { return }
         print("Monitoring!")
 
@@ -586,13 +661,23 @@ public final class SonosService {
         // Refresh sleepTimer for every active coordinator (including the
         // selected group). Placed above the selectedGroup branch so the
         // scattered early returns below can't skip it — sleepTimer is
-        // nil-gated, so retries every load until a coordinator resolves.
+        // nil-gated, so retries until a coordinator resolves.
+        //
+        // A speaker with no timer answers nil too, which read as "not asked
+        // yet": every room without one was asked again on every load, about
+        // six requests a second for a home of five. A room that said it has
+        // none is asked again after `sleepTimerRecheck`; the player asks for
+        // its own group's as it opens (`getSleepTimer(group:)`).
+        let now = ContinuousClock.now
         await withTaskGroup(of: Void.self) { [weak self] taskGroup in
             guard let self = self else { return }
             for group in groups where group.coordinatorRoom.state == .active && group.coordinatorRoom.sleepTimer == nil {
+                let ip = group.coordinatorRoom.ip
+                if let checked = sleepTimerCheckedAt[ip], now - checked < Self.sleepTimerRecheck { continue }
+                sleepTimerCheckedAt[ip] = now
                 taskGroup.addTask { [weak self] in
                     guard let self = self else { return }
-                    if let timer = await self.api.getSleepTimer(IP: group.coordinatorRoom.ip) {
+                    if let timer = await self.api.getSleepTimer(IP: ip) {
                         group.coordinatorRoom.sleepTimer = timer
                     }
                 }
@@ -915,7 +1000,6 @@ public final class SonosService {
     public func setPrimaryServer(for server: MediaServer) async {
         guard let primaryKey = KeychainTokenRefreshHandler.shared.getKey(for: server.type) else { return }
         KeychainTokenRefreshHandler.shared.primaryServer?[primaryKey] = server.id
-        KeychainTokenRefreshHandler.shared.setCredentials(for: server)
     }
     
     /// Resolves the SMAPI endpoint for a Sonos service id (e.g. "303" for Sonos
@@ -1186,7 +1270,7 @@ public final class SonosService {
                     group.addTask { @MainActor [weak self] in
                         if room.state != .active { return }
                         guard let self else { return }
-                        if let isMuted = await api.getRoomMute(IP: room.ip), room.isMuted != isMuted {
+                        if let isMuted = await api.getRoomMute(IP: room.ip), !room.isMuteHeld, room.isMuted != isMuted {
                             room.isMuted = isMuted
                         }
                     }
@@ -1294,7 +1378,7 @@ public final class SonosService {
                 group.addTask { @MainActor [weak self] in
                     guard let self else { return }
                     if roomGroup.coordinatorRoom.state == .active, let isMuted = await self.isMuted(for: roomGroup) {
-                        if roomGroup.isMuted != isMuted {
+                        if !roomGroup.isMuteHeld, roomGroup.isMuted != isMuted {
                             roomGroup.isMuted = isMuted
                         }
                     }
@@ -1389,7 +1473,7 @@ public final class SonosService {
 
     @MainActor
     public func getGroups(useCache: Bool) async throws -> [GroupRoom] {
-        guard isEnabled else { throw SonosServiceError.sonosSystemNotFound }
+        guard mayLookForSpeakers else { throw SonosServiceError.sonosSystemNotFound }
         // Candidate IPs to probe = union of every known household's IPs, as a
         // Set. An IP is just an address to try, not a household claim: the same
         // 192.168.x.x commonly appears in two different homes, so a map keyed by
@@ -1544,7 +1628,7 @@ public final class SonosService {
 
     @MainActor
     public func getGroupsFast() async throws -> [GroupRoom] {
-        guard isEnabled else { return [] }
+        guard mayLookForSpeakers else { return [] }
         let ips = try await sonosSystemDiscoverService.getAllIPs()
 
         return try await withThrowingTaskGroup(of: [GroupRoom].self, returning: [GroupRoom].self) { taskGroup in
@@ -1567,7 +1651,7 @@ public final class SonosService {
 
     @MainActor
     public func findSystem(useCache: Bool) async throws -> System? {
-        guard isEnabled else { return nil }
+        guard mayLookForSpeakers else { return nil }
         let IP = try await sonosSystemDiscoverService.getFirstIP(useCache: useCache)
         let system = try await api.system(for: IP)
         return system
@@ -1783,7 +1867,7 @@ public final class SonosService {
 
     @MainActor
     public func setRoomMute(room: Room, mute: Bool) async {
-        room.isMuted = mute
+        room.holdMute(mute)
         await api.setRoomMute(IP: room.ip, mute: mute)
     }
     
@@ -1804,11 +1888,17 @@ public final class SonosService {
     }
 
     public func getTrack(ip: String) async -> Track? {
-        await api.getCurrentTrack(ipAddress: ip, prioritizedAlbumArtIP: prioritizedIP())
+        guard var track = await api.getCurrentTrack(ipAddress: ip, prioritizedAlbumArtIP: prioritizedIP()) else { return nil }
+        // Line-in has no artist, so the speaker the input comes from takes
+        // its place: "Line In", then "Kitchen".
+        if let sourceID = track.lineInSourceID, let name = await roomName(id: sourceID) {
+            track.artist = name
+        }
+        return track
     }
 
     public func getTrackDetails(ip: String) async -> Track? {
-        guard var track = await api.getCurrentTrack(ipAddress: ip, prioritizedAlbumArtIP: prioritizedIP()) else { return nil }
+        guard var track = await getTrack(ip: ip) else { return nil }
         guard let (trackMetadata, artworkURL) = await self.getTrackInformation(from: track) else {
             return track
         }
@@ -1818,6 +1908,12 @@ public final class SonosService {
             track.artist = trackMetadata?.artist ?? ""
         }
         return track
+    }
+
+    /// On the main actor, where the rooms change: the track is read off it.
+    @MainActor
+    private func roomName(id: String) -> String? {
+        rooms.first { $0.id == id }?.name
     }
     
     /// Points the on-screen listener at a group. Routed through the listener
@@ -1885,6 +1981,10 @@ public final class SonosService {
         case .subsonic:
             guard let track = await musicSearch.lookupSubsonicTrack(with: track.trackID) else { return nil }
             return track.artwork
+        case .audiobookshelf:
+            // A book's file: the book's cover.
+            guard let part = AudiobookshelfPartID(track.trackID) else { return nil }
+            return AudiobookshelfAPI.coverURL(itemID: part.itemID)
         case .tuneIn:
             return nil
         case .airplay, .unknown, .library, .sonosRadio, .pandora, .files:
@@ -2014,6 +2114,11 @@ public final class SonosService {
                 ),
                 subsonicTrack.artwork
             )
+        case .audiobookshelf:
+            // The speaker already has the book's title and author from the
+            // metadata it was queued with; only the cover is worth looking up.
+            guard let part = AudiobookshelfPartID(track.trackID) else { return (nil, nil) }
+            return (nil, AudiobookshelfAPI.coverURL(itemID: part.itemID))
         case .unknown:
             if track.metadata?.contentType != .track { return (nil, nil) }
             guard let artworkURL = await musicSearch.searchSpotifySong(song: track.name, artist: track.artist)?.tracks?.items.first else {
@@ -2668,8 +2773,19 @@ public final class SonosService {
         await api.tvInput(IP: firstSoundBar.ip, ID: firstSoundBar.id)
     }
     
-    public func switchToLineIn(group: GroupRoom) async {
-        await api.switchToLineIn(IP: group.ip, ID: group.coordinatorRoom.id)
+    /// Every speaker in the household with a line-in, by name. Any group can
+    /// play any of them, not only the group that holds the speaker.
+    public var lineInSources: [Room] {
+        sortedRooms.filter { $0.state == .active && $0.supportsLineIn }
+    }
+
+    /// Plays `source`'s line-in on `group`. The stream is the source
+    /// speaker's (`x-rincon-stream:<its id>`), set on the group's coordinator.
+    ///
+    /// - Returns: Whether the group's coordinator took it.
+    @discardableResult
+    public func switchToLineIn(group: GroupRoom, from source: Room) async -> Bool {
+        await api.switchToLineIn(IP: group.ip, ID: source.id)
     }
     
     public func switchToQueueInput(group: GroupRoom) async {
@@ -2814,7 +2930,11 @@ public final class SonosService {
 
     public func getFavoriteList() async {
         guard let ip = prioritizedIP() else { return }
-        self.favorites = await api.getFavorites(for: ip)
+        let favorites = await api.getFavorites(for: ip)
+        // Usually unchanged. Writing anyway updated every view showing
+        // favorites, as Search opened.
+        guard !favorites.displaysSame(as: self.favorites) else { return }
+        self.favorites = favorites
     }
 
     public func deleteFavorite(on group: GroupRoom?, favoriteID: String) async {
@@ -2930,6 +3050,31 @@ public final class SonosService {
                 try await playNext(Array(tracks[start...]), on: group)
             default:
                 try await queue(contents: tracks, group: group, position: position)
+            }
+            return
+        }
+        // An Apple Music artist has no container on Sonos: it plays as its
+        // albums, or a library artist without any as its songs.
+        if playable.content.type.isArtist, let contents = await musicSearch.artistContents(for: playable) {
+            guard !contents.isEmpty else { throw SonosServiceError.cantPlayContent(upnpCode: nil) }
+            switch position {
+            case .replace:
+                try await queue(contents: contents, group: group, position: .replace, startIndex: 0)
+            case .now where contents.allSatisfy(\.content.type.isTrack):
+                try await playNext(contents, on: group)
+            case .now:
+                // Not `playNext`: each album lands after the playing track,
+                // which by then is the first album's opening song, so the
+                // rest of that album would follow every other album. Queued
+                // in order after the playing track, then stepped onto; an
+                // empty queue starts on the first album by itself.
+                let count = await api.getQueueCount(IP: group.ip) ?? 0
+                try await queue(contents: contents, group: group, position: .next)
+                if count > 0 {
+                    await next(ip: group.ip)
+                }
+            default:
+                try await queue(contents: contents, group: group, position: position)
             }
             return
         }

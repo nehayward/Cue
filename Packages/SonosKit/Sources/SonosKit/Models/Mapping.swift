@@ -1,6 +1,7 @@
 import Foundation
 import MusicKit
 import MusicSearchKit
+import os
 
 extension Int {
     /// "1 song" / "12 songs" for album row subtitles — the standard-vs-deluxe
@@ -8,11 +9,22 @@ extension Int {
     /// (and any future localization) comes from the inflection engine. Nil
     /// for zero counts (a zero means the service didn't report one), so
     /// callers drop the component instead of rendering "0 songs".
+    ///
+    /// Each count is inflected once: the inflection engine takes about half
+    /// a millisecond a call, and a page of 50 albums paid it 50 times on the
+    /// main thread, mostly for the same few counts.
     var songCountLabel: String? {
         guard self > 0 else { return nil }
-        return String(AttributedString(localized: "^[\(self) song](inflect: true)").characters)
+        if let label = songCountLabels.withLock({ $0[self] }) { return label }
+        let label = String(AttributedString(localized: "^[\(self) song](inflect: true)").characters)
+        songCountLabels.withLock { $0[self] = label }
+        return label
     }
 }
+
+/// `songCountLabel`'s answers, by count. Mapping runs on and off the main
+/// thread, hence the lock.
+private let songCountLabels = OSAllocatedUnfairLock(initialState: [Int: String]())
 
 extension PlayableContent {
     public var toRadio: PlayableContent {
@@ -122,30 +134,10 @@ extension MusicKit.Track {
         var artworkURL = artwork?.url(width: 600, height: 600)
         var thumbnailURL = artwork?.url(width: 100, height: 100)
 
-        let pattern = "https%3A%2F%2F[^&]+"
-        let regex = try? NSRegularExpression(pattern: pattern)
-
-        func processURL(_ url: URL?) -> URL? {
-            guard let url = url,
-                  let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
-                  components.scheme?.lowercased() == "musickit",
-                  let regex = regex else {
-                return url
-            }
-
-            let nsString = url.absoluteString as NSString
-            let range = NSRange(location: 0, length: nsString.length)
-            
-            guard let match = regex.firstMatch(in: url.absoluteString, range: range) else {
-                return url
-            }
-
-            let encodedUrl = nsString.substring(with: match.range)
-            return URL(string: encodedUrl.removingPercentEncoding ?? "")
-        }
-
-        artworkURL = processURL(artworkURL)
-        thumbnailURL = processURL(thumbnailURL)
+        // The shared unwrapper: it looks at a `musickit://` URL only, where
+        // this compiled a regular expression for every track mapped.
+        artworkURL = unwrappingMusicKitArtwork(artworkURL)
+        thumbnailURL = unwrappingMusicKitArtwork(thumbnailURL)
 
         let previewURL: URL?
         switch self {
@@ -178,30 +170,10 @@ extension MusicKit.Track {
         var artworkURL = artwork?.url(width: 600, height: 600)
         var thumbnailURL = artwork?.url(width: 100, height: 100)
 
-        let pattern = "https%3A%2F%2F[^&]+"
-        let regex = try? NSRegularExpression(pattern: pattern)
-
-        func processURL(_ url: URL?) -> URL? {
-            guard let url = url,
-                  let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
-                  components.scheme?.lowercased() == "musickit",
-                  let regex = regex else {
-                return url
-            }
-
-            let nsString = url.absoluteString as NSString
-            let range = NSRange(location: 0, length: nsString.length)
-            
-            guard let match = regex.firstMatch(in: url.absoluteString, range: range) else {
-                return url
-            }
-
-            let encodedUrl = nsString.substring(with: match.range)
-            return URL(string: encodedUrl.removingPercentEncoding ?? "")
-        }
-
-        artworkURL = processURL(artworkURL)
-        thumbnailURL = processURL(thumbnailURL)
+        // The shared unwrapper: it looks at a `musickit://` URL only, where
+        // this compiled a regular expression for every track mapped.
+        artworkURL = unwrappingMusicKitArtwork(artworkURL)
+        thumbnailURL = unwrappingMusicKitArtwork(thumbnailURL)
 
         return PlayableContent(
             title: title,
@@ -225,30 +197,10 @@ extension Playlist {
         var artworkURL = artwork?.url(width: 600, height: 600)
         var thumbnailURL = artwork?.url(width: 100, height: 100)
 
-        let pattern = "https%3A%2F%2F[^&]+"
-        let regex = try? NSRegularExpression(pattern: pattern)
-
-        func processURL(_ url: URL?) -> URL? {
-            guard let url = url,
-                  let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
-                  components.scheme?.lowercased() == "musickit",
-                  let regex = regex else {
-                return url
-            }
-
-            let nsString = url.absoluteString as NSString
-            let range = NSRange(location: 0, length: nsString.length)
-            
-            guard let match = regex.firstMatch(in: url.absoluteString, range: range) else {
-                return url
-            }
-
-            let encodedUrl = nsString.substring(with: match.range)
-            return URL(string: encodedUrl.removingPercentEncoding ?? "")
-        }
-
-        artworkURL = processURL(artworkURL)
-        thumbnailURL = processURL(thumbnailURL)
+        // The shared unwrapper: it looks at a `musickit://` URL only, where
+        // this compiled a regular expression for every track mapped.
+        artworkURL = unwrappingMusicKitArtwork(artworkURL)
+        thumbnailURL = unwrappingMusicKitArtwork(thumbnailURL)
 
         return PlayableContent(
             title: name,
@@ -729,6 +681,9 @@ extension PlexTrack {
                 type: .track,
                 location: nil
             ),
+            // The full track off the user's server, as a library row has it —
+            // what this device plays.
+            previewURL: streamURL,
             metadata: .init(
                 duration: trackDuration,
                 popularity: nil,
@@ -905,6 +860,36 @@ extension PlexMetadata {
     }
 }
 
+
+extension PlexAudiobookItem {
+    /// A Plex album kept as a book: the author under the title. Its
+    /// `albumID` is its own key, as an album's is, so the book and its
+    /// files share an artwork cache entry.
+    public var toPlayable: PlayableContent? {
+        guard let sonosID else { return nil }
+        return PlayableContent(
+            title: title,
+            subtitle: parentTitle ?? "",
+            thumbnail: thumbImageURL?.plexResized(to: PlexImageSize.thumbnail),
+            artwork: thumbImageURL?.plexResized(to: PlexImageSize.artwork),
+            content: .init(service: .plex, id: sonosID, type: .audiobook, location: nil),
+            metadata: .init(
+                popularity: nil,
+                artist: parentTitle,
+                artistID: parentRatingKey,
+                album: title,
+                albumID: ratingKey,
+                albumYear: bookYear(year),
+                librarySectionID: librarySectionID.map(String.init)
+            )
+        )
+    }
+}
+
+/// A book's year as albums carry theirs: its first day.
+private func bookYear(_ year: Int?) -> Date? {
+    year.flatMap { DateComponents(calendar: Calendar(identifier: .gregorian), year: $0, month: 1, day: 1).date }
+}
 
 extension PlexUserPlaylist {
     public var toPlayable: PlayableContent {
@@ -1102,6 +1087,66 @@ extension TuneInStation {
 }
 
 // MARK: Subsonic
+// MARK: Audiobookshelf
+extension AudiobookshelfItem {
+    var bookTitle: String { media?.metadata?.title ?? "" }
+    var bookAuthor: String { media?.metadata?.authorName ?? "" }
+
+    /// The book, as a shelf or search lists it: the author under the
+    /// title, and its length.
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: bookTitle,
+            subtitle: bookAuthor,
+            thumbnail: AudiobookshelfAPI.coverURL(itemID: id, width: PlexImageSize.thumbnail),
+            artwork: AudiobookshelfAPI.coverURL(itemID: id),
+            content: .init(service: .audiobookshelf, id: id, type: .audiobook, location: nil),
+            metadata: .init(
+                duration: media?.duration.map { Duration.milliseconds(Int64($0 * 1000)) },
+                popularity: nil,
+                artist: bookAuthor,
+                album: bookTitle,
+                albumID: id,
+                albumYear: bookYear(media?.metadata?.publishedYear.flatMap { Int($0) })
+            )
+        )
+    }
+
+    /// The book's files as the tracks the player plays, each with its
+    /// stream URL: through the book's listening session once one is open,
+    /// else signed in (see `AudiobookshelfAPI.streamURL`). The file's
+    /// extension rides as `audioCodec`, as for Subsonic, for the speaker's
+    /// extension hint and MIME type.
+    public func partsToPlayable(tracks: [AudiobookshelfTrack]? = nil) -> [PlayableContent] {
+        let cover = AudiobookshelfAPI.coverURL(itemID: id)
+        let thumbnail = AudiobookshelfAPI.coverURL(itemID: id, width: PlexImageSize.thumbnail)
+        let files = tracks ?? media?.tracks ?? []
+        return files.enumerated().compactMap { number, track in
+            guard let fileID = track.fileID else { return nil }
+            let part = AudiobookshelfPartID(itemID: id, index: track.index, fileID: fileID)
+            let ext = track.fileExtension
+            return PlayableContent(
+                // Audiobookshelf names a file by its file name ("01.m4b"):
+                // the book's title reads better in the player.
+                title: files.count > 1 ? "\(bookTitle), Part \(number + 1)" : bookTitle,
+                subtitle: bookAuthor,
+                thumbnail: thumbnail,
+                artwork: cover,
+                content: .init(service: .audiobookshelf, id: part.string, type: .track, location: nil),
+                previewURL: AudiobookshelfAPI.streamURL(for: part.string, fileExtension: ext, destination: .device),
+                metadata: .init(
+                    duration: Duration.milliseconds(Int64(track.duration * 1000)),
+                    popularity: nil,
+                    artist: bookAuthor,
+                    album: bookTitle,
+                    albumID: id,
+                    audioCodec: ext
+                )
+            )
+        }
+    }
+}
+
 extension SubsonicSong {
     public var toPlayable: PlayableContent {
         PlayableContent(

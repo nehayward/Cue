@@ -1,5 +1,6 @@
 #if os(iOS) && !targetEnvironment(macCatalyst)
 import CarPlay
+import Defaults
 import MusicKit
 import MusicSearchKit
 import SonosKit
@@ -56,13 +57,17 @@ enum CarPlayLibrary {
     // MARK: - Recents
 
     /// What was last played in Cue, newest first — the phone's Recently
-    /// Played — narrowed to what this device can play. Without Play All
-    /// over the downloads (On This Device, Downloaded • a provider), which
-    /// is a way to play rather than an album to go back to.
+    /// Played — narrowed to what this device can play, books from a server
+    /// still shown among it. Without Play All over the downloads (On This
+    /// Device, Downloaded • a provider), which is a way to play rather than
+    /// an album to go back to.
     static func recents() -> [PlayableContent] {
         let player = LocalPlaybackService.shared
         let history = Array(PlayHistoryService.shared.history)
-        let playable = history.filter { player.canPlayAnywhereLocally($0) && !OnDeviceLibrary.isAllSongs($0) }
+        let playable = history.filter { item in
+            if item.content.type == .audiobook { return showsBooks(from: item.content.service) }
+            return player.canPlayAnywhereLocally(item) && !OnDeviceLibrary.isAllSongs(item)
+        }
         return Array(playable.prefix(rowLimit))
     }
 
@@ -76,10 +81,10 @@ enum CarPlayLibrary {
         return MediaSearchService.supported.filter(isReady)
     }
 
-    /// The Library tab's buttons, in order, that at least one of `services`
-    /// can fill. Playlists fill the tab itself.
-    static func libraryCollections(for services: [MediaSearchService]) -> [ProviderCollection] {
-        [ProviderCollection.recentlyAdded, .albums].filter { collection in
+    /// The Library tab's sections, in order, that at least one of
+    /// `services` can fill. Playlists first: the tab opens on them.
+    static func librarySections(for services: [MediaSearchService]) -> [ProviderCollection] {
+        [ProviderCollection.playlists, .recentlyAdded, .albums].filter { collection in
             services.contains { loader(collection, for: $0) != nil }
         }
     }
@@ -87,20 +92,38 @@ enum CarPlayLibrary {
     /// `collection` from each of `services` that has it, loaded side by side
     /// and narrowed to what this device can play. A provider with nothing
     /// to show is left out.
-    static func shelves(_ collection: ProviderCollection, from services: [MediaSearchService]) async -> [Shelf] {
-        let loads = services.compactMap { service -> (MediaSearchService, Task<[PlayableContent], Never>)? in
+    ///
+    /// `arrived` gets the shelves so far, in the services' order, each time
+    /// a provider answers with something: a server that's slow or out of
+    /// reach (a home Plex server, away from home) holds up only its own
+    /// shelf, not the whole list.
+    @discardableResult
+    static func shelves(
+        _ collection: ProviderCollection,
+        from services: [MediaSearchService],
+        arrived: ([Shelf]) -> Void = { _ in }
+    ) async -> [Shelf] {
+        // Started outside the group, so a list given up on (the car gone,
+        // the providers changed) doesn't cut a request off halfway: the
+        // providers keep what they fetched for the next time.
+        let loads = services.enumerated().compactMap { index, service -> (Int, Task<[PlayableContent], Never>)? in
             guard let load = loader(collection, for: service) else { return nil }
-            return (service, Task { await load() })
+            return (index, Task { await load() })
         }
         let player = LocalPlaybackService.shared
-        var shelves: [Shelf] = []
-        for (service, load) in loads {
-            let items = await load.value.filter { player.canPlayAnywhereLocally($0) }
-            if !items.isEmpty {
-                shelves.append(Shelf(title: service.title, items: items))
+        var found: [Int: Shelf] = [:]
+        await withTaskGroup(of: (Int, [PlayableContent]).self) { group in
+            for (index, load) in loads {
+                group.addTask { (index, await load.value) }
+            }
+            for await (index, items) in group {
+                let playable = items.filter { player.canPlayAnywhereLocally($0) }
+                guard !playable.isEmpty, !Task.isCancelled else { continue }
+                found[index] = Shelf(title: services[index].title, items: playable)
+                arrived(found.keys.sorted().compactMap { found[$0] })
             }
         }
-        return shelves
+        return found.keys.sorted().compactMap { found[$0] }
     }
 
     /// Switched on in Services and set up far enough to browse. Apple Music
@@ -215,6 +238,86 @@ enum CarPlayLibrary {
             offset = after
         }
         return Array(apple.userPlaylists)
+    }
+
+    // MARK: - Audiobooks
+
+    /// Whether the Audiobooks tab is up: as on the phone, while
+    /// Audiobookshelf is signed in or the Plex server had books when last
+    /// asked; offline, while a book is downloaded whole.
+    static var showsAudiobooks: Bool {
+        if OfflineMode.shared.isActive { return AudiobookDownloads.hasDownloadedBooks }
+        return showsBooks(from: .plex) || showsBooks(from: .audiobookshelf)
+    }
+
+    /// Whether `service`'s books are shown: Plex while it's on, signed in
+    /// and had books, Audiobookshelf while it's on and signed in.
+    static func showsBooks(from service: MusicService) -> Bool {
+        switch service {
+        case .plex:
+            isReady(.plex) && UserDefaults.standard.bool(forKey: AppStorageKeys.hasPlexAudiobooks)
+        case .audiobookshelf:
+            CoreFeatures.shared.isEnabled(.audiobookshelf) && AudiobookshelfBrowseService.shared.isAuthenticated
+        default:
+            false
+        }
+    }
+
+    /// The books partway through, the one listened to last first: the
+    /// phone's Audiobooks tab's.
+    static func booksInProgress() -> [PlayableContent] {
+        let store = AudiobookProgressStore.shared
+        let listened = AudiobookLibrary.listenedBooks(plex: showsBooks(from: .plex), audiobookshelf: showsBooks(from: .audiobookshelf))
+        // Offline, only those that can play: downloaded whole.
+        let offline = OfflineMode.shared.isActive
+        return listened.filter { book in
+            let progress = store.progress(for: book)
+            return progress?.isStarted == true && progress?.isFinished != true && (!offline || AudiobookDownloads.isDownloaded(book))
+        }
+    }
+
+    /// Each server's books, by title: Plex's, then the Audiobookshelf
+    /// library chosen on the phone. Loaded side by side; `arrived` gets the
+    /// shelves so far each time a server answers, as for the Library's.
+    static func bookShelves(arrived: ([Shelf]) -> Void = { _ in }) async -> [Shelf] {
+        // Offline, the books on this iPhone, as the phone's tab lists them:
+        // the servers can't be asked.
+        if OfflineMode.shared.isActive {
+            let books = AudiobookDownloads.downloadedBooks(completeOnly: true)
+            return books.isEmpty ? [] : [Shelf(title: "Downloaded", items: books)]
+        }
+        var loads: [(Int, Task<Shelf?, Never>)] = []
+        if showsBooks(from: .plex) {
+            loads.append((0, Task {
+                let books = await AudiobookLibrary.plexShelf()
+                return books.isEmpty ? nil : Shelf(title: MediaSearchService.plex.title, items: books)
+            }))
+        }
+        if showsBooks(from: .audiobookshelf) {
+            loads.append((1, Task {
+                let shelf = AudiobookshelfBrowseService.shared
+                if shelf.libraries.isEmpty {
+                    await shelf.load()
+                }
+                let books = await shelf.books(offset: 0)
+                // The library's name only when there's more than one to
+                // tell apart.
+                let title = shelf.libraries.count > 1 ? shelf.selectedLibrary?.name : nil
+                return books.isEmpty ? nil : Shelf(title: title ?? MediaSearchService.audiobookshelf.title, items: books)
+            }))
+        }
+        var found: [Int: Shelf] = [:]
+        await withTaskGroup(of: (Int, Shelf?).self) { group in
+            for (index, load) in loads {
+                group.addTask { (index, await load.value) }
+            }
+            for await (index, shelf) in group {
+                guard let shelf, !Task.isCancelled else { continue }
+                found[index] = shelf
+                arrived(found.keys.sorted().compactMap { found[$0] })
+            }
+        }
+        return found.keys.sorted().compactMap { found[$0] }
     }
 
     // MARK: - Downloads

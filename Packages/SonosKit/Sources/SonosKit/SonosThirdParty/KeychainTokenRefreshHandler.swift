@@ -6,50 +6,102 @@
 //
 import MusicSearchKit
 import Foundation
+import os
 
-final class KeychainTokenRefreshHandler: TokenRefreshHandler {
-    static var shared = KeychainTokenRefreshHandler()
-    
-    fileprivate var cache = MemoryFileCache.shared
-    // Cache for credentials to avoid repeated keychain access
-    private var cachedCredentials: [SonosServiceType: Credentials] = [:]
-    private let credentialsQueue = DispatchQueue(label: "com.cue.credentials", attributes: .concurrent)
-    private let defaultGroup = UserDefaults(suiteName: "group.dance.cue")
-    
+/// The household's music-service accounts (token/key per service), as the
+/// speakers hand them over in ZoneGroupState and as Clic's own SMAPI token
+/// refreshes rotate them. Kept in the keychain, with each household's list
+/// held in memory so a request doesn't read and decode the keychain.
+final class KeychainTokenRefreshHandler: TokenRefreshHandler, Sendable {
+    static let shared = KeychainTokenRefreshHandler()
+
+    /// Each household's accounts as last read from the keychain or handed
+    /// over by the speakers. Guarded by an unfair lock, never held across an
+    /// await.
+    private let servers = OSAllocatedUnfairLock(initialState: [String: [MediaServer]]())
+    private nonisolated(unsafe) let defaultGroup = UserDefaults(suiteName: "group.dance.cue")
+
+    /// Empty values are ignored: the speaker reads behind these return "" or
+    /// nil when they fail (common right after the app resumes), and saving that
+    /// left every keychain-backed service (SoundCloud, Deezer, Pandora,
+    /// SiriusXM…) signed out until the next relaunch.
     var deviceId: String? {
         get {
             defaultGroup?.string(forKey: "deviceID")
         }
         set {
+            guard let newValue, !newValue.isEmpty else { return }
             defaultGroup?.set(newValue, forKey: "deviceID")
         }
     }
-    
+
+    /// The household whose service accounts are read. Falls back to the
+    /// household the speakers last sent accounts for (see
+    /// `mediaServersSaved(householdId:servers:)`) if none has been read yet.
     var householdId: String? {
         get {
-            defaultGroup?.string(forKey: "householdId")
+            if let stored = defaultGroup?.string(forKey: "householdId"), !stored.isEmpty {
+                return stored
+            }
+            return defaultGroup?.string(forKey: Self.lastMediaServerHouseholdKey)
         }
         set {
+            guard let newValue, !newValue.isEmpty else { return }
             defaultGroup?.set(newValue, forKey: "householdId")
         }
     }
-    
+
+    private static let lastMediaServerHouseholdKey = "lastMediaServerHouseholdId"
+
+    /// Called when the speakers hand over a household's service accounts,
+    /// after they're saved to the keychain.
+    func mediaServersSaved(householdId: String, servers newServers: [MediaServer]) {
+        guard !householdId.isEmpty else { return }
+        defaultGroup?.set(householdId, forKey: Self.lastMediaServerHouseholdKey)
+        servers.withLock { $0[householdId] = newServers }
+    }
+
     // Note: primaryServer key format should be "serverType.rawValue + preferredHouseHoldName"
     // Example: "Spotify + MyHousehold" or "Apple Music + Home"
     var primaryServer: [String: String]? {
         get {
-            cache.load(forKey: "primaryServer", as: [String: String].self) ?? [:]
+            MemoryFileCache.shared.load(forKey: "primaryServer", as: [String: String].self) ?? [:]
         }
         set {
-            cache.save(newValue, forKey: "primaryServer")
+            MemoryFileCache.shared.save(newValue, forKey: "primaryServer")
         }
     }
-    
+
     func getKey(for type: SonosServiceType) -> String? {
         guard let householdId else { return nil }
         return "\(type.rawValue).\(householdId)"
     }
-    
+
+    // MARK: Accounts
+
+    /// `householdId`'s accounts, from memory or else the keychain.
+    private func mediaServers(householdId: String) -> [MediaServer]? {
+        if let cached = servers.withLock({ $0[householdId] }) { return cached }
+        guard let stored = KeychainManager.shared.getMediaServers(householdId: householdId) else { return nil }
+        servers.withLock { $0[householdId] = stored }
+        return stored
+    }
+
+    /// The account used for `serviceType`: the one picked as primary when
+    /// there are several, otherwise (or if the pick is gone) the first.
+    private func server(for serviceType: SonosServiceType, in servers: [MediaServer]) -> MediaServer? {
+        let candidates = servers.filter { $0.type == serviceType }
+        if candidates.count > 1,
+           let primaryKey = getKey(for: serviceType),
+           let primaryUDN = primaryServer?[primaryKey],
+           let primary = candidates.first(where: { $0.id == primaryUDN }) {
+            return primary
+        }
+        return candidates.first
+    }
+
+    // MARK: TokenRefreshHandler
+
     func handleTokenRefresh(householdId: String, token: String, key: String) async throws {
         try await handleTokenRefresh(serviceType: .spotify, householdId: householdId, token: token, key: key)
     }
@@ -59,116 +111,65 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
     /// re-refreshing an already-rotated token.
     func handleTokenRefresh(serviceType: SonosServiceType, householdId: String, token: String, key: String) async throws {
         self.householdId = householdId
-        guard var servers = KeychainManager.shared.getMediaServers(householdId: householdId) else {
+        guard var stored = mediaServers(householdId: householdId),
+              let target = server(for: serviceType, in: stored),
+              let index = stored.firstIndex(where: { $0.id == target.id }) else {
             throw SpotifyMetadataError.tokenRefreshFailed
         }
 
-        let serviceServers = servers.filter { $0.type == serviceType }
-        let targetServer: MediaServer?
-
-        // Use primaryServer if more than 2 servers of this type exist
-        if serviceServers.count > 1, let primaryServer = primaryServer, let primaryKey = getKey(for: serviceType) {
-            if let primaryUDN = primaryServer[primaryKey] {
-                targetServer = servers.first(where: { $0.id == primaryUDN && $0.type == serviceType })
-            } else {
-                targetServer = serviceServers.first
-            }
-        } else {
-            targetServer = serviceServers.first
-        }
-        
-        guard let targetServer = targetServer,
-              let index = servers.firstIndex(where: { $0.id == targetServer.id }) else {
-            throw SpotifyMetadataError.tokenRefreshFailed
-        }
-        
-        servers[index] = MediaServer(
-            udn: targetServer.id,
-            nickname: targetServer.name,
+        stored[index] = MediaServer(
+            udn: target.id,
+            nickname: target.name,
             token: token,
             key: key,
-            serialNum: targetServer.serialNumber,
-            flags: targetServer.flags,
-            tier: targetServer.tier
+            serialNum: target.serialNumber,
+            flags: target.flags,
+            tier: target.tier
         )
-        
-        KeychainManager.shared.saveMediaServers(householdId: householdId, servers: servers)
+
+        KeychainManager.shared.saveMediaServers(householdId: householdId, servers: stored)
+        servers.withLock { [stored] in $0[householdId] = stored }
+    }
+
+    func getCredentials() async throws -> Credentials? {
+        credentials(for: .spotify)
+    }
+
+    /// `service` is a `SonosServiceType` raw value, e.g. "SoundCloud".
+    func getCredentials(for service: String) async throws -> Credentials? {
+        Self.serviceType(named: service).flatMap(credentials(for:))
+    }
+
+    func getCredentials(for serviceType: SonosServiceType) async throws -> Credentials? {
+        credentials(for: serviceType)
+    }
+
+    func invalidateCredentials(for service: String) {
         invalidateCache()
     }
-    
-    func getCredentials() async throws -> Credentials? {
-        return try await getCredentials(for: .spotify)
-    }
-    
-    func getCredentials(for service: String) async throws -> Credentials? {
-        // MARK: Fix for remaining services
-        return try await getCredentials(for: .soundcloud)
-    }
-    
-    func getCredentials(for serviceType: SonosServiceType) async throws -> Credentials? {
-        if let cachedCredentials = credentialsQueue.sync(execute: { cachedCredentials[serviceType] }) {
-            return cachedCredentials
-        }
-        
-        guard let deviceId, let householdId else {
+
+    private func credentials(for serviceType: SonosServiceType) -> Credentials? {
+        guard let deviceId, let householdId,
+              let servers = mediaServers(householdId: householdId),
+              let server = server(for: serviceType, in: servers) else {
             return nil
         }
-        
-        guard let servers = KeychainManager.shared.getMediaServers(householdId: householdId) else {
-            return nil
-        }
-        
-        let serviceServers = servers.filter { $0.type == serviceType }
-        let targetServer: MediaServer?
-        
-        // Use primaryServer if more than 2 servers of this type exist
-        if serviceServers.count > 1, let primaryServer = primaryServer, let primaryKey = getKey(for: serviceType) {
-            if let primaryUDN = primaryServer[primaryKey] {
-                targetServer = servers.first(where: { $0.id == primaryUDN && $0.type == serviceType })
-            } else {
-                targetServer = serviceServers.first
-            }
-        } else {
-            targetServer = serviceServers.first
-        }
-        
-        guard let targetServer = targetServer else {
-            return nil
-        }
-        
-        let credentials = Credentials(
-            deviceId: deviceId,
-            householdId: householdId,
-            token: targetServer.token,
-            key: targetServer.key
-        )
-        
-        credentialsQueue.async(flags: .barrier) { [weak self] in
-            self?.cachedCredentials[serviceType] = credentials
-        }
-        return credentials
+        return Credentials(deviceId: deviceId, householdId: householdId, token: server.token, key: server.key)
     }
-    
+
+    private static func serviceType(named name: String) -> SonosServiceType? {
+        SonosServiceType.allCases.first { $0.rawValue.caseInsensitiveCompare(name) == .orderedSame }
+    }
+
     /// The UDN of the media server backing `serviceType`'s credentials — the
-    /// same account `getCredentials(for:)` reads its token from, chosen with
-    /// the same primary-server rules.
+    /// same account `getCredentials(for:)` reads its token from.
     ///
     /// The UDN *is* the service-account cdudn
     /// (`SA_RINCON60423_X_#Svc60423-62fe75eb-Token`), and its middle segment is
     /// the account serial that some services require in the SMAPI householdId.
     func serverUDN(for serviceType: SonosServiceType) -> String? {
-        guard let householdId,
-              let servers = KeychainManager.shared.getMediaServers(householdId: householdId) else {
-            return nil
-        }
-        let serviceServers = servers.filter { $0.type == serviceType }
-        if serviceServers.count > 1,
-           let primaryServer, let primaryKey = getKey(for: serviceType),
-           let primaryUDN = primaryServer[primaryKey],
-           let match = serviceServers.first(where: { $0.id == primaryUDN }) {
-            return match.id
-        }
-        return serviceServers.first?.id
+        guard let householdId, let servers = mediaServers(householdId: householdId) else { return nil }
+        return server(for: serviceType, in: servers)?.id
     }
 
     /// The account serial from a Sonos service UDN — the middle segment of
@@ -180,37 +181,11 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
     }
 
     func getAccessToken(for serviceType: SonosServiceType) async throws -> String? {
-        guard let credentials = try await getCredentials(for: serviceType) else {
-            return nil
-        }
-        return credentials.token
+        credentials(for: serviceType)?.token
     }
-    
+
+    /// Drops the in-memory accounts so the next request reads the keychain.
     func invalidateCache() {
-        credentialsQueue.async(flags: .barrier) { [weak self] in
-            self?.cachedCredentials.removeAll()
-        }
-    }
-    
-    func invalidateCache(for serviceType: SonosServiceType) {
-        credentialsQueue.async(flags: .barrier) { [weak self] in
-            self?.cachedCredentials.removeValue(forKey: serviceType)
-        }
-    }
-    
-    public func setCredentials(for server: MediaServer) {
-        guard let deviceId = deviceId, let householdId else {
-            invalidateCache()
-            return
-        }
-        let credentials = Credentials(
-            deviceId: deviceId,
-            householdId: householdId,
-            token: server.token,
-            key: server.key
-        )
-        credentialsQueue.async(flags: .barrier) { [weak self] in
-            self?.cachedCredentials[server.type] = credentials
-        }
+        servers.withLock { $0.removeAll() }
     }
 }

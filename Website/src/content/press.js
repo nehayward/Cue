@@ -7,11 +7,12 @@ export const about = {
 	long: [
 		'Cue is a complete music player first. It plays Apple Music, Plex, Navidrome and other Subsonic servers, TuneIn radio and your own files right on your iPhone, with universal search, offline downloads, streaming quality settings and live radio transcription.',
 		'When you’re home, one tap on Play On hands the same queue to any Sonos room or group. Every service in Cue plays both on the phone and on Sonos — Cue leaves out services that only a speaker can play, rather than offer half of one.',
+		'Cue comes along when you leave, too. CarPlay puts your libraries, downloads and radio on the car’s screen, and the Apple Watch app downloads Plex and Subsonic music to the watch, so it plays with no iPhone nearby.',
 	],
 };
 
 export const facts = [
-	{ label: 'Platform', value: 'iPhone' },
+	{ label: 'Platform', value: 'iPhone, Apple Watch, CarPlay' },
 	{ label: 'Services', value: 'Apple Music, Plex, Subsonic (Navidrome, Airsonic, Gonic…), TuneIn, your files' },
 	{ label: 'Sonos', value: 'Optional. S1 and S2 systems, multiple homes' },
 	{ label: 'Developer', value: 'Nick Hayward, independent, Seattle' },
@@ -23,6 +24,7 @@ export const highlights = [
 	'A first-class client for Plex and Subsonic servers, with offline downloads and play reporting',
 	'Search across several services at once, in one ranked list',
 	'Live, on-device transcription of radio stations',
+	'CarPlay, and an Apple Watch app that plays Plex and Subsonic music with no iPhone nearby',
 ];
 
 // { file: 'press/<name>.jpg', alt: '…' } — shown as a grid once added.

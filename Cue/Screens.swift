@@ -56,6 +56,16 @@ enum Screens {
             .environment(selectedGroupService)
     }
 
+    /// The Audiobooks tab: the book listened to last, and every book.
+    @ViewBuilder
+    static var audiobooks: some View {
+        let selectedGroupService = SelectedGroupService(group: nil)
+
+        AudiobooksScreen()
+            .tint(Color("Accent"))
+            .environment(selectedGroupService)
+    }
+
     /// A provider's own tab — its library's front page, listing the
     /// collections its sidebar section is showing.
     @ViewBuilder

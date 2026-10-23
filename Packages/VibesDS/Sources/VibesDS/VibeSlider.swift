@@ -13,6 +13,7 @@ public struct VibeSlider: View {
     @State private var onHover: Bool = false
     @State private var isHovered: Bool = false
     @State private var mouseLocation: CGPoint = .zero
+    @State private var labelWidth: CGFloat = 28
     /// False until `value` has changed once. The first change is the slider
     /// catching up to the real level (a speaker's volume arriving after the
     /// row appears), so it jumps there instead of sweeping up from 0. Until
@@ -20,14 +21,22 @@ public struct VibeSlider: View {
     /// included.
     @State private var animatesValue = false
     
-    @GestureState private var isDragging: Bool = false
+    @GestureState private var isDragGestureActive: Bool = false
+    @State private var isHolding: Bool = false
+    /// A long press is down: until it lifts, the drag beside it moves
+    /// nothing, so a press held into a slide can't edit (and unmute) what
+    /// it just muted.
+    @State private var isLongPressing: Bool = false
+    private var isDragging: Bool { isDragGestureActive || isHolding }
 
     private let baseHeight: Double
     private var expandedHeight: Double { baseHeight * 1.65 }
     private var capsuleColor: Color { colorScheme == .dark ? .white : .black }
     private let delayDrag: Bool
+    private let immediateDrag: Bool
     private let showValue: Bool
     private var onEditingChanged: (Bool) -> Void
+    private let onLongPress: (() -> Void)?
     private var range: ClosedRange<Double>
     private let step: Double.Stride
     private let valueAnimation: Animation?
@@ -39,21 +48,32 @@ public struct VibeSlider: View {
     ///   - value: A binding to the value represented by the slider.
     ///   - range: The range of values the slider can represent.
     ///   - step: The smallest discrete value change allowed.
-    ///   - touchDelay: The delay before recognizing a touch as a drag gesture.
+    ///   - delayDrag: For sliders in lists: the drag only begins once it has
+    ///     gone sideways past a dead zone. Only before iOS 18; from iOS 18
+    ///     every slider's drag is `SidewaysPan`, which starts sideways only
+    ///     and makes the list wait, with no dead zone.
+    ///   - immediateDrag: Start the drag on touch-down so a navigation back
+    ///     swipe can't claim it first. Only for sliders outside scroll views —
+    ///     it also stops a scroll that starts on the slider. iOS 18+.
     ///   - valueAnimation: How the fill moves when `value` changes. Pass `nil`
     ///     to have it swap in place instead — the animation is applied inside
     ///     the slider, so a caller cannot suppress it with a transaction from
     ///     the outside.
     ///   - onEditingChanged: A closure called when editing begins and ends.
+    ///   - onLongPress: Called when the slider is held still for half a
+    ///     second (the volume sliders mute with it). A held touch then never
+    ///     starts an edit. iOS 18+.
     public init(
         value: Binding<Double>,
         in range: ClosedRange<Double> = 0...100,
         step: Double.Stride = 1,
         baseHeight: CGFloat = 24,
         delayDrag: Bool = false,
+        immediateDrag: Bool = false,
         showValue: Bool = false,
         valueAnimation: Animation? = .interactiveSpring,
-        onEditingChanged: @escaping (Bool) -> Void = { _ in }) {
+        onEditingChanged: @escaping (Bool) -> Void = { _ in },
+        onLongPress: (() -> Void)? = nil) {
             self._value = value
             self.range = range
             self.step = step
@@ -63,84 +83,15 @@ public struct VibeSlider: View {
 #else
             self.delayDrag = delayDrag
 #endif
+            self.immediateDrag = immediateDrag
             self.showValue = showValue
             self.valueAnimation = valueAnimation
             self.onEditingChanged = onEditingChanged
+            self.onLongPress = onLongPress
         }
     
     public var body: some View {
-        ZStack(alignment: .leading) {
-            // visionOS (on device) does not like when drag targets are smaller than 40pt tall, so add an almost-transparent (as it still needs to be interactive) that enforces an effective minimum height. If the slider is tall than this on its own it's essentially just ignored.
-#if os(visionOS)
-            Color.orange.opacity(0.0001)
-                .frame(height: 40.0)
-#endif
-            Capsule()
-                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-                .frame(height: baseHeight)
-                .foregroundStyle(.quaternary)
-                .shadow(color: .black.opacity(0.1), radius: 1.5, y: 1)
-                .shadow(color: .white.opacity(0.1), radius: 0.5, y: 0.5)
-                .overlay(alignment: .leading) {
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .overlay {
-                                if isDragging {
-                                    Capsule().foregroundStyle(Color.black.opacity(0.15)).blendMode(.lighten)
-                                }
-                            }
-#if os(visionOS)
-                            .overlay(alignment: .trailing) {
-                                ZStack {
-                                    Circle()
-                                        .foregroundStyle(Color.white)
-                                        .shadow(radius: 1.0)
-                                        .padding(innerCirclePadding)
-                                        .opacity(isDragging ? 1.0 : 0.0)
-                                }
-                            }
-#endif
-                            .frame(width: calculateProgressWidth(), height: baseHeight)
-                            .animation(fillAnimation, value: value)
-                            // Until the first value lands, also drop animations
-                            // inherited from outside: a list animating rows in
-                            // otherwise grows the fill from width 0.
-                            .transaction { if !animatesValue { $0.animation = nil } }
-                    }
-                }
-                .clipShape(.capsule) // Best attempt at fixing a bug https://twitter.com/ChristianSelig/status/1757139789457829902
-#if !os(watchOS) && !os(macOS)
-                .contentShape(.hoverEffect, .capsule)
-#endif
-            Text("\(Int(math.clamped(value)))")
-#if targetEnvironment(macCatalyst)
-                .font(.subheadline)
-#endif
-                .monospacedDigit()
-                .fontDesign(.rounded)
-                .fontWeight(.semibold)
-                .foregroundStyle(.white)
-                .blendMode(.difference)
-                .contentTransition(.identity)
-                .frame(minWidth: 28, minHeight: baseHeight)
-                .background(isDragging ? capsuleColor : Color.clear)
-                .clipShape(.capsule)
-                .offset(x: offsetForValue, y: isDragging ? -24 : 0)
-                .opacity(showValue ? 1 : 0)
-                .animation(.interactiveSpring, value: isDragging)
-                .animation(fillAnimation, value: value)
-                .transaction { if !animatesValue { $0.animation = nil } }
-        }
-        .padding(.vertical, baseHeight/2)
-        .gesture(dragGesture)
-#if !targetEnvironment(macCatalyst)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .updating($isDragging) { _, state, _ in
-                    state = true
-                }
-        )
-#endif
+        dragHandling(track)
 #if !os(visionOS)
         .sensoryFeedback(trigger: value) { oldValue, newValue in
             guard isDragging else { return .none }
@@ -177,7 +128,195 @@ public struct VibeSlider: View {
             Task { @MainActor in animatesValue = true }
         }
     }
+
+    private var track: some View {
+        ZStack(alignment: .leading) {
+            // visionOS (on device) does not like when drag targets are smaller than 40pt tall, so add an almost-transparent (as it still needs to be interactive) that enforces an effective minimum height. If the slider is tall than this on its own it's essentially just ignored.
+#if os(visionOS)
+            Color.orange.opacity(0.0001)
+                .frame(height: 40.0)
+#endif
+            Capsule()
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+                .frame(height: baseHeight)
+                // A step lighter under a pointer, the Mac's in particular,
+                // where nothing else shows the slider is under it.
+                .foregroundStyle(isHovered && isEnabled ? .tertiary : .quaternary)
+                .shadow(color: .black.opacity(0.1), radius: 1.5, y: 1)
+                .shadow(color: .white.opacity(0.1), radius: 0.5, y: 0.5)
+                .overlay(alignment: .leading) {
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .overlay {
+                                if isDragging {
+                                    Capsule().foregroundStyle(Color.black.opacity(0.15)).blendMode(.lighten)
+                                }
+                            }
+#if os(visionOS)
+                            .overlay(alignment: .trailing) {
+                                ZStack {
+                                    Circle()
+                                        .foregroundStyle(Color.white)
+                                        .shadow(radius: 1.0)
+                                        .padding(innerCirclePadding)
+                                        .opacity(isDragging ? 1.0 : 0.0)
+                                }
+                            }
+#endif
+                            .frame(width: calculateProgressWidth(), height: baseHeight)
+                            .animation(fillAnimation, value: value)
+                            // Until the first value lands, also drop animations
+                            // inherited from outside: a list animating rows in
+                            // otherwise grows the fill from width 0.
+                            .transaction { if !animatesValue { $0.animation = nil } }
+                    }
+                }
+                .clipShape(.capsule) // Best attempt at fixing a bug https://twitter.com/ChristianSelig/status/1757139789457829902
+#if !os(watchOS) && !os(macOS)
+                .contentShape(.hoverEffect, .capsule)
+#endif
+            // Not built at all when hidden: the scrub bar's value ticks with
+            // playback, and an invisible label still costs layout every tick.
+            if showValue {
+                valueLabel
+                    .frame(minWidth: 28, minHeight: baseHeight)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { labelWidth = $0 }
+                    .background(isDragging ? capsuleColor : Color.clear)
+                    .clipShape(.capsule)
+                    .offset(x: offsetForValue, y: isDragging ? -24 : 0)
+                    .animation(.interactiveSpring, value: isDragging)
+                    .animation(fillAnimation, value: value)
+                    .transaction { if !animatesValue { $0.animation = nil } }
+            }
+        }
+        .padding(.vertical, baseHeight/2)
+    }
+
+    /// Attaches the drag to the slider.
+    ///
+    /// On iOS 18+ the drag is a UIKit recognizer, because SwiftUI's
+    /// `DragGesture` can't pick a direction or defer to other recognizers:
+    /// - `immediateDrag` begins on touch-down (`TouchDownDrag`), so the
+    ///   navigation stack's full-screen back swipe (iOS 26) can't claim the
+    ///   touch first — behind it the slider read as having a minimum drag
+    ///   distance.
+    /// - Every other slider is a `SidewaysPan`: it only begins sideways, and
+    ///   the list's scroll, a sheet's pull to dismiss and the back swipe wait
+    ///   for it, so a vertical swipe that starts on the slider still scrolls
+    ///   and a sideways one never does. That retired `delayDrag`'s dead zone.
+    ///   `onLongPress` is a long-press recognizer beside it.
+    /// The Mac, visionOS and older systems keep the SwiftUI path.
+    @ViewBuilder
+    private func dragHandling(_ content: some View) -> some View {
+#if os(iOS) && !targetEnvironment(macCatalyst)
+        if #available(iOS 18.0, *) {
+            // The recognizers are told `isEnabled` themselves: `.disabled`
+            // isn't known to reach a UIKit one.
+            if immediateDrag {
+                content.gesture(touchDownDrag)
+            } else if let onLongPress {
+                // Enabled through the recognizer rather than by swapping this
+                // branch, so a press under way when the slider is disabled is
+                // cancelled (and `isLongPressing` cleared), not torn out.
+                content
+                    .gesture(sidewaysDrag)
+                    .gesture(SliderLongPress(isEnabled: isEnabled, onBegan: {
+                        isLongPressing = true
+                        onLongPress()
+                    }, onEnded: {
+                        isLongPressing = false
+                    }))
+            } else {
+                content.gesture(sidewaysDrag)
+            }
+        } else {
+            swiftUIDragHandling(content)
+        }
+#else
+        swiftUIDragHandling(content)
+#endif
+    }
+
+#if os(iOS) && !targetEnvironment(macCatalyst)
+    @available(iOS 18.0, *)
+    private var touchDownDrag: TouchDownDrag {
+        TouchDownDrag(
+            isEnabled: isEnabled,
+            onChanged: uiKitDragChanged,
+            onEnded: uiKitDragEnded,
+            onLongPress: onLongPress
+        )
+    }
+
+    @available(iOS 18.0, *)
+    private var sidewaysDrag: SidewaysPan {
+        SidewaysPan(isEnabled: isEnabled, onBegan: {}, onChanged: uiKitDragChanged, onEnded: uiKitDragEnded)
+    }
+
+    private func uiKitDragChanged(_ translation: CGFloat) {
+        guard !isLongPressing else { return }
+        isHolding = true
+        applyDrag(translation: translation)
+    }
+
+    private func uiKitDragEnded() {
+        guard isHolding else { return }
+        isHolding = false
+        onEditingChanged(false)
+        startingValue = nil
+    }
+#endif
+
+    private func swiftUIDragHandling(_ content: some View) -> some View {
+        content
+            .gesture(dragGesture)
+#if !targetEnvironment(macCatalyst)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .updating($isDragGestureActive) { _, state, _ in
+                        state = true
+                    }
+            )
+#endif
+    }
     
+    private var valueText: some View {
+        Text("\(Int(math.clamped(value)))")
+#if targetEnvironment(macCatalyst)
+            .font(.subheadline)
+#endif
+            .monospacedDigit()
+            .fontDesign(.rounded)
+            .fontWeight(.semibold)
+            .contentTransition(.identity)
+            .frame(minWidth: 28, minHeight: baseHeight)
+    }
+
+    /// The value readout, drawn in two halves split where the fill ends.
+    ///
+    /// Over the fill the text inverts against it (white + difference), which
+    /// reads on any fill colour. Over the empty track that same trick blends
+    /// with whatever sits behind the translucent track — on a tinted player
+    /// background it turned a low-contrast grey — so that half is drawn in
+    /// plain `.primary` instead. While dragging, the label floats on its own
+    /// capsule, so the whole thing inverts.
+    private var valueLabel: some View {
+        let covered = isDragging ? labelWidth : min(labelWidth, max(0, calculateProgressWidth() - offsetForValue))
+        return ZStack {
+            valueText
+                .foregroundStyle(.primary)
+                .mask(alignment: .trailing) {
+                    Rectangle().frame(width: max(0, labelWidth - covered))
+                }
+            valueText
+                .foregroundStyle(.white)
+                .mask(alignment: .leading) {
+                    Rectangle().frame(width: covered)
+                }
+                .blendMode(.difference)
+        }
+    }
+
     private var dragGesture: some Gesture {
         DragGesture(minimumDistance: delayDrag ? 16 : 0)
             .onChanged(handleDragChanged)
@@ -185,8 +324,12 @@ public struct VibeSlider: View {
     }
     
     private func handleDragChanged(_ gesture: DragGesture.Value) {
+        applyDrag(translation: gesture.translation.width)
+    }
+
+    private func applyDrag(translation: CGFloat) {
         onEditingChanged(true)
-        calculateNewValue(from: gesture)
+        calculateNewValue(translation: translation)
     }
     
     private func handleDragEnded(_ gesture: DragGesture.Value) {
@@ -199,11 +342,11 @@ public struct VibeSlider: View {
         startingValue = nil
     }
     
-    private func calculateNewValue(from gesture: DragGesture.Value) {
+    private func calculateNewValue(translation: CGFloat) {
         if startingValue == nil {
             startingValue = value
         }
-        self.value = math.value(from: startingValue ?? value, translation: gesture.translation.width, trackWidth: width, step: step)
+        self.value = math.value(from: startingValue ?? value, translation: translation, trackWidth: width, step: step)
     }
     
     /// No animation while the pointer is on the slider: a spring re-targeted
@@ -235,6 +378,149 @@ public struct VibeSlider: View {
 #endif
 }
 
+
+#if os(iOS) && !targetEnvironment(macCatalyst)
+/// The slider's drag on touch-down, as a UIKit recognizer: a zero-duration
+/// long press, which begins the moment a finger lands. A pan only begins
+/// after ~10pt of travel, and until then the navigation stack's full-screen
+/// back swipe is free to take the touch. Reports the horizontal distance
+/// moved since the touch landed.
+///
+/// With `onLongPress`, the edit waits for the finger to move: held still
+/// for half a second, the touch is the long press instead, and never an
+/// edit (the volume sliders unmute when an edit starts).
+@available(iOS 18.0, *)
+private struct TouchDownDrag: UIGestureRecognizerRepresentable {
+    var isEnabled: Bool
+    var onChanged: (CGFloat) -> Void
+    var onEnded: () -> Void
+    var onLongPress: (() -> Void)?
+
+    /// How far a held finger may drift before the touch is a drag.
+    private static let slop: CGFloat = 4
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
+        let press = UILongPressGestureRecognizer()
+        press.minimumPressDuration = 0
+        press.allowableMovement = .greatestFiniteMagnitude
+        press.delegate = context.coordinator
+        return press
+    }
+
+    func updateUIGestureRecognizer(_ recognizer: UILongPressGestureRecognizer, context: Context) {
+        recognizer.isEnabled = isEnabled
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UILongPressGestureRecognizer, context: Context) {
+        let touch = context.coordinator
+        switch recognizer.state {
+        case .began:
+            touch.startX = recognizer.location(in: recognizer.view).x
+            touch.didLongPress = false
+            touch.longPress?.cancel()
+            if let onLongPress {
+                touch.isDragging = false
+                touch.longPress = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(500))
+                    guard !Task.isCancelled, !touch.isDragging else { return }
+                    touch.didLongPress = true
+                    onLongPress()
+                }
+            } else {
+                touch.isDragging = true
+                onChanged(0)
+            }
+        case .changed:
+            let x = recognizer.location(in: recognizer.view).x
+            if !touch.isDragging {
+                guard !touch.didLongPress, abs(x - touch.startX) > Self.slop else { return }
+                touch.isDragging = true
+                touch.longPress?.cancel()
+                // Measured from here, so the slop it took to tell a drag
+                // from a press doesn't jump the level.
+                touch.startX = x
+            }
+            onChanged(x - touch.startX)
+        case .ended, .cancelled, .failed:
+            touch.longPress?.cancel()
+            touch.longPress = nil
+            if touch.isDragging {
+                touch.isDragging = false
+                onEnded()
+            }
+        default:
+            break
+        }
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var startX: CGFloat = 0
+        /// The touch has started an edit.
+        var isDragging = false
+        /// The touch was held still into a long press.
+        var didLongPress = false
+        var longPress: Task<Void, Never>?
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy other: UIGestureRecognizer) -> Bool {
+            isContentPopGesture(other, above: gestureRecognizer.view)
+        }
+
+        /// Whether `other` is the full-screen back swipe of any navigation
+        /// controller above the slider — a collapsed NavigationSplitView nests
+        /// them, and the swipe belongs to the outer one.
+        private func isContentPopGesture(_ other: UIGestureRecognizer, above view: UIView?) -> Bool {
+            guard #available(iOS 26.0, *) else { return false }
+            var responder: UIResponder? = view
+            while let current = responder {
+                if let navigation = current as? UINavigationController,
+                   other === navigation.interactiveContentPopGestureRecognizer {
+                    return true
+                }
+                responder = current.next
+            }
+            return false
+        }
+    }
+}
+
+/// A slider held still for half a second, beside its `SidewaysPan`. A drag
+/// that sets off sideways first moves it past `allowableMovement` and fails
+/// it, and once the pan has begun the press can't.
+@available(iOS 18.0, *)
+private struct SliderLongPress: UIGestureRecognizerRepresentable {
+    var isEnabled = true
+    let onBegan: () -> Void
+    /// The press lifted, or was taken away.
+    let onEnded: () -> Void
+
+    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
+        let press = UILongPressGestureRecognizer()
+        press.minimumPressDuration = 0.5
+        press.allowableMovement = 10
+        return press
+    }
+
+    func updateUIGestureRecognizer(_ recognizer: UILongPressGestureRecognizer, context: Context) {
+        recognizer.isEnabled = isEnabled
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UILongPressGestureRecognizer, context: Context) {
+        switch recognizer.state {
+        case .began:
+            onBegan()
+        case .ended, .cancelled, .failed:
+            onEnded()
+        default:
+            break
+        }
+    }
+}
+#endif
 
 import SwiftUI
 

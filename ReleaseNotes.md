@@ -1,7 +1,7 @@
 # 2026.8
 
 –– New Features ––
-- CarPlay: Play your Apple Music, Plex, Subsonic and Files libraries, your downloads and your radio stations from the car's screen — Recents, Library, Downloads and Radio, with Up Next, shuffle and repeat in Now Playing. Library opens on your playlists with Recently Added and Albums pinned on top, Downloads plays what's on your iPhone with no signal, and albums and playlists open with their cover, Play and Shuffle
+- CarPlay: Play your Apple Music, Plex, Subsonic and Files libraries, your downloads and your radio stations from the car's screen — Recents, Library, Downloads and Radio, with Up Next, shuffle and repeat in Now Playing and Up Next. Library switches between your playlists, Recently Added and Albums from the buttons on top, Downloads plays what's on your iPhone with no signal, Radio lays out your stations as a grid, and albums and playlists open with their cover, Play and Shuffle
 - Plays count on your server: songs you play on this device in Cue now show up in your Plex and Subsonic play counts, Recently Played and the server's Now Playing. Navidrome passes them on to Last.fm or ListenBrainz if you've set that up
 - Subsonic & Navidrome: Play your self-hosted music library on Sonos. Connect any Subsonic-compatible server (Navidrome, Airsonic, Gonic, and more) with its address and login under Settings ▸ Services, and your speakers stream your music straight from the server — no Sonos account involved, with your password kept in the device keychain
 - Subsonic search and browse: Search your server's songs, albums and artists alongside your other services, browse your whole library — Artists, Albums, Songs, Recently Added, and Playlists — and open artist pages complete with top songs and a playable discography
@@ -13,6 +13,10 @@
 - Offline Mode: With no network — on a plane, in a tunnel — Home (Browse on iPhone) shows just what's on this device: your Plex and Subsonic downloads and the songs of your Files folder that are here, with Play and Shuffle for the lot, and everything plays on this device. Switch it on yourself from Home or Settings ▸ Storage to stay with your downloads while you still have a connection
 - Streaming Quality: Have your Plex or Subsonic server convert songs to MP3 or Opus at a bitrate you choose, under Settings ▸ Services — smaller over cellular or a slow connection home. Applies to songs played and downloaded on this device and to Subsonic songs sent to your speakers, which get MP3 in place of Opus since Sonos players can't play it
 - Live Transcription: While a radio station plays, tap the captions button on the player (⇧⌘T on Mac) to see what's being said, written out live by a model that runs entirely on your device (iOS 26 and later). Works for TuneIn stations on this device, and for TuneIn and internet radio stations playing on your Sonos speakers. Pick any supported language — it downloads the first time — and Cue remembers it for each station. The switch stays how you left it between launches
+- Lyrics: Tap the speech bubble on the player to follow along with the words. Cue shows your Plex, Subsonic and Files songs' own lyrics — a .lrc beside the song or lyrics in its tags — and finds the rest on LRCLIB, Apple Music songs included. On iPhone they fill the screen like Apple Music, each line lighting up as it's sung; tap a line to jump there, scroll away and Back to Now brings you back, and the controls tuck away while you sing along. Works on this device and on your Sonos speakers, and downloaded Plex and Subsonic songs keep their lyrics for listening offline. Turn off the online lookup in Settings ▸ Playback ▸ Look Up Lyrics Online
+- Line In from any speaker: Play the line-in of any speaker on any room or group, say the turntable on your Living Room Port in the Kitchen. Switch to Line In in the player's ••• menu lists every speaker with a line-in and checks the one playing, and the player shows which speaker the sound comes from
+- Sort your Plex playlists: Order them by title, date added, last played, play count, duration or number of songs, and flip any of them. Cue remembers your pick, and the playlists on the Plex library's front page follow it. Inside a playlist, sort its songs by title, artist, album or length; Play and a tapped song follow the order you see, and each playlist remembers its own
+- Smart Resume for audiobooks: Press play after a pause and your book goes back a moment so you don't lose the thread — a second after a quick pause, up to 15 seconds after a day away — and starts again in a natural pause between words, or at the start of the sentence after a longer break. It never goes back past the start of the chapter, and works on iPhone, iPad, Mac, Apple Vision Pro, CarPlay and Apple Watch
 
 –– Bug Fixes & Improvements ––
 - Smoother changes between songs from different services on this device: Cue starts the next song the moment the last one ends, and looks up Apple Music songs ahead of time, so there's barely a pause going from your server to Apple Music and back
@@ -29,6 +33,29 @@
 - One speaker button on the player: the Play On button now carries the grouping menu too — with a speaker chosen, tap it to check the rooms you want playing together, uncheck one to drop it, or pick Everywhere or Ungroup All — so the second speaker button beside it is gone, and the menu no longer lists the current room's name twice
 - Improved Plex sign-in: it opens in Safari, so a saved password fills in, Sign in with Apple or Google works, and if you're already signed in to Plex in Safari you only approve Cue. The button shows when it's working, says what went wrong if Plex can't be reached, and offers Open in Browser Instead. Signing in again no longer adds another Cue to your Plex account's devices
 - Improved Subsonic setup: type just your server's name, like music.example.com, and Cue connects over HTTPS when the server has it. Errors now say what to fix — a wrong password, a server that can't be found, Local Network access, or an address that isn't a Subsonic server
+- Fixed SoundCloud, Deezer, Pandora and Sonos Radio sometimes showing as signed out or not loading until Cue was force quit
+- Fixed Browse sections staying empty after switching between music services quickly
+- Improved downloaded albums and playlists: remove a song you don't want and the rest stay on your device as the album, still marked downloaded and removable in one go. The album's download button offers the removed songs again, and downloading one of them on its own puts it back
+- More reliable album and playlist downloads from Plex and Subsonic: songs your server turns away while it's busy are tried again by themselves instead of failing, a download that stalls is picked back up, and closing Cue part-way no longer leaves songs stuck for minutes. Downloads left over when you reopen Cue keep going at full speed after you leave it, with their progress on the Lock Screen. Big playlists start at once instead of freezing the app, and a playlist whose list couldn't be fetched in full is never marked downloaded with songs missing
+- Fixed downloads at an MP3 or Opus Streaming Quality sometimes saving a few seconds of a song as the whole thing, or failing with "cannot parse response". Songs already saved that way are fetched again the next time you're on Wi‑Fi
+- Removing a downloaded album no longer takes the songs it shares with another downloaded album or playlist
+- Fixed songs in your Files folder losing the last letter of their title, artist or album when their tags were written by some Windows taggers
+- Fixed Switch to Line In missing from the player's menu while the speaker with the line-in was grouped under another room
+- Fixed a rare crash when Cue reconnected to your speakers, such as after switching rooms or coming back to the app
+- Fixed the player, mini player and Lock Screen sometimes not following play and pause on a speaker after another speaker in the house woke, slept or was regrouped
+- Fixed the player briefly switching to This Device after taking the room that was playing out of a group
+- Fixed opening Cue stopping music that another app on this device was AirPlaying to a Sonos group, and setting its speakers to zero
+- Fixed Shortcuts actions asking you to subscribe to Super after you'd bought it
+- Super now unlocks on any iPhone, iPad or Mac signed in to the App Store with the Apple ID that bought it, without Restore Purchases and even offline
+- Fixed Super features looking locked for a moment when opening Cue, and the paywall now closes as soon as Super unlocks, after Restore Purchases too
+- Settings now says when your Super plan is a free trial
+- Add to Playlist now lists all your Apple Music playlists, not just the first 100
+- Plex songs playing on a speaker now always show their heart and rating
+- Apple Music artists shared to Cue or dropped on a speaker now play their albums instead of failing with an error
+- Improved Search: results land without a stutter while you type, and No Results no longer flashes before a search has started
+- Sliders in lists and sheets now let them scroll or close when you swipe up or down over them, and only move when you drag sideways
+- The volume number on sliders is easier to read over the empty part of the track
+- The player's background now fades in for the first song instead of sliding in from the corner
 
 # 2026.7
 

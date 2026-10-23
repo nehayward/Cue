@@ -28,7 +28,7 @@ final class PlaybackCache {
         let key: String
         let title: String
         let subtitle: String
-        let fileExtension: String
+        var fileExtension: String
         var size: Int64
         var lastUsed: Date
 
@@ -137,6 +137,7 @@ final class PlaybackCache {
     func localURL(for item: PlayableContent) -> URL? {
         let key = DownloadManager.key(for: item)
         guard var entry = entries[key] else { return nil }
+        entry.fileExtension = DownloadManager.containerFixed(key: key, fileExtension: entry.fileExtension, in: Self.fileURL)
         let url = Self.fileURL(key: key, fileExtension: entry.fileExtension)
         guard FileManager.default.fileExists(atPath: url.path) else {
             entries[key] = nil
@@ -164,7 +165,10 @@ final class PlaybackCache {
         fillFromCloud(queue: queue, start: start)
 
         let manager = DownloadManager.shared
-        let cacheable = window.filter { manager.canDownload($0) && !manager.isDownloaded($0) }
+        // A book's files run for hours: fetched whole ahead of time they'd
+        // fill the cache with one book, and the player streams them fine.
+        let books = AudiobookPlayer.shared
+        let cacheable = window.filter { manager.canDownload($0) && !manager.isDownloaded($0) && !books.contains($0) }
         wanted = cacheable.map { DownloadManager.key(for: $0) }
 
         // Fetches for songs no longer coming up are wasted bytes.

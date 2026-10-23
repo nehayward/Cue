@@ -140,7 +140,7 @@ struct LargePlayerView: View {
                 }
                 if !showArtworkOnly || group.TVMode {
                     VStack {
-                        VolumeControlView(group: group)
+                        VolumeControlView(group: group, immediateDrag: true)
                             .padding(.bottom, 20)
                             .padding(.horizontal, -12)
                             .frame(maxWidth: 500)
@@ -331,7 +331,7 @@ struct LargePlayerView: View {
                 try? await Task.sleep(for: .milliseconds(400))
                 shouldFade = true
             }
-            // Was `.onChange(of: group)` — GroupRoom.== includes track content
+            // Was `.onChange(of: group)` — GroupRoom.== compared track content
             // so it fired on every song change and reset the crossfade. We only
             // care about identity (speaker switch).
             .onChange(of: coordinatorID) {
@@ -344,8 +344,10 @@ struct LargePlayerView: View {
 // MARK: - Shared with PlayerView
 //
 // Internal rather than fileprivate: `PlayerView` — the one player the mini
-// player opens — draws a Sonos group with these same pieces, so the two
-// screens can't drift apart.
+// player opens — uses the speaker-only pieces (TV mode, the scene-phase
+// sync, the play/pause animation rules) so the two screens can't drift
+// apart. Its title, scrubber and transport are its own, drawn through
+// `PlaybackController` for this device and a speaker alike.
 
 struct GroupScenePhaseSyncModifier: ViewModifier {
     @Environment(SonosService.self) private var sonosService: SonosService
@@ -353,8 +355,9 @@ struct GroupScenePhaseSyncModifier: ViewModifier {
     // Resolve fresh by id on each scenePhase change — capturing a `GroupRoom`
     // here would survive across topology updates and act on an orphaned
     // instance after a foreground/background cycle, which was the suspected
-    // cause of stale track info on device after wake.
-    let coordinatorID: String
+    // cause of stale track info on device after wake. Nil does nothing: the
+    // player keeps this modifier while the route is on this device.
+    let coordinatorID: String?
 
     func body(content: Content) -> some View {
         content
@@ -480,8 +483,8 @@ struct GroupPlaybackScrubber: View {
     /// past an empty range. `VibeSlider` guards its own arithmetic, but the
     /// `ClosedRange` is built here, and one whose bounds are inverted traps
     /// before the slider sees it. Floored at one so it is never empty; the
-    /// row is hidden for a zero duration anyway. Twin of the local player's
-    /// `LocalPlaybackScrubber`.
+    /// row is hidden for a zero duration anyway. Twin of `PlayerView`'s
+    /// `PlayerScrubber`.
     private var scrubRange: ClosedRange<Double> {
         0...max(group.coordinatorRoom.track.duration, 1)
     }
@@ -500,7 +503,7 @@ struct GroupPlaybackScrubber: View {
             position: { isScrubbing ? room.playbackPosition : room.estimatedPlaybackPosition() }
         ) { position in
             VStack(spacing: 0) {
-                VibeSlider(value: Binding(get: { position }, set: { room.playbackPosition = $0 }), in: scrubRange, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, valueAnimation: nil, onEditingChanged: scrubbingChanged)
+                VibeSlider(value: Binding(get: { position }, set: { room.playbackPosition = $0 }), in: scrubRange, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, delayDrag: false, immediateDrag: true, valueAnimation: nil, onEditingChanged: scrubbingChanged)
                 .frame(maxWidth: 500)
                 .frame(height: 40)
                 .foregroundStyle(.primary)

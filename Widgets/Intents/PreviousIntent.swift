@@ -1,5 +1,5 @@
 import AppIntents
-import CloudStorage
+import Defaults
 import SonosKit
 
 struct PreviousIntent: LiveActivityIntent {
@@ -26,8 +26,8 @@ struct PreviousIntent: LiveActivityIntent {
     init() { }
 
     func perform() async throws -> some IntentResult {
-        guard CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false else {
-            throw IntentError.message("Subscribe to Super in App")
+        guard GroupStorageKeys.defaults.hasSuper else {
+            throw IntentError.superRequired
         }
 
         guard let coordinatorRoom = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else {
