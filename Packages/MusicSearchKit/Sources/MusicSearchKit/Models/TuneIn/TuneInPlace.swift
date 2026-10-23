@@ -20,6 +20,32 @@ public struct TuneInPlace: Codable, Hashable, Sendable {
         return (latitude, longitude)
     }
 
+    /// What to look `location` up by on a map, best first, for a station
+    /// TuneIn gives no point. TuneIn names a city and its state or country,
+    /// "Seattle, WA", "Singapore, Singapore", and a market by its cities,
+    /// "Seattle-Tacoma, WA", which a geocoder may not know, so the market's
+    /// first city follows it. Nothing for a name with no city, "US" or
+    /// "Japan": its middle is nowhere near the station, and a Seattle
+    /// station TuneIn names only "US" pinned in a field in Nebraska was
+    /// where the map framed the stations near you.
+    public static func mapQueries(for location: String) -> [String] {
+        let location = location.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let comma = location.firstIndex(of: ",") else { return [] }
+        let city = location[..<comma].trimmingCharacters(in: .whitespaces)
+        guard !city.isEmpty else { return [] }
+
+        var queries = [location]
+        // "Winston-Salem" is one city, so the whole name goes first.
+        let parts = city.split { "-–/".contains($0) }
+        if parts.count > 1 {
+            let firstCity = parts[0].trimmingCharacters(in: .whitespaces)
+            if !firstCity.isEmpty {
+                queries.append("\(firstCity)\(location[comma...])")
+            }
+        }
+        return queries
+    }
+
     /// TuneIn's `latlon`, "47.6062,-122.3321". Any run of characters that
     /// can't be in a number separates the two, so a space or a semicolon
     /// reads the same. Nil unless it is exactly two numbers that make a

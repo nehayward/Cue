@@ -8,7 +8,8 @@ import SwiftUI
 /// carry no place, so each station's description (`Describe.ashx`) is
 /// asked once, a few at a time, and what it says is kept on disk: a
 /// station doesn't move. A description with a place name but no point
-/// ("Seattle, WA") is looked up with MapKit. Search This Area adds the
+/// ("Seattle, WA") is looked up with MapKit; one naming only a country
+/// ("US") isn't placed. Search This Area adds the
 /// stations TuneIn counts as local to another point, for the rest of the
 /// session.
 @MainActor
@@ -54,7 +55,11 @@ final class RadioMap {
     /// Descriptions asked for at once. TuneIn answers a burst with 403s.
     private static let concurrentLookups = 4
     private static let recheckInterval: TimeInterval = 7 * 24 * 60 * 60
-    private static let storeURL = URL.cachesDirectory.appending(path: "RadioMapPlaces.json")
+    /// A new file when what's kept changes, so every station is asked
+    /// again. 2: stations named only by a country no longer pinned at its
+    /// middle, and markets ("Seattle-Tacoma, WA") placed at their first city.
+    private static let storeURL = URL.cachesDirectory.appending(path: "RadioMapPlaces-2.json")
+    private static let oldStoreURL = URL.cachesDirectory.appending(path: "RadioMapPlaces.json")
     private static let log = Logger(subsystem: "dance.cue", category: "radioMap")
 
     /// How often answers reach `places`. Each change there redraws every
@@ -255,26 +260,44 @@ final class RadioMap {
         case failed
     }
 
+    /// Where a place TuneIn names is, trying each of its names in turn
+    /// (`TuneInPlace.mapQueries`): "Seattle-Tacoma, WA", then "Seattle, WA".
     private func geocode(_ location: String) async -> Geocoded {
         if let known = geocoded[location] {
             return known.map(Geocoded.found) ?? .nowhere
         }
+        var failed = false
+        for query in TuneInPlace.mapQueries(for: location) {
+            switch await geocodeQuery(query) {
+            case let .found(point):
+                geocoded[location] = point
+                return .found(point)
+            case .nowhere:
+                continue
+            case .failed:
+                failed = true
+            }
+        }
+        // Only a real answer is kept, found or not.
+        guard !failed else { return .failed }
+        geocoded[location] = .some(nil)
+        return .nowhere
+    }
+
+    private func geocodeQuery(_ query: String) async -> Geocoded {
         guard #available(iOS 26.0, macOS 26.0, visionOS 26.0, *),
-              let request = MKGeocodingRequest(addressString: location) else { return .failed }
-        let point: Point?
+              let request = MKGeocodingRequest(addressString: query) else { return .failed }
         do {
-            point = try await request.mapItems.first.map { item in
+            let point = try await request.mapItems.first.map { item in
                 Point(latitude: item.location.coordinate.latitude, longitude: item.location.coordinate.longitude)
             }
+            return point.map(Geocoded.found) ?? .nowhere
         } catch let error as MKError where error.code == .placemarkNotFound {
-            point = nil
+            return .nowhere
         } catch {
             Self.log.debug("geocoding failed: \(error.localizedDescription, privacy: .public)")
             return .failed
         }
-        // Only a real answer is kept, found or not.
-        geocoded[location] = .some(point)
-        return point.map(Geocoded.found) ?? .nowhere
     }
 
     // MARK: - Store
@@ -282,8 +305,10 @@ final class RadioMap {
     private func loadStore() async {
         if storeLoad == nil {
             let url = Self.storeURL
+            let oldURL = Self.oldStoreURL
             storeLoad = Task {
                 let stored = await Task.detached(priority: .utility) { () -> [String: Place]? in
+                    try? FileManager.default.removeItem(at: oldURL)
                     guard let data = try? Data(contentsOf: url) else { return nil }
                     return try? JSONDecoder().decode([String: Place].self, from: data)
                 }.value
