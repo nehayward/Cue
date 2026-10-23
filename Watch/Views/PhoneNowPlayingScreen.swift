@@ -2,7 +2,8 @@ import SwiftUI
 import WatchSync
 
 /// Now Playing for what the iPhone plays (`PhoneNowPlaying`), opened from
-/// the home screen's card while it shows the iPhone's: the cover, the song
+/// the home screen's card while it shows the iPhone's, or by watchOS
+/// bringing Cue up as the iPhone starts playing: the cover, the song
 /// and its artist (a book and its author), and Previous, Play and Next,
 /// each press carried out by the iPhone's own player, here or on its Sonos
 /// group — a book's skip back 15 s and ahead 30 s, as there. Over the
@@ -20,6 +21,9 @@ struct PhoneNowPlayingScreen: View {
         Group {
             if let playing = phone.current {
                 player(playing)
+            } else if phone.isAwaitingAnswer {
+                // Opened as the iPhone started playing: its song is on the way.
+                ProgressView()
             } else {
                 notPlaying
             }

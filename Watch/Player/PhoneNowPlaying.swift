@@ -8,7 +8,9 @@ import WatchSync
 /// open. Forgotten when the iPhone goes out of reach. Play, pause and the
 /// skips go back to the iPhone (`PhoneConnection.askPhone`), which carries
 /// them out as its player's own buttons do. Up Next asks for the queue it
-/// plays from (`queue`) and plays a song in it the same way.
+/// plays from (`queue`) and plays a song in it the same way. When watchOS
+/// opens Cue because the iPhone started playing, its player opens
+/// (`wantsPlayer`).
 @MainActor
 @Observable
 final class PhoneNowPlaying {
@@ -27,12 +29,41 @@ final class PhoneNowPlaying {
     /// When the iPhone was last seen playing, or paused from here: with
     /// both paused, the card is whichever played last.
     private(set) var lastPlayedAt: Date?
+    /// Set when watchOS opens Cue because Cue on the iPhone started
+    /// playing: the home screen opens the iPhone's player and clears it.
+    private(set) var wantsPlayer = false
+    /// From then until the iPhone answers, five seconds at most: its
+    /// player waits for the song rather than say nothing plays.
+    private(set) var isAwaitingAnswer = false
+    @ObservationIgnored private var answerTimeout: Task<Void, Never>?
 
     private init() {}
 
     /// Asks the iPhone what it plays.
     func refresh() {
         PhoneConnection.shared.askPhone(WatchSyncMessage.nowPlayingRequest)
+    }
+
+    /// watchOS opened Cue because Cue on the iPhone started playing
+    /// (Auto-Launch Audio Apps, `handleRemoteNowPlayingActivity`): the home
+    /// screen opens the iPhone's player, which waits for what it plays.
+    /// The ask is dropped while the session is still coming up, which
+    /// asks again once it's up.
+    func phoneStartedPlaying() {
+        wantsPlayer = true
+        isAwaitingAnswer = true
+        answerTimeout?.cancel()
+        answerTimeout = Task {
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { return }
+            isAwaitingAnswer = false
+        }
+        refresh()
+    }
+
+    /// The home screen opened the iPhone's player.
+    func didOpenPlayer() {
+        wantsPlayer = false
     }
 
     /// Plays or pauses the iPhone, shown at once; its answer settles it.
@@ -75,6 +106,8 @@ final class PhoneNowPlaying {
             artwork = nowPlaying?.artwork.flatMap(UIImage.init(data:))
         }
         current = nowPlaying
+        isAwaitingAnswer = false
+        answerTimeout?.cancel()
     }
 
     /// The iPhone came in reach, so it's asked what it plays, or went out

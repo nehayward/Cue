@@ -59,7 +59,9 @@ private enum HomeLibrary: Hashable {
 /// With the iPhone out of reach, what's on the watch leads instead:
 /// Downloads and the book last listened to, over the library. Settings is
 /// top left. No title: the rows say what's what. Screens zoom out of the
-/// row that opens them. The widget opens it on Downloads or Now Playing.
+/// row that opens them. The widget opens it on Downloads or Now Playing,
+/// and watchOS, bringing Cue up as the iPhone starts playing, on the
+/// iPhone's player.
 /// The first time there's music to fetch, it asks at what quality.
 struct LibraryScreen: View {
     @Environment(WatchDownloadStore.self) private var store
@@ -224,6 +226,17 @@ struct LibraryScreen: View {
                 case "downloads": path = NavigationPath([HomeRoute.downloads])
                 case "nowplaying": path = NavigationPath([HomeRoute.nowPlaying])
                 default: break
+                }
+            }
+            // watchOS opened Cue because the iPhone started playing: its
+            // player, from wherever the app was left. Left alone while it's
+            // already on show, so it doesn't open again.
+            .onChange(of: phone.wantsPlayer, initial: true) { _, wants in
+                guard wants else { return }
+                phone.didOpenPlayer()
+                let phonePlayer = NavigationPath([HomeRoute.phoneNowPlaying])
+                if path != phonePlayer {
+                    path = phonePlayer
                 }
             }
             // Asked once, the first time there's music to fetch; songs come

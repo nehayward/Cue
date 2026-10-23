@@ -59,6 +59,12 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate {
         WidgetStatePublisher.publishNow()
     }
 
+    /// Cue on the iPhone started playing, and watchOS brought Cue to the
+    /// front here for it (Auto-Launch Audio Apps): open the iPhone's player.
+    func handleRemoteNowPlayingActivity() {
+        PhoneNowPlaying.shared.phoneStartedPlaying()
+    }
+
     func handle(_ backgroundTasks: Set<WKRefreshBackgroundTask>) {
         for task in backgroundTasks {
             switch task {
