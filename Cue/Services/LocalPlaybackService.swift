@@ -1684,10 +1684,11 @@ final class LocalPlaybackService {
             savePosition()
         }
         // Straight on from a stream player, as `arm(at:)` does.
-        let keepsAudioSession = kind == .stream
-        teardownRun(keepingAudioSession: keepsAudioSession)
+        let handsToStream = kind == .stream
+        teardownRun(keepingAudioSession: handsToStream, keepingCard: handsToStream)
         defer {
-            if keepsAudioSession, playToken == token, backend != .stream {
+            if handsToStream, playToken == token, backend != .stream {
+                nowPlayingCard.end()
                 releaseAudioSession()
             }
         }
@@ -1789,12 +1790,15 @@ final class LocalPlaybackService {
         // Straight back to a stream player: the audio session stays ours.
         // Letting it go and taking it back on every Previous or long skip
         // was a round trip to the audio server each way, and told other
-        // apps they could resume for the moment in between.
-        let keepsAudioSession = queue.indices.contains(index) && backendKind(for: queue[index]) == .stream
-        teardownRun(keepingAudioSession: keepsAudioSession)
-        // Unless nothing ended up playing on it.
+        // apps they could resume for the moment in between. So does the
+        // Now Playing card, for the new run to put its song on
+        // (`teardownRun`).
+        let handsToStream = queue.indices.contains(index) && backendKind(for: queue[index]) == .stream
+        teardownRun(keepingAudioSession: handsToStream, keepingCard: handsToStream)
+        // Unless nothing ended up playing on them.
         defer {
-            if keepsAudioSession, playToken == token, backend != .stream {
+            if handsToStream, playToken == token, backend != .stream {
+                nowPlayingCard.end()
                 releaseAudioSession()
             }
         }
@@ -1919,6 +1923,25 @@ final class LocalPlaybackService {
         }
     }
 
+    /// Takes down a run that played to its end and moves on past it. A run
+    /// handing on to a stream run keeps the audio session and the Now
+    /// Playing card for it, as `arm(at:)` does: a book's next file, a song
+    /// played again under Repeat One, Plex after Plex.
+    private func finishRun(endingAt end: Int) {
+        let next = sleepsAtEndOfTrack ? nil : rowAfterRun(endingAt: end)
+        let handsToStream = next.flatMap { queue[safe: $0] }.map { backendKind(for: $0) == .stream } ?? false
+        teardownRun(keepingAudioSession: handsToStream, keepingCard: handsToStream)
+        advancePastRun(endingAt: end)
+    }
+
+    /// The row a run ending at `end` hands on to: itself again under Repeat
+    /// One, the next, or the top under Repeat All; nil at the queue's end.
+    private func rowAfterRun(endingAt end: Int) -> Int? {
+        if repeatMode == .one { return end }
+        if end + 1 < queue.count { return end + 1 }
+        return repeatMode == .all && !queue.isEmpty ? 0 : nil
+    }
+
     /// Moves on to whatever follows the armed run — or plays it again under
     /// Repeat One, wraps to the top under Repeat All, parks for an
     /// end-of-track sleep timer, and otherwise stops at the queue's end.
@@ -1940,19 +1963,11 @@ final class LocalPlaybackService {
             duration = catalogDuration(at: currentIndex)
             return
         }
-        if repeatMode == .one {
-            Task { try? await arm(at: end) }
+        guard let next = rowAfterRun(endingAt: end) else {
+            rewindToStart()
             return
         }
-        guard end + 1 < queue.count else {
-            if repeatMode == .all, !queue.isEmpty {
-                Task { try? await arm(at: 0) }
-            } else {
-                rewindToStart()
-            }
-            return
-        }
-        Task { try? await arm(at: end + 1) }
+        Task { try? await arm(at: next) }
     }
 
     /// The queue has played out with nothing set to repeat: back to its first
@@ -2010,9 +2025,7 @@ final class LocalPlaybackService {
     private func streamItemDidFinish(_ item: ObjectIdentifier) {
         guard backend == .stream, streamPlayer != nil,
               let queueIndex = streamRun[item], queueIndex == runEnd else { return }
-        let end = runEnd
-        teardownRun()
-        advancePastRun(endingAt: end)
+        finishRun(endingAt: runEnd)
     }
 
     /// Looks up the next run's Apple songs while the last song of this run
@@ -2063,7 +2076,14 @@ final class LocalPlaybackService {
 
     /// Silences whichever player is armed. Sets `backend` to nil first so the
     /// poll can't misread the teardown as a run ending.
-    private func teardownRun(keepingAudioSession: Bool = false) {
+    ///
+    /// `keepingCard` leaves the stream player's Now Playing card and its
+    /// commands up for the stream run that follows, which puts its own song
+    /// on it. Cleared to nothing and stopped between the two, with its
+    /// commands gone, the card let the car's Now Playing go: a book to Plex
+    /// came up blank, as a new song after the last of a run could. The
+    /// caller takes the card down if nothing ends up playing.
+    private func teardownRun(keepingAudioSession: Bool = false, keepingCard: Bool = false) {
         let previous = backend
         // The stream run is ending into an Apple run that's already loaded:
         // keep the audio session rather than release it and take it straight
@@ -2097,7 +2117,8 @@ final class LocalPlaybackService {
             musicPlayer.stop()
             appleQueueLeftOver = true
         }
-        if streamPlayer != nil {
+        let hadStreamPlayer = streamPlayer != nil
+        if hadStreamPlayer {
             streamPlayer?.pause()
             streamPlayer?.removeAllItems()
             streamPlayer = nil
@@ -2105,11 +2126,17 @@ final class LocalPlaybackService {
             stationItem = nil
             stationPausedAt = nil
             itemWatches = [:]
-            nowPlayingCard.end()
             isPlayingLocalStream = false
-            if !handsToPreparedApple, !keepingAudioSession {
-                releaseAudioSession()
-            }
+        }
+        // Not only after a stream player: a card kept for a run that never
+        // armed one is still up.
+        if keepingCard {
+            nowPlayingCard.noteHandOff()
+        } else {
+            nowPlayingCard.end()
+        }
+        if hadStreamPlayer, !handsToPreparedApple, !keepingAudioSession {
+            releaseAudioSession()
         }
     }
 
@@ -2800,6 +2827,11 @@ final class LocalPlaybackService {
         if let pending = cloudPendingURL(for: queue[index]) {
             isLoading = true
             defer { if playToken == token { isLoading = false } }
+            // A card kept from the run before shows this song waiting, not
+            // that one playing on.
+            if nowPlayingCard.isUp {
+                nowPlayingCard.update(item: nowPlayingDisplay, isPlaying: false, duration: duration, elapsed: resume ?? 0, canSkip: index + 1 < queue.count)
+            }
             FilesLibraryService.shared.downloadFromCloud(trackIDs: [queue[index].content.id], keep: !PlaybackCache.shared.streamsFromCloud)
             let landed = await Self.waitForCloudFile(at: pending)
             guard playToken == token else { return }
@@ -3285,8 +3317,7 @@ final class LocalPlaybackService {
                     Task { try? await arm(at: index, from: position > 2 ? position : nil) }
                     return
                 }
-                teardownRun()
-                advancePastRun(endingAt: end)
+                finishRun(endingAt: end)
             }
         case .stream:
             guard let streamPlayer else { return }
@@ -3297,9 +3328,7 @@ final class LocalPlaybackService {
                     return
                 }
                 // Ran off the end of the queue.
-                let end = runEnd
-                teardownRun()
-                advancePastRun(endingAt: end)
+                finishRun(endingAt: runEnd)
                 return
             }
             // An item that couldn't load parks the queue player on it:

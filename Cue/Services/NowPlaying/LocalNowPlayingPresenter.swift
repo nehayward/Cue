@@ -10,7 +10,8 @@ import UIKit
 /// MusicKit's own player, which publishes for itself; the stream player
 /// publishes nothing unless told, which is what this does: the song, its
 /// artwork and timeline, and the transport commands, for as long as a run
-/// is armed.
+/// is armed. From one stream run to the next the card stays up, and the new
+/// run puts its song on it (`noteHandOff`).
 ///
 /// A TuneIn station's card is live (`MPNowPlayingInfoPropertyIsLiveStream`):
 /// the LIVE bar in place of a timeline, and play and pause alone. iOS draws
@@ -64,15 +65,31 @@ final class LocalNowPlayingPresenter {
 
     // MARK: - Lifecycle
 
+    /// Whether a card of this presenter's is up.
+    var isUp: Bool { published != nil }
+
     /// A stream run is armed: take the commands.
     func begin() {
         guard commandTokens.isEmpty else { return }
         registerCommands()
     }
 
+    /// The run is torn down for another stream run, which puts its own song
+    /// on this card: it stays up meanwhile, commands and all, rather than
+    /// going to nothing for a moment. A car's Now Playing that saw this
+    /// player stop with no song and no commands let go of it, and didn't
+    /// come back to it for the next song.
+    func noteHandOff() {
+        guard let title = published?.title else { return }
+        Self.log.notice("card kept for the next stream run, from \(title, privacy: .public)")
+    }
+
     /// The run is torn down: clear the card if it's ours, give the commands
-    /// back.
+    /// back. Nothing to do when neither is up.
     func end() {
+        guard published != nil || !commandTokens.isEmpty else { return }
+        let from = published.map { ", from \($0.title)" } ?? ""
+        Self.log.notice("card down\(from, privacy: .public)")
         artworkTask?.cancel()
         artworkTask = nil
         unregisterCommands()
@@ -195,6 +212,14 @@ final class LocalNowPlayingPresenter {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
         MPNowPlayingInfoCenter.default().playbackState = snapshot.isPlaying ? .playing : .paused
 
+        // A new song, for lining up with what the car showed
+        // (`Scripts/carplay-nowplaying-log.sh`); not each pause or drift.
+        if published?.identity != snapshot.identity {
+            let kind = snapshot.isLive ? "live" : snapshot.isBook ? "book" : "song"
+            let state = snapshot.isPlaying ? "playing" : "paused"
+            let replaced = published.map { ", in place of \($0.title)" } ?? ""
+            Self.log.notice("card up: \(snapshot.title, privacy: .public) (\(kind, privacy: .public)), \(state, privacy: .public)\(replaced, privacy: .public)")
+        }
         published = snapshot
         publishedElapsed = max(0, elapsed)
         publishedAt = .now
