@@ -240,7 +240,11 @@ final class AudiobookPlayer {
         // place taken over this one's.
         let places = AudiobookPlaceHistory.shared
         if let local, !local.isFinished, local.position > 0, abs(local.position - startTime) > Self.placeJump {
-            places.record(time != nil ? .jumpedFrom : .replaced, at: local.position, for: audiobook.book)
+            if time != nil {
+                places.record(.jumpedFrom, at: local.position, for: audiobook.book)
+            } else {
+                places.record(.replaced, at: local.position, for: audiobook.book, from: AudiobookPlaceHistory.Place.Source(server: audiobook.book.content.service))
+            }
         }
         // The book, not its files: Recently Played opens its page. Only
         // once it's playing: one that wouldn't start wasn't listened to.

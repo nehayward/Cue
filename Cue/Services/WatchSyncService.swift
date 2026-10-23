@@ -260,7 +260,7 @@ final class WatchSyncService {
             if let held, !place.supersedes(WatchBookPlace(held)) { continue }
             let reading = AudiobookProgress(place)
             if let held, held != takenFromWatch[pick.key], !held.isFinished, held.position > 0, abs(held.position - reading.position) > 60 {
-                AudiobookPlaceHistory.shared.record(.replaced, at: held.position, for: book)
+                AudiobookPlaceHistory.shared.record(.replaced, at: held.position, for: book, from: .watch)
             }
             logger.info("\(pick.title, privacy: .public): the place from \(source, privacy: .public), \(Int(reading.position)) s, is newer")
             takenFromWatch[pick.key] = reading

@@ -46,11 +46,11 @@ struct AudiobookHistoryList: View {
 
     private func row(_ place: AudiobookPlaceHistory.Place) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: Self.symbol(place.kind))
+            Image(systemName: Self.symbol(place))
                 .foregroundStyle(.secondary)
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 2) {
-                Text(Self.title(place.kind))
+                Text(Self.title(place))
                     .foregroundStyle(.primary)
                 Text([audiobook?.chapter(at: place.position)?.title, AudiobookFormat.clock(place.position)].compactMap { $0 }.joined(separator: " · "))
                     .font(.caption)
@@ -69,22 +69,33 @@ struct AudiobookHistoryList: View {
         .accessibilityHint("Plays from here")
     }
 
-    private static func title(_ kind: AudiobookPlaceHistory.Place.Kind) -> LocalizedStringKey {
-        switch kind {
+    private static func title(_ place: AudiobookPlaceHistory.Place) -> LocalizedStringKey {
+        switch place.kind {
         case .started: "Started"
         case .paused: "Paused"
         case .jumpedFrom: "Moved away from here"
-        case .replaced: "Before another device's place"
+        case .replaced:
+            switch place.source {
+            case .watch: "Before Apple Watch's place"
+            case .plex: "Before Plex's place"
+            case .audiobookshelf: "Before Audiobookshelf's place"
+            case nil: "Before another device's place"
+            }
         case .left: "Left the book"
         }
     }
 
-    private static func symbol(_ kind: AudiobookPlaceHistory.Place.Kind) -> String {
-        switch kind {
+    private static func symbol(_ place: AudiobookPlaceHistory.Place) -> String {
+        switch place.kind {
         case .started: "play.fill"
         case .paused: "pause.fill"
         case .jumpedFrom: "arrow.uturn.backward"
-        case .replaced: "iphone.and.arrow.forward"
+        case .replaced:
+            switch place.source {
+            case .watch: "applewatch"
+            case .plex, .audiobookshelf: "server.rack"
+            case nil: "iphone.and.arrow.forward"
+            }
         case .left: "rectangle.portrait.and.arrow.right"
         }
     }
