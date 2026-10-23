@@ -7,7 +7,8 @@ import WatchSync
 /// comes in reach, then sent by the iPhone as it changes while the app is
 /// open. Forgotten when the iPhone goes out of reach. Play, pause and the
 /// skips go back to the iPhone (`PhoneConnection.askPhone`), which carries
-/// them out as its player's own buttons do.
+/// them out as its player's own buttons do. Up Next asks for the queue it
+/// plays from (`queue`) and plays a song in it the same way.
 @MainActor
 @Observable
 final class PhoneNowPlaying {
@@ -20,6 +21,9 @@ final class PhoneNowPlaying {
     private(set) var current: WatchPhoneNowPlaying?
     /// The cover, decoded once a song.
     private(set) var artwork: UIImage?
+    /// The queue the iPhone plays from, from the song playing on: nil
+    /// until it's been asked for and has come.
+    private(set) var queue: WatchPhoneQueue?
     /// When the iPhone was last seen playing, or paused from here: with
     /// both paused, the card is whichever played last.
     private(set) var lastPlayedAt: Date?
@@ -47,6 +51,22 @@ final class PhoneNowPlaying {
         PhoneConnection.shared.askPhone(WatchSyncMessage.commandRequest(command))
     }
 
+    /// Asks the iPhone for the queue it plays from.
+    func refreshQueue() {
+        PhoneConnection.shared.askPhone(WatchSyncMessage.queueRequest)
+    }
+
+    /// Plays the song at `position` in the iPhone's queue, as a tap on its
+    /// own Up Next does; its answer says what plays then.
+    func playFromQueue(at position: Int) {
+        guard current != nil else { return }
+        PhoneConnection.shared.askPhone(WatchSyncMessage.playQueueRequest(at: position))
+    }
+
+    func apply(queue: WatchPhoneQueue) {
+        self.queue = queue
+    }
+
     func apply(_ nowPlaying: WatchPhoneNowPlaying?) {
         if nowPlaying?.isPlaying == true || current?.isPlaying == true {
             lastPlayedAt = .now
@@ -66,6 +86,7 @@ final class PhoneNowPlaying {
         } else {
             current = nil
             artwork = nil
+            queue = nil
         }
     }
 }
