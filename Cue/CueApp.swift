@@ -205,7 +205,10 @@ struct MusicPlaybackView: View {
                         }
                     }
                 }
-                Spacer(minLength: 0)
+                // The text takes the rest of the row itself, so a scrolling
+                // title runs up to Pause. A spacer after it took a second
+                // 12pt of the row's spacing and stopped the title 24pt short.
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .contentShape(.rect)
         }
