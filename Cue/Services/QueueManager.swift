@@ -111,8 +111,7 @@ final class QueueManager {
         }
 
         withAnimation {
-            playHistoryService.history.remove(playableContent)
-            playHistoryService.history.insert(playableContent, at: 0)
+            playHistoryService.record(playableContent)
         }
     }
     

@@ -7,22 +7,31 @@ import VibesDS
 
 /// The player: full screen, opened from the tab bar accessory, showing
 /// whatever the route points at — this device, or the Sonos group chosen
-/// in the route button. One screen for both, so switching the route never
-/// swaps the player out from under the user; the sections just read from
-/// `LocalPlaybackService` or from the group.
+/// in the route button.
+///
+/// One layout for both, read through `PlaybackController`
+/// (`PlaybackRoute.presented`): the title, the scrubber and the transport
+/// are the same views whichever way the route points, so switching it
+/// changes what they read, not what's on screen. While a switch carries the
+/// queue across, `presented` stays on the source until the target is
+/// playing the same song, so the player carries on with that song through
+/// the hand-off rather than showing the speaker's last track in between.
+/// Only what a speaker alone has — its artwork view with the mute and alarm
+/// badges, TV mode, its menu, the room volume — looks at the group itself.
 ///
 /// The navigation bar has no title, only the sleep timer, the like button
 /// and the menu; below it the artwork, the album line,
 /// the title and the artist (each opening its detail), the scrubber with
 /// the audio-quality badge, the transport, the volume row with its
-/// steppers, and the bottom row: the route picker in the middle and the
-/// queue at the trailing edge. A speaker's sections are the same views
-/// `LargePlayerView` draws, so the two can't drift.
+/// steppers, and the bottom row: lyrics at the leading edge, the route
+/// picker in the middle and the queue at the trailing edge.
 struct PlayerView: View {
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
     /// The same key the main window's panel uses, so showing the queue here
     /// shows it there too rather than the two disagreeing.
     @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
+    /// Lyrics in the artwork's place, held from song to song.
+    @AppStorage(AppStorageKeys.lyricsShown) private var showLyrics: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -32,17 +41,24 @@ struct PlayerView: View {
     @State private var router = Router()
     @State private var isArtworkVisible: Bool = true
     @State private var showSleepTimerCancelConfirmation: Bool = false
+    /// Full-screen lyrics on a phone put the controls away while the song
+    /// plays (`lyricsChromeTask`); a touch brings them back.
+    @State private var lyricsControlsHidden: Bool = false
+    @State private var lyricsTouchedAt: Date = .now
     /// The Sonos artwork's crossfade window — see `GroupMediaControlsView`,
     /// which closes it around a skip so a deliberate change snaps.
     @State private var shouldFade: Bool = false
 
     private var playback: LocalPlaybackService { .shared }
-    private var sonosService: SonosService { .shared }
     private var route: PlaybackRoute { .shared }
 
-    /// The group the route points at, resolved on every read: a topology
-    /// refresh replaces every `GroupRoom`, so nothing here holds one.
-    private var group: GroupRoom? { route.group }
+    /// What the player draws and its controls act on.
+    private var controller: any PlaybackController { route.presented }
+
+    /// The speaker on screen, for what only a speaker has. Resolved on every
+    /// read: a topology refresh replaces every `GroupRoom`, so nothing here
+    /// holds one.
+    private var group: GroupRoom? { route.presentedGroup }
 
     /// iPad at a regular width: the queue toggle is in the navigation bar.
     private var showsQueueToolbarButton: Bool {
@@ -103,8 +119,15 @@ struct PlayerView: View {
         LiveTranscriptionService.shared.isEnabled && canTranscribe
     }
 
-    /// This device's name, for the sleep timer chip.
-    private var deviceName: String { UIDevice.current.name }
+    /// Lyrics are on and the song has some, or may: they show while they
+    /// load, and the cover comes back for a song with none.
+    private var showsLyrics: Bool {
+        guard showLyrics, !showsTranscription else { return false }
+        switch LyricsService.shared.state {
+        case .loaded, .loading, .failed: return true
+        case .none, .unavailable: return false
+        }
+    }
 
     var body: some View {
         // The stack sits inside the queue panel, so its bar spans the player
@@ -113,20 +136,33 @@ struct PlayerView: View {
         // goes again, that's where to look.
         NavigationStack {
             VStack(alignment: .center) {
-                if let group {
-                    groupContent(group)
-                } else if let item = playback.nowPlayingDisplay {
-                    // The display item, not the queue row: a station reads as
-                    // the song on air here.
-                    deviceContent(item)
+                // TV mode is the one screen of its own: a soundbar on TV
+                // has no song, cover or transport to show.
+                if let group, group.TVMode {
+                    tvContent(group)
                 } else {
-                    Spacer()
-                    ContentUnavailableView("Nothing Playing", systemImage: "iphone.radiowaves.left.and.right")
-                    Spacer()
+                    playerContent
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(.interactiveSpring, value: showArtworkOnly)
+            // Full-screen lyrics put the controls away and back the way
+            // Hide Controls does, with the same transitions and spring.
+            .animation(.interactiveSpring, value: lyricsControlsHidden)
+            // The next song's cover, decoded before Next is pressed, so a
+            // skip shows it at once instead of a placeholder first.
+            .onChange(of: playback.currentIndex, initial: true) {
+                let next = playback.currentIndex + 1
+                guard group == nil, playback.queue.indices.contains(next) else { return }
+                ContentArtworkView.prefetchPlayerArtwork(for: playback.queue[next])
+            }
+            // A change of source is never animated: the sections carry on
+            // with what the new one reads, in place. On the Mac an animated
+            // swap of the whole player cost a fixed ~90 MB of GPU memory for
+            // ~2 s.
+            .transaction(value: route.presentedDestination) { transaction in
+                transaction.animation = nil
+            }
             .padding(.horizontal, 32)
             .padding(.top, 8)
             // The stack already keeps clear of the home indicator; padding
@@ -153,10 +189,25 @@ struct PlayerView: View {
             QueueNextUpView()
         }
         .background { backdrop }
-        // The speaker's socket, sleep timer, play mode and hardware volume
-        // while a group is on screen; a drop on the screen plays wherever
-        // the route points.
-        .modifier(PlayerSessionModifier(coordinatorID: group?.coordinatorID, shouldFade: $shouldFade))
+        // The speaker's socket, sleep timer and play mode, and a drop on the
+        // screen, follow the route: a switch to a speaker opens its socket
+        // at once, which is what brings the carried song's report in for the
+        // player to go over on. The hardware volume follows what's heard:
+        // the source through a hand-off until it stops, then the target.
+        .modifier(PlayerSessionModifier(
+            coordinatorID: route.group?.coordinatorID,
+            volumeCoordinatorID: route.audibleGroup?.coordinatorID,
+            shouldFade: $shouldFade
+        ))
+        // The song on screen's lyrics, looked up while the player is open
+        // whether or not they're showing, so the button knows.
+        .modifier(LyricsRequestModifier())
+        // The switch to and from full-screen lyrics, whatever made it: the
+        // button, the header, or a song with or without lyrics coming on.
+        .animation(.lyricsSwitch, value: showsLyrics)
+        .task(id: LyricsChrome(isActive: isPhoneLayout && showsLyrics && controller.isPlaying, touchedAt: lyricsTouchedAt)) {
+            await lyricsChromeTask()
+        }
         .fontDesign(.rounded)
         .environment(router)
         .withEnvironments()
@@ -164,43 +215,178 @@ struct PlayerView: View {
 
     /// The blurred artwork behind the whole cover, queue panel included.
     ///
-    /// Clipped to the cover: both backdrops are scaled up and blurred past
-    /// their edges, and the Mac's plain slide-down cover doesn't clip its
-    /// content the way the zoom does. Unclipped, the overhang above the
-    /// cover's top edge was left sitting over the bottom of the window —
-    /// covering the mini player — until the dismiss finished.
+    /// Clipped to the cover: the backdrop is scaled up and blurred past its
+    /// edges, and the Mac's plain slide-down cover doesn't clip its content
+    /// the way the zoom does. Unclipped, the overhang above the cover's top
+    /// edge was left sitting over the bottom of the window — covering the
+    /// mini player — until the dismiss finished.
     ///
     /// `ignoresSafeArea` goes outside the clip so the clip is laid out at the
     /// full cover, title bar included; clipped at the safe area instead, the
     /// backdrop stopped short of the window's top edge.
     private var backdrop: some View {
-        VStack(spacing: 0) {
-            if let group {
-                GroupPlayerBackgroundView(group: group, shouldFade: artworkShouldFade)
-            } else {
-                PlayerBackgroundView(content: playback.nowPlayingDisplay)
-            }
-        }
-        .clipped()
-        .ignoresSafeArea()
+        PlayerBackdrop(group: group, content: group == nil ? playback.nowPlayingDisplay : nil)
+            .clipped()
+            .ignoresSafeArea()
     }
 
-    // MARK: - This device
+    // MARK: - The player
 
+    /// The cover, the three lines under it, the scrubber, the transport, the
+    /// volume and the bottom row, for either source.
+    ///
+    /// With nothing playing the player keeps its shape — an empty cover,
+    /// "Not Playing", the transport greyed out — so the route picker, the
+    /// volume and the queue are where they always are, rather than a blank
+    /// "Nothing Playing" screen with no way to do anything.
     @ViewBuilder
-    private func deviceContent(_ item: PlayableContent) -> some View {
-        // Live Transcription takes the artwork's place, in the same frame,
-        // so the controls below don't move when it's switched.
-        Group {
-            if showsTranscription {
-                LiveTranscriptionView()
-                    .transition(.opacity)
-            } else {
-                ContentArtworkView(content: item, showMusicSource: true, preferredSize: 600, cornerRadius: 8, isDraggable: isArtworkDraggable)
-                    .shadow(radius: 2)
-                    .transition(.opacity)
+    private var playerContent: some View {
+        if isPhoneLayout {
+            phoneContent
+        } else {
+            wideContent
+        }
+    }
+
+    /// Lyrics on a phone: full screen, the way Apple Music shows them.
+    private var isFullScreenLyrics: Bool {
+        isPhoneLayout && showsLyrics
+    }
+
+    /// The phone's player, one layout for the cover and for full-screen
+    /// lyrics so that switching moves the same views rather than swapping
+    /// them: the cover shrinks into the header's thumbnail as the title
+    /// lines fade for the header's, the lyrics take the space the cover and
+    /// the title lines had, and the controls slide down under them. In lyrics the controls
+    /// go away a few seconds into the song (`lyricsChromeTask`) or with the
+    /// header's Full Screen, and a touch on the lyrics brings them back.
+    @ViewBuilder
+    private var phoneContent: some View {
+        let isLyrics = isFullScreenLyrics
+        let hidesControls = isLyrics ? lyricsControlsHidden : showArtworkOnly
+
+        HStack(spacing: 12) {
+            artwork
+                .frame(width: isLyrics ? 56 : nil, height: isLyrics ? 56 : nil)
+                .padding(.bottom, isLyrics || showArtworkOnly ? 0 : 12)
+                .frame(
+                    minWidth: 0,
+                    maxWidth: isLyrics ? 56 : (showArtworkOnly ? .infinity : 500),
+                    minHeight: 0,
+                    maxHeight: isLyrics ? 56 : (showArtworkOnly ? .infinity : 400)
+                )
+                .padding(.top, isLyrics ? 4 : (showArtworkOnly ? 100 : nil))
+                .onGeometryChange(for: Bool.self) { proxy in
+                    proxy.size.height >= 100
+                } action: { isArtworkVisible = $0 }
+                // Squeezed below 100 points by a short screen the cover
+                // hides; as the lyrics' thumbnail it's meant to be small.
+                .opacity(isArtworkVisible || isLyrics ? 1 : 0)
+                .animation(.interactiveSpring, value: isArtworkVisible)
+                .onTapGesture {
+                    if isLyrics { showLyrics = false }
+                }
+
+            if isLyrics {
+                LyricsHeaderTitles(
+                    item: controller.nowPlayingDisplay,
+                    isFullScreen: lyricsControlsHidden,
+                    onToggleFullScreen: toggleLyricsControls,
+                    onShowCover: { showLyrics = false }
+                )
+                .padding(.top, 4)
+                .transition(.lyricsSwitch)
             }
         }
+        .frame(maxWidth: isLyrics ? 500 : nil)
+        // Sized before the spacers below share out what's left; at an
+        // equal priority they split the height with it and the cover
+        // shrank to a thumbnail.
+        .layoutPriority(isLyrics ? 0 : 1)
+
+        if isLyrics {
+            LyricsView(style: .fullScreen, onInteraction: noteLyricsTouch)
+                .frame(maxWidth: 500, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture { noteLyricsTouch() }
+                .layoutPriority(1)
+                .transition(.lyricsBody)
+        } else {
+            Spacer(minLength: 12)
+            VStack {
+                titleLines
+            }
+            .transition(.lyricsSwitch)
+        }
+
+        if !hidesControls {
+            // The same controls in both: switching slides them rather than
+            // building them again.
+            Group {
+                PlayerScrubber()
+                    .padding(.top, 4)
+                Spacer(minLength: 4)
+                PlayerTransportView(shouldFade: $shouldFade, isProminent: true)
+                Spacer(minLength: 4)
+                volumeRow
+                    .padding(.horizontal, -12)
+                    .frame(maxWidth: 500)
+                PlayerBottomToolbarView(group: group, showQueue: $showQueue)
+            }
+            // In lyrics a finger on the controls keeps them up; a drag on
+            // the volume or the scrubber tells the timer once a second.
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0).onChanged { _ in
+                    if Date.now.timeIntervalSince(lyricsTouchedAt) > 1 { noteLyricsTouch() }
+                },
+                including: isLyrics ? .all : .subviews
+            )
+            .transition(.opacity.combined(with: .push(from: .bottom)))
+        }
+    }
+
+    /// The header's switch: the controls away at once, or back.
+    private func toggleLyricsControls() {
+        HapticManager.shared.fireHaptic(.selection)
+        if lyricsControlsHidden {
+            noteLyricsTouch()
+        } else {
+            lyricsControlsHidden = true
+        }
+    }
+
+    private func noteLyricsTouch() {
+        lyricsTouchedAt = .now
+        if lyricsControlsHidden {
+            lyricsControlsHidden = false
+        }
+    }
+
+    /// When the full-screen lyrics' controls next go away: four seconds
+    /// after the last touch while the song plays; never while it's paused,
+    /// or outside full-screen lyrics.
+    private struct LyricsChrome: Equatable {
+        let isActive: Bool
+        let touchedAt: Date
+    }
+
+    private func lyricsChromeTask() async {
+        guard isFullScreenLyrics, controller.isPlaying else {
+            if lyricsControlsHidden {
+                lyricsControlsHidden = false
+            }
+            return
+        }
+        try? await Task.sleep(for: .seconds(4))
+        guard !Task.isCancelled else { return }
+        lyricsControlsHidden = true
+    }
+
+    /// iPad and the Mac: the cover (or lyrics, or Live Transcription, in
+    /// its place), the title lines and the controls in a tight stack.
+    @ViewBuilder
+    private var wideContent: some View {
+        artwork
             .padding(.bottom, showArtworkOnly ? 0 : 12)
             .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
             .padding(.top, showArtworkOnly ? 100 : nil)
@@ -209,187 +395,19 @@ struct PlayerView: View {
             } action: { isArtworkVisible = $0 }
             .opacity(isArtworkVisible ? 1 : 0)
             .animation(.interactiveSpring, value: isArtworkVisible)
-            // Sized before the spacers below share out what's left; at an
-            // equal priority they split the height with it and the cover
-            // shrank to a thumbnail.
-            .layoutPriority(isPhoneLayout ? 1 : 0)
 
-        if isPhoneLayout {
-            Spacer(minLength: 12)
-            localAlbumLine(item)
-            LocalSongTitleButton(item: item, target: playback.onAirMatch)
-            LocalArtistButton(item: item, target: playback.onAirMatch, showArtworkOnly: showArtworkOnly)
+        titleLines
 
-            if !showArtworkOnly {
-                Group {
-                    LocalPlaybackScrubber()
-                        .padding(.top, 4)
-                    Spacer(minLength: 4)
-                    LocalMediaControlsView(isProminent: true)
-                    Spacer(minLength: 4)
-                    LocalVolumeControlView()
-                        .padding(.horizontal, -12)
-                        .frame(maxWidth: 500)
-                    PlayerBottomToolbarView(group: nil, showQueue: $showQueue)
-                }
-                .transition(.opacity.combined(with: .push(from: .bottom)))
-            }
-        } else {
-            localAlbumLine(item)
-            // While a station plays, a tap opens the song on air once Apple
-            // Music has it — named by the station or by Shazam.
-            LocalSongTitleButton(item: item, target: playback.onAirMatch)
-            LocalArtistButton(item: item, target: playback.onAirMatch, showArtworkOnly: showArtworkOnly)
-
-            if !showArtworkOnly {
-                VStack {
-                    LocalPlaybackScrubber()
-                    LocalMediaControlsView()
-                }
-                .geometryGroup()
-                .transition(.opacity.combined(with: .push(from: .bottom)))
-
-                VStack {
-                    LocalVolumeControlView()
-                        .padding(.bottom, 20)
-                        .padding(.horizontal, -12)
-                        .frame(maxWidth: 500)
-
-                    PlayerBottomToolbarView(group: nil, showQueue: $showQueue)
-                }
-                .transition(.opacity)
-            }
-        }
-    }
-
-    /// Where the queue was played from, in the slot the speaker's container
-    /// line takes — the album when there is no origin, and the station's
-    /// name when a station is playing. Fixed height so the layout doesn't
-    /// shift between tracks that have one and tracks that don't.
-    private func localAlbumLine(_ item: PlayableContent) -> some View {
-        LocalAlbumButton(
-            item: item,
-            source: playback.source,
-            stationTitle: item.content.type.isRadio ? (playback.nowPlaying?.title ?? "") : nil
-        )
-        .frame(height: 12)
-    }
-
-    /// The like button and the menu for this device, in the navigation bar.
-    @ViewBuilder
-    private func localNavigationButtons(_ item: PlayableContent) -> some View {
-        // The song on air, while a station plays and Apple Music has it.
-        if let song = playback.onAirMatch {
-            LikeButtonView(content: song)
-                .id(song.content.id)
-        } else if item.content.service.supportsFavoriteTrack {
-            LikeButtonView(content: item)
-        }
-        LocalPlayerMenuView(item: item, showArtworkOnly: $showArtworkOnly)
-            .tint(.primary)
-    }
-
-    // MARK: - A speaker
-
-    /// The group's sections, as `LargePlayerView` lays them out: TV mode
-    /// gets the TV glyph and its controls in place of artwork and transport.
-    @ViewBuilder
-    private func groupContent(_ group: GroupRoom) -> some View {
-        if group.TVMode {
+        if !showArtworkOnly {
             VStack {
-                Spacer()
-                Image(systemName: "tv")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .symbolRenderingMode(.hierarchical)
-                    .opacity(0.2)
-                    .overlay {
-                        if group.isMuted {
-                            Image(systemName: "speaker.slash.fill")
-                                .resizable()
-                                .scaledToFit()
-                                .foregroundStyle(.primary)
-                                .bold()
-                                .containerRelativeFrame(.horizontal) { size, _ in
-                                    size * 0.25
-                                }
-                                .frame(maxWidth: isMacCatalystOrPad ? 600 : 400, maxHeight: 400)
-                                .background {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .foregroundStyle(.ultraThinMaterial)
-                                }
-                                .transition(.opacity)
-                                .tint(.primary)
-                        }
-                    }
-                    .animation(.spring, value: group.isMuted)
-                    .frame(maxWidth: 400, maxHeight: 400)
-                GroupTVModeView(group: group)
-                Spacer()
+                PlayerScrubber()
+                PlayerTransportView(shouldFade: $shouldFade)
             }
-            .transition(.opacity)
-        } else {
-            // Live Transcription takes the artwork's place here too.
-            Group {
-                if showsTranscription {
-                    LiveTranscriptionView()
-                        .transition(.opacity)
-                } else {
-                    ArtworkView(group: group, isDraggable: isArtworkDraggable, showBadge: true, shouldFade: artworkShouldFade)
-                        .transition(.opacity)
-                }
-            }
-                .padding(.bottom, showArtworkOnly ? 0 : 12)
-                .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
-                .padding(.top, showArtworkOnly ? 100 : nil)
-                .onGeometryChange(for: Bool.self) { proxy in
-                    proxy.size.height >= 100
-                } action: { isArtworkVisible = $0 }
-                .opacity(isArtworkVisible ? 1 : 0)
-                .animation(.interactiveSpring, value: isArtworkVisible)
-                .layoutPriority(isPhoneLayout ? 1 : 0)
+            .geometryGroup()
+            .transition(.opacity.combined(with: .push(from: .bottom)))
 
-            if isPhoneLayout {
-                Spacer(minLength: 12)
-                groupContainerLine(group)
-                GroupSongTitleButton(group: group)
-                GroupArtistButton(group: group, showArtworkOnly: showArtworkOnly)
-
-                if !showArtworkOnly {
-                    Group {
-                        GroupPlaybackScrubber(group: group)
-                            .padding(.top, 4)
-                        Spacer(minLength: 4)
-                        GroupMediaControlsView(group: group, shouldFade: $shouldFade, isProminent: true)
-                        Spacer(minLength: 4)
-                        VolumeControlView(group: group)
-                            .padding(.horizontal, -12)
-                            .frame(maxWidth: 500)
-                        PlayerBottomToolbarView(group: group, showQueue: $showQueue)
-                    }
-                    .transition(.opacity.combined(with: .push(from: .bottom)))
-                }
-            } else {
-                groupContainerLine(group)
-                GroupSongTitleButton(group: group)
-                GroupArtistButton(group: group, showArtworkOnly: showArtworkOnly)
-
-                if !showArtworkOnly {
-                    VStack {
-                        GroupPlaybackScrubber(group: group)
-                        GroupMediaControlsView(group: group, shouldFade: $shouldFade)
-                    }
-                    .geometryGroup()
-                    .transition(.opacity.combined(with: .push(from: .bottom)))
-                }
-            }
-        }
-
-        // The phone draws the volume and the bottom row with the transport
-        // above; TV mode, which has no transport, still draws them here.
-        if (!showArtworkOnly && !isPhoneLayout) || group.TVMode {
             VStack {
-                VolumeControlView(group: group)
+                volumeRow
                     .padding(.bottom, 20)
                     .padding(.horizontal, -12)
                     .frame(maxWidth: 500)
@@ -397,6 +415,87 @@ struct PlayerView: View {
                 PlayerBottomToolbarView(group: group, showQueue: $showQueue)
             }
             .transition(.opacity)
+        }
+    }
+
+    /// The cover, or Live Transcription or the lyrics in its place — in the
+    /// same frame, so the controls below don't move when it's switched. A speaker's cover is
+    /// `ArtworkView`, which carries its mute and alarm badges and shares the
+    /// Lock Screen's cache entry; a hand-off goes over to it only once that
+    /// entry holds the carried song's cover (see `PlaybackRoute.hold`), so
+    /// it draws on its first frame.
+    @ViewBuilder
+    private var artwork: some View {
+        if showsTranscription {
+            LiveTranscriptionView()
+                .transition(.opacity)
+        } else if showsLyrics && !isPhoneLayout {
+            // A phone's lyrics fill the screen instead (`phoneContent`),
+            // with this cover as their thumbnail.
+            LyricsView()
+                .transition(.opacity)
+        } else if let group {
+            ArtworkView(group: group, isDraggable: isArtworkDraggable, showBadge: !isFullScreenLyrics, shouldFade: artworkShouldFade)
+                .transition(.opacity)
+        } else if let item = playback.nowPlayingDisplay {
+            ContentArtworkView(content: item, showMusicSource: !isFullScreenLyrics, preferredSize: ContentArtworkView.playerPreferredSize, cornerRadius: isFullScreenLyrics ? 6 : 8, isDraggable: isArtworkDraggable)
+                .shadow(radius: 2)
+                .transition(.opacity)
+        } else {
+            EmptyPlayerArtwork()
+                .transition(.opacity)
+        }
+    }
+
+    /// Where the song plays from, the title and the artist. The display item
+    /// for either source — a station's song on air on this device, the
+    /// speaker's current track — and the same three lines holding their
+    /// places with nothing playing.
+    @ViewBuilder
+    private var titleLines: some View {
+        let item = controller.nowPlayingDisplay
+        // While a station plays here, a tap opens the song on air once Apple
+        // Music has it — named by the station or by Shazam.
+        let target = group == nil ? (playback.onAirMatch ?? item) : item
+
+        // A book's line is the chapter playing, and opens its chapters.
+        if AudiobookPlayer.shared.isPlayingBook(on: controller), (AudiobookPlayer.shared.current?.chapters.count ?? 0) > 1 {
+            AudiobookChapterLine()
+                .frame(height: 12)
+        } else {
+            originLine(item)
+        }
+        PlayerSongTitleButton(
+            title: item?.title ?? (controller.isActive ? "" : "Not Playing"),
+            target: target,
+            group: group
+        )
+        PlayerArtistButton(
+            artist: item.map { $0.metadata?.artist ?? $0.subtitle } ?? "",
+            target: target,
+            group: group,
+            showArtworkOnly: showArtworkOnly
+        )
+    }
+
+    /// Where the song is playing from, in a fixed caption-high slot so the
+    /// layout doesn't shift between songs that have one and songs that
+    /// don't: the speaker's playlist, album or station, or what this
+    /// device's queue was played from.
+    @ViewBuilder
+    private func originLine(_ item: PlayableContent?) -> some View {
+        if let group {
+            groupContainerLine(group)
+        } else if let item {
+            LocalAlbumButton(
+                item: item,
+                source: playback.source,
+                stationTitle: item.content.type.isRadio ? (playback.nowPlaying?.title ?? "") : nil
+            )
+            .frame(height: 12)
+        } else {
+            Color.clear
+                .frame(height: 12)
         }
     }
 
@@ -416,7 +515,88 @@ struct PlayerView: View {
             }
         }
         .animation(.default, value: group.coordinatorRoom.container != nil)
+        // Resolve the label's layout inside this fixed frame so a newly
+        // inserted or changed label fades in place instead of flying in from
+        // its old/zero position.
+        .geometryGroup()
         .frame(height: 12)
+    }
+
+    /// The volume of what's on screen: the speaker's group volume, or this
+    /// device's. Two views, one shape — a minus, the slider with its value,
+    /// a plus — so the row stays put when the source changes.
+    @ViewBuilder
+    private var volumeRow: some View {
+        if let group {
+            VolumeControlView(group: group, immediateDrag: true)
+        } else {
+            LocalVolumeControlView()
+        }
+    }
+
+    // MARK: - TV mode
+
+    /// A soundbar on TV: the TV glyph and its controls in place of artwork
+    /// and transport, then the volume and the bottom row as ever.
+    @ViewBuilder
+    private func tvContent(_ group: GroupRoom) -> some View {
+        VStack {
+            Spacer()
+            Image(systemName: "tv")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .symbolRenderingMode(.hierarchical)
+                .opacity(0.2)
+                .overlay {
+                    if group.isMuted {
+                        Image(systemName: "speaker.slash.fill")
+                            .resizable()
+                            .scaledToFit()
+                            .foregroundStyle(.primary)
+                            .bold()
+                            .containerRelativeFrame(.horizontal) { size, _ in
+                                size * 0.25
+                            }
+                            .frame(maxWidth: isMacCatalystOrPad ? 600 : 400, maxHeight: 400)
+                            .background {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .foregroundStyle(.ultraThinMaterial)
+                            }
+                            .transition(.opacity)
+                            .tint(.primary)
+                    }
+                }
+                .animation(.spring, value: group.isMuted)
+                .frame(maxWidth: 400, maxHeight: 400)
+            GroupTVModeView(group: group)
+            Spacer()
+        }
+        .transition(.opacity)
+
+        VStack {
+            VolumeControlView(group: group, immediateDrag: true)
+                .padding(.bottom, 20)
+                .padding(.horizontal, -12)
+                .frame(maxWidth: 500)
+
+            PlayerBottomToolbarView(group: group, showQueue: $showQueue)
+        }
+        .transition(.opacity)
+    }
+
+    /// The like button and the menu for this device, in the navigation bar.
+    @ViewBuilder
+    private func localNavigationButtons(_ item: PlayableContent) -> some View {
+        // The song on air, while a station plays and Apple Music has it.
+        if let song = playback.onAirMatch {
+            LikeButtonView(content: song)
+                .id(song.content.id)
+        } else if item.content.service.supportsFavoriteTrack {
+            LikeButtonView(content: item)
+        }
+        LocalPlayerMenuView(item: item, showArtworkOnly: $showArtworkOnly)
+            .tint(.primary)
+            .disabled(route.isHolding)
     }
 
     // MARK: - Toolbar
@@ -461,11 +641,16 @@ struct PlayerView: View {
                 LiveTranscriptionButton()
                     .tint(.primary)
             }
+            // A speaker's menu has its own extras — grouping, EQ, the TV —
+            // so the two stay separate views in the one slot.
+            // Both rest through a hand-off: their shuffle, repeat and play
+            // actions would act on the source on its way out.
             if let group {
                 LikeButtonView(group: group)
                 MenuInfoView(group: group, showArtworkOnly: $showArtworkOnly)
                     .tint(.primary)
                     .modifier(GroupRefreshOnForegroundModifier())
+                    .disabled(route.isHolding)
             } else if let item = playback.nowPlaying {
                 localNavigationButtons(item)
             }
@@ -490,39 +675,30 @@ struct PlayerView: View {
         }
     }
 
-    /// The sleep timer chip for whatever is on screen, or `nil` while no
-    /// timer is set.
+    /// The sleep timer chip for what's on screen, or `nil` while no timer is
+    /// set there.
     private var sleepTimerChip: AnyView? {
-        if let group {
-            guard let date = group.coordinatorRoom.sleepTimer, date > Date.now else { return nil }
-            return AnyView(sleepTimerChip(on: group.coordinatorRoom.name) {
+        let controller = self.controller
+        // A timer left on this device with nothing queued has nothing to
+        // pause; a speaker's is the speaker's whatever it's playing.
+        guard controller.group != nil || controller.isActive else { return nil }
+        if let date = controller.sleepTimerEndDate, date > Date.now {
+            return AnyView(sleepTimerChip(on: controller.name) {
                 Text(date, style: .timer)
                     .contentTransition(.numericText(countsDown: true))
                     .animation(.spring, value: date)
                     .monospacedDigit()
                     .bold()
             } cancel: {
-                Task { await sonosService.stopSleepTimer(group: group) }
+                Task { await controller.cancelSleepTimer() }
             })
         }
-        guard playback.nowPlaying != nil else { return nil }
-        if let date = playback.sleepTimerEndDate, date > Date.now {
-            return AnyView(sleepTimerChip(on: deviceName) {
-                Text(date, style: .timer)
-                    .contentTransition(.numericText(countsDown: true))
-                    .animation(.spring, value: date)
-                    .monospacedDigit()
-                    .bold()
-            } cancel: {
-                playback.cancelSleepTimer()
-            })
-        }
-        if playback.sleepsAtEndOfTrack {
-            return AnyView(sleepTimerChip(on: deviceName) {
+        if controller.sleepsAtEndOfTrack {
+            return AnyView(sleepTimerChip(on: controller.name) {
                 Text("End of Song")
                     .bold()
             } cancel: {
-                playback.cancelSleepTimer()
+                Task { await controller.cancelSleepTimer() }
             })
         }
         return nil
@@ -580,12 +756,20 @@ private struct ClearNavigationBackground<Backdrop: View>: ViewModifier {
 
 // MARK: - Session
 
-/// What a speaker on screen needs kept alive — its metadata socket, the
-/// crossfade flag, sleep timer and play mode reads, the scene-phase sync,
-/// hardware volume — the same set `LargePlayerView` runs, and where a drop
-/// on the screen goes. Nothing but the drop target for the device.
+/// What the speaker the route points at needs kept alive — its metadata
+/// socket, the crossfade flag, sleep timer and play mode reads, the
+/// scene-phase sync, hardware volume — the same set `LargePlayerView` runs,
+/// and where a drop on the screen goes.
+///
+/// One chain whichever way the route points, with no group for this device.
+/// Branching on the group here put the whole player in one of two
+/// branches, so every route change built it again from scratch.
 private struct PlayerSessionModifier: ViewModifier {
+    /// The route's speaker.
     let coordinatorID: String?
+    /// The speaker the hardware volume buttons move: the one being heard,
+    /// which through a hand-off is the source's until it stops.
+    let volumeCoordinatorID: String?
     @Binding var shouldFade: Bool
 
     private var sonosService: SonosService { .shared }
@@ -596,49 +780,55 @@ private struct PlayerSessionModifier: ViewModifier {
         coordinatorID.flatMap { id in sonosService.groups.first { $0.coordinatorID == id } }
     }
 
+    private var volumeGroup: GroupRoom? {
+        volumeCoordinatorID.flatMap { id in sonosService.groups.first { $0.coordinatorID == id } }
+    }
+
     func body(content: Content) -> some View {
-        if let group {
-            content
-                .dropDestinationPlay(on: group)
-                .hardwareVolumeControl(group: group)
-                .modifier(GroupScenePhaseSyncModifier(coordinatorID: group.coordinatorID))
-                .task(id: group.coordinatorID) {
-                    guard let group = self.group else { return }
-                    // Re-points the `.viewing` listener; the registry closes
-                    // the previous group's socket unless another listener
-                    // still needs it.
-                    await sonosService.getTrackAudioInformation(ip: group.ip, playerID: group.coordinatorID, groupID: group.id)
-                    group.isCrossfaded = await sonosService.isCrossfaded(for: group)
-                    await sonosService.getSleepTimer(group: group)
+        content
+            // Anything dropped on the screen plays where the route points.
+            .dropDestinationPlay(onGroupOrDevice: group)
+            .hardwareVolumeControl(group: volumeGroup)
+            .modifier(GroupScenePhaseSyncModifier(coordinatorID: coordinatorID))
+            .task(id: coordinatorID) {
+                guard let group = self.group else { return }
+                // Re-points the `.viewing` listener; the registry closes
+                // the previous group's socket unless another listener
+                // still needs it.
+                await sonosService.getTrackAudioInformation(ip: group.ip, playerID: group.coordinatorID, groupID: group.id)
+                group.isCrossfaded = await sonosService.isCrossfaded(for: group)
+                await sonosService.getSleepTimer(group: group)
+            }
+            .task(id: coordinatorID) {
+                guard let group = self.group else { return }
+                sonosService.selectedGroup = group
+                try? await sonosService.updateTrackInformation(for: [group])
+            }
+            .task(id: coordinatorID) {
+                guard let group = self.group else { return }
+                let awaitedPlayMode = await sonosService.playMode(ip: group.ip)
+                if group.playMode != awaitedPlayMode {
+                    group.playMode = awaitedPlayMode
                 }
-                .task(id: group.coordinatorID) {
-                    guard let group = self.group else { return }
-                    sonosService.selectedGroup = group
-                    try? await sonosService.updateTrackInformation(for: [group])
-                }
-                .task(id: group.coordinatorID) {
-                    guard let group = self.group else { return }
-                    let awaitedPlayMode = await sonosService.playMode(ip: group.ip)
-                    if group.playMode != awaitedPlayMode {
-                        group.playMode = awaitedPlayMode
-                    }
-                    try? await Task.sleep(for: .milliseconds(400))
-                    shouldFade = true
-                }
-                .onChange(of: group.coordinatorID) {
-                    shouldFade = false
-                }
+                try? await Task.sleep(for: .milliseconds(400))
+                shouldFade = true
+            }
+            .onChange(of: coordinatorID) { _, id in
+                shouldFade = false
 #if !targetEnvironment(macCatalyst)
-                .onDisappear {
+                // The route left the speakers: the same as the speaker's
+                // player closing.
+                if id == nil {
                     sonosService.selectedGroup = nil
                 }
 #endif
-        } else {
-            // Anything dropped on the screen plays here, the way a drop on
-            // a speaker plays on that group.
-            content
-                .dropDestinationPlayOnDevice()
-        }
+            }
+#if !targetEnvironment(macCatalyst)
+            .onDisappear {
+                guard coordinatorID != nil else { return }
+                sonosService.selectedGroup = nil
+            }
+#endif
     }
 }
 
@@ -707,26 +897,29 @@ private struct LocalAlbumButton: View {
     }
 }
 
-/// Mirrors `LargePlayerView`'s song title: a marquee for a long name, and
-/// a tap opens the album.
-private struct LocalSongTitleButton: View {
+/// The song's title, for either source: a marquee for a long name, and a
+/// tap opens the album — the speaker's track, or this device's song (the
+/// song on air, on a station, once Apple Music has it).
+private struct PlayerSongTitleButton: View {
     @Environment(Router.self) private var router: Router
 
-    let item: PlayableContent
-    /// What a tap opens in place of `item` — the song on a station.
-    var target: PlayableContent? = nil
+    let title: String
+    /// What a tap opens, when there's anything to open.
+    let target: PlayableContent?
+    /// The speaker on screen, which the detail screen plays on.
+    let group: GroupRoom?
 
     @State private var isHovering: Bool = false
 
-    private var isSupported: Bool { (target ?? item).content.service.supportsViewArtistAlbum }
+    private var isSupported: Bool { target?.content.service.supportsViewArtistAlbum ?? false }
 
     var body: some View {
         Button {
-            guard isSupported else { return }
+            guard isSupported, let target else { return }
             HapticManager.shared.fireHaptic(.buttonPress)
-            router.sheet(to: .mediaDetail(content: target ?? item, group: nil))
+            router.sheet(to: .mediaDetail(content: target, group: group))
         } label: {
-            MarqueeText(item.title)
+            MarqueeText(title)
                 .bold()
                 .multilineTextAlignment(.center)
                 .fontDesign(.rounded)
@@ -744,26 +937,28 @@ private struct LocalSongTitleButton: View {
     }
 }
 
-/// Mirrors `LargePlayerView`'s artist line: a tap opens the artist.
-private struct LocalArtistButton: View {
+/// The artist line, for either source: a tap opens the artist.
+private struct PlayerArtistButton: View {
     @Environment(Router.self) private var router: Router
 
-    let item: PlayableContent
-    /// What a tap opens in place of `item` — the song on a station.
-    var target: PlayableContent? = nil
+    let artist: String
+    /// What a tap opens, when there's anything to open.
+    let target: PlayableContent?
+    /// The speaker on screen, which the detail screen plays on.
+    let group: GroupRoom?
     let showArtworkOnly: Bool
 
     @State private var isHovering: Bool = false
 
-    private var isSupported: Bool { (target ?? item).content.service.supportsViewArtistAlbum }
+    private var isSupported: Bool { target?.content.service.supportsViewArtistAlbum ?? false }
 
     var body: some View {
         Button {
-            guard isSupported else { return }
+            guard isSupported, let target else { return }
             HapticManager.shared.fireHaptic(.buttonPress)
-            router.sheet(to: .artistDetail(content: target ?? item, group: nil))
+            router.sheet(to: .artistDetail(content: target, group: group))
         } label: {
-            Text(item.metadata?.artist ?? item.subtitle)
+            Text(artist)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(isHovering ? .primary : .secondary)
                 .fontDesign(.rounded)
@@ -783,125 +978,252 @@ private struct LocalArtistButton: View {
     }
 }
 
-// MARK: - Scrubber and transport
-
-/// The scrubber, mirroring `LargePlayerView.PlaybackView`: `VibeSlider` over
-/// elapsed / audio quality / remaining, monospaced.
-private struct LocalPlaybackScrubber: View {
-    private var playback: LocalPlaybackService { .shared }
-
-    /// Held only while dragging, so the poller's `progress` updates don't yank
-    /// the thumb back under the finger mid-scrub.
-    @State private var scrubPosition: TimeInterval?
-
-    /// Twin of `LargePlayerView`'s: animating the fill is what makes playback
-    /// tick along, but a track change drops the position to zero and animating
-    /// *that* sweeps the bar backwards like a rewind.
-    private var positionAnimation: Animation? {
-        playback.progress < 2 ? nil : .interactiveSpring
-    }
-
-    /// Both kept finite here as well as in the service: everything below
-    /// goes through `Duration.seconds(_:)`, which traps on NaN or infinity,
-    /// and `max(_:_:)` passes a NaN straight through rather than flooring it.
-    private var duration: TimeInterval {
-        playback.duration.isFinite ? max(playback.duration, 1) : 1
-    }
-
-    /// Where the scrubber sits: the finger while dragging, the player's
-    /// clock otherwise.
-    private var position: TimeInterval {
-        let value = scrubPosition ?? playback.progress
-        return value.isFinite ? min(max(0, value), duration) : 0
-    }
-
+/// The cover's place with nothing queued: a blank cover with a note in it,
+/// the shape `ContentArtworkView` gives a missing image.
+private struct EmptyPlayerArtwork: View {
     var body: some View {
-        VStack(spacing: 0) {
-            VibeSlider(
-                value: Binding(
-                    get: { position },
-                    set: { scrubPosition = $0 }
-                ),
-                in: 0...duration,
-                step: 1,
-                baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24,
-                delayDrag: false,
-                valueAnimation: positionAnimation
-            ) { isEditing in
-                guard !isEditing else { return }
-                if let scrubPosition {
-                    playback.seek(to: scrubPosition)
-                }
-                scrubPosition = nil
+        RoundedRectangle(cornerRadius: 8)
+            .fill(.quaternary)
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                Image(systemName: "music.note")
+                    .font(.system(size: 72))
+                    .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: 500)
-            .frame(height: 40)
-            .foregroundStyle(.primary)
-            .accessibilityLabel("Playback Position")
-            .accessibilityValue(Duration.seconds(position).formatted(.time(pattern: .minuteSecond)))
-
-            HStack {
-                let elapsed = Duration.seconds(position)
-                let remaining = Duration.seconds(max(0, duration - position))
-                let pattern: Duration.TimeFormatStyle.Pattern =
-                    duration > 3600 ? .hourMinuteSecond : .minuteSecond
-
-                Text(elapsed.formatted(.time(pattern: pattern)))
-                    .contentTransition(.identity)
-                Spacer()
-                // Lossless / Atmos / bit depth, as far as the backend says —
-                // the badge the Sonos player draws from the speaker's report.
-                AudioInfoView(quality: playback.audioQuality)
-                    .frame(height: 12)
-                    .contentTransition(.identity)
-                    .animation(.spring, value: playback.audioQuality)
-                Spacer()
-                Text("-\(remaining.formatted(.time(pattern: pattern)))")
-                    .contentTransition(.identity)
-            }
-            .frame(maxWidth: 500)
-            .monospacedDigit()
-            .font(.caption)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 60)
-        .opacity(playback.duration.isZero ? 0 : 1)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityLabel("No Artwork")
     }
 }
 
-/// Transport, mirroring `LargePlayerView.PlayerMediaControlsView`.
-private struct LocalMediaControlsView: View {
-    private var playback: LocalPlaybackService { .shared }
+// MARK: - Scrubber and transport
 
-    /// A station has nothing to go back to, and a live stream nothing to
-    /// skip to either, so it gets play/pause alone. An Apple Music station
-    /// is a stream of songs, so it keeps Next.
-    private var isStation: Bool { playback.isPlayingStation }
-    private var canSkip: Bool { !isStation || playback.isPlayingAppleStation }
+/// The scrubber, for either source: `VibeSlider` over elapsed / audio
+/// quality / remaining, monospaced, redrawn from the running clock once per
+/// pixel of progress (see `PlaybackTimeline`). Reads
+/// `PlaybackRoute.presented`, in seconds whichever it is, so a route switch
+/// changes what it reads and nothing else.
+private struct PlayerScrubber: View {
+    private var route: PlaybackRoute { .shared }
 
+    @Environment(\.displayScale) private var displayScale
+
+    /// Held only while dragging, so the thumb stays under the finger rather
+    /// than running on with the clock — and until the seek has been sent,
+    /// so the bar doesn't jump back to the old spot in between.
+    @State private var scrubPosition: TimeInterval?
+    /// True while a finger is on the bar. `VibeSlider` reports `true` on
+    /// every movement, not only the first touch.
+    @State private var isScrubbing = false
+    /// The source the drag began on, which its end goes to: the one on
+    /// screen can change under a finger.
+    @State private var scrubController: (any PlaybackController)?
+    /// The bar's width, which sets how often it's worth redrawing.
+    @State private var barWidth: CGFloat = 0
+
+    /// Kept finite here as well as in the services: everything below goes
+    /// through `Duration.seconds(_:)`, which traps on NaN or infinity, and
+    /// `max(_:_:)` passes a NaN straight through rather than flooring it.
+    /// Floored at one so the slider's range is never empty — a station has
+    /// no length, and the row is hidden for one anyway.
+    private func range(of controller: any PlaybackController) -> TimeInterval {
+        let duration = controller.duration
+        return duration.isFinite ? max(duration, 1) : 1
+    }
+
+    private func clamped(_ value: TimeInterval, to duration: TimeInterval) -> TimeInterval {
+        value.isFinite ? min(max(0, value), duration) : 0
+    }
+
+    var body: some View {
+        // Through a hand-off, the hold's clock: the source is paused on its
+        // way out, and the bar follows what's heard (`HeldPlaybackController`).
+        let controller = route.presented
+        let duration = range(of: controller)
+        // Paused under a finger, while nothing plays, and off screen (see
+        // `PlaybackTimeline`). A seek or a new song lands at once rather than
+        // sweeping, hence no value animation.
+        PlaybackTimeline(
+            isRunning: controller.isClockRunning && scrubPosition == nil,
+            minimumInterval: ProgressRedraw.interval(
+                forDuration: duration * 1000,
+                length: barWidth,
+                scale: displayScale
+            ),
+            position: { clamped(scrubPosition ?? controller.position(), to: duration) }
+        ) { position in
+            VStack(spacing: 0) {
+                VibeSlider(
+                    value: Binding(
+                        get: { position },
+                        set: { scrubPosition = $0 }
+                    ),
+                    in: 0...duration,
+                    step: 1,
+                    baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24,
+                    delayDrag: false,
+                    immediateDrag: true,
+                    valueAnimation: nil
+                ) { isEditing in
+                    scrubbingChanged(isEditing, on: controller)
+                }
+                .frame(maxWidth: 500)
+                .frame(height: 40)
+                .foregroundStyle(.primary)
+                .accessibilityLabel("Playback Position")
+                .accessibilityValue(Duration.seconds(position).formatted(.time(pattern: .minuteSecond)))
+                // Nothing to seek on a live stream, or while a hand-off holds
+                // the player on its source.
+                .disabled(!controller.canScrub)
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
+
+                HStack {
+                    let elapsed = Duration.seconds(position)
+                    let remaining = Duration.seconds(max(0, duration - position))
+                    let pattern: Duration.TimeFormatStyle.Pattern =
+                        duration > 3600 ? .hourMinuteSecond : .minuteSecond
+
+                    Text(elapsed.formatted(.time(pattern: pattern)))
+                        .contentTransition(.identity)
+                    Spacer()
+                    // A book: what's left of the chapter, or of the book (a
+                    // tap switches them). Anything else: lossless
+                    // / Atmos / bit depth, as far as the backend or the speaker
+                    // says.
+                    if AudiobookPlayer.shared.isPlayingBook(on: controller) {
+                        AudiobookTimeLeft()
+                            .frame(height: 12)
+                    } else {
+                        AudioInfoView(quality: controller.audioQuality)
+                            .frame(height: 12)
+                            .contentTransition(.identity)
+                            .animation(.spring, value: controller.audioQuality)
+                    }
+                    Spacer()
+                    Text("-\(remaining.formatted(.time(pattern: pattern)))")
+                        .contentTransition(.identity)
+                }
+                .frame(maxWidth: 500)
+                .monospacedDigit()
+                .font(.caption)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 60)
+        .opacity(controller.duration.isZero ? 0 : 1)
+        // A new source under the finger, or a hand-off taking the bar away
+        // (it disables, and the slider may never report the drag's end).
+        .onChange(of: route.presentedDestination) {
+            cancelScrubbing()
+        }
+        .onChange(of: route.isHolding) { _, isHolding in
+            if isHolding {
+                cancelScrubbing()
+            }
+        }
+    }
+
+    private func scrubbingChanged(_ isEditing: Bool, on controller: any PlaybackController) {
+        if isEditing {
+            guard !isScrubbing else { return }
+            isScrubbing = true
+            scrubController = controller
+            controller.beginScrubbing()
+        } else {
+            guard isScrubbing else { return }
+            isScrubbing = false
+            let target = scrubPosition
+            let owner = scrubController ?? controller
+            scrubController = nil
+            Task { @MainActor in
+                await owner.endScrubbing(at: target)
+                // A new drag since has its own position.
+                if !isScrubbing {
+                    scrubPosition = nil
+                }
+            }
+        }
+    }
+
+    /// Calls a drag off without a seek, letting go of the source it began
+    /// on — which otherwise kept ignoring the speaker's reports.
+    private func cancelScrubbing() {
+        guard isScrubbing || scrubPosition != nil else { return }
+        let owner = scrubController
+        isScrubbing = false
+        scrubController = nil
+        scrubPosition = nil
+        if let owner {
+            Task { @MainActor in
+                await owner.endScrubbing(at: nil)
+            }
+        }
+    }
+}
+
+/// Transport, for either source. A station on this device has nothing to
+/// go back to, and a live stream nothing to skip to either, so it gets
+/// play/pause alone (an Apple Music station is a stream of songs, so it
+/// keeps Next); a speaker greys out what its transport doesn't offer.
+///
+/// While a hand-off holds the player on its source (`PlaybackRoute.hold`)
+/// the buttons rest, the play button pulsing and reading as the source did
+/// when the switch was made: the source is coming down and the target isn't
+/// up yet, so there's nothing for them to act on that wouldn't race the
+/// hand-off.
+private struct PlayerTransportView: View {
+    private var route: PlaybackRoute { .shared }
+
+    /// The speaker artwork's crossfade window, closed around a skip so a
+    /// deliberate change snaps — see `GroupMediaControlsView`.
+    @Binding var shouldFade: Bool
     /// The phone's player — see `GroupMediaControlsView.isProminent`.
     var isProminent: Bool = false
+
+    @State private var skipTask: Task<Void, Never>?
 
     private var skipSize: CGFloat { isProminent ? 38 : 32 }
     private var playSize: CGFloat { isProminent ? 40 : 32 }
 
+    private enum Skip {
+        case previous
+        case next
+    }
+
     var body: some View {
+        // Through a hand-off, the source as it was, with nothing to press
+        // (`HeldPlaybackController`).
+        let controller = route.presented
+        let isPlaying = controller.isPlaying
+        // A load that's over in a moment doesn't pulse; one that keeps the
+        // song waiting does (see `sustainedPulse`).
+        let isLoading = controller.isLoading
+        // A book's chapters run far too long to move through by file:
+        // Previous and Next skip back and forward instead.
+        let isBook = AudiobookPlayer.shared.isPlayingBook(on: controller)
+        let showsPrevious = isBook || controller.showsPrevious
+        let showsNext = isBook || controller.showsNext
+
         HStack {
-            if !isStation {
+            if showsPrevious {
                 Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    playback.previous()
+                    if isBook {
+                        skipBook(by: -AudiobookPlayer.skipBackInterval)
+                    } else {
+                        skip(.previous)
+                    }
                 } label: {
-                    Image(systemName: "backward.fill")
+                    Image(systemName: isBook ? "gobackward.\(Int(AudiobookPlayer.skipBackInterval))" : "backward.fill")
                         .resizable()
                         .scaledToFit()
+                        .fontWeight(isBook ? .regular : nil)
                         .frame(width: skipSize, height: skipSize)
                 }
                 .buttonStyle(.liveActivity)
-                .accessibilityLabel("Previous")
+                .accessibilityLabel(isBook ? "Back \(Int(AudiobookPlayer.skipBackInterval)) Seconds" : "Previous")
+                .disabled(!isBook && !controller.canGoBack)
 
                 Spacer()
-            } else if canSkip {
+            } else if showsNext {
                 // Holds Previous's place so Play stays centred.
                 Color.clear
                     .frame(width: skipSize, height: skipSize)
@@ -912,37 +1234,75 @@ private struct LocalMediaControlsView: View {
 
             Button {
                 HapticManager.shared.fireHaptic(.selection)
-                playback.togglePlayback()
+                Task { await controller.togglePlayback() }
             } label: {
-                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                     .resizable()
                     .scaledToFit()
-                    .contentTransition(.symbolEffect(.automatic))
-                    .symbolEffect(.pulse, isActive: playback.isLoading)
+                    .contentTransition(GroupMediaControlsView.playPauseTransition)
+                    .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && isLoading)
                     .frame(width: playSize, height: playSize)
             }
             .buttonStyle(.liveActivity)
-            .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
+            .accessibilityLabel(isPlaying ? "Pause" : "Play")
+            #if DEBUG && !targetEnvironment(macCatalyst)
+            .keyboardShortcut(.space, modifiers: [])
+            #endif
 
-            if canSkip {
+            if showsNext {
                 Spacer()
 
                 Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    playback.next()
+                    if isBook {
+                        skipBook(by: AudiobookPlayer.skipForwardInterval)
+                    } else {
+                        skip(.next)
+                    }
                 } label: {
-                    Image(systemName: "forward.fill")
+                    Image(systemName: isBook ? "goforward.\(Int(AudiobookPlayer.skipForwardInterval))" : "forward.fill")
                         .resizable()
                         .scaledToFit()
+                        .fontWeight(isBook ? .regular : nil)
                         .frame(width: skipSize, height: skipSize)
                 }
                 .buttonStyle(.liveActivity)
-                .accessibilityLabel("Next")
-                .disabled(!playback.hasNext)
+                .accessibilityLabel(isBook ? "Forward \(Int(AudiobookPlayer.skipForwardInterval)) Seconds" : "Next")
+                .disabled(!isBook && !controller.hasNext)
             }
         }
-        .frame(maxWidth: canSkip ? (isProminent ? 320 : 300) : nil)
+        .frame(maxWidth: showsNext ? (isProminent ? 320 : 300) : nil)
         .padding(.horizontal, isProminent ? 36 : 60)
+        // Nothing loaded, or a hand-off holding the player: there, so the
+        // player keeps its shape, but nothing to press.
+        .disabled(!controller.isActive)
+    }
+
+    /// Skips through the book, across its files.
+    private func skipBook(by seconds: TimeInterval) {
+        HapticManager.shared.fireHaptic(.selection)
+        Task { await AudiobookPlayer.shared.skip(by: seconds) }
+    }
+
+    /// Skips on whatever is on screen. Instant on both: this device moves at
+    /// once, and a speaker shows the new song before it has moved
+    /// (`SonosService+TrackSkip.swift`).
+    private func skip(_ direction: Skip) {
+        let controller = route.presented
+        skipTask?.cancel()
+        skipTask = Task { @MainActor in
+            HapticManager.shared.fireHaptic(.selection)
+            shouldFade = false
+            switch direction {
+            case .previous: await controller.previous()
+            case .next: await controller.next()
+            }
+            // Holds the speaker artwork's no-fade window open until well
+            // past the socket's push of the new track: `ArtworkView`
+            // snapshots `shouldFade` when the URL changes.
+            try? await Task.sleep(for: .milliseconds(1500))
+            guard !Task.isCancelled else { return }
+            shouldFade = true
+        }
     }
 }
 
@@ -989,6 +1349,7 @@ private struct LocalVolumeControlView: View {
                 step: 1,
                 baseHeight: sliderHeight,
                 delayDrag: false,
+                immediateDrag: true,
                 showValue: true
             ) { editing in
                 if !editing { dragging = nil }
@@ -1051,9 +1412,9 @@ private struct HiddenSystemVolumeView: UIViewRepresentable {
 
 /// The row under the volume. On a phone it has no glass: the route picker
 /// in the middle — on a speaker its menu is the regroup menu too — and the
-/// queue on the trailing edge, with the leading slot empty for now. The
-/// wide row adds the room volume for a group of more than one and Identify
-/// Song. No search
+/// queue on the trailing edge, and lyrics on the leading edge. The wide
+/// row adds lyrics, the room volume for a group of more than one and
+/// Identify Song. No search
 /// or browse: the window's tabs are a dismiss away on every size, and the
 /// cover's sheets only doubled them. The wide row has no queue: iPad's is
 /// in the navigation bar, the Mac's in the window toolbar. The
@@ -1071,22 +1432,32 @@ private struct PlayerBottomToolbarView: View {
 
     private var playback: LocalPlaybackService { .shared }
 
-    /// The group the route picker plays on, or `nil` on this device. The
-    /// group on screen first, then the route's, so a solo room reads too.
+    private var route: PlaybackRoute { .shared }
+
+    /// The group the route picker plays on. The group on screen first, then
+    /// the route's, so a solo room reads too. On this device, the AirPods,
+    /// car or AirPlay receiver it plays through, so it's plain that
+    /// Bluetooth is on; nothing on the phone's own speaker. While a hand-off
+    /// holds the player on its source, where it's going.
     private var routeName: String? {
-        (group ?? PlaybackRoute.shared.group)?.nameWithCount
+        if route.isHolding {
+            return "Moving to \(route.group?.nameWithCount ?? "This Device")…"
+        }
+        return (group ?? route.group)?.nameWithCount ?? AudioOutputName.shared.name
     }
 
     var body: some View {
         @Bindable var router = router
 
         if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact {
-            // No glass: the route picker centred and the queue trailing,
-            // with the leading slot left empty for now.
+            // No glass: lyrics leading, the route picker centred and the
+            // queue trailing.
             VStack(spacing: 6) {
                 HStack(spacing: 0) {
-                    Color.clear
-                        .frame(maxWidth: .infinity, maxHeight: 1)
+                    LyricsButton()
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
+                        .frame(maxWidth: .infinity)
 
                     PlaybackRouteButton()
                         .buttonStyle(.plain)
@@ -1099,22 +1470,21 @@ private struct PlayerBottomToolbarView: View {
                         .frame(maxWidth: .infinity)
                 }
 
-                // The speaker it plays on, on its own line under the route
-                // picker. Laid out here rather than in the picker's label:
-                // iOS flattens a Menu's label, and an overlay on the Menu
-                // gets clipped by the button behind it.
-                HStack(spacing: 0) {
-                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
-                    Text(routeName ?? " ")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: .infinity)
-                        .opacity(routeName == nil ? 0 : 1)
-                        .accessibilityHidden(true)
-                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
-                }
+                // The speaker or headphones it plays on, on its own line
+                // under the route picker. Laid out here rather than in the
+                // picker's label: iOS flattens a Menu's label, and an overlay
+                // on the Menu gets clipped by the button behind it. The whole
+                // row's width, centred under the button: nothing else is on
+                // this line, and a third of it cut most group names short.
+                Text(routeName ?? " ")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity)
+                    .opacity(routeName == nil ? 0 : 1)
+                    .accessibilityHidden(true)
             }
             .padding(.top, 14)
             .padding(.bottom, UIDevice.current.userInterfaceIdiom == .phone ? 0 : 14)
@@ -1128,6 +1498,10 @@ private struct PlayerBottomToolbarView: View {
                     .buttonBorderShape(.roundedRectangle)
                     .glassButton()
                     .help("Play On")
+
+                LyricsButton()
+                    .buttonBorderShape(.roundedRectangle)
+                    .glassButton()
 
                 if let group, group.rooms.count > 1 {
                     roomVolumeButton(group)
@@ -1169,24 +1543,18 @@ private struct PlayerBottomToolbarView: View {
                 showQueue.toggle()
             }
         } label: {
-            Group {
-                if let group {
-                    QueueIconView(group: group)
-                } else {
-                    LocalQueueIconView()
+            PresentedQueueIconView()
+                .fontDesign(.rounded)
+                .font(.title3)
+                .foregroundStyle(isHoveringOnQueueList || showQueue ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
+                .overlay(alignment: .topTrailing) {
+                    if isHoveringOnQueueList {
+                        Image(systemName: "plus.circle.fill")
+                            .offset(x: 12, y: -18)
+                            .transition(.scale)
+                            .foregroundStyle(.green.gradient)
+                    }
                 }
-            }
-            .fontDesign(.rounded)
-            .font(.title3)
-            .foregroundStyle(isHoveringOnQueueList || showQueue ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
-            .overlay(alignment: .topTrailing) {
-                if isHoveringOnQueueList {
-                    Image(systemName: "plus.circle.fill")
-                        .offset(x: 12, y: -18)
-                        .transition(.scale)
-                        .foregroundStyle(.green.gradient)
-                }
-            }
         }
         .accessibilityLabel("Up Next")
         .accessibilityAddTraits(showQueue ? .isSelected : [])
@@ -1194,41 +1562,28 @@ private struct PlayerBottomToolbarView: View {
             playModeBadge
         }
 
-        if let group {
-            button
-                .accessibilityValue(group.playMode.accessibilityDescription)
-                .dropDestinationPlay(on: group, position: .next) { isTargeted in
-                    if isTargeted {
-                        HapticManager.shared.fireHaptic(.selection)
-                    }
-                    withAnimation {
-                        isHoveringOnQueueList = isTargeted
-                    }
+        // One button whichever way the route points, so it keeps its place
+        // (and its hover state) when the route changes. The drop goes where
+        // the route points, even while the player still shows the source.
+        button
+            .accessibilityValue(group?.playMode.accessibilityDescription ?? "")
+            .disabled(group == nil && playback.queue.isEmpty)
+            .dropDestinationPlay(onGroupOrDevice: route.group, position: .next) { isTargeted in
+                if isTargeted {
+                    HapticManager.shared.fireHaptic(.selection)
                 }
-        } else {
-            button
-                .disabled(playback.queue.isEmpty)
-                .dropDestinationPlayOnDevice(position: .next) { isTargeted in
-                    if isTargeted {
-                        HapticManager.shared.fireHaptic(.selection)
-                    }
-                    withAnimation {
-                        isHoveringOnQueueList = isTargeted
-                    }
+                withAnimation {
+                    isHoveringOnQueueList = isTargeted
                 }
-        }
+            }
     }
 
-    /// Shuffle or repeat, whichever is on where the route points.
+    /// Shuffle or repeat, whichever is on for what's on screen. Shuffle
+    /// first: a speaker can have both.
     private var playModeSymbol: String? {
-        if let group {
-            if group.playMode.contains(.shuffle) { return "shuffle.circle.fill" }
-            if group.playMode.contains(.repeatAll) { return "repeat.circle.fill" }
-            if group.playMode.contains(.repeatOne) { return "repeat.1.circle.fill" }
-            return nil
-        }
-        if playback.isShuffled { return "shuffle.circle.fill" }
-        switch playback.repeatMode {
+        let controller = route.presented
+        if controller.isShuffled { return "shuffle.circle.fill" }
+        switch controller.repeatMode {
         case .all: return "repeat.circle.fill"
         case .one: return "repeat.1.circle.fill"
         case .off: return nil
@@ -1246,32 +1601,15 @@ private struct PlayerBottomToolbarView: View {
     }
 }
 
-/// The queue gauge, mirroring `QueueIconView`: how far through the device's
-/// queue playback is, with the position in the middle. Also the mini
-/// player's queue toggle on iPad.
-struct LocalQueueIconView: View {
-    private var playback: LocalPlaybackService { .shared }
-
-    @ScaledMetric(relativeTo: .caption2) private var iconSize: CGFloat = 24
+/// The queue gauge for what's on screen: this device's queue, or the
+/// speaker's while it plays from its queue. Also the mini player's queue
+/// toggle on iPad.
+struct PresentedQueueIconView: View {
+    private var route: PlaybackRoute { .shared }
 
     var body: some View {
-        let position = playback.queue.isEmpty ? 0 : playback.currentIndex + 1
-        VibeGaugeView(value: Double(position),
-                      total: Double(playback.queue.count),
-                      color: .primary,
-                      lineWidth: 2)
-        .overlay {
-            Text(position, format: .number)
-                .minimumScaleFactor(0.5)
-                .padding(.horizontal, 4)
-                .allowsTightening(true)
-                .font(.caption2.monospacedDigit())
-                .contentTransition(.numericText())
-        }
-        .animation(.spring, value: playback.currentIndex)
-        .fontDesign(.rounded)
-        .frame(width: iconSize, height: iconSize)
-        .accessibilityLabel("Up Next")
+        let controller = route.presented
+        QueueIconView(position: controller.queuePosition, total: controller.queueCount)
     }
 }
 
@@ -1295,9 +1633,23 @@ private struct LocalPlayerMenuView: View {
     private var song: PlayableContent { playback.onAirMatch ?? item }
 
     var body: some View {
+        // A book's file: chapters and speed rather than album, artist,
+        // playlists, shuffle and repeat, none of which mean much for one.
+        let isBook = AudiobookPlayer.shared.contains(item)
         Menu {
+            if isBook {
+                AudiobookPlayerMenuItems(isOnDevice: true)
+            }
+            // A book and the music it was started over, each one tap from
+            // the other.
+            Section {
+                BookMusicSwitchMenuItems(isBook: isBook)
+            }
+            if isBook {
+                Divider()
+            }
             OpenInServiceView(item: song)
-            if song.content.service.supportsViewArtistAlbum {
+            if song.content.service.supportsViewArtistAlbum, !isBook {
                 Button {
                     router.sheet(to: .mediaDetail(content: song, group: nil))
                 } label: {
@@ -1312,7 +1664,7 @@ private struct LocalPlayerMenuView: View {
             }
 
             // A station itself can't go in a playlist; the song on it can.
-            if !song.content.type.isRadio {
+            if !song.content.type.isRadio, !isBook {
                 Divider()
                 AddToLastPlaylistButton(itemToAdd: song)
                 Button {
@@ -1330,32 +1682,41 @@ private struct LocalPlayerMenuView: View {
             LocalDownloadMenuSection(item: item)
 
             ControlGroup {
-                Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    playback.setShuffle(!playback.isShuffled)
-                } label: {
-                    Label(playback.isShuffled ? "Shuffle On" : "Shuffle Off", systemImage: "shuffle")
-                }
-                .menuActionDismissBehavior(.disabled)
-                .tint(playback.isShuffled ? .accent : .secondary)
-                .disabled(!playback.isShuffled && playback.upNext.count < 2)
+                if !isBook {
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        playback.setShuffle(!playback.isShuffled)
+                    } label: {
+                        Label(playback.isShuffled ? "Shuffle On" : "Shuffle Off", systemImage: "shuffle")
+                    }
+                    .menuActionDismissBehavior(.disabled)
+                    .tint(playback.isShuffled ? .accent : .secondary)
+                    .disabled(!playback.isShuffled && playback.upNextCount < 2)
 
-                Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    playback.setRepeatMode(playback.repeatMode.next)
-                } label: {
-                    Label(playback.repeatMode.title, systemImage: playback.repeatMode.systemImage)
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        playback.setRepeatMode(playback.repeatMode.next)
+                    } label: {
+                        Label(playback.repeatMode.title, systemImage: playback.repeatMode.systemImage)
+                    }
+                    .menuActionDismissBehavior(.disabled)
+                    .tint(playback.repeatMode == .off ? .secondary : .accent)
                 }
-                .menuActionDismissBehavior(.disabled)
-                .tint(playback.repeatMode == .off ? .secondary : .accent)
 
+                // Any other choice puts End of Chapter away, or it would
+                // move the new timer back to the chapter's end.
                 TimerMenuView(sheetRouter: router, onSelect: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.sleepTimer($0)
                 }, onClear: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.cancelSleepTimer()
                 }, onSleepAtEndOfTrack: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.sleepAtEndOfTrack()
-                }) {
+                }, onSleepAtEndOfChapter: isBook ? {
+                    await AudiobookPlayer.shared.sleepAtEndOfChapter()
+                } : nil, sleepsAtEndOfChapter: AudiobookPlayer.shared.sleepsAt != nil) {
                     Label("Sleep Timer", systemImage: "deskclock.fill")
                 }
             }
@@ -1378,34 +1739,75 @@ private struct LocalPlayerMenuView: View {
 
 // MARK: - Background
 
-/// The blurred-artwork backdrop, mirroring `LargePlayerView`'s
-/// `BackgroundViewCatalyst` / `BackgroundView`. Catalyst blurs the image
-/// directly and lays a `UIVisualEffectView` over it; elsewhere the artwork is
-/// scaled to fill under a thin material, which is cheaper on device.
-private struct PlayerBackgroundView: View {
+/// The backdrop for either source: a gradient of the cover's colours (see
+/// `ArtworkMeshBackground`) under a thin material. One view for both, so a
+/// change of source hands the gradient its new cover rather than building a
+/// new backdrop; the old gradient stays until the new one is ready. Hidden
+/// for a speaker in TV mode.
+private struct PlayerBackdrop: View {
+    /// The speaker on screen, or nil for this device.
+    let group: GroupRoom?
+    /// This device's display item.
     let content: PlayableContent?
+
+    private var mesh: ArtworkMeshBackground {
+        if let group {
+            return ArtworkMeshBackground(group: group)
+        }
+        return ArtworkMeshBackground(content: content)
+    }
+
+    private var hasArtwork: Bool {
+        if let group {
+            return group.coordinatorRoom.track.artworkURL != nil
+        }
+        return content != nil
+    }
+
+    private var isTVMode: Bool {
+        group?.TVMode ?? false
+    }
 
     var body: some View {
         ZStack {
-            if let content {
-#if targetEnvironment(macCatalyst)
-                ContentArtworkView(content: content, showMusicSource: false, preferredSize: 600)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .saturation(1.3)
-                    .blur(radius: 80)
+            mesh
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .opacity(hasArtwork ? 1 : 0)
+            // Nothing queued on this device leaves the cover's own
+            // background, with no material over it.
+            if group != nil || content != nil {
                 BlurView()
-#else
-                ContentArtworkView(content: content, showMusicSource: false, preferredSize: 600)
-                    .saturation(1.3)
-                    .aspectRatio(contentMode: .fill)
-                Rectangle()
-                    .foregroundStyle(.thinMaterial)
-#endif
             }
         }
+        .opacity(isTVMode ? 0 : 1)
+        .animation(.smooth, value: isTVMode)
         .scaleEffect(1.3)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)
         .ignoresSafeArea()
     }
+}
+
+private extension Animation {
+    /// Lyrics on and off, whatever switched them: quick and settled, with
+    /// no overshoot.
+    static let lyricsSwitch: Animation = .snappy(duration: 0.3)
+}
+
+private extension AnyTransition {
+    /// Text that swaps as lyrics go on or off — the title lines under the
+    /// cover, the title beside the thumbnail. What leaves is gone in a
+    /// tenth of a second; what comes waits until the cover has mostly
+    /// moved, so the two never cross and the cover never passes over words.
+    static let lyricsSwitch: AnyTransition = .asymmetric(
+        insertion: .opacity.animation(.easeOut(duration: 0.18).delay(0.15)),
+        removal: .opacity.animation(.easeIn(duration: 0.1))
+    )
+
+    /// The full-screen lyrics themselves: the same timing, rising a little
+    /// into place as they come.
+    static let lyricsBody: AnyTransition = .asymmetric(
+        insertion: .opacity.combined(with: .offset(y: 24)).animation(.easeOut(duration: 0.22).delay(0.15)),
+        removal: .opacity.animation(.easeIn(duration: 0.1))
+    )
 }

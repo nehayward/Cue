@@ -76,13 +76,20 @@ public final class SonosRadioBrowseService {
         }
 
         let dynamic = await loadDynamicSections()
+        // Switching to another service mid-load cancels the screen's task, and
+        // the cancelled requests come back empty. Recording that as a finished
+        // load kept Sonos Radio on "Couldn't load" until relaunch; leave it
+        // unloaded so the next visit tries again.
+        guard !Task.isCancelled else { return }
         if !dynamic.isEmpty {
             sections = dynamic
             MemoryFileCache.shared.save(dynamic, forKey: Self.cacheKey)
         } else if sections.isEmpty {
             // Nothing fresh and nothing cached — fall back to genre searches.
             print("Sonos Radio browse: no dynamic sections, falling back to genre searches")
-            sections = await loadFallbackSections()
+            let fallback = await loadFallbackSections()
+            guard !Task.isCancelled else { return }
+            sections = fallback
         } else {
             // The fetch failed but cached/previous sections are on screen —
             // surface it instead of silently showing stale rows.

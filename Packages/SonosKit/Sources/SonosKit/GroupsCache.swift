@@ -13,6 +13,11 @@ struct CachedGroup: Codable {
     let trackSonosAlbumArtURL: URL?
     let trackMusicService: MusicService
     let trackDuration: TimeInterval
+    /// Last-known volumes, so sliders open at a real level instead of 0 while
+    /// the first reads land. Optional so caches written before these fields
+    /// existed still decode.
+    var groupVolume: Double?
+    var roomVolumes: [String: Double]?
 }
 
 struct GroupsCache: Codable {

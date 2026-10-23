@@ -3,10 +3,11 @@ import WatchKit
 import WatchSync
 
 /// Where a play goes: this watch, or Cue on the iPhone — asked each time
-/// while the iPhone's in reach, straight to the watch otherwise. Then Now
-/// Playing, in the same sheet: the system's, which shows the watch's
-/// playback or, once the watch lets go, the iPhone's. Each screen that
-/// plays keeps one and shows its sheet (`playOnSheet(_:)`).
+/// while the iPhone's in reach (`PhoneConnection.canReachPhone`), straight
+/// to the watch otherwise. Then the player of where it went opens on the
+/// home screen's stack: the watch's Now Playing, or the iPhone's
+/// (`PhoneNowPlayingScreen`, which the iPhone's answer has filled in). Each
+/// screen that plays keeps one and shows its sheet (`playOnSheet(_:)`).
 @MainActor
 @Observable
 final class PlayOn {
@@ -20,11 +21,14 @@ final class PlayOn {
         case choosing(Request)
         case sending
         case failed(String, Request)
-        case nowPlaying
     }
 
     /// What the sheet shows; nil while it's down.
     var stage: Stage?
+    /// The player to open once the sheet is down.
+    var playerAfterSheet: HomeRoute?
+    /// The player to open now: played with no sheet up.
+    var playerNow: HomeRoute?
     /// The latest play handed to the iPhone, so an answer that comes after
     /// a newer play changes nothing.
     @ObservationIgnored private var sending: UUID?
@@ -34,7 +38,7 @@ final class PlayOn {
     func play(_ songs: [WatchSong], startingAt key: String? = nil, shuffled: Bool = false) {
         guard !songs.isEmpty else { return }
         let request = Request(songs: songs, startKey: key, shuffled: shuffled)
-        if PhoneConnection.shared.isPhoneReachable {
+        if PhoneConnection.shared.canReachPhone {
             stage = .choosing(request)
         } else {
             playOnWatch(request)
@@ -48,11 +52,11 @@ final class PlayOn {
             stage = nil
             return
         }
-        stage = .nowPlaying
+        open(.nowPlaying)
     }
 
     /// Cue on the iPhone plays them, on the phone or its speakers. The
-    /// watch stops its own, so Now Playing turns to the iPhone's.
+    /// watch stops its own, so there's one player at a time.
     func playOnPhone(_ request: Request) {
         let id = UUID()
         sending = id
@@ -61,28 +65,38 @@ final class PlayOn {
         let (songs, start) = WatchPlayer.order(request.songs, startingAt: request.startKey, shuffled: request.shuffled)
         let message = WatchPlayRequest(songs: songs.map(\.playRequestSong), startIndex: start)
         Task {
-            let reply = await PhoneConnection.shared.play(message)
+            let failure = await PhoneConnection.shared.play(message)
             guard sending == id else { return }
             sending = nil
             // One player at a time, even when the sheet was closed meanwhile.
-            if reply.failure == nil, WatchPlayer.shared.current != nil {
+            if failure == nil, WatchPlayer.shared.current != nil {
                 WatchPlayer.shared.stop()
             }
             // Closed while it was on its way.
             guard case .sending? = stage else { return }
-            if let failure = reply.failure {
+            if let failure {
                 WKInterfaceDevice.current().play(.failure)
                 stage = .failed(failure, request)
             } else {
                 WKInterfaceDevice.current().play(.success)
-                stage = .nowPlaying
+                open(.phoneNowPlaying)
             }
+        }
+    }
+
+    /// Once the sheet is down, when it's up: one presentation at a time.
+    private func open(_ player: HomeRoute) {
+        if stage == nil {
+            playerNow = player
+        } else {
+            playerAfterSheet = player
+            stage = nil
         }
     }
 }
 
 extension View {
-    /// The Play On choice and Now Playing after it, for `playOn`'s plays.
+    /// The Play On choice for `playOn`'s plays, and the player after it.
     func playOnSheet(_ playOn: PlayOn) -> some View {
         modifier(PlayOnPresenter(playOn: playOn))
     }
@@ -90,11 +104,23 @@ extension View {
 
 private struct PlayOnPresenter: ViewModifier {
     let playOn: PlayOn
+    @Environment(\.openPlayer) private var openPlayer
 
     func body(content: Content) -> some View {
-        content.sheet(isPresented: isPresented) {
-            PlayOnSheet(playOn: playOn)
-        }
+        content
+            .sheet(isPresented: isPresented, onDismiss: {
+                if let player = playOn.playerAfterSheet {
+                    playOn.playerAfterSheet = nil
+                    openPlayer(player)
+                }
+            }) {
+                PlayOnSheet(playOn: playOn)
+            }
+            .onChange(of: playOn.playerNow) { _, player in
+                guard let player else { return }
+                playOn.playerNow = nil
+                openPlayer(player)
+            }
     }
 
     private var isPresented: Binding<Bool> {
@@ -146,8 +172,21 @@ private struct PlayOnSheet: View {
                     }
                 }
             }
-        case .nowPlaying?, nil:
-            NowPlayingView()
+        case nil:
+            EmptyView()
         }
+    }
+}
+
+/// Opens a player on the home screen's stack, from any screen in it: the
+/// watch's Now Playing or the iPhone's.
+struct OpenPlayerKey: EnvironmentKey {
+    static let defaultValue: @MainActor (HomeRoute) -> Void = { _ in }
+}
+
+extension EnvironmentValues {
+    var openPlayer: @MainActor (HomeRoute) -> Void {
+        get { self[OpenPlayerKey.self] }
+        set { self[OpenPlayerKey.self] = newValue }
     }
 }

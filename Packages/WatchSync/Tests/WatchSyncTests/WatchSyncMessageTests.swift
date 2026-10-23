@@ -147,6 +147,107 @@ final class WatchSyncMessageTests: XCTestCase {
         XCTAssertEqual(WatchSyncMessage.picks(in: context)?.items.count, 200)
     }
 
+    func testWhatTheiPhonePlaysCrossesAndNothingIsSaidToo() throws {
+        let playing = WatchPhoneNowPlaying(title: "Song", artist: "Artist", destination: "Living Room", isOnSpeaker: true, isPlaying: true, artwork: Data([1, 2, 3]))
+        let message = try WatchSyncMessage.nowPlayingMessage(playing)
+        XCTAssertTrue(WatchSyncMessage.carriesNowPlaying(message))
+        XCTAssertEqual(WatchSyncMessage.nowPlaying(in: message), playing)
+
+        let nothing = try WatchSyncMessage.nowPlayingMessage(nil)
+        XCTAssertTrue(WatchSyncMessage.carriesNowPlaying(nothing))
+        XCTAssertNil(WatchSyncMessage.nowPlaying(in: nothing))
+        XCTAssertFalse(WatchSyncMessage.carriesNowPlaying(WatchSyncMessage.nowPlayingRequest))
+    }
+
+    func testRequestsAreToldApart() {
+        XCTAssertTrue(WatchSyncMessage.isNowPlayingRequest(WatchSyncMessage.nowPlayingRequest))
+        XCTAssertTrue(WatchSyncMessage.isTogglePlayPauseRequest(WatchSyncMessage.togglePlayPauseRequest))
+        XCTAssertFalse(WatchSyncMessage.isNowPlayingRequest(WatchSyncMessage.credentialsRequest))
+        XCTAssertFalse(WatchSyncMessage.isCredentialsRequest(WatchSyncMessage.togglePlayPauseRequest))
+        XCTAssertNil(WatchSyncMessage.command(in: WatchSyncMessage.nowPlayingRequest))
+        XCTAssertNil(WatchSyncMessage.command(in: WatchSyncMessage.credentialsRequest))
+    }
+
+    func testEachPressCrossesAsItself() {
+        for command in WatchPhoneCommand.allCases {
+            let request = WatchSyncMessage.commandRequest(command)
+            XCTAssertEqual(WatchSyncMessage.command(in: request), command)
+            XCTAssertFalse(WatchSyncMessage.isNowPlayingRequest(request))
+            XCTAssertFalse(WatchSyncMessage.isCredentialsRequest(request))
+        }
+        // The same as before there were skips, so either side a version
+        // behind still plays and pauses.
+        XCTAssertEqual(WatchSyncMessage.togglePlayPauseRequest[WatchSyncMessage.requestKey] as? String, "togglePlayPause")
+        XCTAssertFalse(WatchSyncMessage.isTogglePlayPauseRequest(WatchSyncMessage.commandRequest(.next)))
+    }
+
+    func testABookAndItsSkipsCross() throws {
+        let book = WatchPhoneNowPlaying(title: "Book", artist: "Author", destination: "iPhone", isPlaying: false, isBook: true, canGoBack: true, hasNext: false)
+        XCTAssertEqual(WatchSyncMessage.nowPlaying(in: try WatchSyncMessage.nowPlayingMessage(book)), book)
+    }
+
+    /// An iPhone a version behind says nothing of skips: music, with both.
+    func testAnOlderiPhonesNowPlayingStillReads() throws {
+        let older = #"{"title":"Song","artist":"Artist","destination":"Kitchen","isOnSpeaker":true,"isPlaying":true}"#
+        let message: [String: Any] = [WatchSyncMessage.nowPlayingKey: Data(older.utf8)]
+        let playing = try XCTUnwrap(WatchSyncMessage.nowPlaying(in: message))
+        XCTAssertEqual(playing.title, "Song")
+        XCTAssertFalse(playing.isBook)
+        XCTAssertTrue(playing.canGoBack)
+        XCTAssertTrue(playing.hasNext)
+        XCTAssertEqual(playing.queuePosition, 0)
+        XCTAssertEqual(playing.queueCount, 0)
+        XCTAssertNil(playing.artwork)
+    }
+
+    func testTheQueuesPlaceCrosses() throws {
+        let playing = WatchPhoneNowPlaying(title: "Song", destination: "iPhone", isPlaying: true, queuePosition: 3, queueCount: 12)
+        let read = try XCTUnwrap(WatchSyncMessage.nowPlaying(in: try WatchSyncMessage.nowPlayingMessage(playing)))
+        XCTAssertEqual(read.queuePosition, 3)
+        XCTAssertEqual(read.queueCount, 12)
+    }
+
+    func testTheQueueCrosses() throws {
+        let queue = WatchPhoneQueue(
+            songs: [.init(position: 3, title: "Now", artist: "Artist"), .init(position: 4, title: "Next")],
+            current: 3,
+            count: 12
+        )
+        let message = try WatchSyncMessage.queueMessage(queue)
+        XCTAssertEqual(WatchSyncMessage.queue(in: message), queue)
+        XCTAssertFalse(WatchSyncMessage.carriesNowPlaying(message))
+
+        let empty = WatchPhoneQueue(songs: [], current: nil, count: 0)
+        XCTAssertEqual(WatchSyncMessage.queue(in: try WatchSyncMessage.queueMessage(empty)), empty)
+        // An iPhone a version behind answers with nothing.
+        XCTAssertNil(WatchSyncMessage.queue(in: [:]))
+        XCTAssertNil(WatchSyncMessage.queue(in: WatchSyncMessage.queueRequest))
+    }
+
+    func testWhatsLeftOfTheQueue() {
+        let queue = WatchPhoneQueue(songs: [.init(position: 3, title: "Now"), .init(position: 4, title: "Next")], current: 3, count: 12)
+        XCTAssertEqual(queue.remaining, 8)
+        XCTAssertFalse(queue.isWaiting)
+        XCTAssertTrue(WatchPhoneQueue(songs: [], current: nil, count: 0).isWaiting)
+        XCTAssertEqual(WatchPhoneQueue(songs: [], current: nil, count: 0).remaining, 0)
+    }
+
+    func testQueueRequestsAreToldApart() {
+        let play = WatchSyncMessage.playQueueRequest(at: 7)
+        XCTAssertEqual(WatchSyncMessage.queuePositionToPlay(in: play), 7)
+        XCTAssertTrue(WatchSyncMessage.isQueueRequest(WatchSyncMessage.queueRequest))
+        XCTAssertFalse(WatchSyncMessage.isQueueRequest(play))
+        XCTAssertNil(WatchSyncMessage.queuePositionToPlay(in: WatchSyncMessage.queueRequest))
+        XCTAssertNil(WatchSyncMessage.queuePositionToPlay(in: WatchSyncMessage.playQueueRequest(at: 0)))
+        // An iPhone a version behind reads neither as a press, a question
+        // about what it plays or a call for the sign-ins.
+        for request in [WatchSyncMessage.queueRequest, play] {
+            XCTAssertNil(WatchSyncMessage.command(in: request))
+            XCTAssertFalse(WatchSyncMessage.isNowPlayingRequest(request))
+            XCTAssertFalse(WatchSyncMessage.isCredentialsRequest(request))
+        }
+    }
+
     func testQualitiesSayWhatTheyCost() {
         XCTAssertEqual(WatchDownloadQuality.high.megabytesPerSong, 8)
         XCTAssertEqual(WatchDownloadQuality.small.detail, "MP3 128 kbps • about 4 MB a song")

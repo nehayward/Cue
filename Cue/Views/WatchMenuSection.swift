@@ -2,9 +2,10 @@ import SonosKit
 import SwiftUI
 
 /// "Add to Apple Watch" for a Plex or Subsonic album, playlist, artist or
-/// song, and "Remove from Apple Watch" once it's there. The watch looks it
-/// up and downloads it by itself (see `WatchSyncService`). Nothing shows
-/// without a paired watch that has Cue on it.
+/// song, or a Plex or Audiobookshelf book, and "Remove from Apple Watch"
+/// once it's there. The watch looks it up and downloads it by itself (see
+/// `WatchSyncService`). Nothing shows without a paired watch that has Cue
+/// on it.
 struct WatchMenuSection: View {
     @Environment(AlertService.self) private var alertService
 

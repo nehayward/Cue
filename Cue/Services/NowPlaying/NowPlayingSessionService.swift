@@ -342,8 +342,14 @@ final class NowPlayingSessionService {
     }
 
     /// The route points at this device and its player has something queued.
+    /// Also while a switch to a speaker is still playing on the phone (the
+    /// overlap, see `PlaybackRoute.hold`): the phone is what's heard, so its
+    /// own card stays up until it parks.
     private var isPlayingOnDevice: Bool {
-        PlaybackRoute.shared.destination == .device && LocalPlaybackService.shared.isActive
+        let route = PlaybackRoute.shared
+        let local = LocalPlaybackService.shared
+        guard local.isActive else { return false }
+        return route.destination == .device || (route.presentedDestination == .device && local.isPlaying)
     }
 
     /// The group the card mirrors. iOS has exactly one Now Playing app and one
@@ -493,8 +499,22 @@ final class NowPlayingSessionService {
 
     /// TV mode has no transport to mirror and an empty track means the speaker is
     /// idle — neither is worth holding the audio session for.
+    ///
+    /// An AirPlay stream is excluded for a different reason: its sender may well
+    /// be *this phone*. Holding the session interrupts whatever the device itself
+    /// is playing, and when that is Apple Music streaming to the very group on
+    /// the card, "interrupts other audio" means "stops the speakers". Pressing
+    /// play then fails too — Sonos resumes the sender, the sender's session
+    /// interrupts ours, the socket reports playing, and re-starting the silent
+    /// loop interrupts the sender straight back. And with the stream live, the
+    /// phone's system volume *is* the group's volume, so the bridge's writes land
+    /// on every grouped speaker. `AudioOutputRoute.isExternal` doesn't catch it:
+    /// Apple Music's in-app picker routes only Apple Music, and our own session
+    /// still reads as the built-in speaker. The speaker's own report of its
+    /// source is the dependable signal. The sender has its own Now Playing card,
+    /// so nothing is lost by standing down.
     private func isMirrorable(_ group: GroupRoom) -> Bool {
-        guard !group.TVMode else { return false }
+        guard !group.TVMode, !group.isAirPlay else { return false }
         return !group.coordinatorRoom.track.isEmpty || group.coordinatorRoom.radioStation != nil
     }
 
@@ -839,11 +859,11 @@ final class NowPlayingSessionService {
 
         // A new song is a new timeline, so the anchor's numbers no longer mean
         // anything. Without this the anchor keeps interpolating across the
-        // boundary: skipping tracks writes `playbackPosition = 0` optimistically,
-        // the new track then reports ~0 as well, and "the model didn't move" is
-        // read as "keep counting" — so a song that just started shows several
-        // seconds in. It only self-corrected when the new position happened to
-        // differ from the last one seen.
+        // boundary: a skip puts `playbackPosition` at 0 straight away
+        // (`Room.beginSkip`), the new track then reports ~0 as well, and "the
+        // model didn't move" is read as "keep counting" — so a song that just
+        // started shows several seconds in. It only self-corrected when the new
+        // position happened to differ from the last one seen.
         if anchoredTrackUnique != track.unique {
             anchoredTrackUnique = track.unique
             positionAnchor.reset()
@@ -937,16 +957,6 @@ final class NowPlayingSessionService {
 
     /// Loads through the shared Nuke pipeline, so the image is usually already
     /// in memory from the player screen.
-    /// Mirrors `ArtworkView.imageIDKey` — album, else track name, else id, else
-    /// the URL — so both surfaces name the same cache entry.
-    private func artworkCacheKey(for track: Track) -> String {
-        let service = String(describing: track.musicService)
-        if !track.album.isEmpty { return "\(track.album).\(service).player" }
-        if !track.name.isEmpty { return "\(track.name).\(service).player" }
-        if !track.trackID.isEmpty { return track.trackID + ".player" }
-        return (track.artworkURL?.absoluteString ?? "") + ".player"
-    }
-
     private func loadArtwork(from url: URL?, track: Track) {
         artworkTask?.cancel()
         publishedArtworkURL = url
@@ -957,18 +967,11 @@ final class NowPlayingSessionService {
             return
         }
 
-        // Same key and processor as `ArtworkView`, so this hits the entry the
-        // player screen populated rather than downloading and decoding a second
-        // copy of the same image on every track change.
-        var request = ImageRequest(
-            url: url,
-            processors: [.resize(width: 500)],
-            priority: .high
-        )
-        // `imageID`, not `userInfo[.imageIdKey]`: Nuke 13 stopped reading that
-        // key, so passing it there compiles and silently keys the request on
-        // its URL — which is exactly the second download this avoids.
-        request.imageID = artworkCacheKey(for: track)
+        // The player's own request, so this hits the entry the player screen
+        // (and the skip prefetch) populated rather than downloading and
+        // decoding a second copy of the same image on every track change.
+        // `url` is this track's `artworkURL`, so the two always agree.
+        guard let request = track.playerArtworkRequest else { return }
         if let cached = ImagePipeline.shared.cache.cachedImage(for: request)?.image {
             attach(artwork: cached, for: url)
             return
@@ -1028,16 +1031,26 @@ final class NowPlayingSessionService {
         commandTokens.append((center.nextTrackCommand, center.nextTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.perform { service, group in
-                    group.coordinatorRoom.playbackPosition = 0
-                    await service.next(ip: group.ip)
+                    // A book's Next is a skip, as everywhere else in Cue: the
+                    // speaker's next file is the next chapter.
+                    if AudiobookPlayer.shared.contains(group.coordinatorRoom.track.toPlayable) {
+                        await AudiobookPlayer.shared.skip(by: AudiobookPlayer.skipForwardInterval)
+                    } else {
+                        await service.next(ip: group.ip)
+                    }
                 } ?? .commandFailed
             }
         }))
         commandTokens.append((center.previousTrackCommand, center.previousTrackCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.perform { service, group in
-                    group.coordinatorRoom.playbackPosition = 0
-                    await service.previous(ip: group.ip)
+                    // A book's Previous is a skip back: the speaker's would
+                    // restart the file, the top of the book for one file.
+                    if AudiobookPlayer.shared.contains(group.coordinatorRoom.track.toPlayable) {
+                        await AudiobookPlayer.shared.skip(by: -AudiobookPlayer.skipBackInterval)
+                    } else {
+                        await service.previous(ip: group.ip)
+                    }
                 } ?? .commandFailed
             }
         }))
@@ -1045,10 +1058,7 @@ final class NowPlayingSessionService {
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             let milliseconds = event.positionTime * 1000
             return MainActor.assumeIsolated {
-                self?.perform { service, group in
-                    group.coordinatorRoom.updatePlaybackPosition(milliseconds)
-                    await service.seek(to: milliseconds, on: group)
-                } ?? .commandFailed
+                self?.perform { service, group in await service.seek(to: milliseconds, on: group) } ?? .commandFailed
             }
         }))
 

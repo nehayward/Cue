@@ -27,6 +27,8 @@ struct AppleLibraryBrowseScreen: View {
         
         NavigationStack(path: $router.path) {
             List {
+                // Above the library, a section of its own.
+                MusicLeftOffSection()
                 ForEach(configStore.configuration.visibleSections(), id: \.self) { section in
                     sectionView(for: section)
                 }
@@ -45,6 +47,12 @@ struct AppleLibraryBrowseScreen: View {
             }
             .withAppRouter()
             .toolbar {
+                // The gear every provider's browse screen has; this one was
+                // missed when they got it.
+                ToolbarItem(placement: .topBarLeading) {
+                    SettingsToolbarButton()
+                        .environment(router)
+                }
 #if !os(visionOS)
                 if #available(iOS 26.0, visionOS 26.0, *) {
                     ToolbarSpacer(.fixed)
@@ -149,7 +157,8 @@ struct AppleLibraryBrowseScreen: View {
                         .fontDesign(.rounded)
                         .fontWeight(.semibold)
                 }
-                .tag(UUID().uuidString)
+                // Stable: a fresh UUID re-tagged the row on every pass.
+                .tag("appleRecentlyPlayedHeader")
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 

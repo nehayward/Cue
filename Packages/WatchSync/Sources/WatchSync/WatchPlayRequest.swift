@@ -2,8 +2,8 @@ import Foundation
 
 /// Songs the watch hands Cue on the iPhone to play there, wherever the
 /// iPhone is pointed: the phone itself or its Sonos group. Sent as a
-/// message (`WatchSyncMessage.requestData(_:)`), which wakes the iPhone
-/// app, and answered with a `WatchPlayReply`.
+/// message (`WatchSyncMessage.playRequest(_:)`), which wakes the iPhone
+/// app, and answered with what it plays then, or why it didn't start.
 ///
 /// Each song carries what the iPhone needs to play it without asking the
 /// server again: its id (all a speaker needs) and its stream (what the
@@ -57,23 +57,5 @@ public struct WatchPlayRequest: Codable, Equatable, Sendable {
             self.songs = songs
             self.startIndex = start
         }
-    }
-}
-
-/// The iPhone's answer to a `WatchPlayRequest`: where it's playing, or why
-/// it isn't.
-public struct WatchPlayReply: Codable, Equatable, Sendable {
-    /// The phone, or the name of the speakers.
-    public var playingOn: String?
-    /// Said on the watch when nothing started.
-    public var failure: String?
-
-    public init(playingOn: String? = nil, failure: String? = nil) {
-        self.playingOn = playingOn
-        self.failure = failure
-    }
-
-    public static func failed(_ failure: String) -> WatchPlayReply {
-        WatchPlayReply(failure: failure)
     }
 }

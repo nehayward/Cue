@@ -6,12 +6,26 @@ public struct PlaybackIconView: View {
     var total: Double
     var isPlaying: Bool
     var isTransitioning: Bool
+    /// The ring's size. The glyph inside scales with it.
+    var diameter: CGFloat
 
-    public init(value: Double, total: Double, isPlaying: Bool, isTransitioning: Bool = false) {
+    public init(value: Double, total: Double, isPlaying: Bool, isTransitioning: Bool = false, diameter: CGFloat = 24) {
         self.value = value
         self.total = total
         self.isPlaying = isPlaying
         self.isTransitioning = isTransitioning
+        self.diameter = diameter
+    }
+
+    /// No symbol animation on the Mac, matching the large player's button: each
+    /// animated SF Symbol swap or pulse made macOS allocate a fixed ~90 MB of
+    /// GPU memory for ~2 s.
+    private var animatesSymbol: Bool {
+        #if targetEnvironment(macCatalyst)
+        false
+        #else
+        true
+        #endif
     }
 
     public var body: some View {
@@ -21,12 +35,13 @@ public struct PlaybackIconView: View {
                     .resizable()
                     .scaledToFit()
                     .foregroundStyle(isPlaying ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color.secondary))
-                    .contentTransition(.symbolEffect(.replace))
-                    .symbolEffect(.pulse, isActive: isTransitioning)
-                    .frame(width: 12, height: 12, alignment: .center)
-                    .padding(.leading, !isPlaying ? 2 : 0)
+                    .contentTransition(animatesSymbol ? .symbolEffect(.replace) : .identity)
+                    .sustainedPulse(isActive: animatesSymbol && isTransitioning)
+                    .frame(width: diameter / 2, height: diameter / 2, alignment: .center)
+                    // Nudges the play triangle right so it looks centred.
+                    .padding(.leading, !isPlaying ? diameter / 12 : 0)
             }
-            .frame(width: 24, height: 24)
+            .frame(width: diameter, height: diameter)
     }
 }
 

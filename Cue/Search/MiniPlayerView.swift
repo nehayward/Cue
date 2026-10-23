@@ -142,12 +142,20 @@ struct MiniPlayerView: View {
                 await sonosService.togglePlayPause(for: group)
             }
         } label: {
-            PlaybackIconView(
-                value: group.coordinatorRoom.playbackPosition,
-                total: group.coordinatorRoom.track.duration,
-                isPlaying: group.coordinatorRoom.isPlaying,
-                isTransitioning: group.coordinatorRoom.isTransitioning
-            )
+            // The running estimate, like the player's bar, so the two agree. A
+            // ring this size moves under a pixel a second for most songs.
+            PlaybackTimeline(
+                isRunning: group.coordinatorRoom.isClockRunning,
+                minimumInterval: 1,
+                position: { group.coordinatorRoom.estimatedPlaybackPosition() }
+            ) { position in
+                PlaybackIconView(
+                    value: position,
+                    total: group.coordinatorRoom.track.duration,
+                    isPlaying: group.coordinatorRoom.isPlaying,
+                    isTransitioning: group.coordinatorRoom.isTransitioning
+                )
+            }
             .font(.title)
         }
         .buttonStyle(.plain)
@@ -159,7 +167,6 @@ struct MiniPlayerView: View {
         Button {
             Task {
                 HapticManager.shared.fireHaptic(.buttonPress)
-                group.coordinatorRoom.playbackPosition = 0
                 await sonosService.next(ip: group.ip)
                 try? await sonosService.updateGroups(from: [group])
             }

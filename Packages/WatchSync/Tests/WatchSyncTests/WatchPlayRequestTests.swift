@@ -20,10 +20,14 @@ final class WatchPlayRequestTests: XCTestCase {
 
     func testARequestCrossesWhole() throws {
         let request = WatchPlayRequest(songs: songs(count: 12), startIndex: 4)
-        let data = try WatchSyncMessage.requestData(request)
-        XCTAssertEqual(WatchSyncMessage.playRequest(in: data), request)
+        let message = try WatchSyncMessage.playRequest(request)
+        XCTAssertEqual(WatchSyncMessage.playRequest(in: message), request)
         XCTAssertEqual(request.startIndex, 4)
-        XCTAssertNil(WatchSyncMessage.playRequest(in: Data([9, 9])))
+        // Not taken for any of the iPhone's other requests.
+        XCTAssertNil(WatchSyncMessage.command(in: message))
+        XCTAssertFalse(WatchSyncMessage.isNowPlayingRequest(message))
+        XCTAssertNil(WatchSyncMessage.playRequest(in: WatchSyncMessage.nowPlayingRequest))
+        XCTAssertNil(WatchSyncMessage.playRequest(in: [WatchSyncMessage.requestKey: "playSongs", WatchSyncMessage.playKey: Data([9, 9])]))
     }
 
     func testAStartPastTheEndStartsAtTheTop() {
@@ -43,17 +47,21 @@ final class WatchPlayRequestTests: XCTestCase {
     /// Messages are capped at about 64 KB. Linux has no LZFSE, so this runs
     /// on the plain size, which only has to stay under the cap packed.
     func testAFullRequestPacksSmall() throws {
-        let data = try WatchSyncMessage.requestData(WatchPlayRequest(songs: songs(count: WatchPlayRequest.maximumSongs)))
+        let message = try WatchSyncMessage.playRequest(WatchPlayRequest(songs: songs(count: WatchPlayRequest.maximumSongs)))
         #if canImport(Darwin)
-        XCTAssertLessThan(data.count, 60_000)
+        let packed = try XCTUnwrap(message[WatchSyncMessage.playKey] as? Data)
+        XCTAssertLessThan(packed.count, 60_000)
         #endif
-        XCTAssertEqual(WatchSyncMessage.playRequest(in: data)?.songs.count, WatchPlayRequest.maximumSongs)
+        XCTAssertEqual(WatchSyncMessage.playRequest(in: message)?.songs.count, WatchPlayRequest.maximumSongs)
     }
 
-    func testRepliesCross() {
-        let playing = WatchPlayReply(playingOn: "Kitchen")
-        XCTAssertEqual(WatchSyncMessage.playReply(in: WatchSyncMessage.replyData(playing)), playing)
-        let failed = WatchPlayReply.failed("Open Cue on your iPhone.")
-        XCTAssertEqual(WatchSyncMessage.playReply(in: WatchSyncMessage.replyData(failed))?.failure, "Open Cue on your iPhone.")
+    /// The answer is what the iPhone plays then, with why not when the
+    /// songs didn't start.
+    func testAFailureCrossesInTheAnswer() throws {
+        var answer = try WatchSyncMessage.nowPlayingMessage(nil)
+        XCTAssertNil(WatchSyncMessage.playFailure(in: answer))
+        answer.merge(WatchSyncMessage.playFailure("Open Cue on your iPhone.")) { _, new in new }
+        XCTAssertEqual(WatchSyncMessage.playFailure(in: answer), "Open Cue on your iPhone.")
+        XCTAssertTrue(WatchSyncMessage.carriesNowPlaying(answer))
     }
 }

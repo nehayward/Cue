@@ -15,9 +15,14 @@ struct LightArtworkView: View {
     // so passing it there compiles and silently keys the request on its URL
     // instead. Both lookups below have to agree on `imageKey` or the
     // `containsCachedImage` probe can't find what the row itself cached.
+    //
+    // Decoded straight to the 50 pt cell: some services fall back to the
+    // speaker's original cover (often 1400-3000 px, 8-36 MB decoded), which was
+    // too big for the memory cache and was decoded again on every scroll.
     private func request(for url: URL?) -> ImageRequest {
         var request = ImageRequest(url: url)
         request.imageID = content.imageKey
+        request.thumbnail = ImageRequest.ThumbnailOptions(size: CGSize(width: 50, height: 50))
         return request
     }
 

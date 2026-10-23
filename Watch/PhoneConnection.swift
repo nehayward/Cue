@@ -1,27 +1,28 @@
 import Foundation
-import Observation
 import OSLog
 import WatchConnectivity
 import WatchKit
 import WatchSync
 
 /// The watch's end of WatchConnectivity (`WatchSyncMessage`). From the
-/// iPhone's application context it takes the sign-ins (to `WatchAccounts`)
-/// and the picks (merged into the download store's). To the iPhone it sends
-/// its own: the picks as the watch has them, when they change here, and
-/// songs to play there (`play(_:)`) while it's in reach.
+/// iPhone's application context it takes the sign-ins (to `WatchAccounts`),
+/// the picks (merged into the download store's) and the places in the books
+/// among them (merged into `WatchBookStore`'s). To the iPhone it sends its
+/// own: the picks and places as the watch has them, when they change here,
+/// and songs to play there (`play(_:)`, Play On ▸ iPhone). While the app is
+/// open, what the iPhone plays comes as messages, to `PhoneNowPlaying`, and
+/// its queue in answer to Up Next asking.
 @MainActor
-@Observable
 final class PhoneConnection {
     static let shared = PhoneConnection()
 
-    /// The iPhone can be sent something to play: in reach, with Cue on it.
-    private(set) var isPhoneReachable = false
-
-    @ObservationIgnored private let relay = PhoneSessionRelay()
-    @ObservationIgnored private let logger = Logger(subsystem: "dance.cue.watch", category: "PhoneConnection")
-    /// Picks changed before the session was up.
-    @ObservationIgnored private var hasPending = false
+    private let relay = PhoneSessionRelay()
+    private let logger = Logger(subsystem: "dance.cue.watch", category: "PhoneConnection")
+    /// Picks or places changed before the session was up.
+    private var hasPending = false
+    /// When the sign-ins were last asked for, so a burst of downloads asks
+    /// once.
+    private var askedForCredentialsAt: Date?
 
     private init() {}
 
@@ -32,50 +33,109 @@ final class PhoneConnection {
         WCSession.default.activate()
     }
 
-    func send(picks: WatchPicks) {
+    /// The picks and the places in the books among them, as they are now.
+    func send() {
         guard WCSession.default.activationState == .activated else {
             hasPending = true
             return
         }
+        let picks = WatchDownloadStore.shared.picks
+        let places = WatchBookStore.shared.placesToShare
         do {
-            try WCSession.default.updateApplicationContext(WatchSyncMessage.context(picks: picks))
+            try WCSession.default.updateApplicationContext(WatchSyncMessage.context(picks: picks, places: places))
         } catch {
             logger.error("Couldn't send the picks: \(error.localizedDescription, privacy: .public)")
         }
     }
 
-    /// Hands these songs to Cue on the iPhone, which plays them wherever
-    /// it's pointed — the phone or its Sonos speakers — from `startIndex`.
-    /// The message wakes Cue there; the reply says where it's playing, or
-    /// why it isn't.
-    func play(_ request: WatchPlayRequest) async -> WatchPlayReply {
+    /// Asks the iPhone for its sign-ins now, for an Audiobookshelf token
+    /// about to run out: the iPhone renews its own and answers with it. A
+    /// minute apart at most, and only with the iPhone in reach (the system
+    /// wakes Cue there to answer).
+    func requestCredentials() {
         let session = WCSession.default
-        guard session.activationState == .activated, session.isReachable else {
-            return .failed("Your iPhone isn't in reach.")
-        }
-        let data: Data
-        do {
-            data = try WatchSyncMessage.requestData(request)
-        } catch {
-            return .failed("Couldn't send the songs to your iPhone.")
-        }
-        let reply = await Self.send(data, logger: logger)
-        if let playingOn = reply.playingOn {
-            logger.notice("Playing on \(playingOn, privacy: .public) from the watch")
-        }
-        return reply
+        guard session.activationState == .activated, session.isReachable,
+              Date.now.timeIntervalSince(askedForCredentialsAt ?? .distantPast) > 60 else { return }
+        askedForCredentialsAt = .now
+        logger.info("Asking the iPhone for a fresh Audiobookshelf token")
+        session.sendMessage(WatchSyncMessage.credentialsRequest, replyHandler: { @Sendable reply in
+            let credentials = WatchSyncMessage.credentials(in: reply)
+            Task { @MainActor in
+                PhoneConnection.shared.didReceive(credentials: credentials, picks: nil, places: nil)
+            }
+        }, errorHandler: { @Sendable error in
+            let message = error.localizedDescription
+            Task { @MainActor in
+                PhoneConnection.shared.logger.error("The iPhone didn't answer for its sign-ins: \(message, privacy: .public)")
+            }
+        })
     }
 
-    /// Off the main actor: WatchConnectivity answers on a queue of its own.
-    private nonisolated static func send(_ data: Data, logger: Logger) async -> WatchPlayReply {
-        await withCheckedContinuation { continuation in
-            WCSession.default.sendMessageData(data) { reply in
-                continuation.resume(returning: WatchSyncMessage.playReply(in: reply) ?? .failed("Your iPhone didn't answer."))
-            } errorHandler: { error in
-                logger.error("Couldn't play on the iPhone: \(error.localizedDescription, privacy: .public)")
-                continuation.resume(returning: .failed("Couldn't reach Cue on your iPhone. Open it there and try again."))
+    /// Asks the iPhone what it plays, or to play or pause it; its answer is
+    /// what it plays then. Or asks for its queue, which is the answer. Only
+    /// with the iPhone in reach (the system wakes Cue there to answer).
+    func askPhone(_ request: [String: Any]) {
+        let session = WCSession.default
+        guard session.activationState == .activated, session.isReachable else { return }
+        session.sendMessage(request, replyHandler: { @Sendable reply in
+            if let queue = WatchSyncMessage.queue(in: reply) {
+                Task { @MainActor in
+                    PhoneNowPlaying.shared.apply(queue: queue)
+                }
             }
+            guard WatchSyncMessage.carriesNowPlaying(reply) else { return }
+            let nowPlaying = WatchSyncMessage.nowPlaying(in: reply)
+            Task { @MainActor in
+                PhoneNowPlaying.shared.apply(nowPlaying)
+            }
+        }, errorHandler: { @Sendable error in
+            let message = error.localizedDescription
+            Task { @MainActor in
+                PhoneConnection.shared.logger.error("The iPhone didn't answer about what it plays: \(message, privacy: .public)")
+            }
+        })
+    }
+
+    /// The iPhone can be handed something to play: in reach, with Cue on it.
+    var canReachPhone: Bool {
+        let session = WCSession.default
+        return session.activationState == .activated && session.isReachable && session.isCompanionAppInstalled
+    }
+
+    /// Hands these songs to Cue on the iPhone, which plays them wherever
+    /// it's pointed — the phone or its Sonos speakers — from `startIndex`.
+    /// The message wakes Cue there; its answer is what it plays then, for
+    /// the iPhone's player here (`PhoneNowPlaying`). Nil once they play,
+    /// else why not.
+    func play(_ request: WatchPlayRequest) async -> String? {
+        guard canReachPhone else { return "Your iPhone isn't in reach." }
+        let message: [String: Any]
+        do {
+            message = try WatchSyncMessage.playRequest(request)
+        } catch {
+            return "Couldn't send the songs to your iPhone."
         }
+        let answer = await withCheckedContinuation { (continuation: CheckedContinuation<PhonePlayAnswer, Never>) in
+            WCSession.default.sendMessage(message, replyHandler: { @Sendable reply in
+                continuation.resume(returning: PhonePlayAnswer(
+                    failure: WatchSyncMessage.playFailure(in: reply),
+                    carriesNowPlaying: WatchSyncMessage.carriesNowPlaying(reply),
+                    nowPlaying: WatchSyncMessage.nowPlaying(in: reply)
+                ))
+            }, errorHandler: { @Sendable error in
+                continuation.resume(returning: PhonePlayAnswer(
+                    failure: "Couldn't reach Cue on your iPhone. Open it there and try again.",
+                    error: error.localizedDescription
+                ))
+            })
+        }
+        if answer.carriesNowPlaying {
+            PhoneNowPlaying.shared.apply(answer.nowPlaying)
+        }
+        if let failure = answer.failure {
+            logger.error("The iPhone didn't play the songs: \(answer.error ?? failure, privacy: .public)")
+        }
+        return answer.failure
     }
 
     /// Keeps a WatchConnectivity wake open until what the iPhone sent has
@@ -95,32 +155,53 @@ final class PhoneConnection {
         }
     }
 
-    /// Sends what waited for the session — as the picks are now, which
-    /// may have merged in the iPhone's since.
+    /// Sends what waited for the session — as it is now, which may have
+    /// merged in the iPhone's since.
     fileprivate func didActivate() {
-        reachabilityDidChange()
         if hasPending {
             hasPending = false
-            send(picks: WatchDownloadStore.shared.picks)
+            send()
         }
+        PhoneNowPlaying.shared.reachabilityDidChange(WCSession.default.isReachable)
     }
 
-    fileprivate func reachabilityDidChange() {
-        let session = WCSession.default
-        isPhoneReachable = session.activationState == .activated && session.isReachable && session.isCompanionAppInstalled
+    fileprivate func reachabilityDidChange(_ isReachable: Bool) {
+        PhoneNowPlaying.shared.reachabilityDidChange(isReachable)
     }
 
     /// The iPhone's context: sign-ins first, so the picks that come with
-    /// them are looked up with them.
-    fileprivate func didReceive(credentials: WatchCredentials?, picks: WatchPicks?) {
+    /// them are looked up with them; the places once the picks are in, so
+    /// a book just picked takes its place.
+    fileprivate func didReceive(credentials: WatchCredentials?, picks: WatchPicks?, places: WatchBookPlaces?) {
         let store = WatchDownloadStore.shared
-        if let credentials, WatchAccounts.shared.apply(credentials) {
-            store.credentialsDidChange()
+        if let credentials {
+            switch WatchAccounts.shared.apply(credentials) {
+            case .signIns: store.credentialsDidChange()
+            case .tokenRenewed: store.tokenDidRenew()
+            case .none: break
+            }
         }
+        var tellPhone = false
         if let picks {
-            store.apply(picks)
+            tellPhone = store.apply(picks) || tellPhone
+        }
+        if let places {
+            tellPhone = WatchBookStore.shared.apply(places) || tellPhone
+        }
+        if tellPhone {
+            send()
         }
     }
+}
+
+/// The iPhone's answer to songs handed over: what it plays then, and why
+/// not when they didn't start.
+private struct PhonePlayAnswer: Sendable {
+    var failure: String?
+    var carriesNowPlaying = false
+    var nowPlaying: WatchPhoneNowPlaying?
+    /// What WatchConnectivity said, when the message didn't get there.
+    var error: String?
 }
 
 /// The session's delegate, off the main actor: WatchConnectivity calls it
@@ -134,8 +215,9 @@ private final class PhoneSessionRelay: NSObject, WCSessionDelegate, @unchecked S
         let context = session.receivedApplicationContext
         let credentials = WatchSyncMessage.credentials(in: context)
         let picks = WatchSyncMessage.picks(in: context)
+        let places = WatchSyncMessage.places(in: context)
         Task { @MainActor in
-            self.connection?.didReceive(credentials: credentials, picks: picks)
+            self.connection?.didReceive(credentials: credentials, picks: picks, places: places)
             self.connection?.didActivate()
         }
     }
@@ -143,14 +225,25 @@ private final class PhoneSessionRelay: NSObject, WCSessionDelegate, @unchecked S
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         let credentials = WatchSyncMessage.credentials(in: applicationContext)
         let picks = WatchSyncMessage.picks(in: applicationContext)
+        let places = WatchSyncMessage.places(in: applicationContext)
         Task { @MainActor in
-            self.connection?.didReceive(credentials: credentials, picks: picks)
+            self.connection?.didReceive(credentials: credentials, picks: picks, places: places)
+        }
+    }
+
+    /// What the iPhone plays, sent as it changes while the app is open.
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        guard WatchSyncMessage.carriesNowPlaying(message) else { return }
+        let nowPlaying = WatchSyncMessage.nowPlaying(in: message)
+        Task { @MainActor in
+            PhoneNowPlaying.shared.apply(nowPlaying)
         }
     }
 
     func sessionReachabilityDidChange(_ session: WCSession) {
+        let reachable = session.isReachable
         Task { @MainActor in
-            self.connection?.reachabilityDidChange()
+            self.connection?.reachabilityDidChange(reachable)
         }
     }
 }

@@ -6,6 +6,10 @@ import SubscriptionKit
 
 struct CuePaywall: View {
     @Environment(\.dismiss) var dismiss
+    /// The singleton rather than the environment, so the paywall can be shown
+    /// from anywhere (onboarding included) without depending on what's
+    /// installed above it.
+    @State private var subscriptionService = SubscriptionService.shared
 
     /// RC's `originalTemplatePaywallFooter` loads pricing async and renders
     /// when the offering arrives. When the paywall slides in (especially the
@@ -100,6 +104,14 @@ struct CuePaywall: View {
         #endif
         .onAppear {
             Analytics.shared.track(.viewedPaywall)
+        }
+        // Super arriving any way closes it, not only a purchase made in the
+        // footer: Restore Purchases, or StoreKit's answer for a purchase this
+        // install's RevenueCat user doesn't know landing while it's up.
+        .onChange(of: subscriptionService.subscription.isActive) { _, isActive in
+            if isActive {
+                dismiss()
+            }
         }
         .task {
             // 280ms is enough for WelcomeScreen's slideTransition to finish

@@ -30,6 +30,9 @@ struct PlayableContentRowView: View {
     var hideArtwork: Bool = false
     var hideDetails: Bool = false
     var hideContentType: Bool = false
+    /// Name only, on up to two lines, for rows whose subtitle would be the
+    /// same on every one — "Radio" under each station on the Radio tab.
+    var hideSubtitle: Bool = false
     var index: Int? = nil
     var dismissOnComplete: Bool = false
     var total: Int = 1
@@ -42,25 +45,11 @@ struct PlayableContentRowView: View {
         return max(30, CGFloat(digits) * 8 + 8)
     }
     
-    private var isCurrentlyPlaying: Bool {
-        guard let trackID = selectedGroupService?.group?.coordinatorRoom.track.trackID else { return false }
-        // Compare both IDs decoded. The now-playing trackID is percent-encoded for some
-        // services (e.g. Plex, whose ID is `clientID%3A3%3AratingKey` — the parser re-encodes
-        // the colons via `.urlPathAllowed`), while `content.id` is already decoded here, so an
-        // encoded-vs-decoded compare never matched and the Plex row never highlighted.
-        return trackID.removingPercentEncoding == item.content.id.removingPercentEncoding
-    }
-
     private var isPreviewing: Bool {
         guard let url = item.previewURL else { return false }
         return audioService.isPreviewing(url)
     }
 
-    private var previewProgress: Double {
-        guard audioService.duration > 0 else { return 0 }
-        return min(1, audioService.playbackProgress / audioService.duration)
-    }
-    
     private var subtitleText: String {
         if item.content.type.isRadio {
             return item.content.type.title
@@ -119,7 +108,7 @@ struct PlayableContentRowView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(item.title)
-                            .lineLimit(1)
+                            .lineLimit(hideSubtitle ? 2 : 1)
                         Spacer(minLength: 0)
                         DownloadStateBadge(item: item)
                         if item.metadata?.isExplicit == true {
@@ -127,11 +116,16 @@ struct PlayableContentRowView: View {
                         }
                     }
                     
-                    Text(subtitleText)
-                        .lineLimit(1)
-                        .opacity(0.80)
-                        .font(.caption)
+                    if !hideSubtitle {
+                        Text(subtitleText)
+                            .lineLimit(1)
+                            .opacity(0.80)
+                            .font(.caption)
+                    }
                 }
+                // A second line of name can reach the row's edge; keep it
+                // off the tinted background's.
+                .padding(.trailing, hideSubtitle ? 8 : 0)
             }
             .fontDesign(.rounded)
             .contentShape(.rect)
@@ -139,11 +133,7 @@ struct PlayableContentRowView: View {
                 // Gated on isPreviewing so stopping removes the bar instantly,
                 // instead of animating its width back down to zero.
                 if isPreviewing {
-                    Rectangle()
-                        .foregroundStyle(.accent.gradient)
-                        .frame(height: 2)
-                        .scaleEffect(x: previewProgress, anchor: .leading)
-                        .animation(.linear(duration: 0.3), value: previewProgress)
+                    PreviewProgressBar()
                 }
             }
             .background {
@@ -160,6 +150,8 @@ struct PlayableContentRowView: View {
                 router?.navigate(to: .artistDetail(content: item, group: selectedGroupService?.group))
             case .folder:
                 router?.navigate(to:  .folderBrowse(item: item, title: item.title))
+            case .audiobook:
+                router?.navigate(to: .audiobookDetail(content: item))
             case .track, .favorite, .radio, .songRadio, .artistRadio, .libraryTrack, .unique, .liveRadio:
                 // Tapping a cell that's auditioning stops it, matching the list row.
                 if isPreviewing {

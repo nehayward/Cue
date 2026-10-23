@@ -87,6 +87,10 @@ struct LikeButtonView: View {
             }
             .buttonBorderShape(.circle)
             .task(id: trackKey) {
+                // A beat first: skipping through songs cancels this before
+                // it asks the server about each one.
+                try? await Task.sleep(for: .milliseconds(400))
+                guard !Task.isCancelled else { return }
                 let rating = await MusicSearchService.shared.getPlexTrackRating(trackID: trackID) ?? 0
                 favoriteRatingCache.set(rating, for: trackID)
                 favoriteStore.set(rating > 0, for: trackID)
@@ -124,6 +128,9 @@ struct LikeButtonView: View {
             }
             .buttonBorderShape(.circle)
             .task(id: trackKey) {
+                // A beat first, as above.
+                try? await Task.sleep(for: .milliseconds(400))
+                guard !Task.isCancelled else { return }
                 // The return value is unused on purpose: `isFavorite(trackID:
                 // service:)` records what it read in the store, which is what
                 // this button draws from.

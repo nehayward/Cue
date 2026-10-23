@@ -371,6 +371,16 @@ struct ServicePreferenceScreen: View {
                 service.iconForMusicService
                     .frame(width: 24, height: 24)
             }
+        } else if service == .audiobookshelf {
+            // Signed in to in Cue, like Subsonic.
+            Label {
+                Text(service.title)
+                Text(AudiobookshelfAPI.shared.isConfigured ? "Manage" : "Connect")
+                    .foregroundStyle(.accent)
+            } icon: {
+                service.iconForMusicService
+                    .frame(width: 24, height: 24)
+            }
         } else if service == .files {
             // A folder rather than a server; the row names it.
             Label {

@@ -36,7 +36,7 @@ struct ArtistDetailView: View {
     
     @AppStorage("isTopSongsExpanded") private var isTopSongsExpanded: Bool = true
     @AppStorage("isAlbumsExpanded") private var isAlbumsExpanded: Bool = true
-    
+
     var maxHeight: Double {
         UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
     }
@@ -96,8 +96,20 @@ struct ArtistDetailView: View {
     }
     
     // MARK: - Body
-    
+
+    /// The author's page for an artist opened from a book or a book's file
+    /// (the player's artist line on a book): their books, not an artist's
+    /// popular songs. It stays theirs while the book is the one loaded or
+    /// the one last left (`AudiobookPlayer.book(containing:)`).
     var body: some View {
+        if let author = AudiobookAuthor(for: playableContent) {
+            AudiobookAuthorView(author: author)
+        } else {
+            artistPage
+        }
+    }
+
+    private var artistPage: some View {
         List {
             artworkSection
             latestReleaseSection
@@ -301,7 +313,7 @@ struct ArtistDetailView: View {
                     }
 
                     // Sonos playlists only.
-                    if sonosService.isEnabled {
+                    if sonosService.isAvailable {
                         AddTracksToPlaylistMenu(tracks: tracks)
                     }
                 }
@@ -470,8 +482,7 @@ struct ArtistDetailView: View {
             do {
                 alertService.showAlertContent(with: radioContent, subtitle: "Radio")
                 try await sonosService.startRadio(content: radioContent, group: group)
-                playHistoryService.history.remove(radioContent)
-                playHistoryService.history.insert(radioContent, at: 0)
+                playHistoryService.record(radioContent)
             } catch {
                 alertService.showAlert(
                     with: "Please authorize \(artistContent.content.service.title) in Sonos",

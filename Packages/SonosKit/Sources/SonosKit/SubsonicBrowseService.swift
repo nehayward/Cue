@@ -32,11 +32,11 @@ public final class SubsonicBrowseService {
             }
             group.addTask { [self] in
                 let playlists = await self.musicSearchService.subsonicUserPlaylists()
-                await MainActor.run { self.userPlaylists = OrderedSet(playlists) }
+                await MainActor.run { if !Task.isCancelled { self.userPlaylists = OrderedSet(playlists) } }
             }
             group.addTask { [self] in
                 let albums = await self.musicSearchService.subsonicRecentAlbums()
-                await MainActor.run { self.recentAlbums = albums }
+                await MainActor.run { if !Task.isCancelled { self.recentAlbums = albums } }
             }
         }
     }

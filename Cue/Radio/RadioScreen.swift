@@ -5,7 +5,7 @@ import SwiftUI
 
 /// The Radio tab: stations that play on this device as well as on a
 /// speaker. That rule picks the sources — TuneIn (the stations near the
-/// user, what's trending, and the rest of its directory) and Apple Music's
+/// user, also on a map, what's trending, and the rest of its directory) and Apple Music's
 /// live and personal stations — each only while its provider is switched
 /// on in Services. Sonos Radio and Sonos favorites are speaker-only, so
 /// they stay on Browse and Search. Typing in the field searches the same
@@ -15,6 +15,7 @@ struct RadioScreen: View {
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService
     @Environment(TuneInBrowseService.self) private var tuneInBrowseService
     @Environment(CoreFeatures.self) private var coreFeatures
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
@@ -87,13 +88,15 @@ struct RadioScreen: View {
 
     // MARK: - Browse
 
+    /// Apple's covers first, the tab's most recognisable stations; then
+    /// TuneIn's rows, ending on its directory, the way into everything else.
     @ViewBuilder
     private var browseSections: some View {
-        if showsTuneIn {
-            tuneInSections
-        }
         if showsApple {
             appleSections
+        }
+        if showsTuneIn {
+            tuneInSections
         }
         if tuneInBrowseService.isLoading, isEmpty {
             loadingRow
@@ -117,6 +120,7 @@ struct RadioScreen: View {
                     action: { offset in offset == 0 ? local : [] }
                 )
             )
+            RadioMapSection(local: local)
         }
         if !trending.isEmpty {
             RadioStationsSection(
@@ -136,13 +140,20 @@ struct RadioScreen: View {
         }
 
         Section {
-            ForEach(TuneInDirectoryPage.allCases) { page in
-                NavigationLink(value: RouterDestination.tuneInBrowse(title: page.title, url: page.page.url)) {
-                    Label(page.title, systemImage: page.systemImage)
+            RadioSectionHeader(title: "Browse", caption: "TuneIn")
+
+            LazyVGrid(columns: RadioGrid.columns(sizeClass == .compact ? 2 : 4), spacing: RadioGrid.spacing) {
+                // Plain buttons, as the station rows are: several links in
+                // one list row each take their own tap only when styled.
+                ForEach(TuneInDirectoryPage.allCases) { page in
+                    Button {
+                        router.navigate(to: .tuneInBrowse(title: page.title, url: page.page.url))
+                    } label: {
+                        TuneInDirectoryTile(page: page)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-        } header: {
-            Text("Browse TuneIn")
         }
         .listRowInsets(.default)
         .listRowSeparator(.hidden)
@@ -155,9 +166,9 @@ struct RadioScreen: View {
         if !stations.isEmpty {
             RadioStationsSection(
                 title: "Apple Music Radio",
-                caption: "Apple Music",
                 items: stations,
-                seeAll: .playableList(title: "Apple Music Radio", showSectionIndex: false, action: { offset in offset == 0 ? stations : [] })
+                seeAll: .playableList(title: "Apple Music Radio", showSectionIndex: false, action: { offset in offset == 0 ? stations : [] }),
+                style: .artwork
             )
         }
     }
@@ -273,7 +284,81 @@ struct RadioScreen: View {
     }
 }
 
-/// The top of TuneIn's directory, as the rows under "Browse TuneIn".
+/// The local stations on a map; the tile opens the full map. Its own view
+/// so stations landing on the map redraw the tile, not the whole tab. It
+/// stays while there are local stations, placed or not, so the map pushed
+/// from it always has it to zoom back into. The stations are looked up
+/// once the tile is in the list, apart from the tab's `load`, so a pull to
+/// refresh doesn't wait on them; once placed, a station isn't asked again.
+private struct RadioMapSection: View {
+    let local: [PlayableContent]
+
+    @Environment(Router.self) private var router
+    @Environment(\.zoomNamespace) private var zoomNamespace
+    @State private var radioMap = RadioMap.shared
+
+    var body: some View {
+        Section {
+            RadioSectionHeader(title: "Radio Map", caption: "TuneIn")
+
+            Button {
+                router.navigate(to: .radioMap(zoomSource: zoomNamespace == nil ? nil : .radioMap))
+            } label: {
+                RadioMapTile(stations: radioMap.mapped(local), isLocating: radioMap.isLocating)
+            }
+            .buttonStyle(.plain)
+            .modifier(RadioMapZoomSource(namespace: zoomNamespace))
+            .task(id: local.map(\.id)) {
+                await radioMap.locate(local)
+            }
+        }
+        .listRowInsets(.default)
+        .listRowSeparator(.hidden)
+        .listSectionSeparator(.hidden)
+    }
+}
+
+/// Marks the map tile as what the full map zooms out of, where the app
+/// has a zoom namespace (not in previews).
+private struct RadioMapZoomSource: ViewModifier {
+    let namespace: Namespace.ID?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let namespace {
+            content.zoomSource(.radioMap, in: namespace)
+        } else {
+            content
+        }
+    }
+}
+
+/// One of the top pages of TuneIn's directory, as a tile the same height
+/// as the station rows above it.
+private struct TuneInDirectoryTile: View {
+    let page: TuneInDirectoryPage
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: page.systemImage)
+                .font(.title3)
+                .foregroundStyle(.tint)
+                // One width for every symbol, so the names line up.
+                .frame(width: 30)
+            Text(page.title)
+                .fontWeight(.medium)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .frame(minHeight: 50)
+        .background(.fill.tertiary, in: .rect(cornerRadius: RadioGrid.cornerRadius))
+        .contentShape(.rect(cornerRadius: RadioGrid.cornerRadius))
+    }
+}
+
+/// The top of TuneIn's directory, as the tiles under "Browse".
 private enum TuneInDirectoryPage: CaseIterable, Identifiable {
     case music
     case sports

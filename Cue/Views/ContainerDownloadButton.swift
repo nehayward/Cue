@@ -20,7 +20,15 @@ struct ContainerDownloadButton: View {
             case .downloaded:
                 Menu {
                     let counts = manager.trackCounts(forContainer: DownloadManager.containerKey(for: item))
-                    Label(counts.total == 1 ? "1 song on this device" : "\(counts.total) songs on this device", systemImage: "arrow.down.circle.fill")
+                    Label("\(item.content.type.downloadCount(counts.total)) on this device", systemImage: "arrow.down.circle.fill")
+                    let removed = manager.removedTrackCount(forContentsOf: item)
+                    if removed > 0 {
+                        Button {
+                            downloadWhole()
+                        } label: {
+                            Label(removed == 1 ? "Download 1 Removed Song" : "Download \(removed) Removed Songs", systemImage: "arrow.down.circle")
+                        }
+                    }
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         manager.removeDownload(contentsOf: item)
@@ -39,10 +47,10 @@ struct ContainerDownloadButton: View {
             case let .downloading(fraction):
                 Menu {
                     let counts = manager.trackCounts(forContainer: DownloadManager.containerKey(for: item))
-                    Label("Downloading \(counts.downloaded) of \(counts.total)…", systemImage: "arrow.down.circle.dotted")
+                    Label("Downloading \(counts.downloaded) of \(item.content.type.downloadCount(counts.total))…", systemImage: "arrow.down.circle.dotted")
                     let held = manager.waitingTrackKeys(forContentsOf: item).filter { manager.cellularHeldKeys.contains($0) }
                     if !held.isEmpty {
-                        Label(held.count == 1 ? "1 song waiting for Wi‑Fi" : "\(held.count) songs waiting for Wi‑Fi", systemImage: "wifi")
+                        Label("\(item.content.type.downloadCount(held.count)) waiting for Wi‑Fi", systemImage: "wifi")
                         Button {
                             manager.allowCellular(forKeys: held)
                         } label: {
@@ -54,7 +62,17 @@ struct ContainerDownloadButton: View {
                         Button {
                             manager.resumeDownload(contentsOf: item)
                         } label: {
-                            Label(stopped == 1 ? "Retry 1 Song" : "Retry \(stopped) Songs", systemImage: "arrow.clockwise.circle")
+                            Label("Retry \(item.content.type.downloadCount(stopped).capitalized)", systemImage: "arrow.clockwise.circle")
+                        }
+                    }
+                    // Taken out on the way (cancelled, or gone from disk): a
+                    // book isn't whole without them.
+                    let removed = manager.removedTrackCount(forContentsOf: item)
+                    if removed > 0 {
+                        Button {
+                            downloadWhole()
+                        } label: {
+                            Label("Download \(item.content.type.downloadCount(removed).capitalized) Again", systemImage: "arrow.down.circle")
                         }
                     }
                     Button(role: .destructive) {
@@ -73,14 +91,7 @@ struct ContainerDownloadButton: View {
                 .accessibilityLabel("Downloading, \(Int(fraction * 100)) percent")
             case nil:
                 Button {
-                    guard !isQueuing else { return }
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    guard FeatureGate.shared.unlock(.downloads) else { return }
-                    isQueuing = true
-                    Task { @MainActor in
-                        await LocalDownloadMenuSection.download(item, alertService: alertService)
-                        isQueuing = false
-                    }
+                    downloadWhole()
                 } label: {
                     Group {
                         if isQueuing {
@@ -98,5 +109,26 @@ struct ContainerDownloadButton: View {
                 .accessibilityLabel("Download \(item.content.type.title)")
             }
         }
+    }
+
+    /// Queues the whole thing — or, for one trimmed, the songs taken out.
+    private func downloadWhole() {
+        guard !isQueuing else { return }
+        HapticManager.shared.fireHaptic(.buttonPress)
+        guard FeatureGate.shared.unlock(.downloads) else { return }
+        isQueuing = true
+        Task { @MainActor in
+            await LocalDownloadMenuSection.download(item, alertService: alertService)
+            isQueuing = false
+        }
+    }
+}
+
+extension ContentType {
+    /// How many things a download of this holds, by name: a book's files,
+    /// anything else's songs.
+    func downloadCount(_ count: Int) -> String {
+        let noun = self == .audiobook ? "file" : "song"
+        return count == 1 ? "1 \(noun)" : "\(count) \(noun)s"
     }
 }

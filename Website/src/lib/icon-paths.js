@@ -40,4 +40,10 @@ export const iconPaths = {
 	'skip-forward': '<path d="M21 4v16" /><path d="M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z" />',
 	'pause': '<rect x="14" y="3" width="5" height="18" rx="1" /><rect x="5" y="3" width="5" height="18" rx="1" />',
 	'volume-2': '<path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" /><path d="M16 9a5 5 0 0 1 0 6" /><path d="M19.364 18.364a9 9 0 0 0 0-12.728" />',
+
+	// Device glyphs for the platforms Cue runs on, drawn for Cue in the same
+	// 24×24, 2px-stroke style (not from Lucide).
+	'iphone': '<rect width="11" height="20" x="6.5" y="2" rx="3" /><path d="M10.5 5.5h3" />',
+	'apple-watch': '<rect width="12" height="12" x="5" y="6" rx="3.5" /><path d="M8 6V3.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V6" /><path d="M8 18v2.5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V18" /><path d="M19 10v2.5" />',
+	'carplay': '<rect width="18" height="18" x="3" y="3" rx="5" /><path d="M10 8.5v7l5.5-3.5z" fill="currentColor" />',
 };

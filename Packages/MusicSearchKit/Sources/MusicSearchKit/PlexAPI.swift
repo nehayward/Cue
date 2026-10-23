@@ -202,6 +202,162 @@ public final class PlexAPI {
         return (200...299).contains(http.statusCode)
     }
 
+    // MARK: - Lyrics
+
+    /// The track's lyrics from the server: its lyric streams (a sidecar
+    /// `.lrc` or `.txt` beside the file, or the lyrics agent's, which needs
+    /// Plex Pass), timed ones first. An agent's stream answers in JSON,
+    /// line by line; a sidecar's with the file itself.
+    ///
+    /// `nil` when the server answered and the track has none; throws when
+    /// the server couldn't be asked, or listed lyrics it couldn't serve, so
+    /// a passing fault isn't taken for "no lyrics".
+    public func lyrics(ratingKey: String) async throws -> Lyrics? {
+        let log = LyricsLookupError.log
+        guard let plexServer = await getPlexServer(), let baseURL = getBaseURL(for: plexServer) else {
+            log.info("plex \(ratingKey, privacy: .public): no server")
+            throw LyricsLookupError("no Plex server")
+        }
+        guard let request = await authorizedRequest(from: baseURL.appending(path: "library/metadata/\(ratingKey)")),
+              let (data, response) = await loadData(for: request) else {
+            log.info("plex \(ratingKey, privacy: .public): metadata unreachable")
+            throw LyricsLookupError("Plex unreachable")
+        }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 200
+        guard status == 200 else {
+            log.info("plex \(ratingKey, privacy: .public): metadata answered \(status, privacy: .public)")
+            if status == 404 { return nil }
+            throw LyricsLookupError("Plex answered \(status)")
+        }
+        guard let container = try? decoder.decode(PlexLyricStreamsContainer.self, from: data) else {
+            log.info("plex \(ratingKey, privacy: .public): metadata didn't decode")
+            return nil
+        }
+        let streams = container.lyricStreams
+        log.info("plex \(ratingKey, privacy: .public): \(streams.count, privacy: .public) lyric streams \(streams.map { "\($0.format ?? $0.codec ?? "?")\($0.timed ? " timed" : "") \($0.provider ?? "")" }.joined(separator: ", "), privacy: .public)")
+        let ordered = streams.filter(\.isLikelyTimed) + streams.filter { !$0.isLikelyTimed }
+        // An agent's lyrics come from LyricFind, through Plex, which limits
+        // how often a server may ask: a check of 150 songs, a few requests
+        // each, shut it off after five. So one request a song — the timed
+        // stream if there is one, asked for the one way that works — and
+        // none while it rests after refusals, since asking then only keeps
+        // it shut. A sidecar is a file on the server, free to ask for.
+        let hasAgent = streams.contains(where: \.isAgent)
+        let pausedUntil = hasAgent ? Self.lyricFindCooldown.pausedUntil() : nil
+        if let pausedUntil {
+            log.info("plex \(ratingKey, privacy: .public): LyricFind paused until \(pausedUntil.formatted(date: .omitted, time: .shortened), privacy: .public)")
+        }
+        let agent = pausedUntil == nil ? ordered.first { $0.isAgent && $0.key != nil } : nil
+        var unreachable = false
+        for stream in ordered where !stream.isAgent || stream.key == agent?.key {
+            guard let key = stream.key else { continue }
+            let url = baseURL.appending(path: key.trimmingPrefix("/"))
+            // Plex's own apps ask for a stream rendered (`format=xml`): an
+            // agent's lyrics (LyricFind) aren't a file on the server, which
+            // fetches them when asked, and a bare request for one is a 404.
+            // A sidecar's stream answers either way.
+            let rendered = url.appending(queryItems: [
+                URLQueryItem(name: "format", value: "xml"),
+                URLQueryItem(name: "includeInlineAttribution", value: "1")
+            ])
+            let attempts = stream.isAgent ? [rendered] : [rendered, url]
+            for attempt in attempts {
+                guard let request = await authorizedRequest(from: attempt),
+                      let (body, response) = await loadData(for: request) else {
+                    unreachable = true
+                    continue
+                }
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 200
+                let preview = String(decoding: body.prefix(60), as: UTF8.self).replacingOccurrences(of: "\n", with: " ")
+                log.info("plex \(ratingKey, privacy: .public): \(key, privacy: .public)\(attempt.query.map { "?" + $0 } ?? "", privacy: .public) answered \(status, privacy: .public): \(preview, privacy: .public)")
+                guard status == 200 else {
+                    if stream.isAgent, status == 404 {
+                        let pause = Self.lyricFindCooldown.refused()
+                        if pause > 0 {
+                            log.info("plex: LyricFind refused three songs running; not asked again for \(Int(pause / 60), privacy: .public) min")
+                        }
+                    }
+                    continue
+                }
+                if let lyrics = PlexLyricsContainer.lyrics(fromStream: body, credit: stream.credit) {
+                    if stream.isAgent { Self.lyricFindCooldown.served() }
+                    return lyrics
+                }
+            }
+        }
+        if unreachable { throw LyricsLookupError("Plex unreachable") }
+        if pausedUntil != nil { throw LyricsLookupError("LyricFind paused") }
+        // Listed but none would load: the server couldn't fetch them (an
+        // agent's lyrics come from LyricFind when asked, which fails at
+        // times), not a song without lyrics.
+        if !streams.isEmpty { throw LyricsLookupError("Plex lyric streams didn't load") }
+        return nil
+    }
+
+    /// Plex answers a 404 for a LyricFind stream it listed both now and
+    /// then for one song (served a minute later for others, and later for
+    /// it) and, once a server has asked too much, for every song for a
+    /// long while. Asking while shut out only keeps it shut, so three
+    /// refusals running count as that: LyricFind isn't asked for 15
+    /// minutes, doubling each time to 6 hours. Lyrics it serves reset it.
+    static let lyricFindCooldown = LyricFindCooldown()
+
+    final class LyricFindCooldown: Sendable {
+        private struct State {
+            var pausedUntil: Date = .distantPast
+            var pause: TimeInterval = LyricFindCooldown.shortest
+            var refusalsInARow = 0
+        }
+
+        static let shortest: TimeInterval = 15 * 60
+        static let longest: TimeInterval = 6 * 60 * 60
+        /// Refusals running that mean the server is shut out, not the song.
+        static let refusalsBeforePause = 3
+
+        private let state = OSAllocatedUnfairLock(initialState: State())
+
+        /// When LyricFind may be asked again, or nil if it may now.
+        func pausedUntil(at now: Date = .now) -> Date? {
+            state.withLock { $0.pausedUntil > now ? $0.pausedUntil : nil }
+        }
+
+        /// Records a refusal; returns how long LyricFind now rests, 0 while
+        /// it's still taken as the song's.
+        @discardableResult
+        func refused(at now: Date = .now) -> TimeInterval {
+            state.withLock { state in
+                state.refusalsInARow += 1
+                guard state.refusalsInARow >= Self.refusalsBeforePause else { return 0 }
+                state.refusalsInARow = 0
+                let pause = state.pause
+                state.pausedUntil = now.addingTimeInterval(pause)
+                state.pause = min(pause * 2, Self.longest)
+                return pause
+            }
+        }
+
+        func served() {
+            state.withLock { $0 = State() }
+        }
+    }
+
+    /// The track's lyric streams as Plex lists them — format, whether
+    /// timed, provider — for checking the lyrics a library has; `nil` when
+    /// the server couldn't be asked.
+    public func lyricStreamDescriptions(ratingKey: String) async -> [String]? {
+        guard let plexServer = await getPlexServer(),
+              let baseURL = getBaseURL(for: plexServer),
+              let request = await authorizedRequest(from: baseURL.appending(path: "library/metadata/\(ratingKey)")),
+              let (data, response) = await loadData(for: request),
+              (response as? HTTPURLResponse)?.statusCode ?? 200 == 200,
+              let container = try? decoder.decode(PlexLyricStreamsContainer.self, from: data) else { return nil }
+        return container.lyricStreams.map { stream in
+            [stream.format ?? stream.codec ?? "?", stream.timed ? "timed" : nil, stream.credit ?? stream.provider.map { $0.replacingOccurrences(of: "com.plexapp.agents.", with: "") }]
+                .compactMap { $0 }
+                .joined(separator: " ")
+        }
+    }
+
     public func getTrackRating(ratingKey: String) async -> Double? {
         guard let song = await lookupPlexSong(key: ratingKey) else { return nil }
         return song.metadata?.first?.userRating
@@ -393,7 +549,10 @@ public final class PlexAPI {
         }
     }
 
-    public func playlists() async -> [PlexUserPlaylist] {
+    /// The server's audio playlists, all in one response. With a `sort`,
+    /// Plex returns them in that order (`reversed` flips its natural
+    /// direction); without one, in its own.
+    public func playlists(sort: PlexPlaylistSort? = nil, reversed: Bool = false) async -> [PlexUserPlaylist] {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else {
             return []
@@ -404,9 +563,12 @@ public final class PlexAPI {
         #endif
 
         guard var playlistsURL = getBaseURL(for: plexServer)?.appending(path: "playlists") else { return [] }
-        let queryItems: [URLQueryItem] = [
+        var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "playlistType", value: "audio")
         ]
+        if let sort {
+            queryItems.append(URLQueryItem(name: "sort", value: sort.queryValue(reversed: reversed)))
+        }
         playlistsURL.append(queryItems: queryItems)
 
         guard let playlistContainer: PlexContainer<PlexUserPlaylistContainer> = await loadAuthorized(playlistsURL) else {
@@ -422,7 +584,7 @@ public final class PlexAPI {
             playlists[index].thumbImageURL = getBaseURL(for: plexServer)?.appending(path:  composite).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
         }
 
-        return playlists
+        return sort?.sort(playlists, reversed: reversed) ?? playlists
     }
     
     public enum AlbumSortOrder {
@@ -809,23 +971,31 @@ public final class PlexAPI {
     }
 
     public func getMusicLibraries() async -> [PlexLibrarySection] {
+        await musicLibraries() ?? []
+    }
+
+    /// The selected server's Music libraries, or nil when they couldn't be
+    /// read: a request that failed isn't a server with none. Asked like the
+    /// browse requests (`loadData`), so a connection gone stale fails over.
+    func musicLibraries() async -> [PlexLibrarySection]? {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else {
-            return []
+            return nil
         }
 
         guard let sectionsURL = getBaseURL(for: plexServer)?.appending(path: "library/sections") else {
-            return []
+            return nil
         }
 
         var request = URLRequest(url: sectionsURL)
         request.httpMethod = "GET"
+        request.timeoutInterval = 10
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
-        guard let (data, _) = try? await session.data(for: request) else {
-            return []
+        guard let (data, _) = await loadData(for: request) else {
+            return nil
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
@@ -843,7 +1013,7 @@ public final class PlexAPI {
             return libraries
         } catch {
             logger.error(error)
-            return []
+            return nil
         }
     }
   
@@ -1288,7 +1458,7 @@ public final class PlexAPI {
         }
     }
 
-    private func getPlexServer() async -> PlexServer? {
+    func getPlexServer() async -> PlexServer? {
 //        let jsonData = """
 // {
 //        "name": "The Mothership",
@@ -1363,7 +1533,7 @@ public final class PlexAPI {
         return preferredServer
     }
 
-    private func getBaseURL(for plexServer: PlexServer) -> URL? {
+    func getBaseURL(for plexServer: PlexServer) -> URL? {
         return withCacheLock { resolvedBaseURL } ?? plexServer.baseURL(preferring: connectionPreference)
     }
 
@@ -1374,11 +1544,14 @@ public final class PlexAPI {
     /// plex.tv round trip); only the stale connection is re-raced, and the retry
     /// only fires when re-resolution yields a different connection (avoids
     /// doubling the timeout when the server is simply down).
-    private func loadData(for request: URLRequest) async -> (Data, URLResponse)? {
+    func loadData(for request: URLRequest) async -> (Data, URLResponse)? {
         if let result = try? await session.data(for: request) {
             return result
         }
-        guard let url = request.url,
+        // Cancelled, not failed: the connection is fine, and a race run
+        // now would be cancelled too and leave the fallback in its place.
+        guard !Task.isCancelled,
+              let url = request.url,
               let server = await getPlexServer() else {
             return nil
         }
@@ -1395,6 +1568,48 @@ public final class PlexAPI {
         return try? await session.data(for: retryRequest)
     }
 
+    /// `url`, a stream from this server, on the connection resolved for it
+    /// now: one kept from another network (a queue saved on cellular,
+    /// played at home on the internet address) goes the way that's best
+    /// here. Unchanged for another server's, or before any connection has
+    /// been resolved.
+    public func onCurrentConnection(_ url: URL) -> URL {
+        guard let base = withCacheLock({ resolvedBaseURL }), Self.isSameServer(url, base),
+              let rebased = url.rebasing(to: base) else { return url }
+        return rebased
+    }
+
+    /// The connection this server's requests go to now, once resolved.
+    public var currentConnection: URL? {
+        withCacheLock { resolvedBaseURL }
+    }
+
+    /// Resolves this server's connection if nothing has yet (a launch with
+    /// no Plex request so far), for `onCurrentConnection` to go by.
+    public func prepareConnection() async {
+        _ = await getPlexServer()
+    }
+
+    /// Races this server's connections again, for a stream that failed: the
+    /// network may have changed under it (home Wi‑Fi to cellular), which
+    /// only a failed request here would otherwise notice.
+    public func refreshConnection() async {
+        guard let server = await getPlexServer(),
+              let newBase = await resolveBaseURL(for: server, forceRefresh: true) else { return }
+        withCacheLock { resolvedBaseURL = newBase }
+    }
+
+    /// Whether two of Plex's addresses are the same server's: the same host,
+    /// or plex.direct names (`<address>.<server's hash>.plex.direct`) with
+    /// the same hash.
+    static func isSameServer(_ url: URL, _ base: URL) -> Bool {
+        guard let host = url.host?.lowercased(), let baseHost = base.host?.lowercased() else { return false }
+        if host == baseHost { return true }
+        let labels = host.split(separator: "."), baseLabels = baseHost.split(separator: ".")
+        return host.hasSuffix(".plex.direct") && baseHost.hasSuffix(".plex.direct")
+            && labels.count == 4 && baseLabels.count == 4 && labels[1] == baseLabels[1]
+    }
+
     private func authorizedRequest(from url: URL) async -> URLRequest? {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else { 
@@ -1409,7 +1624,7 @@ public final class PlexAPI {
         return request
     }
 
-    private func loadAuthorized<T: Decodable>(_ url: URL) async -> T? {
+    func loadAuthorized<T: Decodable>(_ url: URL) async -> T? {
         guard let request = await authorizedRequest(from: url) else {
             return nil
         }
@@ -1443,7 +1658,7 @@ public final class PlexAPI {
         }
     }
 
-    private func enrichMetadata(metadata: [PlexMetadata]?) async -> [PlexMetadata] {
+    func enrichMetadata(metadata: [PlexMetadata]?) async -> [PlexMetadata] {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken,
                 let clientID = plexServer.clientIdentifier,

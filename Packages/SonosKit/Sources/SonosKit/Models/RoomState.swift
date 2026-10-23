@@ -29,8 +29,10 @@ public enum RoomState: Hashable {
             "Off"
         case .lowBattery:
             "Low Battery"
+        // Sonos reports a vanished speaker with no known cause as "UNKNOWN",
+        // e.g. a Move switched to Bluetooth or carried out of Wi-Fi range.
         case .unknown:
-            "Unknown"
+            "Unavailable"
         }
     }
 
@@ -45,7 +47,7 @@ public enum RoomState: Hashable {
         case .lowBattery:
             "battery.0percent"
         case .unknown:
-            ""
+            "wifi.slash"
         }
     }
 }

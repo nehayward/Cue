@@ -9,6 +9,14 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public let coordinatorID: String
     public var rooms: [Room] = []
     public var TVMode: Bool { playbackService == .tv }
+    /// True while the group is playing an AirPlay stream. Read off both the
+    /// transport (`GetMediaInfo`) and the current track's URI
+    /// (`x-sonos-vli:…,airplay:…`): the track lands with the first position
+    /// poll, the media info a separate round trip later, and a caller deciding
+    /// whether to touch the phone's audio can't afford that window.
+    public var isAirPlay: Bool {
+        playbackService == .airplay || coordinatorRoom.track.musicService == .airplay
+    }
     public var isCrossfaded: Bool? = nil
     public var tvSettings: TVSettings?
 
@@ -22,6 +30,20 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     }
     public var playMode: PlayMode = .normal
     public var isMuted: Bool = false
+
+    /// Until when a mute Cue just set holds against the poll. A read that
+    /// left before the change landed would otherwise put the old state back.
+    @ObservationIgnored public private(set) var muteHeldUntil: Date = .distantPast
+    public var isMuteHeld: Bool { muteHeldUntil > .now }
+
+    /// Shows `mute` at once and keeps the poll from undoing it while the
+    /// speaker catches up.
+    public func holdMute(_ mute: Bool) {
+        muteHeldUntil = .now.addingTimeInterval(2.5)
+        if isMuted != mute {
+            isMuted = mute
+        }
+    }
     public var ip: String { coordinatorRoom.ip }
     public var isEditingVolume: Bool = false
     public var isEditingPlayback: Bool = false
@@ -63,6 +85,20 @@ extension GroupRoom {
         "\(coordinatorID):\(rooms.map(\.id).sorted().joined(separator: ","))"
     }
 
+    /// `topologyKey` plus each room's state and address: what decides whether a
+    /// fresh parse replaces the stored groups. A speaker alone in its group has
+    /// the same `topologyKey` whether Sonos lists it as a member or under
+    /// VanishedDevices, so comparing topology alone kept a vanished speaker
+    /// `.active` (and polled until every request timed out), and kept one that
+    /// came back stuck inactive.
+    public var adoptionKey: String {
+        let members = rooms
+            .sorted { $0.id < $1.id }
+            .map { "\($0.id)@\($0.ip)=\($0.state)" }
+            .joined(separator: ",")
+        return "\(coordinatorID):\(members)"
+    }
+
     public var nameWithCount: String {
         switch rooms.count {
         case 0...1:
@@ -76,21 +112,21 @@ extension GroupRoom {
 }
 
 
+/// A group is equal only to itself. It's an `@Observable` reference: views
+/// hold it and the poll and sockets write into it, so what matters is which
+/// instance something has, not what it describes. SwiftUI compares a view's
+/// `GroupRoom` property with `==`, and `@Observable` skips notifying when a
+/// new value `==` the old, so comparing content hid a topology refresh that
+/// swapped in a copy of the same group: views kept drawing the old instance
+/// while every update went to the new one. To ask whether two groups describe
+/// the same thing, compare `coordinatorID`, `topologyKey` or `adoptionKey`.
 extension GroupRoom: Hashable {
     public static func == (lhs: GroupRoom, rhs: GroupRoom) -> Bool {
-        lhs.coordinatorID == rhs.coordinatorID &&
-        lhs.rooms == rhs.rooms &&
-        lhs.coordinatorRoom == rhs.coordinatorRoom &&
-        lhs.TVMode == rhs.TVMode &&
-        lhs.nameWithCount == rhs.nameWithCount
+        lhs === rhs
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(coordinatorID)
-        hasher.combine(rooms)
-        hasher.combine(coordinatorRoom)
-        hasher.combine(TVMode)
-        hasher.combine(nameWithCount)
+        hasher.combine(ObjectIdentifier(self))
     }
 }
 

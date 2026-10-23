@@ -73,6 +73,7 @@ enum FLACTagParser {
             case "TRACKNUMBER": tags.trackNumber = tags.trackNumber ?? TagText.number(in: value)
             case "DISCNUMBER": tags.discNumber = tags.discNumber ?? TagText.number(in: value)
             case "COMPILATION": tags.isCompilation = tags.isCompilation || value == "1"
+            case "LYRICS", "UNSYNCEDLYRICS", "SYNCEDLYRICS": tags.lyrics = tags.lyrics ?? value
             default: break
             }
         }

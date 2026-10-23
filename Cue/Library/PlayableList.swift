@@ -12,6 +12,10 @@ struct PlayableList: View {
     @Environment(SonosService.self) private var sonosService
 
     @State private var isLoading: Bool = false
+    /// A page is on its way; no other is asked for meanwhile.
+    @State private var isLoadingMore = false
+    /// The last page added nothing: there's no more to ask for.
+    @State private var reachedEnd = false
 
     @Binding var items: OrderedSet<PlayableContent>
     var action: ((Int) async -> ())? = nil
@@ -20,13 +24,7 @@ struct PlayableList: View {
         List {
             ForEach(items) { item in
                 PlayableContentView(item: item)
-                    .task {
-                        if items.firstIndex(of: item) ?? 0 >= items.count / 2 {
-                            Task {
-                                await action?(items.count)
-                            }
-                        }
-                    }
+                    .onAppear { loadMoreIfNeeded(after: item) }
             }
         }
         .foregroundStyle(.foreground)
@@ -42,6 +40,22 @@ struct PlayableList: View {
                     .background(.thickMaterial)
                     .clipShape(Circle())
             }
+        }
+    }
+
+    /// Asks for the next page once a row near the end appears, one page at
+    /// a time. Every row in the bottom half used to ask for it as it
+    /// appeared, so a scroll sent a burst of identical requests for the
+    /// same page.
+    private func loadMoreIfNeeded(after item: PlayableContent) {
+        guard !isLoadingMore, !reachedEnd,
+              let index = items.firstIndex(of: item), index >= items.count - 15 else { return }
+        isLoadingMore = true
+        let countBefore = items.count
+        Task {
+            await action?(items.count)
+            reachedEnd = items.count == countBefore
+            isLoadingMore = false
         }
     }
 }

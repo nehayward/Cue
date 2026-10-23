@@ -23,6 +23,9 @@ for d in devices:
     hw = d.get("hardwareProperties", {})
     if hw.get("platform") != "watchOS":
         continue
+    # devicectl lists simulators too now; only a real watch takes an install.
+    if hw.get("reality", "physical") != "physical":
+        continue
     print("\t".join([
         hw.get("udid") or d.get("identifier", ""),
         d.get("deviceProperties", {}).get("name", "Apple Watch"),

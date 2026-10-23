@@ -19,6 +19,8 @@ struct SubsonicBrowseScreen: View {
 
         NavigationStack(path: $router.path) {
             List {
+                // Above the library, a section of its own.
+                MusicLeftOffSection()
                 if subsonicBrowseService.isAuthenticated {
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Artists",

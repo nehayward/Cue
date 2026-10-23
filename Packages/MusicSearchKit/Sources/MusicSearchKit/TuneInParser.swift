@@ -101,4 +101,28 @@ public final class TuneInParser: Sendable {
         return station
     }
 
+    /// Where a described station is: its `latlon`, else a `latitude` and
+    /// `longitude` of their own, and the place it names. Nil when the
+    /// answer holds no station at all (an error page), which says nothing
+    /// about where the station is; a station with no place comes back
+    /// empty instead.
+    func parsePlace(xmlData: Data) -> TuneInPlace? {
+        let xml = XMLHash.parse(xmlData)
+        let stationXML = xml["opml"]["body"]["outline"]["station"]
+        guard stationXML.element != nil else { return nil }
+
+        func text(_ name: String) -> String? {
+            guard let text = stationXML[name].element?.text.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !text.isEmpty else { return nil }
+            return text
+        }
+
+        var place = TuneInPlace(location: text("location"))
+        if let point = text("latlon").flatMap(TuneInPlace.coordinate(fromLatLon:))
+            ?? TuneInPlace.coordinate(fromLatLon: [text("latitude"), text("longitude")].compactMap { $0 }.joined(separator: ",")) {
+            place.latitude = point.latitude
+            place.longitude = point.longitude
+        }
+        return place
+    }
 }

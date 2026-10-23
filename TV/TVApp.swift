@@ -18,6 +18,8 @@ struct TVApp: App {
     @State private var showSettings: Bool = false
     @ObservedObject var value = TVPlayerView.Test()
     @AppStorage("disableScreenSaver") var disableScreenSaver = false
+    /// The coordinator of the group the player was last on (`reselect`).
+    @State private var lastSelectedID: String?
 
     public var sorted: [GroupRoom] {
         get {
@@ -71,6 +73,18 @@ struct TVApp: App {
             .environment(sonosService)
             .environment(subscriptionService)
             .tabViewStyle(.tabBarOnly)
+            // Never without a selected group while there are groups.
+            .onChange(of: sonosService.selectedGroup?.coordinatorID, initial: true) { _, id in
+                if let id {
+                    lastSelectedID = id
+                } else {
+                    reselect()
+                }
+            }
+            // Groups that came after none: a search from the welcome screen.
+            .onChange(of: sonosService.groups.map(\.coordinatorID)) {
+                reselect()
+            }
             .task {
                 UIApplication.shared.isIdleTimerDisabled = disableScreenSaver
                 isLoading = true
@@ -101,5 +115,20 @@ struct TVApp: App {
             }
         }
     }
-    
+
+    /// SonosKit lets go of the selected group once its coordinator is no
+    /// longer one (a regroup from here or any other controller), and with
+    /// nothing selected its poll reads no group's song at all: every tab kept
+    /// what it last showed, and a group that formed meanwhile, which has no
+    /// song until its first read, stayed blank until a tab was chosen by hand.
+    /// The player moves to the group the room it was on is in now, or the
+    /// first.
+    private func reselect() {
+        guard sonosService.selectedGroup == nil, !sonosService.groups.isEmpty else { return }
+        let groups = sonosService.groups
+        let roomsGroup = lastSelectedID.flatMap { id in
+            groups.first { group in group.rooms.contains { $0.id == id } }
+        }
+        sonosService.selectedGroup = roomsGroup ?? sorted.first
+    }
 }
