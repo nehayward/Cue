@@ -1,4 +1,9 @@
 import AVFoundation
+#if targetEnvironment(macCatalyst)
+// `UnsafeMutableAudioBufferListPointer`: AVFoundation brings it on iOS, not
+// on the Mac.
+import CoreAudio
+#endif
 import MediaToolbox
 import MusicSearchKit
 import os
