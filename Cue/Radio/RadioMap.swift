@@ -361,14 +361,19 @@ final class RadioMap {
     /// The region that shows every one of `stations`, with room around
     /// them for their pins, and no closer in than `minimumSpan` degrees.
     static func region(fitting stations: [RadioMapStation], minimumSpan: Double = 0.15) -> MKCoordinateRegion? {
-        guard let first = stations.first else { return nil }
+        region(fitting: stations.map(\.coordinate), minimumSpan: minimumSpan)
+    }
+
+    /// The region that shows every one of `coordinates`, as for stations.
+    static func region(fitting coordinates: [CLLocationCoordinate2D], minimumSpan: Double = 0.15) -> MKCoordinateRegion? {
+        guard let first = coordinates.first else { return nil }
         var minLatitude = first.latitude, maxLatitude = first.latitude
         var minLongitude = first.longitude, maxLongitude = first.longitude
-        for station in stations.dropFirst() {
-            minLatitude = min(minLatitude, station.latitude)
-            maxLatitude = max(maxLatitude, station.latitude)
-            minLongitude = min(minLongitude, station.longitude)
-            maxLongitude = max(maxLongitude, station.longitude)
+        for coordinate in coordinates.dropFirst() {
+            minLatitude = min(minLatitude, coordinate.latitude)
+            maxLatitude = max(maxLatitude, coordinate.latitude)
+            minLongitude = min(minLongitude, coordinate.longitude)
+            maxLongitude = max(maxLongitude, coordinate.longitude)
         }
         return MKCoordinateRegion(
             center: CLLocationCoordinate2D(

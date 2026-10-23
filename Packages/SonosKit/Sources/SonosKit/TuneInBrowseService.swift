@@ -111,7 +111,8 @@ public final class TuneInBrowseService {
     }
 
     /// The stations TuneIn counts as local to a point, for the Radio map's
-    /// Search This Area. Not cached: the map keeps what it found.
+    /// Search This Area and Stations Near You. Not cached: the map keeps
+    /// what it found.
     public func stations(nearLatitude latitude: Double, longitude: Double) async -> [PlayableContent] {
         Self.stations(in: await api.browse(.nearby(latitude: latitude, longitude: longitude)))
     }

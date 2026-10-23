@@ -20,6 +20,12 @@ struct RadioMapScreen: View {
     /// Whether the map has been set on the stations near you, which waits
     /// for the first of them to be placed when none were yet.
     @State private var hasFramed = false
+    /// Stations Near You under way: where this device is, then TuneIn's
+    /// stations there.
+    @State private var isFindingYou = false
+    /// Whether to draw where you are. Only once Cue may know it, so the
+    /// map never asks by itself.
+    @State private var showsYou = false
 
     private static let pinSize: CGFloat = 40
 
@@ -47,6 +53,9 @@ struct RadioMapScreen: View {
         )
 
         Map(position: $position) {
+            if showsYou {
+                UserAnnotation()
+            }
             ForEach(clusters) { cluster in
                 Annotation(cluster.title, coordinate: cluster.coordinate, anchor: .center) {
                     Button {
@@ -111,9 +120,9 @@ struct RadioMapScreen: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Stations Near You", systemImage: "scope") {
-                    frameNearYou()
+                    findNearYou()
                 }
-                .disabled(local.isEmpty)
+                .disabled(isFindingYou)
             }
         }
         .onAppear {
@@ -161,6 +170,42 @@ struct RadioMapScreen: View {
             && region.span.longitudeDelta < visible.span.longitudeDelta * 0.8
     }
 
+    /// Stations Near You: where this device is, if Cue may know (the system
+    /// asks the first time, Allow Once among its answers), and TuneIn's
+    /// stations local to there. Without a place, the stations TuneIn's
+    /// local page lists for this IP, which can be far off: a VPN, a
+    /// carrier, or nothing better than the middle of the country.
+    private func findNearYou() {
+        guard !isFindingYou else { return }
+        isFindingYou = true
+        Task {
+            defer { isFindingYou = false }
+            guard let here = await DeviceLocation.shared.current() else {
+                frameNearYou()
+                return
+            }
+            hasFramed = true
+            showsYou = true
+            withAnimation(.smooth) {
+                selected = nil
+                position = .region(MKCoordinateRegion(center: here, latitudinalMeters: 30_000, longitudinalMeters: 30_000))
+            }
+            // To about a kilometre: TuneIn needs the town, not the street.
+            await radioMap.searchArea(
+                latitude: (here.latitude * 100).rounded() / 100,
+                longitude: (here.longitude * 100).rounded() / 100
+            )
+            // Out to take in the stations found, which TuneIn often places
+            // at the middle of the city, unless the map was moved meanwhile.
+            guard !position.positionedByUser, let search = radioMap.searches.last else { return }
+            let found = RadioMap.core(of: radioMap.mapped(search.stations)).map(\.coordinate)
+            guard !found.isEmpty, let region = RadioMap.region(fitting: found + [here]) else { return }
+            withAnimation(.smooth) {
+                position = .region(region)
+            }
+        }
+    }
+
     private func frameNearYou() {
         guard let region = Self.nearYouRegion(localStations) else { return }
         hasFramed = true
@@ -179,6 +224,9 @@ struct RadioMapScreen: View {
     /// What the bar over the map says: work under way, else the offer to
     /// search where the map has moved to, else what the last search found.
     private func status(nearYou: MKCoordinateRegion?) -> RadioMapStatus? {
+        if isFindingYou {
+            return .working("Finding Stations Near You…")
+        }
         if radioMap.isSearchingArea {
             return .working("Searching This Area…")
         }
@@ -401,5 +449,86 @@ private struct RadioMapStationsCard: View {
         let count = cluster.stations.count
         let row = Self.rowHeight + RadioGrid.spacing
         return count <= 3 ? row * CGFloat(count) - RadioGrid.spacing : row * 3.5 - RadioGrid.spacing
+    }
+}
+
+/// Where this device is, for Stations Near You, asked only when that's
+/// tapped. The system asks the first time (Allow Once is one of its
+/// answers, and lasts until Cue is left), and the answer is one fix,
+/// approximate unless Precise is turned on for Cue
+/// (`NSLocationDefaultAccuracyReduced`): TuneIn needs the town, not the
+/// street.
+@MainActor
+private final class DeviceLocation: NSObject, CLLocationManagerDelegate {
+    static let shared = DeviceLocation()
+
+    /// Made on first use, on the main actor, so its calls come on the main
+    /// run loop.
+    private lazy var manager: CLLocationManager = {
+        let manager = CLLocationManager()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyKilometer
+        return manager
+    }()
+    /// Everyone asking while an answer is on its way, answered together.
+    private var waiting: [CheckedContinuation<CLLocationCoordinate2D?, Never>] = []
+
+    /// Nil when Cue may not know where it is, or the device can't tell.
+    func current() async -> CLLocationCoordinate2D? {
+        await withCheckedContinuation { continuation in
+            waiting.append(continuation)
+            if waiting.count == 1 {
+                proceed()
+            }
+        }
+    }
+
+    private func proceed() {
+        switch manager.authorizationStatus {
+        case .notDetermined:
+            // Without its reason in Info.plist the system never asks, and
+            // so never answers.
+            guard Bundle.main.object(forInfoDictionaryKey: "NSLocationWhenInUseUsageDescription") != nil else {
+                return finish(nil)
+            }
+            manager.requestWhenInUseAuthorization()
+        case .restricted, .denied:
+            finish(nil)
+        default:
+            // Gives up by itself, through `didFailWithError`, when no fix
+            // comes.
+            manager.requestLocation()
+        }
+    }
+
+    private func finish(_ coordinate: CLLocationCoordinate2D?) {
+        let answered = waiting
+        waiting = []
+        for continuation in answered {
+            continuation.resume(returning: coordinate)
+        }
+    }
+
+    // Core Location calls these on the run loop the manager was made on.
+
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        MainActor.assumeIsolated {
+            // Also called as the manager starts, and while the system asks.
+            guard !waiting.isEmpty, manager.authorizationStatus != .notDetermined else { return }
+            proceed()
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let coordinate = locations.last?.coordinate
+        MainActor.assumeIsolated {
+            finish(coordinate)
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        MainActor.assumeIsolated {
+            finish(nil)
+        }
     }
 }
