@@ -6,13 +6,15 @@ import WatchSync
 /// and its artist (a book and its author), and Previous, Play and Next,
 /// each press carried out by the iPhone's own player, here or on its Sonos
 /// group — a book's skip back 15 s and ahead 30 s, as there. Over the
-/// cover's gradient, titled with where it plays.
+/// cover's gradient, titled with where it plays. Music from a queue has
+/// Up Next top right (`PhoneQueueScreen`).
 ///
 /// Not the system's `NowPlayingView`, which picks its source itself: with
 /// a book loaded on the watch it showed the watch's book, whatever the card
 /// said.
 struct PhoneNowPlayingScreen: View {
     @Environment(PhoneNowPlaying.self) private var phone
+    @Environment(\.zoomNamespace) private var zoom
 
     var body: some View {
         Group {
@@ -24,6 +26,18 @@ struct PhoneNowPlayingScreen: View {
         }
         .containerBackground(for: .navigation) {
             ImageMeshFill(image: phone.artwork)
+        }
+        .toolbar {
+            // A book's files aren't songs to pick from.
+            if let playing = phone.current, !playing.isBook, playing.queueCount > 0 {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(value: HomeRoute.phoneQueue) {
+                        Image(systemName: "list.bullet")
+                    }
+                    .accessibilityLabel("Up Next")
+                    .zoomSource(HomeRoute.phoneQueue, in: zoom)
+                }
+            }
         }
     }
 

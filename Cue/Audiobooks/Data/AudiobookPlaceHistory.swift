@@ -26,11 +26,29 @@ final class AudiobookPlaceHistory {
             /// Left from here for somewhere else in the book: a chapter, a
             /// scrub, a skip, or a move nobody asked for.
             case jumpedFrom
-            /// This device's place, before another player's (the server's)
-            /// took over.
+            /// This device's place, before another player's (the watch's
+            /// or the server's) took over.
             case replaced
             /// Here when something else took the player.
             case left
+        }
+
+        /// Whose place took over a `.replaced` one.
+        enum Source: String, Codable {
+            /// The Apple Watch's, through WatchConnectivity or iCloud.
+            case watch
+            /// The book's server's, from whichever player told it.
+            case plex
+            case audiobookshelf
+
+            /// The server `service` names, if it keeps places.
+            init?(server service: MusicService) {
+                switch service {
+                case .plex: self = .plex
+                case .audiobookshelf: self = .audiobookshelf
+                default: return nil
+                }
+            }
         }
 
         var id = UUID()
@@ -38,6 +56,9 @@ final class AudiobookPlaceHistory {
         let position: TimeInterval
         let date: Date
         let kind: Kind
+        /// Nil for every kind but `.replaced`, and for `.replaced` places
+        /// kept before it was noted.
+        var source: Source?
     }
 
     /// Each book's places, newest first, by `AudiobookProgressStore.key`.
@@ -65,8 +86,9 @@ final class AudiobookPlaceHistory {
     }
 
     /// Notes `kind` at book time `position`, unless it's where the book's
-    /// newest place already is.
-    func record(_ kind: Place.Kind, at position: TimeInterval, for book: PlayableContent) {
+    /// newest place already is. `source` names whose place took over a
+    /// `.replaced` one.
+    func record(_ kind: Place.Kind, at position: TimeInterval, for book: PlayableContent, from source: Place.Source? = nil) {
         let key = AudiobookProgressStore.key(for: book)
         var list = places[key] ?? []
         if let newest = list.first,
@@ -74,7 +96,7 @@ final class AudiobookPlaceHistory {
            Date.now.timeIntervalSince(newest.date) < Self.sameMoment {
             return
         }
-        list.insert(Place(position: max(position, 0), date: .now, kind: kind), at: 0)
+        list.insert(Place(position: max(position, 0), date: .now, kind: kind, source: source), at: 0)
         places[key] = Array(list.prefix(Self.limit))
         scheduleSave()
     }

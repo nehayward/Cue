@@ -14,7 +14,9 @@ import Foundation
 /// was lent is about to run out — the iPhone renews its own and answers
 /// with the context's sign-ins (`credentialsReply`) — and asking what the
 /// iPhone plays (`nowPlayingRequest`) or to play, pause or skip it
-/// (`commandRequest`), answered with what it plays then. While the
+/// (`commandRequest`), answered with what it plays then; and asking for the
+/// queue it plays from (`queueRequest`, answered with `queueMessage`) or to
+/// play a song in it (`playQueueRequest`, answered as a press is). While the
 /// watch app is open the iPhone also sends what it plays unasked, as it
 /// changes (`nowPlayingMessage`).
 public enum WatchSyncMessage {
@@ -24,6 +26,8 @@ public enum WatchSyncMessage {
     public static let sentAtKey = "sentAt"
     public static let requestKey = "request"
     public static let nowPlayingKey = "nowPlaying"
+    public static let queueKey = "queue"
+    public static let positionKey = "position"
 
     public static func context(picks: WatchPicks, places: WatchBookPlaces? = nil, credentials: WatchCredentials? = nil, sentAt: Date = .now) throws -> [String: Any] {
         var context: [String: Any] = [
@@ -109,6 +113,40 @@ public enum WatchSyncMessage {
     public static func nowPlaying(in message: [String: Any]) -> WatchPhoneNowPlaying? {
         guard let data = message[nowPlayingKey] as? Data, !data.isEmpty else { return nil }
         return try? JSONDecoder().decode(WatchPhoneNowPlaying.self, from: data)
+    }
+
+    // MARK: - The iPhone's queue
+
+    /// The watch asking for the queue the iPhone plays from.
+    public static var queueRequest: [String: Any] { [requestKey: "queue"] }
+
+    public static func isQueueRequest(_ message: [String: Any]) -> Bool {
+        message[requestKey] as? String == "queue"
+    }
+
+    /// The watch asking the iPhone to play the song at `position` (from 1)
+    /// in its queue.
+    public static func playQueueRequest(at position: Int) -> [String: Any] {
+        [requestKey: "playQueue", positionKey: position]
+    }
+
+    /// The position a request asks the iPhone to play, nil for any other
+    /// message.
+    public static func queuePositionToPlay(in message: [String: Any]) -> Int? {
+        guard message[requestKey] as? String == "playQueue", let position = message[positionKey] as? Int, position > 0 else { return nil }
+        return position
+    }
+
+    /// The queue, empty for none: the answer to `queueRequest`.
+    public static func queueMessage(_ queue: WatchPhoneQueue) throws -> [String: Any] {
+        [queueKey: try JSONEncoder().encode(queue)]
+    }
+
+    /// The queue a message carries; nil for any other message, an iPhone
+    /// a version behind answering with nothing among them.
+    public static func queue(in message: [String: Any]) -> WatchPhoneQueue? {
+        guard let data = message[queueKey] as? Data else { return nil }
+        return try? JSONDecoder().decode(WatchPhoneQueue.self, from: data)
     }
 
     // MARK: - Packing

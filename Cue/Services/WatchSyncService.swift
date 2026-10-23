@@ -35,8 +35,9 @@ import WatchConnectivity
 ///
 /// While the watch app is open (reachable) the watch also hears what this
 /// iPhone plays — `PlaybackRoute.presented`, here or on a Sonos group — as
-/// it changes, for its home screen's card, and plays or pauses it from
-/// there (`WatchPhoneNowPlaying`).
+/// it changes, for its home screen's card, and plays, pauses and skips it
+/// from its player of it (`WatchPhoneNowPlaying`), whose Up Next asks for
+/// the queue it plays from and plays a song in it (`WatchPhoneQueue`).
 ///
 /// Only Plex, Subsonic and Audiobookshelf, as with the download manager:
 /// their files are plain URLs the watch can fetch. Apple Music on the watch
@@ -260,7 +261,7 @@ final class WatchSyncService {
             if let held, !place.supersedes(WatchBookPlace(held)) { continue }
             let reading = AudiobookProgress(place)
             if let held, held != takenFromWatch[pick.key], !held.isFinished, held.position > 0, abs(held.position - reading.position) > 60 {
-                AudiobookPlaceHistory.shared.record(.replaced, at: held.position, for: book)
+                AudiobookPlaceHistory.shared.record(.replaced, at: held.position, for: book, from: .watch)
             }
             logger.info("\(pick.title, privacy: .public): the place from \(source, privacy: .public), \(Int(reading.position)) s, is newer")
             takenFromWatch[pick.key] = reading
@@ -405,6 +406,8 @@ final class WatchSyncService {
         var isBook: Bool
         var canGoBack: Bool
         var hasNext: Bool
+        var queuePosition: Int
+        var queueCount: Int
         var artworkURL: URL?
     }
 
@@ -423,6 +426,8 @@ final class WatchSyncService {
             isBook: false,
             canGoBack: controller.showsPrevious && controller.canGoBack,
             hasNext: controller.showsNext && controller.hasNext,
+            queuePosition: controller.queuePosition,
+            queueCount: controller.queueCount,
             artworkURL: item.artwork ?? item.thumbnail
         )
         let books = AudiobookPlayer.shared
@@ -514,6 +519,67 @@ final class WatchSyncService {
         return await nowPlayingMessage(now)
     }
 
+    /// The watch's Up Next playing a song in the queue, as a tap on a row of
+    /// the player's own does: here from this iPhone's queue (a station in
+    /// front of it put away), on a speaker from its queue (`seek(trackNumber:)`
+    /// points it back at the queue from radio or TV). Not through a
+    /// hand-off: the rows are the source's, on their way out.
+    fileprivate func playFromQueue(at position: Int) async {
+        let route = PlaybackRoute.shared
+        guard !route.isHolding else { return }
+        if let group = route.presentedGroup {
+            await SonosService.shared.seek(trackNumber: position, on: group)
+        } else {
+            LocalPlaybackService.shared.play(at: position - 1)
+        }
+    }
+
+    /// The queue the player plays from, for the watch's Up Next: from the
+    /// song playing on, or the one the queue waits on behind a station, as
+    /// many as `WatchPhoneQueue.limit`. A speaker's is read from it, that
+    /// stretch only; on radio or TV, from its top.
+    fileprivate func queueForWatch() async -> [String: Any] {
+        let route = PlaybackRoute.shared
+        let limit = WatchPhoneQueue.limit
+        let queue: WatchPhoneQueue
+        if let group = route.presentedGroup {
+            let sonos = SonosService.shared
+            // Read afresh, as the player's Up Next does: the cached one lags
+            // a source changed from another controller.
+            let service = await sonos.playbackService(ip: group.ip) ?? group.playbackService
+            let current = service == .queue ? group.coordinatorRoom.track.position : 0
+            let items = await sonos.getQueue(ip: group.ip, with: max(0, current - 1), total: limit)
+            let songs = items.compactMap { item -> WatchPhoneQueue.Song? in
+                guard let position = item.metadata?.position else { return nil }
+                return WatchPhoneQueue.Song(position: position, title: item.title, artist: Self.artist(of: item))
+            }
+            queue = WatchPhoneQueue(
+                songs: songs,
+                current: current > 0 ? current : nil,
+                count: max(group.coordinatorRoom.queueTotal, songs.last?.position ?? 0)
+            )
+        } else {
+            let playback = LocalPlaybackService.shared
+            let items = playback.queue
+            let start = items.indices.contains(playback.currentIndex) ? playback.currentIndex : 0
+            let songs = items.dropFirst(start).prefix(limit).enumerated().map { offset, item in
+                WatchPhoneQueue.Song(position: start + offset + 1, title: item.title, artist: Self.artist(of: item))
+            }
+            queue = WatchPhoneQueue(
+                songs: songs,
+                current: items.isEmpty || playback.isPlayingStation ? nil : start + 1,
+                count: items.count
+            )
+        }
+        return (try? WatchSyncMessage.queueMessage(queue)) ?? [:]
+    }
+
+    /// The artist line of a queue row, as the player's: none when empty.
+    private static func artist(of item: PlayableContent) -> String? {
+        let artist = item.metadata?.artist ?? item.subtitle
+        return artist.isEmpty ? nil : artist
+    }
+
     private func nowPlayingMessage(_ now: (state: NowPlayingState, item: PlayableContent)?) async -> [String: Any] {
         var nowPlaying: WatchPhoneNowPlaying?
         if let now {
@@ -526,6 +592,8 @@ final class WatchSyncService {
                 isBook: now.state.isBook,
                 canGoBack: now.state.canGoBack,
                 hasNext: now.state.hasNext,
+                queuePosition: now.state.queuePosition,
+                queueCount: now.state.queueCount,
                 artwork: await Self.watchArtwork(for: now.item, url: now.state.artworkURL)
             )
         }
@@ -620,18 +688,32 @@ private final class WatchSessionRelay: NSObject, WCSessionDelegate, @unchecked S
     }
 
     /// The watch asking for the sign-ins afresh (its Audiobookshelf token is
-    /// about to run out), what plays here, or to play, pause or skip it.
-    /// The system wakes Cue to answer.
+    /// about to run out), what plays here, or to play, pause or skip it; for
+    /// the queue, or to play a song in it. The system wakes Cue to answer.
     func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         let reply = UncheckedReply(send: replyHandler)
         let command = WatchSyncMessage.command(in: message)
-        if command != nil || WatchSyncMessage.isNowPlayingRequest(message) {
+        let queuePosition = WatchSyncMessage.queuePositionToPlay(in: message)
+        if command != nil || queuePosition != nil || WatchSyncMessage.isNowPlayingRequest(message) {
             Task { @MainActor in
                 guard let service = self.service else {
                     reply.send([:])
                     return
                 }
+                if let queuePosition {
+                    await service.playFromQueue(at: queuePosition)
+                }
                 reply.send(await service.answerNowPlaying(to: command))
+            }
+            return
+        }
+        if WatchSyncMessage.isQueueRequest(message) {
+            Task { @MainActor in
+                guard let service = self.service else {
+                    reply.send([:])
+                    return
+                }
+                reply.send(await service.queueForWatch())
             }
             return
         }

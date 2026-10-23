@@ -28,7 +28,11 @@ struct AudiobooksScreen: View {
     /// from.
     @State private var plexPreview: [PlayableContent] = []
     @State private var plexPreviewServer: String?
-    @State private var isLoadingPlex = false
+    /// From the first frame: the row keeps its room while Plex is first
+    /// asked whether it has books, before its books are read.
+    @State private var isLoadingPlex = true
+    /// Plex didn't answer after a few tries: the row offers another.
+    @State private var plexFailed = false
 
     private var showsPlex: Bool { coreFeatures.isEnabled(.plex) && hasPlexBooks }
     private var showsAudiobookshelf: Bool { coreFeatures.isEnabled(.audiobookshelf) && shelf.isAuthenticated }
@@ -138,6 +142,9 @@ struct AudiobooksScreen: View {
                 if !plexPreview.isEmpty {
                     AudiobookCoverRow(books: plexPreview)
                         .listRowInsets(EdgeInsets())
+                } else if plexFailed {
+                    plexUnreachable
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
                 } else if isLoadingPlex {
                     // Plex's books are read whole, which takes a moment:
                     // their room is kept so the sections below don't move.
@@ -159,6 +166,21 @@ struct AudiobooksScreen: View {
                 }
             }
             .listRowSeparator(.hidden)
+        }
+    }
+
+    /// Plex's row when the server didn't answer.
+    private var plexUnreachable: some View {
+        HStack {
+            Label("Couldn't reach Plex", systemImage: "wifi.exclamationmark")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button("Try Again") {
+                Task { await loadPlexPreview(tries: 1) }
+            }
+            .buttonStyle(.bordered)
+            .font(.footnote.bold())
         }
     }
 
@@ -212,14 +234,37 @@ struct AudiobooksScreen: View {
                 plexPreviewServer = server
             }
             // Once a launch, and on a pull: Plex's books are read whole.
+            // A pull is waited on, so it asks once.
             if hasPlexBooks, refreshing || plexPreview.isEmpty {
-                isLoadingPlex = true
-                if let newest = await AudiobookLibrary.plexNewestBooks() {
-                    plexPreview = newest
-                }
-                isLoadingPlex = false
+                await loadPlexPreview(tries: refreshing ? 1 : 3)
             }
         }
+    }
+
+    /// Plex's newest books, for its row. A read that fails is tried again
+    /// after a pause: as the tab first shows, the server's connection is
+    /// often still being found, and one miss then left the row empty until
+    /// a pull. What's shown stays when every try fails.
+    private func loadPlexPreview(tries: Int) async {
+        isLoadingPlex = true
+        plexFailed = false
+        for attempt in 1...tries {
+            let newest = await AudiobookLibrary.plexNewestBooks()
+            // Put away (another server, the tab left): a cancelled read
+            // fails or comes back short, and isn't the answer.
+            guard !Task.isCancelled else { return }
+            if let newest {
+                plexPreview = newest
+                isLoadingPlex = false
+                return
+            }
+            AudiobookLibrary.log.info("plex shelf: newest books not read, try \(attempt) of \(tries)")
+            if attempt < tries {
+                guard (try? await Task.sleep(for: .seconds(2 * attempt))) != nil else { return }
+            }
+        }
+        isLoadingPlex = false
+        plexFailed = true
     }
 }
 
