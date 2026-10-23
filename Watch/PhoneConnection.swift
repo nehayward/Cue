@@ -10,7 +10,7 @@ import WatchSync
 /// among them (merged into `WatchBookStore`'s). To the iPhone it sends its
 /// own: the picks and places as the watch has them, when they change here.
 /// While the app is open, what the iPhone plays comes as messages, to
-/// `PhoneNowPlaying`.
+/// `PhoneNowPlaying`, and its queue in answer to Up Next asking.
 @MainActor
 final class PhoneConnection {
     static let shared = PhoneConnection()
@@ -71,12 +71,17 @@ final class PhoneConnection {
     }
 
     /// Asks the iPhone what it plays, or to play or pause it; its answer is
-    /// what it plays then. Only with the iPhone in reach (the system wakes
-    /// Cue there to answer).
+    /// what it plays then. Or asks for its queue, which is the answer. Only
+    /// with the iPhone in reach (the system wakes Cue there to answer).
     func askPhone(_ request: [String: Any]) {
         let session = WCSession.default
         guard session.activationState == .activated, session.isReachable else { return }
         session.sendMessage(request, replyHandler: { @Sendable reply in
+            if let queue = WatchSyncMessage.queue(in: reply) {
+                Task { @MainActor in
+                    PhoneNowPlaying.shared.apply(queue: queue)
+                }
+            }
             guard WatchSyncMessage.carriesNowPlaying(reply) else { return }
             let nowPlaying = WatchSyncMessage.nowPlaying(in: reply)
             Task { @MainActor in

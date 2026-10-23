@@ -195,7 +195,57 @@ final class WatchSyncMessageTests: XCTestCase {
         XCTAssertFalse(playing.isBook)
         XCTAssertTrue(playing.canGoBack)
         XCTAssertTrue(playing.hasNext)
+        XCTAssertEqual(playing.queuePosition, 0)
+        XCTAssertEqual(playing.queueCount, 0)
         XCTAssertNil(playing.artwork)
+    }
+
+    func testTheQueuesPlaceCrosses() throws {
+        let playing = WatchPhoneNowPlaying(title: "Song", destination: "iPhone", isPlaying: true, queuePosition: 3, queueCount: 12)
+        let read = try XCTUnwrap(WatchSyncMessage.nowPlaying(in: try WatchSyncMessage.nowPlayingMessage(playing)))
+        XCTAssertEqual(read.queuePosition, 3)
+        XCTAssertEqual(read.queueCount, 12)
+    }
+
+    func testTheQueueCrosses() throws {
+        let queue = WatchPhoneQueue(
+            songs: [.init(position: 3, title: "Now", artist: "Artist"), .init(position: 4, title: "Next")],
+            current: 3,
+            count: 12
+        )
+        let message = try WatchSyncMessage.queueMessage(queue)
+        XCTAssertEqual(WatchSyncMessage.queue(in: message), queue)
+        XCTAssertFalse(WatchSyncMessage.carriesNowPlaying(message))
+
+        let empty = WatchPhoneQueue(songs: [], current: nil, count: 0)
+        XCTAssertEqual(WatchSyncMessage.queue(in: try WatchSyncMessage.queueMessage(empty)), empty)
+        // An iPhone a version behind answers with nothing.
+        XCTAssertNil(WatchSyncMessage.queue(in: [:]))
+        XCTAssertNil(WatchSyncMessage.queue(in: WatchSyncMessage.queueRequest))
+    }
+
+    func testWhatsLeftOfTheQueue() {
+        let queue = WatchPhoneQueue(songs: [.init(position: 3, title: "Now"), .init(position: 4, title: "Next")], current: 3, count: 12)
+        XCTAssertEqual(queue.remaining, 8)
+        XCTAssertFalse(queue.isWaiting)
+        XCTAssertTrue(WatchPhoneQueue(songs: [], current: nil, count: 0).isWaiting)
+        XCTAssertEqual(WatchPhoneQueue(songs: [], current: nil, count: 0).remaining, 0)
+    }
+
+    func testQueueRequestsAreToldApart() {
+        let play = WatchSyncMessage.playQueueRequest(at: 7)
+        XCTAssertEqual(WatchSyncMessage.queuePositionToPlay(in: play), 7)
+        XCTAssertTrue(WatchSyncMessage.isQueueRequest(WatchSyncMessage.queueRequest))
+        XCTAssertFalse(WatchSyncMessage.isQueueRequest(play))
+        XCTAssertNil(WatchSyncMessage.queuePositionToPlay(in: WatchSyncMessage.queueRequest))
+        XCTAssertNil(WatchSyncMessage.queuePositionToPlay(in: WatchSyncMessage.playQueueRequest(at: 0)))
+        // An iPhone a version behind reads neither as a press, a question
+        // about what it plays or a call for the sign-ins.
+        for request in [WatchSyncMessage.queueRequest, play] {
+            XCTAssertNil(WatchSyncMessage.command(in: request))
+            XCTAssertFalse(WatchSyncMessage.isNowPlayingRequest(request))
+            XCTAssertFalse(WatchSyncMessage.isCredentialsRequest(request))
+        }
     }
 
     func testQualitiesSayWhatTheyCost() {

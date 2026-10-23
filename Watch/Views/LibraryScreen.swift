@@ -16,6 +16,8 @@ enum HomeRoute: Hashable {
     case nowPlaying
     /// What the iPhone plays, while the card shows it.
     case phoneNowPlaying
+    /// The queue the iPhone plays from, from its player.
+    case phoneQueue
 }
 
 /// A library the home screen lists under Downloads, picked top right: a
@@ -50,18 +52,15 @@ private enum HomeLibrary: Hashable {
 
 /// The watch's home: what's playing at the top, a card on its cover's
 /// gradient that opens its player (the iPhone's, in a player of its own,
-/// while the watch has nothing playing), then the library picked top
-/// right, led by Downloads
-/// (the count of songs here in its title): a music server's lists with
-/// search as the last row, or Audiobooks, the books on the watch and the
-/// servers' shelves of them. With the iPhone out of reach, what's on the
-/// watch leads instead: Downloads and the book last listened to, over the
-/// library. Settings is top left; while
-/// something's loaded, the bottom bar has play and pause on the right edge
-/// (double tap presses it), hidden while the list scrolls down. No title:
-/// the rows say what's what. Screens zoom out of the row that opens them.
-/// The widget opens it on Downloads or Now Playing. The first time there's
-/// music to fetch, it asks at what quality.
+/// while the watch has nothing playing), where play and pause are, then
+/// the library picked top right, led by Downloads (the count of songs here
+/// in its title): a music server's lists with search as the last row, or
+/// Audiobooks, the books on the watch and the servers' shelves of them.
+/// With the iPhone out of reach, what's on the watch leads instead:
+/// Downloads and the book last listened to, over the library. Settings is
+/// top left. No title: the rows say what's what. Screens zoom out of the
+/// row that opens them. The widget opens it on Downloads or Now Playing.
+/// The first time there's music to fetch, it asks at what quality.
 struct LibraryScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
@@ -72,7 +71,6 @@ struct LibraryScreen: View {
     @State private var path = NavigationPath()
     @State private var sheet: Sheet?
     @State private var hasAskedQuality = false
-    @State private var isBottomBarHidden = false
     @Namespace private var zoom
 
     private enum Sheet: String, Identifiable {
@@ -100,10 +98,10 @@ struct LibraryScreen: View {
         libraries.first { $0.rawValue == chosenSource } ?? libraries.first
     }
 
-    /// The card and the play button are the iPhone's while the watch has
-    /// nothing playing: nothing loaded here, paused while the iPhone plays,
-    /// or both paused and the iPhone the one that played last (or the only
-    /// one this launch).
+    /// The card is the iPhone's while the watch has nothing playing:
+    /// nothing loaded here, paused while the iPhone plays, or both paused
+    /// and the iPhone the one that played last (or the only one this
+    /// launch).
     private var showsPhone: Bool {
         guard let playing = phone.current, !player.isPlaying else { return false }
         if player.current == nil || playing.isPlaying { return true }
@@ -140,8 +138,6 @@ struct LibraryScreen: View {
                     noLibrary
                 }
             }
-            .modifier(HidesBottomBarScrollingDown(isHidden: $isBottomBarHidden))
-            .toolbar(isBottomBarHidden ? .hidden : .visible, for: .bottomBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -160,21 +156,6 @@ struct LibraryScreen: View {
                     }
                     .accessibilityLabel("Library")
                 }
-                // Play on the right edge (double tap presses it); Now
-                // Playing is the card at the top of the list.
-                ToolbarItemGroup(placement: .bottomBar) {
-                    if showsPhone {
-                        Spacer()
-                        PrimaryPlayButton(isPlaying: phone.current?.isPlaying == true) {
-                            phone.togglePlayPause()
-                        }
-                    } else if player.current != nil {
-                        Spacer()
-                        PrimaryPlayButton(isPlaying: player.isPlaying) {
-                            player.togglePlayPause()
-                        }
-                    }
-                }
             }
             // Each screen zooms out of the row or button that opened it.
             .navigationDestination(for: HomeRoute.self) { route in
@@ -188,6 +169,8 @@ struct LibraryScreen: View {
                         NowPlayingScreen()
                     case .phoneNowPlaying:
                         PhoneNowPlayingScreen()
+                    case .phoneQueue:
+                        PhoneQueueScreen()
                     }
                 }
                 .zoomDestination(route, in: zoom)
@@ -421,22 +404,6 @@ struct LibraryScreen: View {
     }
 }
 
-/// Play and pause what's playing, here or on the iPhone: the screen's
-/// primary action, so double tap (and the pinch on watches that have it)
-/// presses it.
-private struct PrimaryPlayButton: View {
-    let isPlaying: Bool
-    let toggle: () -> Void
-
-    var body: some View {
-        Button(action: toggle) {
-            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-        }
-        .accessibilityLabel(isPlaying ? "Pause" : "Play")
-        .primaryHandGesture()
-    }
-}
-
 extension View {
     /// Double tap presses this (watchOS 11).
     @ViewBuilder
@@ -445,38 +412,6 @@ extension View {
             handGestureShortcut(.primaryAction)
         } else {
             self
-        }
-    }
-}
-
-/// Hides the bottom bar while the list scrolls down and brings it back
-/// when it scrolls up or reaches the top, as iPhone toolbars minimize
-/// (watchOS 11 reports the scroll position; before that, it stays).
-private struct HidesBottomBarScrollingDown: ViewModifier {
-    @Binding var isHidden: Bool
-
-    func body(content: Content) -> some View {
-        if #available(watchOS 11.0, *) {
-            content.onScrollGeometryChange(for: CGFloat.self) { geometry in
-                geometry.contentOffset.y + geometry.contentInsets.top
-            } action: { previous, offset in
-                let hide: Bool
-                if offset < 12 {
-                    hide = false
-                } else if offset > previous + 2 {
-                    hide = true
-                } else if offset < previous - 2 {
-                    hide = false
-                } else {
-                    return
-                }
-                guard hide != isHidden else { return }
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isHidden = hide
-                }
-            }
-        } else {
-            content
         }
     }
 }

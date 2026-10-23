@@ -8,8 +8,8 @@ import WatchSync
 /// that moves while it plays, on the cover's own gradient
 /// (`WatchArtworkMesh`), as behind the iPhone's player. The home screen
 /// opens the player of the one it shows from it (`NowPlayingScreen` for
-/// the watch's, `PhoneNowPlayingScreen` for the iPhone's); play and pause
-/// stay on the bottom bar's right edge.
+/// the watch's, `PhoneNowPlayingScreen` for the iPhone's), where play and
+/// pause are.
 struct NowPlayingCard: View {
     @Environment(WatchPlayer.self) private var player
     @Environment(PhoneNowPlaying.self) private var phone
