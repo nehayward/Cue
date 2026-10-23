@@ -1,5 +1,5 @@
 {
-  "originHash" : "018d34583a292efc9df67053d8eecaddcb1d88203a830d1005a3cf1b5c911df7",
+  "originHash" : "e91f5ae7a7ac189b1c78dd1106860ec41bdc4f9db4adb0eeb0fbdf4a0c0c0746",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -29,39 +29,12 @@
       }
     },
     {
-      "identity" : "glur",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/joogps/Glur",
-      "state" : {
-        "revision" : "178af6499ed7957c7f91187fdee2b09d322f5b87",
-        "version" : "1.1.0"
-      }
-    },
-    {
       "identity" : "keyboardshortcuts",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sindresorhus/KeyboardShortcuts",
       "state" : {
         "revision" : "49c3fc04ea827f816df67843bfcc57286b47ff06",
         "version" : "3.0.1"
-      }
-    },
-    {
-      "identity" : "kingfisher",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/onevcat/Kingfisher",
-      "state" : {
-        "revision" : "ac632bd26a1c00f139ff62fd01806f21cf67325e",
-        "version" : "8.10.0"
-      }
-    },
-    {
-      "identity" : "mixpanel-swift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/mixpanel/mixpanel-swift",
-      "state" : {
-        "revision" : "c550cbef7654e59d06bf9c224ea25f681dea8975",
-        "version" : "4.4.0"
       }
     },
     {
@@ -89,15 +62,6 @@
       "state" : {
         "revision" : "a0cb0954ecb21e4e31b0070e6ed5674e8556685a",
         "version" : "1.6.0"
-      }
-    },
-    {
-      "identity" : "swiftybeaver",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SwiftyBeaver/SwiftyBeaver.git",
-      "state" : {
-        "revision" : "8cba041db09596183331d123f337d0eb2e6e8e91",
-        "version" : "2.1.1"
       }
     },
     {

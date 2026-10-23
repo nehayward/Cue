@@ -1,4 +1,3 @@
-import Analytics
 import SonosKit
 import SwiftUI
 
@@ -301,10 +300,8 @@ struct LocalDownloadMenuSection: View {
     /// full-screen cover.
     @MainActor
     static func offerSuperForDownloads(text: String = "\(DownloadManager.freeSongLimit) free downloads used", alertService: AlertService) {
-        Analytics.shared.track(.downloadLimitReached)
         alertService.showActionAlert(with: text, subtitle: "Tap for unlimited with Cue Super", imageName: "arrow.down.circle") {
             HapticManager.shared.fireHaptic(.buttonPress)
-            Analytics.shared.track(.viewedPaywall, with: ["source": "downloads"])
             Router.main.fullScreenCover(to: .paywall)
         }
     }

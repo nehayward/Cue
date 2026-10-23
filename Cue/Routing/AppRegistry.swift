@@ -1,4 +1,3 @@
-import Analytics
 import RevenueCatUI
 import SubscriptionKit
 import SonosKit

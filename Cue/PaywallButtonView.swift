@@ -1,4 +1,3 @@
-import Analytics
 import NukeUI
 import SwiftUI
 import SonosKit
@@ -61,7 +60,6 @@ struct PaywallButtonView: View {
 
     private func tap() {
         HapticManager.shared.fireHaptic(.buttonPress)
-        Analytics.shared.track(.viewedPaywall)
         router?.presentedFullScreenCover = .paywall
     }
 

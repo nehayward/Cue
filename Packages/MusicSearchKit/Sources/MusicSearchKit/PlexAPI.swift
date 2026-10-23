@@ -1,6 +1,5 @@
 import Foundation
 import os
-import SwiftyBeaver
 
 @Observable
 public final class PlexAPI {
@@ -8,7 +7,7 @@ public final class PlexAPI {
     @ObservationIgnored private let session: URLSession
     @ObservationIgnored private let decoder: JSONDecoder
     @ObservationIgnored private let parser = PlexParser()
-    @ObservationIgnored private let logger = SwiftyBeaver.self
+    @ObservationIgnored private let logger = Logger(subsystem: "dance.cue", category: "plex")
 
     // MARK: - Connection cache
     // `plexServer`, `resolvedBaseURL`, and `resolvedBaseURLByServer` are read
@@ -125,21 +124,6 @@ public final class PlexAPI {
         self.decoder = decoder
         self.decoder.dateDecodingStrategy = .secondsSince1970
 
-        // Optimize logging configuration
-        let console = ConsoleDestination()
-        console.format = "$C$L$c $M" // Simplified format for console
-        
-        let file = FileDestination()
-        file.format = "$J"
-        file.logFileMaxSize = (1 * 1024 * 1024)
-        file.asynchronously = true // Async logging to avoid blocking
-        
-        // Only add destinations in debug builds to reduce overhead
-        #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.addDestination(console)
-        logger.addDestination(file)
-        #endif
-        
         self.librarySelectionID = UserDefaults.standard.string(forKey: "com.cue.plexServer.library")
         self.serverID = UserDefaults.standard.string(forKey: "com.cue.plexServer")
     }
@@ -479,8 +463,7 @@ public final class PlexAPI {
         }
 
         guard var search = getBaseURL(for: plexServer)?.appending(path: "hubs/search") else {
-            logger.warning("Token: \(token)")
-            logger.warning("Plex invalid url \(plexServer.name)")
+            logger.warning("Plex invalid url \(plexServer.name, privacy: .public)")
             return nil
         }
         
@@ -559,7 +542,7 @@ public final class PlexAPI {
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.info(plexServer)
+        logger.info("\(String(describing: plexServer))")
         #endif
 
         guard var playlistsURL = getBaseURL(for: plexServer)?.appending(path: "playlists") else { return [] }
@@ -612,7 +595,7 @@ public final class PlexAPI {
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.info(plexServer)
+        logger.info("\(String(describing: plexServer))")
         #endif
         
         // Get and cache music library section if needed
@@ -664,7 +647,7 @@ public final class PlexAPI {
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.info(plexServer)
+        logger.info("\(String(describing: plexServer))")
         #endif
         
         // Get and cache music library section if needed
@@ -975,7 +958,7 @@ public final class PlexAPI {
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.info(plexServer)
+        logger.info("\(String(describing: plexServer))")
         #endif
         
         // Get and cache music library section if needed
@@ -1082,7 +1065,7 @@ public final class PlexAPI {
                 .first { $0.type == "artist" }
             return musicSection?.key
         } catch {
-            logger.error(error)
+            logger.error("\(String(describing: error), privacy: .public)")
             return nil
         }
     }
@@ -1169,20 +1152,20 @@ public final class PlexAPI {
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.info(String(decoding: data, as: UTF8.self))
+        logger.info("\(String(decoding: data, as: UTF8.self))")
         #endif
         
         do {
             let container = try decoder.decode(PlexContainer<PlexLibrarySectionContainer>.self, from: data)
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            logger.info(container)
+            logger.info("\(String(describing: container))")
             #endif
             let libraries = container.mediaContainer.Directory
                 .sorted(by: { $0.key < $1.key })
                 .filter { $0.type == "artist" }
             return libraries
         } catch {
-            logger.error(error)
+            logger.error("\(String(describing: error), privacy: .public)")
             return []
         }
     }
@@ -1226,7 +1209,7 @@ public final class PlexAPI {
             }
             return artists
         } catch {
-            logger.error(error)
+            logger.error("\(String(describing: error), privacy: .public)")
             return []
         }
     }
@@ -1260,20 +1243,20 @@ public final class PlexAPI {
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.info(String(decoding: data, as: UTF8.self))
+        logger.info("\(String(decoding: data, as: UTF8.self))")
         #endif
         
         do {
             let container = try decoder.decode(PlexContainer<PlexLibrarySectionContainer>.self, from: data)
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            logger.info(container)
+            logger.info("\(String(describing: container))")
             #endif
             let libraries = container.mediaContainer.Directory
                 .sorted(by: { $0.key < $1.key })
                 .filter { $0.type == "artist" }
             return libraries
         } catch {
-            logger.error(error)
+            logger.error("\(String(describing: error), privacy: .public)")
             return nil
         }
     }
@@ -1705,7 +1688,7 @@ public final class PlexAPI {
         do {
             let plexServers = try decoder.decode([PlexServer].self, from: data)
             #if MUSICSEARCHKIT_VERBOSE_LOGGING
-            logger.info(plexServers)
+            logger.info("\(String(describing: plexServers))")
             #endif
             
             return plexServers.filter { $0.accessToken != nil }

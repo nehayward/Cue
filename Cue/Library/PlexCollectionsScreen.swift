@@ -1,5 +1,4 @@
 import Defaults
-import Glur
 import MusicSearchKit
 import Nuke
 import NukeUI
@@ -436,12 +435,11 @@ struct PlexCollectionScreen: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: heroHeight)
-                LazyImage(request: heroRequest) { phase in
+                LazyImage(request: heroRequest.withBlurredFoot) { phase in
                     if let image = phase.image {
                         image
                             .resizable()
                             .scaledToFill()
-                            .glur(radius: 30, offset: 0.6, interpolation: 0.4, direction: .down, noise: 0.1, drawingGroup: false)
                             .frame(maxWidth: heroCoverWidth, maxHeight: heroHeight)
                             .clipped()
                     }
