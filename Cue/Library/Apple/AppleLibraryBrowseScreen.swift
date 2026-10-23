@@ -27,6 +27,8 @@ struct AppleLibraryBrowseScreen: View {
         
         NavigationStack(path: $router.path) {
             List {
+                // Above the library, a section of its own.
+                MusicLeftOffSection()
                 ForEach(configStore.configuration.visibleSections(), id: \.self) { section in
                     sectionView(for: section)
                 }
@@ -155,7 +157,8 @@ struct AppleLibraryBrowseScreen: View {
                         .fontDesign(.rounded)
                         .fontWeight(.semibold)
                 }
-                .tag(UUID().uuidString)
+                // Stable: a fresh UUID re-tagged the row on every pass.
+                .tag("appleRecentlyPlayedHeader")
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 

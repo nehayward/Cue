@@ -1,5 +1,5 @@
 import AppIntents
-import CloudStorage
+import Defaults
 import SonosKit
 
 struct SetSpeechLevelIntent: LiveActivityIntent {
@@ -28,8 +28,8 @@ struct SetSpeechLevelIntent: LiveActivityIntent {
     init() { }
 
     func perform() async throws -> some IntentResult & ReturnsValue<Int> {
-        guard CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false else {
-            throw IntentError.message("Subscribe to Super in App")
+        guard GroupStorageKeys.defaults.hasSuper else {
+            throw IntentError.superRequired
         }
 
         // Levels are Arc Ultra only — say so without a round trip when we know the model.

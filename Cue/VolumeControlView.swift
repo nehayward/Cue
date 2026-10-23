@@ -5,6 +5,8 @@ import VibesDS
 struct VolumeControlView: View {
     @Bindable var group: GroupRoom
     var delayDrag: Bool = false
+    /// Begin on touch-down, as the player's sliders do (`VibeSlider`).
+    var immediateDrag: Bool = false
     @State private var isEditing: Bool = false
     /// The level the drag most recently asked for, not yet sent.
     @State private var pendingVolume: Int?
@@ -39,7 +41,7 @@ struct VolumeControlView: View {
             .accessibilityLabel("Volume Down")
 
             // Called on every drag tick, not only at the start and end.
-            VibeSlider(value: $group.groupVolume, baseHeight: sliderHeight, delayDrag: delayDrag, showValue: true) { isEditing in
+            VibeSlider(value: $group.groupVolume, baseHeight: sliderHeight, delayDrag: delayDrag, immediateDrag: immediateDrag, showValue: true) { isEditing in
                 if group.isMuted {
                     Task {
                         await SonosService.shared.setGroupMute(group: group, mute: false)
@@ -59,6 +61,9 @@ struct VolumeControlView: View {
                 if !isEditing, volumeTask == nil { lastSentVolume = nil }
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
+                    // A drag that began within the 2 s keeps its hold: with
+                    // the write only on a change, nothing else sets it back.
+                    guard self.isEditing == isEditing else { return }
                     group.isEditingVolume = isEditing
                 }
             }

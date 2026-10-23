@@ -32,10 +32,16 @@ struct PreferenceScreen: View {
 
     @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(Defaults.AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
+    @AppStorage(Defaults.AppStorageKeys.showAudiobooksTab) private var showAudiobooksTab: Bool = true
     @AppStorage(Defaults.AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     @AppStorage(Defaults.AppStorageKeys.routeQueueTransfer) private var routeQueueTransfer: QueueTransferPreference = .ask
     @AppStorage(Defaults.AppStorageKeys.lyricsOnlineLookup) private var lyricsOnlineLookup: Bool = false
+#if DEBUG
+    // Off until it's known whether the car's Now Playing follows without it
+    // (`CarPlayInterface.start`).
+    @AppStorage(Defaults.AppStorageKeys.carPlayMiniPlayer) private var carPlayMiniPlayer: Bool = false
+#endif
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
@@ -912,13 +918,24 @@ struct PreferenceScreen: View {
                 }
 
 #if DEBUG
-                Section("Debug") {
+                Section {
                     NavigationLink {
                         FeatureGateDebugView()
                             .withEnvironments()
                     } label: {
                         Label("Feature Gates", systemImage: "lock.open")
                     }
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                    Toggle(isOn: $carPlayMiniPlayer) {
+                        Label("CarPlay MiniPlayer", systemImage: "car")
+                    }
+#endif
+                } header: {
+                    Text("Debug")
+                } footer: {
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                    Text("Off (the default in Debug builds for now) hides the MiniPlayer in CarPlay, to see whether the car's Now Playing then follows Cue's own player after Apple Music. Takes effect the next time the car connects.")
+#endif
                 }
 #endif
             }
@@ -940,7 +957,7 @@ struct PreferenceScreen: View {
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
         .withAlert()
         .task {
-            try? await subscriptionService.checkSubscription()
+            await subscriptionService.checkSubscription()
             libraryShare = await sonosService.libraryShare()
 #if DEBUG
             servers = await sonosService.services()
@@ -1066,10 +1083,14 @@ struct PreferenceScreen: View {
 
     private var subscriptionStatusLine: Text {
         let info = subscriptionService.subscription.info
-        let plan = info.flatMap { planName(for: $0.productIdentifier) }
+        var plan = info.flatMap { planName(for: $0.productIdentifier) }
 
         if plan == "Lifetime" {
             return Text("Lifetime")
+        }
+        // "Annual Free Trial · Renews …": the renewal is the first payment.
+        if info?.isTrial == true {
+            plan = [plan, "Free Trial"].compactMap { $0 }.joined(separator: " ")
         }
         if let info, let expiration = info.expirationDate {
             let dateText = Text(expiration, style: .date)
@@ -1114,6 +1135,29 @@ struct PreferenceScreen: View {
                         .background(
                             RoundedRectangle(cornerRadius: 8)
                                 .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.35, blue: 0.45), Color(red: 0.8, green: 0.2, blue: 0.35)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        )
+                        .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                }
+            }
+            Toggle(isOn: $showAudiobooksTab) {
+                Label {
+                    VStack(alignment: .leading) {
+                        Text("Show Audiobooks Tab")
+                        Text("The book you're listening to, ready to resume, and every book on Plex and Audiobookshelf. Hidden on its own while offline.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "book.fill")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white)
+                        .bold()
+                        .padding(8)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(LinearGradient(colors: [Color(red: 0.98, green: 0.6, blue: 0.2), Color(red: 0.9, green: 0.42, blue: 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
                         )
                         .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                 }

@@ -41,6 +41,14 @@ final class DownloadNamingTests: XCTestCase {
         XCTAssertEqual(parsed?.fileExtension, "flac")
     }
 
+    func testTaskDescriptionKeepsAKeyWithASeparatorInIt() {
+        // An Audiobookshelf book's file: `<item>|<index>|<file>`.
+        let key = "audiobookshelf-f462edc5|1|203813"
+        let parsed = DownloadNaming.parseTaskDescription(DownloadNaming.taskDescription(key: key, fileExtension: "mp3"))
+        XCTAssertEqual(parsed?.key, key)
+        XCTAssertEqual(parsed?.fileExtension, "mp3")
+    }
+
     func testTaskDescriptionRejectsMalformedValues() {
         XCTAssertNil(DownloadNaming.parseTaskDescription(nil))
         XCTAssertNil(DownloadNaming.parseTaskDescription(""))

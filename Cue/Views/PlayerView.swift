@@ -458,7 +458,13 @@ struct PlayerView: View {
         // Music has it — named by the station or by Shazam.
         let target = group == nil ? (playback.onAirMatch ?? item) : item
 
-        originLine(item)
+        // A book's line is the chapter playing, and opens its chapters.
+        if AudiobookPlayer.shared.isPlayingBook(on: controller), (AudiobookPlayer.shared.current?.chapters.count ?? 0) > 1 {
+            AudiobookChapterLine()
+                .frame(height: 12)
+        } else {
+            originLine(item)
+        }
         PlayerSongTitleButton(
             title: item?.title ?? (controller.isActive ? "" : "Not Playing"),
             target: target,
@@ -522,7 +528,7 @@ struct PlayerView: View {
     @ViewBuilder
     private var volumeRow: some View {
         if let group {
-            VolumeControlView(group: group)
+            VolumeControlView(group: group, immediateDrag: true)
         } else {
             LocalVolumeControlView()
         }
@@ -568,7 +574,7 @@ struct PlayerView: View {
         .transition(.opacity)
 
         VStack {
-            VolumeControlView(group: group)
+            VolumeControlView(group: group, immediateDrag: true)
                 .padding(.bottom, 20)
                 .padding(.horizontal, -12)
                 .frame(maxWidth: 500)
@@ -1055,6 +1061,7 @@ private struct PlayerScrubber: View {
                     step: 1,
                     baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24,
                     delayDrag: false,
+                    immediateDrag: true,
                     valueAnimation: nil
                 ) { isEditing in
                     scrubbingChanged(isEditing, on: controller)
@@ -1078,12 +1085,19 @@ private struct PlayerScrubber: View {
                     Text(elapsed.formatted(.time(pattern: pattern)))
                         .contentTransition(.identity)
                     Spacer()
-                    // Lossless / Atmos / bit depth, as far as the backend or
-                    // the speaker says.
-                    AudioInfoView(quality: controller.audioQuality)
-                        .frame(height: 12)
-                        .contentTransition(.identity)
-                        .animation(.spring, value: controller.audioQuality)
+                    // A book: what's left of the chapter, or of the book (a
+                    // tap switches them). Anything else: lossless
+                    // / Atmos / bit depth, as far as the backend or the speaker
+                    // says.
+                    if AudiobookPlayer.shared.isPlayingBook(on: controller) {
+                        AudiobookTimeLeft()
+                            .frame(height: 12)
+                    } else {
+                        AudioInfoView(quality: controller.audioQuality)
+                            .frame(height: 12)
+                            .contentTransition(.identity)
+                            .animation(.spring, value: controller.audioQuality)
+                    }
                     Spacer()
                     Text("-\(remaining.formatted(.time(pattern: pattern)))")
                         .contentTransition(.identity)
@@ -1183,23 +1197,33 @@ private struct PlayerTransportView: View {
         // A load that's over in a moment doesn't pulse; one that keeps the
         // song waiting does (see `sustainedPulse`).
         let isLoading = controller.isLoading
+        // A book's chapters run far too long to move through by file:
+        // Previous and Next skip back and forward instead.
+        let isBook = AudiobookPlayer.shared.isPlayingBook(on: controller)
+        let showsPrevious = isBook || controller.showsPrevious
+        let showsNext = isBook || controller.showsNext
 
         HStack {
-            if controller.showsPrevious {
+            if showsPrevious {
                 Button {
-                    skip(.previous)
+                    if isBook {
+                        skipBook(by: -AudiobookPlayer.skipBackInterval)
+                    } else {
+                        skip(.previous)
+                    }
                 } label: {
-                    Image(systemName: "backward.fill")
+                    Image(systemName: isBook ? "gobackward.\(Int(AudiobookPlayer.skipBackInterval))" : "backward.fill")
                         .resizable()
                         .scaledToFit()
+                        .fontWeight(isBook ? .regular : nil)
                         .frame(width: skipSize, height: skipSize)
                 }
                 .buttonStyle(.liveActivity)
-                .accessibilityLabel("Previous")
-                .disabled(!controller.canGoBack)
+                .accessibilityLabel(isBook ? "Back \(Int(AudiobookPlayer.skipBackInterval)) Seconds" : "Previous")
+                .disabled(!isBook && !controller.canGoBack)
 
                 Spacer()
-            } else if controller.showsNext {
+            } else if showsNext {
                 // Holds Previous's place so Play stays centred.
                 Color.clear
                     .frame(width: skipSize, height: skipSize)
@@ -1225,27 +1249,38 @@ private struct PlayerTransportView: View {
             .keyboardShortcut(.space, modifiers: [])
             #endif
 
-            if controller.showsNext {
+            if showsNext {
                 Spacer()
 
                 Button {
-                    skip(.next)
+                    if isBook {
+                        skipBook(by: AudiobookPlayer.skipForwardInterval)
+                    } else {
+                        skip(.next)
+                    }
                 } label: {
-                    Image(systemName: "forward.fill")
+                    Image(systemName: isBook ? "goforward.\(Int(AudiobookPlayer.skipForwardInterval))" : "forward.fill")
                         .resizable()
                         .scaledToFit()
+                        .fontWeight(isBook ? .regular : nil)
                         .frame(width: skipSize, height: skipSize)
                 }
                 .buttonStyle(.liveActivity)
-                .accessibilityLabel("Next")
-                .disabled(!controller.hasNext)
+                .accessibilityLabel(isBook ? "Forward \(Int(AudiobookPlayer.skipForwardInterval)) Seconds" : "Next")
+                .disabled(!isBook && !controller.hasNext)
             }
         }
-        .frame(maxWidth: controller.showsNext ? (isProminent ? 320 : 300) : nil)
+        .frame(maxWidth: showsNext ? (isProminent ? 320 : 300) : nil)
         .padding(.horizontal, isProminent ? 36 : 60)
         // Nothing loaded, or a hand-off holding the player: there, so the
         // player keeps its shape, but nothing to press.
         .disabled(!controller.isActive)
+    }
+
+    /// Skips through the book, across its files.
+    private func skipBook(by seconds: TimeInterval) {
+        HapticManager.shared.fireHaptic(.selection)
+        Task { await AudiobookPlayer.shared.skip(by: seconds) }
     }
 
     /// Skips on whatever is on screen. Instant on both: this device moves at
@@ -1314,6 +1349,7 @@ private struct LocalVolumeControlView: View {
                 step: 1,
                 baseHeight: sliderHeight,
                 delayDrag: false,
+                immediateDrag: true,
                 showValue: true
             ) { editing in
                 if !editing { dragging = nil }
@@ -1398,14 +1434,16 @@ private struct PlayerBottomToolbarView: View {
 
     private var route: PlaybackRoute { .shared }
 
-    /// The group the route picker plays on, or `nil` on this device. The
-    /// group on screen first, then the route's, so a solo room reads too.
-    /// While a hand-off holds the player on its source, where it's going.
+    /// The group the route picker plays on. The group on screen first, then
+    /// the route's, so a solo room reads too. On this device, the AirPods,
+    /// car or AirPlay receiver it plays through, so it's plain that
+    /// Bluetooth is on; nothing on the phone's own speaker. While a hand-off
+    /// holds the player on its source, where it's going.
     private var routeName: String? {
         if route.isHolding {
             return "Moving to \(route.group?.nameWithCount ?? "This Device")…"
         }
-        return (group ?? route.group)?.nameWithCount
+        return (group ?? route.group)?.nameWithCount ?? AudioOutputName.shared.name
     }
 
     var body: some View {
@@ -1432,12 +1470,12 @@ private struct PlayerBottomToolbarView: View {
                         .frame(maxWidth: .infinity)
                 }
 
-                // The speaker it plays on, on its own line under the route
-                // picker. Laid out here rather than in the picker's label:
-                // iOS flattens a Menu's label, and an overlay on the Menu
-                // gets clipped by the button behind it. The whole row's width,
-                // centred under the button: nothing else is on this line, and
-                // a third of it cut most group names short.
+                // The speaker or headphones it plays on, on its own line
+                // under the route picker. Laid out here rather than in the
+                // picker's label: iOS flattens a Menu's label, and an overlay
+                // on the Menu gets clipped by the button behind it. The whole
+                // row's width, centred under the button: nothing else is on
+                // this line, and a third of it cut most group names short.
                 Text(routeName ?? " ")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -1595,9 +1633,23 @@ private struct LocalPlayerMenuView: View {
     private var song: PlayableContent { playback.onAirMatch ?? item }
 
     var body: some View {
+        // A book's file: chapters and speed rather than album, artist,
+        // playlists, shuffle and repeat, none of which mean much for one.
+        let isBook = AudiobookPlayer.shared.contains(item)
         Menu {
+            if isBook {
+                AudiobookPlayerMenuItems(isOnDevice: true)
+            }
+            // A book and the music it was started over, each one tap from
+            // the other.
+            Section {
+                BookMusicSwitchMenuItems(isBook: isBook)
+            }
+            if isBook {
+                Divider()
+            }
             OpenInServiceView(item: song)
-            if song.content.service.supportsViewArtistAlbum {
+            if song.content.service.supportsViewArtistAlbum, !isBook {
                 Button {
                     router.sheet(to: .mediaDetail(content: song, group: nil))
                 } label: {
@@ -1612,7 +1664,7 @@ private struct LocalPlayerMenuView: View {
             }
 
             // A station itself can't go in a playlist; the song on it can.
-            if !song.content.type.isRadio {
+            if !song.content.type.isRadio, !isBook {
                 Divider()
                 AddToLastPlaylistButton(itemToAdd: song)
                 Button {
@@ -1630,32 +1682,41 @@ private struct LocalPlayerMenuView: View {
             LocalDownloadMenuSection(item: item)
 
             ControlGroup {
-                Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    playback.setShuffle(!playback.isShuffled)
-                } label: {
-                    Label(playback.isShuffled ? "Shuffle On" : "Shuffle Off", systemImage: "shuffle")
-                }
-                .menuActionDismissBehavior(.disabled)
-                .tint(playback.isShuffled ? .accent : .secondary)
-                .disabled(!playback.isShuffled && playback.upNextCount < 2)
+                if !isBook {
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        playback.setShuffle(!playback.isShuffled)
+                    } label: {
+                        Label(playback.isShuffled ? "Shuffle On" : "Shuffle Off", systemImage: "shuffle")
+                    }
+                    .menuActionDismissBehavior(.disabled)
+                    .tint(playback.isShuffled ? .accent : .secondary)
+                    .disabled(!playback.isShuffled && playback.upNextCount < 2)
 
-                Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    playback.setRepeatMode(playback.repeatMode.next)
-                } label: {
-                    Label(playback.repeatMode.title, systemImage: playback.repeatMode.systemImage)
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        playback.setRepeatMode(playback.repeatMode.next)
+                    } label: {
+                        Label(playback.repeatMode.title, systemImage: playback.repeatMode.systemImage)
+                    }
+                    .menuActionDismissBehavior(.disabled)
+                    .tint(playback.repeatMode == .off ? .secondary : .accent)
                 }
-                .menuActionDismissBehavior(.disabled)
-                .tint(playback.repeatMode == .off ? .secondary : .accent)
 
+                // Any other choice puts End of Chapter away, or it would
+                // move the new timer back to the chapter's end.
                 TimerMenuView(sheetRouter: router, onSelect: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.sleepTimer($0)
                 }, onClear: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.cancelSleepTimer()
                 }, onSleepAtEndOfTrack: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.sleepAtEndOfTrack()
-                }) {
+                }, onSleepAtEndOfChapter: isBook ? {
+                    await AudiobookPlayer.shared.sleepAtEndOfChapter()
+                } : nil, sleepsAtEndOfChapter: AudiobookPlayer.shared.sleepsAt != nil) {
                     Label("Sleep Timer", systemImage: "deskclock.fill")
                 }
             }

@@ -69,7 +69,7 @@ struct ProviderLibrary {
         case .library: libraryDestination(for: collection)
         case .plex: plexDestination(for: collection)
         case .files: Self.filesDestination(for: collection)
-        case .tidal, .tuneIn, .sonosRadio, .pandora: nil
+        case .tidal, .tuneIn, .sonosRadio, .pandora, .audiobookshelf: nil
         }
     }
 

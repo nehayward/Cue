@@ -287,6 +287,8 @@ public final class MusicSearchService {
                             await self.searchPandora(query: capturedQuery)
                         case .subsonic:
                             await self.searchSubsonic(query: capturedQuery)
+                        case .audiobookshelf:
+                            await self.searchAudiobookshelf(query: capturedQuery)
                         case .files:
                             await self.searchFiles(query: capturedQuery)
                         }
@@ -501,19 +503,40 @@ public final class MusicSearchService {
     // MARK: - Playlist Management
 
     /// The user's editable Apple Music library playlists, as `PlayableContent`.
+    ///
+    /// Apple caps `/me/library/playlists` at 100 items per page, so this follows the `next` link
+    /// until the library is exhausted — otherwise anyone with more than 100 playlists would never
+    /// see the rest in the Add to Playlist sheet.
     public func appleUserPlaylists() async -> [PlayableContent] {
-        guard let container = try? await apple.getUserPlaylists(limit: 100) else { return [] }
-        return container.data.compactMap { item in
-            guard let name = item.attributes.name else { return nil }
-            return PlayableContent(
-                title: name,
-                subtitle: "",
-                thumbnail: item.attributes.artwork?.urlWithSize(width: 100, height: 100),
-                artwork: item.attributes.artwork?.urlWithSize(width: 600, height: 600),
-                content: MediaContent(service: .apple, id: item.id, type: .libraryPlaylist, location: nil),
-                metadata: .init()
-            )
+        let pageSize = 100
+        // Safety valve against a server that keeps handing back a `next` link: 50 pages is 5,000
+        // playlists, far beyond any real library.
+        let maxPages = 50
+
+        var results: [PlayableContent] = []
+        var offset = 0
+        for _ in 0..<maxPages {
+            guard let container = try? await apple.getUserPlaylists(offset: offset, limit: pageSize) else { break }
+            results.append(contentsOf: container.data.compactMap { item in
+                guard let name = item.attributes.name else { return nil }
+                return PlayableContent(
+                    title: name,
+                    subtitle: "",
+                    thumbnail: item.attributes.artwork?.urlWithSize(width: 100, height: 100),
+                    artwork: item.attributes.artwork?.urlWithSize(width: 600, height: 600),
+                    content: MediaContent(service: .apple, id: item.id, type: .libraryPlaylist, location: nil),
+                    metadata: .init()
+                )
+            })
+            guard !container.data.isEmpty, let next = container.next else { break }
+            // `next` is a relative path like `/v1/me/library/playlists?offset=100`. Fall back to
+            // stepping by page size if the offset can't be read, and stop if it doesn't advance.
+            let nextOffset = URLComponents(string: next)?.queryItems?
+                .first(where: { $0.name == "offset" })?.value.flatMap(Int.init) ?? (offset + pageSize)
+            guard nextOffset > offset else { break }
+            offset = nextOffset
         }
+        return results
     }
 
     /// Creates a new Apple Music library playlist, optionally seeded with `track`.
@@ -2104,9 +2127,10 @@ public final class MusicSearchService {
 
     private func plexRatingKey(from trackID: String) -> String? {
         let decoded = trackID.removingPercentEncoding ?? trackID
-        // Format: clientID:3:ratingKey
-        guard let separatorRange = decoded.range(of: ":3:") else { return nil }
-        return String(decoded[separatorRange.upperBound...])
+        // Format: clientID:3:ratingKey. Read past any number in the middle,
+        // not only 3, the same shape `MusicServiceParser` takes the id in.
+        guard let match = decoded.firstMatch(of: #/:\d+:(\d+)/#) else { return nil }
+        return String(match.1)
     }
     
     public func getSoundCloudLikedPlaylists(cursor: String? = nil) async -> (playlists: [PlayableContent], nextCursor: String?) {
@@ -2567,6 +2591,25 @@ public final class MusicSearchService {
         return await sortContentByIntelligentSearch(playableContent: content, query: query)
     }
 
+    /// Books matching a query, in each of the listener's book libraries.
+    private func searchAudiobookshelf(query: String) async -> [PlayableContent] {
+        let shelf = AudiobookshelfAPI.shared
+        guard shelf.isConfigured, let libraries = await shelf.libraries() else { return [] }
+        // Every library at once, kept in the server's order.
+        let found = await withTaskGroup(of: (Int, [PlayableContent]).self) { group in
+            for (index, library) in libraries.enumerated() {
+                group.addTask { (index, await shelf.search(libraryID: library.id, query: query).map(\.toPlayable)) }
+            }
+            var found: [Int: [PlayableContent]] = [:]
+            for await (index, books) in group {
+                found[index] = books
+            }
+            return found
+        }
+        let books = found.keys.sorted().flatMap { found[$0] ?? [] }
+        return await sortContentByIntelligentSearch(playableContent: books, query: query)
+    }
+
     public func lookupSubsonicTrack(with id: String) async -> PlayableContent? {
         await subsonic.song(for: id)?.toPlayable
     }
@@ -2643,6 +2686,41 @@ public final class MusicSearchService {
             return nil
         }
         return songs.isEmpty ? nil : songs
+    }
+
+    /// What an Apple Music artist plays as on a speaker: their albums oldest
+    /// first, as the artist page's Discography plays them. A library artist
+    /// plays the library's albums, or its songs when it has no albums of its
+    /// own. Apple Music has no artist container on Sonos, so the artist's own
+    /// URI is empty and the speaker turns it down (UPnP 804). `nil` for an
+    /// artist Sonos queues itself (Plex) or that `containerTracks` expands.
+    public func artistContents(for content: PlayableContent) async -> [PlayableContent]? {
+        // "yyyy-MM-dd" sorts as text; undated ones go last.
+        func released(_ item: AppleLibraryItem) -> String { item.attributes.releaseDate ?? "~" }
+        let id = content.content.id
+        switch (content.content.type, content.content.service) {
+        case (.libraryArtist, .apple):
+            let albums = await appleLibraryArtistAlbumLookup(id: id)?.data ?? []
+            guard albums.isEmpty else {
+                return albums.sorted { released($0) < released($1) }.compactMap(\.toPlayable)
+            }
+            // Album by album, in track order.
+            return await apple.librarySongs(byArtist: content.title)
+                .sorted {
+                    (released($0), $0.attributes.albumName ?? "", $0.attributes.trackNumber ?? 0)
+                        < (released($1), $1.attributes.albumName ?? "", $1.attributes.trackNumber ?? 0)
+                }
+                .compactMap(\.toPlayable)
+        case (.artist, .apple):
+            let artist: Artist? = try? await lookup(id: id)
+            let albums = (artist?.albums ?? []).map(\.toPlayable)
+                .sorted { ($0.metadata?.albumYear ?? .distantFuture) < ($1.metadata?.albumYear ?? .distantFuture) }
+            // Singles only when the artist has nothing else.
+            let full = albums.filter { $0.metadata?.isSingle != true }
+            return full.isEmpty ? albums : full
+        default:
+            return nil
+        }
     }
 
     /// The tracks inside a direct-HTTP service's container, in play order —

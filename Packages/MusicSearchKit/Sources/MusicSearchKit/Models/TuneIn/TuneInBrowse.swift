@@ -47,23 +47,32 @@ public enum TuneInBrowsePage: Hashable, Sendable {
     case talk
     /// The directory by region ("r0" is the world).
     case byLocation
+    /// The local page for a point rather than for the caller: the Radio
+    /// map's Search This Area. `latlon` stands in for the IP.
+    case nearby(latitude: Double, longitude: Double)
     case id(String)
 
-    var queryItem: URLQueryItem {
+    var queryItems: [URLQueryItem] {
         switch self {
-        case .local: URLQueryItem(name: "c", value: "local")
-        case .trending: URLQueryItem(name: "c", value: "trending")
-        case .music: URLQueryItem(name: "c", value: "music")
-        case .sports: URLQueryItem(name: "c", value: "sports")
-        case .talk: URLQueryItem(name: "c", value: "talk")
-        case .byLocation: URLQueryItem(name: "id", value: "r0")
-        case .id(let id): URLQueryItem(name: "id", value: id)
+        case .local: [URLQueryItem(name: "c", value: "local")]
+        case .trending: [URLQueryItem(name: "c", value: "trending")]
+        case .music: [URLQueryItem(name: "c", value: "music")]
+        case .sports: [URLQueryItem(name: "c", value: "sports")]
+        case .talk: [URLQueryItem(name: "c", value: "talk")]
+        case .byLocation: [URLQueryItem(name: "id", value: "r0")]
+        case let .nearby(latitude, longitude):
+            [
+                URLQueryItem(name: "c", value: "local"),
+                // Four places is about 10 m, closer than any station needs.
+                URLQueryItem(name: "latlon", value: String(format: "%.4f,%.4f", latitude, longitude)),
+            ]
+        case .id(let id): [URLQueryItem(name: "id", value: id)]
         }
     }
 
     public var url: URL {
         var url = URL(string: "https://opml.radiotime.com/Browse.ashx")!
-        url.append(queryItems: [queryItem])
+        url.append(queryItems: queryItems)
         return url
     }
 }

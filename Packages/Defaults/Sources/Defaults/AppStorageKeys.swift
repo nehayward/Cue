@@ -59,6 +59,19 @@ public enum AppStorageKeys {
     /// Whether the Radio tab shows at all. On when unset; the tab also
     /// needs a radio provider switched on, and hides itself offline.
     public static let showRadioTab = "\(Prefix.id).showRadioTab"
+    /// Whether the Audiobooks tab shows at all. On when unset; the tab also
+    /// needs books on Plex or an Audiobookshelf sign-in, and hides itself
+    /// offline.
+    public static let showAudiobooksTab = "\(Prefix.id).showAudiobooksTab"
+    /// The selected Plex server had books the last time it was asked
+    /// (`PlexAPI.hasAudiobooks()`), so the Audiobooks tab shows at launch
+    /// without waiting on the server.
+    public static let hasPlexAudiobooks = "\(Prefix.id).hasPlexAudiobooks"
+    /// Whether a book's time left is the whole book's ("14h 24m left in
+    /// book") rather than the chapter's, in the player and the mini player.
+    /// A tap on the player's time left switches it. The chapter's when
+    /// unset.
+    public static let audiobookTimeLeftShowsBook = "\(Prefix.id).audiobookTimeLeftShowsBook"
     /// How the library's album lists are laid out — `"list"` (rows) or
     /// `"grid"` (artwork tiles). One setting for every provider's Albums
     /// page, so a choice made on Plex holds on Subsonic. Rows when unset.
@@ -108,6 +121,11 @@ public enum AppStorageKeys {
     /// points]` — so it opens at its height rather than growing to it once
     /// the rows are measured.
     public static let playOnSheetHeights = "\(Prefix.id).playOnSheetHeights"
+    /// Whether the car shows iOS 27's MiniPlayer for Cue: when unset, off in
+    /// Debug builds and on in release ones. A Debug switch for now: whether
+    /// the car's Now Playing follows Cue's own player after Apple Music
+    /// without it (FB24840951).
+    public static let carPlayMiniPlayer = "\(Prefix.id).carPlayMiniPlayer"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
     public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
     public static let lastPlaylistService = "\(Prefix.id).lastPlaylistService"

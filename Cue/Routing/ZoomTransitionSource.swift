@@ -18,6 +18,9 @@ public enum ZoomTransitionSource: Hashable {
     /// The Play On button. Opens `PlayOnSheet`, which morphs out of it the
     /// way the system's AirPlay picker grows out of its button.
     case playOn
+    /// The map tile on the Radio tab. Opens `RadioMapScreen`, the same map
+    /// grown to fill the screen.
+    case radioMap
 }
 
 extension EnvironmentValues {

@@ -57,7 +57,11 @@ if ! xcodebuild \
 	-derivedDataPath "$DERIVED_DATA" \
 	-allowProvisioningUpdates \
 	build >"$LOG" 2>&1; then
-	grep -E "error:" "$LOG" | sort -u | head -40 >&2 || true
+	# Signing, provisioning and compiler crashes don't always print an
+	# "error:" line; show the end of the log then so the cause isn't hidden.
+	if ! grep -E "error:" "$LOG" | sort -u | head -40 >&2; then
+		tail -40 "$LOG" >&2
+	fi
 	fail "Build failed. Full log: $LOG"
 fi
 echo "Build succeeded (log: $LOG)"

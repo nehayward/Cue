@@ -16,6 +16,7 @@
 - Lyrics: Tap the speech bubble on the player to follow along with the words. Cue shows your Plex, Subsonic and Files songs' own lyrics — a .lrc beside the song or lyrics in its tags — and finds the rest on LRCLIB, Apple Music songs included. On iPhone they fill the screen like Apple Music, each line lighting up as it's sung; tap a line to jump there, scroll away and Back to Now brings you back, and the controls tuck away while you sing along. Works on this device and on your Sonos speakers, and downloaded Plex and Subsonic songs keep their lyrics for listening offline. Turn off the online lookup in Settings ▸ Playback ▸ Look Up Lyrics Online
 - Line In from any speaker: Play the line-in of any speaker on any room or group, say the turntable on your Living Room Port in the Kitchen. Switch to Line In in the player's ••• menu lists every speaker with a line-in and checks the one playing, and the player shows which speaker the sound comes from
 - Sort your Plex playlists: Order them by title, date added, last played, play count, duration or number of songs, and flip any of them. Cue remembers your pick, and the playlists on the Plex library's front page follow it. Inside a playlist, sort its songs by title, artist, album or length; Play and a tapped song follow the order you see, and each playlist remembers its own
+- Smart Resume for audiobooks: Press play after a pause and your book goes back a moment so you don't lose the thread — a second after a quick pause, up to 15 seconds after a day away — and starts again in a natural pause between words, or at the start of the sentence after a longer break. It never goes back past the start of the chapter, and works on iPhone, iPad, Mac, Apple Vision Pro, CarPlay and Apple Watch
 
 –– Bug Fixes & Improvements ––
 - Smoother changes between songs from different services on this device: Cue starts the next song the moment the last one ends, and looks up Apple Music songs ahead of time, so there's barely a pause going from your server to Apple Music and back
@@ -40,6 +41,21 @@
 - Removing a downloaded album no longer takes the songs it shares with another downloaded album or playlist
 - Fixed songs in your Files folder losing the last letter of their title, artist or album when their tags were written by some Windows taggers
 - Fixed Switch to Line In missing from the player's menu while the speaker with the line-in was grouped under another room
+- Fixed a rare crash when Cue reconnected to your speakers, such as after switching rooms or coming back to the app
+- Fixed the player, mini player and Lock Screen sometimes not following play and pause on a speaker after another speaker in the house woke, slept or was regrouped
+- Fixed the player briefly switching to This Device after taking the room that was playing out of a group
+- Fixed opening Cue stopping music that another app on this device was AirPlaying to a Sonos group, and setting its speakers to zero
+- Fixed Shortcuts actions asking you to subscribe to Super after you'd bought it
+- Super now unlocks on any iPhone, iPad or Mac signed in to the App Store with the Apple ID that bought it, without Restore Purchases and even offline
+- Fixed Super features looking locked for a moment when opening Cue, and the paywall now closes as soon as Super unlocks, after Restore Purchases too
+- Settings now says when your Super plan is a free trial
+- Add to Playlist now lists all your Apple Music playlists, not just the first 100
+- Plex songs playing on a speaker now always show their heart and rating
+- Apple Music artists shared to Cue or dropped on a speaker now play their albums instead of failing with an error
+- Improved Search: results land without a stutter while you type, and No Results no longer flashes before a search has started
+- Sliders in lists and sheets now let them scroll or close when you swipe up or down over them, and only move when you drag sideways
+- The volume number on sliders is easier to read over the empty part of the track
+- The player's background now fades in for the first song instead of sliding in from the corner
 
 # 2026.7
 

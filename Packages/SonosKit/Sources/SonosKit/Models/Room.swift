@@ -409,26 +409,16 @@ extension Room {
     }
 }
 
+/// A room is equal only to itself, for the reasons `GroupRoom` is: it's an
+/// `@Observable` reference that views hold and updates write into. Compare
+/// `id` to ask whether two rooms are the same speaker.
 extension Room: Hashable {
     public static func == (lhs: Room, rhs: Room) -> Bool {
-        lhs.id == rhs.id &&
-        lhs.ip == rhs.ip &&
-        lhs.name == rhs.name &&
-        lhs.track.id == rhs.track.id &&
-        lhs.track.artist == rhs.track.artist &&
-        lhs.track.song == rhs.track.song &&
-        lhs.radioStation == rhs.radioStation
+        lhs === rhs
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(name)
-        hasher.combine(ip)
-        hasher.combine(state)
-        hasher.combine(macAddress)
-        hasher.combine(track.id)
-        hasher.combine(track.artist)
-        hasher.combine(track.song)
-        hasher.combine(radioStation)
+        hasher.combine(ObjectIdentifier(self))
     }
 }
 

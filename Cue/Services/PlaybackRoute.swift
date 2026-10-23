@@ -603,7 +603,10 @@ final class PlaybackRoute {
     private func localSnapshot() -> Snapshot? {
         let playback = LocalPlaybackService.shared
         guard playback.isActive, let current = playback.nowPlaying else { return nil }
-        return Snapshot(items: [current] + playback.upNext, position: playback.progress, isPlaying: playback.isPlaying)
+        // A station goes alone: the queue waiting behind it stays on the
+        // phone, as it is, and isn't what's being listened to.
+        let items = playback.isPlayingStation ? [current] : [current] + playback.upNext
+        return Snapshot(items: items, position: playback.progress, isPlaying: playback.isPlaying)
     }
 
     /// Only a queue can be carried across — radio, TV and a line-in have
@@ -675,6 +678,10 @@ final class PlaybackRoute {
             print("[handoff] \(Int(Self.seconds(ContinuousClock.now - began) * 1000))ms \(what)")
         }
         step("snapshot at \(String(format: "%.1f", snapshot.position))s, playing: \(snapshot.isPlaying)")
+
+        // A book's Audiobookshelf files reach a speaker through a listening
+        // session, opened now if the book holds none.
+        await AudiobookPlayer.shared.prepareForSpeaker(snapshot.items)
 
         // Files live in a folder on this device; no speaker can fetch them.
         let items = snapshot.items.filter { !$0.content.service.playsOnDeviceOnly }
@@ -1049,6 +1056,11 @@ final class PlaybackRoute {
     private func localItem(_ item: PlayableContent) async -> PlayableContent? {
         let playback = LocalPlaybackService.shared
         if playback.canPlayLocally(item) { return item }
+        // A file of the book playing: the book has it ready, stream URL and
+        // all, whatever the speaker's row kept of its id.
+        if let book = AudiobookPlayer.shared.current, let part = book.partIndex(of: item) {
+            return book.parts[part]
+        }
         guard item.content.type == .track, [.plex, .subsonic].contains(item.content.service) else { return nil }
         guard let resolved = await SonosService.shared.contentLookup(id: item.content.id, type: .track, service: item.content.service) else {
             return nil
