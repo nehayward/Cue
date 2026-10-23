@@ -91,6 +91,7 @@ final class PhoneConnection {
             let message = error.localizedDescription
             Task { @MainActor in
                 PhoneConnection.shared.logger.error("The iPhone didn't answer about what it plays: \(message, privacy: .public)")
+                PhoneNowPlaying.shared.askFailed()
             }
         })
     }

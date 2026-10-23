@@ -20,6 +20,28 @@ enum HomeRoute: Hashable {
     case phoneQueue
 }
 
+/// The home screen's navigation stack, kept outside the view so the app
+/// delegate can move it: watchOS bringing Cue up as the iPhone starts
+/// playing opens the iPhone's player.
+@MainActor
+@Observable
+final class HomeNavigation {
+    static let shared = HomeNavigation()
+
+    var path = NavigationPath()
+
+    private init() {}
+
+    /// Shows `route` straight over the home screen, from wherever the app
+    /// was left; left alone while it's already what's on show.
+    func show(_ route: HomeRoute) {
+        let target = NavigationPath([route])
+        if path != target {
+            path = target
+        }
+    }
+}
+
 /// A library the home screen lists under Downloads, picked top right: a
 /// music server's lists, or Audiobooks.
 private enum HomeLibrary: Hashable {
@@ -70,7 +92,7 @@ struct LibraryScreen: View {
     @Environment(WatchAccounts.self) private var accounts
     @Environment(WatchBookStore.self) private var bookStore
     @AppStorage("librarySource") private var chosenSource = WatchSource.plex.rawValue
-    @State private var path = NavigationPath()
+    @State private var navigation = HomeNavigation.shared
     @State private var sheet: Sheet?
     @State private var hasAskedQuality = false
     @Namespace private var zoom
@@ -111,7 +133,7 @@ struct LibraryScreen: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack(path: $navigation.path) {
             List {
                 if player.current != nil || showsPhone {
                     // The player of what the card shows: the system's Now
@@ -119,7 +141,7 @@ struct LibraryScreen: View {
                     // loaded here is the watch's, not the iPhone's.
                     let route = showsPhone ? HomeRoute.phoneNowPlaying : .nowPlaying
                     Button {
-                        path.append(route)
+                        navigation.path.append(route)
                     } label: {
                         NowPlayingCard(showsPhone: showsPhone)
                     }
@@ -143,7 +165,7 @@ struct LibraryScreen: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        path.append(HomeRoute.settings)
+                        navigation.path.append(HomeRoute.settings)
                     } label: {
                         Image(systemName: "gearshape")
                     }
@@ -223,20 +245,9 @@ struct LibraryScreen: View {
             // From the Smart Stack widget.
             .onOpenURL { url in
                 switch url.host() {
-                case "downloads": path = NavigationPath([HomeRoute.downloads])
-                case "nowplaying": path = NavigationPath([HomeRoute.nowPlaying])
+                case "downloads": navigation.show(.downloads)
+                case "nowplaying": navigation.show(.nowPlaying)
                 default: break
-                }
-            }
-            // watchOS opened Cue because the iPhone started playing: its
-            // player, from wherever the app was left. Left alone while it's
-            // already on show, so it doesn't open again.
-            .onChange(of: phone.wantsPlayer, initial: true) { _, wants in
-                guard wants else { return }
-                phone.didOpenPlayer()
-                let phonePlayer = NavigationPath([HomeRoute.phoneNowPlaying])
-                if path != phonePlayer {
-                    path = phonePlayer
                 }
             }
             // Asked once, the first time there's music to fetch; songs come
@@ -255,7 +266,7 @@ struct LibraryScreen: View {
     private func search(_ text: String, in source: WatchSource) {
         let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return }
-        path.append(BrowseRoute.path(.search(source, query)))
+        navigation.path.append(BrowseRoute.path(.search(source, query)))
     }
 
     // MARK: - Library
@@ -348,7 +359,7 @@ struct LibraryScreen: View {
                     ForEach(recent.dropFirst(), id: \.key) { pick in
                         let route = BookRoute(key: pick.key)
                         Button {
-                            path.append(route)
+                            navigation.path.append(route)
                         } label: {
                             BookTile(pick: pick)
                         }

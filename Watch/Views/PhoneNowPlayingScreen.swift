@@ -21,8 +21,9 @@ struct PhoneNowPlayingScreen: View {
         Group {
             if let playing = phone.current {
                 player(playing)
-            } else if phone.isAwaitingAnswer {
-                // Opened as the iPhone started playing: its song is on the way.
+            } else if phone.isPhoneInReach, phone.isAwaitingAnswer {
+                // Opened before the iPhone has said what it plays, as when
+                // watchOS opens it as the iPhone starts playing.
                 ProgressView()
             } else {
                 notPlaying
