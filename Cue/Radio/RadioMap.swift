@@ -39,6 +39,19 @@ final class RadioMap {
         var checked: Date
     }
 
+    /// What's kept on disk. A file of another version is ignored, and the
+    /// next save writes over it, so every station is asked again.
+    private struct Store: Codable {
+        /// Up by one whenever what's kept changes. 2: stations named only
+        /// by a country no longer pinned at its middle, and markets
+        /// ("Seattle-Tacoma, WA") placed at their first city. Before it,
+        /// the file was the places alone.
+        static let currentVersion = 2
+
+        var version = Store.currentVersion
+        var places: [String: Place]
+    }
+
     struct AreaSearch: Equatable {
         let latitude: Double
         let longitude: Double
@@ -55,11 +68,7 @@ final class RadioMap {
     /// Descriptions asked for at once. TuneIn answers a burst with 403s.
     private static let concurrentLookups = 4
     private static let recheckInterval: TimeInterval = 7 * 24 * 60 * 60
-    /// A new file when what's kept changes, so every station is asked
-    /// again. 2: stations named only by a country no longer pinned at its
-    /// middle, and markets ("Seattle-Tacoma, WA") placed at their first city.
-    private static let storeURL = URL.cachesDirectory.appending(path: "RadioMapPlaces-2.json")
-    private static let oldStoreURL = URL.cachesDirectory.appending(path: "RadioMapPlaces.json")
+    private static let storeURL = URL.cachesDirectory.appending(path: "RadioMapPlaces.json")
     private static let log = Logger(subsystem: "dance.cue", category: "radioMap")
 
     /// How often answers reach `places`. Each change there redraws every
@@ -305,12 +314,12 @@ final class RadioMap {
     private func loadStore() async {
         if storeLoad == nil {
             let url = Self.storeURL
-            let oldURL = Self.oldStoreURL
             storeLoad = Task {
                 let stored = await Task.detached(priority: .utility) { () -> [String: Place]? in
-                    try? FileManager.default.removeItem(at: oldURL)
-                    guard let data = try? Data(contentsOf: url) else { return nil }
-                    return try? JSONDecoder().decode([String: Place].self, from: data)
+                    guard let data = try? Data(contentsOf: url),
+                          let store = try? JSONDecoder().decode(Store.self, from: data),
+                          store.version == Store.currentVersion else { return nil }
+                    return store.places
                 }.value
                 if let stored {
                     // Anything looked up while the file was read is newer.
@@ -329,7 +338,7 @@ final class RadioMap {
         let previous = lastSave
         lastSave = Task.detached(priority: .utility) {
             await previous?.value
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
+            guard let data = try? JSONEncoder().encode(Store(places: snapshot)) else { return }
             try? data.write(to: url, options: .atomic)
         }
     }
