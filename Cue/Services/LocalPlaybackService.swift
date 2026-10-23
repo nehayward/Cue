@@ -856,7 +856,7 @@ final class LocalPlaybackService {
                 // URL resolved — whatever arms next picks this row up.
                 guard playToken == token, streamPlayer === player, player.currentItem != nil,
                       runEnd == queueIndex - 1 else { return }
-                let item = AVPlayerItem(url: url)
+                let item = streamItem(url, at: queueIndex)
                 player.insert(item, after: nil)
                 register(item, at: queueIndex)
                 runEnd = queueIndex
@@ -1424,7 +1424,7 @@ final class LocalPlaybackService {
             guard backendKind(for: row) == .stream, !isStation(row),
                   cloudPendingURL(for: row) == nil,
                   let url = trackStreamURL(for: row) else { return }
-            let item = AVPlayerItem(url: url)
+            let item = streamItem(url, at: queueIndex)
             player.insert(item, after: nil)
             register(item, at: queueIndex)
             runEnd = queueIndex
@@ -2563,7 +2563,7 @@ final class LocalPlaybackService {
             if queueIndex == currentIndex + 1, duration > 0, duration - progress < Self.joinLeadTime {
                 return
             }
-            let replacement = AVPlayerItem(url: url)
+            let replacement = streamItem(url, at: queueIndex)
             guard streamPlayer.canInsert(replacement, after: playerItem) else { return }
             streamPlayer.insert(replacement, after: playerItem)
             streamPlayer.remove(playerItem)
@@ -2575,6 +2575,18 @@ final class LocalPlaybackService {
     }
 
     // MARK: - Stream (Plex, Subsonic, TuneIn) backend
+
+    /// The player item for a run's row. A song's file on this device opens
+    /// with precise timing: without it, a seek into a FLAC file landed
+    /// seconds earlier in the music than the player's clock then said, so
+    /// the scrubber and lyrics ran ahead of what played and the clock sat at
+    /// the end while the song went on, the next song seeming to start late.
+    /// A server's file stays as it was, since precise timing could mean
+    /// reading it whole before it plays, and so does a book's, hours long.
+    private func streamItem(_ url: URL, at queueIndex: Int) -> AVPlayerItem {
+        let precise = url.isFileURL && !isBookFile(at: queueIndex)
+        return AVPlayerItem(asset: AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: precise]))
+    }
 
     /// What the stream player opens for `item`. A local copy beats the
     /// server URL — a download, or the cache's copy — since it plays with no
@@ -2853,7 +2865,7 @@ final class LocalPlaybackService {
             // fetches it.
             if queueIndex > index, cloudPendingURL(for: item) != nil { break }
             guard let url = await streamURL(for: item) else { continue }
-            rows.append((queueIndex, AVPlayerItem(url: url)))
+            rows.append((queueIndex, streamItem(url, at: queueIndex)))
             lastArmed = queueIndex
             // A book's file from a server is armed alone; the next follows
             // once it has loaded (`bookFilesAhead`).
