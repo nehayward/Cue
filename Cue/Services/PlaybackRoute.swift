@@ -218,6 +218,28 @@ final class PlaybackRoute {
         hold != nil
     }
 
+    /// Whether `item` is the song the player shows, so a list can mark its
+    /// row: the track a speaker reports, or what this device is on (its
+    /// station, else the row its queue is at). Paused counts, as it does in
+    /// the player. Follows `presented`, so
+    /// through a hand-off the mark stays on the song being carried rather
+    /// than jumping to what the target last played.
+    func isPresenting(_ item: PlayableContent) -> Bool {
+        if let group = presentedGroup {
+            let trackID = group.coordinatorRoom.track.trackID
+            guard !trackID.isEmpty else { return false }
+            // Compare both IDs decoded. The now-playing trackID is percent-encoded for some
+            // services (e.g. Plex, whose ID is `clientID%3A3%3AratingKey` — the parser re-encodes
+            // the colons via `.urlPathAllowed`), while `content.id` is already decoded here, so an
+            // encoded-vs-decoded compare never matched and the Plex row never highlighted.
+            return trackID.removingPercentEncoding == item.content.id.removingPercentEncoding
+        }
+        // The device keeps the rows as they were played, so the ids match
+        // as they are; the service keeps two services' ids apart.
+        guard let current = LocalPlaybackService.shared.nowPlaying else { return false }
+        return current.content.id == item.content.id && current.content.service == item.content.service
+    }
+
     /// The group being heard, where the hardware volume buttons go: the held
     /// source until the hand-off stops it, the route's from then on. Nil
     /// for this device.

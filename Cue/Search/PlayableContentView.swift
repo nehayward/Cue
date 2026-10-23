@@ -38,18 +38,14 @@ struct PlayableContentView: View {
 
     /// When set (track shown inside an editable playlist), adds a "Remove from Playlist" menu action.
     var onRemoveFromPlaylist: (() -> Void)? = nil
+    /// When set, what a tap on the row plays, in place of the row within
+    /// `parent`: a playlist listed in an order of its own (sorted by title,
+    /// say) plays the songs as they're listed, which the playlist itself
+    /// doesn't know. The menu's Play Next and Play Last still take the song.
+    var playAction: (() -> Void)? = nil
     /// How far through it the listener is, as a thin bar under the text:
     /// a book's. Nil draws none.
     var progress: Double? = nil
-    
-    private var isCurrentlyPlaying: Bool {
-        guard let trackID = selectedGroupService?.group?.coordinatorRoom.track.trackID else { return false }
-        // Compare both IDs decoded. The now-playing trackID is percent-encoded for some
-        // services (e.g. Plex, whose ID is `clientID%3A3%3AratingKey` — the parser re-encodes
-        // the colons via `.urlPathAllowed`), while `content.id` is already decoded here, so an
-        // encoded-vs-decoded compare never matched and the Plex row never highlighted.
-        return trackID.removingPercentEncoding == item.content.id.removingPercentEncoding
-    }
     
     private var subtitleText: String {
         if item.content.type.isRadio {
@@ -140,10 +136,7 @@ struct PlayableContentView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(item.title)
-                            .lineLimit(1)
-                            .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : Color.primary)
-                            .fontWeight(isCurrentlyPlaying ? .semibold : .regular)
+                        NowPlayingTitle(item: item)
 
                         Spacer(minLength: 0)
 
@@ -290,6 +283,10 @@ struct PlayableContentView: View {
             return
         }
         hideKeyboard()
+        if position == nil, let playAction {
+            playAction()
+            return
+        }
         Task { @MainActor in
             let defaultPosition = position ?? QueuePosition.defaultPosition(
                 for: (parent ?? item).content.type,
@@ -324,6 +321,23 @@ struct PlayableContentView: View {
         default:
             return 20
         }
+    }
+}
+
+/// A row's title, in the accent while it's the song the player shows, on
+/// this device or a speaker. A view of its own so only the title redraws:
+/// read in the row, each new song re-ran every row in the list — artwork,
+/// menu, swipe actions — and so did each page a long queue adds on this
+/// device.
+private struct NowPlayingTitle: View {
+    let item: PlayableContent
+
+    var body: some View {
+        let isCurrent = PlaybackRoute.shared.isPresenting(item)
+        Text(item.title)
+            .lineLimit(1)
+            .foregroundStyle(isCurrent ? Color.accentColor : Color.primary)
+            .fontWeight(isCurrent ? .semibold : .regular)
     }
 }
 

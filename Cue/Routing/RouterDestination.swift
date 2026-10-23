@@ -22,7 +22,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case speakerSettings(room: Room)
     case playableContentList(group: GroupRoom? = nil, contentType: ContentType)
     case playableLibraryList(title: String, items: Binding<OrderedSet<PlayableContent>>, action: ((Int) async -> Void))
-    case playableGridScreen(title: String, items: Binding<OrderedSet<PlayableContent>>, action: ((Int) async -> Void))
+    case playableGridScreen(title: String, items: Binding<OrderedSet<PlayableContent>>, sort: PlayableGridSort? = nil, action: ((Int) async -> Void))
     case fullPlayHistoryList
     case servicePreferenceScreen
     /// The download manager: what's coming down, what's here, and the
@@ -83,7 +83,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return "fullPlayHistoryList"
         case .playableLibraryList(title: _, items: _, action: _):
             return "playableLibraryList"
-        case .playableGridScreen(title: _, items: _, action: _):
+        case .playableGridScreen(title: _, items: _, sort: _, action: _):
             return "playableGridScreen"
         case .houseHold:
             return "houseHold"
@@ -152,7 +152,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return url1 == url2
         case (.radioMap, .radioMap):
             return true
-        case let (.playableGridScreen(_, items1, _), .playableGridScreen(_, items2, _)):
+        case let (.playableGridScreen(_, items1, _, _), .playableGridScreen(_, items2, _, _)):
             return items1.wrappedValue == items2.wrappedValue
         case (.fullPlayHistoryList, .fullPlayHistoryList):
             return true
@@ -208,7 +208,7 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine(contentType)
         case let .playableLibraryList(_, items, _):
             hasher.combine(items.wrappedValue)
-        case let .playableGridScreen(_, items, _):
+        case let .playableGridScreen(_, items, _, _):
             hasher.combine(items.wrappedValue)
         case .fullPlayHistoryList:
             hasher.combine("fullPlayHistoryList")
