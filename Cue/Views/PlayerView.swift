@@ -23,13 +23,15 @@ import VibesDS
 /// and the menu; below it the artwork, the album line,
 /// the title and the artist (each opening its detail), the scrubber with
 /// the audio-quality badge, the transport, the volume row with its
-/// steppers, and the bottom row: the route picker in the middle and the
-/// queue at the trailing edge.
+/// steppers, and the bottom row: lyrics at the leading edge, the route
+/// picker in the middle and the queue at the trailing edge.
 struct PlayerView: View {
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
     /// The same key the main window's panel uses, so showing the queue here
     /// shows it there too rather than the two disagreeing.
     @AppStorage(AppStorageKeys.queueInspectorVisible) private var showQueue: Bool = false
+    /// Lyrics in the artwork's place, held from song to song.
+    @AppStorage(AppStorageKeys.lyricsShown) private var showLyrics: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -39,6 +41,10 @@ struct PlayerView: View {
     @State private var router = Router()
     @State private var isArtworkVisible: Bool = true
     @State private var showSleepTimerCancelConfirmation: Bool = false
+    /// Full-screen lyrics on a phone put the controls away while the song
+    /// plays (`lyricsChromeTask`); a touch brings them back.
+    @State private var lyricsControlsHidden: Bool = false
+    @State private var lyricsTouchedAt: Date = .now
     /// The Sonos artwork's crossfade window — see `GroupMediaControlsView`,
     /// which closes it around a skip so a deliberate change snaps.
     @State private var shouldFade: Bool = false
@@ -131,6 +137,16 @@ struct PlayerView: View {
         }
     }
 
+    /// Lyrics are on and the song has some, or may: they show while they
+    /// load, and the cover comes back for a song with none.
+    private var showsLyrics: Bool {
+        guard showLyrics, !showsTranscription else { return false }
+        switch LyricsService.shared.state {
+        case .loaded, .loading, .failed: return true
+        case .none, .unavailable: return false
+        }
+    }
+
     var body: some View {
         // The stack sits inside the queue panel, so its bar spans the player
         // column only, and the backdrop is drawn behind both from outside.
@@ -148,6 +164,16 @@ struct PlayerView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(.interactiveSpring, value: showArtworkOnly)
+            // Full-screen lyrics put the controls away and back the way
+            // Hide Controls does, with the same transitions and spring.
+            .animation(.interactiveSpring, value: lyricsControlsHidden)
+            // The next song's cover, decoded before Next is pressed, so a
+            // skip shows it at once instead of a placeholder first.
+            .onChange(of: playback.currentIndex, initial: true) {
+                let next = playback.currentIndex + 1
+                guard group == nil, playback.queue.indices.contains(next) else { return }
+                ContentArtworkView.prefetchPlayerArtwork(for: playback.queue[next])
+            }
             // A change of source is never animated: the sections carry on
             // with what the new one reads, in place. On the Mac an animated
             // swap of the whole player cost a fixed ~90 MB of GPU memory for
@@ -203,6 +229,15 @@ struct PlayerView: View {
             volumeCoordinatorID: route.audibleGroup?.coordinatorID,
             shouldFade: $shouldFade
         ))
+        // The song on screen's lyrics, looked up while the player is open
+        // whether or not they're showing, so the button knows.
+        .modifier(LyricsRequestModifier())
+        // The switch to and from full-screen lyrics, whatever made it: the
+        // button, the header, or a song with or without lyrics coming on.
+        .animation(.lyricsSwitch, value: showsLyrics)
+        .task(id: LyricsChrome(isActive: isPhoneLayout && showsLyrics && controller.isPlaying, touchedAt: lyricsTouchedAt)) {
+            await lyricsChromeTask()
+        }
         .fontDesign(.rounded)
         .environment(router)
         .withEnvironments()
@@ -236,6 +271,151 @@ struct PlayerView: View {
     /// "Nothing Playing" screen with no way to do anything.
     @ViewBuilder
     private var playerContent: some View {
+        if isPhoneLayout {
+            phoneContent
+        } else {
+            wideContent
+        }
+    }
+
+    /// Lyrics on a phone: full screen, the way Apple Music shows them.
+    private var isFullScreenLyrics: Bool {
+        isPhoneLayout && showsLyrics
+    }
+
+    /// The phone's player, one layout for the cover and for full-screen
+    /// lyrics so that switching moves the same views rather than swapping
+    /// them: the cover shrinks into the header's thumbnail as the title
+    /// lines fade for the header's, the lyrics take the space the cover and
+    /// the title lines had, and the controls slide down under them. In lyrics the controls
+    /// go away a few seconds into the song (`lyricsChromeTask`) or with the
+    /// header's Full Screen, and a touch on the lyrics brings them back.
+    @ViewBuilder
+    private var phoneContent: some View {
+        let isLyrics = isFullScreenLyrics
+        let hidesControls = isLyrics ? lyricsControlsHidden : showArtworkOnly
+
+        HStack(spacing: 12) {
+            artwork
+                .frame(width: isLyrics ? 56 : nil, height: isLyrics ? 56 : nil)
+                .padding(.bottom, isLyrics || showArtworkOnly ? 0 : 12)
+                .frame(
+                    minWidth: 0,
+                    maxWidth: isLyrics ? 56 : (showArtworkOnly ? .infinity : 500),
+                    minHeight: 0,
+                    maxHeight: isLyrics ? 56 : (showArtworkOnly ? .infinity : 400)
+                )
+                .padding(.top, isLyrics ? 4 : (showArtworkOnly ? 100 : nil))
+                .onGeometryChange(for: Bool.self) { proxy in
+                    proxy.size.height >= 100
+                } action: { isArtworkVisible = $0 }
+                // Squeezed below 100 points by a short screen the cover
+                // hides; as the lyrics' thumbnail it's meant to be small.
+                .opacity(isArtworkVisible || isLyrics ? 1 : 0)
+                .animation(.interactiveSpring, value: isArtworkVisible)
+                .onTapGesture {
+                    if isLyrics { showLyrics = false }
+                }
+
+            if isLyrics {
+                LyricsHeaderTitles(
+                    item: controller.nowPlayingDisplay,
+                    isFullScreen: lyricsControlsHidden,
+                    onToggleFullScreen: toggleLyricsControls,
+                    onShowCover: { showLyrics = false }
+                )
+                .padding(.top, 4)
+                .transition(.lyricsSwitch)
+            }
+        }
+        .frame(maxWidth: isLyrics ? 500 : nil)
+        // Sized before the spacers below share out what's left; at an
+        // equal priority they split the height with it and the cover
+        // shrank to a thumbnail.
+        .layoutPriority(isLyrics ? 0 : 1)
+
+        if isLyrics {
+            LyricsView(style: .fullScreen, onInteraction: noteLyricsTouch)
+                .frame(maxWidth: 500, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture { noteLyricsTouch() }
+                .layoutPriority(1)
+                .transition(.lyricsBody)
+        } else {
+            Spacer(minLength: 12)
+            VStack {
+                titleLines
+            }
+            .transition(.lyricsSwitch)
+        }
+
+        if !hidesControls {
+            // The same controls in both: switching slides them rather than
+            // building them again.
+            Group {
+                PlayerScrubber()
+                    .padding(.top, 4)
+                Spacer(minLength: 4)
+                PlayerTransportView(shouldFade: $shouldFade, isProminent: true)
+                Spacer(minLength: 4)
+                volumeRow
+                    .padding(.horizontal, -12)
+                    .frame(maxWidth: 500)
+                PlayerBottomToolbarView(group: group, showQueue: $showQueue)
+            }
+            // In lyrics a finger on the controls keeps them up; a drag on
+            // the volume or the scrubber tells the timer once a second.
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0).onChanged { _ in
+                    if Date.now.timeIntervalSince(lyricsTouchedAt) > 1 { noteLyricsTouch() }
+                },
+                including: isLyrics ? .all : .subviews
+            )
+            .transition(.opacity.combined(with: .push(from: .bottom)))
+        }
+    }
+
+    /// The header's switch: the controls away at once, or back.
+    private func toggleLyricsControls() {
+        HapticManager.shared.fireHaptic(.selection)
+        if lyricsControlsHidden {
+            noteLyricsTouch()
+        } else {
+            lyricsControlsHidden = true
+        }
+    }
+
+    private func noteLyricsTouch() {
+        lyricsTouchedAt = .now
+        if lyricsControlsHidden {
+            lyricsControlsHidden = false
+        }
+    }
+
+    /// When the full-screen lyrics' controls next go away: four seconds
+    /// after the last touch while the song plays; never while it's paused,
+    /// or outside full-screen lyrics.
+    private struct LyricsChrome: Equatable {
+        let isActive: Bool
+        let touchedAt: Date
+    }
+
+    private func lyricsChromeTask() async {
+        guard isFullScreenLyrics, controller.isPlaying else {
+            if lyricsControlsHidden {
+                lyricsControlsHidden = false
+            }
+            return
+        }
+        try? await Task.sleep(for: .seconds(4))
+        guard !Task.isCancelled else { return }
+        lyricsControlsHidden = true
+    }
+
+    /// iPad and the Mac: the cover (or lyrics, or Live Transcription, in
+    /// its place), the title lines and the controls in a tight stack.
+    @ViewBuilder
+    private var wideContent: some View {
         artwork
             .padding(.bottom, showArtworkOnly ? 0 : 12)
             .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
@@ -245,66 +425,48 @@ struct PlayerView: View {
             } action: { isArtworkVisible = $0 }
             .opacity(isArtworkVisible ? 1 : 0)
             .animation(.interactiveSpring, value: isArtworkVisible)
-            // Sized before the spacers below share out what's left; at an
-            // equal priority they split the height with it and the cover
-            // shrank to a thumbnail.
-            .layoutPriority(isPhoneLayout ? 1 : 0)
 
-        if isPhoneLayout {
-            Spacer(minLength: 12)
-            titleLines
+        titleLines
 
-            if !showArtworkOnly {
-                Group {
-                    PlayerScrubber()
-                        .padding(.top, 4)
-                    Spacer(minLength: 4)
-                    PlayerTransportView(shouldFade: $shouldFade, isProminent: true)
-                    Spacer(minLength: 4)
-                    volumeRow
-                        .padding(.horizontal, -12)
-                        .frame(maxWidth: 500)
-                    PlayerBottomToolbarView(group: group, showQueue: $showQueue)
-                }
-                .transition(.opacity.combined(with: .push(from: .bottom)))
+        if !showArtworkOnly {
+            VStack {
+                PlayerScrubber()
+                PlayerTransportView(shouldFade: $shouldFade)
             }
-        } else {
-            titleLines
+            .geometryGroup()
+            .transition(.opacity.combined(with: .push(from: .bottom)))
 
-            if !showArtworkOnly {
-                VStack {
-                    PlayerScrubber()
-                    PlayerTransportView(shouldFade: $shouldFade)
-                }
-                .geometryGroup()
-                .transition(.opacity.combined(with: .push(from: .bottom)))
+            VStack {
+                volumeRow
+                    .padding(.bottom, 20)
+                    .padding(.horizontal, -12)
+                    .frame(maxWidth: 500)
 
-                VStack {
-                    volumeRow
-                        .padding(.bottom, 20)
-                        .padding(.horizontal, -12)
-                        .frame(maxWidth: 500)
-
-                    PlayerBottomToolbarView(group: group, showQueue: $showQueue)
-                }
-                .transition(.opacity)
+                PlayerBottomToolbarView(group: group, showQueue: $showQueue)
             }
+            .transition(.opacity)
         }
     }
 
-    /// The cover. Live Transcription opens in the trailing panel, so the
-    /// cover stays where it is. A speaker's cover is
+    /// The cover, or the lyrics in its place — in the same frame, so the
+    /// controls below don't move when it's switched. Live Transcription opens
+    /// in the trailing panel instead, and the cover stays. A speaker's cover is
     /// `ArtworkView`, which carries its mute and alarm badges and shares the
     /// Lock Screen's cache entry; a hand-off goes over to it only once that
     /// entry holds the carried song's cover (see `PlaybackRoute.hold`), so
     /// it draws on its first frame.
     @ViewBuilder
     private var artwork: some View {
-        if let group {
-            ArtworkView(group: group, isDraggable: isArtworkDraggable, showBadge: true, shouldFade: artworkShouldFade)
+        if showsLyrics && !isPhoneLayout {
+            // A phone's lyrics fill the screen instead (`phoneContent`),
+            // with this cover as their thumbnail.
+            LyricsView()
+                .transition(.opacity)
+        } else if let group {
+            ArtworkView(group: group, isDraggable: isArtworkDraggable, showBadge: !isFullScreenLyrics, shouldFade: artworkShouldFade)
                 .transition(.opacity)
         } else if let item = playback.nowPlayingDisplay {
-            ContentArtworkView(content: item, showMusicSource: true, preferredSize: 600, cornerRadius: 8, isDraggable: isArtworkDraggable)
+            ContentArtworkView(content: item, showMusicSource: !isFullScreenLyrics, preferredSize: ContentArtworkView.playerPreferredSize, cornerRadius: isFullScreenLyrics ? 6 : 8, isDraggable: isArtworkDraggable)
                 .shadow(radius: 2)
                 .transition(.opacity)
         } else {
@@ -324,7 +486,13 @@ struct PlayerView: View {
         // Music has it — named by the station or by Shazam.
         let target = group == nil ? (playback.onAirMatch ?? item) : item
 
-        originLine(item)
+        // A book's line is the chapter playing, and opens its chapters.
+        if AudiobookPlayer.shared.isPlayingBook(on: controller), (AudiobookPlayer.shared.current?.chapters.count ?? 0) > 1 {
+            AudiobookChapterLine()
+                .frame(height: 12)
+        } else {
+            originLine(item)
+        }
         PlayerSongTitleButton(
             title: item?.title ?? (controller.isActive ? "" : "Not Playing"),
             target: target,
@@ -388,7 +556,7 @@ struct PlayerView: View {
     @ViewBuilder
     private var volumeRow: some View {
         if let group {
-            VolumeControlView(group: group)
+            VolumeControlView(group: group, immediateDrag: true)
         } else {
             LocalVolumeControlView()
         }
@@ -434,7 +602,7 @@ struct PlayerView: View {
         .transition(.opacity)
 
         VStack {
-            VolumeControlView(group: group)
+            VolumeControlView(group: group, immediateDrag: true)
                 .padding(.bottom, 20)
                 .padding(.horizontal, -12)
                 .frame(maxWidth: 500)
@@ -921,6 +1089,7 @@ private struct PlayerScrubber: View {
                     step: 1,
                     baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24,
                     delayDrag: false,
+                    immediateDrag: true,
                     valueAnimation: nil
                 ) { isEditing in
                     scrubbingChanged(isEditing, on: controller)
@@ -944,12 +1113,19 @@ private struct PlayerScrubber: View {
                     Text(elapsed.formatted(.time(pattern: pattern)))
                         .contentTransition(.identity)
                     Spacer()
-                    // Lossless / Atmos / bit depth, as far as the backend or
-                    // the speaker says.
-                    AudioInfoView(quality: controller.audioQuality)
-                        .frame(height: 12)
-                        .contentTransition(.identity)
-                        .animation(.spring, value: controller.audioQuality)
+                    // A book: what's left of the chapter, or of the book (a
+                    // tap switches them). Anything else: lossless
+                    // / Atmos / bit depth, as far as the backend or the speaker
+                    // says.
+                    if AudiobookPlayer.shared.isPlayingBook(on: controller) {
+                        AudiobookTimeLeft()
+                            .frame(height: 12)
+                    } else {
+                        AudioInfoView(quality: controller.audioQuality)
+                            .frame(height: 12)
+                            .contentTransition(.identity)
+                            .animation(.spring, value: controller.audioQuality)
+                    }
                     Spacer()
                     Text("-\(remaining.formatted(.time(pattern: pattern)))")
                         .contentTransition(.identity)
@@ -1049,23 +1225,33 @@ private struct PlayerTransportView: View {
         // A load that's over in a moment doesn't pulse; one that keeps the
         // song waiting does (see `sustainedPulse`).
         let isLoading = controller.isLoading
+        // A book's chapters run far too long to move through by file:
+        // Previous and Next skip back and forward instead.
+        let isBook = AudiobookPlayer.shared.isPlayingBook(on: controller)
+        let showsPrevious = isBook || controller.showsPrevious
+        let showsNext = isBook || controller.showsNext
 
         HStack {
-            if controller.showsPrevious {
+            if showsPrevious {
                 Button {
-                    skip(.previous)
+                    if isBook {
+                        skipBook(by: -AudiobookPlayer.skipBackInterval)
+                    } else {
+                        skip(.previous)
+                    }
                 } label: {
-                    Image(systemName: "backward.fill")
+                    Image(systemName: isBook ? "gobackward.\(Int(AudiobookPlayer.skipBackInterval))" : "backward.fill")
                         .resizable()
                         .scaledToFit()
+                        .fontWeight(isBook ? .regular : nil)
                         .frame(width: skipSize, height: skipSize)
                 }
                 .buttonStyle(.liveActivity)
-                .accessibilityLabel("Previous")
-                .disabled(!controller.canGoBack)
+                .accessibilityLabel(isBook ? "Back \(Int(AudiobookPlayer.skipBackInterval)) Seconds" : "Previous")
+                .disabled(!isBook && !controller.canGoBack)
 
                 Spacer()
-            } else if controller.showsNext {
+            } else if showsNext {
                 // Holds Previous's place so Play stays centred.
                 Color.clear
                     .frame(width: skipSize, height: skipSize)
@@ -1091,27 +1277,38 @@ private struct PlayerTransportView: View {
             .keyboardShortcut(.space, modifiers: [])
             #endif
 
-            if controller.showsNext {
+            if showsNext {
                 Spacer()
 
                 Button {
-                    skip(.next)
+                    if isBook {
+                        skipBook(by: AudiobookPlayer.skipForwardInterval)
+                    } else {
+                        skip(.next)
+                    }
                 } label: {
-                    Image(systemName: "forward.fill")
+                    Image(systemName: isBook ? "goforward.\(Int(AudiobookPlayer.skipForwardInterval))" : "forward.fill")
                         .resizable()
                         .scaledToFit()
+                        .fontWeight(isBook ? .regular : nil)
                         .frame(width: skipSize, height: skipSize)
                 }
                 .buttonStyle(.liveActivity)
-                .accessibilityLabel("Next")
-                .disabled(!controller.hasNext)
+                .accessibilityLabel(isBook ? "Forward \(Int(AudiobookPlayer.skipForwardInterval)) Seconds" : "Next")
+                .disabled(!isBook && !controller.hasNext)
             }
         }
-        .frame(maxWidth: controller.showsNext ? (isProminent ? 320 : 300) : nil)
+        .frame(maxWidth: showsNext ? (isProminent ? 320 : 300) : nil)
         .padding(.horizontal, isProminent ? 36 : 60)
         // Nothing loaded, or a hand-off holding the player: there, so the
         // player keeps its shape, but nothing to press.
         .disabled(!controller.isActive)
+    }
+
+    /// Skips through the book, across its files.
+    private func skipBook(by seconds: TimeInterval) {
+        HapticManager.shared.fireHaptic(.selection)
+        Task { await AudiobookPlayer.shared.skip(by: seconds) }
     }
 
     /// Skips on whatever is on screen. Instant on both: this device moves at
@@ -1180,6 +1377,7 @@ private struct LocalVolumeControlView: View {
                 step: 1,
                 baseHeight: sliderHeight,
                 delayDrag: false,
+                immediateDrag: true,
                 showValue: true
             ) { editing in
                 if !editing { dragging = nil }
@@ -1242,9 +1440,9 @@ private struct HiddenSystemVolumeView: UIViewRepresentable {
 
 /// The row under the volume. On a phone it has no glass: the route picker
 /// in the middle — on a speaker its menu is the regroup menu too — and the
-/// queue on the trailing edge, with the leading slot empty for now. The
-/// wide row adds the room volume for a group of more than one and Identify
-/// Song. No search
+/// queue on the trailing edge, and lyrics on the leading edge. The wide
+/// row adds lyrics, the room volume for a group of more than one and
+/// Identify Song. No search
 /// or browse: the window's tabs are a dismiss away on every size, and the
 /// cover's sheets only doubled them. The wide row has no queue: iPad's is
 /// in the navigation bar, the Mac's in the window toolbar. The
@@ -1264,26 +1462,30 @@ private struct PlayerBottomToolbarView: View {
 
     private var route: PlaybackRoute { .shared }
 
-    /// The group the route picker plays on, or `nil` on this device. The
-    /// group on screen first, then the route's, so a solo room reads too.
-    /// While a hand-off holds the player on its source, where it's going.
+    /// The group the route picker plays on. The group on screen first, then
+    /// the route's, so a solo room reads too. On this device, the AirPods,
+    /// car or AirPlay receiver it plays through, so it's plain that
+    /// Bluetooth is on; nothing on the phone's own speaker. While a hand-off
+    /// holds the player on its source, where it's going.
     private var routeName: String? {
         if route.isHolding {
             return "Moving to \(route.group?.nameWithCount ?? "This Device")…"
         }
-        return (group ?? route.group)?.nameWithCount
+        return (group ?? route.group)?.nameWithCount ?? AudioOutputName.shared.name
     }
 
     var body: some View {
         @Bindable var router = router
 
         if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact {
-            // No glass: the route picker centred and the queue trailing,
-            // with the leading slot left empty for now.
+            // No glass: lyrics leading, the route picker centred and the
+            // queue trailing.
             VStack(spacing: 6) {
                 HStack(spacing: 0) {
-                    Color.clear
-                        .frame(maxWidth: .infinity, maxHeight: 1)
+                    LyricsButton()
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
+                        .frame(maxWidth: .infinity)
 
                     PlaybackRouteButton()
                         .buttonStyle(.plain)
@@ -1296,12 +1498,12 @@ private struct PlayerBottomToolbarView: View {
                         .frame(maxWidth: .infinity)
                 }
 
-                // The speaker it plays on, on its own line under the route
-                // picker. Laid out here rather than in the picker's label:
-                // iOS flattens a Menu's label, and an overlay on the Menu
-                // gets clipped by the button behind it. The whole row's width,
-                // centred under the button: nothing else is on this line, and
-                // a third of it cut most group names short.
+                // The speaker or headphones it plays on, on its own line
+                // under the route picker. Laid out here rather than in the
+                // picker's label: iOS flattens a Menu's label, and an overlay
+                // on the Menu gets clipped by the button behind it. The whole
+                // row's width, centred under the button: nothing else is on
+                // this line, and a third of it cut most group names short.
                 Text(routeName ?? " ")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -1324,6 +1526,10 @@ private struct PlayerBottomToolbarView: View {
                     .buttonBorderShape(.roundedRectangle)
                     .glassButton()
                     .help("Play On")
+
+                LyricsButton()
+                    .buttonBorderShape(.roundedRectangle)
+                    .glassButton()
 
                 if let group, group.rooms.count > 1 {
                     roomVolumeButton(group)
@@ -1455,9 +1661,23 @@ private struct LocalPlayerMenuView: View {
     private var song: PlayableContent { playback.onAirMatch ?? item }
 
     var body: some View {
+        // A book's file: chapters and speed rather than album, artist,
+        // playlists, shuffle and repeat, none of which mean much for one.
+        let isBook = AudiobookPlayer.shared.contains(item)
         Menu {
+            if isBook {
+                AudiobookPlayerMenuItems(isOnDevice: true)
+            }
+            // A book and the music it was started over, each one tap from
+            // the other.
+            Section {
+                BookMusicSwitchMenuItems(isBook: isBook)
+            }
+            if isBook {
+                Divider()
+            }
             OpenInServiceView(item: song)
-            if song.content.service.supportsViewArtistAlbum {
+            if song.content.service.supportsViewArtistAlbum, !isBook {
                 Button {
                     router.sheet(to: .mediaDetail(content: song, group: nil))
                 } label: {
@@ -1472,7 +1692,7 @@ private struct LocalPlayerMenuView: View {
             }
 
             // A station itself can't go in a playlist; the song on it can.
-            if !song.content.type.isRadio {
+            if !song.content.type.isRadio, !isBook {
                 Divider()
                 AddToLastPlaylistButton(itemToAdd: song)
                 Button {
@@ -1490,32 +1710,41 @@ private struct LocalPlayerMenuView: View {
             LocalDownloadMenuSection(item: item)
 
             ControlGroup {
-                Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    playback.setShuffle(!playback.isShuffled)
-                } label: {
-                    Label(playback.isShuffled ? "Shuffle On" : "Shuffle Off", systemImage: "shuffle")
-                }
-                .menuActionDismissBehavior(.disabled)
-                .tint(playback.isShuffled ? .accent : .secondary)
-                .disabled(!playback.isShuffled && playback.upNext.count < 2)
+                if !isBook {
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        playback.setShuffle(!playback.isShuffled)
+                    } label: {
+                        Label(playback.isShuffled ? "Shuffle On" : "Shuffle Off", systemImage: "shuffle")
+                    }
+                    .menuActionDismissBehavior(.disabled)
+                    .tint(playback.isShuffled ? .accent : .secondary)
+                    .disabled(!playback.isShuffled && playback.upNextCount < 2)
 
-                Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    playback.setRepeatMode(playback.repeatMode.next)
-                } label: {
-                    Label(playback.repeatMode.title, systemImage: playback.repeatMode.systemImage)
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        playback.setRepeatMode(playback.repeatMode.next)
+                    } label: {
+                        Label(playback.repeatMode.title, systemImage: playback.repeatMode.systemImage)
+                    }
+                    .menuActionDismissBehavior(.disabled)
+                    .tint(playback.repeatMode == .off ? .secondary : .accent)
                 }
-                .menuActionDismissBehavior(.disabled)
-                .tint(playback.repeatMode == .off ? .secondary : .accent)
 
+                // Any other choice puts End of Chapter away, or it would
+                // move the new timer back to the chapter's end.
                 TimerMenuView(sheetRouter: router, onSelect: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.sleepTimer($0)
                 }, onClear: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.cancelSleepTimer()
                 }, onSleepAtEndOfTrack: {
+                    AudiobookPlayer.shared.forgetChapterSleep()
                     await playback.sleepAtEndOfTrack()
-                }) {
+                }, onSleepAtEndOfChapter: isBook ? {
+                    await AudiobookPlayer.shared.sleepAtEndOfChapter()
+                } : nil, sleepsAtEndOfChapter: AudiobookPlayer.shared.sleepsAt != nil) {
                     Label("Sleep Timer", systemImage: "deskclock.fill")
                 }
             }
@@ -1585,4 +1814,28 @@ private struct PlayerBackdrop: View {
         .allowsHitTesting(false)
         .ignoresSafeArea()
     }
+}
+
+private extension Animation {
+    /// Lyrics on and off, whatever switched them: quick and settled, with
+    /// no overshoot.
+    static let lyricsSwitch: Animation = .snappy(duration: 0.3)
+}
+
+private extension AnyTransition {
+    /// Text that swaps as lyrics go on or off — the title lines under the
+    /// cover, the title beside the thumbnail. What leaves is gone in a
+    /// tenth of a second; what comes waits until the cover has mostly
+    /// moved, so the two never cross and the cover never passes over words.
+    static let lyricsSwitch: AnyTransition = .asymmetric(
+        insertion: .opacity.animation(.easeOut(duration: 0.18).delay(0.15)),
+        removal: .opacity.animation(.easeIn(duration: 0.1))
+    )
+
+    /// The full-screen lyrics themselves: the same timing, rising a little
+    /// into place as they come.
+    static let lyricsBody: AnyTransition = .asymmetric(
+        insertion: .opacity.combined(with: .offset(y: 24)).animation(.easeOut(duration: 0.22).delay(0.15)),
+        removal: .opacity.animation(.easeIn(duration: 0.1))
+    )
 }

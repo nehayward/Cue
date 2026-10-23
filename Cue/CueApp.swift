@@ -156,6 +156,9 @@ struct MusicPlaybackView: View {
         // way out: the buttons rest and Play reads as it did
         // (`HeldPlaybackController`).
         let isPlaying = controller.isPlaying
+        // A book reads as what's left of its chapter, and skips 30 s where a
+        // song goes to the next: a book's file is a chapter or more.
+        let isBook = AudiobookPlayer.shared.isPlayingBook(on: controller) && !route.isHolding
 
         Button {
             showPlayer.toggle()
@@ -175,15 +178,28 @@ struct MusicPlaybackView: View {
                         .foregroundStyle(.secondary)
                 }
                 VStack(alignment: .leading) {
-                    Text(item?.title ?? "Not Playing")
-                        .font(item == nil ? .callout : .callout.bold())
-                        .foregroundStyle(item == nil ? .secondary : .primary)
-                        .lineLimit(1)
-                    if placement != .inline, let line = subtitle(for: item, on: group) {
-                        Text(line)
-                            .font(.caption)
+                    // A long title scrolls, as Clic's mini player does,
+                    // rather than cutting off.
+                    if let title = item?.title {
+                        MarqueeText(title)
+                            .font(.callout.bold())
+                    } else {
+                        Text("Not Playing")
+                            .font(.callout)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                    }
+                    if placement != .inline, let line = subtitle(for: item, on: group) {
+                        Group {
+                            if isBook {
+                                AudiobookTimeLeft(prefix: group?.nameWithCount ?? AudiobookPlayer.shared.current?.book.subtitle, isCompact: true)
+                            } else {
+                                Text(line)
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                         if !progressSpansFullWidth {
                             progressLine
                         }
@@ -211,9 +227,13 @@ struct MusicPlaybackView: View {
             .disabled(!controller.isActive)
 
             // A live station on this device has nothing to skip to.
-            if placement != .inline, controller.showsNext {
+            if placement != .inline, controller.showsNext || isBook {
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
+                    if isBook {
+                        Task { await AudiobookPlayer.shared.skip(by: AudiobookPlayer.skipForwardInterval) }
+                        return
+                    }
                     Task {
                         await controller.next()
                         // Nothing may be listening to the speaker with the
@@ -223,12 +243,12 @@ struct MusicPlaybackView: View {
                         }
                     }
                 } label: {
-                    Image(systemName: "forward.fill")
+                    Image(systemName: isBook ? "goforward.\(Int(AudiobookPlayer.skipForwardInterval))" : "forward.fill")
                 }
                 .buttonStyle(.plain)
                 .font(.title3)
-                .accessibilityLabel("Next")
-                .disabled(!controller.hasNext)
+                .accessibilityLabel(isBook ? "Forward \(Int(AudiobookPlayer.skipForwardInterval)) Seconds" : "Next")
+                .disabled(!isBook && !controller.hasNext)
             }
         }
     }
@@ -305,6 +325,8 @@ struct CueApp: App {
     @State private var offline = OfflineMode.shared
     /// Settings › Appearance › Show Radio Tab.
     @AppStorage(AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
+    @AppStorage(AppStorageKeys.showAudiobooksTab) private var showAudiobooksTab: Bool = true
+    @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexAudiobooks: Bool = false
     /// The sidebar's edits — which of the provider tabs show, and the order
     /// of their sections — kept across launches. This is the whole of tab
     /// customization: the sidebar's own edit mode writes it, and the
@@ -349,6 +371,20 @@ struct CueApp: App {
             && [MediaSearchService.tuneIn, .apple].contains { coreFeatures.isEnabled($0) }
     }
 
+    /// Whether the Audiobooks tab has books to show: an Audiobookshelf
+    /// sign-in, or a Plex server that had books when last asked
+    /// (`AudiobookLibrary.checkPlexBooks`). Hidden in Settings › Appearance.
+    /// While Offline Mode is active only books downloaded whole can play,
+    /// so it stays while there are any.
+    private var showsAudiobooksTab: Bool {
+        guard showAudiobooksTab else { return false }
+        if offline.isActive {
+            return AudiobookDownloads.hasDownloadedBooks
+        }
+        return (coreFeatures.isEnabled(.audiobookshelf) && AudiobookshelfAPI.shared.isConfigured)
+            || (coreFeatures.isEnabled(.plex) && hasPlexAudiobooks)
+    }
+
     /// Search. The search role only on the phone, where it draws the tab as
     /// the bar's separate search bubble. Elsewhere the role exists to hoist
     /// a `.searchable` out of the tab, and `SearchScreen` draws its own
@@ -369,6 +405,16 @@ struct CueApp: App {
         if showsRadioTab {
             Tab("Radio", systemImage: "radio", value: AppTab.radio) {
                 Screens.radio
+            }
+        }
+    }
+
+    /// Audiobooks, after Radio, while there are books (`showsAudiobooksTab`).
+    @TabContentBuilder<AppTab>
+    private var audiobooksTab: some TabContent<AppTab> {
+        if showsAudiobooksTab {
+            Tab("Audiobooks", systemImage: "book", value: AppTab.audiobooks) {
+                Screens.audiobooks
             }
         }
     }
@@ -468,6 +514,9 @@ struct CueApp: App {
         if showsRadioTab {
             tabs.insert(.radio)
         }
+        if showsAudiobooksTab {
+            tabs.insert(.audiobooks)
+        }
         if showsLibrarySections {
             tabs.insert(.home)
             for service in tabProviders {
@@ -517,6 +566,7 @@ struct CueApp: App {
                     }
                     searchTab
                     radioTab
+                    audiobooksTab
                 } else {
                     Tab("Home", image: "home.fill", value: AppTab.home) {
                         Screens.home
@@ -526,6 +576,7 @@ struct CueApp: App {
                         Screens.browse
                     }
                     radioTab
+                    audiobooksTab
 
                     // The providers twice over, both driven by the switched-on
                     // set: once as tabs in one section, which is how the
@@ -646,6 +697,11 @@ struct CueApp: App {
             .onOpenURL(perform: handle)
             .onAppear {
                 coreFeatures.restoreDeviceServicesOnce()
+                // Whether Plex has books, for the Audiobooks tab: a server
+                // that gained some since last time brings the tab in.
+                if coreFeatures.isEnabled(.plex), !offline.isActive {
+                    Task { await AudiobookLibrary.checkPlexBooks() }
+                }
                 // Asks whether there are speakers before anything looks for
                 // them. Onboarding writes `hasOnboarded` however it ends,
                 // so this is once per install, and starts monitoring itself
@@ -1085,7 +1141,7 @@ struct CueApp: App {
             }
 
             Task {
-                try? await subscriptionService.checkSubscription()
+                await subscriptionService.checkSubscription()
             }
 
             Task {
@@ -1225,7 +1281,12 @@ struct CueApp: App {
             }
             
             if components.host?.lowercased() == "subscribe" {
-                router.presentedFullScreenCover = .paywall
+                // A Shortcuts action that ran before this device had its
+                // answer still opens this; opening Cue is all someone with
+                // Super needs.
+                if !subscriptionService.subscription.isActive {
+                    router.presentedFullScreenCover = .paywall
+                }
                 return
             }
             
@@ -1598,21 +1659,43 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // call `monitor()`, which is what would put up the Local Network
         // prompt on a device that has never seen a speaker.
         SonosService.shared.loadEnabledPreference()
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        // In a car, speakers are put away and not looked for; known before
+        // the first `monitor()` for the same reason.
+        CarConnection.start()
+        #endif
         // RevenueCat, analytics, remote flags and the image pipeline. Before
         // any view body: `Purchases.shared` is a fatal error until
-        // `Purchases.configure` has run, and Preferences reads it for the
-        // app user ID it shows — opening Settings crashed once this stopped
-        // being called from the root view's onAppear.
+        // `Purchases.configure` has run (`SubscriptionService.userID` reads
+        // empty until then). Every answer goes to `SuperPublisher`, so it's
+        // set first.
         if !AppBootstrapper.shared.didLaunch {
             AppBootstrapper.shared.didLaunch = true
+            SubscriptionService.shared.subscriptionUpdated = SuperPublisher.publish
             AppBootstrapper.shared.bootstrap()
         }
         // The continued-processing task's launch handler has to be in place
         // before a download batch submits it.
         ContinuedDownloadTask.shared.register()
+        #if DEBUG
+        DownloadAudit.runIfAsked()
+        #endif
         // Early, so a status the watch sent while Cue was closed, and the
         // end of a library transfer, are delivered.
         WatchSyncService.shared.activate()
+        // Lyrics for downloads that don't have them yet, slowly.
+        DownloadLyrics.shared.start()
+        #if DEBUG
+        // `-LyricsAudit <count>`: checks lyrics lookups across the Plex library.
+        LyricsAudit.startIfRequested()
+        // `-AudiobookAudit <title>`: what a Plex book's server and files
+        // hold about its chapters.
+        AudiobookAudit.startIfRequested()
+        #if os(iOS)
+        // Cue's log as a file the Mac can copy off the phone.
+        PhoneLogFile.start()
+        #endif
+        #endif
         // A Files scan gets the same card: progress on the Lock Screen and
         // the app kept running until it's done. The pass that reads the
         // tags of songs still in iCloud follows the scan on the same card,

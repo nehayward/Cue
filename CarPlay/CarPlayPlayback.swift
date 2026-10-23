@@ -52,9 +52,39 @@ enum CarPlayPlayback {
         record(track)
     }
 
+    /// Plays a book on this device from where it was left, through the book
+    /// player, which keeps its place and puts it in Recently Played. Throws
+    /// when it didn't start, for the car to say so.
+    static func play(book: PlayableContent) async throws {
+        takeRoute()
+        log.notice("play book \(book.content.id, privacy: .public)")
+        let books = AudiobookPlayer.shared
+        await books.play(book, on: .device)
+        guard books.current?.book.isSameBook(as: book) == true, books.contains(LocalPlaybackService.shared.nowPlaying) else {
+            throw Failure(errorDescription: "Couldn't play “\(book.title)”")
+        }
+    }
+
+    /// The speeds a car's rate button steps through, back to normal after
+    /// the last: fewer than the phone's menu, for a tap at a time.
+    static let bookRates: [Double] = [1, 1.2, 1.5, 1.75, 2]
+
+    /// Moves the book's speed on to the next of `bookRates`.
+    static func nextBookRate() {
+        let books = AudiobookPlayer.shared
+        let next = bookRates.first { $0 > books.rate + 0.01 } ?? 1
+        log.notice("book rate \(books.rate) → \(next)")
+        books.setRate(next)
+    }
+
+    private struct Failure: LocalizedError {
+        let errorDescription: String?
+    }
+
     /// Plays the device's queue from where it stopped: just paused, or
     /// restored from the last launch or parked by a hand-off with nothing
-    /// armed yet, which Play arms at the saved spot.
+    /// armed yet, which Play arms at the saved spot (a book's files at the
+    /// book's kept place, `AudiobookPlayer.resumeOnDevice`).
     static func resume() {
         let player = LocalPlaybackService.shared
         guard player.isActive else { return }
@@ -163,6 +193,23 @@ enum CarPlayArtwork {
                 symbol.withTintColor(color, renderingMode: .alwaysOriginal).draw(in: frame)
             }
         }
+    }
+
+    /// The queue's button on the car's Now Playing, and a book's chapters':
+    /// the place, the song's in the queue or the chapter's in the book, as a
+    /// number in a circle ("5.circle"). Zero under a station, which leaves
+    /// the queue waiting, as a speaker's reads on radio. The symbols stop at
+    /// 50; past that it's a list.
+    ///
+    /// A plain system symbol, which the car recolours and draws the size of
+    /// its own buttons. The phone's ring drawn as a bitmap (`QueueIconView`'s
+    /// fill and number) came out a dot in a car on iOS 27, a fraction of the
+    /// size of the rate button beside it, though it was drawn at
+    /// `CPNowPlayingButtonMaximumImageSize` at the car's scale; on the list
+    /// buttons the car draws nothing but a plain symbol (FB24806621).
+    static func placeButton(_ place: Int) -> UIImage {
+        let name = (0...50).contains(place) ? "\(place).circle" : "list.bullet"
+        return UIImage(systemName: name) ?? UIImage(systemName: "list.bullet") ?? UIImage()
     }
 
     /// An image in black for a light screen and white for a dark one, both

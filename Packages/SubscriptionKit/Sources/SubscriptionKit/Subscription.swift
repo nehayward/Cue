@@ -21,76 +21,61 @@ public class Subscription: Codable, Equatable {
 extension Subscription {
     public static var active = Subscription(isActive: true, expiration: .distantFuture)
     public static var notActive = Subscription(isActive: false)
-}
 
-
-// Enum of supported stores
-public enum Store: Int, Codable, CaseIterable {
-    case appStore = 0
-    case macAppStore = 1
-    case playStore = 2
-    case stripe = 3
-    case promotional = 4
-    case unknownStore = 5
-    case amazon = 6
-}
-
-// Enum of supported period types for an entitlement
-public enum PeriodType: Int, Codable, CaseIterable {
-    case normal = 0
-    case intro = 1
-    case trial = 2
-}
-
-// The EntitlementInfo struct gives you access to all of the information about the status of a user entitlement
-public struct SubscriptionInfo: Codable {
-    public let identifier: String
-    public let isActive: Bool
-    public let willRenew: Bool
-    public let periodType: PeriodType
-    public let latestPurchaseDate: Date?
-    public let originalPurchaseDate: Date?
-    public let expirationDate: Date?
-    public let store: Store
-    public let productIdentifier: String
-    public let productPlanIdentifier: String?
-    public let isSandbox: Bool
-    public let unsubscribeDetectedAt: Date?
-    public let billingIssueDetectedAt: Date?
-    public let ownershipType: PurchaseOwnershipType
-    public let verification: VerificationResult
-
-    public enum PurchaseOwnershipType: Int, Codable {
-        case purchased
-        case familyShared
-        case unknown
+    /// The end of the current period; nil for Lifetime. The entitlement's own
+    /// when there is one: with Lifetime and a subscription both bought, it's
+    /// Lifetime's (none), while `expiration` is the subscription's.
+    public var periodEnd: Date? {
+        if let info = info {
+            return info.expirationDate
+        }
+        return expiration
     }
 
-    public enum VerificationResult: Int, Codable {
-        case verified
-        case unverified
-        case unknown
+    /// How long this answer holds without asking again. Lifetime, and a
+    /// subscription that renews, until told otherwise: never lock out someone
+    /// who's paying because Cue hasn't run since a renewal. One that won't
+    /// renew, until its period ends. Nil when not active.
+    public var activeUntil: Date? {
+        guard isActive else { return nil }
+        if let info = info, info.endsWithPeriod, let end = periodEnd {
+            return end
+        }
+        return .distantFuture
+    }
+}
+
+
+/// What Cue reads of the plan behind Super: RevenueCat's entitlement, or the
+/// StoreKit transaction when only StoreKit knows of the purchase.
+public struct SubscriptionInfo: Codable {
+    public let productIdentifier: String
+    /// A free trial: it renews into the plan unless cancelled first.
+    public let isTrial: Bool
+    public let willRenew: Bool
+    /// The end of the current period; nil for Lifetime.
+    public let expirationDate: Date?
+    public let unsubscribeDetectedAt: Date?
+    public let billingIssueDetectedAt: Date?
+
+    /// Whether Super ends with this period: cancelled, or never renewing (a
+    /// promotion). Not a billing problem, though RevenueCat turns `willRenew`
+    /// off for one too: Apple keeps retrying, and a fixed card renews it
+    /// without Cue running.
+    var endsWithPeriod: Bool {
+        unsubscribeDetectedAt != nil || (!willRenew && billingIssueDetectedAt == nil)
     }
 }
 
 extension EntitlementInfo {
     var toSubscriptionInfo: SubscriptionInfo {
         SubscriptionInfo(
-            identifier: identifier,
-            isActive: isActive,
-            willRenew: willRenew,
-            periodType: PeriodType(rawValue: periodType.rawValue) ?? .normal,
-            latestPurchaseDate: latestPurchaseDate,
-            originalPurchaseDate: originalPurchaseDate,
-            expirationDate: expirationDate,
-            store: Store(rawValue: store.rawValue) ?? .unknownStore,
             productIdentifier: productIdentifier,
-            productPlanIdentifier: productPlanIdentifier,
-            isSandbox: isSandbox,
+            isTrial: periodType == .trial,
+            willRenew: willRenew,
+            expirationDate: expirationDate,
             unsubscribeDetectedAt: unsubscribeDetectedAt,
-            billingIssueDetectedAt: billingIssueDetectedAt,
-            ownershipType: SubscriptionInfo.PurchaseOwnershipType(rawValue: ownershipType.rawValue) ?? .unknown,
-            verification: SubscriptionInfo.VerificationResult(rawValue: verification.rawValue) ?? .unknown
+            billingIssueDetectedAt: billingIssueDetectedAt
         )
     }
 }

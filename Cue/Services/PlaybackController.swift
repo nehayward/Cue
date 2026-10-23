@@ -113,7 +113,8 @@ extension LocalPlaybackService: PlaybackController {
 
     var showsPrevious: Bool { !isPlayingStation }
     var canGoBack: Bool { true }
-    /// An Apple Music station is a stream of songs, so it keeps Next.
+    /// An Apple Music station is a stream of songs, so it keeps Next; a
+    /// live one doesn't (`isPlayingAppleStation`).
     var showsNext: Bool { !isPlayingStation || isPlayingAppleStation }
     var canScrub: Bool { !isPlayingStation }
 
@@ -124,7 +125,8 @@ extension LocalPlaybackService: PlaybackController {
         seek(to: seconds)
     }
 
-    var queuePosition: Int { queue.isEmpty ? 0 : currentIndex + 1 }
+    /// Zero under a station: the queue waits behind it, not playing.
+    var queuePosition: Int { queue.isEmpty || isPlayingStation ? 0 : currentIndex + 1 }
     var queueCount: Int { queue.count }
 }
 

@@ -1,6 +1,7 @@
 import Defaults
 import SonosKit
 import SwiftUI
+import VibesDS
 
 /// Where playback goes, and how loud each place is: the sheet behind the Play
 /// On button while speakers can be reached (`SonosService.isAvailable`). It
@@ -1209,70 +1210,6 @@ private struct SlashLine: Shape {
     }
 }
 
-/// A pan that only ever starts sideways.
-///
-/// One that sets off up or down fails at once, so the list's scroll and the
-/// sheet's pull to dismiss get every vertical drag as if the row weren't
-/// there. Their pans wait for it to fail, the few points it takes to tell,
-/// so a sideways drag is never a scroll or a dismiss as well. UIKit rather
-/// than a SwiftUI drag: only a recognizer can decline to begin, where a
-/// SwiftUI gesture takes the touch first and decides after.
-struct SidewaysPan: UIGestureRecognizerRepresentable {
-    var isEnabled = true
-    let onBegan: () -> Void
-    /// Points moved sideways since it began.
-    let onChanged: (CGFloat) -> Void
-    let onEnded: () -> Void
-
-    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
-        Coordinator()
-    }
-
-    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
-        let pan = UIPanGestureRecognizer()
-        pan.maximumNumberOfTouches = 1
-        pan.delegate = context.coordinator
-        return pan
-    }
-
-    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) {
-        recognizer.isEnabled = isEnabled
-    }
-
-    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
-        switch recognizer.state {
-        case .began:
-            // Measured from here, not from where the finger landed: the few
-            // points it took to tell the direction shouldn't jump the level.
-            recognizer.setTranslation(.zero, in: recognizer.view)
-            onBegan()
-        case .changed:
-            onChanged(recognizer.translation(in: recognizer.view).x)
-        case .ended, .cancelled, .failed:
-            onEnded()
-        default:
-            break
-        }
-    }
-
-    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
-        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
-            guard let pan = recognizer as? UIPanGestureRecognizer else { return true }
-            let moved = pan.translation(in: pan.view)
-            let motion = moved == .zero ? pan.velocity(in: pan.view) : moved
-            return abs(motion.x) > abs(motion.y)
-        }
-
-        /// The list's pan and the sheet's: any other pan the touch could
-        /// start.
-        func gestureRecognizer(
-            _ recognizer: UIGestureRecognizer,
-            shouldBeRequiredToFailBy other: UIGestureRecognizer
-        ) -> Bool {
-            other is UIPanGestureRecognizer && other !== recognizer
-        }
-    }
-}
 
 // MARK: - Volume
 

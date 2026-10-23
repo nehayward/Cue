@@ -1,11 +1,13 @@
+import MusicSearchKit
 import SwiftUI
 import WatchKit
 import WatchSync
 
-/// A page of the Plex and Subsonic libraries, fetched by the watch itself
-/// (`WatchLibraryBrowser`) a page at a time: a list, an artist's albums or
-/// search results. A song goes on the watch with a tap; an album or
-/// playlist opens on its songs.
+/// A page of the Plex and Subsonic libraries, or of the books on Plex and
+/// Audiobookshelf, fetched by the watch itself (`WatchLibraryBrowser`) a
+/// page at a time: a list, an artist's albums, search results or a shelf of
+/// books. A song goes on the watch with a tap; an album or playlist opens
+/// on its songs, a book on its page.
 struct BrowseScreen: View {
     let path: WatchBrowsePath
 
@@ -112,7 +114,7 @@ private struct BrowseRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            ArtworkView(url: item.artworkURL)
+            ArtworkView(url: item.artworkURL, symbol: item.pick?.kind == .audiobook ? "book.closed" : "music.note")
                 .frame(width: 32, height: 32)
             VStack(alignment: .leading) {
                 Text(item.title)
@@ -254,5 +256,122 @@ struct BrowseItemScreen: View {
             isLoading = false
             hasLoaded = true
         }
+    }
+}
+
+/// A book from a server: how long it is and where the server has the
+/// listener, and Download Book to put it on the watch — or, once it's
+/// here, the way to its page.
+struct BrowseBookScreen: View {
+    @Environment(WatchDownloadStore.self) private var store
+    @Environment(\.zoomNamespace) private var zoom
+    let item: WatchBrowseItem
+
+    @State private var book: WatchBookLookup?
+    @State private var isLoading = false
+    @State private var hasLoaded = false
+    @State private var note: String?
+
+    var body: some View {
+        List {
+            Section {
+                VStack(spacing: 6) {
+                    ArtworkView(url: item.artworkURL, symbol: "book.closed")
+                        .frame(width: 80, height: 80)
+                    Text(item.title)
+                        .font(.headline)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                    if !item.subtitle.isEmpty {
+                        Text(item.subtitle)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    if let book {
+                        Text(detail(of: book))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .monospacedDigit()
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .listRowBackground(Color.clear)
+
+                if let pick = item.pick {
+                    if store.picks.contains(key: pick.key) {
+                        let route = BookRoute(key: pick.key)
+                        NavigationLink(value: route) {
+                            Label("On This Watch", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.tint)
+                        }
+                        .zoomSource(route, in: zoom)
+                    } else {
+                        Button {
+                            add(pick)
+                        } label: {
+                            Label("Download Book", systemImage: "arrow.down.circle.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(book == nil)
+                        .listRowBackground(Color.clear)
+                    }
+                }
+
+                if let note {
+                    Text(note)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(Color.clear)
+                }
+            }
+
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+            } else if hasLoaded, book == nil {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Couldn't read this book, or the server can't be reached.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Button("Try Again") {
+                        Task { await load() }
+                    }
+                }
+                .listRowBackground(Color.clear)
+            }
+        }
+        .task {
+            guard !hasLoaded else { return }
+            await load()
+        }
+    }
+
+    /// Its length, and where the server has the listener when they've
+    /// started it.
+    private func detail(of book: WatchBookLookup) -> String {
+        let length = WatchBookFormat.length(book.duration)
+        guard let place = book.serverPlace, place.isStarted || place.isFinished else { return length }
+        return "\(length) • \(WatchBookFormat.status(place, duration: book.duration))"
+    }
+
+    private func load() async {
+        guard let pick = item.pick, !isLoading else { return }
+        isLoading = true
+        book = await WatchLibraryBrowser.shared.book(for: pick)
+        isLoading = false
+        hasLoaded = true
+    }
+
+    /// Puts the book on the watch with the files and chapters just read.
+    private func add(_ pick: WatchPick) {
+        guard let book else { return }
+        store.add(pick, songs: book.songs)
+        WatchBookStore.shared.noteLookedUp(book, for: pick)
+        WKInterfaceDevice.current().play(.success)
+        note = "Downloading. Fast Download gets it here sooner."
     }
 }

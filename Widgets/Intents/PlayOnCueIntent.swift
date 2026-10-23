@@ -1,5 +1,5 @@
 import AppIntents
-import CloudStorage
+import Defaults
 import Foundation
 import SonosKit
 #if canImport(WidgetKit)
@@ -50,8 +50,8 @@ struct PlayOnCueIntent: AppIntent {
     init() { }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard CloudStorageSync.shared.bool(for: "com.cue.subscriptions") ?? false else {
-            throw IntentError.message("Subscribe to Super in Cue")
+        guard GroupStorageKeys.defaults.hasSuper else {
+            throw IntentError.superRequired
         }
 
         // Validate the link up front so an empty/wrong-service URL produces a

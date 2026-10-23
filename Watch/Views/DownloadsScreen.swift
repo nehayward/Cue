@@ -3,14 +3,14 @@ import WatchSync
 
 /// What's on the watch: Fast Download while songs are still to come, the
 /// songs added one at a time, then each album, playlist and artist with
-/// how far it's got and the room it takes.
+/// how far it's got and the room it takes, then the books.
 struct DownloadsScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(\.zoomNamespace) private var zoom
     @State private var isShowingFastDownload = false
 
     var body: some View {
-        let collections = store.picks.items.filter { $0.kind != .song }
+        let collections = store.musicPicks.filter { $0.kind != .song }
         let songPicks = store.picks.items.filter { $0.kind == .song }
         List {
             Section {
@@ -33,6 +33,13 @@ struct DownloadsScreen: View {
                     }
                     .zoomSource(LibraryRoute.pick(pick.key), in: zoom)
                 }
+                ForEach(store.books, id: \.key) { pick in
+                    let route = BookRoute(key: pick.key)
+                    NavigationLink(value: route) {
+                        BookRow(pick: pick, showsSize: true)
+                    }
+                    .zoomSource(route, in: zoom)
+                }
                 if store.picks.items.isEmpty {
                     Text("Nothing here yet. Browse your library, or choose Add to Apple Watch in Cue on your iPhone.")
                         .font(.footnote)
@@ -53,13 +60,12 @@ struct DownloadsScreen: View {
 
     private var storageSummary: String {
         let size = ByteCountFormatter.string(fromByteCount: store.bytesUsed, countStyle: .file)
-        let songs = store.downloadedCount == 1 ? "1 song" : "\(store.downloadedCount) songs"
-        return "\(songs) on this watch • \(size)"
+        return "\(store.contentsText) on this watch • \(size)"
     }
 }
 
-/// The home screen's way in: the count of songs here in the title, and
-/// what's going on below it.
+/// The home screen's way in: the count of songs and books here in the
+/// title, and what's going on below it.
 struct DownloadsRow: View {
     @Environment(WatchDownloadStore.self) private var store
 
@@ -68,7 +74,7 @@ struct DownloadsRow: View {
             VStack(alignment: .leading) {
                 HStack(spacing: 4) {
                     Text("Downloads")
-                    Text("\(store.downloadedCount)")
+                    Text("\(store.downloadedCount + store.downloadedBookCount)")
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
@@ -90,7 +96,7 @@ struct DownloadsRow: View {
         if store.remainingCount > 0 {
             return "\(store.remainingCount) to download"
         }
-        if store.downloadedCount == 0 {
+        if store.downloadedCount == 0, store.downloadedBookCount == 0 {
             return "Nothing yet"
         }
         return ByteCountFormatter.string(fromByteCount: store.bytesUsed, countStyle: .file)
@@ -124,8 +130,7 @@ private struct FastDownloadRow: View {
         case .finished:
             return store.failedCount > 0 ? "\(store.failedCount) couldn't download" : "Done"
         case .off:
-            let count = store.remainingCount
-            return count == 1 ? "1 song to download" : "\(count) songs to download"
+            return "\(WatchDownloadStore.countText(store.remainingCount, files: store.remainingIncludesBooks)) to download"
         }
     }
 }

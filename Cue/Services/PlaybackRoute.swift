@@ -45,9 +45,10 @@ final class PlaybackRoute {
     private(set) var chosen: PlayDestination
 
     /// Where playback goes now: the choice, or this device while no speaker
-    /// can be reached (Sonos switched off, or the phone on cellular).
-    /// Derived rather than stored, so it follows `SonosService.isAvailable`
-    /// by itself, and every view reading it with it.
+    /// can be reached (Sonos switched off, the phone on cellular or in a
+    /// car). Derived rather than stored, so it follows
+    /// `SonosService.isAvailable` by itself, and every view reading it with
+    /// it.
     var destination: PlayDestination {
         SonosService.shared.isAvailable ? chosen : .device
     }
@@ -215,6 +216,28 @@ final class PlaybackRoute {
     /// A hand-off is under way and the player is holding on its source.
     var isHolding: Bool {
         hold != nil
+    }
+
+    /// Whether `item` is the song the player shows, so a list can mark its
+    /// row: the track a speaker reports, or what this device is on (its
+    /// station, else the row its queue is at). Paused counts, as it does in
+    /// the player. Follows `presented`, so
+    /// through a hand-off the mark stays on the song being carried rather
+    /// than jumping to what the target last played.
+    func isPresenting(_ item: PlayableContent) -> Bool {
+        if let group = presentedGroup {
+            let trackID = group.coordinatorRoom.track.trackID
+            guard !trackID.isEmpty else { return false }
+            // Compare both IDs decoded. The now-playing trackID is percent-encoded for some
+            // services (e.g. Plex, whose ID is `clientID%3A3%3AratingKey` — the parser re-encodes
+            // the colons via `.urlPathAllowed`), while `content.id` is already decoded here, so an
+            // encoded-vs-decoded compare never matched and the Plex row never highlighted.
+            return trackID.removingPercentEncoding == item.content.id.removingPercentEncoding
+        }
+        // The device keeps the rows as they were played, so the ids match
+        // as they are; the service keeps two services' ids apart.
+        guard let current = LocalPlaybackService.shared.nowPlaying else { return false }
+        return current.content.id == item.content.id && current.content.service == item.content.service
     }
 
     /// The group being heard, where the hardware volume buttons go: the held
@@ -602,7 +625,10 @@ final class PlaybackRoute {
     private func localSnapshot() -> Snapshot? {
         let playback = LocalPlaybackService.shared
         guard playback.isActive, let current = playback.nowPlaying else { return nil }
-        return Snapshot(items: [current] + playback.upNext, position: playback.progress, isPlaying: playback.isPlaying)
+        // A station goes alone: the queue waiting behind it stays on the
+        // phone, as it is, and isn't what's being listened to.
+        let items = playback.isPlayingStation ? [current] : [current] + playback.upNext
+        return Snapshot(items: items, position: playback.progress, isPlaying: playback.isPlaying)
     }
 
     /// Only a queue can be carried across — radio, TV and a line-in have
@@ -674,6 +700,10 @@ final class PlaybackRoute {
             print("[handoff] \(Int(Self.seconds(ContinuousClock.now - began) * 1000))ms \(what)")
         }
         step("snapshot at \(String(format: "%.1f", snapshot.position))s, playing: \(snapshot.isPlaying)")
+
+        // A book's Audiobookshelf files reach a speaker through a listening
+        // session, opened now if the book holds none.
+        await AudiobookPlayer.shared.prepareForSpeaker(snapshot.items)
 
         // Files live in a folder on this device; no speaker can fetch them.
         let items = snapshot.items.filter { !$0.content.service.playsOnDeviceOnly }
@@ -1048,6 +1078,11 @@ final class PlaybackRoute {
     private func localItem(_ item: PlayableContent) async -> PlayableContent? {
         let playback = LocalPlaybackService.shared
         if playback.canPlayLocally(item) { return item }
+        // A file of the book playing: the book has it ready, stream URL and
+        // all, whatever the speaker's row kept of its id.
+        if let book = AudiobookPlayer.shared.current, let part = book.partIndex(of: item) {
+            return book.parts[part]
+        }
         guard item.content.type == .track, [.plex, .subsonic].contains(item.content.service) else { return nil }
         guard let resolved = await SonosService.shared.contentLookup(id: item.content.id, type: .track, service: item.content.service) else {
             return nil

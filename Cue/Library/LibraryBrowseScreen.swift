@@ -30,6 +30,8 @@ struct LibraryBrowseScreen: View {
 
         NavigationStack(path: $router.path) {
             List {
+                // Above the library, a section of its own.
+                MusicLeftOffSection()
                 NavigationLink(value: RouterDestination.playableContentList(group: selectedGroupService.group, contentType: .artist)) {
                     Label("Artists", systemImage: "music.mic")
                 }

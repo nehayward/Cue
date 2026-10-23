@@ -1,0 +1,133 @@
+import Defaults
+import MusicSearchKit
+import SonosKit
+import SwiftUI
+
+/// A book's place history (`AudiobookPlaceHistory`), newest first: what
+/// happened where, when, and in which chapter. A tap plays from there, and
+/// the place left for it joins the list, so going back is never a loss.
+struct AudiobookHistoryList: View {
+    let book: PlayableContent
+    /// The book read whole, for its chapters' names; nil before it's read.
+    let audiobook: Audiobook?
+    /// After a place is picked: the sheet showing the list closes.
+    var onPick: () -> Void = {}
+
+    @State private var history = AudiobookPlaceHistory.shared
+
+    var body: some View {
+        let places = history.places(for: book)
+        if places.isEmpty {
+            ContentUnavailableView {
+                Label("No History Yet", systemImage: "clock.arrow.circlepath")
+            } description: {
+                Text("Where you start, pause and jump from in this book shows here, so you can always go back.")
+            }
+            .padding(.top, 24)
+        } else {
+            LazyVStack(spacing: 0) {
+                ForEach(places) { place in
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        onPick()
+                        Task { await AudiobookPlayer.shared.play(book, at: place.position) }
+                    } label: {
+                        row(place)
+                    }
+                    .buttonStyle(.plain)
+                    if place.id != places.last?.id {
+                        Divider()
+                            .padding(.leading, 32)
+                    }
+                }
+            }
+        }
+    }
+
+    private func row(_ place: AudiobookPlaceHistory.Place) -> some View {
+        HStack(spacing: 12) {
+            // Opacities of primary, not `.secondary`, which flickers as the
+            // glass sheet changes.
+            Image(systemName: Self.symbol(place))
+                .foregroundStyle(.primary.opacity(0.6))
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Self.title(place))
+                    .foregroundStyle(.primary)
+                Text([audiobook?.chapter(at: place.position)?.title, AudiobookFormat.clock(place.position)].compactMap { $0 }.joined(separator: " · "))
+                    .font(.caption)
+                    .foregroundStyle(.primary.opacity(0.6))
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+            Spacer()
+            // Ticks once a minute, so "Just now" moves on while it's open.
+            TimelineView(.everyMinute) { context in
+                Text(Self.when(place.date, now: context.date))
+            }
+            .font(.caption)
+            .foregroundStyle(.primary.opacity(0.8))
+        }
+        .padding(.vertical, 10)
+        .contentShape(.rect)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Plays from here")
+    }
+
+    private static func title(_ place: AudiobookPlaceHistory.Place) -> LocalizedStringKey {
+        switch place.kind {
+        case .started: "Started"
+        case .paused: "Paused"
+        case .jumpedFrom: "Moved away from here"
+        case .replaced:
+            switch place.source {
+            case .watch: "Before Apple Watch's place"
+            case .plex: "Before Plex's place"
+            case .audiobookshelf: "Before Audiobookshelf's place"
+            case nil: "Before another device's place"
+            }
+        case .left: "Left the book"
+        }
+    }
+
+    private static func symbol(_ place: AudiobookPlaceHistory.Place) -> String {
+        switch place.kind {
+        case .started: "play.fill"
+        case .paused: "pause.fill"
+        case .jumpedFrom: "arrow.uturn.backward"
+        case .replaced:
+            switch place.source {
+            case .watch: "applewatch"
+            case .plex, .audiobookshelf: "server.rack"
+            case nil: "iphone.and.arrow.forward"
+            }
+        case .left: "rectangle.portrait.and.arrow.right"
+        }
+    }
+
+    /// "Just now", "12 min. ago" within the hour, "2:41 PM" earlier today,
+    /// "Yesterday 10:08 PM", "Mon 2:41 PM" this week, "Oct 12" before.
+    /// Past the hour the clock reads better: pauses minutes apart would all
+    /// read "2 hr. ago".
+    private static func when(_ date: Date, now: Date) -> String {
+        let calendar = Calendar.current
+        let elapsed = now.timeIntervalSince(date)
+        if elapsed < 60 {
+            return String(localized: "Just now")
+        }
+        if elapsed < 60 * 60 {
+            return date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated))
+        }
+        let time = date.formatted(.dateTime.hour().minute())
+        if calendar.isDateInToday(date) {
+            return time
+        }
+        if calendar.isDateInYesterday(date) {
+            return String(localized: "Yesterday \(time)")
+        }
+        if let days = calendar.dateComponents([.day], from: date, to: now).day, days < 7 {
+            return date.formatted(.dateTime.weekday(.abbreviated).hour().minute())
+        }
+        return date.formatted(.dateTime.month(.abbreviated).day())
+    }
+}

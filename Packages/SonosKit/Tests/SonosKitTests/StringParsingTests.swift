@@ -33,4 +33,18 @@ final class StringParsingTests: XCTestCase {
         XCTAssertEqual("a&amp;b".didlEscaped, "a&amp;amp;b")
         XCTAssertEqual("no-ampersands".didlEscaped, "no-ampersands")
     }
+
+    /// One walk gives what five `replacingOccurrences` passes in turn
+    /// (`&lt;`, `&gt;`, `&amp;`, `&quot;`, `&apos;`) gave, including their
+    /// quirk: `&amp;` was decoded before `&quot;` and `&apos;`, so those
+    /// come out whole when double-escaped, and `&lt;`/`&gt;` don't.
+    func testUnescapedMatchesSequentialPasses() {
+        XCTAssertEqual("plain".unescaped, "plain")
+        XCTAssertEqual("&lt;dc:title&gt;Don&apos;t &amp; Stop&lt;/dc:title&gt;".unescaped, "<dc:title>Don't & Stop</dc:title>")
+        XCTAssertEqual("&quot;é👍🏽&quot;".unescaped, "\"é👍🏽\"")
+        XCTAssertEqual("&amp;quot;&amp;apos;".unescaped, "\"'")
+        XCTAssertEqual("&amp;lt;&amp;gt;&amp;amp;".unescaped, "&lt;&gt;&amp;")
+        XCTAssertEqual("&amp&quot &#39; & ;".unescaped, "&amp&quot &#39; & ;")
+        XCTAssertEqual("a&amp;&quot;b".unescaped, "a&\"b")
+    }
 }

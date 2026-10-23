@@ -553,7 +553,10 @@ struct PlayableListView: View {
             // A first page replaces what's there rather than merging into it,
             // so a narrower result really is narrower — and an empty one is an
             // answer ("no results"), not a page that failed to arrive.
-            if animatesNextFill {
+            // Animated only between short lists: narrowing or clearing a
+            // filter over a whole library animated the removal or insertion
+            // of thousands of rows in one batch, which stalled the list.
+            if animatesNextFill, items.count <= 300, newItems.count <= 300 {
                 withAnimation(.default) { items = OrderedSet(newItems) }
             } else {
                 items = OrderedSet(newItems)

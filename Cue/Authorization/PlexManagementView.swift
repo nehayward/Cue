@@ -154,6 +154,10 @@ struct PlexManagementView: View {
                             }
                         }
                     }
+
+                    if musicSearchService.plexServerID != nil {
+                        PlexAudiobookSettingsSection(serverID: musicSearchService.plexServerID)
+                    }
                 }
             }
             .navigationTitle("Plex")

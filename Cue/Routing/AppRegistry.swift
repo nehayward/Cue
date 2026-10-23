@@ -175,6 +175,8 @@ extension View {
                         PlexManagementView()
                     case .subsonicManagement:
                         SubsonicManagementView()
+                    case .audiobookshelfManagement:
+                        AudiobookshelfManagementView()
                     case .filesManagement:
                         FilesManagementView()
                     case let .volumeControlsScreen(groupID: groupID):
@@ -198,6 +200,9 @@ extension View {
                         ReorderSoundCloudLibrarySectionsView()
                     case .shareToWatch:
                         ShareToWatchView()
+                    case .audiobookChapters:
+                        AudiobookChaptersView()
+                            .presentationDetents([.medium, .large])
                     case .paywall, .onboard:
                         // Routed via `withFullScreenCoverDestinations` —
                         // listed here to keep the switch exhaustive but never

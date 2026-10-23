@@ -29,26 +29,57 @@ STARTED="$(date +%s)"
 
 step "Launching $BUNDLE_ID on $NAME, capturing ${SECONDS_TO_CAPTURE}s of console"
 echo "Use the app on the phone now to reproduce what you want to see."
-xcrun devicectl device process launch \
-	--console \
-	--terminate-existing \
-	--environment-variables '{"OS_ACTIVITY_DT_MODE": "enable"}' \
-	--device "$UDID" \
-	"$BUNDLE_ID" >"$LOG" 2>&1 &
-PID=$!
+
+launch() {
+	xcrun devicectl device process launch \
+		--console \
+		--terminate-existing \
+		--environment-variables '{"OS_ACTIVITY_DT_MODE": "enable"}' \
+		--device "$UDID" \
+		"$BUNDLE_ID" >"$LOG" 2>&1 &
+	PID=$!
+}
+
+# A locked phone refuses the launch. Driven from the phone, it's often
+# locked when this starts, so keep asking until it's unlocked (up to
+# $CUE_UNLOCK_WAIT seconds), and count the capture from the launch.
+is_locked() { grep -q "could not be, unlocked" "$LOG"; }
+UNLOCK_WAIT="${CUE_UNLOCK_WAIT:-120}"
+UNLOCK_DEADLINE=$(( $(date +%s) + UNLOCK_WAIT ))
+DEADLINE=$(( $(date +%s) + SECONDS_TO_CAPTURE ))
+TOLD_LOCKED=0
+launch
 
 # Stop early if the app exits (devicectl returns when the process ends).
-for _ in $(seq "$SECONDS_TO_CAPTURE"); do
-	kill -0 "$PID" 2>/dev/null || break
+while :; do
+	if ! kill -0 "$PID" 2>/dev/null; then
+		wait "$PID" 2>/dev/null || true
+		if is_locked && [ "$(date +%s)" -lt "$UNLOCK_DEADLINE" ]; then
+			if [ "$TOLD_LOCKED" -eq 0 ]; then
+				echo "The phone is locked. Unlock it and the capture starts (waiting up to ${UNLOCK_WAIT}s)..."
+				TOLD_LOCKED=1
+			fi
+			sleep 3
+			STARTED="$(date +%s)"
+			DEADLINE=$(( STARTED + SECONDS_TO_CAPTURE ))
+			launch
+			continue
+		fi
+		EXITED=1
+		break
+	fi
+	if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+		kill "$PID" 2>/dev/null || true
+		wait "$PID" 2>/dev/null || true
+		EXITED=0
+		break
+	fi
 	sleep 1
 done
-if kill -0 "$PID" 2>/dev/null; then
-	kill "$PID" 2>/dev/null || true
-	EXITED=0
-else
-	EXITED=1
+
+if is_locked; then
+	fail "Cue couldn't launch: the phone stayed locked for ${UNLOCK_WAIT}s. Unlock it and run this again."
 fi
-wait "$PID" 2>/dev/null || true
 
 step "Console ($(wc -l <"$LOG" | tr -d ' ') lines, full log: $LOG)"
 if [ -n "${CUE_LOG_FILTER:-}" ]; then

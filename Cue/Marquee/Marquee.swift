@@ -66,7 +66,10 @@ private struct MarqueeScroller: View {
             .hidden()
             .frame(maxWidth: .infinity)
             .overlay(alignment: .leading) {
-                TimelineView(.animation(paused: scenePhase != .active || startTime == nil)) { context in
+                // 60 a second at most: on a 120 Hz screen every other frame
+                // re-ran this for half a point of movement. Paused while the
+                // text rests (`startTime` is nil then), not just off screen.
+                TimelineView(.animation(minimumInterval: 1.0 / 60, paused: scenePhase != .active || startTime == nil)) { context in
                     HStack(spacing: spacing) {
                         Text(text)
                             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { textWidth = $0 }
@@ -94,11 +97,20 @@ private struct MarqueeScroller: View {
             // reading it. Resume without this and the offset jumps from
             // wherever the last drawn frame left it to wherever the cycle has
             // since wandered to, which reads as a glitch on every unlock.
+            //
+            // Each cycle rests at the start with the timeline paused, then
+            // scrolls one full length — after which the second copy sits
+            // exactly where the first began, so going back to rest is seamless.
             .task(id: CycleKey(text: text, isActive: scenePhase == .active)) {
                 startTime = nil
-                try? await Task.sleep(for: .seconds(pauseDuration))
-                guard !Task.isCancelled else { return }
-                startTime = Date()
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(pauseDuration))
+                    guard !Task.isCancelled else { return }
+                    startTime = Date()
+                    try? await Task.sleep(for: .seconds(scrollDuration))
+                    guard !Task.isCancelled else { return }
+                    startTime = nil
+                }
             }
     }
 
@@ -107,12 +119,17 @@ private struct MarqueeScroller: View {
         let isActive: Bool
     }
 
+    private var pointsPerSecond: CGFloat { 50 * speed }
+
+    /// How long one full length takes to scroll by.
+    private var scrollDuration: Double {
+        Double((textWidth + spacing) / pointsPerSecond)
+    }
+
     /// How far the text has scrolled at `date`, or 0 while it rests at the start.
     private func offset(at date: Date) -> CGFloat {
         guard let startTime, textWidth > 0 else { return 0 }
-        let pointsPerSecond = 50 * speed
-        let scrollDuration = (textWidth + spacing) / pointsPerSecond
-        let cycleProgress = date.timeIntervalSince(startTime).truncatingRemainder(dividingBy: scrollDuration + pauseDuration)
-        return cycleProgress < scrollDuration ? cycleProgress * pointsPerSecond : 0
+        let elapsed = date.timeIntervalSince(startTime)
+        return elapsed < scrollDuration ? CGFloat(elapsed) * pointsPerSecond : 0
     }
 }

@@ -32,6 +32,14 @@ public enum GroupStorageKeys {
     /// choice from one share to the next.
     public static let playActionDestination = "\(Prefix.id).playActionDestination"
 
+    /// Until when this device's Cue has Super, as `SubscriptionService` last
+    /// settled it (`Subscription.activeUntil`; `.distantPast` once it answered
+    /// no). Read it through `superUntil` and `hasSuper`. The Shortcuts actions
+    /// used to read the iCloud flag (`CloudKeys.hasSubscription`), which only
+    /// Debug and TestFlight builds still wrote, so every App Store subscriber
+    /// was told to subscribe.
+    public static let superUntil = "\(Prefix.id).superUntil"
+
     /// Non-optional accessor. Falls back to `.standard` so a missing app-group
     /// entitlement degrades to app-local behaviour instead of dropping writes.
     public static var defaults: UserDefaults { storage ?? .standard }
@@ -43,5 +51,20 @@ public extension UserDefaults {
     var liveActivitiesEnabled: Bool {
         get { object(forKey: GroupStorageKeys.liveActivities) as? Bool ?? true }
         set { set(newValue, forKey: GroupStorageKeys.liveActivities) }
+    }
+
+    /// This device's answer (`GroupStorageKeys.superUntil`); nil until there
+    /// is one.
+    var superUntil: Date? {
+        get { object(forKey: GroupStorageKeys.superUntil) as? Date }
+        set { set(newValue, forKey: GroupStorageKeys.superUntil) }
+    }
+
+    /// Whether Super holds now, for code that can't ask RevenueCat or StoreKit
+    /// (a Shortcuts action run before the app has its answer). Until this
+    /// device has an answer of its own (the app hasn't run since updating),
+    /// the iCloud flag older builds wrote.
+    var hasSuper: Bool {
+        superUntil.map { $0 > .now } ?? NSUbiquitousKeyValueStore.default.bool(forKey: CloudKeys.hasSubscription)
     }
 }
