@@ -965,23 +965,31 @@ public final class PlexAPI {
     }
 
     public func getMusicLibraries() async -> [PlexLibrarySection] {
+        await musicLibraries() ?? []
+    }
+
+    /// The selected server's Music libraries, or nil when they couldn't be
+    /// read: a request that failed isn't a server with none. Asked like the
+    /// browse requests (`loadData`), so a connection gone stale fails over.
+    func musicLibraries() async -> [PlexLibrarySection]? {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else {
-            return []
+            return nil
         }
 
         guard let sectionsURL = getBaseURL(for: plexServer)?.appending(path: "library/sections") else {
-            return []
+            return nil
         }
 
         var request = URLRequest(url: sectionsURL)
         request.httpMethod = "GET"
+        request.timeoutInterval = 10
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         request.addValue("Cue", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
-        guard let (data, _) = try? await session.data(for: request) else {
-            return []
+        guard let (data, _) = await loadData(for: request) else {
+            return nil
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
@@ -999,7 +1007,7 @@ public final class PlexAPI {
             return libraries
         } catch {
             logger.error(error)
-            return []
+            return nil
         }
     }
   
@@ -1534,7 +1542,10 @@ public final class PlexAPI {
         if let result = try? await session.data(for: request) {
             return result
         }
-        guard let url = request.url,
+        // Cancelled, not failed: the connection is fine, and a race run
+        // now would be cancelled too and leave the fallback in its place.
+        guard !Task.isCancelled,
+              let url = request.url,
               let server = await getPlexServer() else {
             return nil
         }
