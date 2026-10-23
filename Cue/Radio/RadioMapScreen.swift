@@ -5,11 +5,14 @@ import SwiftUI
 /// The Radio map, full screen: every station the map has placed (the ones
 /// near you, and whatever Search This Area found) as pins that group while
 /// zoomed out. A pin of one place opens its stations in a card to play; a
-/// pin spanning several places zooms in on them. Pushed from the Radio
-/// tab's tile, out of which it zooms, so the mini player stays in reach.
+/// pin spanning several places zooms in on them. Stations Near You finds
+/// where this device is (asking for location the first time) and the
+/// stations there. Pushed from the Radio tab's tile, out of which it zooms,
+/// so the mini player stays in reach.
 struct RadioMapScreen: View {
     @State private var radioMap = RadioMap.shared
     @State private var tuneIn = TuneInBrowseService.shared
+    @Environment(\.openURL) private var openURL
 
     @State private var position: MapCameraPosition = .automatic
     @State private var visibleRegion: MKCoordinateRegion?
@@ -20,8 +23,14 @@ struct RadioMapScreen: View {
     /// Whether the map has been set on the stations near you, which waits
     /// for the first of them to be placed when none were yet.
     @State private var hasFramed = false
+    /// Stations Near You is waiting on where this device is.
+    @State private var isFindingYou = false
+    @State private var showsLocationOff = false
 
     private static let pinSize: CGFloat = 40
+    /// How much of the map around you Stations Near You shows: about a
+    /// metro area, what TuneIn's local page covers.
+    private static let aroundYou: CLLocationDistance = 60_000
 
     private var localStations: [RadioMapStation] {
         radioMap.mapped(tuneIn.localStations)
@@ -47,6 +56,9 @@ struct RadioMapScreen: View {
         )
 
         Map(position: $position) {
+            // Only drawn once location is allowed; it never asks itself.
+            UserAnnotation()
+
             ForEach(clusters) { cluster in
                 Annotation(cluster.title, coordinate: cluster.coordinate, anchor: .center) {
                     Button {
@@ -110,11 +122,18 @@ struct RadioMapScreen: View {
 #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button("Stations Near You", systemImage: "scope") {
-                    frameNearYou()
+                Button("Stations Near You", systemImage: "location") {
+                    findYou()
                 }
-                .disabled(local.isEmpty)
             }
+        }
+        .alert("Location Is Off for Cue", isPresented: $showsLocationOff) {
+            Button("Settings") {
+                openLocationSettings()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("To find the stations where you are, allow Cue to use your location in Settings.")
         }
         .onAppear {
             // The view the tile shows, so the zoom lands on the same map.
@@ -161,6 +180,62 @@ struct RadioMapScreen: View {
             && region.span.longitudeDelta < visible.span.longitudeDelta * 0.8
     }
 
+    // MARK: - Near You
+
+    /// Finds where this device is and shows the stations there. Without
+    /// location, the map goes to the stations TuneIn places near you by
+    /// your IP address, which can be a city or more away.
+    private func findYou() {
+        guard !isFindingYou else { return }
+        isFindingYou = true
+        // From here the map goes where it's asked: stations near you
+        // landing later don't take it back to TuneIn's guess.
+        hasFramed = true
+        Task {
+            let outcome = await RadioMapLocator().currentLocation()
+            isFindingYou = false
+            switch outcome {
+            case let .found(coordinate):
+                show(coordinate)
+            case .denied:
+                frameNearYou()
+                showsLocationOff = true
+            case .unavailable:
+                frameNearYou()
+            }
+        }
+    }
+
+    /// Moves the map to `coordinate` and asks TuneIn for the stations
+    /// local to it, unless they were asked for already.
+    private func show(_ coordinate: CLLocationCoordinate2D) {
+        let region = MKCoordinateRegion(
+            center: coordinate,
+            latitudinalMeters: Self.aroundYou,
+            longitudinalMeters: Self.aroundYou
+        )
+        withAnimation(.smooth) {
+            selected = nil
+            position = .region(region)
+        }
+        let here = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        guard !hasAsked(about: here, nearYou: Self.nearYouRegion(localStations), in: region) else { return }
+        Task {
+            await radioMap.searchArea(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        }
+    }
+
+    private func openLocationSettings() {
+        #if targetEnvironment(macCatalyst)
+        let address = "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices"
+        #else
+        let address = UIApplication.openSettingsURLString
+        #endif
+        if let url = URL(string: address) {
+            openURL(url)
+        }
+    }
+
     private func frameNearYou() {
         guard let region = Self.nearYouRegion(localStations) else { return }
         hasFramed = true
@@ -179,6 +254,9 @@ struct RadioMapScreen: View {
     /// What the bar over the map says: work under way, else the offer to
     /// search where the map has moved to, else what the last search found.
     private func status(nearYou: MKCoordinateRegion?) -> RadioMapStatus? {
+        if isFindingYou {
+            return .working("Finding You…")
+        }
         if radioMap.isSearchingArea {
             return .working("Searching This Area…")
         }
@@ -200,10 +278,17 @@ struct RadioMapScreen: View {
     private func searchCenter(nearYou: MKCoordinateRegion?) -> CLLocationCoordinate2D? {
         guard let region = visibleRegion, region.span.latitudeDelta < 12 else { return nil }
         let center = CLLocation(latitude: region.center.latitude, longitude: region.center.longitude)
+        guard !hasAsked(about: center, nearYou: nearYou, in: region) else { return nil }
+        return region.center
+    }
+
+    /// Whether TuneIn has been asked for the stations local to `point`:
+    /// it's the same place, seen in `region`, as the stations near you or
+    /// an area searched.
+    private func hasAsked(about point: CLLocation, nearYou: MKCoordinateRegion?, in region: MKCoordinateRegion) -> Bool {
         let nearYouCenter = nearYou.map { CLLocation(latitude: $0.center.latitude, longitude: $0.center.longitude) }
         let asked = radioMap.searches.map(\.center) + [nearYouCenter].compactMap { $0 }
-        guard asked.allSatisfy({ center.distance(from: $0) > Self.samePlace(in: region) }) else { return nil }
-        return region.center
+        return asked.contains { point.distance(from: $0) <= Self.samePlace(in: region) }
     }
 
     /// A search that placed none of its stations near where it asked:

@@ -16,6 +16,10 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
+	<!-- The Radio map's Stations Near You; a sandboxed Mac app can't ask
+	     for location without it. -->
+	<key>com.apple.security.personal-information.location</key>
+	<true/>
 	<!-- The Files provider: the open panel that picks the folder (a
 	     sandboxed Mac app can't show one without this), and the
 	     security-scoped bookmark that keeps the folder across launches.
