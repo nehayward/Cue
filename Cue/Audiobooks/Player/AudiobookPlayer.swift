@@ -1093,7 +1093,11 @@ final class AudiobookPlayer {
     private func end() {
         guard let current else { return }
         Self.log.notice("book left: \(current.book.title, privacy: .public)")
-        AudiobookPlaceHistory.shared.record(.left, at: position, for: current.book)
+        // After a relaunch the book is known before anything has read its
+        // place, and `position` is still 0 until it plays: left then, the
+        // place it was left at is the one kept, not the top of the book.
+        let left = position > 0 ? position : AudiobookProgressStore.shared.progress(for: current.book)?.position ?? 0
+        AudiobookPlaceHistory.shared.record(.left, at: left, for: current.book)
         leftBook = LeftBook(book: current.book, partIDs: Set(current.parts.map(\.id)))
         // Offline the session is left to lapse on the server.
         if current.book.content.service == .audiobookshelf, !OfflineMode.shared.isActive {
