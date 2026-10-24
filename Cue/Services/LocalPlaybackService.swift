@@ -1278,11 +1278,12 @@ final class LocalPlaybackService {
     /// Reorders the queue, played rows included, as a speaker's queue can
     /// be: a song already heard can be brought back to play again, and one
     /// dropped above the current track counts as played. The current track
-    /// itself stays put among the rest. Offsets are queue indices, in the
-    /// shape `onMove` hands them over: the destination is a place in the
-    /// queue as it was, before the moved rows were taken out.
+    /// can move too, and plays on where it lands: the rows it passes change
+    /// sides. Offsets are queue indices, in the shape `onMove` hands them
+    /// over: the destination is a place in the queue as it was, before the
+    /// moved rows were taken out.
     func moveInQueue(from source: IndexSet, to destination: Int) {
-        let moving = source.filter { $0 != currentIndex && queue.indices.contains($0) }.sorted()
+        let moving = source.filter { queue.indices.contains($0) }.sorted()
         guard !moving.isEmpty else { return }
         let target = min(max(destination, 0), queue.count)
         let isMoving = Set(moving)

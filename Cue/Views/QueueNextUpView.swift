@@ -30,9 +30,10 @@ struct QueueNextUpView: View {
 
 /// The device's queue, from `LocalPlaybackService`: shuffle, repeat and a
 /// clear in the header, and every row but the current track can be removed
-/// (swipe, or the context menu), moved to play next, or dragged into a new
-/// order, as a speaker's queue can in Clic. Played rows too: a song already
-/// heard can be brought back up to play again.
+/// (swipe, or the context menu) or moved to play next, and every row,
+/// the current one too, dragged into a new order, as a speaker's queue can
+/// in Clic. Played rows too: a song already heard can be brought back up to
+/// play again.
 ///
 /// While a station plays, the queue waits behind it (`station`) and the list
 /// says so the way a speaker's does on radio: "Not Active" in the header,
@@ -301,10 +302,12 @@ private struct LocalQueueRow: View {
 
     var body: some View {
         let current = playback.currentIndex
-        // The current track stays put: it's playing, or behind a station
-        // it's where the queue picks up. Every other row, played ones
-        // included, can go anywhere, and a played one sent to play next is
-        // heard again.
+        // The current track can't be removed or played next: it's playing,
+        // or behind a station it's where the queue picks up. Every other
+        // row, played ones included, can, and a played one sent to play
+        // next is heard again. Any row drags, the current one too: held in
+        // place, it stood between the played rows and Up Next, and the song
+        // just before it couldn't be dragged after it.
         let isCurrent = index == current
         let canPlayNext = !isCurrent && index != current + 1
         // Behind a station the queue's song isn't playing, so no row is
@@ -317,7 +320,6 @@ private struct LocalQueueRow: View {
             .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
-            .moveDisabled(isCurrent)
             .deleteDisabled(isCurrent)
             .swipeActions(edge: .leading) {
                 if canPlayNext {
@@ -362,8 +364,9 @@ private struct LocalQueueRow: View {
 /// A Sonos group's queue. No volume: that's the player's.
 ///
 /// Edited as the device's is, and as Clic edits a speaker's queue: every
-/// row but the current track can be removed (swipe, or the context menu),
-/// moved to play next, or dragged into a new order, played ones included.
+/// row but the current track can be removed (swipe, or the context menu)
+/// or moved to play next, and every row dragged into a new order, played
+/// ones and the current one included.
 private struct GroupNextUpView: View {
     let group: GroupRoom
 
@@ -669,7 +672,8 @@ private struct GroupQueueRow: View {
 
     var body: some View {
         // On radio or TV no row is current, and Play Next has no track to
-        // follow.
+        // follow. Every row drags, the current one too, as on the device's
+        // list (`LocalQueueRow`).
         let isActive = group.playbackService == .queue
         let current = group.coordinatorRoom.track.position
         let position = item.metadata?.position
@@ -684,7 +688,6 @@ private struct GroupQueueRow: View {
             .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
-            .moveDisabled(isCurrent)
             .deleteDisabled(isCurrent)
             .swipeActions(edge: .leading) {
                 if canPlayNext {
