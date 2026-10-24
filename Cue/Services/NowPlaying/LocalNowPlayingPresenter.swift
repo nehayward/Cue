@@ -84,25 +84,32 @@ final class LocalNowPlayingPresenter {
         session?.remoteCommandCenter ?? .shared()
     }
 
-    /// A stream player was made for a run: the session follows it.
-    /// Ahead of `begin()`, so the commands go to the session's center.
+    /// A stream player was made for a run: the card moves to a session of
+    /// it. Ahead of `begin()`, so the commands go to the session's center.
+    ///
+    /// A session a player, never a player swapped inside one: with
+    /// automatic publishing off, `removePlayer(_:)` takes away KVO it never
+    /// added, and the exception took the app down (Back to Book, a new
+    /// stream run). So a new player gets a new session, the commands and
+    /// the song move over to it, and the old session goes.
     func attach(_ player: AVPlayer) {
         guard UserDefaults.standard.bool(forKey: AppStorageKeys.nowPlayingSession) else { return }
-        if let session {
-            for old in session.players where old !== player {
-                session.removePlayer(old)
-            }
-            if !session.players.contains(where: { $0 === player }) {
-                session.addPlayer(player)
-            }
-            return
-        }
+        if let session, session.players.contains(where: { $0 === player }) { return }
+        let hadCommands = !commandTokens.isEmpty
         // Commands already up on the shared center (the switch turned on
         // mid-run) stay there until the card comes down.
-        guard commandTokens.isEmpty else { return }
+        if session == nil, hadCommands { return }
+        if hadCommands {
+            unregisterCommands()
+        }
         let session = MPNowPlayingSession(players: [player])
         session.automaticallyPublishesNowPlayingInfo = false
         self.session = session
+        if hadCommands {
+            registerCommands()
+        }
+        // The next update puts the song on the new session's card.
+        published = nil
         session.becomeActiveIfPossible { active in
             Self.log.notice("now playing session \(active ? "active" : "not active", privacy: .public)")
         }
