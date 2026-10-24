@@ -123,13 +123,6 @@ struct RouterDestinationView: View {
                 }
             case let .tuneInBrowse(title: title, url: url):
                 TuneInBrowseScreen(title: title, url: url)
-            case let .radioMap(zoomSource):
-                if let zoomSource, let zoomNamespace {
-                    RadioMapScreen()
-                        .zoomTransition(from: zoomSource, in: zoomNamespace)
-                } else {
-                    RadioMapScreen()
-                }
             case .plexCollections:
                 PlexCollectionsScreen()
             case .connectByIP:
