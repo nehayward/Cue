@@ -2177,6 +2177,9 @@ final class LocalPlaybackService {
         } else {
             nowPlayingCard.end()
         }
+        if hadStreamPlayer, !keepingAudioSession {
+            keepAwake.release(deactivating: false)
+        }
         if hadStreamPlayer, !handsToPreparedApple, !keepingAudioSession {
             releaseAudioSession()
         }
@@ -3020,9 +3023,6 @@ final class LocalPlaybackService {
             }
         }
         player.play()
-        // The stream player has the session now: the silence that kept Cue
-        // running through the Apple run before it can go.
-        keepAwake.release(deactivating: false)
 
         backend = .stream
         runEnd = lastArmed
@@ -3092,6 +3092,18 @@ final class LocalPlaybackService {
         } catch {
             let code = (error as NSError).code
             Self.log.error("activating the audio session for \(what, privacy: .public) failed: \(code) \(error.localizedDescription, privacy: .public)")
+            // Taking over from the keep-awake silence with Cue in the
+            // background, a session that doesn't mix can be refused. One that
+            // mixes isn't, and the song plays all the same.
+            if keepAwake.isHeld {
+                do {
+                    try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+                    try AVAudioSession.sharedInstance().setActive(true)
+                    Self.log.notice("the audio session for \(what, privacy: .public) mixes with others for now")
+                } catch {
+                    Self.log.error("a mixing session for \(what, privacy: .public) failed too: \(error.localizedDescription, privacy: .public)")
+                }
+            }
         }
     }
 
@@ -3504,6 +3516,20 @@ final class LocalPlaybackService {
                 return
             }
             noteBookFileState(streamPlayer)
+            // The stream is heard: the silence that kept Cue running through
+            // the Apple run before it can go. Not before, while the song still
+            // loads, or Cue could be suspended in the moment between the two.
+            if keepAwake.isHeld, streamPlayer.timeControlStatus == .playing {
+                keepAwake.release(deactivating: false)
+                // Taken mixing (`activateAudioSession`): Cue is what plays
+                // now, and only a session that doesn't mix gets the Lock
+                // Screen's card and controls.
+                let session = AVAudioSession.sharedInstance()
+                if session.categoryOptions.contains(.mixWithOthers) {
+                    let unmixed = (try? session.setCategory(.playback, mode: .default)) != nil
+                    Self.log.notice("the stream's audio session \(unmixed ? "no longer mixes" : "still mixes", privacy: .public)")
+                }
+            }
             // Only what changed, as above.
             let playing = reconcilePlaying(streamPlayer.timeControlStatus != .paused)
             let paused = isPlaying && !playing
