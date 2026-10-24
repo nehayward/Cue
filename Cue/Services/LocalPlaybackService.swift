@@ -2647,7 +2647,13 @@ final class LocalPlaybackService {
     /// A server's file stays as it was, since precise timing has the whole
     /// file loaded before it plays (a seek moves the song onto a local copy
     /// instead, `moveToLocalCopy()`), and so does a book's, hours long.
+    /// A server's song the cache keeps plays from the cache's download of
+    /// it as that comes in, so it's fetched once rather than twice.
     private func streamItem(_ url: URL, at queueIndex: Int) -> AVPlayerItem {
+        if !url.isFileURL, let row = queue[safe: queueIndex],
+           let asset = PlaybackCache.shared.streamingAsset(for: row, from: url) {
+            return AVPlayerItem(asset: asset)
+        }
         let precise = url.isFileURL && !isBookFile(at: queueIndex)
         return AVPlayerItem(asset: AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: precise]))
     }
