@@ -1,4 +1,3 @@
-import Analytics
 import SonosKit
 import SwiftUI
 
@@ -13,9 +12,9 @@ struct DiscoveryStep: View {
     /// Continue so the UI shows the searching state first and then transitions
     /// to "not found" — mirroring the real discovery cadence.
     @State private var mockSearchDone = false
-    /// Tracks whether we've already fired the discoverySucceeded analytics
-    /// event, so it doesn't re-fire on every subsequent rooms.count change.
-    @State private var didTrackSuccess = false
+    /// Set when the first speaker arrives, so what follows it doesn't run
+    /// again on every later rooms.count change.
+    @State private var didFindSpeaker = false
     /// Holds the `.found` reveal until `hydrateRoomDetails()` finishes or a
     /// 200ms deadline elapses — whichever comes first. Stops the speaker rows
     /// from rendering with a placeholder model name and then text-swapping to
@@ -117,13 +116,11 @@ struct DiscoveryStep: View {
             }
         }
         .onChange(of: sonosService.rooms.count) { oldCount, newCount in
-            // Fire the analytics event exactly once, when the first speaker
-            // arrives. Per-speaker haptics now live inside
-            // `DiscoveredSpeakerList` so each tap lands in sync with the
-            // row's cascade reveal.
-            guard !didTrackSuccess, oldCount == 0, newCount > 0 else { return }
-            didTrackSuccess = true
-            Analytics.shared.track(OnboardingEvent.discoverySucceeded)
+            // Once, when the first speaker arrives. Per-speaker haptics
+            // live inside `DiscoveredSpeakerList` so each tap lands in sync
+            // with the row's cascade reveal.
+            guard !didFindSpeaker, oldCount == 0, newCount > 0 else { return }
+            didFindSpeaker = true
 
             // Kick off the media-server + Sonos event subscription as soon as
             // we have a topology. Otherwise an X-out before the user reaches
@@ -152,19 +149,6 @@ struct DiscoveryStep: View {
             // came back, re-attempt discovery.
             guard phase == .active, didStart else { return }
             sonosService.monitor()
-        }
-        // Fire once when discovery first lands in a terminal failure state.
-        // `.onChange(initial:)` with a stable guard prevents re-firing on
-        // subsequent state churn.
-        .onChange(of: sonosService.systemState.notFound) { _, isNotFound in
-            if didStart, isNotFound {
-                Analytics.shared.track(OnboardingEvent.discoveryNotFound)
-            }
-        }
-        .onChange(of: sonosService.systemState.permissionDenied) { _, isDenied in
-            if didStart, isDenied {
-                Analytics.shared.track(OnboardingEvent.discoveryDenied)
-            }
         }
     }
 
@@ -221,7 +205,6 @@ struct DiscoveryStep: View {
             case .idle:
                 PrimaryPillButton(title: "Continue") {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    Analytics.shared.track(OnboardingEvent.discoveryStarted)
                     startDiscovery()
                     didStart = true
                 }

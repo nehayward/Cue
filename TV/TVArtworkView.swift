@@ -1,4 +1,4 @@
-import Kingfisher
+import NukeUI
 import SwiftUI
 import SonosKit
 import MusicSearchKit
@@ -14,26 +14,32 @@ struct TVArtworkView: View {
     
     var body: some View {
         ZStack {
-            KFImage(previous)
-                .fade(duration: 0)
-                .cacheMemoryOnly()
-                .waitForCache()
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-            KFImage(group.coordinatorRoom.track.artworkURL)
-                .onSuccess { r in
-                    if currentImage?.pngData() != r.image.pngData() {
-                        currentImage = r.image
+            LazyImage(url: previous) { state in
+                if let image = state.image {
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+            }
+            LazyImage(url: group.coordinatorRoom.track.artworkURL, transaction: Transaction(animation: shouldFade ? .easeInOut(duration: 0.3) : nil)) { state in
+                if let image = state.image {
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                } else if let currentImage {
+                    Image(uiImage: currentImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                } else {
+                    Color.clear
+                }
+            }
+                .onCompletion { result in
+                    if case .success(let response) = result {
+                        currentImage = response.image
                     }
                 }
-                .placeholder { progress in
-                    Image(uiImage: currentImage ?? .init()).resizable()
-                }
-                .forceTransition(previous != group.coordinatorRoom.track.artworkURL)
-                .fade(duration: shouldFade ? 0.3 : 0)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .shadow(radius: 2)
                 .overlay(alignment: .bottomTrailing) {

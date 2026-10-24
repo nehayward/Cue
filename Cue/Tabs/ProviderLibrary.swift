@@ -428,6 +428,8 @@ struct ProviderLibrary {
                     await plex.updateUserPlaylists(offset: offset)
                 }
             )
+        case .collections:
+            return .plexCollections
         default:
             return nil
         }

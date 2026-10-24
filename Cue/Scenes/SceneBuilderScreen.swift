@@ -1,4 +1,3 @@
-import Analytics
 import CloudStorage
 import Combine
 import SwiftUI
@@ -171,7 +170,6 @@ struct SceneBuilderScreen: View {
                     } else {
                         scenes.append(scene)
                     }
-                    Analytics.shared.track(.createdScene)
                     dismiss()
                 } label: {
                     Text(edit ? "Update Scene" : "Create Scene")
@@ -223,9 +221,6 @@ struct SceneBuilderScreen: View {
             }
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
-        .onAppear {
-            Analytics.shared.track(.viewedSceneBuilderScreen)
-        }
         .onChange(of: contentToAdd.content) {
             scene.playableContent = contentToAdd.content
         }

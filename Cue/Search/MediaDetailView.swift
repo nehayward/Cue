@@ -8,7 +8,6 @@ import MusicKit
 import Nuke
 import NukeUI
 import VibesDS
-import Glur
 
 struct MediaDetailView: View {
     @Environment(Router.self) private var router
@@ -309,18 +308,11 @@ struct MediaDetailView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: maxHeight)
-                LazyImage(request: heroRequest) { phase in
+                LazyImage(request: heroRequest.withBlurredFoot) { phase in
                     if let image = phase.image {
                         image
                             .resizable()
                             .scaledToFill()
-                            .glur(radius: 30, // The total radius of the blur effect when fully applied.
-                                  offset: 0.6, // The distance from the view's edge to where the effect begins, relative to the view's size.
-                                  interpolation: 0.4, // The distance from the offset to where the effect is fully applied, relative to the view's size.
-                                  direction: .down, // The direction in which the effect is applied.
-                                  noise: 0.1, // The amount of noise that should be applied to the view.
-                                  drawingGroup: false // Whether or not to pre-render the modified view with `drawingGroup()`.
-                            )
                             .frame(maxWidth: 400, maxHeight: maxHeight)
                             .clipped()
                     }
@@ -448,6 +440,9 @@ struct MediaDetailView: View {
             }
             .bold()
             .fontDesign(.rounded)
+            // Dark glass in Light Mode too: the buttons sit on the cover,
+            // under the header's dark fade, where light glass washed out.
+            .environment(\.colorScheme, .dark)
         }
         .fontDesign(.rounded)
         .foregroundStyle(.white)
