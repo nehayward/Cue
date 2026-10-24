@@ -41,6 +41,7 @@ struct PreferenceScreen: View {
     // Off until it's known whether the car's Now Playing follows without it
     // (`CarPlayInterface.start`).
     @AppStorage(Defaults.AppStorageKeys.carPlayMiniPlayer) private var carPlayMiniPlayer: Bool = false
+    @AppStorage(Defaults.AppStorageKeys.nowPlayingSession) private var nowPlayingSession: Bool = false
 #endif
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
@@ -930,11 +931,16 @@ struct PreferenceScreen: View {
                         Label("CarPlay MiniPlayer", systemImage: "car")
                     }
 #endif
+                    Toggle(isOn: $nowPlayingSession) {
+                        Label("Now Playing Session", systemImage: "play.rectangle")
+                    }
                 } header: {
                     Text("Debug")
                 } footer: {
 #if os(iOS) && !targetEnvironment(macCatalyst)
-                    Text("Off (the default in Debug builds for now) hides the MiniPlayer in CarPlay, to see whether the car's Now Playing then follows Cue's own player after Apple Music. Takes effect the next time the car connects.")
+                    Text("Off (the default in Debug builds for now) hides the MiniPlayer in CarPlay, to see whether the car's Now Playing then follows Cue's own player after Apple Music. Takes effect the next time the car connects.\n\nNow Playing Session puts the Lock Screen and car card for Plex, Subsonic and radio through a session of the player making the sound. Takes effect from the next song started.")
+#else
+                    Text("Now Playing Session puts the Now Playing card for Plex, Subsonic and radio through a session of the player making the sound. Takes effect from the next song started.")
 #endif
                 }
 #endif

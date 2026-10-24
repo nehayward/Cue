@@ -2959,6 +2959,7 @@ final class LocalPlaybackService {
         }
         let player = AVQueuePlayer(items: rows.map(\.item))
         streamPlayer = player
+        nowPlayingCard.attach(player)
         player.volume = streamVolume
         // Set before Play, which starts the player at its default rate.
         let rate = AudiobookPlayer.shared.playbackRate(for: queue[safe: rows[0].queueIndex])
@@ -3016,6 +3017,7 @@ final class LocalPlaybackService {
         watch(playerItem)
         let player = AVQueuePlayer(items: [playerItem])
         streamPlayer = player
+        nowPlayingCard.attach(player)
         // A station plays at normal speed, whatever the book behind it.
         appliedRate = 1
         player.volume = streamVolume
