@@ -126,6 +126,11 @@ public enum AppStorageKeys {
     /// the car's Now Playing follows Cue's own player after Apple Music
     /// without it (FB24840951).
     public static let carPlayMiniPlayer = "\(Prefix.id).carPlayMiniPlayer"
+    /// Whether the stream player's Now Playing card goes through an
+    /// `MPNowPlayingSession` of its player (`LocalNowPlayingPresenter`). A
+    /// Debug switch, off by default, while it's tried on the Lock Screen
+    /// and in the car.
+    public static let nowPlayingSession = "\(Prefix.id).nowPlayingSession"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
     public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
     public static let lastPlaylistService = "\(Prefix.id).lastPlaylistService"
