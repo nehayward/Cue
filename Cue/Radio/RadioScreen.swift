@@ -63,6 +63,9 @@ struct RadioScreen: View {
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .contentMargins(.bottom, 120, for: .scrollContent)
             .navigationTitle("Radio")
+            // In the bar's own row, as Audiobooks has it: under it, the
+            // row stood empty above the title (no bar buttons here).
+            .toolbarTitleDisplayMode(.inlineLarge)
             .searchable(text: $query, prompt: "Stations")
             .task(id: trimmedQuery) {
                 await search.run(
