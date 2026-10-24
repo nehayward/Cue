@@ -1,6 +1,5 @@
 import SwiftUI
 import OSLog
-import Analytics
 
 struct LoggerView: View {
     @State private var text = "Send Logs..."

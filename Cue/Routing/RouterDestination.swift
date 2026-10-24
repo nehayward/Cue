@@ -49,6 +49,7 @@ public enum RouterDestination: Hashable, Identifiable {
     /// The Radio tab's stations on a map, full screen. `zoomSource` is the
     /// tile it was opened from, when it was, as for `mediaDetail`.
     case radioMap(zoomSource: ZoomTransitionSource? = nil)
+    case plexCollections
     case connectByIP
 
     public var id: String {
@@ -109,6 +110,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "tuneInBrowse:\(url.absoluteString)"
         case .radioMap:
             return "radioMap"
+        case .plexCollections:
+            return "plexCollections"
         case .connectByIP:
             return "connectByIP"
         }
@@ -167,6 +170,8 @@ public enum RouterDestination: Hashable, Identifiable {
         case (.spotifyUserPlaylist, .spotifyUserPlaylist):
             return true
         case (.genreList, .genreList):
+            return true
+        case (.plexCollections, .plexCollections):
             return true
         default:
             return false
@@ -240,6 +245,8 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine(url)
         case .radioMap:
             hasher.combine("radioMap")
+        case .plexCollections:
+            hasher.combine("plexCollections")
         case .connectByIP:
             hasher.combine("connectByIP")
         }
