@@ -73,6 +73,8 @@
 	<array>
 		<string>_sonos._tcp</string>
 	</array>
+	<key>NSLocationDefaultAccuracyReduced</key>
+	<true/>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

@@ -94,6 +94,24 @@ final class TuneInTests: XCTestCase {
         XCTAssertNil(TuneInParser().parsePlace(xmlData: Data(xml.utf8)))
     }
 
+    func testMapQueries() {
+        XCTAssertEqual(TuneInPlace.mapQueries(for: "Seattle, WA"), ["Seattle, WA"])
+        XCTAssertEqual(TuneInPlace.mapQueries(for: "Singapore, Singapore"), ["Singapore, Singapore"])
+        // A market by its cities: the first city after it, for a geocoder
+        // that doesn't know the market.
+        XCTAssertEqual(TuneInPlace.mapQueries(for: "Seattle-Tacoma, WA"), ["Seattle-Tacoma, WA", "Seattle, WA"])
+        XCTAssertEqual(
+            TuneInPlace.mapQueries(for: "San Francisco-Oakland-San Jose, CA"),
+            ["San Francisco-Oakland-San Jose, CA", "San Francisco, CA"]
+        )
+        XCTAssertEqual(TuneInPlace.mapQueries(for: " Raleigh / Durham, NC "), ["Raleigh / Durham, NC", "Raleigh, NC"])
+        // A country alone, or no city, is nowhere on the map.
+        XCTAssertEqual(TuneInPlace.mapQueries(for: "US"), [])
+        XCTAssertEqual(TuneInPlace.mapQueries(for: "United Kingdom"), [])
+        XCTAssertEqual(TuneInPlace.mapQueries(for: ", WA"), [])
+        XCTAssertEqual(TuneInPlace.mapQueries(for: ""), [])
+    }
+
     func testLatLonReading() throws {
         let comma = try XCTUnwrap(TuneInPlace.coordinate(fromLatLon: "47.6062,-122.3321"))
         XCTAssertEqual(comma.latitude, 47.6062)
