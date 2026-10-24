@@ -84,6 +84,10 @@ struct AudiobooksScreen: View {
             // `.fontDesign` wins, and the book's title is New York.
             .contentMargins(.bottom, 120, for: .scrollContent)
             .navigationTitle("Audiobooks")
+            // The large title in the bar's own row. Under it, as a plain
+            // large title sits, it left that row empty above it (this tab
+            // has no bar buttons to fill it), which read as padding.
+            .toolbarTitleDisplayMode(.inlineLarge)
             // Again for another Plex server, or Plex's books turned on
             // while the tab is open (the Plex sheet over it).
             .task(id: "\(musicSearchService.plexServerID ?? "")|\(hasPlexBooks)") {
