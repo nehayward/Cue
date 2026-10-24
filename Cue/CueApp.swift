@@ -1286,7 +1286,7 @@ struct CueApp: App {
                 // A Shortcuts action that ran before this device had its
                 // answer still opens this; opening Cue is all someone with
                 // Super needs.
-                if !subscriptionService.subscription.isActive {
+                if !FeatureGate.shared.hasSuper {
                     router.presentedFullScreenCover = .paywall
                 }
                 return

@@ -5,7 +5,6 @@ import Network
 import Observation
 import OSLog
 import SonosKit
-import SubscriptionKit
 import UIKit
 
 /// Downloads tracks from the user's own servers — Plex and Subsonic, whose
@@ -316,9 +315,10 @@ final class DownloadManager {
         items.values.filter { $0.isBookFile != true }.count + containers.values.filter { $0.type == .audiobook }.count
     }
 
-    /// Slots left before the free limit, or nil with Super, which has none.
+    /// Slots left before the free limit, or nil once unlimited downloads are
+    /// unlocked (Super), which has none.
     var remainingFreeSlots: Int? {
-        guard !SubscriptionService.shared.subscription.isActive else { return nil }
+        guard !FeatureGate.shared.isAvailable(.unlimitedDownloads) else { return nil }
         return max(0, Self.freeSongLimit - heldCount)
     }
 

@@ -100,7 +100,7 @@ struct PreferenceScreen: View {
                 }
 
                 Section {
-                    if !subscriptionService.subscription.isActive {
+                    if !featureGate.hasSuper {
                         PaywallButtonView()
                             .environment(router)
                             .listRowBackground(Color.clear)

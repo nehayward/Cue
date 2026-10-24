@@ -25,6 +25,8 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
     case onDevicePlayback
     /// Keeping Plex, Subsonic and iCloud Drive tracks on this device.
     case downloads
+    /// Keeping more than `DownloadManager.freeSongLimit` songs at once.
+    case unlimitedDownloads
     /// Cue on a car's screen: browsing and playing from CarPlay.
     case carPlay
     case lastFM
@@ -41,6 +43,7 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
         case .files: "Files"
         case .onDevicePlayback: "Play on This Device"
         case .downloads: "Downloads"
+        case .unlimitedDownloads: "Unlimited Downloads"
         case .carPlay: "CarPlay"
         case .lastFM: "Last.fm"
         }
@@ -48,7 +51,7 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
 
     var requirement: FeatureGate.Requirement {
         switch self {
-        case .allRooms, .scenes, .liveActivities, .lockScreenNowPlaying, .hardwareVolumeButtons:
+        case .allRooms, .scenes, .liveActivities, .lockScreenNowPlaying, .hardwareVolumeButtons, .unlimitedDownloads:
             .superTier
         case .files, .onDevicePlayback, .downloads, .carPlay:
             .free
@@ -93,15 +96,36 @@ final class FeatureGate {
     private(set) var overrides: [GatedFeature: Bool] = [:]
     private static let overridesKey = "dance.cue.featureOverrides"
 
+    /// Debug-only: read as the free tier whatever the subscription says.
+    /// A Debug build on a device is granted Super (its receipt reads as
+    /// TestFlight's), so without this the free tier can't be seen on the
+    /// phone. Also on at launch with `-dance.cue.actsAsFreeTier YES`, or the
+    /// `Cue [Free]` scheme's `SUBSCRIBED=false`. The Shortcuts actions read
+    /// the App Group's answer, not this.
+    private(set) var actsAsFreeTier = false
+    private static let actsAsFreeTierKey = "dance.cue.actsAsFreeTier"
+
     init(subscription: SubscriptionService = .shared, flags: RemoteFeatureFlags = .shared) {
         self.subscription = subscription
         self.flags = flags
         #if DEBUG
         overrides = Self.loadOverrides()
+        actsAsFreeTier = UserDefaults.standard.bool(forKey: Self.actsAsFreeTierKey)
+            || ProcessInfo.processInfo.environment["SUBSCRIBED"] == "false"
         #endif
     }
 
     // MARK: - Reading
+
+    /// Whether this device has Cue Super. Anything that asks about Super
+    /// rather than about a feature (the Settings card, `cue://subscribe`)
+    /// reads this, so the debug free tier reaches it too.
+    var hasSuper: Bool {
+        #if DEBUG
+        if actsAsFreeTier { return false }
+        #endif
+        return subscription.subscription.isActive
+    }
 
     func availability(of feature: GatedFeature) -> Availability {
         #if DEBUG
@@ -137,7 +161,7 @@ final class FeatureGate {
         case .free:
             return .available
         case .superTier:
-            return subscription.subscription.isActive ? .available : .needsSuper
+            return hasSuper ? .available : .needsSuper
         case let .remoteFlag(flag):
             return flags.isEnabled(flag) ? .available : .disabledRemotely
         case let .all(requirements):
@@ -185,6 +209,11 @@ final class FeatureGate {
     func clearOverrides() {
         overrides = [:]
         Self.saveOverrides(overrides)
+    }
+
+    func setActsAsFreeTier(_ value: Bool) {
+        actsAsFreeTier = value
+        UserDefaults.standard.set(value, forKey: Self.actsAsFreeTierKey)
     }
 
     private static func loadOverrides() -> [GatedFeature: Bool] {

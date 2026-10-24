@@ -89,6 +89,15 @@ struct FeatureGateDebugView: View {
     var body: some View {
         List {
             Section {
+                Toggle("Act as Free Tier", isOn: Binding {
+                    gate.actsAsFreeTier
+                } set: {
+                    gate.setActsAsFreeTier($0)
+                })
+            } footer: {
+                Text("Reads as not subscribed on this device, whatever the subscription says: the gates, the download limit and the Settings card. Debug builds on a device have Super, so this is how to see the free tier there. Shortcuts actions still read the real answer.")
+            }
+            Section {
                 ForEach(GatedFeature.allCases) { feature in
                     Picker(selection: binding(for: feature)) {
                         ForEach(Choice.allCases) { choice in
