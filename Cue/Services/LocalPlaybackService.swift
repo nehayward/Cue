@@ -546,6 +546,11 @@ final class LocalPlaybackService {
     /// The Lock Screen card for the stream backend. Apple Music's player
     /// publishes its own.
     @ObservationIgnored private lazy var nowPlayingCard = LocalNowPlayingPresenter(player: self)
+    /// Silence beside an Apple Music run with a stream song next, so Cue is
+    /// still running at the run's end to start it (`syncKeepAwake`).
+    @ObservationIgnored private lazy var keepAwake = KeepAwakeAudio()
+    /// When the Apple run with `keepAwake` held was paused.
+    @ObservationIgnored private var keepAwakePausedSince: Date?
     /// True while the stream backend is armed — the Sonos Lock Screen mirror
     /// stands down for it, since iOS has one Now Playing app at a time.
     private(set) var isPlayingLocalStream = false
@@ -1718,6 +1723,7 @@ final class LocalPlaybackService {
         defer {
             if handsToStream, playToken == token, backend != .stream {
                 nowPlayingCard.end()
+                keepAwake.release(deactivating: false)
                 releaseAudioSession()
             }
         }
@@ -1828,6 +1834,7 @@ final class LocalPlaybackService {
         defer {
             if handsToStream, playToken == token, backend != .stream {
                 nowPlayingCard.end()
+                keepAwake.release(deactivating: false)
                 releaseAudioSession()
             }
         }
@@ -2145,6 +2152,12 @@ final class LocalPlaybackService {
         if previous == .appleMusic || previous == .appleStation {
             musicPlayer.stop()
             appleQueueLeftOver = true
+            // Handing to a stream run, the silence keeps Cue running until
+            // its player plays (`armStream`); otherwise it goes now.
+            if !keepingAudioSession {
+                keepAwake.release(deactivating: true)
+            }
+            keepAwakePausedSince = nil
         }
         let hadStreamPlayer = streamPlayer != nil
         if hadStreamPlayer {
@@ -2166,6 +2179,34 @@ final class LocalPlaybackService {
         }
         if hadStreamPlayer, !handsToPreparedApple, !keepingAudioSession {
             releaseAudioSession()
+        }
+    }
+
+    /// MusicKit plays an Apple run in a process of its own, so with the
+    /// phone locked iOS suspends Cue, and the poll that would notice the
+    /// run's end and start the stream song after it never runs: the music
+    /// stopped at the end of the Apple song until the phone was unlocked.
+    /// While an Apple run plays with a Plex, Subsonic or Files song next,
+    /// Cue plays silence beside it (`KeepAwakeAudio`, mixed with others, so
+    /// the music isn't touched), taken here on the poll while Cue is still
+    /// running, before the phone locks. It goes on through a pause of up to
+    /// ten minutes, since a pause and a resume on the Lock Screen go to
+    /// MusicKit, not Cue, and Cue asleep at the end would stop again. It's
+    /// given up past that, when the next song isn't a stream any more, or
+    /// once the stream player has the session (`armStream`).
+    private func syncKeepAwake(playing: Bool) {
+        let next = sleepsAtEndOfTrack ? nil : rowAfterRun(endingAt: runEnd)
+        let streamNext = next.flatMap { queue[safe: $0] }.map { backendKind(for: $0) == .stream } ?? false
+        if playing {
+            keepAwakePausedSince = nil
+        } else if keepAwakePausedSince == nil {
+            keepAwakePausedSince = .now
+        }
+        let pausedLong = keepAwakePausedSince.map { Date.now.timeIntervalSince($0) > 10 * 60 } ?? false
+        if backend == .appleMusic, streamNext, !pausedLong {
+            keepAwake.hold(playing: true)
+        } else {
+            keepAwake.release(deactivating: true)
         }
     }
 
@@ -2979,6 +3020,9 @@ final class LocalPlaybackService {
             }
         }
         player.play()
+        // The stream player has the session now: the silence that kept Cue
+        // running through the Apple run before it can go.
+        keepAwake.release(deactivating: false)
 
         backend = .stream
         runEnd = lastArmed
@@ -3331,6 +3375,7 @@ final class LocalPlaybackService {
             let playing = reconcilePlaying(status == .playing)
             let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
+            syncKeepAwake(playing: playing)
 
             // The run's entry the player is on. A skip shown ahead of the
             // player (`appleSkipHold`) holds until the player gets there:
