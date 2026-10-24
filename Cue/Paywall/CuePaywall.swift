@@ -1,4 +1,3 @@
-import Analytics
 import RevenueCatUI
 import RevenueCat
 import SwiftUI
@@ -64,8 +63,7 @@ struct CuePaywall: View {
             .fontDesign(.rounded)
         }
         .frame(maxWidth: .infinity)
-        .originalTemplatePaywallFooter(purchaseCompleted: { customerInfo in
-            Analytics.shared.track(.subscribed)
+        .originalTemplatePaywallFooter(purchaseCompleted: { _ in
             dismiss()
         })
         // Hold content invisible until the slide-in settles, then fade in
@@ -102,9 +100,6 @@ struct CuePaywall: View {
                 .frame(width: 0, height: 0)
         }
         #endif
-        .onAppear {
-            Analytics.shared.track(.viewedPaywall)
-        }
         // Super arriving any way closes it, not only a purchase made in the
         // footer: Restore Purchases, or StoreKit's answer for a purchase this
         // install's RevenueCat user doesn't know landing while it's up.

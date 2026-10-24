@@ -7,7 +7,7 @@ import { blocks } from '../lib/markdown.js';
 // Update `updated` whenever the wording changes.
 
 const privacy = {
-	updated: '2026-10-06',
+	updated: '2026-10-23',
 	summary: 'Cue doesn’t sell or share your data, has no accounts, and keeps your music logins on your device.',
 	sections: [
 		{
@@ -23,12 +23,8 @@ const privacy = {
 			body: 'When a song’s own service has no timed lyrics, Cue asks LRCLIB (lrclib.net), a free lyrics database, sending only the song’s title, artist, album and length — nothing about you. Lyrics found are kept on your device. You can turn this off in Settings ▸ Playback ▸ Look Up Lyrics Online.',
 		},
 		{
-			title: 'Usage analytics',
-			body: 'Cue sends anonymous usage events (for example, which screens are opened, which music service is selected, and whether onboarding was finished) to Mixpanel, tied to a random identifier rather than your name or email. They never include the songs you play or what you search for.',
-		},
-		{
 			title: 'Purchases',
-			body: 'Purchases are handled by Apple. Cue uses RevenueCat to check which purchases are active on your account, using the same random identifier. We never see your payment details.',
+			body: 'Purchases are handled by Apple. Cue uses RevenueCat to check which purchases are active on your account, using a random identifier rather than your name or email. We never see your payment details.',
 		},
 		{
 			title: 'Support email',

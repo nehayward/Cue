@@ -1,4 +1,3 @@
-import Analytics
 import CloudStorage
 import MusicSearchKit
 import Defaults
@@ -806,10 +805,6 @@ private struct MediaServiceMenu: View {
         if selection.primary == .tuneIn, previousPrimary != .tuneIn {
             // Type filters don't apply to a radio directory.
             for filter in filters { filter.isFiltered = false }
-        }
-        if selection.primary != previousPrimary {
-            Analytics.shared.track(.selectedMusicService, with: ["MusicService": selection.primary.rawValue])
-            Analytics.shared.setSelection(metadata: ["MusicService": selection.primary.rawValue])
         }
     }
 }

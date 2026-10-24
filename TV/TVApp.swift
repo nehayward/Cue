@@ -4,7 +4,6 @@ import SonosKit
 import SubscriptionKit
 import SwiftUI
 import VibesDS
-import Kingfisher
 
 @main
 struct TVApp: App {
@@ -32,20 +31,6 @@ struct TVApp: App {
         }
     }
     
-    init() {
-        KingfisherManager.shared.defaultOptions = [
-            .cacheSerializer(FormatIndicatedCacheSerializer.jpeg),
-            .processor(DefaultImageProcessor.default), // Default is fast and non-blocking
-            .scaleFactor(UIScreen.main.scale),   // Match screen scale to avoid extra work
-            .cacheOriginalImage,                 // Cache original for future resizing
-            .diskCacheExpiration(.days(7)),      // Longer-term disk caching
-            .loadDiskFileSynchronously           // Improve first-load from disk (minor blocking risk)
-        ]
-        ImageCache.default.memoryStorage.config.totalCostLimit = 10 * 1024 * 1024
-        ImageCache.default.diskStorage.config.sizeLimit = 20 * 1024 * 1024
-        ImageCache.default.diskStorage.config.expiration = .days(1)
-    }
-
     var body: some Scene {
         WindowGroup {
             @Bindable var sonosService = sonosService

@@ -1,4 +1,3 @@
-import Analytics
 import CloudStorage
 import Defaults
 import MusicSearchKit
@@ -109,7 +108,6 @@ struct PreferenceScreen: View {
                     } else {
                         Button {
                             HapticManager.shared.fireHaptic(.buttonPress)
-                            Analytics.shared.track(.viewedPaywall)
                             router.presentedFullScreenCover = .paywall
                         } label: {
                             HStack(spacing: 12) {

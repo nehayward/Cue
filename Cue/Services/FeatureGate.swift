@@ -1,4 +1,3 @@
-import Analytics
 import Foundation
 import Observation
 import SonosKit
@@ -172,7 +171,6 @@ final class FeatureGate {
     @MainActor
     func presentPaywall(via router: Router = .main) {
         HapticManager.shared.fireHaptic(.buttonPress)
-        Analytics.shared.track(.viewedPaywall)
         router.fullScreenCover(to: .paywall)
     }
 
