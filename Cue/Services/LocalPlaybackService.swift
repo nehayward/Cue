@@ -1,4 +1,5 @@
 import AVFoundation
+import Combine
 import Defaults
 import Foundation
 import MusicKit
@@ -52,6 +53,7 @@ final class LocalPlaybackService {
 
     private init() {
         restoreSavedQueue()
+        watchPlayers()
         // Ready before the first Apple song is asked for: an older build's
         // song file gets split up here, off the main thread.
         Task.detached(priority: .utility) {
@@ -470,7 +472,21 @@ final class LocalPlaybackService {
     /// is what tells the two apart, including after the app slept through
     /// the end in the background and no poll saw the last seconds.
     @ObservationIgnored private var appleRunExpectedEnd: Date?
-    @ObservationIgnored private var streamPlayer: AVQueuePlayer?
+    @ObservationIgnored private var streamPlayer: AVQueuePlayer? {
+        didSet {
+            guard streamPlayer !== oldValue else { return }
+            streamPlayerWatches = streamPlayer.map { player in
+                [
+                    player.observe(\.timeControlStatus) { [weak self] _, _ in
+                        Task { @MainActor in self?.refreshForEvent() }
+                    },
+                    player.observe(\.currentItem) { [weak self] _, _ in
+                        Task { @MainActor in self?.refreshForEvent() }
+                    },
+                ]
+            } ?? []
+        }
+    }
     /// Reads ICY stream titles off a station's player item.
     @ObservationIgnored private var streamMetadataListener: StreamMetadataListener?
     /// Polls TuneIn for what the current station is playing.
@@ -511,6 +527,14 @@ final class LocalPlaybackService {
     /// About 25 KB each once decoded.
     private static let recentSongLimit = 300
     @ObservationIgnored private var poller: Timer?
+    /// What the two players say as it changes (`watchPlayers()`), each
+    /// acted on at once instead of on the next poll.
+    @ObservationIgnored private var playerWatches: [AnyCancellable] = []
+    @ObservationIgnored private var streamPlayerWatches: [NSKeyValueObservation] = []
+    @ObservationIgnored private var eventRefreshPending = false
+    /// The refresh under way was brought on by a player's event, not the
+    /// poll: for the log line of a run's end.
+    @ObservationIgnored private var refreshingForEvent = false
     /// What a tap on play/pause asked for, and until when it outranks the
     /// poll. The button flips on the tap; the players catch up a beat later
     /// (MusicKit's `playbackStatus` lags `pause()` noticeably), and a poll
@@ -3259,6 +3283,33 @@ final class LocalPlaybackService {
         poller = timer
     }
 
+    /// The poll stays the clock, but what the players announce is acted on
+    /// at once: MusicKit's state and queue (an Apple run running out, which
+    /// the poll saw up to half a second late, all of it silence before the
+    /// next run), and the stream player's play state and current item (a
+    /// pause from AirPods, the next song in a run).
+    private func watchPlayers() {
+        playerWatches = [
+            musicPlayer.state.objectWillChange.sink { [weak self] _ in self?.refreshForEvent() },
+            musicPlayer.queue.objectWillChange.sink { [weak self] _ in self?.refreshForEvent() },
+        ]
+    }
+
+    /// One refresh for a burst of events, once they've landed: a publisher
+    /// calls before the value changes.
+    private func refreshForEvent() {
+        guard poller != nil, !eventRefreshPending else { return }
+        eventRefreshPending = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.eventRefreshPending = false
+            guard self.poller != nil else { return }
+            self.refreshingForEvent = true
+            self.refreshState()
+            self.refreshingForEvent = false
+        }
+    }
+
     private func refreshState() {
         switch backend {
         case .appleMusic, .appleStation:
@@ -3348,6 +3399,7 @@ final class LocalPlaybackService {
                 || (status == .paused && pastRunEnd && (progress < 1 || progress >= duration - 0.75))
             if appleWasPlaying, ended {
                 appleWasPlaying = false
+                Self.log.notice("Apple run at \(self.runEnd) ended (\(String(describing: status), privacy: .public)), seen by \(self.refreshingForEvent ? "its event" : "the poll", privacy: .public)")
                 // A station has no run to advance past; it waits to be
                 // played again.
                 if station != nil {
