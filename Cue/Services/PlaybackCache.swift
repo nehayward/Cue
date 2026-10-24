@@ -1,5 +1,7 @@
+import AVFoundation
 import Defaults
 import Foundation
+import MusicSearchKit
 import Network
 import Observation
 import SonosKit
@@ -92,7 +94,12 @@ final class PlaybackCache {
         entries.values.reduce(0) { $0 + $1.size }
     }
 
-    @ObservationIgnored private var tasks: [String: URLSessionDownloadTask] = [:]
+    /// Songs coming down, by key: the queue's next ones, and any the player
+    /// is reading from (`streamingAsset(for:from:)`).
+    @ObservationIgnored private var downloads: [String: SongDownload] = [:]
+    /// How many player items read each song's download. A song read keeps
+    /// its download, and goes first, whatever the queue says.
+    @ObservationIgnored private var readers: [String: Int] = [:]
     @ObservationIgnored private var pending: [String: PlayableContent] = [:]
     /// Keys the queue wants next, kept clear of eviction.
     @ObservationIgnored private var wanted: [String] = []
@@ -101,13 +108,9 @@ final class PlaybackCache {
     @ObservationIgnored private var cloudWanted: Set<String> = []
     @ObservationIgnored private let pathMonitor = NWPathMonitor()
 
-    @ObservationIgnored private lazy var session: URLSession = {
-        let configuration = URLSessionConfiguration.default
-        configuration.waitsForConnectivity = true
-        configuration.httpMaximumConnectionsPerHost = 2
-        configuration.timeoutIntervalForResource = 30 * 60
-        return URLSession(configuration: configuration)
-    }()
+    /// How many songs come down at once. Plex turns away more than a couple
+    /// of requests at a time from one client.
+    private static let concurrentDownloads = 2
 
     private init() {
         let defaults = UserDefaults.standard
@@ -121,6 +124,7 @@ final class PlaybackCache {
             ? true : defaults.bool(forKey: AppStorageKeys.filesStreamFromCloud)
         streamedCloudIDs = defaults.stringArray(forKey: AppStorageKeys.playbackCacheCloudIDs) ?? []
         Self.prepareDirectory()
+        Self.removePartialFiles()
         entries = Self.loadManifest()
         reconcileWithDisk()
         pathMonitor.pathUpdateHandler = { [weak self] path in
@@ -172,9 +176,9 @@ final class PlaybackCache {
         wanted = cacheable.map { DownloadManager.key(for: $0) }
 
         // Fetches for songs no longer coming up are wasted bytes.
-        for (key, task) in tasks where !wanted.contains(key) {
-            task.cancel()
-            tasks[key] = nil
+        for (key, download) in downloads where !wanted.contains(key) && readers[key] == nil {
+            SongDownload.queue.async { download.cancel() }
+            downloads[key] = nil
             inFlight.remove(key)
             pending[key] = nil
         }
@@ -254,45 +258,100 @@ final class PlaybackCache {
            FileManager.default.fileExists(atPath: Self.fileURL(key: key, fileExtension: entry.fileExtension).path) {
             return
         }
+        startDownload(of: item, key: key, from: url)
+        admit()
+    }
 
-        var request = URLRequest(url: url)
-        request.allowsCellularAccess = allowsCellular
-        request.allowsExpensiveNetworkAccess = allowsCellular
-        request.allowsConstrainedNetworkAccess = allowsCellular
-
+    @discardableResult
+    private func startDownload(of item: PlayableContent, key: String, from url: URL) -> SongDownload {
         let fileExtension = Self.fileExtension(for: item, url: url)
         let destination = Self.fileURL(key: key, fileExtension: fileExtension)
         inFlight.insert(key)
         pending[key] = item
-
-        let task = session.downloadTask(with: request) { [weak self] temporary, response, error in
-            // The temporary file is gone once this returns: move it now, on
-            // the session's queue, then report on the main actor. A refused
-            // request (a 4xx page) is not a song to keep.
-            guard let temporary, error == nil, StreamResponseCheck.refusal(in: response) == nil else {
-                Task { @MainActor in self?.fetchFailed(key: key) }
-                return
-            }
-            try? FileManager.default.removeItem(at: destination)
-            let moved = (try? FileManager.default.moveItem(at: temporary, to: destination)) != nil
-            let size = moved ? DownloadManager.size(of: destination) : nil
+        let download = SongDownload(
+            key: key,
+            remote: url,
+            fileExtension: fileExtension,
+            partURL: destination.appendingPathExtension(Self.partExtension),
+            destination: destination,
+            allowsCellular: allowsCellular
+        ) { [weak self] result in
             Task { @MainActor in
-                if moved {
-                    self?.fetchFinished(key: key, fileExtension: fileExtension, size: size ?? 0, destination: destination)
-                } else {
+                switch result {
+                case .success(let size):
+                    self?.fetchFinished(key: key, fileExtension: fileExtension, size: size, destination: destination)
+                case .failure:
                     self?.fetchFailed(key: key)
                 }
             }
         }
-        // The song about to play is the one that matters most.
-        task.priority = wanted.first == key ? URLSessionTask.highPriority : URLSessionTask.defaultPriority
-        tasks[key] = task
-        task.resume()
+        downloads[key] = download
+        return download
     }
+
+    /// Runs the songs that matter most, a couple at a time — those the
+    /// player is reading first, then the queue's order — and pauses the
+    /// rest, which pick up where they stopped when their turn comes.
+    private func admit() {
+        let order = readers.keys.filter { downloads[$0] != nil }.sorted { (wanted.firstIndex(of: $0) ?? 0) < (wanted.firstIndex(of: $1) ?? 0) }
+            + wanted.filter { downloads[$0] != nil && readers[$0] == nil }
+        let running = Set(order.prefix(Self.concurrentDownloads))
+        for (key, download) in downloads {
+            let runs = running.contains(key)
+            SongDownload.queue.async { runs ? download.run() : download.pause() }
+        }
+    }
+
+    /// The song's file as it comes down, for the player to read instead of
+    /// fetching it again itself, or nil when the cache doesn't keep this
+    /// song (books, Files, the cache off, a converted stream, cellular when
+    /// the cache isn't to use it) and the player streams it as before. A
+    /// converted stream has no length up front, which reading by range
+    /// needs.
+    func streamingAsset(for item: PlayableContent, from url: URL) -> AVURLAsset? {
+        let key = DownloadManager.key(for: item)
+        guard isEnabled, DeviceStream.isTranscodable(item.content.service),
+              StreamTranscoding.format(for: .device) == .original,
+              DownloadManager.shared.canDownload(item), !DownloadManager.shared.isDownloaded(item),
+              !AudiobookPlayer.shared.contains(item), entries[key] == nil,
+              allowsCellular || !isOnExpensivePath else { return nil }
+        let download = downloads[key] ?? startDownload(of: item, key: key, from: url)
+        let released: @MainActor () -> Void = { [weak self] in self?.readerLeft(key) }
+        guard let asset = CachingStreamLoader.makeAsset(for: download, remote: url, released: released) else { return nil }
+        readers[key, default: 0] += 1
+        // A song being played comes down over cellular too: the player
+        // would have streamed it over cellular anyway.
+        SongDownload.queue.async {
+            if !download.allowsCellular {
+                download.allowsCellular = true
+                download.pause()
+            }
+        }
+        admit()
+        return asset
+    }
+
+    /// A player item reading a song's download is gone. Once nothing reads
+    /// it and the queue doesn't want it, the download goes too.
+    private func readerLeft(_ key: String) {
+        readers[key, default: 1] -= 1
+        if readers[key] ?? 0 <= 0 {
+            readers[key] = nil
+            if !wanted.contains(key), let download = downloads.removeValue(forKey: key) {
+                SongDownload.queue.async { download.cancel() }
+                inFlight.remove(key)
+                pending[key] = nil
+            }
+        }
+        admit()
+    }
+
+    private static let partExtension = "part"
 
     private func fetchFinished(key: String, fileExtension: String, size: Int64, destination: URL) {
         inFlight.remove(key)
-        tasks[key] = nil
+        downloads[key] = nil
+        admit()
         let item = pending[key]
         pending[key] = nil
         entries[key] = Entry(
@@ -312,8 +371,9 @@ final class PlaybackCache {
 
     private func fetchFailed(key: String) {
         inFlight.remove(key)
-        tasks[key] = nil
+        downloads[key] = nil
         pending[key] = nil
+        admit()
     }
 
     /// Evicts the least recently played beyond the cap, never anything the
@@ -339,10 +399,10 @@ final class PlaybackCache {
             streamedCloudIDs = []
             saveStreamed()
         }
-        for task in tasks.values {
-            task.cancel()
+        for download in downloads.values {
+            SongDownload.queue.async { download.cancel() }
         }
-        tasks = [:]
+        downloads = [:]
         inFlight = []
         pending = [:]
         for entry in entries.values {
@@ -385,6 +445,14 @@ final class PlaybackCache {
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         try? url.setResourceValues(values)
+    }
+
+    /// What a download left half done when the app last quit.
+    private static func removePartialFiles() {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+        for name in names where name.hasSuffix(".\(partExtension)") {
+            try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
+        }
     }
 
     private static func loadManifest() -> [String: Entry] {

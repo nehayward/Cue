@@ -1,4 +1,5 @@
 import AVFoundation
+import Combine
 import Defaults
 import Foundation
 import MusicKit
@@ -52,6 +53,7 @@ final class LocalPlaybackService {
 
     private init() {
         restoreSavedQueue()
+        watchPlayers()
         // Ready before the first Apple song is asked for: an older build's
         // song file gets split up here, off the main thread.
         Task.detached(priority: .utility) {
@@ -470,7 +472,21 @@ final class LocalPlaybackService {
     /// is what tells the two apart, including after the app slept through
     /// the end in the background and no poll saw the last seconds.
     @ObservationIgnored private var appleRunExpectedEnd: Date?
-    @ObservationIgnored private var streamPlayer: AVQueuePlayer?
+    @ObservationIgnored private var streamPlayer: AVQueuePlayer? {
+        didSet {
+            guard streamPlayer !== oldValue else { return }
+            streamPlayerWatches = streamPlayer.map { player in
+                [
+                    player.observe(\.timeControlStatus) { [weak self] _, _ in
+                        Task { @MainActor in self?.refreshForEvent() }
+                    },
+                    player.observe(\.currentItem) { [weak self] _, _ in
+                        Task { @MainActor in self?.refreshForEvent() }
+                    },
+                ]
+            } ?? []
+        }
+    }
     /// Reads ICY stream titles off a station's player item.
     @ObservationIgnored private var streamMetadataListener: StreamMetadataListener?
     /// Polls TuneIn for what the current station is playing.
@@ -511,6 +527,14 @@ final class LocalPlaybackService {
     /// About 25 KB each once decoded.
     private static let recentSongLimit = 300
     @ObservationIgnored private var poller: Timer?
+    /// What the two players say as it changes (`watchPlayers()`), each
+    /// acted on at once instead of on the next poll.
+    @ObservationIgnored private var playerWatches: [AnyCancellable] = []
+    @ObservationIgnored private var streamPlayerWatches: [NSKeyValueObservation] = []
+    @ObservationIgnored private var eventRefreshPending = false
+    /// The refresh under way was brought on by a player's event, not the
+    /// poll: for the log line of a run's end.
+    @ObservationIgnored private var refreshingForEvent = false
     /// What a tap on play/pause asked for, and until when it outranks the
     /// poll. The button flips on the tap; the players catch up a beat later
     /// (MusicKit's `playbackStatus` lags `pause()` noticeably), and a poll
@@ -522,6 +546,11 @@ final class LocalPlaybackService {
     /// The Lock Screen card for the stream backend. Apple Music's player
     /// publishes its own.
     @ObservationIgnored private lazy var nowPlayingCard = LocalNowPlayingPresenter(player: self)
+    /// Silence beside an Apple Music run with a stream song next, so Cue is
+    /// still running at the run's end to start it (`syncKeepAwake`).
+    @ObservationIgnored private lazy var keepAwake = KeepAwakeAudio()
+    /// When the Apple run with `keepAwake` held was paused.
+    @ObservationIgnored private var keepAwakePausedSince: Date?
     /// True while the stream backend is armed — the Sonos Lock Screen mirror
     /// stands down for it, since iOS has one Now Playing app at a time.
     private(set) var isPlayingLocalStream = false
@@ -1694,6 +1723,7 @@ final class LocalPlaybackService {
         defer {
             if handsToStream, playToken == token, backend != .stream {
                 nowPlayingCard.end()
+                keepAwake.release(deactivating: false)
                 releaseAudioSession()
             }
         }
@@ -1804,6 +1834,7 @@ final class LocalPlaybackService {
         defer {
             if handsToStream, playToken == token, backend != .stream {
                 nowPlayingCard.end()
+                keepAwake.release(deactivating: false)
                 releaseAudioSession()
             }
         }
@@ -2121,6 +2152,12 @@ final class LocalPlaybackService {
         if previous == .appleMusic || previous == .appleStation {
             musicPlayer.stop()
             appleQueueLeftOver = true
+            // Handing to a stream run, the silence keeps Cue running until
+            // its player plays (`armStream`); otherwise it goes now.
+            if !keepingAudioSession {
+                keepAwake.release(deactivating: true)
+            }
+            keepAwakePausedSince = nil
         }
         let hadStreamPlayer = streamPlayer != nil
         if hadStreamPlayer {
@@ -2140,8 +2177,39 @@ final class LocalPlaybackService {
         } else {
             nowPlayingCard.end()
         }
+        if hadStreamPlayer, !keepingAudioSession {
+            keepAwake.release(deactivating: false)
+        }
         if hadStreamPlayer, !handsToPreparedApple, !keepingAudioSession {
             releaseAudioSession()
+        }
+    }
+
+    /// MusicKit plays an Apple run in a process of its own, so with the
+    /// phone locked iOS suspends Cue, and the poll that would notice the
+    /// run's end and start the stream song after it never runs: the music
+    /// stopped at the end of the Apple song until the phone was unlocked.
+    /// While an Apple run plays with a Plex, Subsonic or Files song next,
+    /// Cue plays silence beside it (`KeepAwakeAudio`, mixed with others, so
+    /// the music isn't touched), taken here on the poll while Cue is still
+    /// running, before the phone locks. It goes on through a pause of up to
+    /// ten minutes, since a pause and a resume on the Lock Screen go to
+    /// MusicKit, not Cue, and Cue asleep at the end would stop again. It's
+    /// given up past that, when the next song isn't a stream any more, or
+    /// once the stream player has the session (`armStream`).
+    private func syncKeepAwake(playing: Bool) {
+        let next = sleepsAtEndOfTrack ? nil : rowAfterRun(endingAt: runEnd)
+        let streamNext = next.flatMap { queue[safe: $0] }.map { backendKind(for: $0) == .stream } ?? false
+        if playing {
+            keepAwakePausedSince = nil
+        } else if keepAwakePausedSince == nil {
+            keepAwakePausedSince = .now
+        }
+        let pausedLong = keepAwakePausedSince.map { Date.now.timeIntervalSince($0) > 10 * 60 } ?? false
+        if backend == .appleMusic, streamNext, !pausedLong {
+            keepAwake.hold(playing: true)
+        } else {
+            keepAwake.release(deactivating: true)
         }
     }
 
@@ -2623,7 +2691,13 @@ final class LocalPlaybackService {
     /// A server's file stays as it was, since precise timing has the whole
     /// file loaded before it plays (a seek moves the song onto a local copy
     /// instead, `moveToLocalCopy()`), and so does a book's, hours long.
+    /// A server's song the cache keeps plays from the cache's download of
+    /// it as that comes in, so it's fetched once rather than twice.
     private func streamItem(_ url: URL, at queueIndex: Int) -> AVPlayerItem {
+        if !url.isFileURL, let row = queue[safe: queueIndex],
+           let asset = PlaybackCache.shared.streamingAsset(for: row, from: url) {
+            return AVPlayerItem(asset: asset)
+        }
         let precise = url.isFileURL && !isBookFile(at: queueIndex)
         return AVPlayerItem(asset: AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: precise]))
     }
@@ -2929,6 +3003,7 @@ final class LocalPlaybackService {
         }
         let player = AVQueuePlayer(items: rows.map(\.item))
         streamPlayer = player
+        nowPlayingCard.attach(player)
         player.volume = streamVolume
         // Set before Play, which starts the player at its default rate.
         let rate = AudiobookPlayer.shared.playbackRate(for: queue[safe: rows[0].queueIndex])
@@ -2986,6 +3061,7 @@ final class LocalPlaybackService {
         watch(playerItem)
         let player = AVQueuePlayer(items: [playerItem])
         streamPlayer = player
+        nowPlayingCard.attach(player)
         // A station plays at normal speed, whatever the book behind it.
         appliedRate = 1
         player.volume = streamVolume
@@ -3016,6 +3092,18 @@ final class LocalPlaybackService {
         } catch {
             let code = (error as NSError).code
             Self.log.error("activating the audio session for \(what, privacy: .public) failed: \(code) \(error.localizedDescription, privacy: .public)")
+            // Taking over from the keep-awake silence with Cue in the
+            // background, a session that doesn't mix can be refused. One that
+            // mixes isn't, and the song plays all the same.
+            if keepAwake.isHeld {
+                do {
+                    try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+                    try AVAudioSession.sharedInstance().setActive(true)
+                    Self.log.notice("the audio session for \(what, privacy: .public) mixes with others for now")
+                } catch {
+                    Self.log.error("a mixing session for \(what, privacy: .public) failed too: \(error.localizedDescription, privacy: .public)")
+                }
+            }
         }
     }
 
@@ -3259,6 +3347,33 @@ final class LocalPlaybackService {
         poller = timer
     }
 
+    /// The poll stays the clock, but what the players announce is acted on
+    /// at once: MusicKit's state and queue (an Apple run running out, which
+    /// the poll saw up to half a second late, all of it silence before the
+    /// next run), and the stream player's play state and current item (a
+    /// pause from AirPods, the next song in a run).
+    private func watchPlayers() {
+        playerWatches = [
+            musicPlayer.state.objectWillChange.sink { [weak self] _ in self?.refreshForEvent() },
+            musicPlayer.queue.objectWillChange.sink { [weak self] _ in self?.refreshForEvent() },
+        ]
+    }
+
+    /// One refresh for a burst of events, once they've landed: a publisher
+    /// calls before the value changes.
+    private func refreshForEvent() {
+        guard poller != nil, !eventRefreshPending else { return }
+        eventRefreshPending = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.eventRefreshPending = false
+            guard self.poller != nil else { return }
+            self.refreshingForEvent = true
+            self.refreshState()
+            self.refreshingForEvent = false
+        }
+    }
+
     private func refreshState() {
         switch backend {
         case .appleMusic, .appleStation:
@@ -3272,6 +3387,7 @@ final class LocalPlaybackService {
             let playing = reconcilePlaying(status == .playing)
             let paused = isPlaying && !playing
             if isPlaying != playing { isPlaying = playing }
+            syncKeepAwake(playing: playing)
 
             // The run's entry the player is on. A skip shown ahead of the
             // player (`appleSkipHold`) holds until the player gets there:
@@ -3348,6 +3464,7 @@ final class LocalPlaybackService {
                 || (status == .paused && pastRunEnd && (progress < 1 || progress >= duration - 0.75))
             if appleWasPlaying, ended {
                 appleWasPlaying = false
+                Self.log.notice("Apple run at \(self.runEnd) ended (\(String(describing: status), privacy: .public)), seen by \(self.refreshingForEvent ? "its event" : "the poll", privacy: .public)")
                 // A station has no run to advance past; it waits to be
                 // played again.
                 if station != nil {
@@ -3399,6 +3516,20 @@ final class LocalPlaybackService {
                 return
             }
             noteBookFileState(streamPlayer)
+            // The stream is heard: the silence that kept Cue running through
+            // the Apple run before it can go. Not before, while the song still
+            // loads, or Cue could be suspended in the moment between the two.
+            if keepAwake.isHeld, streamPlayer.timeControlStatus == .playing {
+                keepAwake.release(deactivating: false)
+                // Taken mixing (`activateAudioSession`): Cue is what plays
+                // now, and only a session that doesn't mix gets the Lock
+                // Screen's card and controls.
+                let session = AVAudioSession.sharedInstance()
+                if session.categoryOptions.contains(.mixWithOthers) {
+                    let unmixed = (try? session.setCategory(.playback, mode: .default)) != nil
+                    Self.log.notice("the stream's audio session \(unmixed ? "no longer mixes" : "still mixes", privacy: .public)")
+                }
+            }
             // Only what changed, as above.
             let playing = reconcilePlaying(streamPlayer.timeControlStatus != .paused)
             let paused = isPlaying && !playing
@@ -3647,7 +3778,35 @@ final class LocalPlaybackService {
             if quality != self.audioQuality {
                 self.audioQuality = quality
             }
+            self.matchOutputRate(to: quality?.sampleRate)
         }
+    }
+
+    /// Runs the output at the song's own sample rate where the route can
+    /// (a wired or USB DAC), as Music does for lossless, rather than at
+    /// iOS's 48 kHz with every 44.1 or 96 kHz song resampled on the way.
+    /// Asked only when the rate changes, so an album at one rate never
+    /// reconfigures the output between songs. Bluetooth and AirPlay keep
+    /// their own rate, which the log line shows. Not on the Mac, whose
+    /// output rate is the whole system's, set in Audio MIDI Setup.
+    private func matchOutputRate(to sampleRate: Int?) {
+        #if !targetEnvironment(macCatalyst)
+        guard let sampleRate, sampleRate > 0 else { return }
+        let session = AVAudioSession.sharedInstance()
+        guard session.preferredSampleRate != Double(sampleRate) else { return }
+        do {
+            try session.setPreferredSampleRate(Double(sampleRate))
+        } catch {
+            Self.log.error("asking for a \(sampleRate) Hz output failed: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+        Task {
+            // The route takes a moment to reconfigure.
+            try? await Task.sleep(for: .milliseconds(500))
+            let output = session.currentRoute.outputs.first?.portType.rawValue ?? "no output"
+            Self.log.notice("output rate: asked for \(sampleRate) Hz, running at \(Int(session.sampleRate)) Hz on \(output, privacy: .public)")
+        }
+        #endif
     }
 
     private static func quality(for asset: AVAsset) async -> SonosTrackQuality? {
