@@ -553,6 +553,10 @@ final class LocalPlaybackService {
     /// The Apple player was stopped with its run still in it (`teardownRun`),
     /// for `releaseAppleQueue()` to empty once the stream player takes over.
     @ObservationIgnored private var appleQueueLeftOver = false
+    /// A song's local copy that `moveToLocalCopy()` put in place of its
+    /// stream, and the stream's item, kept so its play goes on being
+    /// reported as the same one (and its identifier isn't reused meanwhile).
+    @ObservationIgnored private var reportedAs: (copy: ObjectIdentifier, original: AVPlayerItem)?
 
     private static let log = Logger(subsystem: "dance.cue", category: "localplayback")
     /// Debounces the queue's write to disk, for the same bursts as the cache.
@@ -1013,6 +1017,7 @@ final class LocalPlaybackService {
         case .appleMusic:
             musicPlayer.playbackTime = seconds
         case .stream:
+            moveToLocalCopy()
             streamPlayer?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
             nowPlayingCard.noteSeek(elapsed: seconds)
         case .appleStation:
@@ -2574,6 +2579,40 @@ final class LocalPlaybackService {
         }
     }
 
+    /// A song playing from its server seeks by an estimate, and in a FLAC
+    /// file lands earlier in the music than the clock then says (see
+    /// `streamItem`). Once there's a copy on this device (the cache fetches
+    /// the song playing too), a seek moves the song onto it, opened with
+    /// precise timing: the seek breaks the sound anyway, so the move adds no
+    /// gap of its own. Its play carries over to the copy (`reportedAs`), so
+    /// Plex and Subsonic count one listen, not two halves.
+    private func moveToLocalCopy() {
+        guard let player = streamPlayer, let current = player.currentItem,
+              let queueIndex = streamRun[ObjectIdentifier(current)],
+              let url = (current.asset as? AVURLAsset)?.url, !url.isFileURL,
+              !isBookFile(at: queueIndex), let row = queue[safe: queueIndex],
+              let local = DownloadManager.shared.localURL(for: row) ?? PlaybackCache.shared.localURL(for: row) else { return }
+        let copy = streamItem(local, at: queueIndex)
+        guard player.canInsert(copy, after: current) else { return }
+        player.insert(copy, after: current)
+        register(copy, at: queueIndex)
+        reportedAs = (copy: ObjectIdentifier(copy), original: current)
+        player.advanceToNextItem()
+        streamRun[ObjectIdentifier(current)] = nil
+        itemWatches[ObjectIdentifier(current)] = nil
+        Self.log.notice("seek moved \(row.title, privacy: .public) onto its copy on this device")
+    }
+
+    /// The play a stream item is reported as: its own, or for the copy
+    /// `moveToLocalCopy()` put in its place, the item it took over from.
+    private func reportedPlayID(for item: AVPlayerItem) -> ObjectIdentifier {
+        guard let reportedAs, reportedAs.copy == ObjectIdentifier(item) else {
+            reportedAs = nil
+            return ObjectIdentifier(item)
+        }
+        return ObjectIdentifier(reportedAs.original)
+    }
+
     // MARK: - Stream (Plex, Subsonic, TuneIn) backend
 
     /// The player item for a run's row. A song's file on this device opens
@@ -2581,8 +2620,9 @@ final class LocalPlaybackService {
     /// seconds earlier in the music than the player's clock then said, so
     /// the scrubber and lyrics ran ahead of what played and the clock sat at
     /// the end while the song went on, the next song seeming to start late.
-    /// A server's file stays as it was, since precise timing could mean
-    /// reading it whole before it plays, and so does a book's, hours long.
+    /// A server's file stays as it was, since precise timing has the whole
+    /// file loaded before it plays (a seek moves the song onto a local copy
+    /// instead, `moveToLocalCopy()`), and so does a book's, hours long.
     private func streamItem(_ url: URL, at queueIndex: Int) -> AVPlayerItem {
         let precise = url.isFileURL && !isBookFile(at: queueIndex)
         return AVPlayerItem(asset: AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: precise]))
@@ -3409,7 +3449,7 @@ final class LocalPlaybackService {
             // Plex and Subsonic hear about the play, as from their own apps.
             PlayReporter.shared.observe(
                 streamRun[ObjectIdentifier(current)].flatMap { queue[safe: $0] },
-                playID: ObjectIdentifier(current),
+                playID: reportedPlayID(for: current),
                 position: progress,
                 duration: duration,
                 isPlaying: isPlaying
