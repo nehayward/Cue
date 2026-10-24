@@ -3647,7 +3647,35 @@ final class LocalPlaybackService {
             if quality != self.audioQuality {
                 self.audioQuality = quality
             }
+            self.matchOutputRate(to: quality?.sampleRate)
         }
+    }
+
+    /// Runs the output at the song's own sample rate where the route can
+    /// (a wired or USB DAC), as Music does for lossless, rather than at
+    /// iOS's 48 kHz with every 44.1 or 96 kHz song resampled on the way.
+    /// Asked only when the rate changes, so an album at one rate never
+    /// reconfigures the output between songs. Bluetooth and AirPlay keep
+    /// their own rate, which the log line shows. Not on the Mac, whose
+    /// output rate is the whole system's, set in Audio MIDI Setup.
+    private func matchOutputRate(to sampleRate: Int?) {
+        #if !targetEnvironment(macCatalyst)
+        guard let sampleRate, sampleRate > 0 else { return }
+        let session = AVAudioSession.sharedInstance()
+        guard session.preferredSampleRate != Double(sampleRate) else { return }
+        do {
+            try session.setPreferredSampleRate(Double(sampleRate))
+        } catch {
+            Self.log.error("asking for a \(sampleRate) Hz output failed: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+        Task {
+            // The route takes a moment to reconfigure.
+            try? await Task.sleep(for: .milliseconds(500))
+            let output = session.currentRoute.outputs.first?.portType.rawValue ?? "no output"
+            Self.log.notice("output rate: asked for \(sampleRate) Hz, running at \(Int(session.sampleRate)) Hz on \(output, privacy: .public)")
+        }
+        #endif
     }
 
     private static func quality(for asset: AVAsset) async -> SonosTrackQuality? {
