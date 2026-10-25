@@ -395,8 +395,9 @@ private struct WordPlace: TextAttribute {
     let index: Int
 }
 
-/// Draws the line being read with the words said so far bright and the
-/// rest dimmer. Changes only as a word starts, not every frame.
+/// Draws the line being read with the word being said brightest, the words
+/// said before it a little dimmer and the rest dimmer still. Changes only
+/// as a word starts, not every frame.
 private struct SpokenWords: TextRenderer {
     let spoken: Int
 
@@ -405,7 +406,7 @@ private struct SpokenWords: TextRenderer {
             for run in line {
                 var copy = context
                 let index = run[WordPlace.self]?.index ?? 0
-                copy.opacity = index < spoken ? 1 : 0.5
+                copy.opacity = index == spoken - 1 ? 1 : index < spoken ? 0.8 : 0.5
                 copy.draw(run)
             }
         }
