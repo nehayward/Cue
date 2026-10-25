@@ -1,5 +1,5 @@
 import { appStoreUrl, site } from '../config.js';
-import { beyondPhone, faq, features, handoff, hero, screens, services, spotlights } from '../content/home.js';
+import { beyondPhone, faq, features, handoff, hero, plans, screens, services, spotlights } from '../content/home.js';
 import { brandMarks } from '../lib/brand-marks.js';
 import { html, icon, inline, raw } from '../lib/html.js';
 import { downloadButton, iphone, page } from '../lib/layout.js';
@@ -121,6 +121,23 @@ const body = html`
 					</li>`,
 			)}
 		</ul>
+	</section>
+
+	<section class="section container" id="super">
+		<div class="section-head reveal">
+			<h2>${plans.title}</h2>
+			<p>${plans.lede}</p>
+		</div>
+		<div class="plans">
+			${[plans.free, plans.super].map(
+				(plan, i) => html`
+					<article class="plan reveal ${i ? 'plan-super' : ''}">
+						<h3>${plan.name}</h3>
+						<p class="plan-price">${plan.price}</p>
+						<ul>${plan.points.map((point) => html`<li>${icon('check')}${point}</li>`)}</ul>
+					</article>`,
+			)}
+		</div>
 	</section>
 
 	<section class="section container" id="services">
