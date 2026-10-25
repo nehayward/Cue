@@ -45,6 +45,10 @@ struct SearchScreen: View {
     @State private var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>] = []
 
     @FocusState private var focusedField: SearchFocusFields?
+    /// The last focus request answered (`SearchActivator.requestCount`). The
+    /// first switch to Search asks before this screen exists to see the
+    /// change, so it's caught on appear by comparing.
+    @State private var answeredFocusRequest = 0
     #if targetEnvironment(macCatalyst)
     @State private var searchBarFocused: Bool = false
     #endif
@@ -418,6 +422,7 @@ struct SearchScreen: View {
             searchFieldIsPresented = true
             lastNonEmptyQuery = ""
             musicSearchService.query = ""
+            answerFocusRequest()
         }
         .onDisappear {
             if !lastNonEmptyQuery.isEmpty {
@@ -425,10 +430,10 @@ struct SearchScreen: View {
             }
         }
         .animation(.interactiveSpring, value: focusedField)
-        // Re-tapping the Search tab asks for the field. A counter, so a second
-        // request still counts as a change.
+        // Switching to the Search tab, or tapping it again, asks for the
+        // field. A counter, so a second request still counts as a change.
         .onChange(of: SearchActivator.shared.requestCount) {
-            focusedField = .search
+            answerFocusRequest()
         }
         .animation(.interactiveSpring, value: musicSearchService.suggestions)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
@@ -503,6 +508,21 @@ struct SearchScreen: View {
         .padding(.bottom, 6)
     }
 #endif
+
+    /// Focuses the field for a request not answered yet: a switch to the
+    /// Search tab, or a tap on it while it shows. Not on Sonos Favorites,
+    /// which opens on its list with the field put away. A beat late: focus
+    /// set as the tab is still coming up doesn't take.
+    private func answerFocusRequest() {
+        let request = SearchActivator.shared.requestCount
+        guard request != answeredFocusRequest else { return }
+        answeredFocusRequest = request
+        guard !favorites else { return }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(100))
+            focusedField = .search
+        }
+    }
 
     /// Drops services the user disabled in Settings from the stored
     /// selection, falling back to the first enabled service so the selection

@@ -541,6 +541,10 @@ struct CueApp: App {
     /// with a tap on the already-selected tab reported as a reselection.
     /// SwiftUI has no reselection callback and reports the tap as a set to
     /// the same value, which is why the setter compares before writing.
+    ///
+    /// Switching to Search asks for its field, so the keyboard is up on
+    /// the tap: the tab is for typing, and it starts empty each time. Only
+    /// a switch made here, from the tab bar, not a launch onto Search.
     private var tabSelection: Binding<AppTab> {
         Binding {
             resolvedTab(router.selectedTab)
@@ -550,6 +554,9 @@ struct CueApp: App {
                 return
             }
             router.selectedTab = newValue
+            if newValue == .search {
+                SearchActivator.shared.requestFocus()
+            }
         }
     }
 
