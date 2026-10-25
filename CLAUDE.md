@@ -243,17 +243,24 @@ Key findings for whoever picks this up:
   own preview-URL lookup path).
 
 ### Radio map (on hold)
-Taken out before an App Store submission, to add back later: the Radio tab's
-map tile under Local Radio and the full-screen map it opened, with Search This
-Area. The map asked TuneIn where each station is (`Describe.ashx`, its
-`latlon`), geocoded the rest with MapKit, and asked TuneIn for the local page
-at a coordinate (`latlon`). It never asked for location permission. To bring
-it back, revert the commit that removed it (the last commit with it is
-`e84f052`): `Cue/Radio/RadioMap.swift`, `RadioMapScreen.swift`,
-`RadioMapTile.swift`, `RadioMapSection` in `RadioScreen`, the `.radioMap`
-route and zoom source, and in the packages `TuneInPlace`,
-`TuneInAPI.place(for:)`, `TuneInParser.parsePlace`, `TuneInBrowsePage.nearby`,
-`TuneInBrowseService.stations(nearLatitude:longitude:)` and their tests.
+Taken out before an App Store submission, to add back later, with the
+location prompt it brought: the Radio tab's map tile under Local Radio and the
+full-screen map it opened, with Search This Area and Stations Near You. The map
+asked TuneIn where each station is (`Describe.ashx`, its `latlon`), geocoded
+the rest with MapKit, and asked TuneIn for the local page at a coordinate
+(`latlon`); Stations Near You asked for when-in-use location (`DeviceLocation`,
+one approximate fix). Local Radio is TuneIn's IP-placed page meanwhile. To
+bring it back, take what was removed from `52b8789`, the last main with the
+map (`git diff <removal merge> 52b8789` lists it all): `Cue/Radio/RadioMap.swift`, `RadioMapScreen.swift`
+(with `DeviceLocation`), `RadioMapTile.swift`, `RadioMapSection` in
+`RadioScreen`, the `.radioMap` route and zoom source; in the packages
+`TuneInPlace`, `TuneInAPI.place(for:)`, `TuneInParser.parsePlace`,
+`TuneInBrowsePage.nearby`, `TuneInBrowseService.stations(nearLatitude:longitude:)`
+and their tests; and the location setup: `INFOPLIST_KEY_NSLocationWhenInUseUsageDescription`
+on the Cue, Cue (Mac) and Cue (Vision) targets, `NSLocationDefaultAccuracyReduced`
+in `Cue/Info.plist` and `Mac/Cue-Mac.plist`, and
+`com.apple.security.personal-information.location` in `Cue/Cue.entitlements`
+and `Cue/Cue-iOS.entitlements`.
 
 ### Monetization notes
 - Downloads (Plex/Subsonic, `DownloadManager`) are free up to

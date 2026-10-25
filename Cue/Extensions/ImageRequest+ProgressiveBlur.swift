@@ -16,7 +16,7 @@ struct ProgressiveBlur: ImageProcessing, Hashable {
     var grain: CGFloat = 0.15
 
     var identifier: String {
-        "dance.cue/progressive-blur?start=\(start)&radius=\(radius)&grain=\(grain)&ease=smooth"
+        "dance.cue/progressive-blur?start=\(start)&radius=\(radius)&grain=\(grain)&ease=smooth&opaque"
     }
 
     func process(_ image: UIImage) -> UIImage? {
@@ -76,14 +76,38 @@ struct ProgressiveBlur: ImageProcessing, Hashable {
 
         // BGRA, the layout Core Animation draws, so it needn't keep a copy,
         // in the cover's own colours when they're RGB (P3 stays P3); a
-        // grayscale cover, which BGRA can't hold, comes out in sRGB.
+        // grayscale cover, which BGRA can't hold, comes out in sRGB. With
+        // no alpha when the cover has none (nearly every one): Nuke's disk
+        // cache encodes anything with an alpha channel as a PNG, and a
+        // grained 800 px PNG is several times the JPEG it keeps otherwise.
         let colorSpace = cgImage.colorSpace.flatMap { $0.model == .rgb ? $0 : nil }
             ?? CGColorSpace(name: CGColorSpace.sRGB)!
         guard let output = grainy.outputImage?.cropped(to: extent),
-              let blurred = Self.context.createCGImage(output, from: extent, format: .BGRA8, colorSpace: colorSpace) else {
+              let blurred = (cgImage.hasAlpha ? nil : Self.opaqueImage(output, colorSpace: colorSpace))
+                ?? Self.context.createCGImage(output, from: extent, format: .BGRA8, colorSpace: colorSpace) else {
             return nil
         }
         return UIImage(cgImage: blurred, scale: image.scale, orientation: image.imageOrientation)
+    }
+
+    /// `image` rendered into a BGRA bitmap whose alpha byte is skipped,
+    /// which Nuke stores as a JPEG. Nil when Core Graphics can't draw in
+    /// the cover's colour space; the caller then keeps the alpha.
+    private static func opaqueImage(_ image: CIImage, colorSpace: CGColorSpace) -> CGImage? {
+        let extent = image.extent
+        guard let bitmap = CGContext(
+            data: nil,
+            width: Int(extent.width),
+            height: Int(extent.height),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        ), let pixels = bitmap.data else {
+            return nil
+        }
+        Self.context.render(image, toBitmap: pixels, rowBytes: bitmap.bytesPerRow, bounds: extent, format: .BGRA8, colorSpace: colorSpace)
+        return bitmap.makeImage()
     }
 
     /// Its own context rather than Nuke's shared one, which keeps every
@@ -93,6 +117,17 @@ struct ProgressiveBlur: ImageProcessing, Hashable {
         .cacheIntermediates: false,
         .priorityRequestLow: true
     ])
+}
+
+private extension CGImage {
+    /// Whether it has an alpha channel, the test Nuke's encoder makes
+    /// between PNG and JPEG.
+    var hasAlpha: Bool {
+        switch alphaInfo {
+        case .none, .noneSkipFirst, .noneSkipLast: false
+        default: true
+        }
+    }
 }
 
 extension ImageRequest {

@@ -1535,15 +1535,28 @@ private struct PlayerBottomToolbarView: View {
     /// The queue toggle with its gauge — the device's or the group's — and
     /// the play mode badge over it. A drop on it plays next wherever the
     /// route points.
+    /// A book's files aren't a queue: for one, it's the chapters sheet the
+    /// chapter line opens, under a bookmark with the chapter's number.
     @ViewBuilder
     private var queueButton: some View {
+        let isBook = AudiobookPlayer.shared.isPlayingBook(on: route.presented)
         let button = Button {
             HapticManager.shared.fireHaptic(.selection)
+            if isBook {
+                router.sheet(to: .audiobookChapters)
+                return
+            }
             withAnimation {
                 showQueue.toggle()
             }
         } label: {
-            PresentedQueueIconView()
+            Group {
+                if isBook {
+                    AudiobookChapterIconView()
+                } else {
+                    PresentedQueueIconView()
+                }
+            }
                 .fontDesign(.rounded)
                 .font(.title3)
                 .foregroundStyle(isHoveringOnQueueList || showQueue ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
@@ -1556,10 +1569,12 @@ private struct PlayerBottomToolbarView: View {
                     }
                 }
         }
-        .accessibilityLabel("Up Next")
-        .accessibilityAddTraits(showQueue ? .isSelected : [])
+        .accessibilityLabel(isBook ? "Chapters" : "Up Next")
+        .accessibilityAddTraits(showQueue && !isBook ? .isSelected : [])
         .overlay(alignment: .topTrailing) {
-            playModeBadge
+            if !isBook {
+                playModeBadge
+            }
         }
 
         // One button whichever way the route points, so it keeps its place
@@ -1610,6 +1625,29 @@ struct PresentedQueueIconView: View {
     var body: some View {
         let controller = route.presented
         QueueIconView(position: controller.queuePosition, total: controller.queueCount)
+    }
+}
+
+/// A book's in place of the queue gauge: a bookmark, as the chapter rows
+/// have, with the number of the chapter playing in it. Its own view, read
+/// only when the chapter changes.
+struct AudiobookChapterIconView: View {
+    @State private var player = AudiobookPlayer.shared
+
+    var body: some View {
+        Image(systemName: "bookmark")
+            .overlay {
+                if let chapter = player.currentChapter {
+                    // In the bookmark's top, above its notch.
+                    Text("\(chapter.id + 1)")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
+                        .padding(.horizontal, 3)
+                        .offset(y: -2)
+                }
+            }
     }
 }
 

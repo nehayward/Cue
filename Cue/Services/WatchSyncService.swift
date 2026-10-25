@@ -604,7 +604,11 @@ final class WatchSyncService {
     /// own copy, which is in memory while it's on screen.
     private static func watchArtwork(for item: PlayableContent, url: URL?) async -> Data? {
         guard let url else { return nil }
-        let request = ContentArtworkView.artworkRequest(for: item, url: url, preferredSize: ContentArtworkView.playerPreferredSize)
+        // A book's file sends its Audible edition's cover, as the player
+        // shows it.
+        let cover = await MainActor.run { ContentArtworkView.drawnContent(for: item) }
+        let coverURL = cover.id == item.id ? url : cover.artwork ?? cover.thumbnail ?? url
+        let request = ContentArtworkView.artworkRequest(for: cover, url: coverURL, preferredSize: ContentArtworkView.playerPreferredSize)
         guard let image = try? await ImagePipeline.shared.image(for: request), image.size.width > 0, image.size.height > 0 else { return nil }
         let side: CGFloat = 160
         let scale = max(side / image.size.width, side / image.size.height)

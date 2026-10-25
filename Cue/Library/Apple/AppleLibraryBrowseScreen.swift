@@ -32,6 +32,7 @@ struct AppleLibraryBrowseScreen: View {
                     sectionView(for: section)
                 }
             }
+            .musicLeftOffRoom()
 #if targetEnvironment(macCatalyst)
             .listStyle(.plain)
 #endif

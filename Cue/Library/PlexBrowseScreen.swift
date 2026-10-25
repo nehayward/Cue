@@ -21,7 +21,10 @@ struct PlexBrowseScreen: View {
     @State private var plexAuthenticator = PlexAuthenticator.shared
     /// The server has books: a library kept for them, or books among the
     /// music under an audiobook genre (see `PlexAudiobookSettingsSection`).
-    @State private var hasAudiobooks = false
+    /// Nil until the server is asked; the answer kept from before
+    /// (`hasPlexAudiobooks`) stands in meanwhile, so the row doesn't pop in.
+    @State private var hasAudiobooks: Bool?
+    @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hadAudiobooks = false
 
     /// The Songs list's sort menu, shared with the Songs tab.
     private var songSortOptions: [PlayableListSort] {
@@ -106,7 +109,7 @@ struct PlexBrowseScreen: View {
                         Label("Downloaded", systemImage: "arrow.down.circle")
                     }
 
-                    if hasAudiobooks {
+                    if hasAudiobooks ?? hadAudiobooks {
                         NavigationLink(value: RouterDestination.playableList(
                             title: "Audiobooks",
                             showSectionIndex: false,
@@ -149,6 +152,7 @@ struct PlexBrowseScreen: View {
                     PlexLibrarySelectionView()
                 }
             }
+            .musicLeftOffRoom()
             .navigationBarTitleDisplayMode(.inline)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .miniPlayerOnScrollHandler()
@@ -165,9 +169,10 @@ struct PlexBrowseScreen: View {
                 isLoading = true
                 await updatePlexBrowseService()
                 isLoading = false
-                hasAudiobooks = await PlexAPI.shared.hasAudiobooks()
-                if hasAudiobooks {
-                    UserDefaults.standard.set(true, forKey: AppStorageKeys.hasPlexAudiobooks)
+                let hasBooks = await PlexAPI.shared.hasAudiobooks()
+                hasAudiobooks = hasBooks
+                if hasBooks, !hadAudiobooks {
+                    hadAudiobooks = true
                 }
                 // Opening the library is the moment to notice the server has
                 // more songs than the synced copy — Songs is one tap away.

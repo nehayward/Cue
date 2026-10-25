@@ -422,21 +422,17 @@ struct PlexCollectionScreen: View {
     /// The cover, drawn as `MediaDetailView` draws an album's: a blurred
     /// copy behind for the glow, the cover itself fading into it at the
     /// bottom under the title and buttons, stretching as the page is pulled
-    /// down.
+    /// down. Both from the one image, so they land in the same frame.
     private var hero: some View {
         Color.clear.overlay {
-            ZStack {
-                LazyImage(request: heroRequest) { phase in
-                    if let image = phase.image {
+            LazyImage(request: heroRequest.withBlurredFoot) { phase in
+                if let image = phase.image {
+                    ZStack {
                         image
                             .resizable()
                             .scaledToFit()
                             .blur(radius: 100)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: heroHeight)
-                LazyImage(request: heroRequest.withBlurredFoot) { phase in
-                    if let image = phase.image {
+                            .frame(maxWidth: .infinity, maxHeight: heroHeight)
                         image
                             .resizable()
                             .scaledToFill()

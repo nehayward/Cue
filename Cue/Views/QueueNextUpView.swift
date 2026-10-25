@@ -15,7 +15,10 @@ struct QueueNextUpView: View {
 
     var body: some View {
         Group {
-            if let group = route.presentedGroup {
+            // A book's files aren't a queue: its chapters take the panel.
+            if AudiobookPlayer.shared.isPlayingBook(on: route.presented) {
+                AudiobookChaptersView(inPanel: true)
+            } else if let group = route.presentedGroup {
                 GroupNextUpView(group: group)
             } else {
                 LocalNextUpView()

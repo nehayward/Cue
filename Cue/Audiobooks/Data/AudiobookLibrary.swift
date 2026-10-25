@@ -38,24 +38,186 @@ enum AudiobookLibrary {
     /// subtitle. Plex's own reading of where each book is comes only with
     /// the book's files, so this is this device's.
     static func plexShelf() async -> [PlayableContent] {
-        let store = AudiobookProgressStore.shared
-        return (await plexBooks() ?? []).map { $0.withAudiobookProgress(store.progress(for: $0)) }
+        await plexShelf(by: .title, descending: false)
     }
 
-    /// Plex's books added last, newest first, for a row of covers. Nil when
-    /// the server couldn't be read.
-    static func plexNewestBooks(limit: Int = 12) async -> [PlayableContent]? {
-        guard let books = await PlexAPI.shared.audiobooks() else { return nil }
-        return books
+    /// Plex's every-book list's orders. Read whole (the shelf merges
+    /// several sources), so a list's first page is all of it.
+    static var plexSortOptions: [PlayableListSort] {
+        func sort(_ order: PlexOrder) -> (Int, Bool) async -> [PlayableContent] {
+            { offset, descending in
+                guard offset == 0 else { return [] }
+                return await plexShelf(by: order, descending: descending)
+            }
+        }
+        return [
+            PlayableListSort(name: "Recent Activity", action: sort(.recentActivity)),
+            PlayableListSort(name: "Title", ascendingLabel: "A–Z", descendingLabel: "Z–A", action: sort(.title)),
+            PlayableListSort(name: "Author", ascendingLabel: "A–Z", descendingLabel: "Z–A", action: sort(.author)),
+            PlayableListSort(name: "Release Date", ascendingLabel: "Old to New", descendingLabel: "New to Old", defaultsToDescending: true, action: sort(.released)),
+            PlayableListSort(name: "Date Added", ascendingLabel: "Old to New", descendingLabel: "New to Old", defaultsToDescending: true, action: sort(.added))
+        ]
+    }
+
+    /// The orders a server's every-book list offers, Audible's: Plex's
+    /// books are read whole, so it's sorted here, except by length, which
+    /// a book's listing doesn't give.
+    enum PlexOrder {
+        /// Listened to last first, then the rest by when they were added.
+        case recentActivity
+        case title, author, released, added
+    }
+
+    /// The Plex shelf in `order`, reversed when `descending`.
+    static func plexShelf(by order: PlexOrder, descending: Bool) async -> [PlayableContent] {
+        let store = AudiobookProgressStore.shared
+        // The last read when it's from the past few minutes: the list reads
+        // again for each order picked.
+        let books = (await plexItems(maxAge: 300) ?? []).compactMap { item in
+            item.toPlayable.map { (item: item, book: $0, progress: store.progress(for: $0)) }
+        }
+        func byTitle(_ a: PlexAudiobookItem, _ b: PlexAudiobookItem) -> Bool {
+            (a.titleSort ?? a.title).localizedStandardCompare(b.titleSort ?? b.title) == .orderedAscending
+        }
+        let sorted: [(item: PlexAudiobookItem, book: PlayableContent, progress: AudiobookProgress?)]
+        switch order {
+        case .recentActivity:
+            // This device's reading, else Plex's last play of a file.
+            func listened(_ entry: (item: PlexAudiobookItem, book: PlayableContent, progress: AudiobookProgress?)) -> Date? {
+                entry.progress?.updatedAt ?? entry.item.lastViewedAt.map { Date(timeIntervalSince1970: TimeInterval($0)) }
+            }
+            sorted = books.sorted {
+                switch (listened($0), listened($1)) {
+                case let (a?, b?): a > b
+                case (_?, nil): true
+                case (nil, _?): false
+                case (nil, nil): ($0.item.addedAt ?? 0) > ($1.item.addedAt ?? 0)
+                }
+            }
+            return sorted.map { $0.book.withAudiobookProgress($0.progress) }
+        case .title:
+            sorted = books.sorted { byTitle($0.item, $1.item) }
+        case .author:
+            sorted = books.sorted {
+                let order = ($0.item.parentTitle ?? "").localizedStandardCompare($1.item.parentTitle ?? "")
+                return order == .orderedSame ? byTitle($0.item, $1.item) : order == .orderedAscending
+            }
+        case .released:
+            sorted = books.sorted {
+                ($0.item.year ?? 0, $0.item.addedAt ?? 0) < ($1.item.year ?? 0, $1.item.addedAt ?? 0)
+            }
+        case .added:
+            sorted = books.sorted { ($0.item.addedAt ?? 0) < ($1.item.addedAt ?? 0) }
+        }
+        return (descending ? sorted.reversed() : sorted).map { $0.book.withAudiobookProgress($0.progress) }
+    }
+
+    /// Every Plex book, and the ones added last, newest first, for a row of
+    /// covers: one read for both, from the server. Nil when it couldn't be
+    /// read.
+    static func plexBooksAndNewest(limit: Int = 12) async -> (all: [PlayableContent], newest: [PlayableContent])? {
+        guard let books = await plexItems(maxAge: 0) else { return nil }
+        return shelves(of: books, limit: limit)
+    }
+
+    /// The same from the last read kept, at once: nil when there's none for
+    /// the server picked.
+    static func cachedPlexBooksAndNewest(limit: Int = 12) -> (all: [PlayableContent], newest: [PlayableContent])? {
+        guard let snapshot = plexSnapshot, snapshot.server == MusicSearchService.shared.plexServerID else { return nil }
+        return shelves(of: snapshot.items, limit: limit)
+    }
+
+    private static func shelves(of books: [PlexAudiobookItem], limit: Int) -> (all: [PlayableContent], newest: [PlayableContent]) {
+        let newest = books
             .sorted { ($0.addedAt ?? 0) > ($1.addedAt ?? 0) }
             .prefix(limit)
             .compactMap(\.toPlayable)
+        return (books.compactMap(\.toPlayable), newest)
+    }
+
+    // MARK: - Plex's books, kept
+
+    /// Plex's books as last read, by server, in Caches (`ShelfCache`): the
+    /// Audiobooks tab and the list of every book draw from it at once.
+    private struct PlexSnapshot: Codable, Sendable {
+        /// A book as read, with what the read sets on it after decoding
+        /// (its id and cover URL), which isn't encoded with it: without
+        /// them a kept book made no row, and the shelf came up empty. The
+        /// cover URL carries the server's token, as the saved queue's rows
+        /// already do (`LocalQueue.json`); the cover itself is cached by
+        /// the book, so a URL for another of the server's addresses still
+        /// draws it.
+        struct Book: Codable, Sendable {
+            let item: PlexAudiobookItem
+            let sonosID: String?
+            let thumbImageURL: URL?
+
+            init(_ item: PlexAudiobookItem) {
+                self.item = item
+                sonosID = item.sonosID
+                thumbImageURL = item.thumbImageURL
+            }
+
+            var restored: PlexAudiobookItem {
+                var item = item
+                item.sonosID = sonosID
+                item.thumbImageURL = thumbImageURL
+                return item
+            }
+        }
+
+        let server: String
+        let books: [Book]
+        var readAt: Date
+
+        var items: [PlexAudiobookItem] { books.map(\.restored) }
+    }
+
+    private static var plexSnapshot: PlexSnapshot? = ShelfCache.load(PlexSnapshot.self, named: "PlexBooks")
+
+    /// Every Plex book: the last read when it's younger than `maxAge`, else
+    /// the server's, which is kept. When the server can't be read, the last
+    /// read of it, however old, rather than nothing; nil with none.
+    static func plexItems(maxAge: TimeInterval) async -> [PlexAudiobookItem]? {
+        let server = MusicSearchService.shared.plexServerID
+        let kept = plexSnapshot.flatMap { $0.server == server ? $0 : nil }
+        if let kept, Date.now.timeIntervalSince(kept.readAt) < maxAge { return kept.items }
+        guard let items = await PlexAPI.shared.audiobooks() else {
+            if kept != nil { log.info("plex shelf: server not read, showing the last read") }
+            return maxAge == 0 ? nil : kept?.items
+        }
+        if let server {
+            let snapshot = PlexSnapshot(server: server, books: items.map(PlexSnapshot.Book.init), readAt: .now)
+            plexSnapshot = snapshot
+            ShelfCache.save(snapshot, named: "PlexBooks")
+        }
+        return items
+    }
+
+    /// The next read goes to the server: after a scan, which may have found
+    /// books.
+    static func plexBooksChanged() {
+        plexSnapshot?.readAt = .distantPast
+    }
+
+    /// Plex's books in series, from what Audible says of each
+    /// (`AudiobookDetails`), each in its order.
+    @MainActor
+    static func plexSeries(_ books: [PlayableContent]) -> [AudiobookSeries] {
+        let details = AudiobookDetails.shared
+        let grouped = Dictionary(grouping: books.compactMap { book in
+            details.details(for: book)?.series.map { (series: $0, book: book) }
+        }, by: \.series)
+        return grouped.map { name, entries in
+            AudiobookSeries(id: "plex|\(name)", name: name, books: entries.map(\.book).sorted(by: details.inSeriesOrder))
+        }
     }
 
     /// Has Plex scan its book libraries and waits for it, for a pull to
     /// refresh: a book added on the server shows without opening Plex.
     static func scanPlexBooks() async {
         await PlexBookScan.shared.run()
+        plexBooksChanged()
     }
 
     /// Asks the Plex server whether it has books, for the Audiobooks tab,
