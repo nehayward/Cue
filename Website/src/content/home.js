@@ -97,7 +97,7 @@ export const features = [
 	{ icon: 'shuffle', title: 'A Queue That Remembers', body: 'Shuffle keeps the real order behind it, through edits and relaunches.' },
 	{ icon: 'lock-keyhole', title: 'Lock Screen Controls', body: 'Your speaker in the Lock Screen player, with the volume buttons to match.' },
 	{ icon: 'play', title: 'Song Previews', body: 'Hear a quick clip of any Apple Music song before you play it.' },
-	{ icon: 'alarm-clock', title: 'Alarms & Sleep Timer', body: 'Wake up to any station or playlist, and fall asleep to one.' },
+	{ icon: 'alarm-clock', title: 'Sleep Timer & Sonos Alarms', body: 'Fall asleep to a book or playlist on your iPhone, and wake up to music on your Sonos speakers.' },
 	{ icon: 'house', title: 'Every Home', body: 'S1 and S2 systems, and more than one house, a tap apart.' },
 	{ icon: 'tv', title: 'Home Theater', body: 'Night mode, speech enhancement and lip sync for Sonos soundbars.' },
 ];
