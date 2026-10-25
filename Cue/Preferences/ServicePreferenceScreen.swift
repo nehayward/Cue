@@ -57,27 +57,6 @@ struct ServicePreferenceScreen: View {
         return sonosServices.filter { !$0.isAuthorized(on: installedTypes) }
     }
 
-    /// Discovered on the user's Sonos but not supported by Cue yet —
-    /// Pandora, SiriusXM, Bandcamp, etc. Shown dimmed like onboarding's
-    /// ServicesStep so the list reflects everything the user has authorized.
-    private var unsupportedKnownTypes: [SonosServiceType] {
-        let supported = Set(MediaSearchService.supported.compactMap(\.sonosServiceType))
-        return installedTypes.filter { type in
-            guard !supported.contains(type) else { return false }
-            if case .unknown = type { return false }
-            return true
-        }.sorted { $0.rawValue.localizedStandardCompare($1.rawValue) == .orderedAscending }
-    }
-
-    /// Discovered `.unknown(_)` services we can't render a name for —
-    /// surfaced as a footer count, matching onboarding.
-    private var unknownServiceCount: Int {
-        installedTypes.filter { type in
-            if case .unknown = type { return true }
-            return false
-        }.count
-    }
-
     var body: some View {
         @Bindable var coreFeatures = coreFeatures
         List {
@@ -101,42 +80,17 @@ struct ServicePreferenceScreen: View {
                         .tint(.accent)
                     }
                 }
-
-                // Authorized in Sonos but not supported by Cue yet — same
-                // dimmed informational treatment as onboarding's ServicesStep.
-                ForEach(unsupportedKnownTypes, id: \.rawValue) { type in
-                    Label {
-                        VStack(alignment: .leading) {
-                            Text(type.rawValue)
-                            Text("Not supported in Cue yet")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    } icon: {
-                        Image(systemName: "music.note")
-                            .foregroundStyle(.secondary)
-                            .frame(width: 24, height: 24)
-                    }
-                    .opacity(0.6)
-                }
             } header:  {
                 Text(servers.isEmpty ? "Music Services" : "On Your Sonos")
             } footer: {
-                VStack(alignment: .leading, spacing: 4) {
-                    // No speakers read means these play on this device, so
-                    // the Sonos app has nothing to do with them.
-                    Text(servers.isEmpty
-                         ? "Toggle to show or hide in Cue's search and browse."
-                         : "Authorized in the Sonos app. Toggle to show or hide in Cue's search and browse.")
-                    if unknownServiceCount > 0 {
-                        Text(unknownServiceCount == 1
-                             ? "1 other service we don't recognize yet."
-                             : "\(unknownServiceCount) other services we don't recognize yet.")
-                    }
-                    if !unsupportedKnownTypes.isEmpty || unknownServiceCount > 0 {
-                        Text("[Help us add support](https://cue.dance/help)")
-                    }
-                }
+                // No speakers read means these play on this device, so the
+                // Sonos app has nothing to do with them. Only what Cue plays
+                // is listed: a service the speakers have that Cue can't play
+                // on this device too isn't one of Cue's (CLAUDE.md, Product
+                // Priorities).
+                Text(servers.isEmpty
+                     ? "Toggle to show or hide in Cue's search and browse."
+                     : "Authorized in the Sonos app. Toggle to show or hide in Cue's search and browse.")
             }
 
             if !selfHostedServices.isEmpty {
@@ -212,16 +166,6 @@ struct ServicePreferenceScreen: View {
                 .tint(.accent)
             }
 #endif
-
-            // "Can't find the service?" lives at the very bottom as plain
-            // footer text — informational, not a section of its own.
-            // About Sonos Favorites, so only with Sonos switched on.
-            if sonosService.isEnabled {
-            Section {
-            } footer: {
-                Text("Can't find the service here? To listen to music from providers not yet supported, like Pandora or SirusXM, make them a [favorite in the Sonos app](https://support.sonos.com/en-us/article/add-favorites-to-your-home-screen) then look for your stations in Cue search under \"[Sonos Favorites](cue://search/favorites).\"")
-            }
-            }
         }
         .navigationBarTitleDisplayMode(.inline)
         .refreshable {

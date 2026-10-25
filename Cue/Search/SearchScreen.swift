@@ -30,6 +30,10 @@ struct SearchScreen: View {
     var closeInspector: (() -> Void)? = nil
 
     var isAlarmSearch: Bool = false
+    /// The Search tab's own screen, which alone answers the tab bar's
+    /// requests for the field (`SearchActivator`); the same screen in a
+    /// sheet (Sonos Favorites, an alarm's) opens without the keyboard.
+    var isTab: Bool = false
     @State private var coreFeatures = CoreFeatures.shared
     @State private var alertService = AlertService.shared
     /// Offline, the field searches what's on this device instead of the
@@ -45,6 +49,10 @@ struct SearchScreen: View {
     @State private var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>] = []
 
     @FocusState private var focusedField: SearchFocusFields?
+    /// The last focus request answered (`SearchActivator.requestCount`). The
+    /// first switch to Search asks before this screen exists to see the
+    /// change, so it's caught on appear by comparing.
+    @State private var answeredFocusRequest = 0
     #if targetEnvironment(macCatalyst)
     @State private var searchBarFocused: Bool = false
     #endif
@@ -231,23 +239,24 @@ struct SearchScreen: View {
                         withAnimation { proxy.scrollTo(id, anchor: .center) }
                     }
                 }
-#if targetEnvironment(macCatalyst)
-                // The field and the services menu are the content column's
-                // header (`searchHeader`), not a navigation bar: hidden here
-                // on the root only, so a pushed detail still gets its bar and
-                // back button.
+                // The field and the services menu are the screen's top row
+                // (`searchHeader`), not a navigation bar: hidden here on the
+                // root only, so a pushed detail still gets its bar and back
+                // button. On the phone they were bar items, sized apart: the
+                // field a centred item asking for 800 points, the menu a
+                // trailing one, and the menu's two or three service icons
+                // pushed the row off the screen's edge.
                 .toolbar(.hidden, for: .navigationBar)
+#if targetEnvironment(macCatalyst)
                 .safeAreaInset(edge: .top, spacing: 0) {
+                    searchHeader
+                }
+#else
+                .searchHeaderBar {
                     searchHeader
                 }
 #endif
                 .toolbar {
-#if !targetEnvironment(macCatalyst)
-                    ToolbarItemGroup(placement: .principal) {
-                        searchField
-                            .frame(idealWidth: 800)
-                    }
-#endif
                     #if !os(visionOS)
                     if #available(iOS 26.0, *) {
                         ToolbarItemGroup(placement: .keyboard) {
@@ -269,13 +278,6 @@ struct SearchScreen: View {
                     }
                     #endif
 
-#if !targetEnvironment(macCatalyst)
-                    if !offline.isActive {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            MediaServiceMenu(selection: $searchSelection, filters: $filters)
-                        }
-                    }
-#endif
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -418,6 +420,7 @@ struct SearchScreen: View {
             searchFieldIsPresented = true
             lastNonEmptyQuery = ""
             musicSearchService.query = ""
+            answerFocusRequest()
         }
         .onDisappear {
             if !lastNonEmptyQuery.isEmpty {
@@ -425,10 +428,10 @@ struct SearchScreen: View {
             }
         }
         .animation(.interactiveSpring, value: focusedField)
-        // Re-tapping the Search tab asks for the field. A counter, so a second
-        // request still counts as a change.
+        // Switching to the Search tab, or tapping it again, asks for the
+        // field. A counter, so a second request still counts as a change.
         .onChange(of: SearchActivator.shared.requestCount) {
-            focusedField = .search
+            answerFocusRequest()
         }
         .animation(.interactiveSpring, value: musicSearchService.suggestions)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
@@ -478,17 +481,18 @@ struct SearchScreen: View {
         #endif
     }
 
-#if targetEnvironment(macCatalyst)
-    /// The Mac's search bar: the top row of the content column, in the band
-    /// the sidebar's header and the queue panel's "Next Up" occupy, rather
-    /// than a navigation bar of its own.
+    /// The search bar: the field and the services menu, a row of their own
+    /// at the top of the screen (on the Mac, of the content column, in the
+    /// band the sidebar's header and the queue panel's "Next Up" occupy),
+    /// rather than navigation bar items.
     ///
     /// It was a `.principal` toolbar item. UIKit centres that in the bar and
-    /// shrinks it symmetrically to clear the trailing item, so the field
-    /// started as far from the leading edge as the services menu sat from the
-    /// trailing one — a gap the width of the menu, with nothing in it. As a
-    /// row of its own the field starts at the same inset as the headers
-    /// beside it and runs up to the menu.
+    /// shrinks it symmetrically to clear the trailing item, so on the Mac the
+    /// field started as far from the leading edge as the services menu sat
+    /// from the trailing one, and on the phone, asking for 800 points, it ran
+    /// under the menu and off the screen. As a row of its own the field
+    /// starts at the same inset as the headers beside it and runs up to the
+    /// menu, whatever the menu's width.
     private var searchHeader: some View {
         HStack(spacing: 12) {
             searchField
@@ -502,7 +506,22 @@ struct SearchScreen: View {
         .padding(.top, 10)
         .padding(.bottom, 6)
     }
-#endif
+
+    /// Focuses the field for a request not answered yet: a switch to the
+    /// Search tab, or a tap on it while it shows. Only the tab's screen
+    /// (`isTab`): the tab and the Sonos Favorites sheet are both built with
+    /// `favorites`, so that can't tell them apart. A beat late: focus set as
+    /// the tab is still coming up doesn't take.
+    private func answerFocusRequest() {
+        let request = SearchActivator.shared.requestCount
+        guard request != answeredFocusRequest else { return }
+        answeredFocusRequest = request
+        guard isTab else { return }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(100))
+            focusedField = .search
+        }
+    }
 
     /// Drops services the user disabled in Settings from the stored
     /// selection, falling back to the first enabled service so the selection
@@ -587,9 +606,17 @@ private struct SearchFilterRow: View {
     var body: some View {
         Group {
             if primary != .tuneIn {
-                VStack(spacing: 0) {
-                    HStack {
-                        FilterView(services: selectedServices, filters: $filters)
+                HStack(spacing: 8) {
+                    FilterView(services: selectedServices, filters: $filters)
+                    // Beside the chips, not laid over their trailing edge:
+                    // there its glass, larger than the 24-point frame it was
+                    // given, ran off the screen and covered the last chip.
+                    if searchesPlex {
+                        PlexLibraryFilterView(plexLibrariesFilters: $plexLibrariesFilters)
+                            .task {
+                                let libraries = await musicSearchService.getPlexLibraries()
+                                plexLibrariesFilters = libraries.map { GenericFilter(filter: $0) }
+                            }
                     }
                 }
                 .listRowSeparator(.hidden)
@@ -597,25 +624,6 @@ private struct SearchFilterRow: View {
             }
         }
         .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
-        .overlay(alignment: .trailing) {
-            if searchesPlex {
-                ZStack(alignment: .trailing) {
-                    // Transparent hit area to block taps below. No
-                    // ignoresSafeArea here: safe-area-ignoring content inside
-                    // a self-sizing List cell can trigger UIKit's layout
-                    // feedback-loop trap (EXC_BREAKPOINT in
-                    // _UICollectionViewFeedbackLoopDebugger on iOS 26).
-                    Color.black.opacity(0.001)
-                        .allowsHitTesting(true)
-                    PlexLibraryFilterView(plexLibrariesFilters: $plexLibrariesFilters)
-                }
-                .frame(width: 24, height: 24)
-                .task {
-                    let libraries = await musicSearchService.getPlexLibraries()
-                    plexLibrariesFilters = libraries.map { GenericFilter(filter: $0) }
-                }
-            }
-        }
     }
 }
 
@@ -951,4 +959,21 @@ private struct SearchSuggestionsBar: View {
     SearchScreen()
         .environment(Router.search)
         .forPreview()
+}
+
+private extension View {
+    /// The search bar pinned at the top. On iOS 26 the system draws the
+    /// scroll edge beneath it, as it does for a navigation bar; before, a
+    /// material band does the same job.
+    @ViewBuilder
+    func searchHeaderBar<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        if #available(iOS 26.0, visionOS 26.0, *) {
+            safeAreaBar(edge: .top, spacing: 0, content: content)
+        } else {
+            safeAreaInset(edge: .top, spacing: 0) {
+                content()
+                    .background(.bar)
+            }
+        }
+    }
 }

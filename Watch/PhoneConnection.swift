@@ -6,9 +6,11 @@ import WatchSync
 
 /// The watch's end of WatchConnectivity (`WatchSyncMessage`). From the
 /// iPhone's application context it takes the sign-ins (to `WatchAccounts`),
-/// the picks (merged into the download store's) and the places in the books
-/// among them (merged into `WatchBookStore`'s). To the iPhone it sends its
-/// own: the picks and places as the watch has them, when they change here.
+/// the free tier's share of downloads and the picks (both to the download
+/// store) and the places in the books among them (merged into
+/// `WatchBookStore`'s). To the iPhone it sends its own: the picks and
+/// places as the watch has them, when they change here, and what it holds
+/// against the share.
 /// While the app is open, what the iPhone plays comes as messages, to
 /// `PhoneNowPlaying`, and its queue in answer to Up Next asking.
 @MainActor
@@ -38,10 +40,10 @@ final class PhoneConnection {
             hasPending = true
             return
         }
-        let picks = WatchDownloadStore.shared.picks
+        let store = WatchDownloadStore.shared
         let places = WatchBookStore.shared.placesToShare
         do {
-            try WCSession.default.updateApplicationContext(WatchSyncMessage.context(picks: picks, places: places))
+            try WCSession.default.updateApplicationContext(WatchSyncMessage.context(picks: store.picks, places: places, held: store.heldDownloads))
         } catch {
             logger.error("Couldn't send the picks: \(error.localizedDescription, privacy: .public)")
         }
@@ -127,9 +129,10 @@ final class PhoneConnection {
     }
 
     /// The iPhone's context: sign-ins first, so the picks that come with
-    /// them are looked up with them; the places once the picks are in, so
-    /// a book just picked takes its place.
-    fileprivate func didReceive(credentials: WatchCredentials?, picks: WatchPicks?, places: WatchBookPlaces?) {
+    /// them are looked up with them, and the free tier's share before the
+    /// picks it applies to; the places once the picks are in, so a book
+    /// just picked takes its place.
+    fileprivate func didReceive(credentials: WatchCredentials?, picks: WatchPicks?, places: WatchBookPlaces?, allowance: WatchAllowance? = nil) {
         let store = WatchDownloadStore.shared
         if let credentials {
             switch WatchAccounts.shared.apply(credentials) {
@@ -137,6 +140,9 @@ final class PhoneConnection {
             case .tokenRenewed: store.tokenDidRenew()
             case .none: break
             }
+        }
+        if let allowance {
+            store.apply(allowance)
         }
         var tellPhone = false
         if let picks {
@@ -163,8 +169,9 @@ private final class PhoneSessionRelay: NSObject, WCSessionDelegate, @unchecked S
         let credentials = WatchSyncMessage.credentials(in: context)
         let picks = WatchSyncMessage.picks(in: context)
         let places = WatchSyncMessage.places(in: context)
+        let allowance = WatchSyncMessage.allowance(in: context)
         Task { @MainActor in
-            self.connection?.didReceive(credentials: credentials, picks: picks, places: places)
+            self.connection?.didReceive(credentials: credentials, picks: picks, places: places, allowance: allowance)
             self.connection?.didActivate()
         }
     }
@@ -173,8 +180,9 @@ private final class PhoneSessionRelay: NSObject, WCSessionDelegate, @unchecked S
         let credentials = WatchSyncMessage.credentials(in: applicationContext)
         let picks = WatchSyncMessage.picks(in: applicationContext)
         let places = WatchSyncMessage.places(in: applicationContext)
+        let allowance = WatchSyncMessage.allowance(in: applicationContext)
         Task { @MainActor in
-            self.connection?.didReceive(credentials: credentials, picks: picks, places: places)
+            self.connection?.didReceive(credentials: credentials, picks: picks, places: places, allowance: allowance)
         }
     }
 

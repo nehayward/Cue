@@ -41,6 +41,13 @@ struct GroupMembership {
         group.rooms.contains { $0.id == room.id }
     }
 
+    /// Whether bringing `room` in needs Cue Super: the free tier plays on
+    /// one room (`FeatureGate.freeRoomID`), so joining any other is Super's.
+    /// Letting one go never is, so a room grouped from elsewhere can leave.
+    func needsSuper(toJoin room: Room) -> Bool {
+        !isMember(room) && !FeatureGate.shared.isRoomUnlocked(room.id)
+    }
+
     /// A solo room is its own group — there's nothing to leave.
     func canToggle(_ room: Room) -> Bool {
         isSettled && !(isMember(room) && group.rooms.count == 1)
@@ -50,6 +57,10 @@ struct GroupMembership {
     /// add it if it isn't.
     func toggle(_ room: Room) {
         guard canToggle(room) else { return }
+        if needsSuper(toJoin: room) {
+            FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
+            return
+        }
         HapticManager.shared.fireHaptic(.selection)
         let members = isMember(room)
             ? group.rooms.filter { $0.id != room.id }
@@ -58,6 +69,7 @@ struct GroupMembership {
     }
 
     func groupEverywhere() {
+        guard FeatureGate.shared.unlock(.allRooms) else { return }
         HapticManager.shared.fireHaptic(.buttonPress)
         let rooms = activeRooms
         let coordinatorID = group.coordinatorID
@@ -84,6 +96,12 @@ struct GroupMembership {
     /// at once could promote a room the same call then drops.
     func playOnly(_ room: Room) {
         guard isSettled, isMember(room), group.rooms.count > 1 else { return }
+        // Playing on another room alone is playing somewhere other than
+        // the free room.
+        guard FeatureGate.shared.isRoomUnlocked(room.id) else {
+            FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
+            return
+        }
         HapticManager.shared.fireHaptic(.buttonPress)
         let original = group.rooms
         let coordinator = group.coordinatorRoom
@@ -165,10 +183,16 @@ struct GroupMenuItems: View {
             ForEach(membership.activeRooms) { room in
                 // The binding is display-only; a tap always means "toggle
                 // this room", and `toggle` owns what that does.
-                Toggle(room.name, isOn: Binding(
+                Toggle(isOn: Binding(
                     get: { membership.isMember(room) },
                     set: { _ in membership.toggle(room) }
-                ))
+                )) {
+                    if membership.needsSuper(toJoin: room) {
+                        SwiftUI.Label(room.name, systemImage: "lock.fill")
+                    } else {
+                        Text(room.name)
+                    }
+                }
                 .disabled(!membership.canToggle(room))
             }
         }

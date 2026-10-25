@@ -6,30 +6,37 @@ import SwiftUI
 
 /// The download manager: the songs kept on this device, the albums and
 /// playlists they came from, the books downloaded whole, and how
-/// downloading behaves — one face each, switched by the segmented control
-/// under the title. A Files folder in iCloud Drive reports how much of it
-/// is here under Settings. Reached from Settings › Storage, and on Books
+/// downloading behaves (and the caches, which take room here too) — one
+/// face each, switched by the segmented control under the title. A Files folder in iCloud Drive reports how much of it
+/// is here under Settings. Reached from Settings, and on Books
 /// from the Audiobooks tab's Downloads.
 struct DownloadsScreen: View {
     /// The screen's faces. Songs is home: what's on the device is what the
-    /// screen is for, and it's what the Storage row's size describes. Books
-    /// shows while there are books to download, or any downloaded.
+    /// screen is for, and it's what the Storage row's size describes. Albums
+    /// and Playlists show while there are any of them; Books while there are
+    /// books to download, or any downloaded.
     private enum Tab: String, CaseIterable, Identifiable {
-        case songs, albums, books, settings
+        case songs, albums, playlists, books, settings
 
         var id: Self { self }
+
+        /// The tab a container is listed under: a playlist's own, anything
+        /// else downloaded whole under Albums.
+        static func of(_ container: DownloadManager.Container) -> Tab {
+            [.playlist, .libraryPlaylist].contains(container.type) ? .playlists : .albums
+        }
 
         var title: LocalizedStringKey {
             switch self {
             case .songs: "Songs"
             case .albums: "Albums"
+            case .playlists: "Playlists"
             case .books: "Books"
             case .settings: "Settings"
             }
         }
     }
 
-    @Environment(Router.self) private var router: Router?
     @State private var manager = DownloadManager.shared
     @State private var cache = PlaybackCache.shared
     @State private var apple = AppleDownloadsIndex.shared
@@ -59,7 +66,9 @@ struct DownloadsScreen: View {
             case .songs:
                 songsSections(active: active.filter { $0.isBookFile != true }, completed: completed)
             case .albums:
-                albumsSections
+                containerSections(kind: .albums)
+            case .playlists:
+                containerSections(kind: .playlists)
             case .books:
                 booksSections
             case .settings:
@@ -71,7 +80,7 @@ struct DownloadsScreen: View {
         .id(tab)
         .pinnedUnderTitle {
             Picker("Show", selection: Binding { tab } set: { picked = $0 }) {
-                ForEach(Tab.allCases.filter { $0 != .books || showsBooks }) { tab in
+                ForEach(Tab.allCases.filter(shows)) { tab in
                     Text(tab.title).tag(tab)
                 }
             }
@@ -219,21 +228,40 @@ struct DownloadsScreen: View {
         }
     }
 
-    // MARK: - Albums
+    // MARK: - Albums and playlists
+
+    /// Whether a tab is offered: Albums and Playlists while there are any
+    /// (books aside), Books by its own rule, and the one showing always.
+    private func shows(_ candidate: Tab) -> Bool {
+        if candidate == tab { return true }
+        switch candidate {
+        case .albums, .playlists:
+            return manager.containers.values.contains { $0.type != .audiobook && Tab.of($0) == candidate }
+        case .books:
+            return showsBooks
+        case .songs, .settings:
+            return true
+        }
+    }
 
     /// What was downloaded whole, still coming or all here, each removable
-    /// as one. The songs themselves are listed under Songs; books have a
-    /// tab of their own.
+    /// as one: the albums under Albums, the playlists under Playlists. The
+    /// songs themselves are listed under Songs; books have a tab of their
+    /// own.
     @ViewBuilder
-    private var albumsSections: some View {
-        let downloading = manager.activeContainers.filter { $0.type != .audiobook }
-        let downloaded = manager.completedContainers.filter { $0.type != .audiobook }
+    private func containerSections(kind: Tab) -> some View {
+        let isKind = { (container: DownloadManager.Container) in
+            container.type != .audiobook && Tab.of(container) == kind
+        }
+        let downloading = manager.activeContainers.filter(isKind)
+        let downloaded = manager.completedContainers.filter(isKind)
+        let noun = kind == .playlists ? "playlist" : "album"
 
         if !downloading.isEmpty {
             containersSection(downloading) {
                 Text("Downloading")
             } footer: {
-                Text("Swipe to cancel an album or playlist; the songs of it already here go too.")
+                Text("Swipe to cancel a whole \(noun); the songs of it already here go too.")
             }
         }
 
@@ -241,14 +269,14 @@ struct DownloadsScreen: View {
             containersSection(downloaded) {
                 Text("On This Device")
             } footer: {
-                Text("Swipe to remove every song of an album or playlist at once. The songs themselves are listed under Songs; remove one there and the rest stay here.")
+                Text("Swipe to remove every song of a \(noun) at once. The songs themselves are listed under Songs; remove one there and the rest stay here.")
             }
         } else if downloading.isEmpty {
             Section {
                 ContentUnavailableView {
-                    Label("No Albums or Playlists", systemImage: "square.stack")
+                    Label(kind == .playlists ? "No Playlists" : "No Albums", systemImage: kind == .playlists ? "music.note.list" : "square.stack")
                 } description: {
-                    Text("Download a Plex or Subsonic album or playlist whole — from its menu or its download button — and it's listed here as one thing, to remove as one.")
+                    Text("Download a Plex or Subsonic \(noun) whole — from its menu or its download button — and it's listed here as one thing, to remove as one.")
                 }
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -488,16 +516,20 @@ struct DownloadsScreen: View {
         if files.isConfigured, files.isCloudFolder {
             cloudSection
         }
+
+        CachesSection()
     }
 
     // MARK: - Free limit
 
-    /// How much of the free allowance is used, and the way past it. The
-    /// upgrade card appears once the meter is mostly full — early enough to
-    /// read as "here's what's coming", not as a wall.
+    /// How much of the free allowance is used, here and on the Apple Watch,
+    /// and the way past it: one card, the meter over a row that opens the
+    /// paywall once the meter is mostly full — early enough to read as
+    /// "here's what's coming", not as a wall.
     private func freeLimitSection(remaining: Int) -> some View {
         let limit = DownloadManager.freeSongLimit
-        let held = manager.heldCount
+        let held = manager.heldAgainstLimit
+        let onWatch = WatchSyncService.shared.heldOnWatch
         return Section {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -510,17 +542,37 @@ struct DownloadsScreen: View {
                 ProgressView(value: Double(held), total: Double(limit))
                     .progressViewStyle(.linear)
                     .tint(remaining == 0 ? .red : .accentColor)
+                if onWatch > 0 {
+                    Text("\(onWatch) of them on your Apple Watch")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
             }
             if remaining <= limit / 5 {
-                PaywallButtonView()
-                    .environment(router)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
+                Button {
+                    FeatureGate.shared.presentPaywall(PaywallReason(feature: .unlimitedDownloads))
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Get Cue Super")
+                                .fontWeight(.semibold)
+                            Text("Unlimited downloads, and books, on iPhone and Apple Watch.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
             }
         } footer: {
             Text(remaining == 0
-                 ? "Every free slot is taken. Remove a download to free one, or get Cue Super for unlimited downloads."
-                 : "Songs on this device and on their way count; removing one frees its slot. Cue Super removes the limit.")
+                 ? "Every free slot is taken. Remove a download to free one."
+                 : "Songs here, on your Apple Watch and on their way count; removing one frees its slot.")
         }
     }
 

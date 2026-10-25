@@ -25,9 +25,15 @@ struct WatchMenuSection: View {
             } else {
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    guard FeatureGate.shared.unlock(.downloads) else { return }
+                    guard FeatureGate.shared.unlock(.download(of: item)) else { return }
                     watch.add(item)
-                    alertService.showAlertContent(with: item, subtitle: "Downloading on Apple Watch", symbolName: "applewatch")
+                    // The free songs are shared with this iPhone: with none
+                    // left, the watch keeps the pick and waits for room.
+                    if item.content.type != .audiobook, DownloadManager.shared.isAtFreeLimit {
+                        LocalDownloadMenuSection.offerSuperForDownloads(detail: "\(item.title) is on its way to your Apple Watch, but its songs wait there for room. Cue Super makes room for them.")
+                    } else {
+                        alertService.showAlertContent(with: item, subtitle: "Downloading on Apple Watch", symbolName: "applewatch")
+                    }
                 } label: {
                     Label("Add to Apple Watch", systemImage: "applewatch")
                 }

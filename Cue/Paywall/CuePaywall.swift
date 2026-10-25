@@ -1,3 +1,4 @@
+import OSLog
 import RevenueCatUI
 import RevenueCat
 import SwiftUI
@@ -5,6 +6,9 @@ import SubscriptionKit
 
 struct CuePaywall: View {
     @Environment(\.dismiss) var dismiss
+    /// The gate that brought it up, if one did: a card at the top says
+    /// what was held back, and its row in the table is lit.
+    var reason: PaywallReason?
     /// The singleton rather than the environment, so the paywall can be shown
     /// from anywhere (onboarding included) without depending on what's
     /// installed above it.
@@ -18,16 +22,24 @@ struct CuePaywall: View {
     /// background stays solid throughout so the user never sees an empty frame.
     @State private var contentVisible = false
 
+    /// The offering the footer shows, loaded here rather than by the footer:
+    /// RevenueCatUI closes the whole presentation when its own load fails
+    /// (an alert, then `dismiss`), so a store that didn't answer took the
+    /// paywall with it. Here it stays up, says so, and offers Try Again.
+    @State private var offering: Offering?
+    @State private var offeringFailed = false
+
+    private static let log = Logger(subsystem: "dance.cue", category: "paywall")
+
     /// Rows for the Free vs Super comparison table. Free column is intentionally
     /// blank for every paid capability — loss aversion lands harder when the gap
-    /// is visceral. Top rows are the two visceral wins (speakers + lock-screen);
-    /// iPad / Mac / TV / Vision collapse into the single-license footer.
+    /// is visceral. The player's wins lead (Cue is a player first), Sonos
+    /// follows; iPad / Mac / TV / Vision collapse into the single-license
+    /// footer. Only what Cue has today: no Scenes or Shortcuts yet.
     private let comparisonRows: [ComparisonRow] = [
-        .init(label: "All your speakers", inFree: false),
-        .init(label: "Lock Screen controls", description: "Now Playing for your speakers", inFree: false),
-        .init(label: "Scenes", description: "One-tap automations", inFree: false),
-        .init(label: "Unlimited downloads", description: "Keep Plex & Subsonic songs on this device", inFree: false),
-        .init(label: "Apple Shortcuts", inFree: false)
+        .init(label: "Unlimited downloads", description: "Plex & Subsonic songs on iPhone and Apple Watch", inFree: false, features: [.unlimitedDownloads, .downloads]),
+        .init(label: "Every Sonos room", description: "Free plays on one room", inFree: false, features: [.allRooms]),
+        .init(label: "Book downloads", description: "Plex & Audiobookshelf books, offline", inFree: false, features: [.bookDownloads])
     ]
 
     var body: some View {
@@ -35,22 +47,28 @@ struct CuePaywall: View {
             VStack(spacing: 24) {
                 // Hero Section
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("A premium Sonos companion.")
+                    Text("CUE SUPER")
+                        .font(.caption.weight(.semibold))
+                        .tracking(1)
+                        .foregroundStyle(Color.accentColor)
+                    Text("Keep every song.")
                         .font(.system(size: 36, weight: .bold))
                         .foregroundStyle(.white)
-                    Text("No lag. No hassle. Just music.")
+                    Text("Unlimited downloads on iPhone and Apple Watch, then every Sonos room.")
                         .font(.title3)
                         .foregroundStyle(.white.opacity(0.6))
-
-                    socialProof
-                        .padding(.top, 4)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
                 .padding(.top, 24)
 
+                if let reason {
+                    PaywallReasonCard(reason: reason)
+                        .padding(.horizontal)
+                }
+
                 VStack(spacing: 12) {
-                    ComparisonTable(rows: comparisonRows)
+                    ComparisonTable(rows: comparisonRows, highlighted: reason?.feature)
                 }
                 .padding(.horizontal)
                 .padding(.top, 4)
@@ -63,7 +81,9 @@ struct CuePaywall: View {
             .fontDesign(.rounded)
         }
         .frame(maxWidth: .infinity)
-        .originalTemplatePaywallFooter(purchaseCompleted: { _ in
+        .modifier(OfferingFooter(offering: offering, failed: offeringFailed) {
+            Task { await loadOffering() }
+        } purchased: {
             dismiss()
         })
         // Hold content invisible until the slide-in settles, then fade in
@@ -109,6 +129,9 @@ struct CuePaywall: View {
             }
         }
         .task {
+            await loadOffering()
+        }
+        .task {
             // 280ms is enough for WelcomeScreen's slideTransition to finish
             // (~250ms default spring) and for RC to typically resolve the
             // offering. Tuned by eye — shorter felt rushed, longer felt slow.
@@ -118,6 +141,26 @@ struct CuePaywall: View {
             }
         }
         .customizeWindowSizeForMacOS15()
+    }
+
+    private func loadOffering() async {
+        offeringFailed = false
+        guard Purchases.isConfigured else {
+            Self.log.error("paywall: RevenueCat isn't configured yet")
+            offeringFailed = true
+            return
+        }
+        do {
+            offering = try await Purchases.shared.offerings().current
+            if offering == nil {
+                Self.log.error("paywall: no current offering")
+                offeringFailed = true
+            }
+        } catch {
+            let underlying = (error as NSError).userInfo[NSUnderlyingErrorKey].map { String(describing: $0) } ?? "none"
+            Self.log.error("paywall: offerings failed: \(error.localizedDescription, privacy: .public); underlying: \(underlying, privacy: .public)")
+            offeringFailed = true
+        }
     }
 
     /// Subscription-anxiety strip — answers three objections (lock-in,
@@ -142,26 +185,6 @@ struct CuePaywall: View {
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.white.opacity(0.75))
         }
-    }
-
-    /// App Store rating + review count. Verifiable social proof beats vanity
-    /// member counts because users can cross-check it. Update the numbers from
-    /// App Store Connect — the rating is hardcoded rather than fetched because
-    /// dynamic StoreKit rating fetch isn't worth the runtime overhead for a
-    /// number that changes glacially.
-    private var socialProof: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "star.fill")
-                .foregroundStyle(.yellow)
-            Text("4.4")
-                .foregroundStyle(.white)
-                .bold()
-            Text("·")
-                .foregroundStyle(.white.opacity(0.4))
-            Text("250+ App Store reviews")
-                .foregroundStyle(.white.opacity(0.7))
-        }
-        .font(.subheadline)
     }
 
     /// Pure black with whisper-quiet teal radials at opposite corners — the
@@ -190,10 +213,49 @@ struct CuePaywall: View {
     }
 }
 
+/// RevenueCat's footer once the offering is in; until then a spinner, and
+/// when it couldn't load, why and Try Again in its place.
+private struct OfferingFooter: ViewModifier {
+    let offering: Offering?
+    let failed: Bool
+    let retry: () -> Void
+    let purchased: () -> Void
+
+    func body(content: Content) -> some View {
+        if let offering {
+            content.originalTemplatePaywallFooter(offering: offering, purchaseCompleted: { _ in
+                purchased()
+            })
+        } else {
+            content.safeAreaInset(edge: .bottom) {
+                VStack(spacing: 12) {
+                    if failed {
+                        Text("Cue Super's prices didn't load.")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.65))
+                        Button("Try Again", action: retry)
+                            .buttonStyle(.borderedProminent)
+                    } else {
+                        ProgressView()
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                // RevenueCat's footer is opaque; this stands in its place, so
+                // the table scrolls under it rather than showing through.
+                .background(Color.black)
+            }
+        }
+    }
+}
+
 struct ComparisonRow {
     let label: String
     var description: String? = nil
     let inFree: Bool
+    /// The gates the row stands for, to light it when one brought the
+    /// paywall up.
+    var features: Set<GatedFeature> = []
 }
 
 /// Free vs Super side-by-side. Free column is `—` for every row, Super is a
@@ -201,6 +263,8 @@ struct ComparisonRow {
 /// else on the paywall (SUPER header, license footer, eyebrow).
 struct ComparisonTable: View {
     let rows: [ComparisonRow]
+    /// The gate the paywall opened for; its row is lit.
+    var highlighted: GatedFeature?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -208,11 +272,12 @@ struct ComparisonTable: View {
             Divider()
                 .overlay(Color.white.opacity(0.1))
             ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                let isLit = highlighted.map(row.features.contains) ?? false
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(row.label)
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.85))
+                            .font(.subheadline.weight(isLit ? .semibold : .regular))
+                            .foregroundStyle(.white.opacity(isLit ? 1 : 0.85))
                         if let description = row.description {
                             Text(description)
                                 .font(.caption)
@@ -229,6 +294,7 @@ struct ComparisonTable: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
+                .background(isLit ? Color.accentColor.opacity(0.14) : .clear)
 
                 if index < rows.count - 1 {
                     Divider().overlay(Color.white.opacity(0.06))

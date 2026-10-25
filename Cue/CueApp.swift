@@ -541,6 +541,10 @@ struct CueApp: App {
     /// with a tap on the already-selected tab reported as a reselection.
     /// SwiftUI has no reselection callback and reports the tap as a set to
     /// the same value, which is why the setter compares before writing.
+    ///
+    /// Switching to Search asks for its field, so the keyboard is up on
+    /// the tap: the tab is for typing, and it starts empty each time. Only
+    /// a switch made here, from the tab bar, not a launch onto Search.
     private var tabSelection: Binding<AppTab> {
         Binding {
             resolvedTab(router.selectedTab)
@@ -550,6 +554,9 @@ struct CueApp: App {
                 return
             }
             router.selectedTab = newValue
+            if newValue == .search {
+                SearchActivator.shared.requestFocus()
+            }
         }
     }
 
@@ -1292,7 +1299,7 @@ struct CueApp: App {
                 // A Shortcuts action that ran before this device had its
                 // answer still opens this; opening Cue is all someone with
                 // Super needs.
-                if !subscriptionService.subscription.isActive {
+                if !FeatureGate.shared.hasSuper {
                     router.presentedFullScreenCover = .paywall
                 }
                 return
@@ -2145,8 +2152,8 @@ extension ToolbarDelegate: NSToolbarDelegate {
         if itemIdentifier == .preferences {
             let barItem = UIBarButtonItem(image: UIImage(systemName: "switch.2"), style: .plain, target: self, action: #selector(prefs(_:)))
             let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-            item.accessibilityLabel = NSLocalizedString("Preferences", comment: "")
-            item.toolTip = NSLocalizedString("Preferences", comment: "")
+            item.accessibilityLabel = NSLocalizedString("Settings", comment: "")
+            item.toolTip = NSLocalizedString("Settings", comment: "")
             return item
         }
 //        else if itemIdentifier == .search {
@@ -2180,8 +2187,8 @@ extension ToolbarDelegate: NSToolbarDelegate {
         if itemIdentifier == .sorting {
             let barItem = UIBarButtonItem(image: UIImage(systemName: "switch.2"), style: .plain, target: self, action: #selector(prefs(_:)))
             let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-            item.accessibilityLabel = NSLocalizedString("Preferences", comment: "")
-            item.toolTip = NSLocalizedString("Preferences", comment: "")
+            item.accessibilityLabel = NSLocalizedString("Settings", comment: "")
+            item.toolTip = NSLocalizedString("Settings", comment: "")
             return item
         }
         return NSToolbarItem(itemIdentifier: itemIdentifier)

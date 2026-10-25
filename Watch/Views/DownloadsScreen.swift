@@ -51,11 +51,35 @@ struct DownloadsScreen: View {
                     Text(storageSummary)
                 }
             }
+            if let heldBackText {
+                Section {
+                    Label(heldBackText, systemImage: "lock.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(Color.clear)
+                }
+            }
         }
         .navigationTitle("Downloads")
         .sheet(isPresented: $isShowingFastDownload) {
             FastDownloadScreen()
         }
+    }
+
+    /// What the free tier's share holds back, and the way past it.
+    private var heldBackText: String? {
+        guard !store.heldBack.isEmpty else { return nil }
+        var lines: [String] = []
+        let songs = store.heldBackSongCount
+        if songs > 0 {
+            let waiting = songs == 1 ? "1 song waits" : "\(songs) songs wait"
+            lines.append("\(waiting) for room: the free songs are shared with your iPhone.")
+        }
+        if store.books.contains(where: { store.isHeldBack(book: $0.key) }) {
+            lines.append("Books download with Cue Super.")
+        }
+        lines.append("Get Cue Super in Cue on your iPhone.")
+        return lines.joined(separator: " ")
     }
 
     private var storageSummary: String {

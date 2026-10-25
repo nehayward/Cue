@@ -1,6 +1,7 @@
 import Observation
 
-/// Carries "focus the search field" from the tab bar down into `SearchScreen`.
+/// Carries "focus the search field" from the tab bar down into `SearchScreen`:
+/// on a switch to the Search tab, and on a tap on it while it's showing.
 ///
 /// The field's focus lives in `SearchScreen`'s `@FocusState`, which nothing
 /// outside that view can write to, and the tab bar sits above it in `CueApp`.
