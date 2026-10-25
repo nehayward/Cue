@@ -30,7 +30,7 @@ struct WatchMenuSection: View {
                     // The free songs are shared with this iPhone: with none
                     // left, the watch keeps the pick and waits for room.
                     if item.content.type != .audiobook, DownloadManager.shared.isAtFreeLimit {
-                        LocalDownloadMenuSection.offerSuperForDownloads(text: "Waiting for room on Apple Watch", alertService: alertService)
+                        LocalDownloadMenuSection.offerSuperForDownloads(detail: "\(item.title) is on its way to your Apple Watch, but its songs wait there for room. Cue Super makes room for them.")
                     } else {
                         alertService.showAlertContent(with: item, subtitle: "Downloading on Apple Watch", symbolName: "applewatch")
                     }

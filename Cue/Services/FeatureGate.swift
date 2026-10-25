@@ -207,7 +207,7 @@ final class FeatureGate {
         case .available:
             return true
         case .needsSuper:
-            presentPaywall()
+            presentPaywall(PaywallReason(feature: feature))
             return false
         case .disabledRemotely:
             return false
@@ -215,11 +215,11 @@ final class FeatureGate {
     }
 
     /// Over whatever is on screen, sheets and the player included
-    /// (`PaywallPresenter`).
+    /// (`PaywallPresenter`), opening on `reason` when a gate brought it up.
     @MainActor
-    func presentPaywall() {
+    func presentPaywall(_ reason: PaywallReason? = nil) {
         HapticManager.shared.fireHaptic(.buttonPress)
-        PaywallPresenter.present()
+        PaywallPresenter.present(reason)
     }
 
     // MARK: - Debug overrides

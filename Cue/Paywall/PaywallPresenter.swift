@@ -9,16 +9,16 @@ import UIKit
 /// paywall goes back to it.
 @MainActor
 enum PaywallPresenter {
-    static func present() {
+    static func present(_ reason: PaywallReason? = nil) {
         guard let top = topController() else { return }
         // One at a time.
         if top is PaywallHost { return }
         // A sheet on its way down can't be presented over: wait for it.
         if let coordinator = top.transitionCoordinator {
-            coordinator.animate(alongsideTransition: nil) { _ in present() }
+            coordinator.animate(alongsideTransition: nil) { _ in present(reason) }
             return
         }
-        let host = PaywallHost(rootView: AnyView(CuePaywall().withEnvironments()))
+        let host = PaywallHost(rootView: AnyView(CuePaywall(reason: reason).withEnvironments()))
         host.modalPresentationStyle = .fullScreen
         top.present(host, animated: true)
     }

@@ -4,7 +4,7 @@ import SonosKit
 
 /// Upgrade affordance modeled on the marketing card style at
 /// cue.dance/macstories — pure black surface, thin teal stroke with a soft
-/// teal aura, a social-proof eyebrow, a shimmering headline, and a fixed
+/// teal aura, a Cue Super eyebrow, a shimmering headline, and a fixed
 /// value-prop subtitle. Pairs with a bordered teal CTA pill at the bottom.
 struct PaywallButtonView: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -28,15 +28,15 @@ struct PaywallButtonView: View {
     /// Sonos client, and the rooms are only named for someone using Sonos.
     private var subtitle: String {
         sonosService.isEnabled
-            ? "Unlimited downloads, books on iPhone and Apple Watch, every Sonos room, Shortcuts and more."
-            : "Unlimited downloads, books on iPhone and Apple Watch, Shortcuts and more."
+            ? "Unlimited downloads and books on iPhone and Apple Watch, and every Sonos room."
+            : "Unlimited downloads and books on iPhone and Apple Watch."
     }
 
     var body: some View {
         Button(action: tap) {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("JOIN 2,000+ MEMBERS")
+                    Text("CUE SUPER")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(Color.accentColor)
 

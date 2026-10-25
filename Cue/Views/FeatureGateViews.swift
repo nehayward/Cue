@@ -33,7 +33,7 @@ private struct FeatureGateModifier: ViewModifier {
                     Rectangle()
                         .fill(.clear)
                         .contentShape(Rectangle())
-                        .onTapGesture { gate.presentPaywall() }
+                        .onTapGesture { gate.presentPaywall(PaywallReason(feature: feature)) }
                         .accessibilityLabel("\(feature.title), requires Cue Super")
                         .accessibilityHint("Opens the Cue Super paywall")
                 }

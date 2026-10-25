@@ -108,7 +108,7 @@ enum PlayDestinationRouter {
             // from a lapsed Super: playing there is Super's now.
             guard FeatureGate.shared.isGroupUnlocked(id) else {
                 log.notice("remembered group \(id, privacy: .public) needs Super")
-                FeatureGate.shared.presentPaywall()
+                FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
                 return
             }
             // Playing on the speaker takes over from this device; adding to
@@ -139,7 +139,7 @@ enum PlayDestinationRouter {
     static func playRadio(from seed: PlayableContent, onGroup: @escaping (GroupRoom) async throws -> Void) async {
         if !OfflineMode.shared.isActive, let group = rememberedGroup {
             guard FeatureGate.shared.isGroupUnlocked(group.coordinatorID) else {
-                FeatureGate.shared.presentPaywall()
+                FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
                 return
             }
             do {

@@ -319,14 +319,14 @@ struct PlayOnSheet: View {
         guard target != route.destination else { return }
         if target == .device, !FeatureGate.shared.isAvailable(.onDevicePlayback) {
             if FeatureGate.shared.needsSuper(.onDevicePlayback) {
-                FeatureGate.shared.presentPaywall()
+                FeatureGate.shared.presentPaywall(PaywallReason(feature: .onDevicePlayback))
             }
             return
         }
         // The free tier plays on one group, the top row's (see
         // `FeatureGate.isGroupUnlocked`); the others are Super's.
         if let id = target.groupID, !FeatureGate.shared.isGroupUnlocked(id) {
-            FeatureGate.shared.presentPaywall()
+            FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
             return
         }
         HapticManager.shared.fireHaptic(.selection)

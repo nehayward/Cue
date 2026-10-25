@@ -549,7 +549,7 @@ struct DownloadsScreen: View {
             }
             if remaining <= limit / 5 {
                 Button {
-                    FeatureGate.shared.presentPaywall()
+                    FeatureGate.shared.presentPaywall(PaywallReason(feature: .unlimitedDownloads))
                 } label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {

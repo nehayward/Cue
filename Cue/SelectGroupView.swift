@@ -146,7 +146,7 @@ struct SelectGroupView: View {
                                 // room's; other rooms may join it.
                                 let gate = FeatureGate.shared
                                 guard gate.isAvailable(.allRooms) || gate.freeRoomID == nil || selectedRooms.contains(where: { $0.id == gate.freeRoomID }) else {
-                                    FeatureGate.shared.presentPaywall()
+                                    FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
                                     return
                                 }
                                 guard let newGroup = await sonosService.speedGroup(rooms: selectedRooms) else {
@@ -555,7 +555,7 @@ struct SelectGroupView: View {
     func play(group: GroupRoom) {
         HapticManager.shared.fireHaptic(.buttonPress)
         guard FeatureGate.shared.isGroupUnlocked(group.coordinatorID) else {
-            FeatureGate.shared.presentPaywall()
+            FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
             return
         }
         PlayDestination.group(group.coordinatorID).remember()

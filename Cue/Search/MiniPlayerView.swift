@@ -51,7 +51,7 @@ struct MiniPlayerView: View {
             HapticManager.shared.fireHaptic(.buttonPress)
             // The free tier's one group, as in Play On.
             guard featureGate.isGroupUnlocked(group.coordinatorID) else {
-                featureGate.presentPaywall()
+                featureGate.presentPaywall(PaywallReason(feature: .allRooms))
                 return
             }
             Router.main.inspectorSheet = nil

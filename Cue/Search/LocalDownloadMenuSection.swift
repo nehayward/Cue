@@ -72,7 +72,7 @@ struct LocalDownloadMenuSection: View {
                         if manager.download(item) {
                             Self.confirmQueued(item, alertService: alertService)
                         } else {
-                            Self.offerSuperForDownloads(alertService: alertService)
+                            Self.offerSuperForDownloads()
                         }
                     } label: {
                         Label("Download", systemImage: "arrow.down.circle")
@@ -281,9 +281,9 @@ struct LocalDownloadMenuSection: View {
                 alertService.showAlert(with: "Nothing to download", imageName: "arrow.down.circle")
             }
         case (0, _) where item.content.type == .audiobook:
-            offerSuperForDownloads(text: "Downloading books is part of Cue Super", alertService: alertService)
+            FeatureGate.shared.presentPaywall(PaywallReason(feature: .bookDownloads))
         case (0, _):
-            offerSuperForDownloads(alertService: alertService)
+            offerSuperForDownloads()
         case (let queued, 0):
             // Held for Wi‑Fi, the cellular question speaks for the batch.
             let held = Set(manager.cellularHeldKeys)
@@ -292,19 +292,16 @@ struct LocalDownloadMenuSection: View {
             alertService.showAlertContent(with: item, subtitle: LocalizedStringKey(what), symbolName: "arrow.down.circle")
         case (let queued, let heldBack):
             // Part of the album made it in before the limit; say how much
-            // didn't, and where the rest is.
-            offerSuperForDownloads(text: "Downloading \(queued) of \(queued + heldBack) songs", alertService: alertService)
+            // didn't, and what would take the rest.
+            offerSuperForDownloads(detail: "\(queued) of \(queued + heldBack) songs are downloading. Cue Super makes room for the other \(heldBack), and every song after.")
         }
     }
 
-    /// The free download limit was reached. Says so in a banner that opens
-    /// the paywall when tapped, so the menu's own tap isn't hijacked by a
-    /// full-screen cover.
+    /// The free download limit was reached: the paywall comes up on the
+    /// tap that hit it, opening on the free meter (`PaywallReasonCard`), so
+    /// it's plain why and how many are held.
     @MainActor
-    static func offerSuperForDownloads(text: String = "\(DownloadManager.freeSongLimit) free downloads used", alertService: AlertService) {
-        alertService.showActionAlert(with: text, subtitle: "Tap for unlimited with Cue Super", imageName: "arrow.down.circle") {
-            HapticManager.shared.fireHaptic(.buttonPress)
-            Router.main.fullScreenCover(to: .paywall)
-        }
+    static func offerSuperForDownloads(detail: String? = nil) {
+        FeatureGate.shared.presentPaywall(PaywallReason(feature: .unlimitedDownloads, detail: detail))
     }
 }
