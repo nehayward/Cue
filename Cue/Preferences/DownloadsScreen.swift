@@ -554,24 +554,35 @@ struct DownloadsScreen: View {
                 }
             }
             if remaining <= limit / 5 {
+                // Plain, so the list's tint doesn't paint the whole label:
+                // in the accent, the detail line was green on grey and
+                // hard to read. The accent is the Upgrade capsule's alone.
                 Button {
                     FeatureGate.shared.presentPaywall(PaywallReason(feature: .unlimitedDownloads))
                 } label: {
-                    HStack {
+                    HStack(spacing: 12) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.title2)
+                            .foregroundStyle(Color.accent.gradient)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Get Cue Super")
-                                .fontWeight(.semibold)
-                            Text("Unlimited downloads, and books, on iPhone and Apple Watch.")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Text("Unlimited downloads and books, on iPhone and Apple Watch.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.tertiary)
+                        Spacer(minLength: 8)
+                        Text("Upgrade")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.accent, in: Capsule())
                     }
                     .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
         } footer: {
             Text(remaining == 0
