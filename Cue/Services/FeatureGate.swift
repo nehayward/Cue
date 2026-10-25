@@ -156,8 +156,10 @@ final class FeatureGate {
     }
 
     /// The free tier's room: the first active one by name, which is the
-    /// top speaker row in Play On. Its group is the one group the free tier
-    /// plays on, as Clic's first row is; other rooms can still join it.
+    /// top speaker row in Play On. The free tier plays there and nowhere
+    /// else: its group is the one group it plays on, and bringing another
+    /// room into it is Super's (`isRoomUnlocked`). A room grouped with it
+    /// elsewhere (the Sonos app) stays, and can leave.
     /// Read from the rooms rather than the groups' sort, which can put
     /// whatever is playing first and would move the free group with it.
     /// `nil` with no rooms known yet.
@@ -176,6 +178,16 @@ final class FeatureGate {
         guard let freeRoomID else { return true }
         let free = SonosService.shared.groups.first { group in group.rooms.contains { $0.id == freeRoomID } }
         return free?.coordinatorID == coordinatorID
+    }
+
+    /// Whether the free tier may bring this room into the group it plays
+    /// on: Super, or the free room itself. With no rooms known there is
+    /// nothing to hold back yet.
+    @MainActor
+    func isRoomUnlocked(_ roomID: String) -> Bool {
+        if isAvailable(.allRooms) { return true }
+        guard let freeRoomID else { return true }
+        return roomID == freeRoomID
     }
 
     private func availability(of requirement: Requirement) -> Availability {

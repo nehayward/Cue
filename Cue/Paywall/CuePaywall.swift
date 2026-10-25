@@ -38,7 +38,7 @@ struct CuePaywall: View {
     /// footer. Only what Cue has today: no Scenes or Shortcuts yet.
     private let comparisonRows: [ComparisonRow] = [
         .init(label: "Unlimited downloads", description: "Plex & Subsonic songs on iPhone and Apple Watch", inFree: false, features: [.unlimitedDownloads, .downloads]),
-        .init(label: "Every Sonos room", description: "Free plays on one group", inFree: false, features: [.allRooms]),
+        .init(label: "Every Sonos room", description: "Free plays on one room", inFree: false, features: [.allRooms]),
         .init(label: "Book downloads", description: "Plex & Audiobookshelf books, offline", inFree: false, features: [.bookDownloads])
     ]
 

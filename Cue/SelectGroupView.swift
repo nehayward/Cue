@@ -142,10 +142,8 @@ struct SelectGroupView: View {
                                 let selectedRooms = activeRooms.filter { room in
                                     selections.contains(room.id)
                                 }
-                                // The free tier's one group is the free
-                                // room's; other rooms may join it.
-                                let gate = FeatureGate.shared
-                                guard gate.isAvailable(.allRooms) || gate.freeRoomID == nil || selectedRooms.contains(where: { $0.id == gate.freeRoomID }) else {
+                                // The free tier plays on the free room alone.
+                                guard selectedRooms.allSatisfy({ FeatureGate.shared.isRoomUnlocked($0.id) }) else {
                                     FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
                                     return
                                 }

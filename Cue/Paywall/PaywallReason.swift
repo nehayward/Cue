@@ -86,7 +86,7 @@ struct PaywallReasonCard: View {
         case .bookDownloads:
             return "Keep Plex and Audiobookshelf books on this iPhone and your Apple Watch, to listen with no connection."
         case .allRooms:
-            return "Without Super, Cue plays on one Sonos group: the one with your first room."
+            return "Without Super, Cue plays on one Sonos room: the first in Play On. Super groups any of them, or all at once."
         default:
             return nil
         }

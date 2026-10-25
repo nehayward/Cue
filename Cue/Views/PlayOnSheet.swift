@@ -613,15 +613,18 @@ private struct RoomRow: View {
             onLevel: { volumes.set(room, to: $0 * 100) }
         )
         .contextMenu {
-            Button {
-                HapticManager.shared.fireHaptic(.selection)
-                let mute = !room.isMuted
-                Task { await sonosService.setRoomMute(room: room, mute: mute) }
-            } label: {
-                Label(
-                    room.isMuted ? "Unmute" : "Mute",
-                    systemImage: room.isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill"
-                )
+            // A locked room's controls are Super's, its mute with its volume.
+            if !isLocked {
+                Button {
+                    HapticManager.shared.fireHaptic(.selection)
+                    let mute = !room.isMuted
+                    Task { await sonosService.setRoomMute(room: room, mute: mute) }
+                } label: {
+                    Label(
+                        room.isMuted ? "Unmute" : "Mute",
+                        systemImage: room.isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill"
+                    )
+                }
             }
             if let membership, membership.isMember(room), membership.group.rooms.count > 1 {
                 Button {
@@ -634,15 +637,20 @@ private struct RoomRow: View {
     }
 
     private var mark: VolumeRouteRow.Mark {
-        guard let membership else { return isLocked ? .locked : .empty }
+        if isLocked { return .locked }
+        guard let membership else { return .empty }
         return membership.isMember(room) ? .checkedCircle : .circle
     }
 
-    /// On this device, a room whose group isn't the free tier's one: no
-    /// volume, and a tap opens the paywall. On a speaker any room can join
-    /// the group playback is on, as in Clic.
+    /// Without Super: on this device, a room whose group isn't the free
+    /// tier's one; on a speaker, a room outside the group that isn't the
+    /// free room, since joining it is Super's. No volume, and a tap opens
+    /// the paywall. A room already in the group isn't locked: it can leave.
     private var isLocked: Bool {
-        guard membership == nil, let group = ownGroup else { return false }
+        if let membership {
+            return membership.needsSuper(toJoin: room)
+        }
+        guard let group = ownGroup else { return false }
         return !FeatureGate.shared.isGroupUnlocked(group.coordinatorID)
     }
 
