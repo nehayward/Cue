@@ -20,7 +20,7 @@ struct BookAudioChunk: @unchecked Sendable {
 /// reader waiting for a transcriber waiting for it.
 final class BookTranscriptPace: @unchecked Sendable {
     /// How far ahead of the listener a file is read.
-    static let lookahead: TimeInterval = 10 * 60
+    static let lookahead: TimeInterval = 5 * 60
     /// How far past what's transcribed the reader may get.
     static let backlog: TimeInterval = 45
 
@@ -120,6 +120,9 @@ enum BookTranscriptionEngine {
             throw TranscriptionEngine.EngineError.noAudioFormat
         }
         let analyzer = SpeechAnalyzer(modules: [transcriber])
+        // The model loaded before any audio: fed a burst while it was still
+        // loading, the first seconds of a run came out as noise.
+        try await analyzer.prepareToAnalyze(in: format)
         let (inputs, inputBuilder) = AsyncStream.makeStream(of: AnalyzerInput.self)
         try await analyzer.start(inputSequence: inputs)
         await onStatus(.transcribing)
@@ -129,15 +132,17 @@ enum BookTranscriptionEngine {
         let origin = OriginBox()
         let pump = Task.detached(priority: .userInitiated) {
             let converter = BufferConverter(to: format)
-            var lastEnd: TimeInterval = 0
+            // In the analyzer's own samples, so a chunk can't be rounded to
+            // start a hair before the last one ended, which it turns away
+            // ("timestamp overlaps or precedes prior audio input").
+            let rate = format.sampleRate
+            var lastEnd: Int64 = 0
             for await chunk in audio {
                 guard let converted = converter.convert(chunk.buffer) else { continue }
                 let base = origin.set(chunk.start)
-                // Kept moving forward: the analyzer turns away a chunk that
-                // starts before the last one ended.
-                let at = max(chunk.start - base, lastEnd)
-                lastEnd = at + Double(converted.frameLength) / format.sampleRate
-                inputBuilder.yield(AnalyzerInput(buffer: converted, bufferStartTime: CMTime(seconds: at, preferredTimescale: 48_000)))
+                let at = max(Int64(((chunk.start - base) * rate).rounded()), lastEnd)
+                lastEnd = at + Int64(converted.frameLength)
+                inputBuilder.yield(AnalyzerInput(buffer: converted, bufferStartTime: CMTime(value: at, timescale: CMTimeScale(rate))))
             }
             inputBuilder.finish()
             try? await analyzer.finalizeAndFinishThroughEndOfInput()
@@ -207,6 +212,115 @@ enum BookTranscriptionEngine {
                 continuation.finish()
             }
             continuation.onTermination = { _ in reader.cancel() }
+        }
+    }
+}
+
+extension BookTranscriptionEngine {
+    /// How much is asked of the server at a time: about this many seconds.
+    private static let remoteStep: TimeInterval = 20
+
+    /// A book's MP3 on the server, read ahead from `start` as `pace` allows
+    /// with nothing playing: fetched about 20 seconds at a time (a range
+    /// request, as the player's own are) and decoded here, the way radio's
+    /// Live Transcription decodes a station (`StreamParser`). The place in
+    /// the file is reckoned from its length and `duration`, as a player
+    /// seeking a constant-bitrate MP3 does. Nil for a file that isn't MP3 —
+    /// an M4B keeps its index at either end, so a piece of one can't be
+    /// read alone — or a server that won't send ranges.
+    static func read(remote url: URL, duration: TimeInterval, from start: TimeInterval, pace: BookTranscriptPace) async -> AsyncStream<BookAudioChunk>? {
+        guard duration > 0 else { return nil }
+        var request = URLRequest(url: url)
+        request.setValue("bytes=0-65535", forHTTPHeaderField: "Range")
+        request.timeoutInterval = 20
+        guard let (head, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse, http.statusCode == 206,
+              let total = Self.totalLength(http), total > 0 else {
+            Logger.bookTranscript.notice("server won't send a book file in pieces")
+            return nil
+        }
+        guard let audioStart = Self.mp3AudioStart(head) else {
+            Logger.bookTranscript.notice("book file isn't MP3; heard as it plays instead")
+            return nil
+        }
+        let bytesPerSecond = Double(total - audioStart) / duration
+        let step = max(Int64(bytesPerSecond * remoteStep), 64 * 1024)
+        let clock = DecodeClock(time: max(start, 0))
+        return AsyncStream { continuation in
+            let task = Task.detached(priority: .utility) {
+                guard let parser = try? StreamParser(fileType: kAudioFileMP3Type, onBuffer: { buffer in
+                    let at = clock.advance(by: Double(buffer.frameLength) / buffer.format.sampleRate)
+                    continuation.yield(BookAudioChunk(buffer: buffer, start: at))
+                    pace.fed = clock.time
+                }) else {
+                    continuation.finish()
+                    return
+                }
+                var offset = audioStart + Int64(max(start, 0) * bytesPerSecond)
+                pace.fed = start
+                while !Task.isCancelled, offset < total {
+                    if pace.shouldWait {
+                        try? await Task.sleep(for: .milliseconds(400))
+                        continue
+                    }
+                    var piece = URLRequest(url: url)
+                    piece.setValue("bytes=\(offset)-\(min(offset + step, total) - 1)", forHTTPHeaderField: "Range")
+                    piece.timeoutInterval = 30
+                    guard let (data, _) = try? await URLSession.shared.data(for: piece), !data.isEmpty else {
+                        Logger.bookTranscript.notice("a piece of the book file didn't come; stopping here")
+                        break
+                    }
+                    do { try parser.parse([UInt8](data)) } catch { break }
+                    offset += Int64(data.count)
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// The file's length, from a range answer's `Content-Range`.
+    private static func totalLength(_ response: HTTPURLResponse) -> Int64? {
+        guard let range = response.value(forHTTPHeaderField: "Content-Range"),
+              let total = range.split(separator: "/").last else { return nil }
+        return Int64(total)
+    }
+
+    /// Where an MP3's audio starts, past its ID3 tag; nil when the bytes
+    /// aren't an MP3's.
+    private static func mp3AudioStart(_ head: Data) -> Int64? {
+        let bytes = [UInt8](head.prefix(16))
+        guard bytes.count >= 10 else { return nil }
+        var start: Int64 = 0
+        if bytes[0] == 0x49, bytes[1] == 0x44, bytes[2] == 0x33 {
+            // ID3v2: a synchsafe size after a 10-byte header.
+            let size = (Int64(bytes[6] & 0x7F) << 21) | (Int64(bytes[7] & 0x7F) << 14) | (Int64(bytes[8] & 0x7F) << 7) | Int64(bytes[9] & 0x7F)
+            start = 10 + size + (bytes[5] & 0x10 != 0 ? 10 : 0)
+        }
+        // An MP4 (M4B, M4A) names its type four bytes in.
+        if bytes.count >= 8, bytes[4] == 0x66, bytes[5] == 0x74, bytes[6] == 0x79, bytes[7] == 0x70 { return nil }
+        // Past a tag the frames may not be in the first bytes read; with no
+        // tag, the first must be a frame's sync word.
+        if start == 0, !(bytes[0] == 0xFF && bytes[1] & 0xE0 == 0xE0) { return nil }
+        return start
+    }
+}
+
+/// The time decoded audio has reached, kept by the parser's callback.
+private final class DecodeClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _time: TimeInterval
+
+    init(time: TimeInterval) { _time = time }
+
+    var time: TimeInterval { lock.withLock { _time } }
+
+    /// Moves on by `seconds`, returning where it was.
+    func advance(by seconds: TimeInterval) -> TimeInterval {
+        lock.withLock {
+            let at = _time
+            _time += seconds
+            return at
         }
     }
 }

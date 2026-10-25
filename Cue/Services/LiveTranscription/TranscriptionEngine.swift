@@ -128,6 +128,9 @@ final class BufferConverter {
             converter = AVAudioConverter(from: buffer.format, to: target)
             // Chunks arrive back to back; priming would put a gap between each.
             converter?.primeMethod = .none
+            // Stereo to the model's mono: both channels mixed, not the left
+            // kept. A book's stereo MP3 came out garbled with one dropped.
+            converter?.downmix = true
         }
         guard let converter else { return nil }
 

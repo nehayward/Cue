@@ -10,12 +10,14 @@ import SonosKit
 /// transcribed on the device (`BookTranscriptionEngine`, iOS 26 and later).
 /// Nothing leaves the device.
 ///
-/// A downloaded file is read ahead of the listener, faster than it plays,
-/// so the transcript is there before the words are said and follows them
-/// like timed lyrics, on this device or a speaker. A streamed file is heard
-/// as it plays, through the tap Smart Resume listens with
-/// (`BookAudioListener`), with nothing fetched twice; on a speaker a
-/// streamed file has nothing the device hears, so it asks for the download.
+/// The file is read ahead of the listener, faster than it plays and five
+/// minutes ahead, so the transcript is there before the words are said and
+/// follows them like timed lyrics, playing or paused, on this device or a
+/// speaker: a downloaded file from the device, a streamed MP3 from the
+/// server in pieces (`BookTranscriptionEngine.read(remote:)`). A streamed
+/// file that can't be read in pieces (an M4B) is heard as it plays instead,
+/// through the tap Smart Resume listens with (`BookAudioListener`), on this
+/// device only.
 /// Whatever is heard is kept by the file (`BookTranscriptStore`), so a
 /// stretch is transcribed once.
 ///
@@ -35,6 +37,8 @@ final class BookTranscriber {
         case needsSuper
         /// Nothing to transcribe; the reason says why.
         case unavailable(String)
+        /// Heard only as it plays, and it's paused.
+        case waitingForPlay
         case preparing
         case downloadingModel(Double)
         case transcribing
@@ -43,7 +47,12 @@ final class BookTranscriber {
 
     private(set) var state: State = .idle
     /// The file playing's transcript, as far as it's been heard.
-    private(set) var transcript = BookTranscript()
+    private(set) var transcript = BookTranscript() {
+        didSet { revision += 1 }
+    }
+    /// Counts changes to `transcript`, for the view to tell a new one from
+    /// the last without comparing hours of lines.
+    private(set) var revision = 0
     /// While a streamed file is heard: the words being said, a guess the
     /// next result replaces.
     private(set) var volatileText: String?
@@ -61,6 +70,8 @@ final class BookTranscriber {
     /// it is a seek: a live run starts again from there.
     private static let seekTolerance: TimeInterval = 4
 
+    /// Files whose server won't let them be read in pieces: heard live.
+    private var notReadable: Set<String> = []
     private var activeCount = 0
     private var monitor: Task<Void, Never>?
     private var run: Task<Void, Never>?
@@ -74,6 +85,12 @@ final class BookTranscriber {
         let locale: String
         let isLive: Bool
         let start: TimeInterval
+    }
+
+    /// Where a file read ahead comes from.
+    private enum Source {
+        case file(URL)
+        case server(URL, duration: TimeInterval)
     }
 
     private init() {}
@@ -149,8 +166,11 @@ final class BookTranscriber {
         let playhead = controller.position()
         pace?.playhead = playhead
 
+        let duration = book.timeline.partDurations.indices.contains(part) ? book.timeline.partDurations[part] : 0
         if let url = DownloadManager.shared.localURL(for: file) {
-            followFile(url, key: key, locale: locale, playhead: playhead)
+            followAhead(.file(url), key: key, locale: locale, playhead: playhead)
+        } else if !notReadable.contains(key), let url = LocalPlaybackService.shared.bookFileURL(for: file), !url.isFileURL {
+            followAhead(.server(url, duration: duration), key: key, locale: locale, playhead: playhead)
         } else if controller.group == nil, let item = LocalPlaybackService.shared.currentStreamItem {
             followLive(item, key: key, locale: locale, playhead: playhead, isPlaying: controller.isPlaying)
         } else {
@@ -159,11 +179,10 @@ final class BookTranscriber {
         }
     }
 
-    /// A downloaded file: read ahead from just before the listener, from
-    /// the first stretch not transcribed yet. A run carries on while the
-    /// listener stays within what it's reading; a jump outside starts one
-    /// from there.
-    private func followFile(_ url: URL, key: String, locale: Locale, playhead: TimeInterval) {
+    /// A file read ahead from just before the listener, from the first
+    /// stretch not transcribed yet. A run carries on while the listener
+    /// stays within what it's reading; a jump outside starts one from there.
+    private func followAhead(_ source: Source, key: String, locale: Locale, playhead: TimeInterval) {
         let from = transcript.firstUncovered(from: max(0, playhead - 10))
         if let running, running.fileKey == key, running.locale == locale.identifier, !running.isLive, let pace {
             let fed = pace.fed
@@ -179,14 +198,24 @@ final class BookTranscriber {
         stopRun()
         let pace = BookTranscriptPace(start: from)
         pace.playhead = playhead
-        guard let audio = BookTranscriptionEngine.read(url, from: from, pace: pace) else {
-            state = .failed(String(localized: "This file can't be read for a transcript."))
-            return
-        }
-        Logger.bookTranscript.notice("reading \(key, privacy: .public) from \(Int(from)) s, \(locale.identifier, privacy: .public)")
         self.pace = pace
         isLive = false
-        start(audio, running: Running(fileKey: key, locale: locale.identifier, isLive: false, start: from), locale: locale)
+        let running = Running(fileKey: key, locale: locale.identifier, isLive: false, start: from)
+        Logger.bookTranscript.notice("reading \(key, privacy: .public) ahead from \(Int(from)) s, \(locale.identifier, privacy: .public)")
+        start({ [weak self] in
+            switch source {
+            case .file(let url):
+                if let audio = BookTranscriptionEngine.read(url, from: from, pace: pace) { return audio }
+                self?.state = .failed(String(localized: "This file can't be read for a transcript."))
+                return nil
+            case .server(let url, let duration):
+                if let audio = await BookTranscriptionEngine.read(remote: url, duration: duration, from: from, pace: pace) { return audio }
+                // Heard as it plays from here on.
+                self?.notReadable.insert(key)
+                if self?.running == running { self?.running = nil }
+                return nil
+            }
+        }, running: running, locale: locale)
     }
 
     /// A streamed file on this device: heard through the tap as it plays,
@@ -194,6 +223,7 @@ final class BookTranscriber {
     private func followLive(_ item: AVPlayerItem, key: String, locale: Locale, playhead: TimeInterval, isPlaying: Bool) {
         defer { lastPlayhead = (playhead, .now) }
         if let running, running.fileKey == key, running.locale == locale.identifier, running.isLive {
+            if !isPlaying, transcript.lines.isEmpty, volatileText == nil { state = .waitingForPlay }
             guard let last = lastPlayhead else { return }
             let expected = last.time + (isPlaying ? Date.now.timeIntervalSince(last.at) * Double(AudiobookPlayer.shared.rate) : 0)
             if abs(playhead - expected) < Self.seekTolerance { return }
@@ -207,15 +237,19 @@ final class BookTranscriber {
         }
         Logger.bookTranscript.notice("hearing \(key, privacy: .public) live from \(Int(playhead)) s, \(locale.identifier, privacy: .public)")
         isLive = true
-        start(audio, running: Running(fileKey: key, locale: locale.identifier, isLive: true, start: playhead), locale: locale)
+        start({ audio }, running: Running(fileKey: key, locale: locale.identifier, isLive: true, start: playhead), locale: locale)
+        if !isPlaying, transcript.lines.isEmpty { state = .waitingForPlay }
     }
 
+    /// Opens the audio and transcribes it. `open` gives nil when the source
+    /// can't be read; the next tick picks another.
     @available(iOS 26.0, visionOS 26.0, *)
-    private func start(_ audio: AsyncStream<BookAudioChunk>, running: Running, locale: Locale) {
+    private func start(_ open: @escaping @MainActor () async -> AsyncStream<BookAudioChunk>?, running: Running, locale: Locale) {
         self.running = running
         if state != .transcribing { state = .preparing }
         let key = running.fileKey
         run = Task { [weak self] in
+            guard let audio = await open(), !Task.isCancelled else { return }
             do {
                 try await BookTranscriptionEngine.run(
                     locale: locale,

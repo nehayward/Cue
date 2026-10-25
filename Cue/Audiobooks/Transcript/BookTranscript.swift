@@ -79,10 +79,21 @@ extension BookTranscript {
     /// word once it runs very long. `end` is where the result ends, the
     /// last line's end.
     static func lines(from words: [Word], fallbackStart: TimeInterval, end: TimeInterval) -> [Line] {
+        // The model now and then hears a burst of noise as a run of dots:
+        // kept to one, and a line of nothing else left out below.
+        let words = words.compactMap { word -> Word? in
+            var text = word.text
+            while text.contains("..") { text = text.replacingOccurrences(of: "..", with: ".") }
+            return text.isEmpty ? nil : Word(text: text, start: word.start)
+        }
         var lines: [Line] = []
         var current: [Word] = []
         func flush(endingAt lineEnd: TimeInterval?) {
             guard !current.isEmpty else { return }
+            guard current.contains(where: { $0.text.contains { $0.isLetter || $0.isNumber } }) else {
+                current = []
+                return
+            }
             let start = current.first?.start ?? lines.last?.end ?? fallbackStart
             lines.append(Line(start: start, end: lineEnd ?? end, words: current))
             current = []

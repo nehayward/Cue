@@ -91,6 +91,12 @@ struct BookTranscriptView: View {
             ContentUnavailableView("No Transcript", systemImage: "text.quote", description: Text(reason))
         case .failed(let reason) where transcript.lines.isEmpty:
             ContentUnavailableView("Transcript Unavailable", systemImage: "exclamationmark.triangle", description: Text(reason))
+        case .waitingForPlay where transcript.lines.isEmpty:
+            ContentUnavailableView(
+                "Play to Read Along",
+                systemImage: "play.circle",
+                description: Text("This book's words are heard as it plays. Download it to see them before they're read.")
+            )
         case .downloadingModel(let fraction) where transcript.lines.isEmpty:
             VStack(spacing: 12) {
                 ProgressView(value: fraction)
@@ -117,20 +123,30 @@ struct BookTranscriptView: View {
 
 // MARK: - Following
 
-/// The lines, with the one being read worked out a few times a second from
-/// the player's clock, on the file's time as the transcript is.
+/// The lines, with the one being read and the word in it worked out ten
+/// times a second from the player's clock, on the file's time as the
+/// transcript is.
 private struct BookTranscriptFollower: View {
     let isFullScreen: Bool
     let onInteraction: () -> Void
 
+    /// A moment ahead, so the eye is on a word as it's said.
+    private static let lead: TimeInterval = 0.15
+
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 0.25)) { context in
+        TimelineView(.periodic(from: .now, by: 0.1)) { context in
             let transcriber = BookTranscriber.shared
-            let position = PlaybackRoute.shared.presented.position(at: context.date)
+            let transcript = transcriber.transcript
+            let position = PlaybackRoute.shared.presented.position(at: context.date) + Self.lead
+            let current = transcript.lineIndex(at: position)
             BookTranscriptLines(
-                transcript: transcriber.transcript,
+                transcript: transcript,
+                revision: transcriber.revision,
                 volatileText: transcriber.volatileText,
-                current: transcriber.transcript.lineIndex(at: position + 0.15),
+                current: current,
+                spoken: current.map { index in
+                    transcript.lines[index].words.lastIndex { ($0.start ?? .infinity) <= position }.map { $0 + 1 } ?? 0
+                },
                 isFullScreen: isFullScreen,
                 onInteraction: onInteraction
             )
@@ -143,8 +159,12 @@ private struct BookTranscriptFollower: View {
 /// being read changes. Lazy: a book's file can run to hours of lines.
 private struct BookTranscriptLines: View, Equatable {
     let transcript: BookTranscript
+    /// `BookTranscriber.revision`: compared in place of the transcript.
+    let revision: Int
     let volatileText: String?
     let current: Int?
+    /// How many of the current line's words have been said.
+    let spoken: Int?
     let isFullScreen: Bool
     let onInteraction: () -> Void
 
@@ -156,8 +176,8 @@ private struct BookTranscriptLines: View, Equatable {
     @State private var lookup: LookupWord?
 
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.transcript == rhs.transcript && lhs.volatileText == rhs.volatileText
-            && lhs.current == rhs.current && lhs.isFullScreen == rhs.isFullScreen
+        lhs.revision == rhs.revision && lhs.volatileText == rhs.volatileText
+            && lhs.current == rhs.current && lhs.spoken == rhs.spoken && lhs.isFullScreen == rhs.isFullScreen
     }
 
     /// Smaller in the cover's place than filling the phone.
@@ -173,6 +193,7 @@ private struct BookTranscriptLines: View, Equatable {
                         BookTranscriptLineRow(
                             line: line,
                             emphasis: emphasis(of: index),
+                            spoken: index == current ? spoken : nil,
                             font: font.font(size: pointSize)
                         )
                         .equatable()
@@ -270,16 +291,24 @@ private struct BookTranscriptLines: View, Equatable {
 }
 
 /// One line, its words links for a tap to look up. `emphasis` is how bright
-/// it's drawn; it's drawn again only when that or the line changes.
+/// it's drawn; `spoken`, on the line being read, how many of its words have
+/// been said, those drawn bright and the rest dimmer (not on the Mac, where
+/// text redrawn as it's read costs a burst of GPU memory). It's drawn again
+/// only when one of those or the line changes.
 private struct BookTranscriptLineRow: View, Equatable {
     let line: BookTranscript.Line
     let emphasis: Double
+    let spoken: Int?
     let font: Font
 
     private static let scheme = "cue-lookup"
 
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.line == rhs.line && lhs.emphasis == rhs.emphasis && lhs.spoken == rhs.spoken && lhs.font == rhs.font
+    }
+
     var body: some View {
-        Text(Self.linked(line))
+        text
             .font(font)
             .tint(.primary)
             .foregroundStyle(.primary)
@@ -292,11 +321,35 @@ private struct BookTranscriptLineRow: View, Equatable {
             }
     }
 
+    @ViewBuilder
+    private var text: some View {
+#if targetEnvironment(macCatalyst)
+        Text(Self.linked(line))
+#else
+        if let spoken {
+            Self.words(line).textRenderer(SpokenWords(spoken: spoken))
+        } else {
+            Text(Self.linked(line))
+        }
+#endif
+    }
+
+    /// The line a word at a time, each tagged with its place, for
+    /// `SpokenWords` to tell the said from the unsaid.
+    private static func words(_ line: BookTranscript.Line) -> Text {
+        var text = Text(verbatim: "")
+        for index in line.words.indices {
+            let word = Text(linked(line, only: index)).customAttribute(WordPlace(index: index))
+            text = Text("\(text)\(word)")
+        }
+        return text
+    }
+
     /// The line with each word a link to itself, its spacing and
-    /// punctuation left out of the link.
-    private static func linked(_ line: BookTranscript.Line) -> AttributedString {
+    /// punctuation left out of the link; only word `only`, when given.
+    private static func linked(_ line: BookTranscript.Line, only: Int? = nil) -> AttributedString {
         var text = AttributedString()
-        for (index, word) in line.words.enumerated() {
+        for (index, word) in line.words.enumerated() where only == nil || only == index {
             var raw = word.text
             if index == 0 {
                 raw = String(raw.drop { $0.isWhitespace })
@@ -334,6 +387,28 @@ private struct BookTranscriptLineRow: View, Equatable {
         let player = AudiobookPlayer.shared
         guard let book = player.current, let part = book.partIndex(of: controller.nowPlayingDisplay) else { return }
         await player.jump(to: book.time(part: part, offset: max(fileTime - 0.3, 0)))
+    }
+}
+
+/// A word's place in its line, on its run of text.
+private struct WordPlace: TextAttribute {
+    let index: Int
+}
+
+/// Draws the line being read with the words said so far bright and the
+/// rest dimmer. Changes only as a word starts, not every frame.
+private struct SpokenWords: TextRenderer {
+    let spoken: Int
+
+    func draw(layout: Text.Layout, in context: inout GraphicsContext) {
+        for line in layout {
+            for run in line {
+                var copy = context
+                let index = run[WordPlace.self]?.index ?? 0
+                copy.opacity = index < spoken ? 1 : 0.5
+                copy.draw(run)
+            }
+        }
     }
 }
 

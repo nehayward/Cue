@@ -3073,6 +3073,12 @@ final class LocalPlaybackService {
         return "the server \(local ? "on this network" : "over the internet"), port \(url.port ?? 0)"
     }
 
+    /// The address a book's file plays from, a download or the server's,
+    /// for its transcript to read ahead.
+    func bookFileURL(for item: PlayableContent) -> URL? {
+        trackStreamURL(for: item)
+    }
+
     /// `streamURL(for:)` for anything but a station: answered at once.
     private func trackStreamURL(for item: PlayableContent) -> URL? {
         // A book's file plays as it is on the server, whatever the

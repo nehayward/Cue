@@ -68,8 +68,9 @@ enum LiveStreamDecoder {
 
 /// One stream's `AudioFileStream` and the converter behind it. The parser's
 /// C callbacks come back through `clientData` to this object, synchronously
-/// inside `parse`, on the caller's thread.
-private final class StreamParser {
+/// inside `parse`, on the caller's thread. Also decodes a book's MP3 read
+/// from the server in pieces (`BookTranscriptionEngine.read(remote:)`).
+final class StreamParser {
     private let onBuffer: @Sendable (AVAudioPCMBuffer) -> Void
     private var stream: AudioFileStreamID?
     private var compressedFormat: AVAudioFormat?
