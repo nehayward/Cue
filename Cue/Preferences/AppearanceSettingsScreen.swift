@@ -1,9 +1,8 @@
 import Defaults
 import SwiftUI
 
-/// Settings ▸ Appearance: the theme, picked from three small screens drawn
-/// in it as the iPhone's Display & Brightness does, and which optional tabs
-/// show.
+/// Settings ▸ Appearance: the theme, picked from three swatches (light,
+/// dark, and half of each for System), and which optional tabs show.
 struct AppearanceSettingsScreen: View {
     @AppStorage(AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
@@ -12,7 +11,7 @@ struct AppearanceSettingsScreen: View {
     var body: some View {
         Form {
             Section {
-                HStack(spacing: 8) {
+                HStack(spacing: 32) {
                     ForEach(ColorSchemePreference.allCases, id: \.self) { option in
                         ThemeChoice(option: option, isSelected: colorScheme == option) {
                             HapticManager.shared.fireHaptic(.selection)
@@ -20,7 +19,8 @@ struct AppearanceSettingsScreen: View {
                         }
                     }
                 }
-                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
             } header: {
                 Text("Theme")
             }
@@ -54,8 +54,7 @@ struct AppearanceSettingsScreen: View {
     }
 }
 
-/// One theme: a small screen drawn in it, its name, and a selection circle.
-/// No animated symbol swap, which costs the Mac a burst of GPU memory.
+/// One theme: its swatch, ringed in the accent while chosen, over its name.
 private struct ThemeChoice: View {
     let option: ColorSchemePreference
     let isSelected: Bool
@@ -66,19 +65,17 @@ private struct ThemeChoice: View {
     var body: some View {
         Button(action: select) {
             VStack(spacing: 8) {
-                ThemePreview(option: option)
-                    .frame(width: 60, height: 104)
+                ThemeSwatch(option: option)
+                    .frame(width: 40, height: 40)
+                    .padding(4)
                     .overlay {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(isSelected ? Color.accent : Color.secondary.opacity(0.3), lineWidth: isSelected ? 2.5 : 1)
+                        Circle()
+                            .strokeBorder(isSelected ? Color.accent : .clear, lineWidth: 2.5)
                     }
                 Text(title)
-                    .font(.subheadline)
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(isSelected ? Color.accent : Color.secondary)
+                    .font(.footnote)
+                    .foregroundStyle(isSelected ? .primary : .secondary)
             }
-            .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
         }
         // Three buttons in one row: without a style of its own, a tap on
@@ -89,20 +86,17 @@ private struct ThemeChoice: View {
     }
 }
 
-/// A tiny screen in the theme: light, dark, or for System half of each.
-private struct ThemePreview: View {
+/// A circle in the theme: white, black, or for System half of each.
+private struct ThemeSwatch: View {
     let option: ColorSchemePreference
 
     var body: some View {
-        switch option {
-        case .light:
-            MiniScreen(isDark: false)
-        case .dark:
-            MiniScreen(isDark: true)
-        case .system:
-            MiniScreen(isDark: false)
-                .overlay {
-                    MiniScreen(isDark: true)
+        Circle()
+            .fill(option == .dark ? Color.black : Color.white)
+            .overlay {
+                if option == .system {
+                    Circle()
+                        .fill(Color.black)
                         .mask {
                             HStack(spacing: 0) {
                                 Color.clear
@@ -110,42 +104,12 @@ private struct ThemePreview: View {
                             }
                         }
                 }
-        }
-    }
-}
-
-/// Artwork, a title and a subtitle, and a tab bar, in a theme's colours.
-private struct MiniScreen: View {
-    let isDark: Bool
-
-    var body: some View {
-        let ink = isDark ? Color.white : Color.black
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(isDark ? Color(white: 0.1) : Color(white: 0.97))
-            .overlay {
-                VStack(alignment: .leading, spacing: 5) {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(Color.accent.gradient)
-                        .aspectRatio(1, contentMode: .fit)
-                    Capsule()
-                        .fill(ink.opacity(0.8))
-                        .frame(height: 4)
-                    Capsule()
-                        .fill(ink.opacity(0.35))
-                        .frame(width: 24, height: 4)
-                    Spacer(minLength: 0)
-                    HStack(spacing: 6) {
-                        ForEach(0..<3, id: \.self) { _ in
-                            Circle()
-                                .fill(ink.opacity(0.3))
-                                .frame(width: 6, height: 6)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .padding(8)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            // A hairline, so white shows on a light page and black on a dark one.
+            .overlay {
+                Circle()
+                    .strokeBorder(Color.primary.opacity(0.2), lineWidth: 1)
+            }
             .accessibilityHidden(true)
     }
 }
