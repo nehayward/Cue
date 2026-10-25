@@ -65,6 +65,9 @@ final class AudiobookPlaceHistory {
         /// (`.jumpedFrom`, `.replaced`, `.marked`): how far a skip went, and
         /// which way. Nil on places kept before it was noted.
         var to: TimeInterval?
+        /// What took the player from the book, for `.left`: its title (a
+        /// song, a station). Nil on places kept before it was noted.
+        var note: String?
     }
 
     /// Each book's places, newest first, by `AudiobookProgressStore.key`.
@@ -94,7 +97,7 @@ final class AudiobookPlaceHistory {
     /// Notes `kind` at book time `position`, unless it's where the book's
     /// newest place already is. `destination` is where a move went from
     /// here; `source` names whose place took over a `.replaced` one.
-    func record(_ kind: Place.Kind, at position: TimeInterval, to destination: TimeInterval? = nil, for book: PlayableContent, from source: Place.Source? = nil) {
+    func record(_ kind: Place.Kind, at position: TimeInterval, to destination: TimeInterval? = nil, for book: PlayableContent, from source: Place.Source? = nil, note: String? = nil) {
         let key = AudiobookProgressStore.key(for: book)
         var list = places[key] ?? []
         if let newest = list.first,
@@ -102,7 +105,7 @@ final class AudiobookPlaceHistory {
            Date.now.timeIntervalSince(newest.date) < Self.sameMoment {
             return
         }
-        list.insert(Place(position: max(position, 0), date: .now, kind: kind, source: source, to: destination.map { max($0, 0) }), at: 0)
+        list.insert(Place(position: max(position, 0), date: .now, kind: kind, source: source, to: destination.map { max($0, 0) }, note: note), at: 0)
         places[key] = Array(list.prefix(Self.limit))
         scheduleSave()
     }

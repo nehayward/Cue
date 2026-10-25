@@ -7,10 +7,12 @@ import SwiftUI
 /// first and grouped by day: what happened where, in which chapter, and how
 /// long ago, each on a rail with a marker tinted by what it was. A play's
 /// marker is ringed with how far into the book it was: the one place the
-/// book's progress shows, since a ring or a bar on every row was busy. The
+/// book's progress shows, since a ring or a bar on every row was busy. Each
+/// day's heading carries how much of the book was listened to that day. The
 /// rail breaks where the book gave way to something else, a listening
-/// session's end, rather than showing a row for it. A tap plays from there,
-/// and the place left for it joins the list, so going back is never a loss.
+/// session's end, with what played instead in the gap rather than a row of
+/// its own. A tap plays from there, and the place left for it joins the
+/// list, so going back is never a loss.
 struct AudiobookHistoryList: View {
     let book: PlayableContent
     /// The book read whole, for its chapters' names; nil before it's read.
@@ -39,14 +41,16 @@ struct AudiobookHistoryList: View {
                         .foregroundStyle(.primary.opacity(0.6))
                         .padding(.top, 8)
                     ForEach(Self.days(places), id: \.day) { group in
-                        Text(Self.dayTitle(group.day, now: context.date))
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.primary.opacity(0.6))
-                            .padding(.top, 16)
-                            .padding(.bottom, 4)
+                        dayHeading(group, now: context.date)
                         ForEach(Array(group.sessions.enumerated()), id: \.offset) { index, session in
+                            // The gap in the rail where the book gave way to
+                            // something else, and what that was.
+                            if let note = session.after, index > 0 || !note.isEmpty {
+                                breakNote(note)
+                                    .padding(.top, index > 0 ? 4 : 0)
+                            }
                             VStack(spacing: 0) {
-                                ForEach(session) { place in
+                                ForEach(session.places) { place in
                                     Button {
                                         HapticManager.shared.fireHaptic(.selection)
                                         onPick()
@@ -55,16 +59,14 @@ struct AudiobookHistoryList: View {
                                         row(
                                             place,
                                             now: context.date,
-                                            isFirst: place.id == session.first?.id,
-                                            isLast: place.id == session.last?.id
+                                            isFirst: place.id == session.places.first?.id,
+                                            isLast: place.id == session.places.last?.id
                                         )
                                     }
                                     .buttonStyle(.plain)
                                 }
                             }
-                            // A gap in the rail where the book gave way to
-                            // something else.
-                            .padding(.top, index > 0 ? 14 : 0)
+                            .padding(.top, index > 0 && session.after == nil ? 14 : 0)
                         }
                     }
                 }
@@ -216,35 +218,114 @@ struct AudiobookHistoryList: View {
         }
     }
 
-    // MARK: - Days and times
+    // MARK: - Days and sessions
 
-    /// The places in runs of one day each, newest first, as they're kept,
-    /// and each day in sessions: a place where the book gave way to
-    /// something else (`.left`, which doesn't know whether to music or
-    /// another book) isn't a row but the break between two.
-    private static func days(_ places: [AudiobookPlaceHistory.Place]) -> [(day: Date, sessions: [[AudiobookPlaceHistory.Place]])] {
+    /// A day's places, in listening sessions, and how much of the book was
+    /// listened to over it.
+    private struct Day {
+        let day: Date
+        var sessions: [Session]
+        var listened: TimeInterval = 0
+    }
+
+    /// A run of places with the book playing, and what took the player
+    /// after it, when the run ended that way: its title, or "" for a
+    /// break kept before the title was.
+    private struct Session {
+        var places: [AudiobookPlaceHistory.Place]
+        var after: String?
+    }
+
+    /// "Tuesday • 35m listened": the day, and the book time heard over it.
+    private func dayHeading(_ group: Day, now: Date) -> some View {
+        let listened = group.listened >= 60
+            ? Duration.seconds(group.listened).formatted(.units(allowed: [.hours, .minutes], width: .narrow))
+            : nil
+        return HStack(spacing: 6) {
+            Text(Self.dayTitle(group.day, now: now))
+                .fontWeight(.semibold)
+            if let listened {
+                Text("• \(listened) listened")
+                    .monospacedDigit()
+            }
+        }
+        .font(.footnote)
+        .foregroundStyle(.primary.opacity(0.6))
+        .padding(.top, 16)
+        .padding(.bottom, 4)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The gap between two sessions, saying what played in it: a quiet
+    /// line in the titles' column, not a row of its own. Empty for a break
+    /// kept before what played was noted.
+    private func breakNote(_ note: String) -> some View {
+        HStack(spacing: 6) {
+            if !note.isEmpty {
+                Image(systemName: "music.note")
+                Text(note)
+                    .lineLimit(1)
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.primary.opacity(0.5))
+        .frame(height: 18)
+        .padding(.leading, Self.ringSize + 14)
+        .padding(.vertical, 2)
+    }
+
+    /// The places in runs of one day each, newest first, as they're kept;
+    /// each day in sessions, a place where the book gave way to something
+    /// else (`.left`) being not a row but the break between two; and each
+    /// day's listening (`listened`).
+    private static func days(_ places: [AudiobookPlaceHistory.Place]) -> [Day] {
         let calendar = Calendar.current
-        var days: [(day: Date, sessions: [[AudiobookPlaceHistory.Place]])] = []
-        var breakBefore = false
+        var days: [Day] = []
+        var after: String?
         for place in places {
             let day = calendar.startOfDay(for: place.date)
             if place.kind == .left {
-                breakBefore = true
+                after = place.note ?? ""
                 continue
             }
             if days.last?.day == day {
-                if breakBefore {
-                    days[days.count - 1].sessions.append([place])
+                if after != nil {
+                    days[days.count - 1].sessions.append(Session(places: [place], after: after))
                 } else {
-                    days[days.count - 1].sessions[days[days.count - 1].sessions.count - 1].append(place)
+                    days[days.count - 1].sessions[days[days.count - 1].sessions.count - 1].places.append(place)
                 }
             } else {
-                days.append((day, [[place]]))
+                days.append(Day(day: day, sessions: [Session(places: [place], after: after)]))
             }
-            breakBefore = false
+            after = nil
+        }
+        let listened = listened(places)
+        for index in days.indices {
+            days[index].listened = listened[days[index].day] ?? 0
         }
         return days
     }
+
+    /// The book time heard each day, read off the places: between one and
+    /// the next, oldest first, how far the book moved forward from where
+    /// the first left it (a skip's destination, else its place), counted
+    /// to the later one's day. A move faster than playing could go (4× the
+    /// time between them) was a skip nobody noted, and doesn't count.
+    private static func listened(_ places: [AudiobookPlaceHistory.Place]) -> [Date: TimeInterval] {
+        let calendar = Calendar.current
+        var days: [Date: TimeInterval] = [:]
+        let oldestFirst = Array(places.reversed())
+        for (earlier, later) in zip(oldestFirst, oldestFirst.dropFirst()) {
+            let from = earlier.to ?? earlier.position
+            let moved = later.position - from
+            let elapsed = later.date.timeIntervalSince(earlier.date)
+            guard moved > 0, moved <= elapsed * 4 + 5 else { continue }
+            days[calendar.startOfDay(for: later.date), default: 0] += moved
+        }
+        return days
+    }
+
+    // MARK: - Days and times
 
     /// "Today", "Yesterday", a weekday this week, else "Oct 12".
     private static func dayTitle(_ day: Date, now: Date) -> String {
@@ -264,16 +345,11 @@ struct AudiobookHistoryList: View {
         return day.formatted(.dateTime.month(.abbreviated).day().year())
     }
 
-    /// How long ago: "Just now", "12 min. ago", "8 hr. ago" within the
-    /// last day; older, the time of day, the day being the heading above.
+    /// How long ago: "Just now", "12 min. ago", "8 hr. ago", "3 days ago".
     private static func time(_ date: Date, now: Date) -> String {
-        let elapsed = now.timeIntervalSince(date)
-        if elapsed < 60 {
+        if now.timeIntervalSince(date) < 60 {
             return String(localized: "Just now")
         }
-        if elapsed < 24 * 60 * 60 {
-            return date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated))
-        }
-        return date.formatted(.dateTime.hour().minute())
+        return date.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated))
     }
 }
