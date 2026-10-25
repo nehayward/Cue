@@ -516,6 +516,9 @@ final class LocalPlaybackService {
             } ?? []
         }
     }
+    /// The file the stream player is on, for a book's transcript to hear
+    /// through its tap (`BookAudioListener.transcribe(_:)`).
+    var currentStreamItem: AVPlayerItem? { streamPlayer?.currentItem }
     /// Reads ICY stream titles off a station's player item.
     @ObservationIgnored private var streamMetadataListener: StreamMetadataListener?
     /// Polls TuneIn for what the current station is playing.

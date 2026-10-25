@@ -72,6 +72,8 @@ struct PaywallReasonCard: View {
             return held >= limit ? "All \(limit) free downloads used" : "\(held) of \(limit) free downloads used"
         case .bookDownloads:
             return "Books download with Cue Super"
+        case .bookTranscript:
+            return "Read along with Cue Super"
         case .allRooms:
             return "Play in every room"
         default:
@@ -86,6 +88,8 @@ struct PaywallReasonCard: View {
             return "Cue Super keeps every song you download, on this iPhone and your Apple Watch, with no limit."
         case .bookDownloads:
             return "Keep Plex and Audiobookshelf books on this iPhone and your Apple Watch, to listen with no connection."
+        case .bookTranscript:
+            return "See every word of a book as it's read, transcribed privately on this device. Tap a word to look it up."
         case .allRooms:
             // The free room by name, so it reads as the listener's own house.
             let free = FeatureGate.shared.freeRoomID.flatMap { id in
@@ -101,6 +105,7 @@ struct PaywallReasonCard: View {
         switch reason.feature {
         case .unlimitedDownloads, .downloads: "arrow.down.circle.fill"
         case .bookDownloads: "books.vertical.fill"
+        case .bookTranscript: "text.quote"
         case .allRooms: "hifispeaker.2.fill"
         case .scenes: "sparkles"
         default: "lock.fill"
