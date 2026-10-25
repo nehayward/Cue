@@ -303,10 +303,12 @@ final class DownloadManager {
 
     // MARK: - Free limit
 
-    /// How many songs may be kept without Cue Super. It's a ceiling on what's
-    /// held, not a lifetime allowance: every entry counts, finished or on its
-    /// way, and removing one frees its slot. iCloud Drive downloads and the
-    /// playback cache are the system's and the cache's own and don't count.
+    /// How many songs may be kept without Cue Super, on this device and the
+    /// Apple Watch together (the watch keeps the share this device leaves
+    /// it, `WatchAllowance`). It's a ceiling on what's held, not a lifetime
+    /// allowance: every entry counts, finished or on its way, and removing
+    /// one frees its slot. iCloud Drive downloads and the playback cache are
+    /// the system's and the cache's own and don't count.
     nonisolated static let freeSongLimit = 50
 
     /// Songs held against the free limit. A book downloaded whole counts as
@@ -315,11 +317,16 @@ final class DownloadManager {
         items.values.filter { $0.isBookFile != true }.count + containers.values.filter { $0.type == .audiobook }.count
     }
 
+    /// Songs held against the free limit here and on the Apple Watch.
+    var heldAgainstLimit: Int {
+        heldCount + WatchSyncService.shared.heldOnWatch
+    }
+
     /// Slots left before the free limit, or nil once unlimited downloads are
     /// unlocked (Super), which has none.
     var remainingFreeSlots: Int? {
         guard !FeatureGate.shared.isAvailable(.unlimitedDownloads) else { return nil }
-        return max(0, Self.freeSongLimit - heldCount)
+        return max(0, Self.freeSongLimit - heldAgainstLimit)
     }
 
     /// Whether the next new download would be refused.
@@ -593,8 +600,11 @@ final class DownloadManager {
         guard !downloadable.isEmpty else { return BatchResult() }
 
         let containerKey = Self.containerKey(for: container)
-        // A book takes one slot of the free limit for all its files.
-        if isBook, containers[containerKey] == nil, isAtFreeLimit {
+        // Keeping a book is Super's; one already here, kept from before,
+        // still comes back whole. Where books are open but songs are
+        // limited (a debug override), a book takes one slot for its files.
+        if isBook, containers[containerKey] == nil,
+           isAtFreeLimit || !FeatureGate.shared.isAvailable(.bookDownloads) {
             return BatchResult(heldBack: downloadable.count)
         }
 

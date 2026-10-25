@@ -497,7 +497,8 @@ struct DownloadsScreen: View {
     /// read as "here's what's coming", not as a wall.
     private func freeLimitSection(remaining: Int) -> some View {
         let limit = DownloadManager.freeSongLimit
-        let held = manager.heldCount
+        let held = manager.heldAgainstLimit
+        let onWatch = WatchSyncService.shared.heldOnWatch
         return Section {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -518,9 +519,14 @@ struct DownloadsScreen: View {
                     .listRowInsets(EdgeInsets())
             }
         } footer: {
-            Text(remaining == 0
-                 ? "Every free slot is taken. Remove a download to free one, or get Cue Super for unlimited downloads."
-                 : "Songs on this device and on their way count; removing one frees its slot. Cue Super removes the limit.")
+            VStack(alignment: .leading, spacing: 4) {
+                Text(remaining == 0
+                     ? "Every free slot is taken. Remove a download to free one, or get Cue Super for unlimited downloads and books."
+                     : "Songs on this device, on your Apple Watch and on their way count; removing one frees its slot. Cue Super removes the limit and adds book downloads.")
+                if onWatch > 0 {
+                    Text("\(onWatch) of them on your Apple Watch.")
+                }
+            }
         }
     }
 

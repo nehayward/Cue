@@ -25,13 +25,21 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
     case onDevicePlayback
     /// Keeping Plex, Subsonic and iCloud Drive tracks on this device.
     case downloads
-    /// Keeping more than `DownloadManager.freeSongLimit` songs at once.
+    /// Keeping more than `DownloadManager.freeSongLimit` songs at once,
+    /// on this device and the watch together.
     case unlimitedDownloads
+    /// Keeping a book on this device or the watch.
+    case bookDownloads
     /// Cue on a car's screen: browsing and playing from CarPlay.
     case carPlay
     case lastFM
 
     var id: String { rawValue }
+
+    /// What keeping `item` needs: a book's own gate, else downloads.
+    static func download(of item: PlayableContent) -> GatedFeature {
+        item.content.type == .audiobook ? .bookDownloads : .downloads
+    }
 
     var title: String {
         switch self {
@@ -44,6 +52,7 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
         case .onDevicePlayback: "Play on This Device"
         case .downloads: "Downloads"
         case .unlimitedDownloads: "Unlimited Downloads"
+        case .bookDownloads: "Book Downloads"
         case .carPlay: "CarPlay"
         case .lastFM: "Last.fm"
         }
@@ -51,7 +60,7 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
 
     var requirement: FeatureGate.Requirement {
         switch self {
-        case .allRooms, .scenes, .liveActivities, .lockScreenNowPlaying, .hardwareVolumeButtons, .unlimitedDownloads:
+        case .allRooms, .scenes, .liveActivities, .lockScreenNowPlaying, .hardwareVolumeButtons, .unlimitedDownloads, .bookDownloads:
             .superTier
         case .files, .onDevicePlayback, .downloads, .carPlay:
             .free
@@ -146,14 +155,27 @@ final class FeatureGate {
         availability(of: feature) == .needsSuper
     }
 
-    /// The free tier's one room: the first group in the speaker list.
-    /// Kept here so the speaker list and the mini player agree on it.
-    func isRoomUnlocked(_ group: GroupRoom, in sorted: [GroupRoom]) -> Bool {
+    /// The free tier's room: the first active one by name, which is the
+    /// top speaker row in Play On. Its group is the one group the free tier
+    /// plays on, as Clic's first row is; other rooms can still join it.
+    /// Read from the rooms rather than the groups' sort, which can put
+    /// whatever is playing first and would move the free group with it.
+    /// `nil` with no rooms known yet.
+    @MainActor
+    var freeRoomID: String? {
+        SonosService.shared.sortedRooms.first { $0.state == .active }?.id
+    }
+
+    /// Whether the free tier may play on and control this group: Super, or
+    /// the group holding `freeRoomID`. With no rooms known there is nothing
+    /// to hold back yet. By coordinator: a group is equal only to itself,
+    /// and a caller may hold an instance a topology refresh has replaced.
+    @MainActor
+    func isGroupUnlocked(_ coordinatorID: String) -> Bool {
         if isAvailable(.allRooms) { return true }
-        // By coordinator: a group is equal only to itself, and a caller
-        // may hold an instance a topology refresh has since replaced.
-        guard let index = sorted.firstIndex(where: { $0.coordinatorID == group.coordinatorID }) else { return false }
-        return index < 1
+        guard let freeRoomID else { return true }
+        let free = SonosService.shared.groups.first { group in group.rooms.contains { $0.id == freeRoomID } }
+        return free?.coordinatorID == coordinatorID
     }
 
     private func availability(of requirement: Requirement) -> Availability {

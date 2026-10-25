@@ -290,7 +290,7 @@ fileprivate struct SpeakerGroupSection: View {
     @Binding var hoveredID: String?
     
     private var paywallEnabled: Bool {
-        featureGate.isRoomUnlocked(group, in: sonosService.sorted)
+        featureGate.isGroupUnlocked(group.coordinatorID)
     }
     
     private var listRowBackground: Color {

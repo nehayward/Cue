@@ -115,7 +115,7 @@ struct ContainerDownloadButton: View {
     private func downloadWhole() {
         guard !isQueuing else { return }
         HapticManager.shared.fireHaptic(.buttonPress)
-        guard FeatureGate.shared.unlock(.downloads) else { return }
+        guard FeatureGate.shared.unlock(.download(of: item)) else { return }
         isQueuing = true
         Task { @MainActor in
             await LocalDownloadMenuSection.download(item, alertService: alertService)

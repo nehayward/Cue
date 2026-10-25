@@ -204,12 +204,12 @@ struct LocalDownloadMenuSection: View {
     private var freeLimitNote: some View {
         let manager = DownloadManager.shared
         if manager.remainingFreeSlots != nil {
-            Text("\(manager.heldCount) of \(DownloadManager.freeSongLimit) free downloads")
+            Text("\(manager.heldAgainstLimit) of \(DownloadManager.freeSongLimit) free downloads")
         }
     }
 
     private func downloadContainer() {
-        guard FeatureGate.shared.unlock(.downloads) else { return }
+        guard FeatureGate.shared.unlock(.download(of: item)) else { return }
         Task { @MainActor in
             await Self.download(item, alertService: alertService)
         }
@@ -236,7 +236,7 @@ struct LocalDownloadMenuSection: View {
             case nil:
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    guard FeatureGate.shared.unlock(.downloads) else { return }
+                    guard FeatureGate.shared.unlock(.bookDownloads) else { return }
                     Task { @MainActor in
                         await Self.download(book, alertService: alertService)
                     }
@@ -280,6 +280,8 @@ struct LocalDownloadMenuSection: View {
             } else {
                 alertService.showAlert(with: "Nothing to download", imageName: "arrow.down.circle")
             }
+        case (0, _) where item.content.type == .audiobook:
+            offerSuperForDownloads(text: "Downloading books is part of Cue Super", alertService: alertService)
         case (0, _):
             offerSuperForDownloads(alertService: alertService)
         case (let queued, 0):

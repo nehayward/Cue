@@ -3,9 +3,11 @@ import Foundation
 /// What crosses WatchConnectivity: each side's application context — only
 /// the latest matters, the system keeps it for an app that isn't running,
 /// and it works between simulators. The iPhone's carries the picks, the
-/// places in the books among them (`WatchBookPlaces`) and its sign-ins
-/// (`WatchCredentials`); the watch's carries the picks and places as it has
-/// them. Each side merges what arrives (`WatchPicks.merged`,
+/// places in the books among them (`WatchBookPlaces`), its sign-ins
+/// (`WatchCredentials`) and the watch's share of the free downloads
+/// (`WatchAllowance`); the watch's carries the picks and places as it has
+/// them, and what it holds against that share (`WatchHeldDownloads`).
+/// Each side merges what arrives (`WatchPicks.merged`,
 /// `WatchBookPlaces.merged`). The picks and places travel packed, with a
 /// `sentAt` stamp so sending them again always counts as a change.
 ///
@@ -28,8 +30,17 @@ public enum WatchSyncMessage {
     public static let nowPlayingKey = "nowPlaying"
     public static let queueKey = "queue"
     public static let positionKey = "position"
+    public static let allowanceKey = "allowance"
+    public static let heldKey = "held"
 
-    public static func context(picks: WatchPicks, places: WatchBookPlaces? = nil, credentials: WatchCredentials? = nil, sentAt: Date = .now) throws -> [String: Any] {
+    public static func context(
+        picks: WatchPicks,
+        places: WatchBookPlaces? = nil,
+        credentials: WatchCredentials? = nil,
+        allowance: WatchAllowance? = nil,
+        held: WatchHeldDownloads? = nil,
+        sentAt: Date = .now
+    ) throws -> [String: Any] {
         var context: [String: Any] = [
             picksKey: pack(try picks.encoded()),
             sentAtKey: sentAt.timeIntervalSince1970,
@@ -39,6 +50,12 @@ public enum WatchSyncMessage {
         }
         if let credentials {
             context[credentialsKey] = try JSONEncoder().encode(credentials)
+        }
+        if let allowance {
+            context[allowanceKey] = try JSONEncoder().encode(allowance)
+        }
+        if let held {
+            context[heldKey] = try JSONEncoder().encode(held)
         }
         return context
     }
@@ -56,6 +73,20 @@ public enum WatchSyncMessage {
     public static func credentials(in context: [String: Any]) -> WatchCredentials? {
         guard let data = context[credentialsKey] as? Data else { return nil }
         return try? JSONDecoder().decode(WatchCredentials.self, from: data)
+    }
+
+    /// The iPhone's word on the watch's share; nil from an iPhone a version
+    /// behind.
+    public static func allowance(in context: [String: Any]) -> WatchAllowance? {
+        guard let data = context[allowanceKey] as? Data else { return nil }
+        return try? JSONDecoder().decode(WatchAllowance.self, from: data)
+    }
+
+    /// What the watch holds against its share; nil from a watch a version
+    /// behind.
+    public static func held(in context: [String: Any]) -> WatchHeldDownloads? {
+        guard let data = context[heldKey] as? Data else { return nil }
+        return try? JSONDecoder().decode(WatchHeldDownloads.self, from: data)
     }
 
     // MARK: - Asking for the sign-ins

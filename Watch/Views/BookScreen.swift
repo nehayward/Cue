@@ -220,6 +220,8 @@ struct BookScreen: View {
             } else {
                 Text("Looking up on the server…")
             }
+        } else if here < files.count, store.isHeldBack(book: key) {
+            Text("Books download with Cue Super. Get it in Cue on your iPhone.")
         } else if here < files.count {
             Text(files.count == 1
                 ? "Downloading. Fast Download gets it here sooner."
@@ -287,6 +289,9 @@ struct BookRow: View {
             return store.unreachable.contains(pick.key) ? "Can't reach the server" : "Looking up…"
         }
         let here = songs.filter { store.isDownloaded($0.key) }.count
+        if here < songs.count, store.isHeldBack(book: pick.key) {
+            return "Needs Cue Super"
+        }
         if here < songs.count {
             return songs.count == 1 ? "Downloading" : "\(here) of \(songs.count) files downloaded"
         }

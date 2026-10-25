@@ -57,6 +57,16 @@ final class WatchSyncService {
     /// A watch is paired and has Cue on it, so music can be put there.
     var isAvailable: Bool { isPaired && isWatchAppInstalled }
 
+    /// What the watch said it holds against the free songs, which the two
+    /// share (`WatchAllowance`).
+    private(set) var watchHeld: WatchHeldDownloads?
+
+    /// The watch's songs and books, as counted against the free songs. None
+    /// for a watch that's gone, which takes its downloads with it.
+    var heldOnWatch: Int {
+        isAvailable ? watchHeld?.total ?? 0 : 0
+    }
+
     @ObservationIgnored private let logger = Logger(subsystem: "dance.cue", category: "WatchSync")
     /// The session's delegate, kept alive here; nil where there's no
     /// WatchConnectivity.
@@ -66,6 +76,7 @@ final class WatchSyncService {
     @ObservationIgnored private var sentCredentials: WatchCredentials?
     /// The places last sent, so a book listened to here goes across.
     @ObservationIgnored private var sentPlaces: WatchBookPlaces?
+    @ObservationIgnored private var sentAllowance: WatchAllowance?
     @ObservationIgnored private var placesTask: Task<Void, Never>?
     @ObservationIgnored private let cloud = CloudBookPlaces()
     @ObservationIgnored private var cloudObserver: NSObjectProtocol?
@@ -122,7 +133,37 @@ final class WatchSyncService {
         }
         NSUbiquitousKeyValueStore.default.synchronize()
         reconcileWithCloud()
+        trackAllowance()
         #endif
+    }
+
+    // MARK: - The free tier's share
+
+    /// The watch's share of the free downloads: the free songs this iPhone
+    /// doesn't hold, none of a limit with Super; books only with Super.
+    private func currentAllowance() -> WatchAllowance {
+        let gate = FeatureGate.shared
+        let songs = gate.isAvailable(.unlimitedDownloads) ? nil : max(0, DownloadManager.freeSongLimit - DownloadManager.shared.heldCount)
+        return WatchAllowance(songs: songs, allowsBooks: gate.isAvailable(.bookDownloads))
+    }
+
+    /// Tells the watch when its share changes: Super coming or going, or a
+    /// download here taking or freeing a slot. One observation at a time,
+    /// each change arming the next a second later: progress rewrites the
+    /// downloads several times a second, and a batch queued or removed
+    /// goes as one.
+    private func trackAllowance() {
+        let allowance = withObservationTracking {
+            currentAllowance()
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1))
+                self?.trackAllowance()
+            }
+        }
+        if allowance != sentAllowance {
+            send()
+        }
     }
 
     // MARK: - Picks
@@ -346,10 +387,12 @@ final class WatchSyncService {
         guard WCSession.default.activationState == .activated, isAvailable else { return }
         let credentials = currentCredentials()
         let places = currentPlaces()
+        let allowance = currentAllowance()
         do {
-            try WCSession.default.updateApplicationContext(WatchSyncMessage.context(picks: picks, places: places, credentials: credentials))
+            try WCSession.default.updateApplicationContext(WatchSyncMessage.context(picks: picks, places: places, credentials: credentials, allowance: allowance))
             sentCredentials = credentials
             sentPlaces = places
+            sentAllowance = allowance
         } catch {
             logger.error("Couldn't send to the watch: \(error.localizedDescription, privacy: .public)")
         }
@@ -366,7 +409,10 @@ final class WatchSyncService {
     /// The watch's picks and places, merged in. When the watch was missing
     /// something of ours — a pick, or a place it hasn't or that's newer —
     /// it hears back.
-    fileprivate func didReceive(picks theirs: WatchPicks?, places theirPlaces: WatchBookPlaces?) {
+    fileprivate func didReceive(picks theirs: WatchPicks?, places theirPlaces: WatchBookPlaces?, held: WatchHeldDownloads? = nil) {
+        if let held, held != watchHeld {
+            watchHeld = held
+        }
         var tellWatch = false
         if let theirs {
             let merged = picks.merged(with: theirs)
@@ -651,9 +697,10 @@ private final class WatchSessionRelay: NSObject, WCSessionDelegate, @unchecked S
         let installed = session.isWatchAppInstalled
         let picks = WatchSyncMessage.picks(in: session.receivedApplicationContext)
         let places = WatchSyncMessage.places(in: session.receivedApplicationContext)
+        let held = WatchSyncMessage.held(in: session.receivedApplicationContext)
         Task { @MainActor in
-            if picks != nil || places != nil {
-                self.service?.didReceive(picks: picks, places: places)
+            if picks != nil || places != nil || held != nil {
+                self.service?.didReceive(picks: picks, places: places, held: held)
             }
             self.service?.sessionStateDidChange(isPaired: paired, isWatchAppInstalled: installed)
         }
@@ -685,9 +732,10 @@ private final class WatchSessionRelay: NSObject, WCSessionDelegate, @unchecked S
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         let picks = WatchSyncMessage.picks(in: applicationContext)
         let places = WatchSyncMessage.places(in: applicationContext)
-        guard picks != nil || places != nil else { return }
+        let held = WatchSyncMessage.held(in: applicationContext)
+        guard picks != nil || places != nil || held != nil else { return }
         Task { @MainActor in
-            self.service?.didReceive(picks: picks, places: places)
+            self.service?.didReceive(picks: picks, places: places, held: held)
         }
     }
 

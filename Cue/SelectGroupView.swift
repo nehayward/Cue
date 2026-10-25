@@ -142,6 +142,13 @@ struct SelectGroupView: View {
                                 let selectedRooms = activeRooms.filter { room in
                                     selections.contains(room.id)
                                 }
+                                // The free tier's one group is the free
+                                // room's; other rooms may join it.
+                                let gate = FeatureGate.shared
+                                guard gate.isAvailable(.allRooms) || gate.freeRoomID == nil || selectedRooms.contains(where: { $0.id == gate.freeRoomID }) else {
+                                    closeForPaywall()
+                                    return
+                                }
                                 guard let newGroup = await sonosService.speedGroup(rooms: selectedRooms) else {
                                     print("Failed!")
                                     return
@@ -545,8 +552,22 @@ struct SelectGroupView: View {
         }
     }
 
+    /// The paywall is a full-screen cover off the root, and can't go up
+    /// over this sheet: close it first.
+    private func closeForPaywall() {
+        dismiss()
+        Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            FeatureGate.shared.presentPaywall()
+        }
+    }
+
     func play(group: GroupRoom) {
         HapticManager.shared.fireHaptic(.buttonPress)
+        guard FeatureGate.shared.isGroupUnlocked(group.coordinatorID) else {
+            closeForPaywall()
+            return
+        }
         PlayDestination.group(group.coordinatorID).remember()
         withAnimation {
             dismiss()
