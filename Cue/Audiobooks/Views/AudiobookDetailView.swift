@@ -130,7 +130,9 @@ struct AudiobookDetailView: View {
                                         isDone: isFinished || here.map { chapter.start < $0.start } == true
                                     )
                                         .id(chapter.id)
-                                    if chapter.id != audiobook.chapters.last?.id {
+                                    // None against the listener's chapter,
+                                    // which its fill sets apart.
+                                    if chapter.id != audiobook.chapters.last?.id, chapter.id != here?.id, audiobook.chapters.after(chapter)?.id != here?.id {
                                         Divider()
                                             .padding(.leading, 32)
                                     }

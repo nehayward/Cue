@@ -5,8 +5,9 @@ import SwiftUI
 
 /// The loaded book's chapters, as a sheet from the player's chapter line
 /// and its menu: a long book's were a menu taller than the screen. It opens
-/// on the chapter playing and follows it; a chapter picked plays from its
-/// start and the sheet goes. Its other page, a swipe or the switch on top
+/// with the chapter playing at the top of the list and keeps it there as
+/// chapters change; a chapter picked plays from its start and the sheet
+/// goes. Its other page, a swipe or the switch on top
 /// away, is the book's place history.
 ///
 /// `inPanel`, it's the player's queue panel while a book plays, in place of
@@ -114,7 +115,10 @@ struct AudiobookChaptersView: View {
                         .buttonStyle(.plain)
                         .accessibilityAddTraits(isHere ? .isSelected : [])
                         .id(chapter.id)
-                        if chapter.id != chapters.last?.id {
+                        // None against the listener's chapter: its fill
+                        // sets it apart, and a line over it at the top of
+                        // the list was a stray.
+                        if chapter.id != chapters.last?.id, !isHere, chapters.after(chapter)?.id != here?.id {
                             Divider()
                                 .padding(.leading, 32)
                         }
@@ -124,12 +128,12 @@ struct AudiobookChaptersView: View {
             }
             .onAppear {
                 guard let playing = player.currentChapter else { return }
-                proxy.scrollTo(playing.id, anchor: .center)
+                proxy.scrollTo(playing.id, anchor: .top)
             }
             .onChange(of: player.currentChapter?.id) { _, playing in
                 guard let playing else { return }
                 withAnimation {
-                    proxy.scrollTo(playing, anchor: .center)
+                    proxy.scrollTo(playing, anchor: .top)
                 }
             }
         }
