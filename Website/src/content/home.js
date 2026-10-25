@@ -152,7 +152,7 @@ export const faq = [
 	},
 	{
 		q: 'How does Read Along work?',
-		a: 'While a book plays, tap the quote button to see its words as they’re read, transcribed privately on your iPhone with nothing sent anywhere. A downloaded book is transcribed ahead of you, so the text follows along like lyrics. It needs iOS 26 or later and Cue Super.',
+		a: 'While a book plays, tap the quote button to see its words as they’re read, transcribed privately on your iPhone with nothing sent anywhere. It’s read a few minutes ahead of you, downloaded or streamed from Plex or Audiobookshelf, so each word lights up as it’s said. It needs iOS 26 or later and Cue Super.',
 	},
 	{
 		q: 'Why isn’t Spotify supported?',

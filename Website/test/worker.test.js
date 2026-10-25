@@ -10,7 +10,7 @@ import { route } from '../src/worker.js';
 const get = (path, init) => route(new Request(`https://cue.dance${path}`, init));
 
 test('every page renders with the shared header and a title', async () => {
-	for (const path of ['/', '/help', '/releases', '/privacy', '/terms', '/self-hosted', '/press', `/releases/${releases[0].version}`]) {
+	for (const path of ['/', '/help', '/releases', '/privacy', '/terms', '/self-hosted', '/press', '/beta', `/releases/${releases[0].version}`]) {
 		const response = await get(path);
 		assert.equal(response.status, 200, path);
 		const body = await response.text();
@@ -63,6 +63,19 @@ test('testflight.cue.dance sends every path to the beta invite', async () => {
 		assert.equal(response.headers.get('location'), 'https://testflight.apple.com/join/6B7QHpsd', path);
 	}
 	assert.equal((await get('/')).status, 200);
+});
+
+test('until the App Store, the calls to action lead to the beta and the beta page to TestFlight', async () => {
+	const home = await (await get('/')).text();
+	assert.match(home, /href="\/beta"[^>]*>.*Join the Beta/);
+	assert.doesNotMatch(home, /Coming soon/);
+
+	const beta = await (await get('/beta')).text();
+	assert.ok(beta.includes('href="https://testflight.apple.com/join/6B7QHpsd"'));
+
+	const alias = await get('/testflight');
+	assert.equal(alias.status, 301);
+	assert.equal(alias.headers.get('location'), 'https://cue.dance/beta');
 });
 
 test('unknown paths and versions are 404 pages', async () => {

@@ -16,7 +16,7 @@ export const facts = [
 	{ label: 'Services', value: 'Apple Music, Plex, Subsonic (Navidrome, Airsonic, Gonic…), TuneIn, your files' },
 	{ label: 'Sonos', value: 'Optional. S1 and S2 systems, multiple homes' },
 	{ label: 'Developer', value: 'Nick Hayward, independent, Seattle' },
-	{ label: 'Availability', value: 'Coming soon to the App Store' },
+	{ label: 'Availability', value: 'Public beta on TestFlight (cue.dance/beta), coming soon to the App Store' },
 ];
 
 export const highlights = [

@@ -1,4 +1,5 @@
 import { site } from './config.js';
+import { betaPage } from './pages/beta.js';
 import { helpPage } from './pages/help.js';
 import { homePage } from './pages/home.js';
 import { privacyPage, termsPage } from './pages/legal.js';
@@ -44,6 +45,7 @@ const REDIRECTS = {
 	'/plex': () => '/self-hosted',
 	'/navidrome': () => '/self-hosted',
 	'/subsonic': () => '/self-hosted',
+	'/testflight': () => '/beta',
 };
 
 // Exact paths → page. `query` is the request's URLSearchParams.
@@ -51,6 +53,7 @@ const PAGES = {
 	'/': () => homePage(),
 	'/help': (query) => helpPage({ embed: query.has('embed') }),
 	'/self-hosted': () => selfHostedPage(),
+	'/beta': () => betaPage(),
 	'/releases': () => releasesIndexPage(),
 	'/press': () => pressPage(),
 	'/privacy': () => privacyPage(),
