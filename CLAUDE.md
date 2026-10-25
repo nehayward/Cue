@@ -185,7 +185,7 @@ The app is built around several Swift packages in `/Packages`:
 
 ### Adding New Settings
 1. Define keys in appropriate `Defaults` package file
-2. Add UI on the Preferences page it belongs to (`Preferences/`: `PlaybackSettingsScreen`, `SonosSettingsScreen`, `AppearanceSettingsScreen`, `AboutSettingsScreen`; the caches are `CachesSection`, at the foot of Downloads ▸ Settings), not on `PreferenceScreen`, which is one row a page (`SettingsIcon`, `SettingsRowText` draw the rows)
+2. Add UI on the Preferences page it belongs to (`Preferences/`: `PlaybackSettingsScreen`, `SonosSettingsScreen`, `AppearanceSettingsScreen`, `AboutSettingsScreen`; the caches are `CachesSection`, at the foot of Storage ▸ Settings, Storage being `DownloadsScreen` as Settings titles it), not on `PreferenceScreen`, which is one row a page (`SettingsIcon`, `SettingsRowText` draw the rows)
 3. Use `@AppStorage` or `@CloudStorage` as appropriate
 4. Update settings screen layout
 

@@ -49,6 +49,10 @@ struct DownloadsScreen: View {
 
     /// Opens on the books rather than the songs.
     var opensOnBooks = false
+    /// Storage from Settings, the caches at the foot of its Settings tab
+    /// making it the place for everything that takes room here; Downloads
+    /// from the library, Home and Audiobooks.
+    var title: LocalizedStringKey = "Downloads"
 
     private var tab: Tab {
         picked ?? (opensOnBooks ? .books : .songs)
@@ -89,7 +93,7 @@ struct DownloadsScreen: View {
             .padding(.horizontal)
             .padding(.bottom, 8)
         }
-        .navigationTitle("Downloads")
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if !active.isEmpty {
