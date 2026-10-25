@@ -56,6 +56,15 @@ test('redirects: trailing slash, then known aliases', async () => {
 	assert.equal(latest.headers.get('location'), `https://cue.dance/releases/${releases[0].version}`);
 });
 
+test('testflight.cue.dance sends every path to the beta invite', async () => {
+	for (const path of ['/', '/help', '/anything/else?x=1']) {
+		const response = await route(new Request(`https://testflight.cue.dance${path}`));
+		assert.equal(response.status, 302, path);
+		assert.equal(response.headers.get('location'), 'https://testflight.apple.com/join/6B7QHpsd', path);
+	}
+	assert.equal((await get('/')).status, 200);
+});
+
 test('unknown paths and versions are 404 pages', async () => {
 	assert.equal((await get('/nope')).status, 404);
 	assert.equal((await get('/releases/1999.1')).status, 404);

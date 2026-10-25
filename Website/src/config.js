@@ -16,6 +16,11 @@ export const site = {
 	// call to action reads "Coming soon to the App Store" instead of linking.
 	appStoreId: null,
 
+	// The public beta's TestFlight invite (the "Beta (Public)" group), where
+	// testflight.cue.dance sends everyone.
+	testFlight: 'https://testflight.apple.com/join/6B7QHpsd',
+	testFlightHost: 'testflight.cue.dance',
+
 };
 
 export const appStoreUrl = site.appStoreId ? `https://apps.apple.com/app/id${site.appStoreId}` : null;

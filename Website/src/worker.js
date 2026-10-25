@@ -66,6 +66,10 @@ const sitemap = () => {
 
 export const route = async (request) => {
 	const url = new URL(request.url);
+	// testflight.cue.dance is this Worker's too, and every path on it goes to
+	// the beta's invite. A 302, so a new invite link isn't cached as the old.
+	if (url.hostname === site.testFlightHost) return Response.redirect(site.testFlight, 302);
+
 	// One canonical form per page: /help/ → /help.
 	const path = url.pathname.replace(/\/+$/, '') || '/';
 	if (path !== url.pathname) return Response.redirect(`${url.origin}${path}${url.search}`, 301);
