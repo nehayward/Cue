@@ -635,7 +635,7 @@ private struct SearchEmptyStateView: View {
                 .listRowSeparator(.hidden)
         }
 
-        if !playHistoryService.history.isEmpty {
+        if !playHistoryService.plays.isEmpty {
             PlayHistoryView(filters: $filters)
         }
 

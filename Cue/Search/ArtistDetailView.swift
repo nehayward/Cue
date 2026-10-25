@@ -154,18 +154,16 @@ struct ArtistDetailView: View {
     @ViewBuilder
     private var artworkSection: some View {
         Color.clear.overlay {
-            ZStack {
-                LazyImage(request: heroRequest) { phase in
-                    if let image = phase.image {
+            // One image for the glow and the picture, so both land in the
+            // same frame, as on an album's page.
+            LazyImage(request: heroRequest.withBlurredFoot) { phase in
+                if let image = phase.image {
+                    ZStack {
                         image
                             .resizable()
                             .scaledToFit()
                             .blur(radius: 100)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: maxHeight)
-                LazyImage(request: heroRequest.withBlurredFoot) { phase in
-                    if let image = phase.image {
+                            .frame(maxWidth: .infinity, maxHeight: maxHeight)
                         image
                             .resizable()
                             .scaledToFill()

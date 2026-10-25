@@ -8,7 +8,8 @@ import SwiftUI
 /// carry no place, so each station's description (`Describe.ashx`) is
 /// asked once, a few at a time, and what it says is kept on disk: a
 /// station doesn't move. A description with a place name but no point
-/// ("Seattle, WA") is looked up with MapKit. Search This Area adds the
+/// ("Seattle, WA") is looked up with MapKit; one naming only a country
+/// ("US") isn't placed. Search This Area adds the
 /// stations TuneIn counts as local to another point, for the rest of the
 /// session.
 @MainActor
@@ -36,6 +37,19 @@ final class RadioMap {
         /// When TuneIn was asked. A station it placed nowhere is asked
         /// again after `recheckInterval`.
         var checked: Date
+    }
+
+    /// What's kept on disk. A file of another version is ignored, and the
+    /// next save writes over it, so every station is asked again.
+    private struct Store: Codable {
+        /// Up by one whenever what's kept changes. 2: stations named only
+        /// by a country no longer pinned at its middle, and markets
+        /// ("Seattle-Tacoma, WA") placed at their first city. Before it,
+        /// the file was the places alone.
+        static let currentVersion = 2
+
+        var version = Store.currentVersion
+        var places: [String: Place]
     }
 
     struct AreaSearch: Equatable {
@@ -255,26 +269,44 @@ final class RadioMap {
         case failed
     }
 
+    /// Where a place TuneIn names is, trying each of its names in turn
+    /// (`TuneInPlace.mapQueries`): "Seattle-Tacoma, WA", then "Seattle, WA".
     private func geocode(_ location: String) async -> Geocoded {
         if let known = geocoded[location] {
             return known.map(Geocoded.found) ?? .nowhere
         }
+        var failed = false
+        for query in TuneInPlace.mapQueries(for: location) {
+            switch await geocodeQuery(query) {
+            case let .found(point):
+                geocoded[location] = point
+                return .found(point)
+            case .nowhere:
+                continue
+            case .failed:
+                failed = true
+            }
+        }
+        // Only a real answer is kept, found or not.
+        guard !failed else { return .failed }
+        geocoded[location] = .some(nil)
+        return .nowhere
+    }
+
+    private func geocodeQuery(_ query: String) async -> Geocoded {
         guard #available(iOS 26.0, macOS 26.0, visionOS 26.0, *),
-              let request = MKGeocodingRequest(addressString: location) else { return .failed }
-        let point: Point?
+              let request = MKGeocodingRequest(addressString: query) else { return .failed }
         do {
-            point = try await request.mapItems.first.map { item in
+            let point = try await request.mapItems.first.map { item in
                 Point(latitude: item.location.coordinate.latitude, longitude: item.location.coordinate.longitude)
             }
+            return point.map(Geocoded.found) ?? .nowhere
         } catch let error as MKError where error.code == .placemarkNotFound {
-            point = nil
+            return .nowhere
         } catch {
             Self.log.debug("geocoding failed: \(error.localizedDescription, privacy: .public)")
             return .failed
         }
-        // Only a real answer is kept, found or not.
-        geocoded[location] = .some(point)
-        return point.map(Geocoded.found) ?? .nowhere
     }
 
     // MARK: - Store
@@ -284,8 +316,10 @@ final class RadioMap {
             let url = Self.storeURL
             storeLoad = Task {
                 let stored = await Task.detached(priority: .utility) { () -> [String: Place]? in
-                    guard let data = try? Data(contentsOf: url) else { return nil }
-                    return try? JSONDecoder().decode([String: Place].self, from: data)
+                    guard let data = try? Data(contentsOf: url),
+                          let store = try? JSONDecoder().decode(Store.self, from: data),
+                          store.version == Store.currentVersion else { return nil }
+                    return store.places
                 }.value
                 if let stored {
                     // Anything looked up while the file was read is newer.
@@ -304,7 +338,7 @@ final class RadioMap {
         let previous = lastSave
         lastSave = Task.detached(priority: .utility) {
             await previous?.value
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
+            guard let data = try? JSONEncoder().encode(Store(places: snapshot)) else { return }
             try? data.write(to: url, options: .atomic)
         }
     }
@@ -327,14 +361,19 @@ final class RadioMap {
     /// The region that shows every one of `stations`, with room around
     /// them for their pins, and no closer in than `minimumSpan` degrees.
     static func region(fitting stations: [RadioMapStation], minimumSpan: Double = 0.15) -> MKCoordinateRegion? {
-        guard let first = stations.first else { return nil }
+        region(fitting: stations.map(\.coordinate), minimumSpan: minimumSpan)
+    }
+
+    /// The region that shows every one of `coordinates`, as for stations.
+    static func region(fitting coordinates: [CLLocationCoordinate2D], minimumSpan: Double = 0.15) -> MKCoordinateRegion? {
+        guard let first = coordinates.first else { return nil }
         var minLatitude = first.latitude, maxLatitude = first.latitude
         var minLongitude = first.longitude, maxLongitude = first.longitude
-        for station in stations.dropFirst() {
-            minLatitude = min(minLatitude, station.latitude)
-            maxLatitude = max(maxLatitude, station.latitude)
-            minLongitude = min(minLongitude, station.longitude)
-            maxLongitude = max(maxLongitude, station.longitude)
+        for coordinate in coordinates.dropFirst() {
+            minLatitude = min(minLatitude, coordinate.latitude)
+            maxLatitude = max(maxLatitude, coordinate.latitude)
+            minLongitude = min(minLongitude, coordinate.longitude)
+            maxLongitude = max(maxLongitude, coordinate.longitude)
         }
         return MKCoordinateRegion(
             center: CLLocationCoordinate2D(

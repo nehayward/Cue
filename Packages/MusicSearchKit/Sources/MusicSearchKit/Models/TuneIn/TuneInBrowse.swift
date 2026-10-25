@@ -48,7 +48,8 @@ public enum TuneInBrowsePage: Hashable, Sendable {
     /// The directory by region ("r0" is the world).
     case byLocation
     /// The local page for a point rather than for the caller: the Radio
-    /// map's Search This Area. `latlon` stands in for the IP.
+    /// map's Search This Area and Stations Near You. `latlon` stands in
+    /// for the IP.
     case nearby(latitude: Double, longitude: Double)
     case id(String)
 

@@ -39,6 +39,8 @@ struct RouterDestinationView: View {
                 ArtistDetailView(playableContent: content)
             case let .audiobookDetail(content):
                 AudiobookDetailView(book: content)
+            case let .audiobookSeries(name, books):
+                AudiobookSeriesView(name: name, books: books)
             case let .createScene(content):
                 NavigationStack {
                     SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))

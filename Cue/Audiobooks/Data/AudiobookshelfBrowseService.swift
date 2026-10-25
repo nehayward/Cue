@@ -22,9 +22,34 @@ final class AudiobookshelfBrowseService {
     /// The last load couldn't reach the server.
     private(set) var failed = false
 
+    /// Read from the server since launch (the shelves show the last read
+    /// kept until then).
+    private(set) var hasLoaded = false
+
     private let api = AudiobookshelfAPI.shared
 
-    private init() {}
+    /// The shelves as last read, in Caches (`ShelfCache`), so they show at
+    /// once at launch while the server is read behind them.
+    private struct Snapshot: Codable, Sendable {
+        let libraries: [AudiobookshelfLibrary]
+        let continueListening: [PlayableContent]
+        let recentlyAdded: [PlayableContent]
+        let series: [AudiobookSeries]
+    }
+
+    private static let cacheName = "Audiobookshelf"
+
+    private init() {
+        guard api.isConfigured, let kept = ShelfCache.load(Snapshot.self, named: Self.cacheName) else { return }
+        libraries = kept.libraries
+        continueListening = kept.continueListening
+        recentlyAdded = kept.recentlyAdded
+        series = kept.series
+    }
+
+    private func keep() {
+        ShelfCache.save(Snapshot(libraries: libraries, continueListening: continueListening, recentlyAdded: recentlyAdded, series: series), named: Self.cacheName)
+    }
 
     var isAuthenticated: Bool { api.isConfigured }
 
@@ -50,6 +75,7 @@ final class AudiobookshelfBrowseService {
         failed = false
         self.libraries = libraries
         await loadShelves()
+        hasLoaded = true
     }
 
     func refresh() async {
@@ -57,12 +83,40 @@ final class AudiobookshelfBrowseService {
         await load()
     }
 
+    /// While the server scans the selected library for books added on it,
+    /// after a pull on the Audiobooks tab.
+    private(set) var isScanning = false
+
+    /// Has the server scan the selected library, waits for it to finish
+    /// (as `PlexBookScan` does, 30 s at most), then reads the books again.
+    /// Only an admin may start a scan: for anyone else this just reads.
+    func scanAndRefresh() async {
+        if let library = selectedLibrary, !isScanning, await api.scan(libraryID: library.id) {
+            isScanning = true
+            AudiobookLibrary.log.info("audiobookshelf scan of \(library.name, privacy: .public) started")
+            let clock = ContinuousClock()
+            let start = clock.now
+            // The scan shows among the server's tasks a moment after it's
+            // asked for, so the first look comes after a wait.
+            while clock.now - start < .seconds(30) {
+                try? await Task.sleep(for: .seconds(2))
+                guard await api.isScanning(libraryID: library.id) == true else { break }
+            }
+            isScanning = false
+            AudiobookLibrary.log.info("audiobookshelf scan of \(library.name, privacy: .public) done or left after \((clock.now - start).formatted(.units(allowed: [.seconds])), privacy: .public)")
+        }
+        await refresh()
+    }
+
     /// Forgets everything, for a sign-out.
     func clear() {
         libraries = []
         continueListening = []
         recentlyAdded = []
+        series = []
         pages = [:]
+        hasLoaded = false
+        ShelfCache.save(Optional<Snapshot>.none, named: Self.cacheName)
     }
 
     private func loadShelves() async {
@@ -71,15 +125,36 @@ final class AudiobookshelfBrowseService {
         var recent: [PlayableContent] = []
         if let library = selectedLibrary,
            let page = await api.items(libraryID: library.id, page: 0, limit: 12, sort: "addedAt", descending: true) {
-            recent = page.results.filter(\.hasAudio).map(\.toPlayable)
+            recent = rows(from: page.results)
         }
         let store = AudiobookProgressStore.shared
         for (id, entry) in await progress ?? [:] {
             guard let reading = entry.audiobookProgress(duration: nil) else { continue }
             store.recordFromServer(reading, service: .audiobookshelf, id: id)
         }
-        continueListening = (await inProgress ?? []).map(\.toPlayable)
+        continueListening = rows(from: await inProgress ?? [])
         recentlyAdded = recent
+        if let library = selectedLibrary, let found = await api.series(libraryID: library.id) {
+            series = found.compactMap { entry in
+                let books = rows(from: entry.books ?? [])
+                return books.isEmpty ? nil : AudiobookSeries(id: "audiobookshelf|\(entry.id)", name: entry.name, books: books)
+            }
+        }
+        keep()
+    }
+
+    /// The library's series with books to listen to, each in its order.
+    private(set) var series: [AudiobookSeries] = []
+
+    /// `items`' books, as rows: who reads each and its series noted
+    /// (`AudiobookDetails`), ebooks left out.
+    private func rows(from items: [AudiobookshelfItem]) -> [PlayableContent] {
+        let books = items.filter(\.hasAudio)
+        AudiobookDetails.shared.note(books)
+        let rows = books.map(\.toPlayable)
+        // Audible, for any the server names no reader for.
+        AudiobookDetails.shared.request(rows)
+        return rows
     }
 
     // MARK: - Every book
@@ -102,7 +177,7 @@ final class AudiobookshelfBrowseService {
         // A page of nothing but ebooks isn't the end: carry on to the next.
         for _ in 0..<20 {
             guard let result = await api.items(libraryID: library.id, page: page, limit: Self.pageSize, sort: sort, descending: descending) else { return [] }
-            let books = result.results.filter(\.hasAudio).map(\.toPlayable)
+            let books = rows(from: result.results)
             let isLast = result.results.count < Self.pageSize || (result.total.map { (page + 1) * Self.pageSize >= $0 } ?? false)
             page += 1
             if !books.isEmpty {
@@ -118,18 +193,26 @@ final class AudiobookshelfBrowseService {
     /// so each pages through in its own order and there's no direction to
     /// flip, as for Subsonic's albums.
     var bookSortOptions: [PlayableListSort] {
+        // Audible's orders, each the server's own, so the list pages in.
+        // Recent Activity is when this account's place in a book last moved.
         [
-            PlayableListSort(name: "Title") { offset, _ in
-                await self.books(offset: offset, sort: "media.metadata.title")
+            PlayableListSort(name: "Recent Activity") { offset, _ in
+                await self.books(offset: offset, sort: "progress", descending: true)
             },
-            PlayableListSort(name: "Author") { offset, _ in
-                await self.books(offset: offset, sort: "media.metadata.authorNameLF")
+            PlayableListSort(name: "Title", ascendingLabel: "A–Z", descendingLabel: "Z–A") { offset, descending in
+                await self.books(offset: offset, sort: "media.metadata.title", descending: descending)
             },
-            PlayableListSort(name: "Recently Added") { offset, _ in
-                await self.books(offset: offset, sort: "addedAt", descending: true)
+            PlayableListSort(name: "Author", ascendingLabel: "A–Z", descendingLabel: "Z–A") { offset, descending in
+                await self.books(offset: offset, sort: "media.metadata.authorNameLF", descending: descending)
             },
-            PlayableListSort(name: "Length") { offset, _ in
-                await self.books(offset: offset, sort: "media.duration", descending: true)
+            PlayableListSort(name: "Length", ascendingLabel: "Short to Long", descendingLabel: "Long to Short") { offset, descending in
+                await self.books(offset: offset, sort: "media.duration", descending: descending)
+            },
+            PlayableListSort(name: "Release Date", ascendingLabel: "Old to New", descendingLabel: "New to Old", defaultsToDescending: true) { offset, descending in
+                await self.books(offset: offset, sort: "media.metadata.publishedYear", descending: descending)
+            },
+            PlayableListSort(name: "Date Added", ascendingLabel: "Old to New", descendingLabel: "New to Old", defaultsToDescending: true) { offset, descending in
+                await self.books(offset: offset, sort: "addedAt", descending: descending)
             }
         ]
     }
@@ -146,7 +229,7 @@ final class AudiobookshelfBrowseService {
     /// Books matching `query` in the selected library.
     func search(_ query: String) async -> [PlayableContent] {
         guard let library = await loadedLibrary() else { return [] }
-        return await api.search(libraryID: library.id, query: query).map(\.toPlayable)
+        return rows(from: await api.search(libraryID: library.id, query: query))
     }
 
     /// The author called `name`: their books, and their picture and
@@ -162,7 +245,7 @@ final class AudiobookshelfBrowseService {
             if match != nil { break }
         }
         guard let match, let author = await api.author(id: match.id) else { return nil }
-        let books = (author.libraryItems ?? []).filter(\.hasAudio).map(\.toPlayable)
+        let books = rows(from: author.libraryItems ?? [])
         let image = author.imagePath == nil ? nil : AudiobookshelfAPI.authorImageURL(authorID: author.id)
         let about = author.description.map(AudiobookText.plain).flatMap { $0.isEmpty ? nil : $0 }
         return (books, image, about)

@@ -30,7 +30,7 @@ struct AudiobookHistoryList: View {
                     Button {
                         HapticManager.shared.fireHaptic(.selection)
                         onPick()
-                        Task { await AudiobookPlayer.shared.play(book, at: place.position) }
+                        Task { await AudiobookPlayer.shared.pick(book, at: place.position, in: audiobook) }
                     } label: {
                         row(place)
                     }

@@ -14,4 +14,13 @@ extension LocalPlaybackService.SetAsideQueue {
         let line = parts.filter { !$0.isEmpty }.joined(separator: " · ")
         return line.isEmpty ? nil : line
     }
+
+    /// How many songs are left from the one it was on, for Where You Left
+    /// Off. Nil with a station in front of the queue, which `songLine`
+    /// names instead.
+    var queueLine: String? {
+        let left = queue.count - index
+        guard station == nil, left > 0 else { return nil }
+        return left == 1 ? "1 song in queue" : "\(left) songs in queue"
+    }
 }
