@@ -13,11 +13,11 @@ import SonosKit
 /// The file is read ahead of the listener, faster than it plays and five
 /// minutes ahead, so the transcript is there before the words are said and
 /// follows them like timed lyrics, playing or paused, on this device or a
-/// speaker: a downloaded file from the device, a streamed MP3 from the
-/// server in pieces (`BookTranscriptionEngine.read(remote:)`). A streamed
-/// file that can't be read in pieces (an M4B) is heard as it plays instead,
-/// through the tap Smart Resume listens with (`BookAudioListener`), on this
-/// device only.
+/// speaker: a downloaded file from the device, a streamed MP3 or M4B from
+/// the server in pieces (`BookTranscriptionEngine.read(remote:)`). A
+/// streamed file that can't be read in pieces (a server that won't send
+/// ranges, another format) is heard as it plays instead, through the tap
+/// Smart Resume listens with (`BookAudioListener`), on this device only.
 /// Whatever is heard is kept by the file (`BookTranscriptStore`), so a
 /// stretch is transcribed once.
 ///

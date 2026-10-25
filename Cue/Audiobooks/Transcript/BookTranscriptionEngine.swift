@@ -220,16 +220,15 @@ extension BookTranscriptionEngine {
     /// How much is asked of the server at a time: about this many seconds.
     private static let remoteStep: TimeInterval = 20
 
-    /// A book's MP3 on the server, read ahead from `start` as `pace` allows
-    /// with nothing playing: fetched about 20 seconds at a time (a range
-    /// request, as the player's own are) and decoded here, the way radio's
-    /// Live Transcription decodes a station (`StreamParser`). The place in
-    /// the file is reckoned from its length and `duration`, as a player
-    /// seeking a constant-bitrate MP3 does. Nil for a file that isn't MP3 —
-    /// an M4B keeps its index at either end, so a piece of one can't be
-    /// read alone — or a server that won't send ranges.
+    /// A book's file on the server, read ahead from `start` as `pace`
+    /// allows with nothing playing, in range requests as the player's own
+    /// are. An M4B is opened where it is (`read(mp4:)`). An MP3 is fetched
+    /// about 20 seconds at a time and decoded here, the way radio's Live
+    /// Transcription decodes a station (`StreamParser`), its place in the
+    /// file reckoned from its length and `duration`, as a player seeking a
+    /// constant-bitrate MP3 does. Nil for any other file, or a server that
+    /// won't send ranges.
     static func read(remote url: URL, duration: TimeInterval, from start: TimeInterval, pace: BookTranscriptPace) async -> AsyncStream<BookAudioChunk>? {
-        guard duration > 0 else { return nil }
         var request = URLRequest(url: url)
         request.setValue("bytes=0-65535", forHTTPHeaderField: "Range")
         request.timeoutInterval = 20
@@ -239,8 +238,11 @@ extension BookTranscriptionEngine {
             Logger.bookTranscript.notice("server won't send a book file in pieces")
             return nil
         }
-        guard let audioStart = Self.mp3AudioStart(head) else {
-            Logger.bookTranscript.notice("book file isn't MP3; heard as it plays instead")
+        if Self.isMP4(head) {
+            return await read(mp4: url, length: total, head: head, from: start, pace: pace)
+        }
+        guard duration > 0, let audioStart = Self.mp3AudioStart(head) else {
+            Logger.bookTranscript.notice("book file is neither MP3 nor M4B; heard as it plays instead")
             return nil
         }
         let bytesPerSecond = Double(total - audioStart) / duration
@@ -279,11 +281,64 @@ extension BookTranscriptionEngine {
         }
     }
 
+    /// A book's M4B on the server (`RemoteBookFile`), read ahead from
+    /// `start` as `pace` allows: its index fetched once, then its audio a
+    /// block at a time as it's decoded. Opened and read on a thread of its
+    /// own, since every read can wait on the network. Nil when the index
+    /// doesn't come or AudioToolbox can't open the file.
+    private static func read(mp4 url: URL, length: Int64, head: Data, from start: TimeInterval, pace: BookTranscriptPace) async -> AsyncStream<BookAudioChunk>? {
+        let began = Date.now
+        guard let index = await RemoteBookFile.index(of: url, length: length, head: head) else {
+            Logger.bookTranscript.notice("book file's index didn't come; heard as it plays instead")
+            return nil
+        }
+        let file = RemoteBookFile(url: url, length: length, kept: [RemoteBookFile.Piece(start: 0, data: head), index])
+        return await withCheckedContinuation { opened in
+            let thread = Thread {
+                guard let audio = RemoteBookAudio(file), let landed = audio.seek(to: start) else {
+                    opened.resume(returning: nil)
+                    return
+                }
+                let (stream, continuation) = AsyncStream.makeStream(of: BookAudioChunk.self)
+                continuation.onTermination = { _ in file.cancel() }
+                opened.resume(returning: stream)
+                Logger.bookTranscript.notice("opened the M4B on the server in \(Date.now.timeIntervalSince(began), format: .fixed(precision: 1)) s, its index \(index.data.count / 1024) KB")
+                let rate = audio.format.sampleRate
+                var time = landed
+                pace.fed = time
+                while !file.isCancelled {
+                    if pace.shouldWait {
+                        Thread.sleep(forTimeInterval: 0.4)
+                        continue
+                    }
+                    guard let buffer = audio.read(AVAudioFrameCount(rate * 2)) else { break }
+                    continuation.yield(BookAudioChunk(buffer: buffer, start: time))
+                    time += Double(buffer.frameLength) / rate
+                    pace.fed = time
+                }
+                if !file.isCancelled {
+                    Logger.bookTranscript.notice("stopped reading the M4B at \(Int(time)) s")
+                }
+                continuation.finish()
+            }
+            thread.name = "Book transcript reader"
+            thread.qualityOfService = .utility
+            thread.start()
+        }
+    }
+
     /// The file's length, from a range answer's `Content-Range`.
     private static func totalLength(_ response: HTTPURLResponse) -> Int64? {
         guard let range = response.value(forHTTPHeaderField: "Content-Range"),
               let total = range.split(separator: "/").last else { return nil }
         return Int64(total)
+    }
+
+    /// Whether the bytes are an MP4's (M4B, M4A), which names its type
+    /// four bytes in.
+    private static func isMP4(_ head: Data) -> Bool {
+        let bytes = [UInt8](head.prefix(8))
+        return bytes.count == 8 && bytes[4...] == [0x66, 0x74, 0x79, 0x70]
     }
 
     /// Where an MP3's audio starts, past its ID3 tag; nil when the bytes
@@ -297,8 +352,6 @@ extension BookTranscriptionEngine {
             let size = (Int64(bytes[6] & 0x7F) << 21) | (Int64(bytes[7] & 0x7F) << 14) | (Int64(bytes[8] & 0x7F) << 7) | Int64(bytes[9] & 0x7F)
             start = 10 + size + (bytes[5] & 0x10 != 0 ? 10 : 0)
         }
-        // An MP4 (M4B, M4A) names its type four bytes in.
-        if bytes.count >= 8, bytes[4] == 0x66, bytes[5] == 0x74, bytes[6] == 0x79, bytes[7] == 0x70 { return nil }
         // Past a tag the frames may not be in the first bytes read; with no
         // tag, the first must be a frame's sync word.
         if start == 0, !(bytes[0] == 0xFF && bytes[1] & 0xE0 == 0xE0) { return nil }
