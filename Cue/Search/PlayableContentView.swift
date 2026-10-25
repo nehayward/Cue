@@ -51,7 +51,9 @@ struct PlayableContentView: View {
         if item.content.type.isRadio {
             return item.content.type.title
         }
-        if hideContentType {
+        // A book's row says who wrote it (and what's left), not that it's
+        // a book.
+        if hideContentType || item.content.type == .audiobook {
             return item.subtitle
         }
         if item.subtitle.isEmpty {

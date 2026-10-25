@@ -12,14 +12,36 @@ import FoundationNetworking
 public enum AudibleCatalog {
     /// One edition in the catalog.
     public struct Product: Decodable, Sendable {
+        public struct Person: Decodable, Sendable {
+            public let name: String
+        }
+
+        public struct Series: Decodable, Sendable {
+            public let title: String?
+            /// The book's place in it, as Audible writes it ("1", "2.5").
+            public let sequence: String?
+        }
+
         public let asin: String
         public let title: String?
         /// Whole minutes.
         public let runtimeLengthMin: Int?
+        public let narrators: [Person]?
+        public let series: [Series]?
+        /// The edition's cover, by its size in pixels ("500", "1024").
+        public let productImages: [String: String]?
+
+        /// The largest cover there is.
+        public var coverURL: URL? {
+            productImages?
+                .max { (Int($0.key) ?? 0) < (Int($1.key) ?? 0) }
+                .flatMap { URL(string: $0.value) }
+        }
 
         enum CodingKeys: String, CodingKey {
-            case asin, title
+            case asin, title, narrators, series
             case runtimeLengthMin = "runtime_length_min"
+            case productImages = "product_images"
         }
     }
 
@@ -80,7 +102,9 @@ public enum AudibleCatalog {
         var query = [
             URLQueryItem(name: "num_results", value: "10"),
             URLQueryItem(name: "products_sort_by", value: "Relevance"),
-            URLQueryItem(name: "response_groups", value: "product_attrs"),
+            // Its length, who reads it, the series it's in and its cover.
+            URLQueryItem(name: "response_groups", value: "product_attrs,contributors,series,media"),
+            URLQueryItem(name: "image_sizes", value: "500,1024"),
             URLQueryItem(name: "title", value: title)
         ]
         if let author, !author.isEmpty {
@@ -94,6 +118,30 @@ public enum AudibleCatalog {
     /// asked.
     public static func search(title: String, author: String?, region: String = "us") async -> [Product]? {
         guard let url = url(title: title, author: author, region: region) else { return nil }
+        return await products(at: url)
+    }
+
+    /// What Audible finds for `keywords`, as its search box does: wider
+    /// than `search(title:author:region:)`, which can miss an edition whose
+    /// title has more to it ("… (Full-Cast Edition)"). Nil when it couldn't
+    /// be asked.
+    public static func search(keywords: String, region: String = "us") async -> [Product]? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = hosts[region] ?? hosts["us"]
+        components.path = "/1.0/catalog/products"
+        components.queryItems = [
+            URLQueryItem(name: "num_results", value: "25"),
+            URLQueryItem(name: "products_sort_by", value: "Relevance"),
+            URLQueryItem(name: "response_groups", value: "product_attrs,contributors,series,media"),
+            URLQueryItem(name: "image_sizes", value: "500,1024"),
+            URLQueryItem(name: "keywords", value: keywords)
+        ]
+        guard let url = components.url else { return nil }
+        return await products(at: url)
+    }
+
+    private static func products(at url: URL) async -> [Product]? {
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
         request.addValue("application/json", forHTTPHeaderField: "Accept")

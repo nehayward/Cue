@@ -33,4 +33,32 @@ extension AudiobookPlayer {
             await play(book, from: time)
         }
     }
+
+    /// `play(_:at:)` for a chapter or a place tapped in a list. When that
+    /// moves the book more than `placeJump` from where it was, the Undo
+    /// pill offers the old place back for a few seconds, so a tap on the
+    /// wrong row costs nothing. It shows at the tap, not once the new place
+    /// has loaded, and names where Undo goes: the chapter there, from
+    /// `audiobook` (the book read whole, when it is), and the book's time.
+    /// Not for CarPlay, whose chapters play with `play(chapter:)`: the pill
+    /// is the phone's.
+    func pick(_ book: PlayableContent, at time: TimeInterval, in audiobook: Audiobook?) async {
+        if let from = place(of: book), abs(from - time) > Self.placeJump {
+            let name = [audiobook?.chapter(at: from)?.title, AudiobookFormat.clock(from)]
+                .compactMap { $0 }
+                .joined(separator: " · ")
+            UndoPill.shared.show(name) { [weak self] in
+                Task { await self?.play(book, at: from) }
+            }
+        }
+        await play(book, at: time)
+    }
+
+    /// Where `book` is: the loaded one as heard, any other as kept. Nil
+    /// for one never started or finished, which has no place to go back to.
+    private func place(of book: PlayableContent) -> TimeInterval? {
+        if current?.book.isSameBook(as: book) == true { return heardPosition }
+        guard let kept = AudiobookProgressStore.shared.progress(for: book), !kept.isFinished else { return nil }
+        return kept.position
+    }
 }

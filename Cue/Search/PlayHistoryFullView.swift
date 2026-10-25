@@ -21,13 +21,13 @@ struct PlayHistoryFullView: View {
             FilterView(filters: $filters)
                 .listRowSeparator(.hidden)
             
-            let filteredHistory = playHistoryService.history.filter { item in
+            let filteredHistory = Array(playHistoryService.plays.filter { item in
                 if filters.filter(\.isFiltered).isEmpty {
                     return true
                 } else {
                     return filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type)
                 }
-            }
+            })
 
             ForEach(filteredHistory, id: \.trackID) { item in
                 PlayableContentView(item: item)

@@ -595,6 +595,12 @@ struct CueApp: App {
             // Customization only with the library sections: it holds the
             // sidebar's edits, and with three fixed tabs there's no Edit.
             .tabViewCustomization(showsLibrarySections ? $tabCustomization : nil)
+            // UIKit's animations back on once the tab bar has drawn on the
+            // tab the app opened on (held off at launch, `AppDelegate`).
+            .task {
+                try? await Task.sleep(for: .milliseconds(300))
+                UIView.setAnimationsEnabled(true)
+            }
             .onChange(of: availableTabs) { _, tabs in
                 // A tab that left takes its selection with it. The binding
                 // already shows the fallback in that case; this keeps the
@@ -1687,6 +1693,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         WatchSyncService.shared.activate()
         // Lyrics for downloads that don't have them yet, slowly.
         DownloadLyrics.shared.start()
+        // The Audiobooks tab's shelves as last read, their covers decoded a
+        // moment after launch, so the tab opens with them drawn.
+        if UserDefaults.standard.bool(forKey: AppStorageKeys.hasPlexAudiobooks) || AudiobookshelfAPI.shared.isConfigured {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(2))
+                let shelf = AudiobookshelfBrowseService.shared
+                let listened = AudiobookLibrary.listenedBooks(plex: true, audiobookshelf: true)
+                ContentArtworkView.prefetch(Array(listened.prefix(3)), preferredSize: 200)
+                ContentArtworkView.prefetch(AudiobookDownloads.downloadedBooks(completeOnly: false) + PlexBookShelf.shared.newest + shelf.recentlyAdded, preferredSize: 300)
+            }
+        }
         #if DEBUG
         // `-LyricsAudit <count>`: checks lyrics lookups across the Plex library.
         LyricsAudit.startIfRequested()
@@ -1744,6 +1761,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
              return carPlay
          }
 #endif
+         // The tab bar is made on its first tab, Browse, and then moved to
+         // the tab the app was left on (`Router.selectedTab`), which slid
+         // its selection across the bar as the window opened. With UIKit's
+         // animations off until the tab view is up (it turns them back on,
+         // or this does after a few seconds whatever happens), it's simply
+         // there. Only as the app's own window connects: not for the car's
+         // screen, nor a launch in the background with no window at all.
+         if connectingSceneSession.role == .windowApplication,
+            Router.main.selectedTab != .home, Router.main.selectedTab != .browse {
+             UIView.setAnimationsEnabled(false)
+             Task { @MainActor in
+                 try? await Task.sleep(for: .seconds(3))
+                 UIView.setAnimationsEnabled(true)
+             }
+         }
          if let shortcutItem = options.shortcutItem {
              if shortcutItem.type == "com.cue.search" {
                  Task { @MainActor in

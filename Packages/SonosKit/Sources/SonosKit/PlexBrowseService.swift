@@ -33,9 +33,51 @@ public final class PlexBrowseService {
     private static let playlistSortKey = "plex.playlists.sort"
     private static let playlistsReversedKey = "plex.playlists.reversed"
 
+    /// Playlists shown from the last read kept and not yet listed by the
+    /// server since: the first read drops any it leaves out (deleted on
+    /// another device), where a playlist the server leaves out is otherwise
+    /// kept (`updateUserPlaylists`).
+    @ObservationIgnored private var keptPlaylistIDs: Set<String> = []
+
     public init() {
         playlistSort = UserDefaults.standard.string(forKey: Self.playlistSortKey).flatMap { PlexPlaylistSort(rawValue: $0) } ?? .title
         playlistsReversed = UserDefaults.standard.bool(forKey: Self.playlistsReversedKey)
+        // The library's front page as last read, at once: the server is read
+        // behind it. Another server's or library's isn't this one's.
+        if let kept = ShelfCache.load(Snapshot.self, named: Self.snapshotName), kept.server != nil, kept.server == plexAPI.serverID {
+            userPlaylists = OrderedSet(kept.playlists)
+            keptPlaylistIDs = Set(kept.playlists.map(\.id))
+            if kept.library == plexAPI.librarySelectionID {
+                collections = OrderedSet(kept.collections)
+                collectionCount = kept.collectionCount
+            }
+        }
+    }
+
+    // MARK: - Kept
+
+    /// The playlists and collections as last read (`ShelfCache`), by
+    /// server (the collections by library too), so the library's front
+    /// page draws them at once while the server is read behind them.
+    private struct Snapshot: Codable, Sendable {
+        var server: String?
+        var library: String?
+        var playlists: [PlayableContent]
+        var collections: [PlayableContent]
+        var collectionCount: Int?
+    }
+
+    private static let snapshotName = "PlexLibrary"
+
+    private func keep() {
+        let snapshot = Snapshot(
+            server: plexAPI.serverID,
+            library: plexAPI.librarySelectionID,
+            playlists: Array(userPlaylists),
+            collections: Array(collections),
+            collectionCount: collectionCount
+        )
+        ShelfCache.save(snapshot, named: Self.snapshotName)
     }
 
     /// Loads a page of the library's collections. The first page replaces
@@ -51,6 +93,7 @@ public final class PlexBrowseService {
             collections.append(contentsOf: loaded)
         }
         collectionCount = page.total ?? collections.count
+        if offset == 0 { keep() }
         await checkCollectionAccess()
     }
 
@@ -237,10 +280,15 @@ public final class PlexBrowseService {
         // new-playlist flow puts it first. Matched by id, so a renamed one
         // isn't listed twice. Deletions are reflected explicitly by the
         // delete flow, not by dropping here.
+        // Not one only the kept copy had, though: that one the server
+        // really doesn't have any more.
         let listed = Set(playlists.map(\.id))
-        var ordered = OrderedSet(userPlaylists.filter { !listed.contains($0.id) })
+        let kept = keptPlaylistIDs
+        var ordered = OrderedSet(userPlaylists.filter { !listed.contains($0.id) && !kept.contains($0.id) })
         ordered.append(contentsOf: playlists)
         userPlaylists = ordered
+        keptPlaylistIDs = []
+        keep()
     }
     
     public func artists(offset: Int? = 0) async -> [PlayableContent]  {

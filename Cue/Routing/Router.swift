@@ -1,3 +1,4 @@
+import Defaults
 import Foundation
 import SwiftUI
 import Observation
@@ -6,7 +7,7 @@ import MusicSearchKit
 
 
 /// Which tab the window is showing.
-enum AppTab: Hashable {
+enum AppTab: Hashable, Codable {
     /// Where the library is set up and reached from — the first tab.
     case home
     case search
@@ -39,7 +40,12 @@ enum AppTab: Hashable {
 }
 
 @Observable public final class Router {
-    static var main = Router()
+    static var main: Router = {
+        let router = Router()
+        router.selectedTab = lastTab
+        router.keepsTab = true
+        return router
+    }()
     static var search = Router()
     static var secondary = Router()
     static var browse = Router()
@@ -47,8 +53,24 @@ enum AppTab: Hashable {
     var selectedID: String?
     /// The selected tab. On `Router.main` only — the per-screen routers
     /// (`search`, `browse`) navigate within a tab and have no say over which
-    /// one is showing.
-    var selectedTab: AppTab = .home
+    /// one is showing. The main router's is kept across launches: the app
+    /// opens on the tab it was left on (one that's gone since shows the
+    /// fallback, `CueApp.resolvedTab`).
+    var selectedTab: AppTab = .home {
+        didSet {
+            guard keepsTab, selectedTab != oldValue else { return }
+            UserDefaults.standard.set(try? JSONEncoder().encode(selectedTab), forKey: AppStorageKeys.selectedTab)
+        }
+    }
+
+    /// Whether `selectedTab` is kept across launches: the main router's.
+    private var keepsTab = false
+
+    /// The tab the app was last on, or Home.
+    private static var lastTab: AppTab {
+        UserDefaults.standard.data(forKey: AppStorageKeys.selectedTab)
+            .flatMap { try? JSONDecoder().decode(AppTab.self, from: $0) } ?? .home
+    }
     /// Drives the local player's `fullScreenCover`. Presentation state, so it
     /// belongs beside `presentedSheet` rather than in the tab bar accessory
     /// that happens to open it — the accessory is re-hosted by the system, and

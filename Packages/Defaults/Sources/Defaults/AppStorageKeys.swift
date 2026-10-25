@@ -82,6 +82,10 @@ public enum AppStorageKeys {
     public static let queueMode = "\(Prefix.id).queueMode"
     public static let showArtworkOnly = "\(Prefix.id).showArtworkOnly"
     public static let queueInspectorVisible = "\(Prefix.id).queueInspectorVisible"
+    /// The tab the app was last on, JSON-encoded, so a launch opens there.
+    /// Read and written with `UserDefaults` directly, never `@AppStorage`:
+    /// every view holding the key would redraw on each tab switch.
+    public static let selectedTab = "\(Prefix.id).selectedTab"
     /// Width in points of the trailing queue panel, so a drag-to-resize
     /// survives relaunch.
     public static let queuePanelWidth = "\(Prefix.id).queuePanelWidth"
