@@ -79,8 +79,6 @@
 	<array>
 		<string>_sonos._tcp</string>
 	</array>
-	<key>NSLocationDefaultAccuracyReduced</key>
-	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationPreferredDefaultSceneSessionRole</key>
