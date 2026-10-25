@@ -108,6 +108,15 @@ public enum AppStorageKeys {
     /// locale identifier]` — with `LiveTranscriptionService.anyStationKey`
     /// holding the last pick, the guess for a station not heard before.
     public static let liveTranscriptionLocales = "\(Prefix.id).liveTranscriptionLocales"
+    /// The book transcript's look: its typeface (`BookTranscriptFont`'s raw
+    /// value), its text size in points and its line spacing.
+    public static let bookTranscriptFont = "\(Prefix.id).bookTranscriptFont"
+    public static let bookTranscriptSize = "\(Prefix.id).bookTranscriptSize"
+    public static let bookTranscriptSpacing = "\(Prefix.id).bookTranscriptSpacing"
+    /// The transcription language picked per book — `[book key: locale
+    /// identifier]` — with "*" holding the last pick, the guess for a book
+    /// not transcribed before.
+    public static let bookTranscriptLocales = "\(Prefix.id).bookTranscriptLocales"
     /// Whether the player shows the song's lyrics in the artwork's place,
     /// so the toggle holds from song to song and across launches.
     public static let lyricsShown = "\(Prefix.id).lyricsShown"

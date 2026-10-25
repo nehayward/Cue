@@ -119,10 +119,17 @@ struct PlayerView: View {
         LiveTranscriptionService.shared.isEnabled && canTranscribe
     }
 
+    /// A book is playing: the lyrics button opens its transcript.
+    private var isBookPresented: Bool {
+        AudiobookPlayer.shared.isPlayingBook(on: controller)
+    }
+
     /// Lyrics are on and the song has some, or may: they show while they
-    /// load, and the cover comes back for a song with none.
+    /// load, and the cover comes back for a song with none. For a book, its
+    /// transcript, where the device can transcribe.
     private var showsLyrics: Bool {
         guard showLyrics, !showsTranscription else { return false }
+        if isBookPresented { return true }
         switch LyricsService.shared.state {
         case .loaded, .loading, .failed: return true
         case .none, .unavailable: return false
@@ -239,6 +246,18 @@ struct PlayerView: View {
     /// "Not Playing", the transport greyed out — so the route picker, the
     /// volume and the queue are where they always are, rather than a blank
     /// "Nothing Playing" screen with no way to do anything.
+    /// The song's lyrics, or a book's transcript in their place.
+    @ViewBuilder
+    private func lyricsOrTranscript(fullScreen: Bool) -> some View {
+        if isBookPresented {
+            BookTranscriptView(isFullScreen: fullScreen, onInteraction: fullScreen ? noteLyricsTouch : {})
+        } else if fullScreen {
+            LyricsView(style: .fullScreen, onInteraction: noteLyricsTouch)
+        } else {
+            LyricsView()
+        }
+    }
+
     @ViewBuilder
     private var playerContent: some View {
         if isPhoneLayout {
@@ -292,7 +311,8 @@ struct PlayerView: View {
                     item: controller.nowPlayingDisplay,
                     isFullScreen: lyricsControlsHidden,
                     onToggleFullScreen: toggleLyricsControls,
-                    onShowCover: { showLyrics = false }
+                    onShowCover: { showLyrics = false },
+                    showsTextSettings: isBookPresented
                 )
                 .padding(.top, 4)
                 .transition(.lyricsSwitch)
@@ -305,7 +325,7 @@ struct PlayerView: View {
         .layoutPriority(isLyrics ? 0 : 1)
 
         if isLyrics {
-            LyricsView(style: .fullScreen, onInteraction: noteLyricsTouch)
+            lyricsOrTranscript(fullScreen: true)
                 .frame(maxWidth: 500, maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .onTapGesture { noteLyricsTouch() }
@@ -432,7 +452,7 @@ struct PlayerView: View {
         } else if showsLyrics && !isPhoneLayout {
             // A phone's lyrics fill the screen instead (`phoneContent`),
             // with this cover as their thumbnail.
-            LyricsView()
+            lyricsOrTranscript(fullScreen: false)
                 .transition(.opacity)
         } else if let group {
             ArtworkView(group: group, isDraggable: isArtworkDraggable, showBadge: !isFullScreenLyrics, shouldFade: artworkShouldFade)

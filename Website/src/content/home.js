@@ -5,7 +5,7 @@
 export const hero = {
 	eyebrow: 'Music player · Sonos controller',
 	title: 'Your music.\nHere, or everywhere.',
-	lede: 'Cue plays Apple Music, Plex, Subsonic, radio and your own files on your iPhone — then hands the same queue to any Sonos speaker with one tap.',
+	lede: 'Cue plays Apple Music, Plex, Subsonic, radio, audiobooks and your own files on your iPhone — then hands the same queue to any Sonos speaker with one tap.',
 	// Shown under the buttons, each with its device glyph from src/lib/icon-paths.js.
 	devices: [
 		{ icon: 'iphone', name: 'iPhone' },
@@ -90,7 +90,9 @@ export const features = [
 	{ icon: 'wifi-off', title: 'Offline Mode', body: 'Download from Plex and Subsonic and keep listening on a plane or in a tunnel.' },
 	{ icon: 'server', title: 'Your Own Server', body: 'Plex, Navidrome and any Subsonic server, with plays counted back on the server.' },
 	{ icon: 'audio-waveform', title: 'Streaming Quality', body: 'Stream lossless at home, or MP3 and Opus at a bitrate you pick on cellular.' },
-	{ icon: 'captions', title: 'Live Transcription', body: 'Read what a radio station is saying, transcribed live and entirely on your device.' },
+	{ icon: 'book-open', title: 'Audiobooks', body: 'Plex and Audiobookshelf books with chapters, speed, Smart Resume and every place you’ve been.' },
+	{ icon: 'captions', title: 'Read Along', body: 'See a book’s words as they’re read, transcribed on your iPhone. Tap a word to look it up.' },
+	{ icon: 'radio', title: 'Live Transcription', body: 'Read what a radio station is saying, transcribed live and entirely on your device.' },
 	{ icon: 'list-music', title: 'Playlists, Edited', body: 'Create playlists, add songs to several at once, reorder, and undo.' },
 	{ icon: 'shuffle', title: 'A Queue That Remembers', body: 'Shuffle keeps the real order behind it, through edits and relaunches.' },
 	{ icon: 'lock-keyhole', title: 'Lock Screen Controls', body: 'Your speaker in the Lock Screen player, with the volume buttons to match.' },
@@ -99,6 +101,24 @@ export const features = [
 	{ icon: 'house', title: 'Every Home', body: 'S1 and S2 systems, and more than one house, a tap apart.' },
 	{ icon: 'tv', title: 'Home Theater', body: 'Night mode, speech enhancement and lip sync for Sonos soundbars.' },
 ];
+
+// Free and Cue Super, side by side. Keep the Super list in step with the
+// app's paywall (CuePaywall.comparisonRows): what's listed here is what
+// Super unlocks. No prices until the products are on the App Store.
+export const plans = {
+	title: 'Free to start. Super for more.',
+	lede: 'Cue is free to download and plays every service. Cue Super lifts the limits and adds a few extras.',
+	free: {
+		name: 'Free',
+		price: '$0',
+		points: ['Every service, on your iPhone', 'CarPlay and Apple Watch', '50 downloads, shared with your watch', 'One Sonos room'],
+	},
+	super: {
+		name: 'Cue Super',
+		price: 'Free trial',
+		points: ['Unlimited downloads on iPhone and Apple Watch', 'Audiobook downloads', 'Read along with any book', 'Every Sonos room, grouped any way'],
+	},
+};
 
 // Only services that play both on the device and on Sonos belong here
 // (see Ideas/device-first-services.md in the app repo).
@@ -124,7 +144,15 @@ export const faq = [
 	},
 	{
 		q: 'Which music services does Cue support?',
-		a: 'Apple Music, Plex, Subsonic-compatible servers (Navidrome, Airsonic, Gonic and more), TuneIn radio, and music files on your device or in iCloud Drive.',
+		a: 'Apple Music, Plex, Subsonic-compatible servers (Navidrome, Airsonic, Gonic and more), TuneIn radio, and music files on your device or in iCloud Drive. Audiobooks play from Plex and Audiobookshelf.',
+	},
+	{
+		q: 'What does Cue Super add?',
+		a: 'Unlimited downloads on your iPhone and Apple Watch (free downloads are 50 songs, shared between the two), downloading audiobooks, reading along with a book as it plays, and every Sonos room. Free, Cue plays on one Sonos room. One purchase covers every Cue app.',
+	},
+	{
+		q: 'How does Read Along work?',
+		a: 'While a book plays, tap the quote button to see its words as they’re read, transcribed privately on your iPhone with nothing sent anywhere. A downloaded book is transcribed ahead of you, so the text follows along like lyrics. It needs iOS 26 or later and Cue Super.',
 	},
 	{
 		q: 'Why isn’t Spotify supported?',

@@ -114,7 +114,7 @@ enum TranscriptionEngine {
 /// Resamples the player's audio into the analyzer's format. The source format
 /// can change between songs — a 44.1 kHz file after a 48 kHz one — so the
 /// converter is rebuilt whenever it does.
-private final class BufferConverter {
+final class BufferConverter {
     private let target: AVAudioFormat
     private var converter: AVAudioConverter?
 
