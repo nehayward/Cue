@@ -256,9 +256,9 @@ final class AudiobookPlayer {
         let places = AudiobookPlaceHistory.shared
         if let local, !local.isFinished, local.position > 0, abs(local.position - startTime) > Self.placeJump {
             if time != nil {
-                places.record(.jumpedFrom, at: local.position, for: audiobook.book)
+                places.record(.jumpedFrom, at: local.position, to: startTime, for: audiobook.book)
             } else {
-                places.record(.replaced, at: local.position, for: audiobook.book, from: AudiobookPlaceHistory.Place.Source(server: audiobook.book.content.service))
+                places.record(.replaced, at: local.position, to: startTime, for: audiobook.book, from: AudiobookPlaceHistory.Place.Source(server: audiobook.book.content.service))
             }
         }
         // The book, not its files: Recently Played opens its page. Only
@@ -281,7 +281,7 @@ final class AudiobookPlayer {
         // against it: this move is already noted.
         let from = readPosition(on: controller) ?? position
         if abs(from - target) > Self.placeJump {
-            AudiobookPlaceHistory.shared.record(.jumpedFrom, at: from, for: current.book)
+            AudiobookPlaceHistory.shared.record(.jumpedFrom, at: from, to: target, for: current.book)
         }
         lastReading = nil
         // A move the listener made, not the queue running out at the end.
@@ -989,7 +989,7 @@ final class AudiobookPlayer {
             let listened = last.playing ? Date.now.timeIntervalSince(last.at) * max(rate, 1) : 0
             if time > last.time + listened + Self.placeJump || time < last.time - Self.placeJump {
                 Self.log.notice("moved from \(Int(last.time)) s to \(Int(time)) s; kept in the place history")
-                places.record(.jumpedFrom, at: last.time, for: audiobook.book)
+                places.record(.jumpedFrom, at: last.time, to: time, for: audiobook.book)
             }
         }
         if wasPlaying, !playing {
@@ -1136,7 +1136,9 @@ final class AudiobookPlayer {
         // place, and `position` is still 0 until it plays: left then, the
         // place it was left at is the one kept, not the top of the book.
         let left = position > 0 ? position : AudiobookProgressStore.shared.progress(for: current.book)?.position ?? 0
-        AudiobookPlaceHistory.shared.record(.left, at: left, for: current.book)
+        // What took the player, for the break in the book's history.
+        let next = PlaybackRoute.shared.presented.nowPlayingDisplay?.title
+        AudiobookPlaceHistory.shared.record(.left, at: left, for: current.book, note: next)
         leftBook = LeftBook(book: current.book, partIDs: Set(current.parts.map(\.id)))
         // Offline the session is left to lapse on the server.
         if current.book.content.service == .audiobookshelf, !OfflineMode.shared.isActive {

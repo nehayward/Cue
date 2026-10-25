@@ -643,7 +643,7 @@ enum AudiobookLibrary {
         // Where it was stays in the book's history, so a mark made by
         // mistake loses no place.
         if let reading = store.progress(for: audiobook.book), !reading.isFinished, reading.position > 0 {
-            AudiobookPlaceHistory.shared.record(.jumpedFrom, at: reading.position, for: audiobook.book)
+            AudiobookPlaceHistory.shared.record(.marked, at: reading.position, to: finished ? audiobook.duration : 0, for: audiobook.book)
         }
         if finished {
             store.record(AudiobookProgress(position: audiobook.duration, duration: audiobook.duration, isFinished: true), for: audiobook.book)
