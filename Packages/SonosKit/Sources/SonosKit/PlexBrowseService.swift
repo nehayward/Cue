@@ -44,7 +44,7 @@ public final class PlexBrowseService {
         playlistsReversed = UserDefaults.standard.bool(forKey: Self.playlistsReversedKey)
         // The library's front page as last read, at once: the server is read
         // behind it. Another server's or library's isn't this one's.
-        if let kept = Self.loadSnapshot(), kept.server != nil, kept.server == plexAPI.serverID {
+        if let kept = ShelfCache.load(Snapshot.self, named: Self.snapshotName), kept.server != nil, kept.server == plexAPI.serverID {
             userPlaylists = OrderedSet(kept.playlists)
             keptPlaylistIDs = Set(kept.playlists.map(\.id))
             if kept.library == plexAPI.librarySelectionID {
@@ -56,9 +56,9 @@ public final class PlexBrowseService {
 
     // MARK: - Kept
 
-    /// The playlists and collections as last read, in Caches, by server
-    /// (the collections by library too), so the library's front page draws
-    /// them at once while the server is read behind them.
+    /// The playlists and collections as last read (`ShelfCache`), by
+    /// server (the collections by library too), so the library's front
+    /// page draws them at once while the server is read behind them.
     private struct Snapshot: Codable, Sendable {
         var server: String?
         var library: String?
@@ -67,20 +67,9 @@ public final class PlexBrowseService {
         var collectionCount: Int?
     }
 
-    private static var snapshotURL: URL? {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("Shelves", isDirectory: true)
-            .appendingPathComponent("PlexLibrary.json")
-    }
+    private static let snapshotName = "PlexLibrary"
 
-    private static func loadSnapshot() -> Snapshot? {
-        guard let url = snapshotURL, let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(Snapshot.self, from: data)
-    }
-
-    /// Written off the calling thread.
     private func keep() {
-        guard let url = Self.snapshotURL else { return }
         let snapshot = Snapshot(
             server: plexAPI.serverID,
             library: plexAPI.librarySelectionID,
@@ -88,11 +77,7 @@ public final class PlexBrowseService {
             collections: Array(collections),
             collectionCount: collectionCount
         )
-        Task.detached(priority: .utility) {
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
-            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try? data.write(to: url, options: .atomic)
-        }
+        ShelfCache.save(snapshot, named: Self.snapshotName)
     }
 
     /// Loads a page of the library's collections. The first page replaces
