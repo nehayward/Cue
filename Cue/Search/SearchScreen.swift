@@ -239,24 +239,27 @@ struct SearchScreen: View {
                         withAnimation { proxy.scrollTo(id, anchor: .center) }
                     }
                 }
-                // The field and the services menu are the screen's top row
-                // (`searchHeader`), not a navigation bar: hidden here on the
-                // root only, so a pushed detail still gets its bar and back
-                // button. On the phone they were bar items, sized apart: the
-                // field a centred item asking for 800 points, the menu a
-                // trailing one, and the menu's two or three service icons
-                // pushed the row off the screen's edge.
-                .toolbar(.hidden, for: .navigationBar)
 #if targetEnvironment(macCatalyst)
+                // The field is the content column's header (`searchHeader`),
+                // not a navigation bar: hidden here on the root only, so a
+                // pushed detail still gets its bar and back button.
+                .toolbar(.hidden, for: .navigationBar)
                 .safeAreaInset(edge: .top, spacing: 0) {
-                    searchHeader
-                }
-#else
-                .searchHeaderBar {
                     searchHeader
                 }
 #endif
                 .toolbar {
+#if !targetEnvironment(macCatalyst)
+                    // In the bar, which draws the blur under it as the list
+                    // scrolls. One item: the services menu is inside the
+                    // field. As a trailing item of its own, sized apart from
+                    // the field, two or three services' icons pushed the row
+                    // off the screen.
+                    ToolbarItem(placement: .principal) {
+                        searchField
+                            .frame(idealWidth: 800)
+                    }
+#endif
                     #if !os(visionOS)
                     if #available(iOS 26.0, *) {
                         ToolbarItemGroup(placement: .keyboard) {
@@ -470,6 +473,11 @@ struct SearchScreen: View {
                     guard let idx = keyboardSelectedIndex else { return }
                     activateSelectedItem(at: idx)
                 }
+            // The services being searched, at the field's end: what the
+            // field searches is part of it.
+            if !offline.isActive {
+                MediaServiceMenu(selection: $searchSelection, filters: $filters)
+            }
         }
         .toolbarBackground(with: true, in: .capsule)
         #if targetEnvironment(macCatalyst)
@@ -481,31 +489,25 @@ struct SearchScreen: View {
         #endif
     }
 
-    /// The search bar: the field and the services menu, a row of their own
-    /// at the top of the screen (on the Mac, of the content column, in the
-    /// band the sidebar's header and the queue panel's "Next Up" occupy),
-    /// rather than navigation bar items.
+#if targetEnvironment(macCatalyst)
+    /// The Mac's search bar: the top row of the content column, in the band
+    /// the sidebar's header and the queue panel's "Next Up" occupy, rather
+    /// than a navigation bar of its own.
     ///
     /// It was a `.principal` toolbar item. UIKit centres that in the bar and
-    /// shrinks it symmetrically to clear the trailing item, so on the Mac the
-    /// field started as far from the leading edge as the services menu sat
-    /// from the trailing one, and on the phone, asking for 800 points, it ran
-    /// under the menu and off the screen. As a row of its own the field
-    /// starts at the same inset as the headers beside it and runs up to the
-    /// menu, whatever the menu's width.
+    /// shrinks it symmetrically to clear the trailing item, so the field
+    /// started as far from the leading edge as the services menu sat from the
+    /// trailing one — a gap the width of the menu, with nothing in it. As a
+    /// row of its own the field starts at the same inset as the headers
+    /// beside it.
     private var searchHeader: some View {
-        HStack(spacing: 12) {
-            searchField
-                .frame(maxWidth: .infinity)
-            if !offline.isActive {
-                MediaServiceMenu(selection: $searchSelection, filters: $filters)
-                    .toolbarBackground(with: true, in: .capsule)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
+        searchField
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 6)
     }
+#endif
 
     /// Focuses the field for a request not answered yet: a switch to the
     /// Search tab, or a tap on it while it shows. Only the tab's screen
@@ -959,21 +961,4 @@ private struct SearchSuggestionsBar: View {
     SearchScreen()
         .environment(Router.search)
         .forPreview()
-}
-
-private extension View {
-    /// The search bar pinned at the top. On iOS 26 the system draws the
-    /// scroll edge beneath it, as it does for a navigation bar; before, a
-    /// material band does the same job.
-    @ViewBuilder
-    func searchHeaderBar<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        if #available(iOS 26.0, visionOS 26.0, *) {
-            safeAreaBar(edge: .top, spacing: 0, content: content)
-        } else {
-            safeAreaInset(edge: .top, spacing: 0) {
-                content()
-                    .background(.bar)
-            }
-        }
-    }
 }
