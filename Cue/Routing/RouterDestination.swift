@@ -50,6 +50,11 @@ public enum RouterDestination: Hashable, Identifiable {
     case tuneInBrowse(title: String, url: URL)
     case plexCollections
     case connectByIP
+    /// One of Settings' own pages. Pushed by value like everything else on
+    /// Settings' stack: pushed as a view, its value links (Downloaded in
+    /// Music, Sonos ▸ Connectivity) changed the path and SwiftUI dropped
+    /// the page, jumping back past it.
+    case settingsPage(SettingsPage)
 
     public var id: String {
         switch self {
@@ -113,6 +118,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "plexCollections"
         case .connectByIP:
             return "connectByIP"
+        case let .settingsPage(page):
+            return "settings.\(page)"
         }
     }
 
@@ -172,6 +179,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return true
         case (.plexCollections, .plexCollections):
             return true
+        case let (.settingsPage(page1), .settingsPage(page2)):
+            return page1 == page2
         default:
             return false
         }
@@ -250,6 +259,16 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("plexCollections")
         case .connectByIP:
             hasher.combine("connectByIP")
+        case let .settingsPage(page):
+            hasher.combine("settingsPage")
+            hasher.combine(page)
         }
     }
+}
+
+/// Settings' own pages (`RouterDestination.settingsPage`).
+public enum SettingsPage: Hashable, Sendable {
+    case playback, sonos, appearance, about
+    /// The download manager, titled Storage as Settings opens it.
+    case storage
 }

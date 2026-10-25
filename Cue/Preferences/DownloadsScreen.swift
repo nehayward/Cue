@@ -45,10 +45,15 @@ struct DownloadsScreen: View {
     /// The face picked here; until one is, the one the screen opened on.
     @State private var picked: Tab?
     @State private var isConfirmingClearCache = false
+    @State private var isConfirmingRemoveAll = false
     @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexBooks = false
 
     /// Opens on the books rather than the songs.
     var opensOnBooks = false
+    /// Storage from Settings, the caches at the foot of its Settings tab
+    /// making it the place for everything that takes room here; Downloads
+    /// from the library, Home and Audiobooks.
+    var title: LocalizedStringKey = "Downloads"
 
     private var tab: Tab {
         picked ?? (opensOnBooks ? .books : .songs)
@@ -89,7 +94,7 @@ struct DownloadsScreen: View {
             .padding(.horizontal)
             .padding(.bottom, 8)
         }
-        .navigationTitle("Downloads")
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if !active.isEmpty {
@@ -165,6 +170,28 @@ struct DownloadsScreen: View {
 
         if !completed.isEmpty {
             let completedBytes = completed.reduce(0) { $0 + ($1.fileSize ?? 0) }
+            // A section of its own above the songs, found without scrolling
+            // past every one of them; so near the top, it asks first.
+            Section {
+                Button(role: .destructive) {
+                    isConfirmingRemoveAll = true
+                } label: {
+                    Text("Remove All Downloads")
+                        .frame(maxWidth: .infinity)
+                }
+                .confirmationDialog(
+                    completed.count == 1 ? "Remove 1 downloaded song?" : "Remove all \(completed.count) downloaded songs?",
+                    isPresented: $isConfirmingRemoveAll,
+                    titleVisibility: .visible
+                ) {
+                    Button("Remove All Downloads", role: .destructive) {
+                        manager.removeAllCompletedSongs()
+                    }
+                } message: {
+                    Text("They're taken off this iPhone and can be downloaded again.")
+                }
+            }
+
             Section {
                 ForEach(completed) { item in
                     completedRow(item)
@@ -174,15 +201,6 @@ struct DownloadsScreen: View {
                         manager.remove(key: completed[index].key)
                     }
                 }
-                Button(role: .destructive) {
-                    manager.removeAllCompletedSongs()
-                } label: {
-                    Text("Remove All Downloads")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
-                .listRowBackground(Color.clear)
             } header: {
                 Text("On This Device")
             } footer: {
@@ -550,24 +568,35 @@ struct DownloadsScreen: View {
                 }
             }
             if remaining <= limit / 5 {
+                // Plain, so the list's tint doesn't paint the whole label:
+                // in the accent, the detail line was green on grey and
+                // hard to read. The accent is the Upgrade capsule's alone.
                 Button {
                     FeatureGate.shared.presentPaywall(PaywallReason(feature: .unlimitedDownloads))
                 } label: {
-                    HStack {
+                    HStack(spacing: 12) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.title2)
+                            .foregroundStyle(Color.accent.gradient)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Get Cue Super")
-                                .fontWeight(.semibold)
-                            Text("Unlimited downloads, and books, on iPhone and Apple Watch.")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Text("Unlimited downloads and books, on iPhone and Apple Watch.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.tertiary)
+                        Spacer(minLength: 8)
+                        Text("Upgrade")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.accent, in: Capsule())
                     }
                     .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
         } footer: {
             Text(remaining == 0
