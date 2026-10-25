@@ -1,3 +1,4 @@
+import SonosKit
 import SwiftUI
 
 /// Why the paywall came up: the gate that was hit, for the card at its top
@@ -72,7 +73,7 @@ struct PaywallReasonCard: View {
         case .bookDownloads:
             return "Books download with Cue Super"
         case .allRooms:
-            return "Every room with Cue Super"
+            return "Play in every room"
         default:
             return "\(reason.feature.title) is part of Cue Super"
         }
@@ -86,7 +87,11 @@ struct PaywallReasonCard: View {
         case .bookDownloads:
             return "Keep Plex and Audiobookshelf books on this iPhone and your Apple Watch, to listen with no connection."
         case .allRooms:
-            return "Without Super, Cue plays on one Sonos room: the first in Play On. Super groups any of them, or all at once."
+            // The free room by name, so it reads as the listener's own house.
+            let free = FeatureGate.shared.freeRoomID.flatMap { id in
+                SonosService.shared.sortedRooms.first { $0.id == id }?.name
+            }
+            return "The free version plays in \(free ?? "one room") only. With Cue Super, play in any room, or all of them at once."
         default:
             return nil
         }
