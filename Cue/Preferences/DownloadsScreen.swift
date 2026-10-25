@@ -8,7 +8,7 @@ import SwiftUI
 /// playlists they came from, the books downloaded whole, and how
 /// downloading behaves — one face each, switched by the segmented control
 /// under the title. A Files folder in iCloud Drive reports how much of it
-/// is here under Settings. Reached from Settings › Storage, and on Books
+/// is here under Settings. Reached from Settings, and on Books
 /// from the Audiobooks tab's Downloads.
 struct DownloadsScreen: View {
     /// The screen's faces. Songs is home: what's on the device is what the
