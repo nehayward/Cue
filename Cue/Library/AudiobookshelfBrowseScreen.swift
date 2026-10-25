@@ -30,11 +30,14 @@ struct AudiobookshelfBrowseScreen: View {
                             allowsGrid: true,
                             sortOptions: sortOptions,
                             sortKey: "audiobookshelf.books",
+                            // A pull has the server scan for books added on it.
+                            refreshAction: { await browse.scanAndRefresh() },
                             searchAction: { query, offset in
                                 // The server answers a search in one go.
                                 guard offset == 0 else { return [] }
                                 return await browse.search(query)
-                            }
+                            },
+                            loadingStatus: { browse.isScanning ? "Scanning…" : nil }
                         )) {
                             Label("All Books", systemImage: "books.vertical")
                         }
@@ -109,7 +112,7 @@ struct AudiobookshelfBrowseScreen: View {
                 hasLoadedOnce = true
             }
             .refreshable {
-                await browse.refresh()
+                await browse.scanAndRefresh()
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

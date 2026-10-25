@@ -131,6 +131,7 @@ struct SubsonicBrowseScreen: View {
 
                 }
             }
+            .musicLeftOffRoom()
             .overlay {
                 if !subsonicBrowseService.isAuthenticated, !isLoading {
                     notConnectedView

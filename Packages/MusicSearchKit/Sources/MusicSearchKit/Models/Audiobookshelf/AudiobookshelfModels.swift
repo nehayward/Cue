@@ -37,7 +37,7 @@ public struct AudiobookshelfLibrariesResponse: Decodable, Sendable {
     public let libraries: [AudiobookshelfLibrary]
 }
 
-public struct AudiobookshelfLibrary: Decodable, Sendable, Identifiable, Hashable {
+public struct AudiobookshelfLibrary: Codable, Sendable, Identifiable, Hashable {
     public let id: String
     public let name: String
     /// `book` or `podcast`.
@@ -195,4 +195,33 @@ public struct AudiobookshelfSession: Decodable, Sendable {
     public let duration: Double?
     public let audioTracks: [AudiobookshelfTrack]?
     public let chapters: [AudiobookshelfChapter]?
+}
+
+/// What the server has running (`/api/tasks`): a library scan is one until
+/// it's done.
+struct AudiobookshelfTasks: Decodable, Sendable {
+    struct Task: Decodable, Sendable {
+        struct Detail: Decodable, Sendable {
+            let libraryId: String?
+        }
+
+        /// "library-scan" for a scan.
+        let action: String?
+        let isFinished: Bool?
+        let data: Detail?
+    }
+
+    let tasks: [Task]?
+}
+
+/// `GET /api/libraries/<id>/series`.
+struct AudiobookshelfSeriesPage: Decodable, Sendable {
+    let results: [AudiobookshelfSeries]
+}
+
+/// A series in a library, its books in their order in it.
+public struct AudiobookshelfSeries: Decodable, Sendable, Identifiable {
+    public let id: String
+    public let name: String
+    public let books: [AudiobookshelfItem]?
 }

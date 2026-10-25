@@ -313,8 +313,12 @@ final class LocalNowPlayingPresenter {
             infoCenter.nowPlayingInfo?[MPMediaItemPropertyArtwork] = nil
             return
         }
-        var request = item.map {
-            ContentArtworkView.artworkRequest(for: $0, url: url, preferredSize: ContentArtworkView.playerPreferredSize)
+        // A book's file shows its Audible edition's cover, as the player
+        // does (`ContentArtworkView.drawnContent(for:)`).
+        let drawn = item.map(ContentArtworkView.drawnContent(for:))
+        let drawnURL = drawn.flatMap { $0.id == item?.id ? nil : $0.artwork ?? $0.thumbnail } ?? url
+        var request = drawn.map {
+            ContentArtworkView.artworkRequest(for: $0, url: drawnURL, preferredSize: ContentArtworkView.playerPreferredSize)
         } ?? ImageRequest(url: url, processors: [.resize(width: 500)])
         request.priority = .high
         if let cached = ImagePipeline.shared.cache.cachedImage(for: request)?.image {

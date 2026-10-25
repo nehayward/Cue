@@ -226,9 +226,36 @@ final class LocalPlaybackService {
     /// comes back to it.
     private(set) var station: PlayableContent? {
         didSet {
-            guard !isRestoring, station != oldValue else { return }
+            guard station != oldValue else { return }
+            // Another station, or none: Where You Left Off offers the queue
+            // again.
+            isQueueBehindStationDismissed = false
+            guard !isRestoring else { return }
             LocalQueueStore.save(station: station)
         }
+    }
+
+    /// Where You Left Off was dismissed for the station playing.
+    private(set) var isQueueBehindStationDismissed = false
+
+    /// The queue waiting behind a station, for Where You Left Off: a
+    /// `SetAsideQueue` for its title and song line. Nil without a station,
+    /// with nothing queued, or once dismissed for this station.
+    var queueBehindStation: SetAsideQueue? {
+        guard station != nil, !isQueueBehindStationDismissed, queue.indices.contains(currentIndex) else { return nil }
+        return SetAsideQueue(
+            queue: queue,
+            index: currentIndex,
+            position: resumePosition ?? 0,
+            repeatMode: repeatMode,
+            isShuffled: isShuffled,
+            unshuffled: nil,
+            origins: origins
+        )
+    }
+
+    func dismissQueueBehindStation() {
+        isQueueBehindStationDismissed = true
     }
 
     var nowPlaying: PlayableContent? { station ?? queue[safe: currentIndex] }
@@ -1070,6 +1097,13 @@ final class LocalPlaybackService {
         Task { try? await arm(at: index) }
     }
 
+    /// Puts the station away for the queue behind it, at its song and
+    /// parked spot: Where You Left Off's Play.
+    func returnToQueueBehindStation() async throws {
+        guard station != nil, queue.indices.contains(currentIndex) else { return }
+        try await arm(at: currentIndex)
+    }
+
     // MARK: - Transport
 
     func togglePlayback() {
@@ -1712,6 +1746,10 @@ final class LocalPlaybackService {
         var origins: [String: PlayableContent]
         /// The station playing in front of the queue, if one was.
         var station: PlayableContent?
+        /// Where You Left Off was swiped away for it: the music stays set
+        /// aside, for Back to Music. Optional so a file kept before it
+        /// still reads.
+        var isDismissed: Bool?
 
         /// What it's called: the station, else where the song playing came
         /// from (the album or playlist), else the song.
@@ -1752,6 +1790,15 @@ final class LocalPlaybackService {
         guard setAsideQueue != nil else { return }
         setAsideQueue = nil
         LocalQueueStore.save(setAside: nil)
+    }
+
+    /// Hides Where You Left Off for the music set aside, or shows it again,
+    /// keeping the music set aside either way.
+    func markSetAsideQueue(dismissed: Bool) {
+        guard var aside = setAsideQueue, (aside.isDismissed == true) != dismissed else { return }
+        aside.isDismissed = dismissed
+        setAsideQueue = aside
+        LocalQueueStore.save(setAside: aside)
     }
 
     /// Plays the music set aside again: the queue at the song and spot it

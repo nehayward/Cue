@@ -273,6 +273,17 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         return await get("/api/libraries/\(libraryID)/items", query: query)
     }
 
+    /// A library's series, each with its books in their order in it,
+    /// minified. Nil when it couldn't be read.
+    public func series(libraryID: String, limit: Int = 100) async -> [AudiobookshelfSeries]? {
+        let page: AudiobookshelfSeriesPage? = await get("/api/libraries/\(libraryID)/series", query: [
+            URLQueryItem(name: "limit", value: "\(limit)"),
+            URLQueryItem(name: "sort", value: "name"),
+            URLQueryItem(name: "minified", value: "1")
+        ])
+        return page?.results
+    }
+
     /// Books started and not finished, across libraries, newest first.
     public func itemsInProgress(limit: Int = 25) async -> [AudiobookshelfItem]? {
         let response: AudiobookshelfInProgress? = await get("/api/me/items-in-progress", query: [URLQueryItem(name: "limit", value: "\(limit)")])
@@ -389,6 +400,33 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         }
         guard let (_, status) = await send("PATCH", "/api/me/progress/\(itemID)", json: body) else { return false }
         return (200...299).contains(status)
+    }
+
+    /// Has the server look through `libraryID`'s folders for books added or
+    /// changed there. It answers as the scan starts, not when it's done
+    /// (`isScanning(libraryID:)`). Only an admin may: false for anyone
+    /// else, or a server out of reach.
+    public func scan(libraryID: String) async -> Bool {
+        guard let (_, status) = await send("POST", "/api/libraries/\(libraryID)/scan") else {
+            Self.log.error("scan of \(libraryID, privacy: .public): no answer")
+            return false
+        }
+        guard (200...299).contains(status) else {
+            // 403: the account isn't an admin.
+            Self.log.notice("scan of \(libraryID, privacy: .public): not started (\(status))")
+            return false
+        }
+        return true
+    }
+
+    /// Whether the server is scanning `libraryID`, from the tasks it has
+    /// running (a scan is one until it's done). Nil when it couldn't be
+    /// asked.
+    public func isScanning(libraryID: String) async -> Bool? {
+        guard let answer: AudiobookshelfTasks = await get("/api/tasks") else { return nil }
+        return answer.tasks?.contains {
+            $0.action == "library-scan" && $0.isFinished != true && ($0.data?.libraryId ?? libraryID) == libraryID
+        } ?? false
     }
 
     /// Audible's chapters for `asin`, which the server looks up on
