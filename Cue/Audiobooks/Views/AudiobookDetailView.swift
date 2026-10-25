@@ -350,7 +350,7 @@ struct AudiobookDetailView: View {
             HapticManager.shared.fireHaptic(.selection)
             Task { await player.pick(audiobook.book, at: chapter.start, in: audiobook) }
         } label: {
-            AudiobookChapterRowLabel(chapter: chapter, isHere: isHere, isDone: isDone)
+            AudiobookChapterRowLabel(chapter: chapter, isHere: isHere, isDone: isDone, book: audiobook.book)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isHere ? .isSelected : [])

@@ -109,7 +109,7 @@ struct AudiobookChaptersView: View {
                             guard let audiobook = player.current else { return }
                             Task { await player.pick(audiobook.book, at: chapter.start, in: audiobook) }
                         } label: {
-                            AudiobookChapterRowLabel(chapter: chapter, isHere: isHere, isDone: here.map { chapter.start < $0.start } ?? false)
+                            AudiobookChapterRowLabel(chapter: chapter, isHere: isHere, isDone: here.map { chapter.start < $0.start } ?? false, book: player.current?.book)
                         }
                         .buttonStyle(.plain)
                         .accessibilityAddTraits(isHere ? .isSelected : [])
