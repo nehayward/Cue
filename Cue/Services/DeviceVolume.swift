@@ -1,6 +1,7 @@
 import AVFoundation
 import Defaults
 import MediaPlayer
+import SonosKit
 import SwiftUI
 
 /// The volume behind the local player's slider.
@@ -14,7 +15,8 @@ import SwiftUI
 ///
 /// Kept off while `HardwareVolumeService` holds the system volume for a
 /// Sonos group: a write from here would arrive there looking like a button
-/// press and move the speakers instead of the phone.
+/// press and move the speakers instead of the phone. Off in a car too: the
+/// car's volume is its own knob's, and a write from here changes nothing.
 @MainActor
 @Observable
 final class DeviceVolume {
@@ -24,7 +26,9 @@ final class DeviceVolume {
     /// The device volume, 0...1. Follows the hardware buttons.
     private(set) var level: Double = Double(AVAudioSession.sharedInstance().outputVolume)
 
-    var isAvailable: Bool { HardwareVolumeService.shared.owner == nil }
+    /// `isInCar` reads the audio route too, so a car the phone only plays to
+    /// counts.
+    var isAvailable: Bool { HardwareVolumeService.shared.owner == nil && !SonosService.shared.isInCar }
 
     @ObservationIgnored private var volumeView: MPVolumeView?
     @ObservationIgnored private var observation: NSKeyValueObservation?
