@@ -1,3 +1,4 @@
+import OSLog
 import RevenueCatUI
 import RevenueCat
 import SwiftUI
@@ -18,6 +19,15 @@ struct CuePaywall: View {
     /// background stays solid throughout so the user never sees an empty frame.
     @State private var contentVisible = false
 
+    /// The offering the footer shows, loaded here rather than by the footer:
+    /// RevenueCatUI closes the whole presentation when its own load fails
+    /// (an alert, then `dismiss`), so a store that didn't answer took the
+    /// paywall with it. Here it stays up, says so, and offers Try Again.
+    @State private var offering: Offering?
+    @State private var offeringFailed = false
+
+    private static let log = Logger(subsystem: "dance.cue", category: "paywall")
+
     /// Rows for the Free vs Super comparison table. Free column is intentionally
     /// blank for every paid capability — loss aversion lands harder when the gap
     /// is visceral. Top rows are the two visceral wins (speakers + lock-screen);
@@ -26,7 +36,8 @@ struct CuePaywall: View {
         .init(label: "All your speakers", inFree: false),
         .init(label: "Lock Screen controls", description: "Now Playing for your speakers", inFree: false),
         .init(label: "Scenes", description: "One-tap automations", inFree: false),
-        .init(label: "Unlimited downloads", description: "Keep Plex & Subsonic songs on this device", inFree: false),
+        .init(label: "Unlimited downloads", description: "Plex & Subsonic songs on iPhone and Apple Watch", inFree: false),
+        .init(label: "Book downloads", description: "Plex & Audiobookshelf books, offline", inFree: false),
         .init(label: "Apple Shortcuts", inFree: false)
     ]
 
@@ -63,7 +74,9 @@ struct CuePaywall: View {
             .fontDesign(.rounded)
         }
         .frame(maxWidth: .infinity)
-        .originalTemplatePaywallFooter(purchaseCompleted: { _ in
+        .modifier(OfferingFooter(offering: offering, failed: offeringFailed) {
+            Task { await loadOffering() }
+        } purchased: {
             dismiss()
         })
         // Hold content invisible until the slide-in settles, then fade in
@@ -109,6 +122,9 @@ struct CuePaywall: View {
             }
         }
         .task {
+            await loadOffering()
+        }
+        .task {
             // 280ms is enough for WelcomeScreen's slideTransition to finish
             // (~250ms default spring) and for RC to typically resolve the
             // offering. Tuned by eye — shorter felt rushed, longer felt slow.
@@ -118,6 +134,26 @@ struct CuePaywall: View {
             }
         }
         .customizeWindowSizeForMacOS15()
+    }
+
+    private func loadOffering() async {
+        offeringFailed = false
+        guard Purchases.isConfigured else {
+            Self.log.error("paywall: RevenueCat isn't configured yet")
+            offeringFailed = true
+            return
+        }
+        do {
+            offering = try await Purchases.shared.offerings().current
+            if offering == nil {
+                Self.log.error("paywall: no current offering")
+                offeringFailed = true
+            }
+        } catch {
+            let underlying = (error as NSError).userInfo[NSUnderlyingErrorKey].map { String(describing: $0) } ?? "none"
+            Self.log.error("paywall: offerings failed: \(error.localizedDescription, privacy: .public); underlying: \(underlying, privacy: .public)")
+            offeringFailed = true
+        }
     }
 
     /// Subscription-anxiety strip — answers three objections (lock-in,
@@ -187,6 +223,39 @@ struct CuePaywall: View {
             )
         }
         .ignoresSafeArea()
+    }
+}
+
+/// RevenueCat's footer once the offering is in; until then a spinner, and
+/// when it couldn't load, why and Try Again in its place.
+private struct OfferingFooter: ViewModifier {
+    let offering: Offering?
+    let failed: Bool
+    let retry: () -> Void
+    let purchased: () -> Void
+
+    func body(content: Content) -> some View {
+        if let offering {
+            content.originalTemplatePaywallFooter(offering: offering, purchaseCompleted: { _ in
+                purchased()
+            })
+        } else {
+            content.safeAreaInset(edge: .bottom) {
+                VStack(spacing: 12) {
+                    if failed {
+                        Text("Cue Super's prices didn't load.")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.65))
+                        Button("Try Again", action: retry)
+                            .buttonStyle(.borderedProminent)
+                    } else {
+                        ProgressView()
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+            }
+        }
     }
 }
 

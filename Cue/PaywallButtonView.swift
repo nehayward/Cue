@@ -8,7 +8,6 @@ import SonosKit
 /// value-prop subtitle. Pairs with a bordered teal CTA pill at the bottom.
 struct PaywallButtonView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(Router.self) var router: Router?
 
     /// Personalizes the headline. When > 0 the card reads
     /// "Unlock N more rooms" — concrete and tied to the user's actual setup,
@@ -22,7 +21,15 @@ struct PaywallButtonView: View {
     private let cornerRadius: CGFloat = 18
 
     private var headline: String {
-        lockedCount > 0 ? "Unlock \(lockedCount) more rooms" : "Unlock Every Room"
+        lockedCount > 0 ? "Unlock \(lockedCount) more rooms" : "Unlock All of Cue"
+    }
+
+    /// What Super adds, the player's first: Cue is a player before it's a
+    /// Sonos client, and the rooms are only named for someone using Sonos.
+    private var subtitle: String {
+        sonosService.isEnabled
+            ? "Unlimited downloads, books on iPhone and Apple Watch, every Sonos room, Shortcuts and more."
+            : "Unlimited downloads, books on iPhone and Apple Watch, Shortcuts and more."
     }
 
     var body: some View {
@@ -35,10 +42,10 @@ struct PaywallButtonView: View {
 
                     ShimmerHeadline(text: headline)
 
-                    Text("Lock screen controls, Widgets, Shortcuts, and more.")
+                    Text(subtitle)
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.65))
-                        .lineLimit(2, reservesSpace: false)
+                        .lineLimit(3, reservesSpace: false)
                 }
 
                 ctaPill
@@ -59,8 +66,7 @@ struct PaywallButtonView: View {
     }
 
     private func tap() {
-        HapticManager.shared.fireHaptic(.buttonPress)
-        router?.presentedFullScreenCover = .paywall
+        FeatureGate.shared.presentPaywall()
     }
 
     /// Bottom CTA styled like the "Claim offer" / "Get lifetime" buttons on

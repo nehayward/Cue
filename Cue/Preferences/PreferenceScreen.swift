@@ -102,7 +102,6 @@ struct PreferenceScreen: View {
                 Section {
                     if !featureGate.hasSuper {
                         PaywallButtonView()
-                            .environment(router)
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets())
                     } else {
@@ -1063,7 +1062,7 @@ struct PreferenceScreen: View {
     }
 
     private func presentPaywall() {
-        featureGate.presentPaywall(via: router)
+        featureGate.presentPaywall()
     }
 
     /// Turning speakers off moves playback back to this device first, so the

@@ -202,22 +202,24 @@ final class FeatureGate {
     /// back; a remotely disabled feature just returns false.
     @MainActor
     @discardableResult
-    func unlock(_ feature: GatedFeature, via router: Router? = nil) -> Bool {
+    func unlock(_ feature: GatedFeature) -> Bool {
         switch availability(of: feature) {
         case .available:
             return true
         case .needsSuper:
-            presentPaywall(via: router ?? Router.main)
+            presentPaywall()
             return false
         case .disabledRemotely:
             return false
         }
     }
 
+    /// Over whatever is on screen, sheets and the player included
+    /// (`PaywallPresenter`).
     @MainActor
-    func presentPaywall(via router: Router = .main) {
+    func presentPaywall() {
         HapticManager.shared.fireHaptic(.buttonPress)
-        router.fullScreenCover(to: .paywall)
+        PaywallPresenter.present()
     }
 
     // MARK: - Debug overrides

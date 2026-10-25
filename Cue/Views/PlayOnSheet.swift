@@ -27,8 +27,6 @@ import VibesDS
 /// sheet's pull to dismiss. A tap that lands while the list is still moving
 /// only stops it; it never regroups.
 struct PlayOnSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
     /// Singletons, not the environment: the button that presents this sits in
     /// the tab bar accessory, outside what `withEnvironments()` installs.
     private var sonosService: SonosService { .shared }
@@ -321,14 +319,14 @@ struct PlayOnSheet: View {
         guard target != route.destination else { return }
         if target == .device, !FeatureGate.shared.isAvailable(.onDevicePlayback) {
             if FeatureGate.shared.needsSuper(.onDevicePlayback) {
-                closeForPaywall()
+                FeatureGate.shared.presentPaywall()
             }
             return
         }
         // The free tier plays on one group, the top row's (see
         // `FeatureGate.isGroupUnlocked`); the others are Super's.
         if let id = target.groupID, !FeatureGate.shared.isGroupUnlocked(id) {
-            closeForPaywall()
+            FeatureGate.shared.presentPaywall()
             return
         }
         HapticManager.shared.fireHaptic(.selection)
@@ -337,16 +335,6 @@ struct PlayOnSheet: View {
             pending = PendingSwitch(target: target)
         } else {
             route.switchTo(target, carrying: preference != .never)
-        }
-    }
-
-    /// The paywall is a full-screen cover off the root, and can't go up
-    /// over this sheet: close it first.
-    private func closeForPaywall() {
-        dismiss()
-        Task {
-            try? await Task.sleep(for: .milliseconds(400))
-            FeatureGate.shared.presentPaywall()
         }
     }
 

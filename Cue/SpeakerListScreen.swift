@@ -102,7 +102,7 @@ struct SpeakerListScreen: View {
                     }
                 } primaryAction: {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    if featureGate.unlock(.scenes, via: router) {
+                    if featureGate.unlock(.scenes) {
                         if !scenes.isEmpty {
                             router.sheet(to: .scenes)
                         } else {
@@ -209,7 +209,7 @@ struct SpeakerListScreen: View {
                         .glassToolbarIcon()
                 } primaryAction: {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    if featureGate.unlock(.scenes, via: router) {
+                    if featureGate.unlock(.scenes) {
                         if !scenes.isEmpty {
                             router.sheet(to: .scenes)
                         } else {

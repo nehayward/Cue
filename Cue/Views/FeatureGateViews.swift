@@ -21,7 +21,6 @@ extension View {
 
 private struct FeatureGateModifier: ViewModifier {
     @Environment(FeatureGate.self) private var gate
-    @Environment(Router.self) private var router: Router?
 
     let feature: GatedFeature
 
@@ -34,7 +33,7 @@ private struct FeatureGateModifier: ViewModifier {
                     Rectangle()
                         .fill(.clear)
                         .contentShape(Rectangle())
-                        .onTapGesture { gate.presentPaywall(via: router ?? .main) }
+                        .onTapGesture { gate.presentPaywall() }
                         .accessibilityLabel("\(feature.title), requires Cue Super")
                         .accessibilityHint("Opens the Cue Super paywall")
                 }
