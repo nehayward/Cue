@@ -31,6 +31,8 @@ final class AudiobookPlaceHistory {
             case replaced
             /// Here when something else took the player.
             case left
+            /// Here when the book was marked finished, or not started.
+            case marked
         }
 
         /// Whose place took over a `.replaced` one.
@@ -59,6 +61,10 @@ final class AudiobookPlaceHistory {
         /// Nil for every kind but `.replaced`, and for `.replaced` places
         /// kept before it was noted.
         var source: Source?
+        /// Where the book went from here, for the kinds that move it
+        /// (`.jumpedFrom`, `.replaced`, `.marked`): how far a skip went, and
+        /// which way. Nil on places kept before it was noted.
+        var to: TimeInterval?
     }
 
     /// Each book's places, newest first, by `AudiobookProgressStore.key`.
@@ -86,9 +92,9 @@ final class AudiobookPlaceHistory {
     }
 
     /// Notes `kind` at book time `position`, unless it's where the book's
-    /// newest place already is. `source` names whose place took over a
-    /// `.replaced` one.
-    func record(_ kind: Place.Kind, at position: TimeInterval, for book: PlayableContent, from source: Place.Source? = nil) {
+    /// newest place already is. `destination` is where a move went from
+    /// here; `source` names whose place took over a `.replaced` one.
+    func record(_ kind: Place.Kind, at position: TimeInterval, to destination: TimeInterval? = nil, for book: PlayableContent, from source: Place.Source? = nil) {
         let key = AudiobookProgressStore.key(for: book)
         var list = places[key] ?? []
         if let newest = list.first,
@@ -96,7 +102,7 @@ final class AudiobookPlaceHistory {
            Date.now.timeIntervalSince(newest.date) < Self.sameMoment {
             return
         }
-        list.insert(Place(position: max(position, 0), date: .now, kind: kind, source: source), at: 0)
+        list.insert(Place(position: max(position, 0), date: .now, kind: kind, source: source, to: destination.map { max($0, 0) }), at: 0)
         places[key] = Array(list.prefix(Self.limit))
         scheduleSave()
     }

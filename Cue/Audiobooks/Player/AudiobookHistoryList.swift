@@ -5,12 +5,12 @@ import SwiftUI
 
 /// A book's place history (`AudiobookPlaceHistory`) as a timeline, newest
 /// first and grouped by day: what happened where, in which chapter, and how
-/// long ago, each on a rail with a marker tinted by what it was. The rail
-/// breaks where the book gave way to something else, a listening session's
-/// end, rather than showing a row for it, and each session opens on how
-/// much of the book it covered: one bar a session, not one a row, which was
-/// busy. A tap plays from there, and the place left for it joins the list,
-/// so going back is never a loss.
+/// long ago, each on a rail with a marker tinted by what it was. A play's
+/// marker is ringed with how far into the book it was: the one place the
+/// book's progress shows, since a ring or a bar on every row was busy. The
+/// rail breaks where the book gave way to something else, a listening
+/// session's end, rather than showing a row for it. A tap plays from there,
+/// and the place left for it joins the list, so going back is never a loss.
 struct AudiobookHistoryList: View {
     let book: PlayableContent
     /// The book read whole, for its chapters' names; nil before it's read.
@@ -26,7 +26,7 @@ struct AudiobookHistoryList: View {
             ContentUnavailableView {
                 Label("No History Yet", systemImage: "clock.arrow.circlepath")
             } description: {
-                Text("Where you start, pause and jump in this book shows here, so you can always go back.")
+                Text("Every play, pause and skip in this book shows here, so you can always go back.")
             }
             .padding(.top, 24)
         } else {
@@ -34,7 +34,7 @@ struct AudiobookHistoryList: View {
             // it's open.
             TimelineView(.everyMinute) { context in
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    Text("Tap a moment to play from there. Where you were stays here, so you can always come back.")
+                    Text("Tap any moment to pick up from there.")
                         .font(.footnote)
                         .foregroundStyle(.primary.opacity(0.6))
                         .padding(.top, 8)
@@ -45,25 +45,26 @@ struct AudiobookHistoryList: View {
                             .padding(.top, 16)
                             .padding(.bottom, 4)
                         ForEach(Array(group.sessions.enumerated()), id: \.offset) { index, session in
-                            // A gap in the rail where the book gave way to
-                            // something else, and the next session's span.
-                            sessionSpan(session)
-                                .padding(.top, index > 0 ? 14 : 0)
-                            ForEach(session) { place in
-                                Button {
-                                    HapticManager.shared.fireHaptic(.selection)
-                                    onPick()
-                                    Task { await AudiobookPlayer.shared.pick(book, at: place.position, in: audiobook) }
-                                } label: {
-                                    row(
-                                        place,
-                                        now: context.date,
-                                        isFirst: place.id == session.first?.id,
-                                        isLast: place.id == session.last?.id
-                                    )
+                            VStack(spacing: 0) {
+                                ForEach(session) { place in
+                                    Button {
+                                        HapticManager.shared.fireHaptic(.selection)
+                                        onPick()
+                                        Task { await AudiobookPlayer.shared.pick(book, at: place.position, in: audiobook) }
+                                    } label: {
+                                        row(
+                                            place,
+                                            now: context.date,
+                                            isFirst: place.id == session.first?.id,
+                                            isLast: place.id == session.last?.id
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
+                            // A gap in the rail where the book gave way to
+                            // something else.
+                            .padding(.top, index > 0 ? 14 : 0)
                         }
                     }
                 }
@@ -74,9 +75,9 @@ struct AudiobookHistoryList: View {
     // MARK: - Row
 
     /// The marker on its rail, what happened and in which chapter, and on
-    /// the trailing edge the place in the book over the time it happened.
-    /// Opacities of primary, not `.secondary`, which flickers as the glass
-    /// sheet changes.
+    /// the trailing edge the place in the book over how long ago. Opacities
+    /// of primary, not `.secondary`, which flickers as the glass sheet
+    /// changes.
     private func row(_ place: AudiobookPlaceHistory.Place, now: Date, isFirst: Bool, isLast: Bool) -> some View {
         let chapter = audiobook?.chapter(at: place.position)?.title
         return HStack(spacing: 14) {
@@ -106,97 +107,87 @@ struct AudiobookHistoryList: View {
         // The rail, behind the marker's column: from the row above to the
         // row below, with a gap where the marker sits (nothing opaque under
         // the marker, which on the glass sheet would show as a disc), and
-        // broken at the day's first and last.
+        // broken at a session's first and last.
         .background(alignment: .leading) {
             VStack(spacing: 0) {
                 Rectangle()
                     .fill(isFirst ? Color.clear : Self.railColor)
                 Color.clear
-                    .frame(height: Self.markerSize + 4)
+                    .frame(height: Self.ringSize + 4)
                 Rectangle()
                     .fill(isLast ? Color.clear : Self.railColor)
             }
             .frame(width: 2)
-            .padding(.leading, Self.markerSize / 2 - 1)
+            .padding(.leading, Self.ringSize / 2 - 1)
         }
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
         .accessibilityHint("Plays from here")
     }
 
-    private static let markerSize: CGFloat = 28
+    private static let markerSize: CGFloat = 26
+    /// The column every marker sits in, room for a play's ring.
+    private static let ringSize: CGFloat = 32
     private static let railColor = Color.primary.opacity(0.2)
 
     /// The kind's symbol on a disc of its tint, the tint kept soft so the
-    /// list reads as a timeline rather than a row of buttons.
+    /// list reads as a timeline rather than a row of buttons; a play's
+    /// ringed with how far into the book it was.
     private func marker(_ place: AudiobookPlaceHistory.Place) -> some View {
         let tint = Self.tint(place)
+        let progress: Double? = if place.kind == .started, let duration = audiobook?.duration, duration > 0 {
+            min(max(place.position / duration, 0), 1)
+        } else {
+            nil
+        }
         return Image(systemName: Self.symbol(place))
             .font(.caption.weight(.bold))
             .foregroundStyle(tint)
             .frame(width: Self.markerSize, height: Self.markerSize)
             .background(tint.opacity(0.2), in: .circle)
-    }
-
-    // MARK: - Sessions
-
-    private static let spanWidth: CGFloat = 88
-
-    /// A session's span of the book: a bar the book's length with the part
-    /// the session moved through lit, then "4% → 9%" and how long it ran
-    /// ("35m"). Under the day's heading, in the titles' column. Nothing
-    /// before the book is read whole, without a length to measure by.
-    @ViewBuilder
-    private func sessionSpan(_ session: [AudiobookPlaceHistory.Place]) -> some View {
-        if let duration = audiobook?.duration, duration > 0,
-           let low = session.map(\.position).min(), let high = session.map(\.position).max(),
-           let newest = session.first?.date, let oldest = session.last?.date {
-            let start = min(max(low / duration, 0), 1)
-            let end = min(max(high / duration, 0), 1)
-            let percent = FloatingPointFormatStyle<Double>.Percent.percent.precision(.fractionLength(0))
-            let span = start.formatted(percent) == end.formatted(percent)
-                ? end.formatted(percent)
-                : "\(start.formatted(percent)) → \(end.formatted(percent))"
-            let length = newest.timeIntervalSince(oldest)
-            HStack(spacing: 10) {
-                Capsule()
-                    .fill(Color.primary.opacity(0.15))
-                    .frame(width: Self.spanWidth, height: 4)
-                    .overlay(alignment: .leading) {
-                        Capsule()
-                            .fill(Color.accent)
-                            .frame(width: max((end - start) * Self.spanWidth, 4), height: 4)
-                            .offset(x: min(start * Self.spanWidth, Self.spanWidth - 4))
-                    }
-                Text(length >= 60
-                     ? "\(span) · \(Duration.seconds(length).formatted(.units(allowed: [.hours, .minutes], width: .narrow)))"
-                     : span)
-                    .font(.caption)
-                    .foregroundStyle(.primary.opacity(0.6))
-                    .monospacedDigit()
+            .frame(width: Self.ringSize, height: Self.ringSize)
+            .overlay {
+                if let progress {
+                    Circle()
+                        .stroke(tint.opacity(0.2), lineWidth: 2)
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(tint, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
             }
-            .padding(.leading, Self.markerSize + 14)
-            .padding(.bottom, 2)
-            .accessibilityElement(children: .combine)
-        }
     }
 
     // MARK: - Words and marks
 
-    private static func title(_ place: AudiobookPlaceHistory.Place) -> LocalizedStringKey {
+    /// What happened, in a few words: "Resumed", "Paused", "Skipped ahead
+    /// 10m 56s", "Synced from Apple Watch", "Marked as finished".
+    private static func title(_ place: AudiobookPlaceHistory.Place) -> String {
         switch place.kind {
-        case .started: "Started listening"
-        case .paused: "Paused"
-        case .jumpedFrom: "Before skipping"
+        case .started:
+            return place.position < 1 ? String(localized: "Started") : String(localized: "Resumed")
+        case .paused:
+            return String(localized: "Paused")
+        case .jumpedFrom:
+            guard let to = place.to else { return String(localized: "Skipped") }
+            let distance = abs(to - place.position)
+            let amount = Duration.seconds(distance.rounded())
+                .formatted(.units(allowed: [.hours, .minutes, .seconds], width: .narrow, maximumUnitCount: 2))
+            return to >= place.position
+                ? String(localized: "Skipped ahead \(amount)")
+                : String(localized: "Went back \(amount)")
         case .replaced:
             switch place.source {
-            case .watch: "Before syncing with Apple Watch"
-            case .plex: "Before syncing with Plex"
-            case .audiobookshelf: "Before syncing with Audiobookshelf"
-            case nil: "Before syncing"
+            case .watch: return String(localized: "Synced from Apple Watch")
+            case .plex: return String(localized: "Synced from Plex")
+            case .audiobookshelf: return String(localized: "Synced from Audiobookshelf")
+            case nil: return String(localized: "Synced from another device")
             }
+        case .marked:
+            return place.to == 0 ? String(localized: "Marked as not started") : String(localized: "Marked as finished")
         // Not shown: a break in the rail (`days`).
-        case .left: "Played something else"
+        case .left:
+            return String(localized: "Played something else")
         }
     }
 
@@ -204,13 +195,12 @@ struct AudiobookHistoryList: View {
         switch place.kind {
         case .started: "play.fill"
         case .paused: "pause.fill"
-        case .jumpedFrom: "arrow.turn.up.right"
+        case .jumpedFrom:
+            if let to = place.to, to < place.position { "arrow.uturn.backward" } else { "arrow.uturn.forward" }
         case .replaced:
-            switch place.source {
-            case .watch: "applewatch"
-            case .plex, .audiobookshelf: "arrow.triangle.2.circlepath"
-            case nil: "arrow.triangle.2.circlepath"
-            }
+            place.source == .watch ? "applewatch" : "arrow.triangle.2.circlepath"
+        case .marked:
+            place.to == 0 ? "arrow.counterclockwise" : "checkmark"
         case .left: "arrow.right.square"
         }
     }
@@ -221,6 +211,7 @@ struct AudiobookHistoryList: View {
         case .paused: .orange
         case .jumpedFrom: .blue
         case .replaced: .purple
+        case .marked: .teal
         case .left: .gray
         }
     }
@@ -242,7 +233,7 @@ struct AudiobookHistoryList: View {
                 continue
             }
             if days.last?.day == day {
-                if breakBefore, !(days[days.count - 1].sessions.last?.isEmpty ?? true) {
+                if breakBefore {
                     days[days.count - 1].sessions.append([place])
                 } else {
                     days[days.count - 1].sessions[days[days.count - 1].sessions.count - 1].append(place)
