@@ -180,9 +180,7 @@ struct PreferenceScreen: View {
                         }
                     }
 
-                    NavigationLink {
-                        PlaybackSettingsScreen()
-                    } label: {
+                    NavigationLink(value: RouterDestination.settingsPage(.playback)) {
                         Label {
                             Text("Playback")
                         } icon: {
@@ -193,9 +191,7 @@ struct PreferenceScreen: View {
                     // Storage: the downloads and the caches, the one place
                     // for what takes room here. The same screen is Downloads
                     // from the library and Audiobooks.
-                    NavigationLink {
-                        DownloadsScreen(title: "Storage")
-                    } label: {
+                    NavigationLink(value: RouterDestination.settingsPage(.storage)) {
                         let downloads = DownloadManager.shared
                         LabeledContent {
                             Text(downloads.stoppedCount > 0
@@ -233,9 +229,7 @@ struct PreferenceScreen: View {
                 }
 
                 Section {
-                    NavigationLink {
-                        SonosSettingsScreen()
-                    } label: {
+                    NavigationLink(value: RouterDestination.settingsPage(.sonos)) {
                         LabeledContent {
                             if sonosService.isEnabled {
                                 let isConnected = !sonosService.sonosPulse.isCancelled
@@ -261,9 +255,7 @@ struct PreferenceScreen: View {
                 Section {
                     offlineModeRow
 
-                    NavigationLink {
-                        AppearanceSettingsScreen()
-                    } label: {
+                    NavigationLink(value: RouterDestination.settingsPage(.appearance)) {
                         LabeledContent {
                             Text(colorScheme.rawValue.capitalized)
                         } label: {
@@ -342,9 +334,7 @@ struct PreferenceScreen: View {
                         }
                     }
                     .tint(.primary)
-                    NavigationLink {
-                        AboutSettingsScreen()
-                    } label: {
+                    NavigationLink(value: RouterDestination.settingsPage(.about)) {
                         LabeledContent {
                             Text(OSEnvironment.versionInfo)
                         } label: {

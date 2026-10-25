@@ -45,6 +45,7 @@ struct DownloadsScreen: View {
     /// The face picked here; until one is, the one the screen opened on.
     @State private var picked: Tab?
     @State private var isConfirmingClearCache = false
+    @State private var isConfirmingRemoveAll = false
     @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexBooks = false
 
     /// Opens on the books rather than the songs.
@@ -169,6 +170,28 @@ struct DownloadsScreen: View {
 
         if !completed.isEmpty {
             let completedBytes = completed.reduce(0) { $0 + ($1.fileSize ?? 0) }
+            // A section of its own above the songs, found without scrolling
+            // past every one of them; so near the top, it asks first.
+            Section {
+                Button(role: .destructive) {
+                    isConfirmingRemoveAll = true
+                } label: {
+                    Text("Remove All Downloads")
+                        .frame(maxWidth: .infinity)
+                }
+                .confirmationDialog(
+                    completed.count == 1 ? "Remove 1 downloaded song?" : "Remove all \(completed.count) downloaded songs?",
+                    isPresented: $isConfirmingRemoveAll,
+                    titleVisibility: .visible
+                ) {
+                    Button("Remove All Downloads", role: .destructive) {
+                        manager.removeAllCompletedSongs()
+                    }
+                } message: {
+                    Text("They're taken off this iPhone and can be downloaded again.")
+                }
+            }
+
             Section {
                 ForEach(completed) { item in
                     completedRow(item)
@@ -178,15 +201,6 @@ struct DownloadsScreen: View {
                         manager.remove(key: completed[index].key)
                     }
                 }
-                Button(role: .destructive) {
-                    manager.removeAllCompletedSongs()
-                } label: {
-                    Text("Remove All Downloads")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
-                .listRowBackground(Color.clear)
             } header: {
                 Text("On This Device")
             } footer: {

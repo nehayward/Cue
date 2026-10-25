@@ -129,6 +129,14 @@ struct RouterDestinationView: View {
                 PlexCollectionsScreen()
             case .connectByIP:
                 ConnectByIPScreen()
+            case let .settingsPage(page):
+                switch page {
+                case .playback: PlaybackSettingsScreen()
+                case .sonos: SonosSettingsScreen()
+                case .appearance: AppearanceSettingsScreen()
+                case .about: AboutSettingsScreen()
+                case .storage: DownloadsScreen(title: "Storage")
+                }
             }
         }
     }
