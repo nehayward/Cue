@@ -138,12 +138,22 @@ final class FeatureGate {
 
     func availability(of feature: GatedFeature) -> Availability {
         #if DEBUG
-        if let forced = overrides[feature] {
+        if let forced = overrides[feature], !yieldsToFreeTier(feature, forced: forced) {
             return forced ? .available : .needsSuper
         }
         #endif
         return availability(of: feature.requirement)
     }
+
+    #if DEBUG
+    /// Act as Free Tier is the free tier: an override that turns a Super
+    /// feature on gives way to it, so one left from an earlier test can't
+    /// hide the free tier's locks (Every Room on kept every room open).
+    private func yieldsToFreeTier(_ feature: GatedFeature, forced: Bool) -> Bool {
+        guard forced, actsAsFreeTier, case .superTier = feature.requirement else { return false }
+        return true
+    }
+    #endif
 
     func isAvailable(_ feature: GatedFeature) -> Bool {
         availability(of: feature) == .available

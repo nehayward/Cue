@@ -94,7 +94,7 @@ struct FeatureGateDebugView: View {
                     gate.setActsAsFreeTier($0)
                 })
             } footer: {
-                Text("Reads as not subscribed on this device, whatever the subscription says: the gates, the download limit and the Settings card. Debug builds on a device have Super, so this is how to see the free tier there. Shortcuts actions still read the real answer.")
+                Text("Reads as not subscribed on this device, whatever the subscription says: the gates, the download limit and the Settings card. Debug builds on a device have Super, so this is how to see the free tier there. While it's on, an override below that turns a Super feature on is ignored. Shortcuts actions still read the real answer.")
             }
             Section {
                 ForEach(GatedFeature.allCases) { feature in
