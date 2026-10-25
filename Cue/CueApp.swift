@@ -2145,8 +2145,8 @@ extension ToolbarDelegate: NSToolbarDelegate {
         if itemIdentifier == .preferences {
             let barItem = UIBarButtonItem(image: UIImage(systemName: "switch.2"), style: .plain, target: self, action: #selector(prefs(_:)))
             let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-            item.accessibilityLabel = NSLocalizedString("Preferences", comment: "")
-            item.toolTip = NSLocalizedString("Preferences", comment: "")
+            item.accessibilityLabel = NSLocalizedString("Settings", comment: "")
+            item.toolTip = NSLocalizedString("Settings", comment: "")
             return item
         }
 //        else if itemIdentifier == .search {
@@ -2180,8 +2180,8 @@ extension ToolbarDelegate: NSToolbarDelegate {
         if itemIdentifier == .sorting {
             let barItem = UIBarButtonItem(image: UIImage(systemName: "switch.2"), style: .plain, target: self, action: #selector(prefs(_:)))
             let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-            item.accessibilityLabel = NSLocalizedString("Preferences", comment: "")
-            item.toolTip = NSLocalizedString("Preferences", comment: "")
+            item.accessibilityLabel = NSLocalizedString("Settings", comment: "")
+            item.toolTip = NSLocalizedString("Settings", comment: "")
             return item
         }
         return NSToolbarItem(itemIdentifier: itemIdentifier)

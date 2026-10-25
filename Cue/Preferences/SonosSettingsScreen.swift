@@ -37,7 +37,7 @@ struct SonosSettingsScreen: View {
                     }
                     .tint(.accent)
                 } icon: {
-                    SettingsIcon(symbol: "hifispeaker.2.fill", colors: [Color(red: 0.25, green: 0.25, blue: 0.3), Color(red: 0.1, green: 0.1, blue: 0.15)], padding: 7)
+                    SettingsIcon(symbol: "hifispeaker.fill", colors: [Color(red: 0.25, green: 0.25, blue: 0.3), Color(red: 0.1, green: 0.1, blue: 0.15)])
                 }
             } footer: {
                 if sonosService.isEnabled {
@@ -91,7 +91,7 @@ struct SonosSettingsScreen: View {
                 Label {
                     Text("Speaker Settings")
                 } icon: {
-                    SettingsIcon(symbol: "hifispeaker.fill", colors: [Color(red: 0.25, green: 0.25, blue: 0.3), Color(red: 0.1, green: 0.1, blue: 0.15)])
+                    SettingsIcon(symbol: "slider.horizontal.3", colors: [Color(red: 0.55, green: 0.55, blue: 0.6), Color(red: 0.4, green: 0.4, blue: 0.45)])
                 }
             }
 

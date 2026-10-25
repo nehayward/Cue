@@ -39,17 +39,19 @@ struct AboutSettingsScreen: View {
                 }
                 .tint(.primary)
 
-                Label {
-                    HStack {
-                        Link("Powered by Audioscrobbler", destination: URL(string: "https://www.last.fm")!)
-                            .tint(.primary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Image(systemName: "arrow.up.forward")
-                            .foregroundStyle(.secondary)
+                Link(destination: URL(string: "https://www.last.fm")!) {
+                    Label {
+                        HStack {
+                            Text("Powered by Audioscrobbler")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Image(systemName: "arrow.up.forward")
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        SettingsIcon(symbol: "music.note.list", colors: [Color(red: 0.85, green: 0.15, blue: 0.15), Color(red: 0.65, green: 0.1, blue: 0.1)])
                     }
-                } icon: {
-                    SettingsIcon(symbol: "music.note.list", colors: [Color(red: 0.85, green: 0.15, blue: 0.15), Color(red: 0.65, green: 0.1, blue: 0.1)])
                 }
+                .tint(.primary)
             }
         }
         .navigationTitle("About")

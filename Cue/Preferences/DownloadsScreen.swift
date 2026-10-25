@@ -6,8 +6,8 @@ import SwiftUI
 
 /// The download manager: the songs kept on this device, the albums and
 /// playlists they came from, the books downloaded whole, and how
-/// downloading behaves — one face each, switched by the segmented control
-/// under the title. A Files folder in iCloud Drive reports how much of it
+/// downloading behaves (and the caches, which take room here too) — one
+/// face each, switched by the segmented control under the title. A Files folder in iCloud Drive reports how much of it
 /// is here under Settings. Reached from Settings, and on Books
 /// from the Audiobooks tab's Downloads.
 struct DownloadsScreen: View {
@@ -516,6 +516,8 @@ struct DownloadsScreen: View {
         if files.isConfigured, files.isCloudFolder {
             cloudSection
         }
+
+        CachesSection()
     }
 
     // MARK: - Free limit

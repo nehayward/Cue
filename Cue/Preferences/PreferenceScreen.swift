@@ -232,12 +232,22 @@ struct PreferenceScreen: View {
                         SonosSettingsScreen()
                     } label: {
                         LabeledContent {
-                            Text(!sonosService.isEnabled ? "Off" : !sonosService.sonosPulse.isCancelled ? "Connected" : "Offline")
+                            if sonosService.isEnabled {
+                                let isConnected = !sonosService.sonosPulse.isCancelled
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(isConnected ? .green : .red)
+                                        .frame(width: 6, height: 6)
+                                    Text(isConnected ? "Connected" : "Offline")
+                                }
+                            } else {
+                                Text("Off")
+                            }
                         } label: {
                             Label {
                                 Text("Sonos")
                             } icon: {
-                                SettingsIcon(symbol: "hifispeaker.2.fill", colors: [Color(red: 0.25, green: 0.25, blue: 0.3), Color(red: 0.1, green: 0.1, blue: 0.15)], padding: 7)
+                                SettingsIcon(symbol: "hifispeaker.fill", colors: [Color(red: 0.25, green: 0.25, blue: 0.3), Color(red: 0.1, green: 0.1, blue: 0.15)])
                             }
                         }
                     }
@@ -257,16 +267,6 @@ struct PreferenceScreen: View {
                             } icon: {
                                 SettingsIcon(symbol: "circle.lefthalf.filled", colors: [Color(red: 0.55, green: 0.55, blue: 0.6), Color(red: 0.4, green: 0.4, blue: 0.45)])
                             }
-                        }
-                    }
-
-                    NavigationLink {
-                        StorageSettingsScreen()
-                    } label: {
-                        Label {
-                            Text("Storage")
-                        } icon: {
-                            SettingsIcon(symbol: "internaldrive.fill", colors: [Color(red: 0.6, green: 0.6, blue: 0.65), Color(red: 0.42, green: 0.42, blue: 0.47)])
                         }
                     }
                 }
@@ -323,17 +323,20 @@ struct PreferenceScreen: View {
                         }
                     }
                     let message = "mailto:hi@cue.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(subscriptionService.userID)"
-                    Label {
-                        HStack {
-                            Link("Contact Support", destination: URL(string: message)!)
-                                .tint(.primary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            Image(systemName: "arrow.up.forward")
-                                .foregroundStyle(.secondary)
+                    // The whole row opens Mail, not only its words.
+                    Link(destination: URL(string: message)!) {
+                        Label {
+                            HStack {
+                                Text("Contact Support")
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                Image(systemName: "arrow.up.forward")
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            SettingsIcon(symbol: "envelope.fill", colors: [Color(red: 0.95, green: 0.45, blue: 0.45), Color(red: 0.85, green: 0.3, blue: 0.35)])
                         }
-                    } icon: {
-                        SettingsIcon(symbol: "envelope", colors: [Color(red: 0.95, green: 0.45, blue: 0.45), Color(red: 0.85, green: 0.3, blue: 0.35)])
                     }
+                    .tint(.primary)
                     NavigationLink {
                         AboutSettingsScreen()
                     } label: {
@@ -377,7 +380,7 @@ struct PreferenceScreen: View {
 #endif
             }
             .animation(.smooth(duration: 0.35), value: hasUnseenWhatsNew)
-            .navigationTitle("Preferences")
+            .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: $presentWhatsNew) {
                 WhatsNewWebView()
@@ -533,7 +536,7 @@ struct PreferenceScreen: View {
                     Text(offline.hasNetwork
                          ? "Home shows only what's on this device, and everything plays here"
                          : "No network — on until the connection is back")
-                        .font(.subheadline)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             } icon: {
