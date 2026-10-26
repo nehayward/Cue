@@ -141,6 +141,7 @@ export const services = {
 		{ name: 'Apple Music', detail: 'Catalog, library and live radio', mark: 'applemusic' },
 		{ name: 'Plex', detail: 'Your server, at home or away', mark: 'plex' },
 		{ name: 'Subsonic', detail: 'Navidrome, Airsonic, Gonic and more', icon: 'server', color: '#60a5fa' },
+		{ name: 'Audiobookshelf', detail: 'Your audiobooks, from your own server', icon: 'book-open', color: '#fbbf24' },
 		{ name: 'TuneIn', detail: 'Thousands of live stations', icon: 'radio', color: '#2dd4bf' },
 		{ name: 'Your Files', detail: 'A folder on your device or in iCloud', icon: 'music', color: '#a1a1aa' },
 	],
@@ -153,12 +154,16 @@ export const faq = [
 		a: 'No. Cue is a complete music player on its own. If you have Sonos, switch it on in onboarding or later in Settings ▸ Sonos, and every song can move to a speaker.',
 	},
 	{
-		q: 'Which music services does Cue support?',
-		a: 'Apple Music, Plex, Subsonic-compatible servers (Navidrome, Airsonic, Gonic and more), TuneIn radio, and music files on your device or in iCloud Drive. Audiobooks play from Plex and Audiobookshelf.',
+		q: 'Which services does Cue support?',
+		a: 'Apple Music, Plex, Subsonic-compatible servers (Navidrome, Airsonic, Gonic and more), Audiobookshelf, TuneIn radio, and music files on your device or in iCloud Drive. Audiobooks play from Plex and Audiobookshelf.',
 	},
 	{
 		q: 'Does Cue play audiobooks?',
 		a: 'Yes, from Plex and Audiobookshelf, with chapters, a speed for each book, Smart Resume and a history of every place you’ve been. Books play beside your music, in CarPlay, on Apple Watch and on Sonos. [See what Cue does for audiobooks](/audiobooks).',
+	},
+	{
+		q: 'Does Cue work with Audiobookshelf?',
+		a: 'Yes. Connect your server under **Settings ▸ Services ▸ Audiobookshelf** with its address, username and password, and your books, series and authors appear in the Audiobooks tab. Your place syncs with the server both ways, and books play on your iPhone, in CarPlay, on Apple Watch and on Sonos.',
 	},
 	{
 		q: 'What does Cue Super add?',

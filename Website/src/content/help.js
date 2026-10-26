@@ -23,7 +23,7 @@ export const sections = [
 			{
 				id: 'services',
 				q: 'Which music services are supported?',
-				a: '- **Apple Music** — the catalog, your library, and Apple’s live radio stations\n- **Plex** — your server, at home or remotely\n- **Subsonic** — Navidrome, Airsonic, Gonic and any Subsonic-compatible server\n- **TuneIn** — live radio\n- **Files** — a folder of music on your device or in iCloud Drive\n\nAudiobooks play from **Plex** and **Audiobookshelf**.',
+				a: '- **Apple Music** — the catalog, your library, and Apple’s live radio stations\n- **Plex** — your server, at home or remotely\n- **Subsonic** — Navidrome, Airsonic, Gonic and any Subsonic-compatible server\n- **Audiobookshelf** — audiobooks from your own server\n- **TuneIn** — live radio\n- **Files** — a folder of music on your device or in iCloud Drive\n\nAudiobooks play from **Plex** and **Audiobookshelf**.',
 			},
 			{
 				id: 'spotify',
@@ -34,6 +34,11 @@ export const sections = [
 				id: 'subsonic',
 				q: 'How do I connect a Subsonic or Navidrome server?',
 				a: 'Open **Settings ▸ Services**, choose Subsonic, and enter your server’s address, username and password. Your password stays in your device’s keychain. Songs play straight from your server, on your device or on Sonos.',
+			},
+			{
+				id: 'audiobookshelf',
+				q: 'How do I connect Audiobookshelf?',
+				a: 'Open **Settings ▸ Services ▸ Audiobookshelf**, tap **Connect**, and enter your server’s address, username and password. You can type just its name, like books.example.com, and Cue tries HTTPS first. Cue keeps the sign-in the server hands back in your device’s keychain, never your password.\n\nYour books then appear in the **Audiobooks** tab. Your place syncs with the server both ways, so the Audiobookshelf web app picks up where Cue left off, and books play on Sonos straight from your server.\n\nCue signs in with a username and password. If your server only allows single sign-on, ask its admin to turn on password login.',
 			},
 		],
 	},
