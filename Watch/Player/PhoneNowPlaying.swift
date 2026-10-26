@@ -73,6 +73,9 @@ final class PhoneNowPlaying {
         }
         if nowPlaying?.artwork != current?.artwork {
             artwork = nowPlaying?.artwork.flatMap(UIImage.init(data:))
+            #if DEBUG
+            artwork = artwork.map(WatchScreenshotArtwork.prepared)
+            #endif
         }
         current = nowPlaying
     }

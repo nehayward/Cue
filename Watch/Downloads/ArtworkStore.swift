@@ -90,6 +90,10 @@ final class ArtworkStore {
             kCGImageSourceThumbnailMaxPixelSize: 240,
         ]
         guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        #if DEBUG
+        return WatchScreenshotArtwork.prepared(UIImage(cgImage: image))
+        #else
         return UIImage(cgImage: image)
+        #endif
     }
 }
