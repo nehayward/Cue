@@ -104,7 +104,7 @@ The app is built around several Swift packages in `/Packages`:
 - **Search/** - Search functionality across music services
 - **Library/** - Music library browsing and management
 - **Routing/** - App navigation and destination management
-- **Debug/** - Debug tools: the log screens, the phone's own log (`PhoneLogFile`) and the launch-argument audits (`AudiobookAudit`, `DownloadAudit`, `LyricsAudit`, all `#if DEBUG`)
+- **Debug/** - Debug tools: the log screens, the phone's own log (`PhoneLogFile`), the launch-argument audits (`AudiobookAudit`, `DownloadAudit`, `LyricsAudit`, all `#if DEBUG`) and `ScreenshotArtwork`: `-dance.cue.blurArtwork YES` blurs every cover, through Nuke's decoder, for App Store screenshots of a library that isn't ours to show
 
 ### Platform-Specific Apps
 - **CueMini/** - macOS menu bar app for quick controls
