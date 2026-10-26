@@ -42,8 +42,7 @@
     "ipad": {
       "model": "ipad-13",
       "simulator": "iPad Pro 13-inch (M5)",
-      "deviceWidth": 0.88,
-      "bleed": true
+      "deviceWidth": 0.88
     },
     "watch": {
       "model": "watch-46",
@@ -60,18 +59,16 @@
       "subtitle": "Apple Music, Plex, Subsonic, radio and your own files, on this iPhone or on Sonos.",
       "overrides": {
         "ipad": {
-          "screen": "library",
-          "subtitle": "Apple Music, Plex, Subsonic, radio and your own files, on this iPad or on Sonos."
-        },
-        "duo": {
-          "screen": "library"
+          "subtitle": "Apple Music, Plex, Subsonic, radio and your own files, on this iPad or on Sonos.",
+          "screen": "queue"
         }
       }
     },
     {
       "name": "library",
       "devices": [
-        "iphone"
+        "iphone",
+        "ipad"
       ],
       "title": "Every library, *side by side*",
       "subtitle": "Apple Music, Plex, Subsonic and Audiobookshelf, a tap apart.",
@@ -83,6 +80,10 @@
       "overrides": {
         "iphone": {
           "screen": "services"
+        },
+        "ipad": {
+          "screen": "services",
+          "subtitle": "Apple Music, Plex, Subsonic and your own files, a tap apart."
         }
       }
     },
@@ -94,7 +95,11 @@
     {
       "name": "queue",
       "title": "Your queue, *your way*",
-      "subtitle": "Drag, swipe and play next, right from Up Next."
+      "subtitle": "Drag, swipe and play next, right from Up Next.",
+      "devices": [
+        "iphone",
+        "duo"
+      ]
     },
     {
       "name": "audiobooks",
@@ -104,7 +109,17 @@
         "-dance.cue.selectedTab",
         "<7b22617564696f626f6f6b73223a7b7d7d>"
       ],
-      "wait": 9
+      "wait": 9,
+      "overrides": {
+        "ipad": {
+          "screen": "book",
+          "subtitle": "Plex and Audiobookshelf audiobooks, with their chapters and Smart Resume."
+        },
+        "duo": {
+          "screen": "book",
+          "subtitle": "Plex and Audiobookshelf audiobooks, with their chapters and Smart Resume."
+        }
+      }
     },
     {
       "name": "transcript",
@@ -119,7 +134,12 @@
         "-dance.cue.selectedTab",
         "<7b22726164696f223a7b7d7d>"
       ],
-      "wait": 9
+      "wait": 9,
+      "overrides": {
+        "ipad": {
+          "bleed": true
+        }
+      }
     },
     {
       "name": "watch",
@@ -142,7 +162,8 @@
     {
       "name": "album",
       "devices": [
-        "iphone"
+        "iphone",
+        "ipad"
       ],
       "title": "Your own server, *in lossless*",
       "subtitle": "FLAC and ALAC straight from Plex and Subsonic."
@@ -155,7 +176,12 @@
         "-dance.cue.selectedTab",
         "<7b22736561726368223a7b7d7d>"
       ],
-      "wait": 9
+      "wait": 9,
+      "overrides": {
+        "ipad": {
+          "bleed": true
+        }
+      }
     },
     {
       "name": "home",

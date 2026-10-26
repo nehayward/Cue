@@ -64,6 +64,7 @@ struct DeviceSetup: Decodable {
     var deviceWidth: Double?
     /// Standard shots let the device run off the bottom at `deviceWidth`
     /// rather than shrink to fit: for screens whose lower part is empty.
+    /// A shot's own `bleed` wins.
     var bleed: Bool?
 }
 
@@ -92,6 +93,9 @@ struct Shot: Decodable {
     var launch: [String]?
     /// Seconds to wait after launching before the screenshot.
     var wait: Double?
+    /// The device runs off the bottom rather than shrinking to fit (see
+    /// `DeviceSetup.bleed`), for a screen whose lower part is empty.
+    var bleed: Bool?
     /// Per device: another title, subtitle, layout or raw screenshot.
     var overrides: [String: ShotOverride]?
 
@@ -102,6 +106,7 @@ struct Shot: Decodable {
         if let subtitle = override.subtitle { shot.subtitle = subtitle }
         if let layout = override.layout { shot.layout = layout }
         if let tilt = override.tilt { shot.tilt = tilt }
+        if let bleed = override.bleed { shot.bleed = bleed }
         return shot
     }
 
@@ -115,6 +120,7 @@ struct ShotOverride: Decodable {
     var subtitle: String?
     var layout: LayoutKind?
     var tilt: Tilt?
+    var bleed: Bool?
     /// Another raw screenshot's name in the device's folder.
     var screen: String?
 }
