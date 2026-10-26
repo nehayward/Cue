@@ -38,7 +38,7 @@ struct CuePaywall: View {
         .init(label: "Unlimited downloads", description: "Plex & Subsonic songs on iPhone and Apple Watch", inFree: false, features: [.unlimitedDownloads, .downloads]),
         .init(label: "Every Sonos room", description: "Free plays on one room", inFree: false, features: [.allRooms]),
         .init(label: "Book downloads", description: "Plex & Audiobookshelf books, offline", inFree: false, features: [.bookDownloads]),
-        .init(label: "Read along", description: "A book's words as it's read, on device", inFree: false, features: [.bookTranscript])
+        .init(label: "Read along", description: "A book's words as it's read", inFree: false, features: [.bookTranscript])
     ]
 
     var body: some View {

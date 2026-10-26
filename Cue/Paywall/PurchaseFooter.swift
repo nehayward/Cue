@@ -43,9 +43,12 @@ struct PurchaseFooter: View {
                             package: package,
                             intro: paidIntro(of: package),
                             badge: badge(for: package, in: plans, offering: offering),
+                            shimmers: offering.saleBadge != nil,
                             isSelected: package.identifier == choice.identifier
                         ) {
-                            selected = package
+                            withAnimation(.spring(duration: 0.35, bounce: 0.35)) {
+                                selected = package
+                            }
                             message = nil
                         }
                     }
@@ -53,6 +56,7 @@ struct PurchaseFooter: View {
                 // Every card as tall as the tallest, struck-through price or not.
                 .fixedSize(horizontal: false, vertical: true)
                 .disabled(isBusy)
+                .sensoryFeedback(.selection, trigger: choice.identifier)
 
                 Button {
                     Task { await purchase(choice) }
@@ -134,11 +138,12 @@ struct PurchaseFooter: View {
         }
     }
 
-    /// The offering's own badge on its plan, else what an introductory price
-    /// takes off, else what the yearly plan saves on twelve months.
+    /// The offering's own badge on its plan and no other, so a sale has the
+    /// paywall to itself; without one, what an introductory price takes off,
+    /// else what the yearly plan saves on twelve months.
     private func badge(for package: Package, in plans: [Package], offering: Offering) -> String? {
-        if let badge = offering.saleBadge, package.packageType == offering.saleBadgePlan {
-            return badge.uppercased()
+        if let badge = offering.saleBadge {
+            return package.packageType == offering.saleBadgePlan ? badge.uppercased() : nil
         }
         if let intro = paidIntro(of: package), let off = Self.percentOff(intro, from: package.storeProduct) {
             return "\(off)% OFF"
@@ -290,6 +295,8 @@ private struct PlanCard: View {
     /// A lower introductory price this Apple Account can take.
     let intro: StoreProductDiscount?
     let badge: String?
+    /// A sale's badge catches the light now and then.
+    let shimmers: Bool
     let isSelected: Bool
     let select: () -> Void
 
@@ -334,10 +341,12 @@ private struct PlanCard: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(Color.accentColor, in: .capsule)
+                        .modifier(Shimmer(isOn: shimmers))
                         .offset(y: -9)
                 }
             }
             .contentShape(.rect)
+            .scaleEffect(isSelected ? 1 : 0.96)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityText)
@@ -364,6 +373,40 @@ private struct PlanCard: View {
         let regular = package.storeProduct.localizedPriceString
         let price = intro.map { "\($0.localizedPriceString) \(per), then \(regular)" } ?? "\(regular) \(per)"
         return [name, price, badge?.lowercased()].compactMap { $0 }.joined(separator: ", ")
+    }
+}
+
+/// A band of light that sweeps across the view every couple of seconds. Not
+/// with Reduce Motion, and not on the Mac, where an animation that never
+/// stops holds ~90 MB of GPU memory for as long as it runs.
+private struct Shimmer: ViewModifier {
+    let isOn: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        #if targetEnvironment(macCatalyst)
+        content
+        #else
+        if isOn && !reduceMotion {
+            content.phaseAnimator([false, true]) { view, isSweeping in
+                view.overlay {
+                    GeometryReader { proxy in
+                        LinearGradient(colors: [.clear, .white.opacity(0.75), .clear], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: proxy.size.width * 0.45)
+                            .offset(x: isSweeping ? proxy.size.width * 1.1 : -proxy.size.width * 0.55)
+                    }
+                    .clipShape(.capsule)
+                    .allowsHitTesting(false)
+                }
+            } animation: { isSweeping in
+                // Out to the far side after a pause, then straight back.
+                isSweeping ? .easeInOut(duration: 0.8).delay(1.6) : nil
+            }
+        } else {
+            content
+        }
+        #endif
     }
 }
 
