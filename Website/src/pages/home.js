@@ -84,6 +84,7 @@ const body = html`
 					<h2>${s.title}</h2>
 					<p>${s.body}</p>
 					<ul>${s.points.map((p) => html`<li>${icon('check')}${p}</li>`)}</ul>
+					${s.link && html`<p class="more-link"><a href="${s.link.href}">${s.link.label} ${icon('arrow-right')}</a></p>`}
 				</div>
 				<div class="spotlight-visual reveal" style="--glow: url('/${s.screen.file}')">${iphone(s.screen)}</div>
 			</section>`,

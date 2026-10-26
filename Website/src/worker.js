@@ -1,4 +1,5 @@
 import { site } from './config.js';
+import { audiobooksPage } from './pages/audiobooks.js';
 import { betaPage } from './pages/beta.js';
 import { helpPage } from './pages/help.js';
 import { homePage } from './pages/home.js';
@@ -46,12 +47,15 @@ const REDIRECTS = {
 	'/navidrome': () => '/self-hosted',
 	'/subsonic': () => '/self-hosted',
 	'/testflight': () => '/beta',
+	'/books': () => '/audiobooks',
+	'/audiobookshelf': () => '/audiobooks',
 };
 
 // Exact paths → page. `query` is the request's URLSearchParams.
 const PAGES = {
 	'/': () => homePage(),
 	'/help': (query) => helpPage({ embed: query.has('embed') }),
+	'/audiobooks': () => audiobooksPage(),
 	'/self-hosted': () => selfHostedPage(),
 	'/beta': () => betaPage(),
 	'/releases': () => releasesIndexPage(),

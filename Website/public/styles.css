@@ -453,6 +453,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .spotlight-copy ul { margin-top: 1.5rem; display: grid; gap: 0.7rem; }
 .spotlight-copy li { display: flex; gap: 0.65rem; align-items: flex-start; }
 .spotlight-copy li .icon { margin-top: 0.2em; color: var(--accent); }
+.spotlight-copy .more-link { text-align: inherit; }
 .spotlight-visual { position: relative; display: grid; place-items: center; padding-block: 1rem; }
 .spotlight-visual .iphone { width: min(64vw, 16rem); }
 @media (max-width: 899px) {
@@ -659,6 +660,118 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .setup ol { margin-top: 1rem; padding-left: 1.2rem; list-style: decimal; display: grid; gap: 0.5rem; color: var(--muted); }
 .setup strong { color: var(--text); }
 
+/* ── Audiobooks ─────────────────────────────────────────────────────────── */
+
+/* CarPlay, Apple Watch and Sonos: three cards in a row on wide screens. */
+@media (min-width: 760px) { .platforms.three { grid-template-columns: 1fr; } }
+@media (min-width: 960px) { .platforms.three { grid-template-columns: repeat(3, 1fr); } }
+
+/* Drawn illustrations that stand in for a phone in a spotlight. */
+.spotlight-visual.demo::before { background: radial-gradient(closest-side, rgb(52 211 153 / 0.5), transparent); opacity: 0.35; }
+.vignette {
+	position: relative;
+	width: min(100%, 27rem);
+	margin: 0;
+	padding: 1.5rem;
+	border-radius: 28px;
+	background: linear-gradient(160deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.025));
+	border: 1px solid var(--border-strong);
+	box-shadow: 0 40px 80px -40px rgb(0 0 0 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+.vignette figcaption { margin-top: 1.25rem; color: var(--faint); font-size: 0.85rem; text-align: center; }
+.vignette-head { display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+.chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.3rem 0.7rem;
+	border-radius: 999px;
+	background: rgb(255 255 255 / 0.06);
+	color: var(--muted);
+	font-size: 0.8rem;
+	font-weight: 600;
+}
+.chip .icon { width: 0.95em; height: 0.95em; }
+.chip-accent { background: var(--accent-soft); color: var(--accent); }
+
+/* Smart Resume: one loop of --resume. Paused, the playhead glides back to
+   the sentence's silence, the silence lights, then playback carries on. */
+.resume-demo { --resume: 7s; }
+.wave { position: relative; display: flex; align-items: center; gap: 3px; height: 7.5rem; margin-top: 1.5rem; }
+.wave > span:not([class^='wave-']) { flex: 1; height: calc(var(--h) * 100%); border-radius: 99px; background: rgb(255 255 255 / 0.14); }
+.wave > span.heard { background: rgb(255 255 255 / 0.42); }
+.wave-paused, .wave-head { position: absolute; top: -0.4rem; bottom: -0.4rem; width: 2px; margin-left: -1px; border-radius: 2px; }
+.wave-paused { left: var(--paused); background: repeating-linear-gradient(to bottom, var(--faint) 0 4px, transparent 4px 8px); }
+.wave-head { left: var(--paused); background: var(--text); box-shadow: 0 0 12px rgb(255 255 255 / 0.6); animation: resume-head var(--resume) var(--ease) infinite; }
+.wave-head::before { content: ''; position: absolute; top: -5px; left: 50%; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: inherit; }
+.wave-land { position: absolute; top: 8%; bottom: 8%; left: var(--land); width: 9%; margin-left: -4.5%; border-radius: 10px; background: var(--accent-soft); box-shadow: inset 0 0 0 1px rgb(52 211 153 / 0.5); opacity: 0; animation: resume-land var(--resume) var(--ease) infinite; }
+.resume-result { opacity: 0; animation: resume-land var(--resume) var(--ease) infinite; }
+.resume-words { margin-top: 1.25rem; color: var(--muted); font-family: ui-serif, 'New York', Georgia, serif; font-size: 0.98rem; line-height: 1.5; }
+.resume-words .caret { display: inline-block; width: 2px; height: 1.1em; margin: 0 0.15em -0.2em; border-radius: 2px; background: var(--accent); animation: resume-land var(--resume) var(--ease) infinite; opacity: 0; }
+
+@keyframes resume-head {
+	0%, 18% { left: var(--paused); opacity: 1; }
+	46% { left: var(--land); }
+	58% { left: var(--land); }
+	92% { left: calc(var(--land) + 14%); opacity: 1; }
+	97%, 100% { left: calc(var(--land) + 15%); opacity: 0; }
+}
+@keyframes resume-land {
+	0%, 44% { opacity: 0; }
+	52%, 92% { opacity: 1; }
+	100% { opacity: 0; }
+}
+
+/* Read Along: the line being read lights word by word (keyframes per word
+   are in pages/audiobooks.js, so every word resets together). */
+.read-demo { padding-bottom: 1.25rem; }
+.read-text { font-family: ui-serif, 'New York', Georgia, serif; font-size: clamp(1.1rem, 2vw, 1.3rem); line-height: 1.45; letter-spacing: -0.005em; }
+.read-text p + p { margin-top: 0.55rem; }
+.read-past { opacity: 0.8; }
+.read-next { opacity: 0.5; }
+.read-now span {
+	opacity: 0.5;
+	text-decoration: underline 2px transparent;
+	text-underline-offset: 5px;
+	animation-duration: var(--loop);
+	animation-timing-function: ease-out;
+	animation-iteration-count: infinite;
+}
+.read-text mark { padding: 0 0.12em; margin: 0 -0.12em; border-radius: 4px; background: rgb(250 204 21 / 0.32); color: inherit; }
+.read-card {
+	position: relative;
+	margin: 1.4rem -0.5rem 0;
+	padding: 1.1rem 1.25rem 1.2rem;
+	border-radius: 20px;
+	background: rgb(30 34 33 / 0.92);
+	border: 1px solid var(--border-strong);
+	box-shadow: 0 -12px 40px -16px rgb(0 0 0 / 0.7);
+}
+.read-grabber { position: absolute; top: 0.45rem; left: 50%; width: 2.25rem; height: 4px; margin-left: -1.125rem; border-radius: 4px; background: rgb(255 255 255 / 0.22); }
+.read-word { font-family: ui-serif, 'New York', Georgia, serif; font-size: 1.35rem; font-weight: 700; }
+.read-kind { margin-top: 0.1rem; color: var(--faint); font-size: 0.82rem; font-style: italic; }
+.read-def { margin-top: 0.4rem; color: var(--muted); font-size: 0.95rem; line-height: 1.45; }
+
+/* Cue against the usual setup: stacked cards on phones, a table on wider
+   screens. The row labels are read out on phones and to screen readers. */
+.compare { display: grid; gap: 0.6rem; max-width: 62rem; margin-inline: auto; }
+.compare-head { display: none; }
+.compare-row { display: grid; gap: 0.6rem; padding: 1.15rem 1.35rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-small); }
+.compare-row h3 { font-size: 1.05rem; letter-spacing: -0.01em; }
+.compare-row p { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.95rem; line-height: 1.45; }
+.compare-row .icon { margin-top: 0.15em; }
+.compare-before { color: var(--faint); }
+.compare-after { color: var(--text); }
+.compare-after .icon { color: var(--accent); }
+.compare-tag { display: block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+.compare-after .compare-tag { color: var(--accent); }
+@media (min-width: 760px) {
+	.compare-head, .compare-row { grid-template-columns: 11rem 1fr 1fr; gap: 1.75rem; align-items: center; }
+	.compare-head { display: grid; padding: 0 1.35rem 0.25rem; color: var(--faint); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
+	.compare-head .after { color: var(--accent); }
+	.compare-tag { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
 /* ── Press ──────────────────────────────────────────────────────────────── */
 
 .press h2 { font-size: 1.3rem; margin: 3rem 0 1rem; }
@@ -711,4 +824,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 	.room { color: var(--text); border-color: rgb(52 211 153 / 0.6); background: rgb(52 211 153 / 0.14); }
 	.handoff-caption .c4 { opacity: 1; }
 	.handoff-phone .iphone-screen img { filter: brightness(0.4) saturate(0.6); }
+	/* Smart Resume shows where it lands; Read Along, a word mid-line. */
+	.wave-head { left: var(--land); }
+	.wave-land, .resume-result, .resume-words .caret { opacity: 1; }
+	.read-now span { opacity: 0.8; }
+	.read-now span:nth-child(3) { opacity: 1; text-decoration-color: var(--accent); }
+	.read-now span:nth-child(n + 4) { opacity: 0.5; }
 }
