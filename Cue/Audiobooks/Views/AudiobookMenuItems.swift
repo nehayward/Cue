@@ -41,6 +41,15 @@ struct AudiobookMenuItems: View {
         NavigationLink(value: RouterDestination.audiobookDetail(content: book)) {
             Label("View Book", systemImage: "book")
         }
+        // Out of Continue Listening until it's listened to again.
+        if ContinueListeningRemovals.shared.isListed(book) {
+            Button {
+                HapticManager.shared.fireHaptic(.selection)
+                ContinueListeningRemovals.shared.remove(book)
+            } label: {
+                Label("Remove from Continue Listening", systemImage: "minus.circle")
+            }
+        }
         Section {
             AudiobookDownloadMenuItems(book: book)
             WatchMenuSection(item: book)

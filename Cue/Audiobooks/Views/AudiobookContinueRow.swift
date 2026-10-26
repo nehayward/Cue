@@ -77,7 +77,11 @@ struct AudiobookContinueRow: View {
                 .contentShape(.circle)
             }
             .buttonStyle(.plain)
-            .disabled(isStarting || player.isLoading)
+            .disabled(isStarting)
+            // While a book loads, the other rows' Play wait without dimming:
+            // disabled, every row's button dimmed and lit again as each
+            // book's load came and went, a flicker down the whole card.
+            .allowsHitTesting(!player.isLoading || isLoaded)
             .accessibilityLabel(isPlaying ? "Pause" : progress?.isStarted == true ? "Resume" : "Play")
         }
         // The book's menu (from the start, download or remove) is a long

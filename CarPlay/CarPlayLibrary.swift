@@ -269,9 +269,11 @@ enum CarPlayLibrary {
         let listened = AudiobookLibrary.listenedBooks(plex: showsBooks(from: .plex), audiobookshelf: showsBooks(from: .audiobookshelf))
         // Offline, only those that can play: downloaded whole.
         let offline = OfflineMode.shared.isActive
+        let removals = ContinueListeningRemovals.shared
         return listened.filter { book in
             let progress = store.progress(for: book)
             return progress?.isStarted == true && progress?.isFinished != true && (!offline || AudiobookDownloads.isDownloaded(book))
+                && !removals.isRemoved(book)
         }
     }
 

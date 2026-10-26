@@ -67,6 +67,9 @@ public enum AppStorageKeys {
     /// (`PlexAPI.hasAudiobooks()`), so the Audiobooks tab shows at launch
     /// without waiting on the server.
     public static let hasPlexAudiobooks = "\(Prefix.id).hasPlexAudiobooks"
+    /// Books taken out of Continue Listening — `[progress key: when]` —
+    /// until they're listened to again (`ContinueListeningRemovals`).
+    public static let continueListeningRemovals = "\(Prefix.id).continueListeningRemovals"
     /// Whether a book's time left is the whole book's ("14h 24m left in
     /// book") rather than the chapter's, in the player and the mini player.
     /// A tap on the player's time left switches it. The chapter's when
@@ -113,6 +116,11 @@ public enum AppStorageKeys {
     public static let bookTranscriptFont = "\(Prefix.id).bookTranscriptFont"
     public static let bookTranscriptSize = "\(Prefix.id).bookTranscriptSize"
     public static let bookTranscriptSpacing = "\(Prefix.id).bookTranscriptSpacing"
+    /// Whether the word being said in a book's transcript is underlined as
+    /// well as brightest; on until turned off.
+    public static let bookTranscriptUnderline = "\(Prefix.id).bookTranscriptUnderline"
+    /// When the day's Read Along preview, without Cue Super, ends or ended.
+    public static let bookTranscriptPreviewEnd = "\(Prefix.id).bookTranscriptPreviewEnd"
     /// The transcription language picked per book — `[book key: locale
     /// identifier]` — with "*" holding the last pick, the guess for a book
     /// not transcribed before.

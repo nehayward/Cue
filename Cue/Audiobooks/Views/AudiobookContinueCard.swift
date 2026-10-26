@@ -58,13 +58,17 @@ struct AudiobookContinueCard: View {
         .background(.fill.quaternary, in: .rect(cornerRadius: 24))
     }
 
-    /// Every book not finished, as a list of its own.
+    /// Every book not finished, as a list of its own, read again when one's
+    /// taken out of it from its menu.
     private var allBooks: RouterDestination {
         let books = books
         let store = store
-        return .playableList(title: "Continue Listening", showSectionIndex: false) { offset in
+        let removals = ContinueListeningRemovals.shared
+        return .playableList(title: "Continue Listening", showSectionIndex: false, changeToken: { removals.version }) { offset in
             guard offset == 0 else { return [] }
-            return books.map { $0.withAudiobookProgress(store.progress(for: $0)) }
+            return await MainActor.run {
+                books.filter { !removals.isRemoved($0) }.map { $0.withAudiobookProgress(store.progress(for: $0)) }
+            }
         }
     }
 }

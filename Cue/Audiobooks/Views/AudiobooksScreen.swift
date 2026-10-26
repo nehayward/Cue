@@ -22,6 +22,7 @@ struct AudiobooksScreen: View {
     /// path push each other.
     @State private var router = Router()
     @State private var store = AudiobookProgressStore.shared
+    @State private var removals = ContinueListeningRemovals.shared
     @State private var shelf = AudiobookshelfBrowseService.shared
     @State private var player = AudiobookPlayer.shared
     /// Plex's books, the last read kept from the first frame.
@@ -107,9 +108,11 @@ struct AudiobooksScreen: View {
 
     private static let recentCount = 10
 
-    /// Every book not finished, started or only tried, as Audible has it.
-    /// The book loaded to play leads even before a reading has come in
-    /// (offline, only one downloaded: anything else won't play).
+    /// Every book not finished, started or only tried, as Audible has it,
+    /// less those taken out of it and not listened to since
+    /// (`ContinueListeningRemovals`). The book loaded to play leads even
+    /// before a reading has come in (offline, only one downloaded: anything
+    /// else won't play).
     private func continuing(_ listened: [PlayableContent], isOffline: Bool) -> [PlayableContent] {
         var books = listened.filter { store.progress(for: $0)?.isFinished != true }
         // Not one from a server signed out of, or switched off.
@@ -118,7 +121,7 @@ struct AudiobooksScreen: View {
            store.progress(for: loaded)?.isFinished != true, !books.contains(where: { $0.isSameBook(as: loaded) }) {
             books.insert(loaded, at: 0)
         }
-        return books
+        return books.filter { !removals.isRemoved($0) }
     }
 
     /// `book`, when its server's books are shown.

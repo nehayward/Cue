@@ -33,9 +33,11 @@ struct AudiobookHistoryList: View {
             .padding(.top, 24)
         } else {
             // Ticks once a minute, so "Just now" and "Today" move on while
-            // it's open.
+            // it's open. Not lazy: a book keeps 50 places at most, and a
+            // lazy stack left a day's rows unbuilt under its heading until
+            // the list was scrolled further.
             TimelineView(.everyMinute) { context in
-                LazyVStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
                     Text("Tap any moment to pick up from there.")
                         .font(.footnote)
                         .foregroundStyle(.primary.opacity(0.6))
