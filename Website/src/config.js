@@ -5,7 +5,7 @@ export const site = {
 	name: 'Cue',
 	origin: 'https://cue.dance',
 	description:
-		'A music player for iPhone that plays Apple Music, Plex, Subsonic, radio and your own files — on your device, or on any Sonos speaker.',
+		'A music and audiobook player for iPhone that plays Apple Music, Plex, Subsonic, Audiobookshelf, radio and your own files — on your device, or on any Sonos speaker.',
 	email: 'hi@cue.dance',
 	author: 'Nick Hayward',
 
@@ -28,6 +28,7 @@ export const appStoreUrl = site.appStoreId ? `https://apps.apple.com/app/id${sit
 // Header and footer links, in order.
 export const nav = [
 	{ href: '/#features', label: 'Features' },
+	{ href: '/audiobooks', label: 'Audiobooks' },
 	{ href: '/self-hosted', label: 'Plex & Navidrome' },
 	{ href: '/releases', label: "What's New" },
 	{ href: '/help', label: 'Help' },
@@ -37,6 +38,7 @@ export const footerLinks = [
 	{ href: '/help', label: 'Help' },
 	{ href: '/releases', label: 'Release Notes' },
 	{ href: '/beta', label: 'Beta' },
+	{ href: '/audiobooks', label: 'Audiobooks' },
 	{ href: '/self-hosted', label: 'Plex & Navidrome' },
 	{ href: '/press', label: 'Press' },
 	{ href: '/privacy', label: 'Privacy' },

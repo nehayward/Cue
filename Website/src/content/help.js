@@ -6,6 +6,7 @@
 export const requirements = [
 	{ title: 'Device', body: 'iPhone. Cue also works with CarPlay, and has an Apple Watch app for watchOS 10 or later.' },
 	{ title: 'Music', body: 'Apple Music, Plex, a Subsonic server, TuneIn, or your own files.' },
+	{ title: 'Audiobooks', body: 'A Plex or Audiobookshelf server with your books on it.' },
 	{ title: 'Sonos (optional)', body: 'Any S1 or S2 system, on the same network as your device.' },
 	{ title: 'Apple Music', body: 'Playing the Apple Music catalog needs an Apple Music subscription.' },
 ];
@@ -22,7 +23,7 @@ export const sections = [
 			{
 				id: 'services',
 				q: 'Which music services are supported?',
-				a: '- **Apple Music** — the catalog, your library, and Apple’s live radio stations\n- **Plex** — your server, at home or remotely\n- **Subsonic** — Navidrome, Airsonic, Gonic and any Subsonic-compatible server\n- **TuneIn** — live radio\n- **Files** — a folder of music on your device or in iCloud Drive',
+				a: '- **Apple Music** — the catalog, your library, and Apple’s live radio stations\n- **Plex** — your server, at home or remotely\n- **Subsonic** — Navidrome, Airsonic, Gonic and any Subsonic-compatible server\n- **TuneIn** — live radio\n- **Files** — a folder of music on your device or in iCloud Drive\n\nAudiobooks play from **Plex** and **Audiobookshelf**.',
 			},
 			{
 				id: 'spotify',
@@ -33,6 +34,26 @@ export const sections = [
 				id: 'subsonic',
 				q: 'How do I connect a Subsonic or Navidrome server?',
 				a: 'Open **Settings ▸ Services**, choose Subsonic, and enter your server’s address, username and password. Your password stays in your device’s keychain. Songs play straight from your server, on your device or on Sonos.',
+			},
+		],
+	},
+	{
+		title: 'Audiobooks',
+		items: [
+			{
+				id: 'add-audiobooks',
+				q: 'How do I add my audiobooks?',
+				a: 'Cue plays books from Plex and Audiobookshelf.\n- **Plex** — open **Settings ▸ Services ▸ Plex** and, under **Audiobooks**, switch on the libraries that hold your books. Albums in your music library with the genre Audiobook show up too.\n- **Audiobookshelf** — open **Settings ▸ Services ▸ Audiobookshelf**, tap **Connect**, and enter your server’s address, username and password.\n\nYour books then appear in the **Audiobooks** tab, starting with the ones you’re partway through. [See everything Cue does for audiobooks](/audiobooks).',
+			},
+			{
+				id: 'audiobook-place',
+				q: 'My place in a book doesn’t match my other apps.',
+				a: 'Cue sends your place to the server as you listen and reads it back when you open a book; when the two disagree, the newer place wins.\n\nFor Plex, the server only keeps your place with **Store Track Progress** turned on: on your Plex server, open the books library’s **Edit ▸ Advanced** settings and turn it on.\n\nIf you’ve ended up somewhere you didn’t mean to be, open the book’s **Chapters** sheet and swipe to **History**. It lists every place you’ve been, and a tap goes back there.',
+			},
+			{
+				id: 'read-along',
+				q: 'How does Read Along work?',
+				a: 'While a book plays, tap the quote button in the player to see its words as they’re read. Cue writes the transcript on your iPhone with Apple’s on-device speech model, a few minutes ahead of you, so each word lights up as it’s said and nothing is uploaded.\n- Tap a word to look it up in the dictionary.\n- Hold a line to play from there, copy it, share it or translate it.\n- Tap **Aa** to change the typeface, size and spacing.\n\nRead Along needs iOS 26 or later. Without Cue Super you can read along for 30 seconds a day.',
 			},
 		],
 	},
@@ -57,12 +78,12 @@ export const sections = [
 			{
 				id: 'carplay',
 				q: 'Does Cue work with CarPlay?',
-				a: 'Yes. Connect your iPhone to your car and open Cue on the car’s screen.\n- **Recents** — what you played last\n- **Library** — Apple Music, Plex, Subsonic and your files, starting with your playlists\n- **Downloads** — what’s on your iPhone, ready with no signal\n- **Radio** — local and trending TuneIn stations, and Apple Music radio\n\nNow Playing has Up Next, shuffle and repeat. In the car, music always plays from your iPhone, never on Sonos.',
+				a: 'Yes. Connect your iPhone to your car and open Cue on the car’s screen.\n- **Home** — pick up where you left off, what you played recently, and your playlists, recently added music and albums\n- **Audiobooks** — the books you’re partway through, then each server’s books\n- **Downloads** — what’s on your iPhone, ready with no signal\n- **Radio** — local and trending TuneIn stations, and Apple Music radio\n\nNow Playing has Up Next, shuffle and repeat; for a book, its chapters and speed. In the car, Cue always plays from your iPhone, never on Sonos.',
 			},
 			{
 				id: 'apple-watch',
 				q: 'How do I put music on my Apple Watch?',
-				a: 'Cue on Apple Watch plays Plex and Subsonic songs downloaded to the watch, so you can leave your iPhone at home. Sign in to Plex or Subsonic in Cue on your iPhone first; the watch uses the same sign-ins.\n- **On your iPhone**, choose **Add to Apple Watch** from an album, playlist, artist or song’s menu.\n- **On your watch**, browse or search your library in Cue and add it there.\n\nThe watch downloads the songs from your server itself. To see or remove what’s on it, open **Settings ▸ Storage ▸ Apple Watch** on your iPhone. If Cue isn’t on your watch yet, open the Watch app on your iPhone and install it under **Available Apps**.\n\nApple Music doesn’t let other apps play its music on Apple Watch, so it stays on your iPhone.',
+				a: 'Cue on Apple Watch plays Plex and Subsonic songs, and Plex and Audiobookshelf books, downloaded to the watch, so you can leave your iPhone at home. Sign in in Cue on your iPhone first; the watch uses the same sign-ins.\n- **On your iPhone**, choose **Add to Apple Watch** from an album, playlist, artist, song or book’s menu.\n- **On your watch**, browse or search your library in Cue and add it there.\n\nThe watch downloads them from your server itself. To see or remove what’s on it, open **Settings ▸ Apple Watch** on your iPhone. Books on the watch need Cue Super. If Cue isn’t on your watch yet, open the Watch app on your iPhone and install it under **Available Apps**.\n\nApple Music doesn’t let other apps play its music on Apple Watch, so it stays on your iPhone.',
 			},
 			{
 				id: 'watch-downloads',

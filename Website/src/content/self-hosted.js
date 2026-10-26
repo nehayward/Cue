@@ -31,6 +31,8 @@ export const highlights = [
 	{ icon: 'speaker', title: 'Straight to Sonos', body: 'Tap Play On and your speakers stream the same songs straight from your server. Opus is sent as MP3, since Sonos can’t play it.' },
 	{ icon: 'apple-watch', title: 'On your Apple Watch', body: 'Put albums, playlists and artists on your watch and go for a run without your iPhone. The watch downloads from your server itself, as MP3 or the original file.' },
 	{ icon: 'carplay', title: 'In the car', body: 'Your library and downloads in CarPlay, with Up Next, shuffle and repeat on the car’s screen.' },
+	{ icon: 'mic-vocal', title: 'Your lyrics, lit up', body: 'Plex lyrics, Subsonic’s, or a .lrc beside the file, each line lighting up as it’s sung. Downloaded songs keep theirs offline.' },
+	{ icon: 'book-open', title: 'Audiobooks, too', body: 'Plex libraries you keep for books, and Audiobookshelf, play as books: chapters, speed, Smart Resume and your place synced back to the server.' },
 ];
 
 export const setup = [

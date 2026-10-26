@@ -25,7 +25,7 @@ export const handoff = {
 	steps: [
 		{ icon: 'smartphone', title: 'Plays on your device', body: 'Every song, album and station plays right here — no speaker, no network, no problem.' },
 		{ icon: 'arrow-left-right', title: 'Hands off to Sonos', body: 'Tap Play On and the queue moves to any room or group, right where you left it.' },
-		{ icon: 'speaker', title: 'Controls the whole house', body: 'Group rooms, set volumes and alarms — on every speaker you own.' },
+		{ icon: 'speaker', title: 'Controls the whole house', body: 'Group rooms, set each one’s volume, play any speaker’s line-in and set alarms — on every speaker you own.' },
 	],
 };
 
@@ -39,7 +39,8 @@ export const screens = [
 ];
 
 // Big alternating sections between the hand-off and the feature grid. Swap a
-// `screen` for a closer match when there's a screenshot of that feature.
+// `screen` for a closer match when there's a screenshot of that feature. A
+// `link` adds a "more" line under the points.
 export const spotlights = [
 	{
 		eyebrow: 'Library',
@@ -47,6 +48,14 @@ export const spotlights = [
 		body: 'Cue syncs your Plex or Subsonic library once and keeps it on your phone. Songs opens complete, search filters every track as you type, and every list sorts the way you like.',
 		points: ['Title, artist, album, year, play count or date added', 'Plex editions labelled with format and bitrate', 'Plays counted back on your server'],
 		screen: { file: 'shots/albums.jpg', alt: 'Albums from a Plex library in Cue' },
+	},
+	{
+		eyebrow: 'Audiobooks',
+		title: 'Books, not long albums.',
+		body: 'Your Plex and Audiobookshelf books play as books: chapters, speed for each one, Smart Resume that picks up between words, and a history of every place you’ve been. Start a chapter, then Back to Music picks your playlist up where it was.',
+		points: ['Plex and Audiobookshelf, side by side', 'Read Along: each word lit as it’s read', 'In CarPlay, on Apple Watch and on Sonos'],
+		screen: { file: 'shots/book-player.jpg', alt: 'Cue playing an audiobook, with the chapter over the title and 15 and 30 second skips' },
+		link: { href: '/audiobooks', label: 'Everything Cue does for audiobooks' },
 	},
 	{
 		eyebrow: 'Offline',
@@ -73,14 +82,14 @@ export const beyondPhone = {
 		{
 			icon: 'carplay',
 			name: 'CarPlay',
-			body: 'Your libraries, downloads and radio stations on the car’s screen. In the car, Cue always plays from your iPhone.',
-			points: ['Recents, Library, Downloads and Radio', 'Up Next, shuffle and repeat in Now Playing', 'Downloads that play with no signal'],
+			body: 'Your libraries, audiobooks, downloads and radio stations on the car’s screen. In the car, Cue always plays from your iPhone.',
+			points: ['Home, Audiobooks, Downloads and Radio', 'Up Next, shuffle and repeat in Now Playing', 'A book’s chapters and speed, right in Now Playing'],
 		},
 		{
 			icon: 'apple-watch',
 			name: 'Apple Watch',
-			body: 'Put Plex and Subsonic music on your watch and leave your iPhone at home. Browse and search your server right from your wrist.',
-			points: ['Add to Apple Watch from any album, playlist or song', 'Plays from the watch, with no iPhone nearby', 'Widgets, a Control Center button and double tap'],
+			body: 'Put Plex and Subsonic music, and your audiobooks, on your watch and leave your iPhone at home. Browse and search your server right from your wrist.',
+			points: ['Add to Apple Watch from any album, playlist, song or book', 'Plays from the watch, with your book’s place synced back', 'Controls your iPhone’s music too, Up Next included'],
 		},
 	],
 };
@@ -90,14 +99,15 @@ export const features = [
 	{ icon: 'wifi-off', title: 'Offline Mode', body: 'Download from Plex and Subsonic and keep listening on a plane or in a tunnel.' },
 	{ icon: 'server', title: 'Your Own Server', body: 'Plex, Navidrome and any Subsonic server, with plays counted back on the server.' },
 	{ icon: 'audio-waveform', title: 'Streaming Quality', body: 'Stream lossless at home, or MP3 and Opus at a bitrate you pick on cellular.' },
-	{ icon: 'book-open', title: 'Audiobooks', body: 'Plex and Audiobookshelf books with chapters, speed, Smart Resume and every place you’ve been.' },
+	{ icon: 'mic-vocal', title: 'Lyrics', body: 'Sing along line by line, from your server’s own lyrics, your files, or LRCLIB.' },
 	{ icon: 'captions', title: 'Read Along', body: 'See a book’s words as they’re read, transcribed on your iPhone. Tap a word to look it up.' },
 	{ icon: 'radio', title: 'Live Transcription', body: 'Read what a radio station is saying, transcribed live and entirely on your device.' },
 	{ icon: 'list-music', title: 'Playlists, Edited', body: 'Create playlists, add songs to several at once, reorder, and undo.' },
-	{ icon: 'shuffle', title: 'A Queue That Remembers', body: 'Shuffle keeps the real order behind it, through edits and relaunches.' },
+	{ icon: 'shuffle', title: 'A Queue You Can Edit', body: 'Drag, remove or play next any song, played ones too. Shuffle keeps the real order behind it.' },
 	{ icon: 'lock-keyhole', title: 'Lock Screen Controls', body: 'Your speaker in the Lock Screen player, with the volume buttons to match.' },
 	{ icon: 'play', title: 'Song Previews', body: 'Hear a quick clip of any Apple Music song before you play it.' },
 	{ icon: 'alarm-clock', title: 'Sleep Timer & Sonos Alarms', body: 'Fall asleep to a book or playlist on your iPhone, and wake up to music on your Sonos speakers.' },
+	{ icon: 'cable', title: 'Line In, Anywhere', body: 'Play the turntable on one speaker in any room or group of the house.' },
 	{ icon: 'house', title: 'Every Home', body: 'S1 and S2 systems, and more than one house, a tap apart.' },
 	{ icon: 'tv', title: 'Home Theater', body: 'Night mode, speech enhancement and lip sync for Sonos soundbars.' },
 ];
@@ -147,6 +157,10 @@ export const faq = [
 		a: 'Apple Music, Plex, Subsonic-compatible servers (Navidrome, Airsonic, Gonic and more), TuneIn radio, and music files on your device or in iCloud Drive. Audiobooks play from Plex and Audiobookshelf.',
 	},
 	{
+		q: 'Does Cue play audiobooks?',
+		a: 'Yes, from Plex and Audiobookshelf, with chapters, a speed for each book, Smart Resume and a history of every place you’ve been. Books play beside your music, in CarPlay, on Apple Watch and on Sonos. [See what Cue does for audiobooks](/audiobooks).',
+	},
+	{
 		q: 'What does Cue Super add?',
 		a: 'Unlimited downloads on your iPhone and Apple Watch (free downloads are 50 songs, shared between the two), downloading audiobooks, reading along with a book as it plays, and every Sonos room. Free, Cue plays on one Sonos room. One purchase covers every Cue app.',
 	},
@@ -164,6 +178,6 @@ export const faq = [
 	},
 	{
 		q: 'Which devices does Cue run on?',
-		a: 'Cue is for iPhone, and works with CarPlay. It also has an Apple Watch app that plays Plex and Subsonic music downloaded to the watch, with no iPhone needed.',
+		a: 'Cue is for iPhone, and works with CarPlay. It also has an Apple Watch app that plays Plex and Subsonic music and audiobooks downloaded to the watch, with no iPhone needed.',
 	},
 ];

@@ -10,7 +10,7 @@ import { route } from '../src/worker.js';
 const get = (path, init) => route(new Request(`https://cue.dance${path}`, init));
 
 test('every page renders with the shared header and a title', async () => {
-	for (const path of ['/', '/help', '/releases', '/privacy', '/terms', '/self-hosted', '/press', '/beta', `/releases/${releases[0].version}`]) {
+	for (const path of ['/', '/help', '/releases', '/privacy', '/terms', '/self-hosted', '/audiobooks', '/press', '/beta', `/releases/${releases[0].version}`]) {
 		const response = await get(path);
 		assert.equal(response.status, 200, path);
 		const body = await response.text();

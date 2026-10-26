@@ -3,7 +3,7 @@ import { html, icon, raw } from './html.js';
 
 // Bumped by hand when styles.css changes in a way that must not mix with a
 // cached copy. Static assets are otherwise cached for an hour (public/_headers).
-const ASSET_VERSION = '17';
+const ASSET_VERSION = '18';
 
 /** The main call to action: an App Store link once Cue is listed, the public beta's page until then. */
 export const downloadButton = ({ size = 'large' } = {}) =>

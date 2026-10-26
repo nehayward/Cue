@@ -48,6 +48,12 @@ to `public/press/`, a ~1150px-tall JPEG to `public/shots/`, and re-run
   (currently Plex Library).
 - [ ] **Live Transcription** on a station: the "Live radio, word for word"
   spotlight (currently Radio).
+- [ ] **Read Along** on a device (the Simulator has no transcriber): `/audiobooks`
+  draws it in HTML for now (`readDemo` in `Website/src/pages/audiobooks.js`).
+- The audiobook shots (`book-*.jpg`, `audiobooks.jpg`, October 2026) were taken
+  with `-dance.cue.blurArtwork YES`, so the covers are blurred. Their History
+  shows a screenshot session's pauses; a real week of listening would read
+  better.
 
 ## In the app
 
