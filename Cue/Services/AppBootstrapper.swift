@@ -54,6 +54,11 @@ final class AppBootstrapper {
             // cover is 36 MB) and downsampling was silently a no-op app-wide.
             // The registry's default decoder is the same class, built with
             // the context, so the thumbnail path works.
+            #if DEBUG
+            if ScreenshotArtwork.blurs {
+                $0.makeImageDecoder = ScreenshotArtwork.decoder(for:)
+            }
+            #endif
         }
 
         ImagePipeline.shared = pipeline

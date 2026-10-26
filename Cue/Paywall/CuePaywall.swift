@@ -1,5 +1,4 @@
 import OSLog
-import RevenueCatUI
 import RevenueCat
 import SwiftUI
 import SubscriptionKit
@@ -14,18 +13,17 @@ struct CuePaywall: View {
     /// installed above it.
     @State private var subscriptionService = SubscriptionService.shared
 
-    /// RC's `originalTemplatePaywallFooter` loads pricing async and renders
-    /// when the offering arrives. When the paywall slides in (especially the
-    /// onboarding case) the footer popping in mid-slide caused a janky shift.
+    /// The footer's plans load async and render when the offering arrives.
+    /// When the paywall slides in (especially the onboarding case) the
+    /// footer popping in mid-slide caused a janky shift.
     /// We hold the content invisible for ~280ms — long enough for the
     /// transition to settle and the offering to fetch — then fade it in. The
     /// background stays solid throughout so the user never sees an empty frame.
     @State private var contentVisible = false
 
-    /// The offering the footer shows, loaded here rather than by the footer:
-    /// RevenueCatUI closes the whole presentation when its own load fails
-    /// (an alert, then `dismiss`), so a store that didn't answer took the
-    /// paywall with it. Here it stays up, says so, and offers Try Again.
+    /// The offering the footer shows. When it doesn't load the paywall stays
+    /// up, says so, and offers Try Again (RevenueCat's own footer closed the
+    /// whole presentation instead).
     @State private var offering: Offering?
     @State private var offeringFailed = false
 
@@ -37,22 +35,22 @@ struct CuePaywall: View {
     /// follows; iPad / Mac / TV / Vision collapse into the single-license
     /// footer. Only what Cue has today: no Scenes or Shortcuts yet.
     private let comparisonRows: [ComparisonRow] = [
-        .init(label: "Unlimited downloads", description: "Plex & Subsonic songs on iPhone and Apple Watch", inFree: false, features: [.unlimitedDownloads, .downloads]),
+        .init(label: "Unlimited downloads", description: "Plex & Subsonic songs", inFree: false, features: [.unlimitedDownloads, .downloads]),
         .init(label: "Every Sonos room", description: "Free plays on one room", inFree: false, features: [.allRooms]),
-        .init(label: "Book downloads", description: "Plex & Audiobookshelf books, offline", inFree: false, features: [.bookDownloads]),
-        .init(label: "Read along", description: "A book's words as it's read, on device", inFree: false, features: [.bookTranscript])
+        .init(label: "Book downloads", description: "Plex & Audiobookshelf", inFree: false, features: [.bookDownloads]),
+        .init(label: "Read along", description: "A book's words as it's read", inFree: false, features: [.bookTranscript])
     ]
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 18) {
                 // Hero Section
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("CUE SUPER")
+                    Text(offering?.saleEyebrow?.uppercased() ?? "CUE SUPER")
                         .font(.caption.weight(.semibold))
                         .tracking(1)
                         .foregroundStyle(Color.accentColor)
-                    Text("Keep every song.")
+                    Text(offering?.saleHeadline ?? "Keep every song.")
                         .font(.system(size: 36, weight: .bold))
                         .foregroundStyle(.white)
                     Text("Unlimited downloads on iPhone and Apple Watch, then every Sonos room.")
@@ -61,7 +59,7 @@ struct CuePaywall: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
-                .padding(.top, 24)
+                .padding(.top, 8)
 
                 if let reason {
                     PaywallReasonCard(reason: reason)
@@ -82,16 +80,18 @@ struct CuePaywall: View {
             .fontDesign(.rounded)
         }
         .frame(maxWidth: .infinity)
-        .modifier(OfferingFooter(offering: offering, failed: offeringFailed) {
-            Task { await loadOffering() }
-        } purchased: {
-            dismiss()
-        })
+        .safeAreaInset(edge: .bottom) {
+            PurchaseFooter(offering: offering, failed: offeringFailed) {
+                Task { await loadOffering() }
+            } purchased: {
+                dismiss()
+            }
+        }
         // Hold content invisible until the slide-in settles, then fade in
-        // together with the RC footer's offering load. See `contentVisible`
+        // together with the footer's offering load. See `contentVisible`
         // for the full reasoning.
         .opacity(contentVisible ? 1 : 0)
-        // Cap the readable content (table + RC footer) at ~640pt so the layout
+        // Cap the readable content (table + footer) at ~640pt so the layout
         // reads as a centered column on iPad/Mac/Catalyst fullScreenCover —
         // without this the comparison table and "Try free" CTA stretched the
         // entire window width and looked unmoored. On iPhone the device width
@@ -146,6 +146,12 @@ struct CuePaywall: View {
 
     private func loadOffering() async {
         offeringFailed = false
+        #if DEBUG
+        if PaywallSalePreview.isOn {
+            offering = PaywallSalePreview.offering
+            return
+        }
+        #endif
         guard Purchases.isConfigured else {
             Self.log.error("paywall: RevenueCat isn't configured yet")
             offeringFailed = true
@@ -214,42 +220,6 @@ struct CuePaywall: View {
     }
 }
 
-/// RevenueCat's footer once the offering is in; until then a spinner, and
-/// when it couldn't load, why and Try Again in its place.
-private struct OfferingFooter: ViewModifier {
-    let offering: Offering?
-    let failed: Bool
-    let retry: () -> Void
-    let purchased: () -> Void
-
-    func body(content: Content) -> some View {
-        if let offering {
-            content.originalTemplatePaywallFooter(offering: offering, purchaseCompleted: { _ in
-                purchased()
-            })
-        } else {
-            content.safeAreaInset(edge: .bottom) {
-                VStack(spacing: 12) {
-                    if failed {
-                        Text("Cue Super's prices didn't load.")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.65))
-                        Button("Try Again", action: retry)
-                            .buttonStyle(.borderedProminent)
-                    } else {
-                        ProgressView()
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                // RevenueCat's footer is opaque; this stands in its place, so
-                // the table scrolls under it rather than showing through.
-                .background(Color.black)
-            }
-        }
-    }
-}
-
 struct ComparisonRow {
     let label: String
     var description: String? = nil
@@ -294,7 +264,7 @@ struct ComparisonTable: View {
                         .frame(width: 80)
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.vertical, 10)
                 .background(isLit ? Color.accentColor.opacity(0.14) : .clear)
 
                 if index < rows.count - 1 {
@@ -327,7 +297,7 @@ struct ComparisonTable: View {
             Spacer()
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.vertical, 11)
         .background(Color.accentColor.opacity(0.08))
     }
 
@@ -349,7 +319,7 @@ struct ComparisonTable: View {
                 .frame(width: 80)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.vertical, 10)
     }
 
     @ViewBuilder

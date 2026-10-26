@@ -16,7 +16,7 @@
 
 export const releases = [
 	{
-		version: '2026.1',
+		version: '2026.8',
 		date: null,
 		headline: 'Meet Cue: a music player for iPhone that plays Apple Music, Plex, Subsonic and radio — on your phone, or on Sonos.',
 		newFeatures: [

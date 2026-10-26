@@ -85,10 +85,6 @@ struct PreferenceScreen: View {
                             router.presentedFullScreenCover = .paywall
                         } label: {
                             HStack(spacing: 12) {
-                                Image("CueIconGlass")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 40, height: 40)
                                 VStack(alignment: .leading, spacing: 2) {
                                     HStack(spacing: 6) {
                                         Text("Cue Super")
