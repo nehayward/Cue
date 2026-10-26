@@ -32,7 +32,7 @@ enum Commands {
                     }
                     let view = try ShotView(shot: entry.shot, model: model, canvas: canvas, index: index,
                                         theme: project.theme, screen: screen, companion: companion, icon: icon,
-                                            deviceWidth: setup.deviceWidth.map { CGFloat($0) }, bleed: setup.bleed ?? false)
+                                            deviceWidth: setup.deviceWidth.map { CGFloat($0) }, bleed: entry.shot.bleed ?? setup.bleed ?? false)
                     image = try Renderer.image(view, size: canvas)
                 }
                 let flat = try Renderer.opaque(image, background: project.theme.base.cgColor)

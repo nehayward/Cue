@@ -72,9 +72,9 @@ Tools/StoreShots/.build/release/storeshots <command> <project.json>
   running off the canvas), `pair` (the device with a companion, the iPhone
   with its watch app).
 - `bare` devices get the raw screenshot as it is (Apple Watch: the store draws
-  the watch round it). `bleed` lets the device run off the bottom at
-  `deviceWidth` instead of shrinking to fit (an iPad screen with empty space
-  below).
+  the watch round it). `bleed`, on a device or a shot (or a shot's override),
+  lets the device run off the bottom at `deviceWidth` instead of shrinking to
+  fit (an iPad screen with empty space below).
 - A title's lines are balanced, so no word sits alone; a ` ` keeps two
   words together.
 - Previews: scenes play a recording from `from` for `duration` seconds

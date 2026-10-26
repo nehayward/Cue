@@ -113,7 +113,7 @@ struct ShotView: View {
                         .overlay(alignment: .top) {
                             heroDeviceView(device)
                                 .frame(width: device.size.width, height: device.size.height)
-                                .offset(x: canvas.width * 0.08)
+                                .offset(x: canvas.width * (model.kind == .tablet ? 0.02 : 0.08))
                         }
                 }
             }
