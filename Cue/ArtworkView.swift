@@ -21,6 +21,12 @@ struct ArtworkView: View {
     /// is shared with the lock screen artwork (see `ImageRequest.playerArtwork`);
     /// small tiles pass their own size so they don't each hold a ~4 MB bitmap.
     var decodeSize: CGFloat = ImageRequest.playerArtworkSize
+    /// Apple Music's moving cover over the still, where the speaker plays
+    /// an album that has one (`MotionArtworkOverlay`): the player's cover
+    /// asks for it.
+    var showsMotion: Bool = false
+    /// Holds the moving cover on its frame while the group is paused.
+    var isMotionPaused: Bool = false
 
     private let defaultFadeDuration: Double = 0.3
     @State private var alarmRunning: Bool = false
@@ -74,6 +80,16 @@ struct ArtworkView: View {
     private var displayImage: UIImage? {
         if isShowingAnotherRoomsImage { return cachedImage }
         return currentImage ?? cachedImage
+    }
+
+    /// The song the moving cover is looked up by: the speaker's track,
+    /// unless it's a station's, which has no album to look up.
+    private var motionContent: PlayableContent? {
+        let room = group.coordinatorRoom
+        guard room.radioStation == nil,
+              room.track.metadata?.contentType != .radio,
+              !room.track.isEmpty else { return nil }
+        return room.track.toPlayable
     }
 
     /// From the stream the speaker reports as well as the source, which a
@@ -231,6 +247,13 @@ struct ArtworkView: View {
                                 .tint(Color.primary.gradient)
                         }
                     }
+            }
+        }
+        // Over the ZStack rather than the image, so one video plays on
+        // through a crossfade between two copies of the same cover.
+        .overlay {
+            if showsMotion, displayImage != nil {
+                MotionArtworkOverlay(content: motionContent, isPaused: isMotionPaused)
             }
         }
         #if DEBUG && SCREENSHOT

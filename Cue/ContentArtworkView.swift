@@ -21,6 +21,12 @@ struct ContentArtworkView: View {
     /// queue, the way the Sonos player's cover can. Applied to the image
     /// rather than the frame around it, so the drag preview is the cover.
     var isDraggable: Bool = false
+    /// Apple Music's moving cover over the still, where the album has one
+    /// (`MotionArtworkOverlay`): the player's cover asks for it.
+    var showsMotion: Bool = false
+    /// Holds the moving cover on its frame, as the player does while the
+    /// music is paused.
+    var isMotionPaused: Bool = false
     var foundAverageColor: ((Color) -> Void)? = nil
     
     @State private var fetchedArtworkURL: URL?
@@ -214,6 +220,11 @@ struct ContentArtworkView: View {
                 image
                     .resizable()
                     .scaledToFit()
+                    .overlay {
+                        if showsMotion {
+                            MotionArtworkOverlay(content: content, isPaused: isMotionPaused)
+                        }
+                    }
                     .onAppear {
                         // Only when someone wants it: the colour is a
                         // 40×40 redraw of the bitmap on the main thread,

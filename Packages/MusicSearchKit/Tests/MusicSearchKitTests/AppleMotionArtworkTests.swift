@@ -1,0 +1,67 @@
+import MusicSearchKit
+import XCTest
+
+final class AppleMotionArtworkTests: XCTestCase {
+    private func response(_ attributes: String) -> Data {
+        Data("""
+        {"data":[{"id":"1649434004","type":"albums","attributes":{"name":"Midnights"\(attributes)}}]}
+        """.utf8)
+    }
+
+    func testReadsEveryShapesVideo() throws {
+        let data = response("""
+        ,"editorialVideo":{
+          "motionDetailSquare":{"previewFrame":{"url":"https://a/{w}x{h}bb.{f}","width":3840,"height":3840},"video":"https://mvod.example/square.m3u8"},
+          "motionDetailTall":{"previewFrame":{"url":"https://a/{w}x{h}bb.{f}"},"video":"https://mvod.example/tall.m3u8"}
+        }
+        """)
+        let videos = try XCTUnwrap(AppleMotionArtwork.editorialVideos(inAlbumResponse: data))
+
+        XCTAssertEqual(videos["motionDetailSquare"]?.absoluteString, "https://mvod.example/square.m3u8")
+        XCTAssertEqual(videos["motionDetailTall"]?.absoluteString, "https://mvod.example/tall.m3u8")
+    }
+
+    func testNoEditorialVideoIsNil() throws {
+        XCTAssertNil(try AppleMotionArtwork.editorialVideos(inAlbumResponse: response("")))
+    }
+
+    func testAShapeWithoutAVideoIsLeftOutNotFailed() throws {
+        let data = response("""
+        ,"editorialVideo":{"motionDetailSquare":{"previewFrame":{}},"motionSquareVideo1x1":"odd","motionDetailTall":{"video":"https://mvod.example/tall.m3u8"}}
+        """)
+        let videos = try XCTUnwrap(AppleMotionArtwork.editorialVideos(inAlbumResponse: data))
+
+        XCTAssertEqual(Array(videos.keys), ["motionDetailTall"])
+    }
+
+    func testPrefersTheAlbumPagesShapes() throws {
+        let artwork = try XCTUnwrap(AppleMotionArtwork(videos: [
+            "motionSquareVideo1x1": URL(string: "https://v/grid-square.m3u8")!,
+            "motionDetailSquare": URL(string: "https://v/page-square.m3u8")!,
+            "motionTallVideo3x4": URL(string: "https://v/grid-tall.m3u8")!,
+        ]))
+
+        XCTAssertEqual(artwork.square?.lastPathComponent, "page-square.m3u8")
+        XCTAssertEqual(artwork.tall?.lastPathComponent, "grid-tall.m3u8")
+    }
+
+    func testAnUnknownNameThatSaysItsShapeStillCounts() throws {
+        let artwork = try XCTUnwrap(AppleMotionArtwork(videos: ["motionWideSquare": URL(string: "https://v/s.m3u8")!]))
+
+        XCTAssertEqual(artwork.square?.lastPathComponent, "s.m3u8")
+        XCTAssertNil(artwork.tall)
+    }
+
+    func testNoShapeIsNoArtwork() {
+        XCTAssertNil(AppleMotionArtwork(videos: [:]))
+        XCTAssertNil(AppleMotionArtwork(videos: ["motionWide16x9": URL(string: "https://v/w.m3u8")!]))
+    }
+
+    func testFallsBackToTheOtherShape() {
+        let squareOnly = AppleMotionArtwork(square: URL(string: "https://v/s.m3u8"), tall: nil)
+        let tallOnly = AppleMotionArtwork(square: nil, tall: URL(string: "https://v/t.m3u8"))
+
+        XCTAssertEqual(squareOnly.video(tall: true)?.lastPathComponent, "s.m3u8")
+        XCTAssertEqual(tallOnly.video(tall: false)?.lastPathComponent, "t.m3u8")
+    }
+}

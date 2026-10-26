@@ -99,7 +99,7 @@ struct LargePlayerView: View {
                     }
                     .transition(.opacity)
                 } else {
-                    ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: artworkShouldFade)
+                    ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: artworkShouldFade, showsMotion: true, isMotionPaused: !group.coordinatorRoom.isPlaying)
                         .padding(.bottom, showArtworkOnly ? 0 : 12)
                         .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
                         .padding(.top, showArtworkOnly ? 100 : nil)

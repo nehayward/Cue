@@ -1717,6 +1717,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // `-AudiobookAudit <title>`: what a Plex book's server and files
         // hold about its chapters.
         AudiobookAudit.startIfRequested()
+        // `-MotionArtworkAudit YES`: whether Apple sends Cue albums' moving
+        // covers at all.
+        MotionArtworkAudit.startIfRequested()
         #if os(iOS)
         // Cue's log as a file the Mac can copy off the phone.
         PhoneLogFile.start()

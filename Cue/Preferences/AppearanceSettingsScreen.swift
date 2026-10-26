@@ -2,11 +2,13 @@ import Defaults
 import SwiftUI
 
 /// Settings ▸ Appearance: the theme, picked from three swatches (light,
-/// dark, and half of each for System), and which optional tabs show.
+/// dark, and half of each for System), when Apple Music's moving covers
+/// play, and which optional tabs show.
 struct AppearanceSettingsScreen: View {
     @AppStorage(AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
     @AppStorage(AppStorageKeys.showAudiobooksTab) private var showAudiobooksTab: Bool = true
+    @AppStorage(AppStorageKeys.videoCovers) private var videoCovers: VideoCoverPreference = .defaultValue
 
     var body: some View {
         Form {
@@ -23,6 +25,24 @@ struct AppearanceSettingsScreen: View {
                 .padding(.vertical, 6)
             } header: {
                 Text("Theme")
+            }
+
+            Section {
+                Picker(selection: $videoCovers) {
+                    ForEach(VideoCoverPreference.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                } label: {
+                    Label {
+                        Text("Video Covers")
+                    } icon: {
+                        SettingsIcon(symbol: "play.rectangle.fill", colors: [Color(red: 0.98, green: 0.36, blue: 0.42), Color(red: 0.85, green: 0.18, blue: 0.3)])
+                    }
+                }
+            } header: {
+                Text("Artwork")
+            } footer: {
+                Text("Apple Music albums with a moving cover play it, muted, in the player and on the album's page. Not in Low Power Mode or Low Data Mode, or with Reduce Motion on.")
             }
 
             Section {

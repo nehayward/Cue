@@ -459,10 +459,11 @@ struct PlayerView: View {
             lyricsOrTranscript(fullScreen: false)
                 .transition(.opacity)
         } else if let group {
-            ArtworkView(group: group, isDraggable: isArtworkDraggable, showBadge: !isFullScreenLyrics, shouldFade: artworkShouldFade)
+            // Still while it's the full-screen lyrics' thumbnail.
+            ArtworkView(group: group, isDraggable: isArtworkDraggable, showBadge: !isFullScreenLyrics, shouldFade: artworkShouldFade, showsMotion: !isFullScreenLyrics, isMotionPaused: !controller.isPlaying)
                 .transition(.opacity)
         } else if let item = playback.nowPlayingDisplay {
-            ContentArtworkView(content: item, showMusicSource: !isFullScreenLyrics, preferredSize: ContentArtworkView.playerPreferredSize, cornerRadius: isFullScreenLyrics ? 6 : 8, isDraggable: isArtworkDraggable)
+            ContentArtworkView(content: item, showMusicSource: !isFullScreenLyrics, preferredSize: ContentArtworkView.playerPreferredSize, cornerRadius: isFullScreenLyrics ? 6 : 8, isDraggable: isArtworkDraggable, showsMotion: !isFullScreenLyrics, isMotionPaused: !controller.isPlaying)
                 .shadow(radius: 2)
                 .transition(.opacity)
         } else {

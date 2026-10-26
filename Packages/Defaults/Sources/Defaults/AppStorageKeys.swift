@@ -84,6 +84,10 @@ public enum AppStorageKeys {
     public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"
     public static let queueMode = "\(Prefix.id).queueMode"
     public static let showArtworkOnly = "\(Prefix.id).showArtworkOnly"
+    /// When Apple Music's moving covers play in the player and on an album's
+    /// page: Settings ▸ Appearance ▸ Video Covers (`VideoCoverPreference`'s
+    /// raw value; Wi‑Fi Only when unset).
+    public static let videoCovers = "\(Prefix.id).videoCovers"
     public static let queueInspectorVisible = "\(Prefix.id).queueInspectorVisible"
     /// The tab the app was last on, JSON-encoded, so a launch opens there.
     /// Read and written with `UserDefaults` directly, never `@AppStorage`:

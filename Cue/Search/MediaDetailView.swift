@@ -314,6 +314,12 @@ struct MediaDetailView: View {
                             .resizable()
                             .scaledToFill()
                             .frame(maxWidth: 400, maxHeight: maxHeight)
+                            // Apple Music's moving cover, where the album
+                            // has one. The glow behind stays the still:
+                            // blurring video every frame costs too much.
+                            .overlay {
+                                MotionArtworkOverlay(content: content)
+                            }
                             .clipped()
                     }
                 }
