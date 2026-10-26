@@ -22,6 +22,7 @@ struct SubsonicBrowseScreen: View {
                 // Above the library, a section of its own.
                 MusicLeftOffSection()
                 if subsonicBrowseService.isAuthenticated {
+                    // One group of rows, as on the Apple and Plex libraries.
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Artists",
                         // Off for now: the index fights the paginated loads
@@ -31,8 +32,6 @@ struct SubsonicBrowseScreen: View {
                     )) {
                         Label("Artists", systemImage: "music.mic")
                     }
-                    .listRowInsets(.default)
-                    .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Albums",
@@ -50,8 +49,6 @@ struct SubsonicBrowseScreen: View {
                     )) {
                         Label("Albums", systemImage: "smallcircle.circle.fill")
                     }
-                    .listRowInsets(.default)
-                    .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Songs",
@@ -68,67 +65,44 @@ struct SubsonicBrowseScreen: View {
                     )) {
                         Label("Songs", systemImage: "music.note")
                     }
-                    .listRowInsets(.default)
-                    .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.downloaded(service: .subsonic)) {
                         Label("Downloaded", systemImage: "arrow.down.circle")
                     }
-                    .listRowInsets(.default)
-                    .listRowSeparator(.hidden)
-
-                    NavigationLink(value: RouterDestination.playableList(
-                        title: "Recently Added",
-                        showSectionIndex: false,
-                        allowsGrid: true,
-                        action: { offset in await musicSearchService.subsonicRecentAlbums(offset: offset) }
-                    )) {
-                        Label("Recently Added", systemImage: "clock")
-                    }
-                    .listRowInsets(.default)
-                    .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableGridScreen(
                         title: "Playlists",
                         items: $subsonicBrowseService.userPlaylists,
                         action: { _ in }
                     )) {
-                        Label("Playlists", systemImage: "music.note.list")
+                        Label("Playlists (\(subsonicBrowseService.userPlaylists.count))", systemImage: "rectangle.stack.badge.play")
                     }
-                    .listRowInsets(.default)
-                    .listRowSeparator(.hidden)
 
                     if !subsonicBrowseService.userPlaylists.isEmpty {
                         ForEach(subsonicBrowseService.userPlaylists.prefix(5)) { item in
                             PlayableContentView(item: item)
-                                .listRowInsets(.default)
-                                .listRowSeparator(.hidden)
                         }
                     } else if isLoading {
                         ProgressView()
                             .frame(maxWidth: .infinity)
-                            .listRowSeparator(.hidden)
                     }
 
-                    if !subsonicBrowseService.recentAlbums.isEmpty {
-                        Section {
-                            Text("Recently Added Albums")
+                    // Recently Added as the Apple library shows it: the title
+                    // opens the whole list, the newest under it out of the
+                    // group.
+                    Section {
+                        NavigationLink(value: recentlyAddedDestination) {
+                            Text("Recently Added")
                                 .fontDesign(.rounded)
                                 .fontWeight(.semibold)
-
-                            LazyVGrid(columns: [.init(), .init()]) {
-                                ForEach(subsonicBrowseService.recentAlbums.prefix(10)) { item in
-                                    PlayableContentRowView(item: item)
-                                        .buttonStyle(.plain)
-                                        .geometryGroup()
-                                }
-                            }
                         }
-                        .listRowInsets(.default)
-                        .listRowSeparator(.hidden)
-                        .listSectionSeparator(.hidden)
-                    }
 
+                        PlayableContentGridView(items: subsonicBrowseService.recentAlbums, limit: 6)
+                    }
+                    .listSectionSpacing(0)
+                    .listRowInsets(.default)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
             }
             .musicLeftOffRoom()
@@ -137,14 +111,13 @@ struct SubsonicBrowseScreen: View {
                     notConnectedView
                 }
             }
-            .listSectionSpacing(4)
-            .listStyle(.plain)
-            .listRowSeparator(.hidden)
-            .listSectionSeparator(.hidden)
             .animation(.default, value: subsonicBrowseService.userPlaylists)
             .animation(hasLoadedOnce ? .default : nil, value: subsonicBrowseService.recentAlbums)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .miniPlayerOnScrollHandler()
+            // Default placement, as on Plex's: `.scrollContent` insets the
+            // rows but leaves the group's background running to the edge.
+            .contentMargins(.horizontal, 16)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Subsonic")
@@ -186,6 +159,16 @@ struct SubsonicBrowseScreen: View {
             Task { await subsonicBrowseService.load() }
         }
         .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
+    }
+
+    /// Every album by when it was added, newest first.
+    private var recentlyAddedDestination: RouterDestination {
+        .playableList(
+            title: "Recently Added",
+            showSectionIndex: false,
+            allowsGrid: true,
+            action: { offset in await musicSearchService.subsonicRecentAlbums(offset: offset) }
+        )
     }
 
     /// The line under the Songs title, shared with the Songs tab.
