@@ -80,7 +80,7 @@ export const beyondPhone = {
 			icon: 'apple-watch',
 			name: 'Apple Watch',
 			body: 'Put Plex and Subsonic music on your watch and leave your iPhone at home. Browse and search your server right from your wrist.',
-			points: ['Add to Apple Watch from any album, playlist or song', 'Plays from the watch, with no iPhone nearby', 'Siri, Shortcuts, widgets and double tap'],
+			points: ['Add to Apple Watch from any album, playlist or song', 'Plays from the watch, with no iPhone nearby', 'Widgets, a Control Center button and double tap'],
 		},
 	],
 };
