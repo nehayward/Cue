@@ -6,7 +6,7 @@ import RevenueCat
 /// changing what App Store Connect sells: launch a Debug build with
 /// `-dance.cue.paywallSalePreview YES` and the paywall shows this offering in
 /// place of RevenueCat's. Monthly has three months at $0.99, yearly a first
-/// year at half price, and the offering's metadata a headline and a badge on
+/// year at half price, and the offering's metadata an eyebrow, a headline and a badge on
 /// lifetime. Its plans can't be bought.
 enum PaywallSalePreview {
     static let identifier = "sale preview"
@@ -19,7 +19,7 @@ enum PaywallSalePreview {
         Offering(
             identifier: identifier,
             serverDescription: "A made-up sale",
-            metadata: ["headline": "Half off your first year.", "badge": "Launch price", "badge_plan": "lifetime"],
+            metadata: ["eyebrow": "Launch special", "headline": "Half off your first year.", "badge": "Launch price", "badge_plan": "lifetime"],
             availablePackages: [
                 package(.monthly, TestStoreProduct(
                     localizedTitle: "Monthly",

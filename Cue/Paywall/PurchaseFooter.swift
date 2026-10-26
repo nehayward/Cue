@@ -275,10 +275,13 @@ struct PurchaseFooter: View {
 }
 
 /// What a sale can say on the RevenueCat offering's metadata, without an app
-/// update: `headline` replaces the paywall's title, and `badge` goes on the
-/// plan named by `badge_plan` (`monthly`, `annual` or `lifetime`; `annual`
-/// when it's left out), which is then the one chosen when the paywall opens.
+/// update: `eyebrow` replaces "Cue Super" over the title, `headline` the
+/// title, and `badge` goes on the plan named by `badge_plan` (`monthly`,
+/// `annual` or `lifetime`; `annual` when it's left out), which is then the
+/// one chosen when the paywall opens.
 extension Offering {
+    var saleEyebrow: String? { Self.text(metadata["eyebrow"]) }
+
     var saleHeadline: String? { Self.text(metadata["headline"]) }
 
     var saleBadge: String? { Self.text(metadata["badge"]) }

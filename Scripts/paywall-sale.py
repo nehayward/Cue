@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """Show or change what the paywall says about a sale, without RevenueCat's
-website. The paywall reads three keys from the metadata of RevenueCat's
-current offering (`Offering.saleHeadline`, `saleBadge`, `saleBadgePlan` in
+website. The paywall reads four keys from the metadata of RevenueCat's
+current offering (`Offering.saleEyebrow`, `saleHeadline`, `saleBadge`, `saleBadgePlan` in
 Cue/Paywall/PurchaseFooter.swift), and every copy of Cue picks a change up the
 next time its paywall opens:
 
@@ -9,6 +9,8 @@ next time its paywall opens:
   Scripts/paywall-sale.py --badge "50% OFF" --plan monthly a badge on Monthly,
                                                            chosen when it opens
   Scripts/paywall-sale.py --headline "Half off Monthly."   the paywall's title
+  Scripts/paywall-sale.py --eyebrow "Launch special"      the small line over it,
+                                                           "Cue Super" otherwise
   Scripts/paywall-sale.py --headline ""                    back to the usual title
   Scripts/paywall-sale.py --clear                          the sale over
 
@@ -30,7 +32,7 @@ import urllib.request
 
 PROJECT = "proj9275768e"
 OFFERING = "default"
-KEYS = ("headline", "badge", "badge_plan")
+KEYS = ("eyebrow", "headline", "badge", "badge_plan")
 PLANS = {"monthly": "monthly", "yearly": "annual", "annual": "annual", "lifetime": "lifetime"}
 
 
@@ -68,6 +70,7 @@ def show(metadata):
     if not sale:
         print("No sale: the paywall shows its usual title and badges.")
         return
+    print(f"Eyebrow:  {sale.get('eyebrow', 'Cue Super')}")
     print(f"Headline: {sale.get('headline', '(the usual title)')}")
     if "badge" in sale:
         plan = sale.get("badge_plan", "annual")
@@ -82,7 +85,8 @@ def main():
     parser.add_argument("--badge", help='a badge, e.g. "50%% OFF" ("" removes it)')
     parser.add_argument("--plan", help="the plan the badge goes on: monthly, yearly or lifetime")
     parser.add_argument("--headline", help='the paywall\'s title ("" for the usual one)')
-    parser.add_argument("--clear", action="store_true", help="remove the headline and badge")
+    parser.add_argument("--eyebrow", help='the small line over the title ("" for "Cue Super")')
+    parser.add_argument("--clear", action="store_true", help="remove the eyebrow, headline and badge")
     args = parser.parse_args()
 
     offering = next((o for o in call("GET", "/offerings")["items"] if o["lookup_key"] == OFFERING), None)
@@ -90,13 +94,18 @@ def main():
         sys.exit(f"RevenueCat has no offering called {OFFERING}.")
     metadata = dict(offering.get("metadata") or {})
 
-    if not (args.clear or args.badge is not None or args.plan or args.headline is not None):
+    if not (args.clear or args.badge is not None or args.plan or args.headline is not None or args.eyebrow is not None):
         show(metadata)
         return
 
     if args.clear:
         for key in KEYS:
             metadata.pop(key, None)
+    if args.eyebrow is not None:
+        if args.eyebrow.strip():
+            metadata["eyebrow"] = args.eyebrow.strip()
+        else:
+            metadata.pop("eyebrow", None)
     if args.headline is not None:
         if args.headline.strip():
             metadata["headline"] = args.headline.strip()

@@ -46,7 +46,7 @@ struct CuePaywall: View {
             VStack(spacing: 18) {
                 // Hero Section
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("CUE SUPER")
+                    Text(offering?.saleEyebrow?.uppercased() ?? "CUE SUPER")
                         .font(.caption.weight(.semibold))
                         .tracking(1)
                         .foregroundStyle(Color.accentColor)
