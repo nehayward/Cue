@@ -58,6 +58,11 @@ This is an Xcode project with multiple targets and schemes:
 - **Package tests**: Each Swift package in `/Packages` has its own test suite
 - **Integration tests**: Located in package test directories (e.g., `Packages/SonosKit/Tests`)
 
+### App Store art
+- `Tools/StoreShots` (a Swift package with no Cue code, meant for Clic too; see its README) makes the App Store screenshots and previews from simulator captures, driven by `Marketing/AppStore/storeshots.json`: `Scripts/app-store-art.sh shoot|record|render|preview|sheet`. Raw captures, recordings and the finished art are in `build/app-store` (`output/<device>/NN-<shot>.png` at App Store Connect's exact sizes, `output/previews/*.mp4`).
+- Screenshots are taken in the simulators (iPhone 18 Pro, iPhone Duo's inner display `--display=primary-1`, iPad Pro 13-inch (M5), Apple Watch Series 12 (46mm)) with `-dance.cue.blurArtwork YES`. Tabs open from launch arguments (`-dance.cue.selectedTab` takes the JSON-encoded `AppTab` as plist data, `<7b22726164696f223a7b7d7d>` for radio), which `shoot --launch` passes; anything deeper is tapped to by hand first. The simulator tool asks once per device, so the iPad and Duo can only be shot by launch arguments until that's granted.
+- `cue-iphone-preview` is the App Preview (screen recordings only, as App Store Connect wants); `cue-promo` draws the iPhone round them, for the website and social posts. Rotato's CLI needs its premium plan, so nothing uses it.
+
 ### Configuration
 - **Debug**: Uses `Configuration/Debug.xcconfig`
 - **Beta**: Uses `Configuration/Beta.xcconfig`  
@@ -104,7 +109,7 @@ The app is built around several Swift packages in `/Packages`:
 - **Search/** - Search functionality across music services
 - **Library/** - Music library browsing and management
 - **Routing/** - App navigation and destination management
-- **Debug/** - Debug tools: the log screens, the phone's own log (`PhoneLogFile`), the launch-argument audits (`AudiobookAudit`, `DownloadAudit`, `LyricsAudit`, all `#if DEBUG`) and `ScreenshotArtwork`: `-dance.cue.blurArtwork YES` blurs every cover, through Nuke's decoder, for App Store screenshots of a library that isn't ours to show
+- **Debug/** - Debug tools: the log screens, the phone's own log (`PhoneLogFile`), the launch-argument audits (`AudiobookAudit`, `DownloadAudit`, `LyricsAudit`, all `#if DEBUG`) and `ScreenshotArtwork`: `-dance.cue.blurArtwork YES` blurs every cover, through Nuke's decoder, for App Store screenshots of a library that isn't ours to show (the watch app takes the same argument, `Watch/Debug/WatchScreenshotArtwork`, a box blur by hand since watchOS has no Core Image)
 
 ### Platform-Specific Apps
 - **CueMini/** - macOS menu bar app for quick controls
