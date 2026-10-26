@@ -77,6 +77,8 @@ struct CuePaywall: View {
                 trustStrip
                     .padding(.horizontal)
                     .padding(.top, 4)
+
+                legalLinks
             }
             .padding(.bottom)
             .fontDesign(.rounded)
@@ -174,6 +176,21 @@ struct CuePaywall: View {
             trustItem(icon: "person.2.fill", label: "Family Sharing")
             trustItem(icon: "hand.raised.fill", label: "No ads, ever")
         }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// The links App Review asks of a subscription's purchase screen. Cue's
+    /// own, not the RevenueCat paywall's: the offering has no paywall set up
+    /// in RevenueCat, so its footer shows none.
+    private var legalLinks: some View {
+        HStack(spacing: 6) {
+            Link("Terms of Use", destination: URL(string: "https://cue.dance/terms")!)
+            Text("·")
+            Link("Privacy Policy", destination: URL(string: "https://cue.dance/privacy")!)
+        }
+        .font(.caption)
+        .foregroundStyle(.white.opacity(0.6))
+        .tint(.white.opacity(0.6))
         .frame(maxWidth: .infinity)
     }
 
