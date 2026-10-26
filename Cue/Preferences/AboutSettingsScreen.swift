@@ -1,11 +1,14 @@
 import SubscriptionKit
 import SwiftUI
 
-/// Settings ▸ About: the newsletter, Last.fm's credit, and the version and
-/// this install's ID for support.
+/// Settings ▸ About: Last.fm's credit, and the version and this install's ID
+/// for support. The newsletter row is held back, as onboarding's email step
+/// is, until `api.cue.dance` takes sign-ups; `showsNewsletter` brings it back.
 struct AboutSettingsScreen: View {
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(Router.self) private var router: Router?
+
+    private let showsNewsletter = false
 
     var body: some View {
         Form {
@@ -20,24 +23,26 @@ struct AboutSettingsScreen: View {
             }
 
             Section {
-                Button {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    router?.presentedSheet = .newsletter
-                } label: {
-                    Label {
-                        HStack {
-                            Text("Newsletter")
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.tertiary)
+                if showsNewsletter {
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        router?.presentedSheet = .newsletter
+                    } label: {
+                        Label {
+                            HStack {
+                                Text("Newsletter")
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                        } icon: {
+                            SettingsIcon(symbol: "envelope.fill", colors: [Color(red: 0.20, green: 0.62, blue: 0.70), Color(red: 0.10, green: 0.45, blue: 0.55)])
                         }
-                    } icon: {
-                        SettingsIcon(symbol: "envelope.fill", colors: [Color(red: 0.20, green: 0.62, blue: 0.70), Color(red: 0.10, green: 0.45, blue: 0.55)])
                     }
+                    .tint(.primary)
                 }
-                .tint(.primary)
 
                 Link(destination: URL(string: "https://www.last.fm")!) {
                     Label {
