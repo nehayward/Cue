@@ -35,15 +35,15 @@ struct CuePaywall: View {
     /// follows; iPad / Mac / TV / Vision collapse into the single-license
     /// footer. Only what Cue has today: no Scenes or Shortcuts yet.
     private let comparisonRows: [ComparisonRow] = [
-        .init(label: "Unlimited downloads", description: "Plex & Subsonic songs on iPhone and Apple Watch", inFree: false, features: [.unlimitedDownloads, .downloads]),
+        .init(label: "Unlimited downloads", description: "Plex & Subsonic songs", inFree: false, features: [.unlimitedDownloads, .downloads]),
         .init(label: "Every Sonos room", description: "Free plays on one room", inFree: false, features: [.allRooms]),
-        .init(label: "Book downloads", description: "Plex & Audiobookshelf books, offline", inFree: false, features: [.bookDownloads]),
+        .init(label: "Book downloads", description: "Plex & Audiobookshelf", inFree: false, features: [.bookDownloads]),
         .init(label: "Read along", description: "A book's words as it's read", inFree: false, features: [.bookTranscript])
     ]
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 18) {
                 // Hero Section
                 VStack(alignment: .leading, spacing: 10) {
                     Text("CUE SUPER")
@@ -59,7 +59,7 @@ struct CuePaywall: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
-                .padding(.top, 24)
+                .padding(.top, 8)
 
                 if let reason {
                     PaywallReasonCard(reason: reason)
@@ -264,7 +264,7 @@ struct ComparisonTable: View {
                         .frame(width: 80)
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.vertical, 10)
                 .background(isLit ? Color.accentColor.opacity(0.14) : .clear)
 
                 if index < rows.count - 1 {
@@ -297,7 +297,7 @@ struct ComparisonTable: View {
             Spacer()
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.vertical, 11)
         .background(Color.accentColor.opacity(0.08))
     }
 
@@ -319,7 +319,7 @@ struct ComparisonTable: View {
                 .frame(width: 80)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.vertical, 10)
     }
 
     @ViewBuilder

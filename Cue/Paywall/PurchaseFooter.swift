@@ -62,7 +62,9 @@ struct PurchaseFooter: View {
                     Task { await purchase(choice) }
                 } label: {
                     ZStack {
+                        // Picking a plan morphs the old wording into the new.
                         Text(buttonTitle(for: choice))
+                            .contentTransition(.interpolate)
                             .opacity(isBusy ? 0 : 1)
                         if isBusy {
                             ProgressView()
@@ -77,12 +79,20 @@ struct PurchaseFooter: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isBusy)
+                // And the button gives a little bounce.
+                .keyframeAnimator(initialValue: 1.0, trigger: choice.identifier) { button, scale in
+                    button.scaleEffect(scale)
+                } keyframes: { _ in
+                    SpringKeyframe(1.04, duration: 0.12)
+                    SpringKeyframe(1.0, duration: 0.3, spring: .bouncy)
+                }
 
                 Text(message ?? terms(for: choice))
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(message == nil ? 0.5 : 0.8))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
+                    .contentTransition(.opacity)
 
                 HStack(spacing: 6) {
                     Button("Restore Purchases") {
