@@ -56,16 +56,21 @@ const PAGES = {
 	'/': () => homePage(),
 	'/help': (query) => helpPage({ embed: query.has('embed') }),
 	'/audiobooks': () => audiobooksPage(),
-	'/self-hosted': () => selfHostedPage(),
 	'/beta': () => betaPage(),
+	'/self-hosted': () => selfHostedPage(),
 	'/releases': () => releasesIndexPage(),
 	'/press': () => pressPage(),
 	'/privacy': () => privacyPage(),
 	'/terms': () => termsPage(),
 };
 
+// Pages that work for anyone with the link but aren't listed anywhere: no
+// link on the site, not in the sitemap, and noindex on the page itself.
+// Not in robots.txt either, which would only advertise them.
+const UNLISTED = new Set(['/beta']);
+
 const sitemap = () => {
-	const paths = [...Object.keys(PAGES), ...releases.map((r) => `/releases/${r.version}`)];
+	const paths = [...Object.keys(PAGES).filter((p) => !UNLISTED.has(p)), ...releases.map((r) => `/releases/${r.version}`)];
 	return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${paths
 		.map((p) => `\t<url><loc>${site.origin}${p === '/' ? '' : p}</loc></url>`)
 		.join('\n')}\n</urlset>\n`;

@@ -172,8 +172,8 @@ const body = html`
 	<section class="section container narrow" id="get">
 		<div class="cta-panel reveal">
 			<img src="/apple-touch-icon.png" alt="" width="88" height="88" loading="lazy">
-			<h2>${appStoreUrl ? 'Ready when you are.' : 'Try the beta.'}</h2>
-			<p>${appStoreUrl ? 'Free to download, with every service ready to play.' : 'Cue is in public beta on TestFlight. It’s free to join, with every feature unlocked.'}</p>
+			<h2>${appStoreUrl ? 'Ready when you are.' : 'Coming soon to iPhone.'}</h2>
+			<p>${appStoreUrl ? 'Free to download, with every service ready to play.' : 'Cue is almost here. Until then, see what’s in the first release.'}</p>
 			${appStoreUrl
 				? downloadButton()
 				: html`<div class="actions center">${downloadButton()}<a class="btn btn-ghost btn-large" href="/releases/${releases[0].version}">What’s in ${releases[0].version} ${icon('arrow-right')}</a></div>`}

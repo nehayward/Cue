@@ -4,7 +4,8 @@ main = "src/worker.js"
 compatibility_date = "2026-09-01"
 
 # The Worker is cue.dance's custom domain, and testflight.cue.dance's, which
-# redirects to the public beta: Cloudflare creates the DNS records and
+# redirects to the public beta's TestFlight invite (shared directly, like
+# the unlisted /beta page): Cloudflare creates the DNS records and
 # certificates on deploy. api.cue.dance and resource.cue.dance are separate
 # and untouched.
 routes = [

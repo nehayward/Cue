@@ -65,13 +65,22 @@ test('testflight.cue.dance sends every path to the beta invite', async () => {
 	assert.equal((await get('/')).status, 200);
 });
 
-test('until the App Store, the calls to action lead to the beta and the beta page to TestFlight', async () => {
+test('until the App Store, the calls to action say coming soon, and only the unlisted /beta mentions the beta', async () => {
 	const home = await (await get('/')).text();
-	assert.match(home, /href="\/beta"[^>]*>.*Join the Beta/);
-	assert.doesNotMatch(home, /Coming soon/);
+	assert.match(home, /Coming soon to the App Store/);
+
+	for (const path of ['/', '/help', '/releases', '/privacy', '/terms', '/self-hosted', '/audiobooks', '/press', `/releases/${releases[0].version}`]) {
+		const body = await (await get(path)).text();
+		assert.doesNotMatch(body, /testflight|\bbeta\b|href="\/beta"/i, path);
+	}
 
 	const beta = await (await get('/beta')).text();
 	assert.ok(beta.includes('href="https://testflight.apple.com/join/6B7QHpsd"'));
+	assert.match(beta, /<meta name="robots" content="noindex/);
+
+	const sitemap = await (await get('/sitemap.xml')).text();
+	assert.doesNotMatch(sitemap, /\/beta/);
+	assert.doesNotMatch(await (await get('/robots.txt')).text(), /beta/);
 
 	const alias = await get('/testflight');
 	assert.equal(alias.status, 301);

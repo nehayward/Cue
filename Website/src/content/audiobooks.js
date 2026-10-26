@@ -5,7 +5,7 @@
 
 export const intro = {
 	eyebrow: 'Audiobooks · Plex · Audiobookshelf',
-	title: 'Books, not\nlong albums.',
+	title: 'Built for books,\nnot just songs.',
 	lede: 'Cue plays the audiobooks on your Plex or Audiobookshelf server with everything a book needs: chapters, speed, Smart Resume and a history of every place you’ve been. In the same app as your music, on your iPhone, in the car, on your wrist or on Sonos.',
 	devices: [
 		{ icon: 'iphone', name: 'iPhone' },

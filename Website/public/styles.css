@@ -161,6 +161,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .btn-ghost { border-color: var(--border-strong); color: var(--text); background: transparent; }
 .btn-ghost:hover { background: var(--surface-hover); border-color: rgb(255 255 255 / 0.3); }
 
+/* Not a link: the pre-launch stand-in for the App Store button. */
+.btn-soon { cursor: default; color: var(--accent); background: var(--accent-soft); border-color: rgb(52 211 153 / 0.3); }
+.btn-soon:hover { transform: none; }
+
 
 .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 2rem; }
 .actions.center { justify-content: center; }

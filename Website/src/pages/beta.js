@@ -8,6 +8,8 @@ export const betaPage = () =>
 		path: '/beta',
 		title: 'Public Beta',
 		description: 'Try Cue before it reaches the App Store: join the free public beta on TestFlight, with every feature unlocked.',
+		// Unlisted: only people given the link should find it.
+		head: html`<meta name="robots" content="noindex, nofollow">`,
 		body: html`
 			<section class="section container narrow text-center page-intro">
 				<p class="eyebrow">${intro.eyebrow}</p>

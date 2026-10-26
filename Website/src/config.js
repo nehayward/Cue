@@ -13,11 +13,12 @@ export const site = {
 	resources: 'https://resource.cue.dance',
 
 	// Set once Cue is live on the App Store. While it is null, every
-	// call to action is Join the Beta, to /beta, instead of the App Store.
+	// call to action reads "Coming soon to the App Store" instead of linking.
 	appStoreId: null,
 
 	// The public beta's TestFlight invite (the "Beta (Public)" group), where
-	// testflight.cue.dance sends everyone.
+	// testflight.cue.dance sends everyone. The beta's page, /beta, is
+	// unlisted: nothing else on the site links to it or names the beta.
 	testFlight: 'https://testflight.apple.com/join/6B7QHpsd',
 	testFlightHost: 'testflight.cue.dance',
 
@@ -37,7 +38,6 @@ export const nav = [
 export const footerLinks = [
 	{ href: '/help', label: 'Help' },
 	{ href: '/releases', label: 'Release Notes' },
-	{ href: '/beta', label: 'Beta' },
 	{ href: '/audiobooks', label: 'Audiobooks' },
 	{ href: '/self-hosted', label: 'Plex & Navidrome' },
 	{ href: '/press', label: 'Press' },

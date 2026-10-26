@@ -1,5 +1,7 @@
 // Copy for /beta, the way into the public beta on TestFlight. Every claim
-// here should match what the beta builds do.
+// here should match what the beta builds do. The page is unlisted: nothing
+// on the site links to it, it's left out of the sitemap and it asks search
+// engines not to index it, so only people given the link find it.
 
 export const intro = {
 	eyebrow: 'Public beta',

@@ -1,4 +1,5 @@
 import { comparison, details, everywhere, faq, intro, plans, reasons, screens, setup, spotlights } from '../content/audiobooks.js';
+import { appStoreUrl } from '../config.js';
 import { html, icon, inline, raw } from '../lib/html.js';
 import { downloadButton, iphone, page } from '../lib/layout.js';
 
@@ -234,7 +235,7 @@ export const audiobooksPage = () =>
 				<div class="cta-panel reveal">
 					<img src="/apple-touch-icon.png" alt="" width="88" height="88" loading="lazy">
 					<h2>Your next chapter is waiting.</h2>
-					<p>Free to download. Sign in to Plex or Audiobookshelf and pick up right where you left off.</p>
+					<p>${appStoreUrl ? 'Free to download.' : 'Cue is almost here.'} Sign in to Plex or Audiobookshelf and pick up right where you left off.</p>
 					${downloadButton()}
 				</div>
 			</section>`,

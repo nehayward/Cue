@@ -51,7 +51,7 @@ export const spotlights = [
 	},
 	{
 		eyebrow: 'Audiobooks',
-		title: 'Books, not long albums.',
+		title: 'Built for books, not just songs.',
 		body: 'Your Plex and Audiobookshelf books play as books: chapters, speed for each one, Smart Resume that picks up between words, and a history of every place you’ve been. Start a chapter, then Back to Music picks your playlist up where it was.',
 		points: ['Plex and Audiobookshelf, side by side', 'Read Along: each word lit as it’s read', 'In CarPlay, on Apple Watch and on Sonos'],
 		screen: { file: 'shots/book-player.jpg', alt: 'Cue playing an audiobook, with the chapter over the title and 15 and 30 second skips' },
