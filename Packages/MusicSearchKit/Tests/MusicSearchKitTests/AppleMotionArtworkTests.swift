@@ -34,6 +34,44 @@ final class AppleMotionArtworkTests: XCTestCase {
         XCTAssertEqual(Array(videos.keys), ["motionDetailTall"])
     }
 
+    /// An album page laid out as music.apple.com's: its header section, then
+    /// `sections` after it.
+    private func page(header: String, sections: String = "") -> Data {
+        Data("""
+        <!DOCTYPE html><html><head><script type="module" src="/assets/index.js"></script></head><body>
+        <script type="application/json" id="serialized-server-data">{"data":[{"intent":{"$kind":"AlbumDetailPageIntent"},"data":{"sections":[\
+        {"id":"album-detail-header-section - 1499378108","itemKind":"containerDetailHeaderLockup","items":[{"title":"After Hours"\(header)}]}\(sections)\
+        ]}}],"userTokenHash":"x"}</script>
+        <script>window.x = 1;</script></body></html>
+        """.utf8)
+    }
+
+    func testReadsTheAlbumPagesHeaderVideos() throws {
+        let data = page(header: """
+        ,"videoArtwork":{"dictionary":{"motionDetailSquare":{"previewFrame":{"url":"https://a/{w}x{h}bb.{f}","height":3840},"video":"https://mvod.example/square.m3u8"}}},\
+        "tallVideoArtwork":{"dictionary":{"motionDetailTall":{"previewFrame":{"url":"https://a/{w}x{h}bb.{f}"},"video":"https://mvod.example/tall.m3u8"}}}
+        """)
+        let videos = try XCTUnwrap(AppleMotionArtwork.editorialVideos(inAlbumPage: data))
+        let artwork = try XCTUnwrap(AppleMotionArtwork(videos: videos))
+
+        XCTAssertEqual(artwork.square?.absoluteString, "https://mvod.example/square.m3u8")
+        XCTAssertEqual(artwork.tall?.absoluteString, "https://mvod.example/tall.m3u8")
+    }
+
+    func testAnotherAlbumsVideoFurtherDownThePageIsIgnored() throws {
+        let data = page(header: "", sections: """
+        ,{"id":"more-by-artist","itemKind":"squareLockup","items":["odd",{"title":"Dawn FM","videoArtwork":{"dictionary":{"motionDetailSquare":{"video":"https://mvod.example/other.m3u8"}}}}]}
+        """)
+
+        XCTAssertEqual(try AppleMotionArtwork.editorialVideos(inAlbumPage: data), [:])
+    }
+
+    func testAPageWithoutItsDataIsNil() throws {
+        let html = Data("<html><body><h1>Album</h1></body></html>".utf8)
+
+        XCTAssertNil(try AppleMotionArtwork.editorialVideos(inAlbumPage: html))
+    }
+
     func testPrefersTheAlbumPagesShapes() throws {
         let artwork = try XCTUnwrap(AppleMotionArtwork(videos: [
             "motionSquareVideo1x1": URL(string: "https://v/grid-square.m3u8")!,

@@ -33,16 +33,20 @@ enum VideoCoverPreference: String, CaseIterable, Identifiable {
 /// Apple lists them per album, so a song is looked up as its album: a
 /// library song's catalog twin first, then the album it's on, then that
 /// album's videos. Every answer is kept, a video for 30 days and none for 7,
-/// in Caches/MotionArtwork.json, with the album a song was found on, by the
+/// in Caches/VideoCovers.json, with the album a song was found on, by the
 /// song and by its album's title and artist: the next song of an album
 /// already looked up finds the video at once rather than after a request, so
 /// the cover doesn't stop moving from one song to the next.
 ///
+/// The API's `editorialVideo` is asked first, but Apple keeps it from
+/// third-party apps (the answer has no `editorialVideo` at all), so the
+/// album's public page on music.apple.com is read after it, which shows
+/// anyone the same videos (`AppleMusicAPI.albumPageVideos`).
+///
 /// Nothing here asks for Apple Music: with no permission given there's no
 /// lookup, and a speaker playing Apple Music from its own account shows its
-/// still cover. Each album's answer is logged under `motionartwork`, saying
-/// when the response had no `editorialVideo` at all, which is how Apple
-/// keeping the videos from third-party apps would show.
+/// still cover. Each album's answers, the API's and the page's, are logged
+/// under `motionartwork`.
 @MainActor
 @Observable
 final class MotionArtworkService {
@@ -72,7 +76,7 @@ final class MotionArtworkService {
     @ObservationIgnored private var powerObserver: NSObjectProtocol?
 
     private static let log = Logger(subsystem: "dance.cue", category: "motionartwork")
-    private static let fileName = "MotionArtwork.json"
+    private static let fileName = "VideoCovers.json"
     /// How soon a request that failed may be made again.
     static let retryInterval: TimeInterval = 10 * 60
     /// Songs and album names kept, beyond which the oldest lookups go.
@@ -210,14 +214,7 @@ final class MotionArtworkService {
         let failureKey = "album:\(albumID)"
         guard !hasRecentlyFailed(failureKey) else { return nil }
         do {
-            let videos = try await AppleMusicAPI.shared.editorialVideos(albumID: albumID)
-            let artwork = videos.flatMap { AppleMotionArtwork(videos: $0) }
-            if let videos {
-                let shapes = videos.keys.sorted().joined(separator: ", ")
-                Self.log.info("album \(albumID, privacy: .public): editorialVideo [\(shapes, privacy: .public)], square \(artwork?.square != nil), tall \(artwork?.tall != nil)")
-            } else {
-                Self.log.info("album \(albumID, privacy: .public): no editorialVideo in the response")
-            }
+            let artwork = try await lookUpArtwork(albumID: albumID)
             store.albums[albumID] = Entry(artwork: artwork, checkedAt: .now)
             save()
             return artwork
@@ -226,6 +223,30 @@ final class MotionArtworkService {
             Self.log.error("album \(albumID, privacy: .public): video lookup failed: \(error.localizedDescription, privacy: .public)")
             return nil
         }
+    }
+
+    /// The API's `editorialVideo`, else the album's page's videos.
+    private func lookUpArtwork(albumID: String) async throws -> AppleMotionArtwork? {
+        let api = AppleMusicAPI.shared
+        let fromAPI = try await api.editorialVideos(albumID: albumID)
+        if let fromAPI {
+            let artwork = AppleMotionArtwork(videos: fromAPI)
+            Self.log.info("album \(albumID, privacy: .public): editorialVideo \(Self.describe(fromAPI, artwork), privacy: .public)")
+            if let artwork { return artwork }
+        } else {
+            Self.log.info("album \(albumID, privacy: .public): no editorialVideo in the response")
+        }
+        guard let fromPage = try await api.albumPageVideos(albumID: albumID) else {
+            Self.log.error("album \(albumID, privacy: .public): its page isn't laid out as expected, so no video was found")
+            return nil
+        }
+        let artwork = AppleMotionArtwork(videos: fromPage)
+        Self.log.info("album \(albumID, privacy: .public): page \(Self.describe(fromPage, artwork), privacy: .public)")
+        return artwork
+    }
+
+    private static func describe(_ videos: [String: URL], _ artwork: AppleMotionArtwork?) -> String {
+        "[\(videos.keys.sorted().joined(separator: ", "))], square \(artwork?.square != nil), tall \(artwork?.tall != nil)"
     }
 
     private func hasRecentlyFailed(_ key: String) -> Bool {

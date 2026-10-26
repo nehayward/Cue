@@ -52,6 +52,76 @@ public struct AppleMotionArtwork: Codable, Hashable, Sendable {
         return videos.compactMapValues(\.video)
     }
 
+    /// The videos an album's page on music.apple.com shows in its header, by
+    /// shape name, read from the JSON the page carries for its own script
+    /// (`<script id="serialized-server-data">`). The website shows anyone an
+    /// album's moving cover, signed in or not, though the API keeps it from
+    /// Cue: the header item's `videoArtwork` holds the square and
+    /// `tallVideoArtwork` the tall, named as `editorialVideo`'s are. Empty
+    /// for an album whose page has no video; nil when the page isn't laid out
+    /// as expected (no data, no sections), so a change on Apple's side shows
+    /// in the log rather than passing for albums without videos.
+    public static func editorialVideos(inAlbumPage page: Data) throws -> [String: URL]? {
+        guard let json = serializedServerData(in: page) else { return nil }
+        let sections = try JSONDecoder().decode(AlbumPage.self, from: json).data
+            .flatMap { $0.data?.sections ?? [] }
+            .compactMap(\.value)
+        guard let header = sections.first(where: { $0.itemKind == "containerDetailHeaderLockup" }) ?? sections.first else { return nil }
+        var videos: [String: URL] = [:]
+        for item in (header.items ?? []).compactMap(\.value) {
+            for artwork in [item.videoArtwork, item.tallVideoArtwork] {
+                for (shape, video) in artwork?.dictionary ?? [:] {
+                    if let url = video.video { videos[shape] = url }
+                }
+            }
+        }
+        return videos
+    }
+
+    /// The JSON inside the page's `serialized-server-data` script.
+    private static func serializedServerData(in page: Data) -> Data? {
+        guard let marker = page.range(of: Data(#"id="serialized-server-data""#.utf8)),
+              let open = page.range(of: Data(">".utf8), in: marker.upperBound..<page.endIndex),
+              let close = page.range(of: Data("</script>".utf8), in: open.upperBound..<page.endIndex) else { return nil }
+        return page.subdata(in: open.upperBound..<close.lowerBound)
+    }
+
+    private struct AlbumPage: Decodable {
+        let data: [Intent]
+
+        struct Intent: Decodable {
+            let data: Content?
+        }
+
+        struct Content: Decodable {
+            let sections: [Lenient<Section>]?
+        }
+
+        struct Section: Decodable {
+            let itemKind: String?
+            let items: [Lenient<Item>]?
+        }
+
+        struct Item: Decodable {
+            let videoArtwork: VideoArtwork?
+            let tallVideoArtwork: VideoArtwork?
+        }
+
+        struct VideoArtwork: Decodable {
+            let dictionary: [String: Shape]?
+        }
+    }
+
+    /// A value read if it can be, else nil, so one section or item that
+    /// isn't what's expected doesn't lose the page.
+    private struct Lenient<Value: Decodable>: Decodable {
+        let value: Value?
+
+        init(from decoder: Decoder) throws {
+            value = try? Value(from: decoder)
+        }
+    }
+
     private struct AlbumResponse: Decodable {
         let data: [Resource]
     }
@@ -94,6 +164,20 @@ extension AppleMusicAPI {
         guard let url = components.url else { return nil }
         let response = try await MusicDataRequest(urlRequest: URLRequest(url: url)).response()
         return try AppleMotionArtwork.editorialVideos(inAlbumResponse: response.data)
+    }
+
+    /// The videos the catalog album `id`'s page on music.apple.com shows, in
+    /// the listener's storefront (see
+    /// `AppleMotionArtwork.editorialVideos(inAlbumPage:)`). The public page,
+    /// so it needs no sign-in; about half a megabyte a page.
+    public func albumPageVideos(albumID: String) async throws -> [String: URL]? {
+        let storefront = await Self.storefront()
+        guard let url = URL(string: "https://music.apple.com/\(storefront)/album/\(albumID)") else { return nil }
+        var request = URLRequest(url: url)
+        request.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+        return try AppleMotionArtwork.editorialVideos(inAlbumPage: data)
     }
 
     /// The catalog album the song `id` is on: a catalog song's, or a library
