@@ -1,5 +1,4 @@
 import OSLog
-import RevenueCatUI
 import RevenueCat
 import SwiftUI
 import SubscriptionKit
@@ -14,18 +13,17 @@ struct CuePaywall: View {
     /// installed above it.
     @State private var subscriptionService = SubscriptionService.shared
 
-    /// RC's `originalTemplatePaywallFooter` loads pricing async and renders
-    /// when the offering arrives. When the paywall slides in (especially the
-    /// onboarding case) the footer popping in mid-slide caused a janky shift.
+    /// The footer's plans load async and render when the offering arrives.
+    /// When the paywall slides in (especially the onboarding case) the
+    /// footer popping in mid-slide caused a janky shift.
     /// We hold the content invisible for ~280ms — long enough for the
     /// transition to settle and the offering to fetch — then fade it in. The
     /// background stays solid throughout so the user never sees an empty frame.
     @State private var contentVisible = false
 
-    /// The offering the footer shows, loaded here rather than by the footer:
-    /// RevenueCatUI closes the whole presentation when its own load fails
-    /// (an alert, then `dismiss`), so a store that didn't answer took the
-    /// paywall with it. Here it stays up, says so, and offers Try Again.
+    /// The offering the footer shows. When it doesn't load the paywall stays
+    /// up, says so, and offers Try Again (RevenueCat's own footer closed the
+    /// whole presentation instead).
     @State private var offering: Offering?
     @State private var offeringFailed = false
 
@@ -77,23 +75,23 @@ struct CuePaywall: View {
                 trustStrip
                     .padding(.horizontal)
                     .padding(.top, 4)
-
-                legalLinks
             }
             .padding(.bottom)
             .fontDesign(.rounded)
         }
         .frame(maxWidth: .infinity)
-        .modifier(OfferingFooter(offering: offering, failed: offeringFailed) {
-            Task { await loadOffering() }
-        } purchased: {
-            dismiss()
-        })
+        .safeAreaInset(edge: .bottom) {
+            PurchaseFooter(offering: offering, failed: offeringFailed) {
+                Task { await loadOffering() }
+            } purchased: {
+                dismiss()
+            }
+        }
         // Hold content invisible until the slide-in settles, then fade in
-        // together with the RC footer's offering load. See `contentVisible`
+        // together with the footer's offering load. See `contentVisible`
         // for the full reasoning.
         .opacity(contentVisible ? 1 : 0)
-        // Cap the readable content (table + RC footer) at ~640pt so the layout
+        // Cap the readable content (table + footer) at ~640pt so the layout
         // reads as a centered column on iPad/Mac/Catalyst fullScreenCover —
         // without this the comparison table and "Try free" CTA stretched the
         // entire window width and looked unmoored. On iPhone the device width
@@ -179,21 +177,6 @@ struct CuePaywall: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// The links App Review asks of a subscription's purchase screen. Cue's
-    /// own, not the RevenueCat paywall's: the offering has no paywall set up
-    /// in RevenueCat, so its footer shows none.
-    private var legalLinks: some View {
-        HStack(spacing: 6) {
-            Link("Terms of Use", destination: URL(string: "https://cue.dance/terms")!)
-            Text("·")
-            Link("Privacy Policy", destination: URL(string: "https://cue.dance/privacy")!)
-        }
-        .font(.caption)
-        .foregroundStyle(.white.opacity(0.6))
-        .tint(.white.opacity(0.6))
-        .frame(maxWidth: .infinity)
-    }
-
     private func trustItem(icon: String, label: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
@@ -228,42 +211,6 @@ struct CuePaywall: View {
             )
         }
         .ignoresSafeArea()
-    }
-}
-
-/// RevenueCat's footer once the offering is in; until then a spinner, and
-/// when it couldn't load, why and Try Again in its place.
-private struct OfferingFooter: ViewModifier {
-    let offering: Offering?
-    let failed: Bool
-    let retry: () -> Void
-    let purchased: () -> Void
-
-    func body(content: Content) -> some View {
-        if let offering {
-            content.originalTemplatePaywallFooter(offering: offering, purchaseCompleted: { _ in
-                purchased()
-            })
-        } else {
-            content.safeAreaInset(edge: .bottom) {
-                VStack(spacing: 12) {
-                    if failed {
-                        Text("Cue Super's prices didn't load.")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.65))
-                        Button("Try Again", action: retry)
-                            .buttonStyle(.borderedProminent)
-                    } else {
-                        ProgressView()
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                // RevenueCat's footer is opaque; this stands in its place, so
-                // the table scrolls under it rather than showing through.
-                .background(Color.black)
-            }
-        }
     }
 }
 
