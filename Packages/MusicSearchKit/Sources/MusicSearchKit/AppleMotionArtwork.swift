@@ -126,14 +126,17 @@ extension AppleMusicAPI {
     }
 
     /// The listener's storefront, which the catalog is read in: their
-    /// account's country, else the device's region. Kept once read.
+    /// account's country, else the device's region. Kept once read, behind
+    /// a lock, since lookups run side by side.
     private static var knownStorefront: String?
+    private static let storefrontLock = NSLock()
 
     static func storefront() async -> String {
-        if let knownStorefront { return knownStorefront }
+        if let known = storefrontLock.withLock({ knownStorefront }) { return known }
         if let code = try? await MusicDataRequest.currentCountryCode {
-            knownStorefront = code.lowercased()
-            return code.lowercased()
+            let storefront = code.lowercased()
+            storefrontLock.withLock { knownStorefront = storefront }
+            return storefront
         }
         return (Locale.current.region?.identifier ?? "us").lowercased()
     }

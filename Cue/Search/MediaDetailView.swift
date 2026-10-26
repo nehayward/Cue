@@ -317,8 +317,21 @@ struct MediaDetailView: View {
                             // Apple Music's moving cover, where the album
                             // has one. The glow behind stays the still:
                             // blurring video every frame costs too much.
+                            // It fades out where the still's foot blurs
+                            // (`ProgressiveBlur`, from 55% down), so the
+                            // title sits on that blur either way.
                             .overlay {
                                 MotionArtworkOverlay(content: content)
+                                    .mask {
+                                        LinearGradient(
+                                            stops: [
+                                                .init(color: .black, location: 0.55),
+                                                .init(color: .clear, location: 0.9)
+                                            ],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    }
                             }
                             .clipped()
                     }

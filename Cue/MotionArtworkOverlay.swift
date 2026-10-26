@@ -56,7 +56,10 @@ struct MotionArtworkOverlay: View {
     var body: some View {
         ZStack {
             if let video {
-                LoopingVideoView(url: video, isPlaying: !isPaused && scenePhase == .active, isReady: $isReady)
+                // Not `.active` alone: on the Mac a window that isn't key
+                // is `.inactive`, and the cover would stop whenever Cue
+                // lost focus. The player pauses itself in the background.
+                LoopingVideoView(url: video, isPlaying: !isPaused && scenePhase != .background, isReady: $isReady)
                     .id(video)
                     .opacity(isReady ? 1 : 0)
             }
