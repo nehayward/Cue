@@ -124,23 +124,6 @@ const body = html`
 		</ul>
 	</section>
 
-	<section class="section container" id="super">
-		<div class="section-head reveal">
-			<h2>${plans.title}</h2>
-			<p>${plans.lede}</p>
-		</div>
-		<div class="plans">
-			${[plans.free, plans.super].map(
-				(plan, i) => html`
-					<article class="plan reveal ${i ? 'plan-super' : ''}">
-						<h3>${plan.name}</h3>
-						<p class="plan-price">${plan.price}</p>
-						<ul>${plan.points.map((point) => html`<li>${icon('check')}${point}</li>`)}</ul>
-					</article>`,
-			)}
-		</div>
-	</section>
-
 	<section class="section container" id="services">
 		<div class="section-head reveal">
 			<h2>${services.title}</h2>
@@ -160,6 +143,23 @@ const body = html`
 		<p class="more-link"><a href="/self-hosted">Running Plex or Navidrome? See what Cue does for your server ${icon('arrow-right')}</a></p>
 	</section>
 
+
+	<section class="section container" id="super">
+		<div class="section-head reveal">
+			<h2>${plans.title}</h2>
+			<p>${plans.lede}</p>
+		</div>
+		<div class="plans">
+			${[plans.free, plans.super].map(
+				(plan, i) => html`
+					<article class="plan reveal ${i ? 'plan-super' : ''}">
+						<h3>${plan.name}</h3>
+						<p class="plan-price">${plan.price}</p>
+						<ul>${plan.points.map((point) => html`<li>${icon('check')}${point}</li>`)}</ul>
+					</article>`,
+			)}
+		</div>
+	</section>
 
 	<section class="section container narrow" id="faq">
 		<div class="section-head reveal"><h2>Questions</h2></div>

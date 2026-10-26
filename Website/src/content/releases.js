@@ -18,10 +18,10 @@ export const releases = [
 	{
 		version: '2026.8',
 		date: null,
-		headline: 'Meet Cue: a music player for iPhone that plays Apple Music, Plex, Subsonic and radio — on your phone, or on Sonos.',
+		headline: 'Meet Cue: your music and audiobooks from Apple Music, Plex, Subsonic and more — on your iPhone, or on Sonos.',
 		newFeatures: [
 			'Plays on your device: Apple Music, Plex, Subsonic servers like Navidrome, TuneIn radio, and your own files — no speaker needed',
-			'Hands off to Sonos: Tap Play On to move the queue to any room or group, right where you left it',
+			'Hands off to Sonos: Tap the Play On button to move the queue to any room or group, right where you left it',
 			'Universal Search: Search several services at once and get one ranked list that forgives typos',
 			'Offline Mode: Download from Plex and Subsonic and keep listening with no connection',
 			'Streaming Quality: Have Plex or Subsonic convert to MP3 or Opus at a bitrate you choose',

@@ -5,7 +5,7 @@ export const site = {
 	name: 'Cue',
 	origin: 'https://cue.dance',
 	description:
-		'A music and audiobook player for iPhone that plays Apple Music, Plex, Subsonic, Audiobookshelf, radio and your own files — on your device, or on any Sonos speaker.',
+		'A music and audiobook player for iPhone that plays Apple Music, Plex, Subsonic, Audiobookshelf, radio and your own files, and hands your music to any Sonos speaker.',
 	email: 'hi@cue.dance',
 	author: 'Nick Hayward',
 

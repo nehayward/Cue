@@ -36,7 +36,7 @@ export const reasons = {
 		{
 			icon: 'speaker',
 			title: 'On any Sonos speaker',
-			body: 'Play On sends the book to any room or group, chapters and all. Your place keeps syncing to your server while it plays there.',
+			body: 'The Play On button sends the book to a room or group, chapters and all. Your place keeps syncing to your server while it plays there.',
 		},
 		{
 			icon: 'apple-watch',
@@ -88,7 +88,7 @@ export const comparison = {
 	after: 'In Cue',
 	rows: [
 		{ topic: 'Your music', before: 'A second app, with its own queue', after: 'The same player. Back to Music picks up your playlist where it was' },
-		{ topic: 'Sonos', before: 'AirPlay from your phone, or the Sonos app', after: 'Play On sends the book to any room, with your place kept in sync' },
+		{ topic: 'Sonos', before: 'AirPlay from your phone, or the Sonos app', after: 'The Play On button sends the book to a room, your place kept in sync' },
 		{ topic: 'After a pause', before: 'Back a few seconds, wherever that lands', after: 'Back by how long you were away, landing between words' },
 		{ topic: 'Reading along', before: 'Buy the ebook as well', after: 'Read Along, transcribed on your iPhone as you listen' },
 		{ topic: 'A skip you didn’t mean', before: 'Scrub around until it sounds familiar', after: 'History has every place you’ve been, one tap back' },
@@ -121,7 +121,7 @@ export const everywhere = {
 };
 
 export const details = [
-	{ icon: 'gauge', title: 'Speed, per book', body: '0.75× to 3×, remembered for each book, with the narrator’s voice kept natural.' },
+	{ icon: 'gauge', title: 'Speed, per book', body: '0.75× to 3× on iPhone, remembered for each book, with the narrator’s voice kept natural.' },
 	{ icon: 'bookmark', title: 'Real chapters', body: 'From your files’ own marks, or Audible’s chapter list when a Plex book has none.' },
 	{ icon: 'moon', title: 'End of Chapter', body: 'A sleep timer that stops at the end of the chapter, at whatever speed you’re listening.' },
 	{ icon: 'rotate-ccw', title: '15 back, 30 forward', body: 'In the player, the mini player and on the Lock Screen, in place of previous and next.' },
@@ -159,8 +159,8 @@ export const setup = [
 	{
 		title: 'Audiobookshelf',
 		steps: [
-			'Open **Settings ▸ Services ▸ Audiobookshelf** and tap **Connect**.',
-			'Enter your server’s address, username and password.',
+			'Open **Settings ▸ Services** and tap **Audiobookshelf**.',
+			'Enter your server’s address, username and password, and tap **Sign In**.',
 			'Your books appear in the **Audiobooks** tab, with the ones you’re partway through first.',
 		],
 	},

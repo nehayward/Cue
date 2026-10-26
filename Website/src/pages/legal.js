@@ -20,7 +20,7 @@ const privacy = {
 		},
 		{
 			title: 'Lyrics',
-			body: 'When a song’s own service has no timed lyrics, Cue asks LRCLIB (lrclib.net), a free lyrics database, sending only the song’s title, artist, album and length — nothing about you. Lyrics found are kept on your device. You can turn this off in Settings ▸ Playback ▸ Look Up Lyrics Online.',
+			body: 'If you turn on Settings ▸ Playback ▸ Look Up Lyrics Online (it’s off to start), Cue asks LRCLIB (lrclib.net), a free lyrics database, for lyrics a song’s own service doesn’t have, sending only the song’s title, artist, album and length — nothing about you. Lyrics found are kept on your device.',
 		},
 		{
 			title: 'Artists, authors and books',

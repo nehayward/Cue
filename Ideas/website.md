@@ -15,9 +15,6 @@ is in `Website/README.md`; this note is the to-do list.
   RevenueCat, Cloudflare logs, no cookies on the site.
 - [ ] **Confirm `hi@cue.dance` receives mail.** It's the only contact on the
   site, in Help, the press kit and the footer.
-- [ ] **Delete the duplicate screenshots** in `Website/public/press/`
-  (`Screenshot … 3.42.05 PM.png`, `… 3.42.42 PM.png`). They're near-copies of
-  Radio and Plex Library and get uploaded with every deploy.
 - [ ] **Check the logo rules.** The services section shows the Apple Music
   and Plex marks (Simple Icons, `Website/src/lib/brand-marks.js`). Apple's
   identity guidelines are strict; if in doubt, swap the mark for an icon.
@@ -72,9 +69,10 @@ to `public/press/`, a ~1150px-tall JPEG to `public/shots/`, and re-run
   `NewsletterKit` already posts to `api.cue.dance/newsletter/subscribe`; an
   earlier version of the site had a no-JavaScript form that forwarded to it
   through the Worker (see git history for `Website/src/pages/newsletter.js`).
-- **Cue Super.** Left off the site on purpose. When it's ready, the plans
-  section in git history listed the free/Super split from
-  `GatedFeature.requirement`.
+- **The public beta.** `/beta` (and `/testflight`, `testflight.cue.dance`)
+  stays up for people given the link, but nothing on the site links to it,
+  it's out of the sitemap and marked noindex (`UNLISTED` in
+  `Website/src/worker.js`). A test fails if another page names the beta.
 - **iPad, Mac, Apple TV, Scenes, Cue Mini.** The first release is iPhone
   only; add them back to the copy as they ship.
 - **A short hero video** (5–8 s: browse, tap Play On) and **TestFlight

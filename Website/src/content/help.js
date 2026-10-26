@@ -5,10 +5,9 @@
 
 export const requirements = [
 	{ title: 'Device', body: 'iPhone. Cue also works with CarPlay, and has an Apple Watch app for watchOS 10 or later.' },
-	{ title: 'Music', body: 'Apple Music, Plex, a Subsonic server, TuneIn, or your own files.' },
+	{ title: 'Music', body: 'Apple Music (with a subscription), Plex, a Subsonic server, TuneIn, or your own files.' },
 	{ title: 'Audiobooks', body: 'A Plex or Audiobookshelf server with your books on it.' },
 	{ title: 'Sonos (optional)', body: 'Any S1 or S2 system, on the same network as your device.' },
-	{ title: 'Apple Music', body: 'Playing the Apple Music catalog needs an Apple Music subscription.' },
 ];
 
 export const sections = [
@@ -22,13 +21,13 @@ export const sections = [
 			},
 			{
 				id: 'services',
-				q: 'Which music services are supported?',
+				q: 'Which services are supported?',
 				a: '- **Apple Music** — the catalog, your library, and Apple’s live radio stations\n- **Plex** — your server, at home or remotely\n- **Subsonic** — Navidrome, Airsonic, Gonic and any Subsonic-compatible server\n- **Audiobookshelf** — audiobooks from your own server\n- **TuneIn** — live radio\n- **Files** — a folder of music on your device or in iCloud Drive\n\nAudiobooks play from **Plex** and **Audiobookshelf**.',
 			},
 			{
 				id: 'spotify',
 				q: 'Why isn’t Spotify (or Tidal, Deezer…) supported?',
-				a: 'Every service in Cue must play on your device *and* on a speaker. Spotify, Tidal, Deezer, SoundCloud, Pandora and Sonos Radio only let a Sonos speaker play their music, so they could never work on your iPhone. Rather than offer half a service, Cue leaves them out.',
+				a: 'Every streaming service in Cue must play on your device *and* on a speaker. Spotify, Tidal, Deezer, SoundCloud, Pandora and Sonos Radio only let a Sonos speaker play their music, so they could never work on your iPhone. Rather than offer half a service, Cue leaves them out.',
 			},
 			{
 				id: 'subsonic',
@@ -38,7 +37,7 @@ export const sections = [
 			{
 				id: 'audiobookshelf',
 				q: 'How do I connect Audiobookshelf?',
-				a: 'Open **Settings ▸ Services ▸ Audiobookshelf**, tap **Connect**, and enter your server’s address, username and password. You can type just its name, like books.example.com, and Cue tries HTTPS first. Cue keeps the sign-in the server hands back in your device’s keychain, never your password.\n\nYour books then appear in the **Audiobooks** tab. Your place syncs with the server both ways, so the Audiobookshelf web app picks up where Cue left off, and books play on Sonos straight from your server.\n\nCue signs in with a username and password. If your server only allows single sign-on, ask its admin to turn on password login.',
+				a: 'Open **Settings ▸ Services**, tap **Audiobookshelf**, enter your server’s address, username and password, and tap **Sign In**. You can type just its name, like books.example.com, and Cue tries HTTPS first. Cue keeps the sign-in the server hands back in your device’s keychain, never your password.\n\nYour books then appear in the **Audiobooks** tab. Your place syncs with the server both ways, so the Audiobookshelf web app picks up where Cue left off, and books play on Sonos straight from your server.\n\nCue signs in with a username and password. If your server only allows single sign-on, ask its admin to turn on password login.',
 			},
 		],
 	},
@@ -48,7 +47,7 @@ export const sections = [
 			{
 				id: 'add-audiobooks',
 				q: 'How do I add my audiobooks?',
-				a: 'Cue plays books from Plex and Audiobookshelf.\n- **Plex** — open **Settings ▸ Services ▸ Plex** and, under **Audiobooks**, switch on the libraries that hold your books. Albums in your music library with the genre Audiobook show up too.\n- **Audiobookshelf** — open **Settings ▸ Services ▸ Audiobookshelf**, tap **Connect**, and enter your server’s address, username and password.\n\nYour books then appear in the **Audiobooks** tab, starting with the ones you’re partway through. [See everything Cue does for audiobooks](/audiobooks).',
+				a: 'Cue plays books from Plex and Audiobookshelf.\n- **Plex** — open **Settings ▸ Services ▸ Plex** and, under **Audiobooks**, switch on the libraries that hold your books. Albums in your music library with the genre Audiobook show up too.\n- **Audiobookshelf** — open **Settings ▸ Services**, tap **Audiobookshelf**, enter your server’s address, username and password, and tap **Sign In**.\n\nYour books then appear in the **Audiobooks** tab, starting with the ones you’re partway through. [See everything Cue does for audiobooks](/audiobooks).',
 			},
 			{
 				id: 'audiobook-place',
@@ -108,7 +107,7 @@ export const sections = [
 			{
 				id: 'logs',
 				q: 'How do I send a bug report?',
-				a: `Email [hi@cue.dance](mailto:hi@cue.dance) with the Support link at the bottom of Cue’s Settings — it fills in your app version for you. A screen recording of the problem helps more than anything.`,
+				a: `Email [hi@cue.dance](mailto:hi@cue.dance) with **Contact Support** near the bottom of Cue’s Settings — it fills in your app version for you. A screen recording of the problem helps more than anything.`,
 			},
 		],
 	},

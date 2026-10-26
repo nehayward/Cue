@@ -3,10 +3,10 @@
 
 export const about = {
 	tagline: 'Your music. Here, or everywhere.',
-	short: 'Cue is a music and audiobook player for iPhone that plays Apple Music, Plex, Subsonic, Audiobookshelf, radio and your own files — on your phone, or on any Sonos speaker.',
+	short: 'Cue is a music and audiobook player for iPhone that plays Apple Music, Plex, Subsonic, Audiobookshelf, radio and your own files, and hands your music to any Sonos speaker.',
 	long: [
 		'Cue is a complete music player first. It plays Apple Music, Plex, Navidrome and other Subsonic servers, TuneIn radio and your own files right on your iPhone, with universal search, offline downloads, streaming quality settings and live radio transcription.',
-		'When you’re home, one tap on Play On hands the same queue to any Sonos room or group. Every service in Cue plays both on the phone and on Sonos — Cue leaves out services that only a speaker can play, rather than offer half of one.',
+		'When you’re home, one tap on the Play On button hands the same queue to any Sonos room or group. Every streaming service in Cue plays both on the phone and on Sonos — Cue leaves out services that only a speaker can play, rather than offer half of one.',
 		'Audiobooks get the same care. Books on Plex and Audiobookshelf play with chapters, a speed for each book, Smart Resume that picks up in a pause between words, and a history of every place the listener has been. Read Along shows the words as they’re read, transcribed on the iPhone.',
 		'Cue comes along when you leave, too. CarPlay puts your libraries, audiobooks, downloads and radio on the car’s screen, and the Apple Watch app downloads Plex and Subsonic music and audiobooks to the watch, so they play with no iPhone nearby.',
 	],
