@@ -8,6 +8,12 @@ import SwiftUI
 /// offering, and without one it drew RevenueCat's default paywall over the
 /// table. Until the offering is in, a spinner; when it couldn't load, why and
 /// Try Again.
+///
+/// A sale needs no app update. An introductory offer set up in App Store
+/// Connect (a free trial, a first year at half price, a few months at a lower
+/// price) shows on its plan, the button and the terms, to an Apple Account
+/// that can still take it. The offering's metadata in RevenueCat can add a
+/// badge to one plan and a headline (`Offering.saleBadge`, `saleHeadline`).
 struct PurchaseFooter: View {
     let offering: Offering?
     let failed: Bool
@@ -15,8 +21,8 @@ struct PurchaseFooter: View {
     let purchased: () -> Void
 
     @State private var selected: Package?
-    /// Packages whose free trial this Apple Account can still take.
-    @State private var trialEligible: Set<String> = []
+    /// Packages whose introductory offer this Apple Account can still take.
+    @State private var introEligible: Set<String> = []
     @State private var isBusy = false
     @State private var message: String?
 
@@ -26,13 +32,17 @@ struct PurchaseFooter: View {
         VStack(spacing: 12) {
             if let offering, !plans(in: offering).isEmpty {
                 let plans = plans(in: offering)
-                let choice = selected ?? plans.first { $0.packageType == .annual } ?? plans[0]
+                let choice = selected
+                    ?? plans.first { $0.packageType == offering.saleBadgePlan }
+                    ?? plans.first { $0.packageType == .annual }
+                    ?? plans[0]
 
                 HStack(spacing: 10) {
                     ForEach(plans, id: \.identifier) { package in
                         PlanCard(
                             package: package,
-                            saving: package.packageType == .annual ? Self.saving(in: plans) : nil,
+                            intro: paidIntro(of: package),
+                            badge: badge(for: package, in: plans, offering: offering),
                             isSelected: package.identifier == choice.identifier
                         ) {
                             selected = package
@@ -40,6 +50,8 @@ struct PurchaseFooter: View {
                         }
                     }
                 }
+                // Every card as tall as the tallest, struck-through price or not.
+                .fixedSize(horizontal: false, vertical: true)
                 .disabled(isBusy)
 
                 Button {
@@ -103,8 +115,14 @@ struct PurchaseFooter: View {
         }
         .task(id: offering?.identifier) {
             guard let offering else { return }
+            #if DEBUG
+            if offering.identifier == PaywallSalePreview.identifier {
+                introEligible = Set(offering.availablePackages.map(\.identifier))
+                return
+            }
+            #endif
             let eligibility = await Purchases.shared.checkTrialOrIntroDiscountEligibility(packages: plans(in: offering))
-            trialEligible = Set(eligibility.filter { $0.value.status == .eligible }.map(\.key.identifier))
+            introEligible = Set(eligibility.filter { $0.value.status == .eligible }.map(\.key.identifier))
         }
     }
 
@@ -116,41 +134,94 @@ struct PurchaseFooter: View {
         }
     }
 
+    /// The offering's own badge on its plan, else what an introductory price
+    /// takes off, else what the yearly plan saves on twelve months.
+    private func badge(for package: Package, in plans: [Package], offering: Offering) -> String? {
+        if let badge = offering.saleBadge, package.packageType == offering.saleBadgePlan {
+            return badge.uppercased()
+        }
+        if let intro = paidIntro(of: package), let off = Self.percentOff(intro, from: package.storeProduct) {
+            return "\(off)% OFF"
+        }
+        if package.packageType == .annual, let saving = Self.saving(in: plans) {
+            return "SAVE \(saving)%"
+        }
+        return nil
+    }
+
     /// What a year costs against twelve months, as a whole percentage.
     private static func saving(in plans: [Package]) -> Int? {
         guard let monthly = plans.first(where: { $0.packageType == .monthly })?.storeProduct.price,
               let annual = plans.first(where: { $0.packageType == .annual })?.storeProduct.price,
               monthly > 0 else { return nil }
-        // Through Double: `Int(truncating:)` reads a long Decimal like
-        // 37.2236… as 0.
-        let ratio = NSDecimalNumber(decimal: annual / (monthly * 12)).doubleValue
-        let percent = Int((1 - ratio) * 100)
+        return percent(annual, of: monthly * 12)
+    }
+
+    /// What an introductory price takes off the regular one, when it's for
+    /// the same period (a first year at half price, a month at a lower price).
+    private static func percentOff(_ intro: StoreProductDiscount, from product: StoreProduct) -> Int? {
+        guard let period = product.subscriptionPeriod,
+              intro.subscriptionPeriod.unit == period.unit,
+              intro.subscriptionPeriod.value == period.value,
+              product.price > 0 else { return nil }
+        return percent(intro.price, of: product.price)
+    }
+
+    /// How much less `part` is than `whole`, as a whole percentage. Through
+    /// Double: `Int(truncating:)` reads a long Decimal like 37.2236… as 0.
+    private static func percent(_ part: Decimal, of whole: Decimal) -> Int? {
+        let ratio = NSDecimalNumber(decimal: part / whole).doubleValue
+        let percent = Int(((1 - ratio) * 100).rounded())
         return percent > 0 ? percent : nil
     }
 
-    private func trial(of package: Package) -> SubscriptionPeriod? {
-        guard trialEligible.contains(package.identifier),
-              let discount = package.storeProduct.introductoryDiscount,
-              discount.paymentMode == .freeTrial else { return nil }
-        return discount.subscriptionPeriod
+    /// The introductory offer this Apple Account can take on the plan.
+    private func intro(of package: Package) -> StoreProductDiscount? {
+        guard introEligible.contains(package.identifier) else { return nil }
+        return package.storeProduct.introductoryDiscount
+    }
+
+    /// The introductory offer, when it's a lower price rather than free.
+    private func paidIntro(of package: Package) -> StoreProductDiscount? {
+        intro(of: package).flatMap { $0.paymentMode == .freeTrial ? nil : $0 }
     }
 
     private func buttonTitle(for package: Package) -> String {
-        if let trial = trial(of: package) {
-            return "Try Free for \(trial.length)"
+        guard let intro = intro(of: package) else {
+            return package.storeProduct.subscriptionPeriod == nil ? "Buy Once" : "Subscribe"
         }
-        return package.storeProduct.subscriptionPeriod == nil ? "Buy Once" : "Subscribe"
+        switch intro.paymentMode {
+        case .freeTrial:
+            return "Try Free for \(intro.subscriptionPeriod.length)"
+        case .payUpFront:
+            return "Get the \(intro.subscriptionPeriod.first.capitalized) for \(intro.localizedPriceString)"
+        case .payAsYouGo:
+            return "Start at \(intro.localizedPriceString) \(intro.subscriptionPeriod.every)"
+        @unknown default:
+            return "Subscribe"
+        }
     }
 
-    /// What App Review asks to be said by the button: the trial, the price,
-    /// the period, and that it renews.
+    /// What App Review asks to be said by the button: the trial or
+    /// introductory price, the price, the period, and that it renews.
     private func terms(for package: Package) -> String {
         let product = package.storeProduct
         guard let period = product.subscriptionPeriod else {
             return "One payment of \(product.localizedPriceString), for good."
         }
         let price = "\(product.localizedPriceString) \(period.every)"
-        let start = trial(of: package).map { "Free for \($0.length), then \(price)." } ?? "\(price)."
+        let start: String
+        switch intro(of: package) {
+        case let intro? where intro.paymentMode == .freeTrial:
+            start = "Free for \(intro.subscriptionPeriod.length), then \(price)."
+        case let intro? where intro.paymentMode == .payUpFront:
+            start = "\(intro.localizedPriceString) for the \(intro.subscriptionPeriod.first), then \(price)."
+        case let intro? where intro.paymentMode == .payAsYouGo:
+            let span = SubscriptionPeriod(value: intro.subscriptionPeriod.value * intro.numberOfPeriods, unit: intro.subscriptionPeriod.unit)
+            start = "\(intro.localizedPriceString) \(intro.subscriptionPeriod.every) for \(span.length), then \(price)."
+        default:
+            start = "\(price)."
+        }
         return "\(start) Renews until you cancel."
     }
 
@@ -188,10 +259,37 @@ struct PurchaseFooter: View {
     }
 }
 
-/// One plan: its name, price and period, and the saving on the yearly one.
+/// What a sale can say on the RevenueCat offering's metadata, without an app
+/// update: `headline` replaces the paywall's title, and `badge` goes on the
+/// plan named by `badge_plan` (`monthly`, `annual` or `lifetime`; `annual`
+/// when it's left out), which is then the one chosen when the paywall opens.
+extension Offering {
+    var saleHeadline: String? { Self.text(metadata["headline"]) }
+
+    var saleBadge: String? { Self.text(metadata["badge"]) }
+
+    var saleBadgePlan: PackageType? {
+        guard saleBadge != nil else { return nil }
+        switch metadata["badge_plan"] as? String {
+        case "monthly": return .monthly
+        case "lifetime": return .lifetime
+        default: return .annual
+        }
+    }
+
+    private static func text(_ value: Any?) -> String? {
+        guard let text = (value as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+        return text
+    }
+}
+
+/// One plan: its name, price and period, the regular price struck through
+/// under an introductory one, and a badge.
 private struct PlanCard: View {
     let package: Package
-    let saving: Int?
+    /// A lower introductory price this Apple Account can take.
+    let intro: StoreProductDiscount?
+    let badge: String?
     let isSelected: Bool
     let select: () -> Void
 
@@ -202,7 +300,13 @@ private struct PlanCard: View {
                     .font(.caption2.weight(.semibold))
                     .tracking(1)
                     .foregroundStyle(isSelected ? Color.accentColor : .white.opacity(0.6))
-                Text(package.storeProduct.localizedPriceString)
+                if intro != nil {
+                    Text(package.storeProduct.localizedPriceString)
+                        .font(.caption)
+                        .strikethrough()
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+                Text(intro?.localizedPriceString ?? package.storeProduct.localizedPriceString)
                     .font(.title3.weight(.bold))
                     .foregroundStyle(.white)
                     .minimumScaleFactor(0.7)
@@ -211,7 +315,7 @@ private struct PlanCard: View {
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.55))
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -222,10 +326,11 @@ private struct PlanCard: View {
                     .strokeBorder(isSelected ? Color.accentColor : .white.opacity(0.12), lineWidth: isSelected ? 2 : 1)
             )
             .overlay(alignment: .top) {
-                if let saving {
-                    Text("SAVE \(saving)%")
+                if let badge {
+                    Text(badge)
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(.black)
+                        .lineLimit(1)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(Color.accentColor, in: .capsule)
@@ -235,7 +340,7 @@ private struct PlanCard: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel([name, package.storeProduct.localizedPriceString, per, saving.map { "save \($0) percent" }].compactMap { $0 }.joined(separator: ", "))
+        .accessibilityLabel(accessibilityText)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -249,7 +354,16 @@ private struct PlanCard: View {
     }
 
     private var per: String {
-        package.storeProduct.subscriptionPeriod?.every ?? "once"
+        if let intro {
+            return intro.paymentMode == .payUpFront ? intro.subscriptionPeriod.first : intro.subscriptionPeriod.every
+        }
+        return package.storeProduct.subscriptionPeriod?.every ?? "once"
+    }
+
+    private var accessibilityText: String {
+        let regular = package.storeProduct.localizedPriceString
+        let price = intro.map { "\($0.localizedPriceString) \(per), then \(regular)" } ?? "\(regular) \(per)"
+        return [name, price, badge?.lowercased()].compactMap { $0 }.joined(separator: ", ")
     }
 }
 
@@ -257,6 +371,11 @@ private extension SubscriptionPeriod {
     /// "a month", "a year"; "every 3 months" for a longer period.
     var every: String {
         value == 1 ? "a \(Self.name(of: unit))" : "every \(length)"
+    }
+
+    /// "first year", "first 3 months".
+    var first: String {
+        value == 1 ? "first \(Self.name(of: unit))" : "first \(length)"
     }
 
     /// "1 week", "2 weeks", "3 days".

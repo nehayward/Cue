@@ -50,7 +50,7 @@ struct CuePaywall: View {
                         .font(.caption.weight(.semibold))
                         .tracking(1)
                         .foregroundStyle(Color.accentColor)
-                    Text("Keep every song.")
+                    Text(offering?.saleHeadline ?? "Keep every song.")
                         .font(.system(size: 36, weight: .bold))
                         .foregroundStyle(.white)
                     Text("Unlimited downloads on iPhone and Apple Watch, then every Sonos room.")
@@ -146,6 +146,12 @@ struct CuePaywall: View {
 
     private func loadOffering() async {
         offeringFailed = false
+        #if DEBUG
+        if PaywallSalePreview.isOn {
+            offering = PaywallSalePreview.offering
+            return
+        }
+        #endif
         guard Purchases.isConfigured else {
             Self.log.error("paywall: RevenueCat isn't configured yet")
             offeringFailed = true
