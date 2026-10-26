@@ -62,9 +62,9 @@ struct PurchaseFooter: View {
                     Task { await purchase(choice) }
                 } label: {
                     ZStack {
-                        // Picking a plan morphs the old wording into the new.
+                        // The wording changes at once; only the button bounces.
                         Text(buttonTitle(for: choice))
-                            .contentTransition(.interpolate)
+                            .transaction(value: choice.identifier) { $0.animation = nil }
                             .opacity(isBusy ? 0 : 1)
                         if isBusy {
                             ProgressView()
@@ -92,7 +92,7 @@ struct PurchaseFooter: View {
                     .foregroundStyle(.white.opacity(message == nil ? 0.5 : 0.8))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-                    .contentTransition(.opacity)
+                    .transaction(value: choice.identifier) { $0.animation = nil }
 
                 HStack(spacing: 6) {
                     Button("Restore Purchases") {
