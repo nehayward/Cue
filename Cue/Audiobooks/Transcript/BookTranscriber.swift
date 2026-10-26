@@ -65,6 +65,28 @@ final class BookTranscriber {
 
     static var isSupported: Bool { LiveTranscriptionService.isSupported }
 
+    /// Without Cue Super, Read Along runs this long once a day, counted
+    /// from when there's text to read, then asks for Super.
+    static let previewLength: TimeInterval = 30
+    /// When today's preview ends, or ended: nil until it starts, and with
+    /// Super. Kept (`AppStorageKeys.bookTranscriptPreviewEnd`), so closing
+    /// and opening Read Along again carries on the same preview rather than
+    /// starting another.
+    private(set) var previewEndsAt: Date?
+    /// Read Along on preview: no Cue Super.
+    var isPreview: Bool { !FeatureGate.shared.isAvailable(.bookTranscript) }
+    /// Today's preview has run out.
+    var isPreviewUsedUp: Bool { previewEndsAt.map { $0 <= .now } ?? false }
+
+    /// Today's preview's end, as kept; nil from another day.
+    private static var keptPreviewEnd: Date? {
+        get {
+            (UserDefaults.standard.object(forKey: AppStorageKeys.bookTranscriptPreviewEnd) as? Date)
+                .flatMap { Calendar.current.isDateInToday($0) ? $0 : nil }
+        }
+        set { UserDefaults.standard.set(newValue, forKey: AppStorageKeys.bookTranscriptPreviewEnd) }
+    }
+
     private static let anyBookKey = "*"
     /// A move of the playhead this far from where playing would have taken
     /// it is a seek: a live run starts again from there.
@@ -98,6 +120,8 @@ final class BookTranscriber {
     func activate() {
         activeCount += 1
         guard monitor == nil else { return }
+        // Today's preview, carried on if it's begun.
+        previewEndsAt = Self.keptPreviewEnd
         if supportedLocales.isEmpty {
             Task { await loadSupportedLocales() }
         }
@@ -133,11 +157,6 @@ final class BookTranscriber {
     // MARK: - Following the player
 
     private func tick() {
-        guard FeatureGate.shared.isAvailable(.bookTranscript) else {
-            stopRun()
-            state = .needsSuper
-            return
-        }
         let controller = PlaybackRoute.shared.presented
         let player = AudiobookPlayer.shared
         guard let book = player.current, player.isPlayingBook(on: controller),
@@ -155,6 +174,19 @@ final class BookTranscriber {
             volatileText = nil
             lastPlayhead = nil
             Logger.bookTranscript.notice("following \(key, privacy: .public), \(self.transcript.lines.count) lines kept")
+        }
+        // The preview's clock starts with something to read, not while the
+        // language downloads or the first lines are worked out.
+        if isPreview, previewEndsAt == nil, !transcript.lines.isEmpty || volatileText != nil {
+            previewEndsAt = .now + Self.previewLength
+            Self.keptPreviewEnd = previewEndsAt
+        }
+        // Without Super, only the preview: once it's over, the book's text
+        // (loaded above) shows out of focus behind the way to Super.
+        if isPreview, let previewEndsAt, previewEndsAt <= .now {
+            stopRun()
+            state = .needsSuper
+            return
         }
         // What's kept still reads where nothing new can be transcribed.
         guard Self.isSupported else {

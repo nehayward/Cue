@@ -623,18 +623,28 @@ private extension View {
         scrollIndicators(.hidden)
             .contentMargins(.top, 24, for: .scrollContent)
             .contentMargins(.bottom, bottomMargin, for: .scrollContent)
-            .mask {
-                LinearGradient(
-                    stops: [
-                        .init(color: .clear, location: 0),
-                        .init(color: .black, location: 0.08),
-                        .init(color: .black, location: 0.88),
-                        .init(color: .clear, location: 1)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
+            .fadingScrollEdges()
+    }
+}
+
+extension View {
+    /// Lines fading out at the top and bottom edges rather than cut, for
+    /// the lyrics and a book's transcript: one still gradient as a mask,
+    /// nothing in it animating, so it costs only the compositing of what
+    /// scrolls under it.
+    func fadingScrollEdges() -> some View {
+        mask {
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: .black, location: 0.08),
+                    .init(color: .black, location: 0.88),
+                    .init(color: .clear, location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
     }
 }
 

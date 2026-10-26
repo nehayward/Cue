@@ -2043,6 +2043,18 @@ final class LocalPlaybackService {
         isPlaying ? runningProgress(at: date) : progressAnchor
     }
 
+    /// The stream player's own time, which is what's heard. The running clock
+    /// can sit up to `progressTolerance` from it (it starts on Play, before a
+    /// streamed file's audio does), a few words of a book; this is for what
+    /// keeps time with the words. The running clock for Apple Music, and
+    /// while no file is in the player.
+    func exactProgress(at date: Date = .now) -> TimeInterval {
+        guard backend == .stream, let player = streamPlayer, player.currentItem != nil else { return estimatedProgress(at: date) }
+        let seconds = player.currentTime().seconds
+        guard seconds.isFinite else { return estimatedProgress(at: date) }
+        return seconds + max(date.timeIntervalSinceNow, 0) * Double(player.rate)
+    }
+
     private func runningProgress(at date: Date) -> TimeInterval {
         guard progressAnchoredAt != .distantPast else { return progressAnchor }
         let elapsed = progressAnchor + max(date.timeIntervalSince(progressAnchoredAt), 0) * playbackRate

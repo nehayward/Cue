@@ -277,8 +277,9 @@ struct PlayerView: View {
     /// them: the cover shrinks into the header's thumbnail as the title
     /// lines fade for the header's, the lyrics take the space the cover and
     /// the title lines had, and the controls slide down under them. In lyrics the controls
-    /// go away a few seconds into the song (`lyricsChromeTask`) or with the
-    /// header's Full Screen, and a touch on the lyrics brings them back.
+    /// go away a few seconds into the song (`lyricsChromeTask`; not a book's
+    /// transcript's) or with the header's Full Screen, and a touch on the
+    /// lyrics brings them back.
     @ViewBuilder
     private var phoneContent: some View {
         let isLyrics = isFullScreenLyrics
@@ -384,7 +385,7 @@ struct PlayerView: View {
 
     /// When the full-screen lyrics' controls next go away: four seconds
     /// after the last touch while the song plays; never while it's paused,
-    /// or outside full-screen lyrics.
+    /// for a book's transcript, or outside full-screen lyrics.
     private struct LyricsChrome: Equatable {
         let isActive: Bool
         let touchedAt: Date
@@ -397,6 +398,9 @@ struct PlayerView: View {
             }
             return
         }
+        // A book's transcript goes full screen only from the header's Full
+        // Screen: it's read for long stretches, with the controls to hand.
+        guard !isBookPresented else { return }
         try? await Task.sleep(for: .seconds(4))
         guard !Task.isCancelled else { return }
         lyricsControlsHidden = true
@@ -1095,6 +1099,10 @@ private struct PlayerScrubber: View {
                 // the player on its source.
                 .disabled(!controller.canScrub)
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
+                // Its whole height takes a touch first: drawn after it, the
+                // time line's tap (a book's time left) reached into it and
+                // took touches meant for the scrubber.
+                .zIndex(1)
 
                 HStack {
                     let elapsed = Duration.seconds(position)
