@@ -1,3 +1,5 @@
+import AVFoundation
+import Defaults
 import Foundation
 import MediaPlayer
 import Nuke
@@ -63,6 +65,56 @@ final class LocalNowPlayingPresenter {
         self.player = player
     }
 
+    // MARK: - Now Playing session
+
+    /// With Settings ▸ Debug ▸ Now Playing Session on: the card and its
+    /// commands belong to an `MPNowPlayingSession` of the stream player, so
+    /// the system knows which player they speak for (the car's Now Playing
+    /// sticking on MusicKit's card, FB24840951, is the hope). Off, they go
+    /// to the app's shared center as before. Taken at the first stream
+    /// player after the card was down, given each player that follows, and
+    /// dropped with the card (`end()`).
+    private var session: MPNowPlayingSession?
+
+    private var infoCenter: MPNowPlayingInfoCenter {
+        session?.nowPlayingInfoCenter ?? .default()
+    }
+
+    private var commandCenter: MPRemoteCommandCenter {
+        session?.remoteCommandCenter ?? .shared()
+    }
+
+    /// A stream player was made for a run: the card moves to a session of
+    /// it. Ahead of `begin()`, so the commands go to the session's center.
+    ///
+    /// A session a player, never a player swapped inside one: with
+    /// automatic publishing off, `removePlayer(_:)` takes away KVO it never
+    /// added, and the exception took the app down (Back to Book, a new
+    /// stream run). So a new player gets a new session, the commands and
+    /// the song move over to it, and the old session goes.
+    func attach(_ player: AVPlayer) {
+        guard UserDefaults.standard.bool(forKey: AppStorageKeys.nowPlayingSession) else { return }
+        if let session, session.players.contains(where: { $0 === player }) { return }
+        let hadCommands = !commandTokens.isEmpty
+        // Commands already up on the shared center (the switch turned on
+        // mid-run) stay there until the card comes down.
+        if session == nil, hadCommands { return }
+        if hadCommands {
+            unregisterCommands()
+        }
+        let session = MPNowPlayingSession(players: [player])
+        session.automaticallyPublishesNowPlayingInfo = false
+        self.session = session
+        if hadCommands {
+            registerCommands()
+        }
+        // The next update puts the song on the new session's card.
+        published = nil
+        session.becomeActiveIfPossible { active in
+            Self.log.notice("now playing session \(active ? "active" : "not active", privacy: .public)")
+        }
+    }
+
     // MARK: - Lifecycle
 
     /// Whether a card of this presenter's is up.
@@ -93,13 +145,16 @@ final class LocalNowPlayingPresenter {
         artworkTask?.cancel()
         artworkTask = nil
         unregisterCommands()
-        if isOurs(MPNowPlayingInfoCenter.default().nowPlayingInfo) {
-            MPNowPlayingInfoCenter.default().playbackState = .stopped
-            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        if isOurs(infoCenter.nowPlayingInfo) {
+            infoCenter.playbackState = .stopped
+            infoCenter.nowPlayingInfo = nil
         }
         published = nil
         publishedArtworkURL = nil
         publishedArtwork = nil
+        // The app's own card is the shared center's again, for the Sonos
+        // mirror and whatever plays next.
+        session = nil
     }
 
     /// Called from the player's poll. Publishes when the song, its state or
@@ -146,7 +201,7 @@ final class LocalNowPlayingPresenter {
             snapshot.artist = book.book.subtitle
             snapshot.artworkURL = book.book.artwork ?? snapshot.artworkURL
         }
-        let cardIsOurs = isOurs(MPNowPlayingInfoCenter.default().nowPlayingInfo)
+        let cardIsOurs = isOurs(infoCenter.nowPlayingInfo)
         // A stall or a hiccup can leave the system's clock well off; a
         // drift past a couple of seconds is worth a republish. The clock
         // runs on from the last publish while playing and stands still
@@ -192,7 +247,7 @@ final class LocalNowPlayingPresenter {
 
         // Ahead of the card, so the card is drawn with the buttons that go
         // with it: a station's comes up with no skips to take away after.
-        let center = MPRemoteCommandCenter.shared()
+        let center = commandCenter
         // A book's chapters run far too long to move through by track: the
         // card's buttons skip back and forward instead, which it draws only
         // while the track commands are off.
@@ -209,8 +264,8 @@ final class LocalNowPlayingPresenter {
         Self.set(center.changeShuffleModeCommand, enabled: !snapshot.isLive && !snapshot.isBook)
         Self.set(center.changeRepeatModeCommand, enabled: !snapshot.isLive && !snapshot.isBook)
 
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
-        MPNowPlayingInfoCenter.default().playbackState = snapshot.isPlaying ? .playing : .paused
+        infoCenter.nowPlayingInfo = info
+        infoCenter.playbackState = snapshot.isPlaying ? .playing : .paused
 
         // A new song, for lining up with what the car showed
         // (`Scripts/carplay-nowplaying-log.sh`); not each pause or drift.
@@ -255,11 +310,15 @@ final class LocalNowPlayingPresenter {
         publishedArtworkURL = url
         guard let url else {
             publishedArtwork = nil
-            MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyArtwork] = nil
+            infoCenter.nowPlayingInfo?[MPMediaItemPropertyArtwork] = nil
             return
         }
-        var request = item.map {
-            ContentArtworkView.artworkRequest(for: $0, url: url, preferredSize: ContentArtworkView.playerPreferredSize)
+        // A book's file shows its Audible edition's cover, as the player
+        // does (`ContentArtworkView.drawnContent(for:)`).
+        let drawn = item.map(ContentArtworkView.drawnContent(for:))
+        let drawnURL = drawn.flatMap { $0.id == item?.id ? nil : $0.artwork ?? $0.thumbnail } ?? url
+        var request = drawn.map {
+            ContentArtworkView.artworkRequest(for: $0, url: drawnURL, preferredSize: ContentArtworkView.playerPreferredSize)
         } ?? ImageRequest(url: url, processors: [.resize(width: 500)])
         request.priority = .high
         if let cached = ImagePipeline.shared.cache.cachedImage(for: request)?.image {
@@ -277,8 +336,8 @@ final class LocalNowPlayingPresenter {
         guard publishedArtworkURL == url else { return }
         let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
         publishedArtwork = artwork
-        if isOurs(MPNowPlayingInfoCenter.default().nowPlayingInfo) {
-            MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyArtwork] = artwork
+        if isOurs(infoCenter.nowPlayingInfo) {
+            infoCenter.nowPlayingInfo?[MPMediaItemPropertyArtwork] = artwork
         }
     }
 
@@ -288,7 +347,7 @@ final class LocalNowPlayingPresenter {
     /// presenter's targets are removed on the way out, so the Sonos mirror's
     /// handlers, if any are registered, are left alone.
     private func registerCommands() {
-        let center = MPRemoteCommandCenter.shared()
+        let center = commandCenter
         center.playCommand.isEnabled = true
         center.pauseCommand.isEnabled = true
         center.togglePlayPauseCommand.isEnabled = true
@@ -382,7 +441,7 @@ final class LocalNowPlayingPresenter {
         commandTokens = []
         // Nothing else takes these; left on, they would outlive the card.
         // Only a live card has stop, only a book's the skips and the rate.
-        let center = MPRemoteCommandCenter.shared()
+        let center = commandCenter
         center.stopCommand.isEnabled = false
         center.skipForwardCommand.isEnabled = false
         center.skipBackwardCommand.isEnabled = false

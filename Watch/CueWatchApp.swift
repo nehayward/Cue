@@ -31,14 +31,16 @@ struct CueWatchApp: App {
             case .active:
                 store.appDidBecomeActive()
                 books.reconcileWithCloud()
-                phone.refresh()
+                phone.appDidBecomeActive()
             case .background:
+                phone.appDidResignActive()
                 store.appDidEnterBackground()
                 books.flush()
                 player.saveNow()
                 WidgetStatePublisher.publishNow()
             default:
-                break
+                // The wrist down: the session to the iPhone drops with it.
+                phone.appDidResignActive()
             }
         }
     }

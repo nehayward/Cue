@@ -21,6 +21,7 @@ anything with a stream URL or file. The Sonos side is `PlayableContent.uri`
 | Plex | Full track off the user's server | `x-sonosapi-hls-static:…?sid=212` | **Keep** |
 | Subsonic (Navidrome, Airsonic, Gonic) | Full track via `/rest/stream` (`DirectStreamProvider`) | Speaker fetches the same HTTP URL | **Keep** |
 | TuneIn | Live stream resolved from the station id | `x-sonosapi-stream:…?sid=333` | **Keep** |
+| Audiobookshelf | Books off the user's server | A listening session's track URL (`DirectStreamProvider`) | **Keep** |
 | Files (user folder) | The file itself | None (`playsOnDeviceOnly`) | **Keep, decide** (device-only, see Open questions) |
 | Spotify | 30-second preview clip only | `x-sonos-spotify:…?sid=12` | **Remove** |
 | Tidal | None | `…?sid=174` | **Remove** |
@@ -111,6 +112,13 @@ Music favorites and the household token path.
 ## Order of work
 
 Each step is a separate PR that builds and runs on every scheme.
+
+**Where it stands (2026-10-27):** step 1 is done: `MediaSearchService.supported`
+lists only Apple Music, Plex, TuneIn, Subsonic, Audiobookshelf and Files,
+`CoreFeatures.isEnabled` turns every other service off whatever older builds
+stored, and onboarding, Search, Browse and Settings follow it. Steps 2 to 4
+aren't: the six services' code is all still there (about 47 app files still
+name Spotify).
 
 1. **Hide before delete.** Default the six services to disabled in
    `CoreFeatures` and stop `syncEnabledServices` from turning them back on

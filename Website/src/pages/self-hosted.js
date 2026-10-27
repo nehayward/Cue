@@ -43,6 +43,7 @@ export const selfHostedPage = () =>
 							</li>`,
 					)}
 				</ul>
+				<p class="more-link"><a href="/audiobooks">Keep audiobooks on Plex or Audiobookshelf? See what Cue does for them ${icon('arrow-right')}</a></p>
 			</section>
 
 			<section class="section container narrow">

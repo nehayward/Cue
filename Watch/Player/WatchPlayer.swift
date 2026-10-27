@@ -24,6 +24,11 @@ import WatchSync
 /// and at once on a pause. A file not here yet stops it there rather than
 /// skipping part of the story.
 ///
+/// A sleep timer pauses it after a while, or at the end of the chapter
+/// playing: the moment the next one starts in the file, else at the end of
+/// the file (a song's end, for music), with the next file loaded to start
+/// from (`sleepTimer`).
+///
 /// What's loaded outlives the app (player.json): the songs, the one
 /// playing and the place in it, or the book, whose place is the book
 /// store's. A launch puts it back paused with nothing loaded into the
@@ -48,6 +53,34 @@ final class WatchPlayer {
     /// iPhone paused too, the home screen's card is whichever played last.
     private(set) var lastPlayedAt: Date?
 
+    /// When the player pauses itself, for listening to fall asleep to.
+    enum SleepTimer: Equatable {
+        case at(Date)
+        /// Where the next chapter starts; for a book without chapters, or a
+        /// song, where the file ends.
+        case endOfChapter
+    }
+
+    private(set) var sleepTimer: SleepTimer?
+
+    /// The lengths offered, in minutes.
+    static let sleepChoices = [5, 10, 15, 30, 45, 60]
+
+    /// Where the sound goes, as the audio session last said: headphones,
+    /// the watch's speaker, or nothing known yet. watchOS picks it — the
+    /// headphones connected, else its own picker as the session starts —
+    /// and only the system's Now Playing offers to change it.
+    struct Output: Equatable {
+        enum Kind: Equatable {
+            case headphones, speaker, other
+        }
+
+        let name: String
+        let kind: Kind
+    }
+
+    private(set) var output: Output?
+
     var current: WatchSong? {
         queue.indices.contains(index) ? queue[index] : nil
     }
@@ -69,6 +102,7 @@ final class WatchPlayer {
     @ObservationIgnored private var itemObservation: NSKeyValueObservation?
     @ObservationIgnored private var endObserver: NSObjectProtocol?
     @ObservationIgnored private var interruptionObserver: NSObjectProtocol?
+    @ObservationIgnored private var routeObserver: NSObjectProtocol?
     @ObservationIgnored private var timeObserver: Any?
     @ObservationIgnored private var commandsConfigured = false
     /// The book's files laid end to end.
@@ -91,6 +125,7 @@ final class WatchPlayer {
     @ObservationIgnored private var shownChapter: Int?
     /// Fires where the next chapter starts in the file playing, to show it.
     @ObservationIgnored private var chapterObserver: Any?
+    @ObservationIgnored private var sleepTask: Task<Void, Never>?
     @ObservationIgnored private let logger = Logger(subsystem: "dance.cue.watch", category: "Player")
 
     private init() {
@@ -124,7 +159,11 @@ final class WatchPlayer {
             let item = notification.object as? AVPlayerItem
             Task { @MainActor in
                 guard let self, item != nil, item === self.player.currentItem else { return }
-                self.next()
+                if self.sleepTimer == .endOfChapter, self.chapterEndsWithFile {
+                    self.sleepAtEndOfFile()
+                } else {
+                    self.next()
+                }
             }
         }
         // A call or an alarm pauses the player by itself; carry on after
@@ -136,6 +175,12 @@ final class WatchPlayer {
             guard type == .ended, options.contains(.shouldResume) else { return }
             Task { @MainActor in
                 self?.resume()
+            }
+        }
+        // Headphones connected or gone, or another output picked.
+        routeObserver = NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                self?.readOutput()
             }
         }
         // A book's place, every few seconds of listening.
@@ -289,6 +334,34 @@ final class WatchPlayer {
             player.rate = Float(newRate)
         }
         updateNowPlaying()
+    }
+
+    /// Where it is, for the player's bar: the time into the chapter (the
+    /// book, without chapters) or the song, against its length, with the
+    /// chapter. Read off the player as the screen draws, which it does
+    /// again with every kept place and every play or pause; the bar runs
+    /// on by itself between.
+    var progress: (elapsed: TimeInterval, duration: TimeInterval, chapter: AudiobookChapter?)? {
+        if let book, let timeline {
+            // Put back paused, nothing's in the player yet: the place kept.
+            let time = player.currentItem == nil && pendingOffset == nil ? bookPosition : currentBookTime
+            if let chapter = WatchBookStore.shared.chapters(for: book.key).chapter(at: time) {
+                return (min(max(time - chapter.start, 0), chapter.duration), chapter.duration, chapter)
+            }
+            return (time, timeline.duration, nil)
+        }
+        guard let duration = current?.duration, duration > 0 else { return nil }
+        let time = pendingOffset ?? player.currentTime().seconds
+        return (time.isFinite ? min(max(time, 0), duration) : 0, duration, nil)
+    }
+
+    /// Pauses for the book to go on somewhere else (the iPhone), its place
+    /// kept now rather than as the pause is heard, so it goes along.
+    func pauseKeepingPlace() {
+        if isPlaying, book != nil, pendingOffset == nil {
+            notePlace(tellPhoneNow: true)
+        }
+        pause()
     }
 
     /// The chapter playing, when the book has chapters.
@@ -521,10 +594,30 @@ final class WatchPlayer {
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playback, mode: .default, policy: .longFormAudio, options: [])
-            return try await session.activate(options: [])
+            let isActive = try await session.activate(options: [])
+            readOutput()
+            return isActive
         } catch {
             logger.error("Couldn't start the audio session: \(error.localizedDescription, privacy: .public)")
             return false
+        }
+    }
+
+    /// Reads where the sound goes now.
+    private func readOutput() {
+        guard let port = AVAudioSession.sharedInstance().currentRoute.outputs.first else {
+            output = nil
+            return
+        }
+        let kind: Output.Kind = switch port.portType {
+        case .bluetoothA2DP, .bluetoothLE, .bluetoothHFP, .headphones: .headphones
+        case .builtInSpeaker: .speaker
+        default: .other
+        }
+        let found = Output(name: port.portName, kind: kind)
+        if found != output {
+            logger.info("Output: \(port.portName, privacy: .public) (\(port.portType.rawValue, privacy: .public))")
+            output = found
         }
     }
 
@@ -697,7 +790,12 @@ final class WatchPlayer {
         let boundary = NSValue(time: CMTime(seconds: offset + 0.05, preferredTimescale: 1000))
         chapterObserver = player.addBoundaryTimeObserver(forTimes: [boundary], queue: .main) { [weak self] in
             Task { @MainActor in
-                self?.updateNowPlaying()
+                guard let self else { return }
+                // The chapter is over: the sleep timer's moment.
+                if self.sleepTimer == .endOfChapter {
+                    self.sleepNow()
+                }
+                self.updateNowPlaying()
             }
         }
     }
@@ -768,6 +866,61 @@ final class WatchPlayer {
         center.skipForwardCommand.isEnabled = isBook
         center.skipBackwardCommand.isEnabled = isBook
         center.changePlaybackRateCommand.isEnabled = isBook
+    }
+
+    // MARK: - Sleep timer
+
+    /// Sets the sleep timer, or turns it off with nil.
+    func setSleepTimer(_ timer: SleepTimer?) {
+        sleepTask?.cancel()
+        sleepTask = nil
+        sleepTimer = timer
+        guard case let .at(date) = timer else { return }
+        logger.info("Sleep timer: \(Int(date.timeIntervalSinceNow / 60)) min")
+        sleepTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(max(date.timeIntervalSinceNow, 0)))
+            guard !Task.isCancelled else { return }
+            self?.sleepNow()
+        }
+    }
+
+    /// The timer's up: a pause, kept as any other.
+    private func sleepNow() {
+        logger.info("Sleep timer: pausing")
+        sleepTask = nil
+        sleepTimer = nil
+        WKInterfaceDevice.current().play(.stop)
+        pause()
+    }
+
+    /// Whether the file playing ends a chapter: the next file starts one,
+    /// or there are no chapters to go by (a book of a file a chapter, a
+    /// song).
+    private var chapterEndsWithFile: Bool {
+        guard let book, let timeline, index + 1 < queue.count else { return true }
+        let chapters = WatchBookStore.shared.chapters(for: book.key)
+        guard !chapters.isEmpty else { return true }
+        let nextStart = timeline.start(ofPart: index + 1)
+        return chapters.contains { abs($0.start - nextStart) < 1 }
+    }
+
+    /// End of Chapter at the end of a file: the next one loads, paused at
+    /// its start, so Play goes on from the next chapter. At the end of the
+    /// last, the book ends as it would.
+    private func sleepAtEndOfFile() {
+        sleepTimer = nil
+        guard index + 1 < queue.count else {
+            next()
+            return
+        }
+        logger.info("Sleep timer: the chapter's over")
+        WKInterfaceDevice.current().play(.stop)
+        pendingPlay = false
+        index += 1
+        loadCurrent(andPlay: false)
+        if let timeline {
+            notePlace(at: timeline.start(ofPart: index), tellPhoneNow: true)
+        }
     }
 
     // MARK: - Relaunch

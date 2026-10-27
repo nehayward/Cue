@@ -32,7 +32,10 @@ final class PlexBookScan {
         guard !isScanning else { return }
         let plex = PlexAPI.shared
         let keys = await plex.audiobookLibraries().map(\.key)
-        guard !keys.isEmpty else { return }
+        guard !keys.isEmpty else {
+            AudiobookLibrary.log.notice("plex scan: no library kept for books to scan")
+            return
+        }
         isScanning = true
         defer { isScanning = false }
         guard await plex.scan(sectionKeys: keys) else {

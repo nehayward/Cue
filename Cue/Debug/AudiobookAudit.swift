@@ -159,7 +159,7 @@ enum AudiobookAudit {
     private static func carPlay() async {
         try? await Task.sleep(for: .seconds(5))
         #if os(iOS) && !targetEnvironment(macCatalyst)
-        let books = CarPlayLibrary.recents().filter { $0.content.type == .audiobook }
+        let books = AudiobookLibrary.listenedBooks(plex: true, audiobookshelf: true)
         log.notice("carplay: audiobooks tab \(CarPlayLibrary.showsAudiobooks ? "shown" : "hidden", privacy: .public); recently played books: \(books.map(\.title), privacy: .public)")
         for book in CarPlayLibrary.booksInProgress() {
             let progress = AudiobookProgressStore.shared.progress(for: book)

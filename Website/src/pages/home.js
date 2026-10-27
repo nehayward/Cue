@@ -1,5 +1,5 @@
 import { appStoreUrl, site } from '../config.js';
-import { beyondPhone, faq, features, handoff, hero, screens, services, spotlights } from '../content/home.js';
+import { beyondPhone, faq, features, handoff, hero, plans, screens, services, spotlights } from '../content/home.js';
 import { brandMarks } from '../lib/brand-marks.js';
 import { html, icon, inline, raw } from '../lib/html.js';
 import { downloadButton, iphone, page } from '../lib/layout.js';
@@ -84,6 +84,7 @@ const body = html`
 					<h2>${s.title}</h2>
 					<p>${s.body}</p>
 					<ul>${s.points.map((p) => html`<li>${icon('check')}${p}</li>`)}</ul>
+					${s.link && html`<p class="more-link"><a href="${s.link.href}">${s.link.label} ${icon('arrow-right')}</a></p>`}
 				</div>
 				<div class="spotlight-visual reveal" style="--glow: url('/${s.screen.file}')">${iphone(s.screen)}</div>
 			</section>`,
@@ -143,6 +144,23 @@ const body = html`
 	</section>
 
 
+	<section class="section container" id="super">
+		<div class="section-head reveal">
+			<h2>${plans.title}</h2>
+			<p>${plans.lede}</p>
+		</div>
+		<div class="plans">
+			${[plans.free, plans.super].map(
+				(plan, i) => html`
+					<article class="plan reveal ${i ? 'plan-super' : ''}">
+						<h3>${plan.name}</h3>
+						<p class="plan-price">${plan.price}</p>
+						<ul>${plan.points.map((point) => html`<li>${icon('check')}${point}</li>`)}</ul>
+					</article>`,
+			)}
+		</div>
+	</section>
+
 	<section class="section container narrow" id="faq">
 		<div class="section-head reveal"><h2>Questions</h2></div>
 		<div class="faq">
@@ -156,7 +174,9 @@ const body = html`
 			<img src="/apple-touch-icon.png" alt="" width="88" height="88" loading="lazy">
 			<h2>${appStoreUrl ? 'Ready when you are.' : 'Coming soon to iPhone.'}</h2>
 			<p>${appStoreUrl ? 'Free to download, with every service ready to play.' : 'Cue is almost here. Until then, see what’s in the first release.'}</p>
-			${appStoreUrl ? downloadButton() : html`<a class="btn btn-ghost" href="/releases/${releases[0].version}">What’s in ${releases[0].version} ${icon('arrow-right')}</a>`}
+			${appStoreUrl
+				? downloadButton()
+				: html`<div class="actions center">${downloadButton()}<a class="btn btn-ghost btn-large" href="/releases/${releases[0].version}">What’s in ${releases[0].version} ${icon('arrow-right')}</a></div>`}
 		</div>
 	</section>`;
 

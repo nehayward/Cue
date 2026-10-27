@@ -8,7 +8,7 @@ export const helpPage = ({ embed } = {}) =>
 	page({
 		path: '/help',
 		title: 'Help',
-		description: 'Help and answers for Cue: supported services, Sonos setup, purchases and troubleshooting.',
+		description: 'Help and answers for Cue: supported services, audiobooks, Sonos setup, CarPlay, Apple Watch and troubleshooting.',
 		embed,
 		body: html`
 			<section class="section container narrow text-center page-intro">

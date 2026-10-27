@@ -1,4 +1,3 @@
-import Analytics
 import Defaults
 import Nuke
 import SubscriptionKit
@@ -14,16 +13,7 @@ final class AppBootstrapper {
         // it, so Super doesn't flash the free tier at launch (the Lock Screen
         // card, the volume buttons, every room past the first).
         SubscriptionService.shared.resume(activeUntil: GroupStorageKeys.defaults.superUntil)
-        // Analytics identifies by the RevenueCat user, so it waits for
-        // RevenueCat, which waits for the first unlock after a restart.
-        SubscriptionService.shared.initialize {
-            Analytics.shared.configure(token: "343f1efbe07acecdefdcd6f71f351673", userID: SubscriptionService.shared.userID)
-            // First entry of the ordered selection list is the primary service.
-            if let stored = UserDefaults.standard.string(forKey: AppStorageKeys.selectedSearchServices),
-               let primary = stored.split(separator: ",").first {
-                Analytics.shared.setSelection(metadata: ["MusicService": String(primary)])
-            }
-        }
+        SubscriptionService.shared.initialize()
         RemoteFeatureFlags.shared.fetch()
 
         configureNuke()
@@ -64,6 +54,11 @@ final class AppBootstrapper {
             // cover is 36 MB) and downsampling was silently a no-op app-wide.
             // The registry's default decoder is the same class, built with
             // the context, so the thumbnail path works.
+            #if DEBUG
+            if ScreenshotArtwork.blurs {
+                $0.makeImageDecoder = ScreenshotArtwork.decoder(for:)
+            }
+            #endif
         }
 
         ImagePipeline.shared = pipeline

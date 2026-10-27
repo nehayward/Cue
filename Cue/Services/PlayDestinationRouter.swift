@@ -104,6 +104,13 @@ enum PlayDestinationRouter {
                 askForSpeaker(contents, position: position, queue: queue)
                 return
             }
+            // Remembered from when it was the free tier's one group, or
+            // from a lapsed Super: playing there is Super's now.
+            guard FeatureGate.shared.isGroupUnlocked(id) else {
+                log.notice("remembered group \(id, privacy: .public) needs Super")
+                FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
+                return
+            }
             // Playing on the speaker takes over from this device; adding to
             // the speaker's queue doesn't. Left running, the phone kept
             // going under a route that pointed at the speaker, with no
@@ -131,6 +138,10 @@ enum PlayDestinationRouter {
     /// the picker when none is remembered.
     static func playRadio(from seed: PlayableContent, onGroup: @escaping (GroupRoom) async throws -> Void) async {
         if !OfflineMode.shared.isActive, let group = rememberedGroup {
+            guard FeatureGate.shared.isGroupUnlocked(group.coordinatorID) else {
+                FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
+                return
+            }
             do {
                 try await onGroup(group)
             } catch {

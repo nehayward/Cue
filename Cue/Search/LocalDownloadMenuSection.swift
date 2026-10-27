@@ -1,4 +1,3 @@
-import Analytics
 import SonosKit
 import SwiftUI
 
@@ -73,7 +72,7 @@ struct LocalDownloadMenuSection: View {
                         if manager.download(item) {
                             Self.confirmQueued(item, alertService: alertService)
                         } else {
-                            Self.offerSuperForDownloads(alertService: alertService)
+                            Self.offerSuperForDownloads()
                         }
                     } label: {
                         Label("Download", systemImage: "arrow.down.circle")
@@ -205,12 +204,12 @@ struct LocalDownloadMenuSection: View {
     private var freeLimitNote: some View {
         let manager = DownloadManager.shared
         if manager.remainingFreeSlots != nil {
-            Text("\(manager.heldCount) of \(DownloadManager.freeSongLimit) free downloads")
+            Text("\(manager.heldAgainstLimit) of \(DownloadManager.freeSongLimit) free downloads")
         }
     }
 
     private func downloadContainer() {
-        guard FeatureGate.shared.unlock(.downloads) else { return }
+        guard FeatureGate.shared.unlock(.download(of: item)) else { return }
         Task { @MainActor in
             await Self.download(item, alertService: alertService)
         }
@@ -237,7 +236,7 @@ struct LocalDownloadMenuSection: View {
             case nil:
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    guard FeatureGate.shared.unlock(.downloads) else { return }
+                    guard FeatureGate.shared.unlock(.bookDownloads) else { return }
                     Task { @MainActor in
                         await Self.download(book, alertService: alertService)
                     }
@@ -281,8 +280,10 @@ struct LocalDownloadMenuSection: View {
             } else {
                 alertService.showAlert(with: "Nothing to download", imageName: "arrow.down.circle")
             }
+        case (0, _) where item.content.type == .audiobook:
+            FeatureGate.shared.presentPaywall(PaywallReason(feature: .bookDownloads))
         case (0, _):
-            offerSuperForDownloads(alertService: alertService)
+            offerSuperForDownloads()
         case (let queued, 0):
             // Held for Wi‑Fi, the cellular question speaks for the batch.
             let held = Set(manager.cellularHeldKeys)
@@ -291,21 +292,16 @@ struct LocalDownloadMenuSection: View {
             alertService.showAlertContent(with: item, subtitle: LocalizedStringKey(what), symbolName: "arrow.down.circle")
         case (let queued, let heldBack):
             // Part of the album made it in before the limit; say how much
-            // didn't, and where the rest is.
-            offerSuperForDownloads(text: "Downloading \(queued) of \(queued + heldBack) songs", alertService: alertService)
+            // didn't, and what would take the rest.
+            offerSuperForDownloads(detail: "\(queued) of \(queued + heldBack) songs are downloading. Cue Super makes room for the other \(heldBack), and every song after.")
         }
     }
 
-    /// The free download limit was reached. Says so in a banner that opens
-    /// the paywall when tapped, so the menu's own tap isn't hijacked by a
-    /// full-screen cover.
+    /// The free download limit was reached: the paywall comes up on the
+    /// tap that hit it, opening on the free meter (`PaywallReasonCard`), so
+    /// it's plain why and how many are held.
     @MainActor
-    static func offerSuperForDownloads(text: String = "\(DownloadManager.freeSongLimit) free downloads used", alertService: AlertService) {
-        Analytics.shared.track(.downloadLimitReached)
-        alertService.showActionAlert(with: text, subtitle: "Tap for unlimited with Cue Super", imageName: "arrow.down.circle") {
-            HapticManager.shared.fireHaptic(.buttonPress)
-            Analytics.shared.track(.viewedPaywall, with: ["source": "downloads"])
-            Router.main.fullScreenCover(to: .paywall)
-        }
+    static func offerSuperForDownloads(detail: String? = nil) {
+        FeatureGate.shared.presentPaywall(PaywallReason(feature: .unlimitedDownloads, detail: detail))
     }
 }

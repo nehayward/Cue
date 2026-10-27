@@ -140,6 +140,8 @@ enum CarPlayArtwork {
     /// Hands `content`'s cover to `apply` once it's loaded — at once when
     /// it's cached. Never called when there's no cover or it won't load.
     static func load(_ content: PlayableContent, width: CGFloat, _ apply: @escaping @MainActor (UIImage) -> Void) {
+        // A book shows its Audible edition's cover, as on the phone.
+        let content = ContentArtworkView.drawnContent(for: content)
         guard let url = content.thumbnail ?? content.artwork else { return }
         var request = ImageRequest(url: url, processors: [.resize(width: width)])
         request.imageID = content.imageKey

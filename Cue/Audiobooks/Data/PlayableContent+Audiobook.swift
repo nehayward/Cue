@@ -4,6 +4,13 @@ import SonosKit
 import SwiftUI
 
 extension PlayableContent {
+    /// Who wrote the book: its artist, else its subtitle up to what's left
+    /// of it ("Andy Weir • 5 hr, 3 min left"). Nil when neither says.
+    var bookAuthor: String? {
+        let name = metadata?.artist ?? subtitle.components(separatedBy: " • ").first
+        return name.flatMap { $0.isEmpty ? nil : $0 }
+    }
+
     /// The book with what's left of it added to its subtitle ("Andy Weir •
     /// 5 hr, 3 min left"), for a shelf's rows.
     func withAudiobookProgress(_ progress: AudiobookProgress?) -> PlayableContent {

@@ -102,7 +102,7 @@ struct SpeakerListScreen: View {
                     }
                 } primaryAction: {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    if featureGate.unlock(.scenes, via: router) {
+                    if featureGate.unlock(.scenes) {
                         if !scenes.isEmpty {
                             router.sheet(to: .scenes)
                         } else {
@@ -209,7 +209,7 @@ struct SpeakerListScreen: View {
                         .glassToolbarIcon()
                 } primaryAction: {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    if featureGate.unlock(.scenes, via: router) {
+                    if featureGate.unlock(.scenes) {
                         if !scenes.isEmpty {
                             router.sheet(to: .scenes)
                         } else {
@@ -290,7 +290,7 @@ fileprivate struct SpeakerGroupSection: View {
     @Binding var hoveredID: String?
     
     private var paywallEnabled: Bool {
-        featureGate.isRoomUnlocked(group, in: sonosService.sorted)
+        featureGate.isGroupUnlocked(group.coordinatorID)
     }
     
     private var listRowBackground: Color {

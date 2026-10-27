@@ -1,15 +1,13 @@
-import Analytics
 import NukeUI
 import SwiftUI
 import SonosKit
 
 /// Upgrade affordance modeled on the marketing card style at
 /// cue.dance/macstories — pure black surface, thin teal stroke with a soft
-/// teal aura, a social-proof eyebrow, a shimmering headline, and a fixed
+/// teal aura, a Cue Super eyebrow, a shimmering headline, and a fixed
 /// value-prop subtitle. Pairs with a bordered teal CTA pill at the bottom.
 struct PaywallButtonView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(Router.self) var router: Router?
 
     /// Personalizes the headline. When > 0 the card reads
     /// "Unlock N more rooms" — concrete and tied to the user's actual setup,
@@ -23,23 +21,31 @@ struct PaywallButtonView: View {
     private let cornerRadius: CGFloat = 18
 
     private var headline: String {
-        lockedCount > 0 ? "Unlock \(lockedCount) more rooms" : "Unlock Every Room"
+        lockedCount > 0 ? "Unlock \(lockedCount) more rooms" : "Unlock All of Cue"
+    }
+
+    /// What Super adds, the player's first: Cue is a player before it's a
+    /// Sonos client, and the rooms are only named for someone using Sonos.
+    private var subtitle: String {
+        sonosService.isEnabled
+            ? "Unlimited downloads and books on iPhone and Apple Watch, and every Sonos room."
+            : "Unlimited downloads and books on iPhone and Apple Watch."
     }
 
     var body: some View {
         Button(action: tap) {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("JOIN 2,000+ MEMBERS")
+                    Text("CUE SUPER")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(Color.accentColor)
 
                     ShimmerHeadline(text: headline)
 
-                    Text("Lock screen controls, Widgets, Shortcuts, and more.")
+                    Text(subtitle)
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.65))
-                        .lineLimit(2, reservesSpace: false)
+                        .lineLimit(3, reservesSpace: false)
                 }
 
                 ctaPill
@@ -60,9 +66,7 @@ struct PaywallButtonView: View {
     }
 
     private func tap() {
-        HapticManager.shared.fireHaptic(.buttonPress)
-        Analytics.shared.track(.viewedPaywall)
-        router?.presentedFullScreenCover = .paywall
+        FeatureGate.shared.presentPaywall()
     }
 
     /// Bottom CTA styled like the "Claim offer" / "Get lifetime" buttons on

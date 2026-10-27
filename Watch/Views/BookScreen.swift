@@ -16,10 +16,13 @@ struct BookScreen: View {
     @Environment(WatchDownloadStore.self) private var store
     @Environment(WatchPlayer.self) private var player
     @Environment(WatchBookStore.self) private var books
+    @Environment(PhoneNowPlaying.self) private var phone
     @Environment(\.dismiss) private var dismiss
     let key: String
 
     @State private var isChoosingSpeed = false
+    @State private var isChoosingSleep = false
+    @State private var playRequest: PlayRequest?
 
     var body: some View {
         if let pick = store.picks.pick(key: key) {
@@ -32,6 +35,13 @@ struct BookScreen: View {
                     SpeedPicker(current: books.rate(for: key)) { rate in
                         isChoosingSpeed = false
                         player.setRate(rate, for: pick)
+                    }
+                }
+                .askingWhereToPlay($playRequest)
+                .sheet(isPresented: $isChoosingSleep) {
+                    SleepTimerPicker(endTitle: "End of Chapter", isOff: player.sleepTimer == nil, isEnd: player.sleepTimer == .endOfChapter) { sleep in
+                        isChoosingSleep = false
+                        player.setSleepTimer(WatchPlayer.SleepTimer(sleep))
                     }
                 }
         } else {
@@ -76,13 +86,23 @@ struct BookScreen: View {
                 } label: {
                     LabeledContent("Speed", value: WatchBookFormat.rate(books.rate(for: key)))
                 }
+                // While it's the book loaded: the timer is the player's.
+                if isLoaded {
+                    Button {
+                        isChoosingSleep = true
+                    } label: {
+                        LabeledContent("Sleep Timer") {
+                            SleepTimerValue(timer: player.sleepTimer, endTitle: "End of Chapter")
+                        }
+                    }
+                }
                 if isStarted {
                     Button {
                         play(pick, from: 0)
                     } label: {
                         Label("Play from Start", systemImage: "backward.end.fill")
                     }
-                    .disabled(!player.canPlayBook(pick, from: 0))
+                    .disabled(!canPlay(pick, from: 0))
                 }
             }
 
@@ -90,6 +110,7 @@ struct BookScreen: View {
                 Section {
                     ForEach(chapters) { item in
                         Button {
+                            WKInterfaceDevice.current().play(.click)
                             play(pick, from: item.start)
                         } label: {
                             VStack(alignment: .leading) {
@@ -101,7 +122,8 @@ struct BookScreen: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        .disabled(!player.canPlayBook(pick, from: item.start))
+                        .disabled(!canPlay(pick, from: item.start))
+                        .listRowBackground(item.id == chapter?.id ? chapterFill(item, position: position, isLoaded: isLoaded) : nil)
                     }
                 } header: {
                     Text("Chapters")
@@ -165,8 +187,8 @@ struct BookScreen: View {
             .accessibilityLabel("Back 15 Seconds")
             .disabled(!isLoaded)
             Button {
-                if isLoaded {
-                    player.togglePlayPause()
+                if isPlaying {
+                    player.pause()
                 } else {
                     play(pick, from: nil)
                 }
@@ -176,8 +198,9 @@ struct BookScreen: View {
             }
             .accessibilityLabel(isPlaying ? "Pause" : isStarted ? "Resume" : "Play")
             .primaryHandGesture()
-            // Its place in a part not on the watch yet: nothing to play.
-            .disabled(!isPlaying && !player.canPlayBook(pick))
+            // Its place in a part not on the watch yet: nothing to play,
+            // unless the iPhone plays it.
+            .disabled(!isPlaying && !canPlay(pick, from: nil))
             Button {
                 player.skip(by: WatchPlayer.skipAhead)
             } label: {
@@ -190,10 +213,28 @@ struct BookScreen: View {
         .buttonStyle(.bordered)
     }
 
+    /// The chapter the book's at, filled as far as it's been heard: running
+    /// while it plays here.
+    private func chapterFill(_ chapter: AudiobookChapter, position: TimeInterval, isLoaded: Bool) -> ChapterRowFill {
+        let elapsed = isLoaded ? player.progress?.elapsed ?? position - chapter.start : position - chapter.start
+        return ChapterRowFill(clock: PlayerClock(
+            elapsed: elapsed,
+            duration: chapter.duration,
+            at: .now,
+            rate: player.rate,
+            isPlaying: isLoaded && player.isPlaying
+        ))
+    }
+
+    /// Plays here, or where it's asked with the iPhone in reach.
     private func play(_ pick: WatchPick, from time: TimeInterval?) {
-        if !player.playBook(pick, from: time) {
-            WKInterfaceDevice.current().play(.failure)
-        }
+        playRequest = BookPlayback.play(pick, from: time)
+    }
+
+    /// The part it plays from is on the watch, or the iPhone's there to
+    /// play it.
+    private func canPlay(_ pick: WatchPick, from time: TimeInterval?) -> Bool {
+        player.canPlayBook(pick, from: time) || phone.isPhoneInReach
     }
 
     private func fraction(position: TimeInterval, duration: TimeInterval, finished: Bool) -> Double {
@@ -220,40 +261,14 @@ struct BookScreen: View {
             } else {
                 Text("Looking up on the server…")
             }
+        } else if here < files.count, store.isHeldBack(book: key) {
+            Text("Books download with Cue Super. Get it in Cue on your iPhone.")
         } else if here < files.count {
             Text(files.count == 1
                 ? "Downloading. Fast Download gets it here sooner."
                 : "\(here) of \(files.count) files on this watch. Fast Download gets the rest here sooner.")
         } else {
             Text("\(WatchDownloadStore.countText(files.count, files: true)) • \(ByteCountFormatter.string(fromByteCount: store.bytesUsed(by: files), countStyle: .file))")
-        }
-    }
-}
-
-/// A book's speed, as on the iPhone.
-struct SpeedPicker: View {
-    let current: Double
-    let choose: (Double) -> Void
-
-    var body: some View {
-        NavigationStack {
-            List {
-                ForEach(WatchBookStore.rateChoices, id: \.self) { rate in
-                    Button {
-                        choose(rate)
-                    } label: {
-                        HStack {
-                            Text(WatchBookFormat.rate(rate))
-                            Spacer(minLength: 0)
-                            if rate == current {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(.tint)
-                            }
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Speed")
         }
     }
 }
@@ -287,6 +302,9 @@ struct BookRow: View {
             return store.unreachable.contains(pick.key) ? "Can't reach the server" : "Looking up…"
         }
         let here = songs.filter { store.isDownloaded($0.key) }.count
+        if here < songs.count, store.isHeldBack(book: pick.key) {
+            return "Needs Cue Super"
+        }
         if here < songs.count {
             return songs.count == 1 ? "Downloading" : "\(here) of \(songs.count) files downloaded"
         }

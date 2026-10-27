@@ -1,4 +1,3 @@
-import Analytics
 import Defaults
 import MusicSearchKit
 import SonosKit
@@ -6,8 +5,8 @@ import SubscriptionKit
 import SwiftUI
 
 /// Root onboarding sheet. Owns the per-step navigation, the discovered-services
-/// state, and the bail-out / completion bookkeeping (`hasOnboarded`,
-/// `didBailOut`, `monitor()` on dismiss). Each step page lives in its own file:
+/// state, and the completion bookkeeping (`hasOnboarded`, `monitor()` on
+/// dismiss). Each step page lives in its own file:
 ///
 ///  - `WelcomeStep.swift` — splash + Get Started
 ///  - `SonosQuestionStep.swift` — do you have Sonos? Sets the Sonos preference
@@ -35,11 +34,6 @@ struct WelcomeScreen: View {
 
     @State private var step: Step = .welcome
     @State private var installedServices: Set<SonosServiceType> = []
-    /// Set when the user closes onboarding before reaching Services. Used
-    /// only to distinguish the analytics event (bailed vs completed) —
-    /// `hasOnboarded` is written either way so the sheet doesn't
-    /// re-present on next launch. Users can re-run setup from Preferences.
-    @State private var didBailOut = false
 
     var body: some View {
         ZStack {
@@ -52,14 +46,10 @@ struct WelcomeScreen: View {
                     if step != .paywall {
                         Button {
                             HapticManager.shared.fireHaptic(.selection)
-                            // Closing before Services is recorded as a
-                            // "bailed" analytics event but still marks
-                            // onboarding complete — users found the repeat
-                            // re-presentation annoying and can restart
-                            // setup from Preferences if they need to.
-                            if [.welcome, .sonos, .discovery].contains(step) {
-                                didBailOut = true
-                            }
+                            // Closing early still marks onboarding complete —
+                            // users found the repeat re-presentation annoying
+                            // and can restart setup from Preferences if they
+                            // need to.
                             dismiss()
                         } label: {
                             Image(systemName: "xmark")
@@ -82,13 +72,8 @@ struct WelcomeScreen: View {
         // Force users to use the X button — no swipe-down dismiss, so they
         // can't accidentally bail mid-onboarding.
         .interactiveDismissDisabled()
-        .task {
-            // Funnel entry point — fires once when the sheet first appears.
-            Analytics.shared.track(OnboardingEvent.started)
-        }
         .onDisappear {
             guard !OnboardingDebug.forceShow else { return }
-            Analytics.shared.track(didBailOut ? OnboardingEvent.bailed : OnboardingEvent.completed)
             // Mark onboarding done regardless of bail vs complete — the
             // sheet shouldn't keep re-presenting on every launch. Direct
             // write + synchronize on the app-group store because
@@ -157,7 +142,6 @@ struct WelcomeScreen: View {
     /// before it appears. No leaves it off, so nothing touches the network,
     /// and skips the speaker pages.
     private func answerSonosQuestion(_ hasSonos: Bool) {
-        Analytics.shared.track(hasSonos ? OnboardingEvent.answeredHasSonos : OnboardingEvent.answeredNoSonos)
         sonosService.setEnabled(hasSonos, startMonitoring: false)
         if hasSonos {
             goTo(.discovery)
@@ -259,18 +243,6 @@ struct WelcomeScreen: View {
     }
 
     private func goTo(_ next: Step) {
-        // Track "viewed" events at the moment a step is entered. Discovery
-        // entry isn't tracked here — `DiscoveryStep` fires more granular
-        // started/succeeded/notFound/denied events itself.
-        switch next {
-        case .services: Analytics.shared.track(OnboardingEvent.viewedServices)
-        case .plex:     Analytics.shared.track(OnboardingEvent.viewedPlex)
-        // Reuse the existing top-level `viewedPaywall` event (which fires
-        // for paywall views anywhere in the app) instead of creating an
-        // onboarding-specific duplicate.
-        case .paywall:  Analytics.shared.track(AnalyticEvents.viewedPaywall)
-        default: break
-        }
         withAnimation(stepAnimation) { step = next }
     }
 }

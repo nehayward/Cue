@@ -13,6 +13,9 @@ struct BrowseScreen: View {
 
     @Environment(\.zoomNamespace) private var zoom
     @Environment(WatchDownloadStore.self) private var store
+    @Environment(WatchPlayer.self) private var player
+    @Environment(PhoneNowPlaying.self) private var phone
+    @State private var playRequest: PlayRequest?
     @State private var title = ""
     @State private var items: [WatchBrowseItem] = []
     @State private var container: WatchBrowseItem?
@@ -61,14 +64,16 @@ struct BrowseScreen: View {
             }
         }
         .navigationTitle(title)
+        .askingWhereToPlay($playRequest)
         .task {
             guard !hasLoaded else { return }
             await load(offset: 0)
         }
     }
 
-    /// An artist opens on its albums; a song goes on the watch with a tap;
-    /// an album or playlist opens on its songs.
+    /// An artist opens on its albums; a song goes on the watch with a tap,
+    /// and plays (on the iPhone, or here once it's here) with a swipe; an
+    /// album or playlist opens on its songs.
     @ViewBuilder
     private func row(for item: WatchBrowseItem) -> some View {
         if let destination = item.destination {
@@ -84,6 +89,17 @@ struct BrowseScreen: View {
                 BrowseRow(item: item)
             }
             .disabled(store.isOnWatch(pick))
+            .swipeActions(edge: .leading) {
+                if phone.isPhoneInReach {
+                    Button {
+                        let here = item.song.flatMap { song in store.isPlayable(song.key) ? song : nil }
+                        playRequest = PlayChoice.play(pick, playHere: here.map { song in { player.play([song]) } })
+                    } label: {
+                        Label("Play", systemImage: "play.fill")
+                    }
+                    .tint(.accentColor)
+                }
+            }
         } else {
             NavigationLink(value: BrowseRoute.item(item)) {
                 BrowseRow(item: item)
@@ -141,11 +157,17 @@ private struct BrowseRow: View {
     }
 }
 
-/// An album, playlist or artist from a server, with its songs: put it on
-/// the watch whole, take it off, or put on single songs.
+/// An album, playlist or artist from a server, with its songs: play it on
+/// the iPhone (with the iPhone in reach; here too once it's here), put it
+/// on the watch whole, take it off, or put on single songs — a swipe plays
+/// from that song.
 struct BrowseItemScreen: View {
     @Environment(WatchDownloadStore.self) private var store
+    @Environment(WatchPlayer.self) private var player
+    @Environment(PhoneNowPlaying.self) private var phone
     let item: WatchBrowseItem
+
+    @State private var playRequest: PlayRequest?
 
     @State private var songs: [WatchSong] = []
     @State private var isLoading = false
@@ -172,6 +194,29 @@ struct BrowseItemScreen: View {
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
 
+                if let pick = item.pick, phone.isPhoneInReach {
+                    HStack {
+                        Button {
+                            play(pick, from: nil)
+                        } label: {
+                            Image(systemName: "play.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .accessibilityLabel("Play")
+                        .primaryHandGesture()
+                        Button {
+                            play(pick, from: nil, shuffled: true)
+                        } label: {
+                            Image(systemName: "shuffle")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .accessibilityLabel("Shuffle")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(songs.isEmpty)
+                    .listRowBackground(Color.clear)
+                }
+
                 if let pick = item.pick {
                     if store.picks.contains(key: pick.key) {
                         Label("On This Watch", systemImage: "checkmark.circle.fill")
@@ -192,9 +237,9 @@ struct BrowseItemScreen: View {
                                 ? "Downloading 1 song. Fast Download gets it here sooner."
                                 : "Downloading \(songs.count) songs. Fast Download gets them here sooner."
                         } label: {
-                            Label(songs.isEmpty ? "Download" : "Download \(songs.count) Songs", systemImage: "arrow.down.circle.fill")
-                                .frame(maxWidth: .infinity)
+                            DownloadLabel(title: songs.isEmpty ? "Download" : songs.count == 1 ? "1 Song" : "\(songs.count) Songs")
                         }
+                        .accessibilityLabel(songs.isEmpty ? "Download" : "Download \(songs.count) songs")
                         .buttonStyle(.borderedProminent)
                         .disabled(songs.isEmpty)
                         .listRowBackground(Color.clear)
@@ -242,13 +287,26 @@ struct BrowseItemScreen: View {
                         }
                     }
                     .disabled(isHere)
+                    .swipeActions(edge: .leading) {
+                        if let pick = item.pick, phone.isPhoneInReach {
+                            Button {
+                                play(pick, from: song)
+                            } label: {
+                                Label("Play", systemImage: "play.fill")
+                            }
+                            .tint(.accentColor)
+                        }
+                    }
                 }
             } footer: {
                 if !songs.isEmpty {
-                    Text("Tap a song to put just that one on your watch.")
+                    Text(phone.isPhoneInReach
+                        ? "Tap a song to put just that one on your watch, or swipe it to play from there."
+                        : "Tap a song to put just that one on your watch.")
                 }
             }
         }
+        .askingWhereToPlay($playRequest)
         .task {
             guard !hasLoaded, let pick = item.pick else { return }
             isLoading = true
@@ -256,6 +314,20 @@ struct BrowseItemScreen: View {
             isLoading = false
             hasLoaded = true
         }
+    }
+}
+
+extension BrowseItemScreen {
+    /// Plays it on the iPhone, or here too where its songs are here: from
+    /// `song`, or shuffled.
+    private func play(_ pick: WatchPick, from song: WatchSong?, shuffled: Bool = false) {
+        let here = songs.filter { store.isPlayable($0.key) }
+        let canPlayHere = song.map { store.isPlayable($0.key) } ?? !here.isEmpty
+        var playHere: (@MainActor () -> Void)?
+        if canPlayHere {
+            playHere = { player.play(here, startingAt: song?.key, shuffled: shuffled) }
+        }
+        playRequest = PlayChoice.play(pick, from: song?.contentID, shuffled: shuffled, playHere: playHere)
     }
 }
 
@@ -311,8 +383,7 @@ struct BrowseBookScreen: View {
                         Button {
                             add(pick)
                         } label: {
-                            Label("Download Book", systemImage: "arrow.down.circle.fill")
-                                .frame(maxWidth: .infinity)
+                            DownloadLabel(title: "Download Book")
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(book == nil)
@@ -373,5 +444,20 @@ struct BrowseBookScreen: View {
         WatchBookStore.shared.noteLookedUp(book, for: pick)
         WKInterfaceDevice.current().play(.success)
         note = "Downloading. Fast Download gets it here sooner."
+    }
+}
+
+/// A download button's label: the arrow and a few words on one line,
+/// centered, dark on the green so it reads at a glance.
+private struct DownloadLabel: View {
+    let title: String
+
+    var body: some View {
+        Label(title, systemImage: "arrow.down.circle.fill")
+            .font(.body.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .foregroundStyle(.black)
+            .frame(maxWidth: .infinity)
     }
 }

@@ -1,4 +1,3 @@
-import Analytics
 import CloudStorage
 import MusicSearchKit
 import Defaults
@@ -22,7 +21,10 @@ struct PlexBrowseScreen: View {
     @State private var plexAuthenticator = PlexAuthenticator.shared
     /// The server has books: a library kept for them, or books among the
     /// music under an audiobook genre (see `PlexAudiobookSettingsSection`).
-    @State private var hasAudiobooks = false
+    /// Nil until the server is asked; the answer kept from before
+    /// (`hasPlexAudiobooks`) stands in meanwhile, so the row doesn't pop in.
+    @State private var hasAudiobooks: Bool?
+    @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hadAudiobooks = false
 
     /// The Songs list's sort menu, shared with the Songs tab.
     private var songSortOptions: [PlayableListSort] {
@@ -37,6 +39,11 @@ struct PlexBrowseScreen: View {
     /// The Albums list's sort menu, shared with the Albums tab.
     private var albumSortOptions: [PlayableListSort] {
         PlexLibraryLists.albumSortOptions(plexBrowseService: plexBrowseService)
+    }
+
+    /// The server and library the collections are read from.
+    private var collectionSource: String {
+        "\(musicSearchService.plexServerID ?? "")/\(musicSearchService.plexLibrarySelectionID ?? "")"
     }
 
     var body: some View {
@@ -92,11 +99,17 @@ struct PlexBrowseScreen: View {
                         Label("Songs", systemImage: "music.note")
                     }
 
+                    if let count = plexBrowseService.collectionCount, count > 0 {
+                        NavigationLink(value: RouterDestination.plexCollections) {
+                            Label("Collections (\(count))", systemImage: "square.stack.3d.up")
+                        }
+                    }
+
                     NavigationLink(value: RouterDestination.downloaded(service: .plex)) {
                         Label("Downloaded", systemImage: "arrow.down.circle")
                     }
 
-                    if hasAudiobooks {
+                    if hasAudiobooks ?? hadAudiobooks {
                         NavigationLink(value: RouterDestination.playableList(
                             title: "Audiobooks",
                             showSectionIndex: false,
@@ -139,6 +152,7 @@ struct PlexBrowseScreen: View {
                     PlexLibrarySelectionView()
                 }
             }
+            .musicLeftOffRoom()
             .navigationBarTitleDisplayMode(.inline)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .miniPlayerOnScrollHandler()
@@ -155,19 +169,26 @@ struct PlexBrowseScreen: View {
                 isLoading = true
                 await updatePlexBrowseService()
                 isLoading = false
-                hasAudiobooks = await PlexAPI.shared.hasAudiobooks()
-                if hasAudiobooks {
-                    UserDefaults.standard.set(true, forKey: AppStorageKeys.hasPlexAudiobooks)
+                let hasBooks = await PlexAPI.shared.hasAudiobooks()
+                hasAudiobooks = hasBooks
+                if hasBooks, !hadAudiobooks {
+                    hadAudiobooks = true
                 }
                 // Opening the library is the moment to notice the server has
                 // more songs than the synced copy — Songs is one tap away.
                 await musicSearchService.refreshPlexLibraryIfChanged()
+            }
+            .task(id: collectionSource) {
+                // Collections belong to a library, not the server, so they
+                // follow a change of library too.
+                await plexBrowseService.updateCollections()
             }
             .refreshable {
                 // Songs is served from a synced copy of the library; a
                 // refresh should pick up anything added on the server since.
                 musicSearchService.clearPlexSongCache()
                 await updatePlexBrowseService()
+                await plexBrowseService.updateCollections()
             }
             .withAppRouter()
             .toolbar {

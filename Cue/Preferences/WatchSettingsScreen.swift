@@ -5,7 +5,7 @@ import WatchSync
 /// What's set to go on the Apple Watch — the albums, playlists, artists,
 /// songs and books added here or on the watch — and how to make the watch
 /// download faster. The watch does the downloading and owns the quality. Reached
-/// from Settings › Storage when a watch is paired.
+/// from Settings when a watch is paired.
 struct WatchSettingsScreen: View {
     @State private var watch = WatchSyncService.shared
     @State private var isConfirmingRemoveAll = false

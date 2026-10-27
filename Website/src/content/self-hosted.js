@@ -28,9 +28,11 @@ export const highlights = [
 	{ icon: 'server', title: 'Plays count on your server', body: 'Songs you play show up in play counts, Recently Played and Now Playing. Navidrome passes them on to Last.fm or ListenBrainz.' },
 	{ icon: 'search', title: 'Search everything together', body: 'Search your server alongside Apple Music and radio, and get one ranked list that forgives typos.' },
 	{ icon: 'arrow-left-right', title: 'Mixes with Apple Music', body: 'Queue your server and Apple Music side by side. Cue looks ahead, so there’s barely a pause between them.' },
-	{ icon: 'speaker', title: 'Straight to Sonos', body: 'Tap Play On and your speakers stream the same songs straight from your server. Opus is sent as MP3, since Sonos can’t play it.' },
+	{ icon: 'speaker', title: 'Straight to Sonos', body: 'Tap the Play On button and your speakers stream the same songs straight from your server. Opus is sent as MP3, since Sonos can’t play it.' },
 	{ icon: 'apple-watch', title: 'On your Apple Watch', body: 'Put albums, playlists and artists on your watch and go for a run without your iPhone. The watch downloads from your server itself, as MP3 or the original file.' },
 	{ icon: 'carplay', title: 'In the car', body: 'Your library and downloads in CarPlay, with Up Next, shuffle and repeat on the car’s screen.' },
+	{ icon: 'mic-vocal', title: 'Your lyrics, lit up', body: 'Plex lyrics, Subsonic’s, or a .lrc beside the file, each line lighting up as it’s sung. Downloaded songs keep theirs offline.' },
+	{ icon: 'book-open', title: 'Audiobooks, too', body: 'Plex libraries you keep for books, and Audiobookshelf, play as books: chapters, speed, Smart Resume and your place synced back to the server.' },
 ];
 
 export const setup = [
@@ -46,7 +48,8 @@ export const setup = [
 
 export const faq = [
 	{ q: 'Does my server need to be reachable from outside my home?', a: 'Only if you want to stream away from home. Plex handles this with remote access; for Navidrome or another Subsonic server, use whatever address you reach it at from outside — or download what you need before you leave.' },
-	{ q: 'Where are my login details stored?', a: 'On your iPhone, with Subsonic passwords kept in the keychain. If you use Cue on Apple Watch, your iPhone shares them with the watch so it can download from your server. Cue talks to your server directly — nothing passes through anyone else.' },
+	{ q: 'Where are my login details stored?', a: 'On your iPhone, with Subsonic passwords and your Audiobookshelf sign-in kept in the keychain. If you use Cue on Apple Watch, your iPhone shares them with the watch so it can download from your server. Cue talks to your server directly — nothing passes through anyone else.' },
 	{ q: 'Does streaming quality affect Sonos?', a: 'Yes, for Subsonic: your speakers get the format you pick, except Opus, which Sonos can’t play, so they get MP3 instead.' },
+	{ q: 'Does Cue work with Audiobookshelf?', a: 'Yes, for audiobooks. Connect it under **Settings ▸ Services ▸ Audiobookshelf**, and your books play with chapters, speed and Smart Resume, on your iPhone or on Sonos, with your place synced back to the server. [See what Cue does for audiobooks](/audiobooks).' },
 	{ q: 'Which Subsonic servers work?', a: 'Any that implements the Subsonic API, including Navidrome, Airsonic, Airsonic-Advanced, Gonic and Ampache.' },
 ];

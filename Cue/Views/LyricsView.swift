@@ -623,18 +623,28 @@ private extension View {
         scrollIndicators(.hidden)
             .contentMargins(.top, 24, for: .scrollContent)
             .contentMargins(.bottom, bottomMargin, for: .scrollContent)
-            .mask {
-                LinearGradient(
-                    stops: [
-                        .init(color: .clear, location: 0),
-                        .init(color: .black, location: 0.08),
-                        .init(color: .black, location: 0.88),
-                        .init(color: .clear, location: 1)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
+            .fadingScrollEdges()
+    }
+}
+
+extension View {
+    /// Lines fading out at the top and bottom edges rather than cut, for
+    /// the lyrics and a book's transcript: one still gradient as a mask,
+    /// nothing in it animating, so it costs only the compositing of what
+    /// scrolls under it.
+    func fadingScrollEdges() -> some View {
+        mask {
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: .black, location: 0.08),
+                    .init(color: .black, location: 0.88),
+                    .init(color: .clear, location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
     }
 }
 
@@ -703,6 +713,9 @@ struct LyricsHeaderTitles: View {
     let isFullScreen: Bool
     let onToggleFullScreen: () -> Void
     let onShowCover: () -> Void
+    /// A book's transcript is showing: its text settings sit here, beside
+    /// Full Screen, rather than over the text.
+    var showsTextSettings = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -719,6 +732,10 @@ struct LyricsHeaderTitles: View {
                 .contentShape(.rect)
             }
             .accessibilityHint("Shows the cover")
+
+            if showsTextSettings {
+                BookTranscriptSettingsButton(inHeader: true)
+            }
 
             Button(action: onToggleFullScreen) {
                 Label(
@@ -786,15 +803,23 @@ struct LyricsRequestModifier: ViewModifier {
 struct LyricsButton: View {
     @AppStorage(AppStorageKeys.lyricsShown) private var isShown: Bool = false
 
+    /// A book is playing: the button opens its transcript instead.
+    private var isBook: Bool {
+        AudiobookPlayer.shared.isPlayingBook(on: PlaybackRoute.shared.presented)
+    }
+
+    /// A book's always opens: where it can't be transcribed, or needs
+    /// Cue Super, the transcript says so.
     private var isAvailable: Bool {
+        if isBook { return true }
         switch LyricsService.shared.state {
-        case .loaded, .loading, .failed: true
-        case .none, .unavailable: false
+        case .loaded, .loading, .failed: return true
+        case .none, .unavailable: return false
         }
     }
 
     var body: some View {
-        Button("Lyrics", systemImage: isShown ? "quote.bubble.fill" : "quote.bubble") {
+        Button(isBook ? "Transcript" : "Lyrics", systemImage: isShown ? "quote.bubble.fill" : "quote.bubble") {
             HapticManager.shared.fireHaptic(.selection)
             isShown.toggle()
         }

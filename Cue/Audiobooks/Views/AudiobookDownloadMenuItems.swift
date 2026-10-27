@@ -32,7 +32,7 @@ struct AudiobookDownloadMenuItems: View {
             case nil:
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    guard FeatureGate.shared.unlock(.downloads) else { return }
+                    guard FeatureGate.shared.unlock(.bookDownloads) else { return }
                     Task { @MainActor in
                         await LocalDownloadMenuSection.download(book, alertService: alertService)
                     }

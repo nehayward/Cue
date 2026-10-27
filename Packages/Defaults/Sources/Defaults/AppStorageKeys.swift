@@ -67,6 +67,9 @@ public enum AppStorageKeys {
     /// (`PlexAPI.hasAudiobooks()`), so the Audiobooks tab shows at launch
     /// without waiting on the server.
     public static let hasPlexAudiobooks = "\(Prefix.id).hasPlexAudiobooks"
+    /// Books taken out of Continue Listening — `[progress key: when]` —
+    /// until they're listened to again (`ContinueListeningRemovals`).
+    public static let continueListeningRemovals = "\(Prefix.id).continueListeningRemovals"
     /// Whether a book's time left is the whole book's ("14h 24m left in
     /// book") rather than the chapter's, in the player and the mini player.
     /// A tap on the player's time left switches it. The chapter's when
@@ -82,6 +85,10 @@ public enum AppStorageKeys {
     public static let queueMode = "\(Prefix.id).queueMode"
     public static let showArtworkOnly = "\(Prefix.id).showArtworkOnly"
     public static let queueInspectorVisible = "\(Prefix.id).queueInspectorVisible"
+    /// The tab the app was last on, JSON-encoded, so a launch opens there.
+    /// Read and written with `UserDefaults` directly, never `@AppStorage`:
+    /// every view holding the key would redraw on each tab switch.
+    public static let selectedTab = "\(Prefix.id).selectedTab"
     /// Width in points of the trailing queue panel, so a drag-to-resize
     /// survives relaunch.
     public static let queuePanelWidth = "\(Prefix.id).queuePanelWidth"
@@ -104,6 +111,20 @@ public enum AppStorageKeys {
     /// locale identifier]` — with `LiveTranscriptionService.anyStationKey`
     /// holding the last pick, the guess for a station not heard before.
     public static let liveTranscriptionLocales = "\(Prefix.id).liveTranscriptionLocales"
+    /// The book transcript's look: its typeface (`BookTranscriptFont`'s raw
+    /// value), its text size in points and its line spacing.
+    public static let bookTranscriptFont = "\(Prefix.id).bookTranscriptFont"
+    public static let bookTranscriptSize = "\(Prefix.id).bookTranscriptSize"
+    public static let bookTranscriptSpacing = "\(Prefix.id).bookTranscriptSpacing"
+    /// Whether the word being said in a book's transcript is underlined as
+    /// well as brightest; on until turned off.
+    public static let bookTranscriptUnderline = "\(Prefix.id).bookTranscriptUnderline"
+    /// When the day's Read Along preview, without Cue Super, ends or ended.
+    public static let bookTranscriptPreviewEnd = "\(Prefix.id).bookTranscriptPreviewEnd"
+    /// The transcription language picked per book — `[book key: locale
+    /// identifier]` — with "*" holding the last pick, the guess for a book
+    /// not transcribed before.
+    public static let bookTranscriptLocales = "\(Prefix.id).bookTranscriptLocales"
     /// Whether the player shows the song's lyrics in the artwork's place,
     /// so the toggle holds from song to song and across launches.
     public static let lyricsShown = "\(Prefix.id).lyricsShown"
@@ -126,10 +147,18 @@ public enum AppStorageKeys {
     /// the car's Now Playing follows Cue's own player after Apple Music
     /// without it (FB24840951).
     public static let carPlayMiniPlayer = "\(Prefix.id).carPlayMiniPlayer"
+    /// Whether the stream player's Now Playing card goes through an
+    /// `MPNowPlayingSession` of its player (`LocalNowPlayingPresenter`). A
+    /// Debug switch, off by default, while it's tried on the Lock Screen
+    /// and in the car.
+    public static let nowPlayingSession = "\(Prefix.id).nowPlayingSession"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
     public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
     public static let lastPlaylistService = "\(Prefix.id).lastPlaylistService"
     public static let recentPlaylistIDs = "\(Prefix.id).recentPlaylistIDs"
+    /// Plex collections most recently added to, most recent first, for the
+    /// Add to Collection sheet.
+    public static let recentPlexCollectionIDs = "\(Prefix.id).recentPlexCollectionIDs"
     public static let addToPlaylistSegment = "\(Prefix.id).addToPlaylistSegment"
     public static let recentlyViewed = "\(Prefix.id).recentlyViewed"
     public static let recentQueries = "\(Prefix.id).recentQueries"
@@ -173,6 +202,10 @@ public enum AppStorageKeys {
     /// requires an active subscription, so an unsubscribed user with the default
     /// keeps Live Activities and nothing takes over their audio.
     public static let lockScreenNowPlaying = "\(Prefix.id).lockScreenNowPlaying"
+    /// The Plex collections screen's layout (`PlayableListLayout` raw value).
+    public static let plexCollectionsLayout = "\(Prefix.id).plexCollectionsLayout"
+    /// The layout inside a Plex collection (`PlayableListLayout` raw value).
+    public static let plexCollectionLayout = "\(Prefix.id).plexCollectionLayout"
 }
 
 public extension UserDefaults {

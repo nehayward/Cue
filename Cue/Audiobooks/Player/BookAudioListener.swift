@@ -1,4 +1,9 @@
 import AVFoundation
+#if targetEnvironment(macCatalyst)
+// `UnsafeMutableAudioBufferListPointer`: AVFoundation brings it on iOS, not
+// on the Mac.
+import CoreAudio
+#endif
 import MediaToolbox
 import MusicSearchKit
 import os
@@ -14,6 +19,9 @@ import OSLog
 /// file streamed from the server is heard as a downloaded one is, with
 /// nothing fetched twice. A tap needs an audio track, which a book's file
 /// has (it plays as the server keeps it); a live stream or HLS has none.
+///
+/// The same tap hands the audio on to the book's transcript while one is
+/// open on a streamed file (`transcribe(_:)`), copied off as it plays.
 @MainActor
 final class BookAudioListener {
     static let shared = BookAudioListener()
@@ -72,6 +80,25 @@ final class BookAudioListener {
         return heard
     }
 
+    /// `item`'s audio as it plays, each chunk with its place in the file,
+    /// for the book's transcript; nil before the item has a tap. Ends any
+    /// other item's.
+    func transcribe(_ item: AVPlayerItem) -> AsyncStream<BookAudioChunk>? {
+        forgetGone()
+        stopTranscribing()
+        guard let meter = entries.first(where: { $0.item === item })?.meter else { return nil }
+        let (stream, continuation) = AsyncStream.makeStream(of: BookAudioChunk.self, bufferingPolicy: .bufferingNewest(200))
+        meter.forward(to: continuation)
+        return stream
+    }
+
+    /// Stops handing audio to the transcript.
+    func stopTranscribing() {
+        for entry in entries {
+            entry.meter?.forward(to: nil)
+        }
+    }
+
     private func forgetGone() {
         entries.removeAll { $0.item == nil || $0.meter == nil }
     }
@@ -86,16 +113,53 @@ private final class TapMeter {
     private var energies: UnsafeMutablePointer<Float>?
     private var energyCapacity = 0
     private let lock: UnsafeMutablePointer<os_unfair_lock>
+    /// Where the audio goes for a transcript, and its format; behind its own
+    /// lock, so measuring never waits on it.
+    private var transcript: AsyncStream<BookAudioChunk>.Continuation?
+    private var transcriptFormat: AVAudioFormat?
+    private let transcriptLock: UnsafeMutablePointer<os_unfair_lock>
 
     init() {
         lock = .allocate(capacity: 1)
         lock.initialize(to: os_unfair_lock())
+        transcriptLock = .allocate(capacity: 1)
+        transcriptLock.initialize(to: os_unfair_lock())
     }
 
     deinit {
         energies?.deallocate()
+        transcript?.finish()
         lock.deinitialize(count: 1)
         lock.deallocate()
+        transcriptLock.deinitialize(count: 1)
+        transcriptLock.deallocate()
+    }
+
+    /// Hands what's heard on to `continuation`, or to nothing.
+    func forward(to continuation: AsyncStream<BookAudioChunk>.Continuation?) {
+        os_unfair_lock_lock(transcriptLock)
+        let previous = transcript
+        transcript = continuation
+        os_unfair_lock_unlock(transcriptLock)
+        previous?.finish()
+    }
+
+    /// A copy of the block for the transcript, with its place in the file.
+    /// An allocation on the audio thread, only while a transcript listens.
+    private func forward(_ list: UnsafeMutablePointer<AudioBufferList>, frames: Int, timeRange: CMTimeRange) {
+        os_unfair_lock_lock(transcriptLock)
+        defer { os_unfair_lock_unlock(transcriptLock) }
+        guard let transcript, let format = transcriptFormat, frames > 0,
+              timeRange.isValid, timeRange.start.isNumeric,
+              let copy = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames)) else { return }
+        copy.frameLength = AVAudioFrameCount(frames)
+        let source = UnsafeMutableAudioBufferListPointer(list)
+        let target = UnsafeMutableAudioBufferListPointer(copy.mutableAudioBufferList)
+        for (from, to) in zip(source, target) {
+            guard let data = from.mData, let into = to.mData else { continue }
+            memcpy(into, data, Int(min(from.mDataByteSize, to.mDataByteSize)))
+        }
+        transcript.yield(BookAudioChunk(buffer: copy, start: timeRange.start.seconds))
     }
 
     /// The trace so far, copied here so the audio thread never has to copy
@@ -129,7 +193,9 @@ private final class TapMeter {
                 var timeRange = CMTimeRange.invalid
                 guard MTAudioProcessingTapGetSourceAudio(tap, frames, buffers, flagsOut, &timeRange, framesOut) == 0 else { return }
                 let restarted = (flags | flagsOut.pointee) & kMTAudioProcessingTapFlag_StartOfStream != 0
-                TapMeter.of(tap).measure(buffers, frames: Int(framesOut.pointee), timeRange: timeRange, restarted: restarted)
+                let meter = TapMeter.of(tap)
+                meter.measure(buffers, frames: Int(framesOut.pointee), timeRange: timeRange, restarted: restarted)
+                meter.forward(buffers, frames: Int(framesOut.pointee), timeRange: timeRange)
             }
         )
         var tap: MTAudioProcessingTap?
@@ -145,6 +211,11 @@ private final class TapMeter {
     }
 
     private func prepare(maxFrames: Int, format: AudioStreamBasicDescription) {
+        var description = format
+        let transcriptFormat = AVAudioFormat(streamDescription: &description)
+        os_unfair_lock_lock(transcriptLock)
+        self.transcriptFormat = transcriptFormat
+        os_unfair_lock_unlock(transcriptLock)
         os_unfair_lock_lock(lock)
         defer { os_unfair_lock_unlock(lock) }
         self.format = format

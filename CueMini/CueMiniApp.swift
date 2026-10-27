@@ -1,7 +1,7 @@
 import SwiftUI
 import SonosKitMini
 import KeyboardShortcuts
-import Kingfisher
+import Nuke
 
 @MainActor
 @Observable
@@ -84,18 +84,15 @@ struct CueMiniApp: App {
 //        }
 //        #endif
         
-        // Configure KingFisher image cache with aggressive limits to prevent memory bloat
-        ImageCache.default.memoryStorage.config.totalCostLimit = 10 * 1024 * 1024  // 10MB
-        ImageCache.default.memoryStorage.config.countLimit = 50  // Max 50 images in memory
-        ImageCache.default.memoryStorage.config.expiration = .seconds(300)  // 5 minutes in memory
-        ImageCache.default.diskStorage.config.sizeLimit = 20 * 1024 * 1024  // 20MB
-        ImageCache.default.diskStorage.config.expiration = .days(1)
+        // Configure Nuke's memory cache with aggressive limits to prevent memory bloat
+        ImageCache.shared.costLimit = 10 * 1024 * 1024  // 10MB
+        ImageCache.shared.countLimit = 50  // Max 50 images in memory
+        ImageCache.shared.ttl = 300  // 5 minutes in memory
 
         // Menu bar apps run for weeks — trim image caches and re-accumulating
         // device data on a 24h cadence, same as the Watch app already does.
         SonosMiniService.shared.onPeriodicCleanup = {
-            ImageCache.default.clearMemoryCache()
-            ImageCache.default.cleanExpiredDiskCache()
+            ImageCache.shared.removeAll()
         }
         SonosMiniService.shared.startPeriodicCleanup()
 

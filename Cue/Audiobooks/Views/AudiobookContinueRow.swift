@@ -77,13 +77,23 @@ struct AudiobookContinueRow: View {
                 .contentShape(.circle)
             }
             .buttonStyle(.plain)
-            .disabled(isStarting || player.isLoading)
+            .disabled(isStarting)
+            // While a book loads, the other rows' Play wait without dimming:
+            // disabled, every row's button dimmed and lit again as each
+            // book's load came and went, a flicker down the whole card.
+            .allowsHitTesting(!player.isLoading || isLoaded)
             .accessibilityLabel(isPlaying ? "Pause" : progress?.isStarted == true ? "Resume" : "Play")
         }
         // The book's menu (from the start, download or remove) is a long
-        // press away, as on its other rows.
+        // press away, as on its other rows. Its preview is the book alone:
+        // a list lifts the whole row for a menu in it, which here was the
+        // Continue Listening card with every book in it.
         .contextMenu {
             PlayableMenuView(item: book)
+        } preview: {
+            details(progress)
+                .padding(16)
+                .frame(width: 360)
         }
     }
 

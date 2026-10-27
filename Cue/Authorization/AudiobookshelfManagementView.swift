@@ -1,3 +1,4 @@
+import AuthenticationServices
 import MusicSearchKit
 import SwiftUI
 import SonosKit
@@ -7,9 +8,13 @@ import SonosKit
 /// device or a speaker plays the books straight from the server.
 ///
 /// The password is only sent to sign in. What's kept is the server's
-/// tokens, in the keychain (see `AudiobookshelfAPI`).
+/// tokens, in the keychain (see `AudiobookshelfAPI`). A server with single
+/// sign-on offers it under the password's Sign In, once its status says so;
+/// the provider's page opens in a web sign-in session, with Safari's
+/// cookies, so an account already signed in there goes straight through.
 struct AudiobookshelfManagementView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.webAuthenticationSession) private var webAuthenticationSession
 
     @State private var shelf = AudiobookshelfAPI.shared
     @State private var serverAddress: String = ""
@@ -17,6 +22,8 @@ struct AudiobookshelfManagementView: View {
     @State private var password: String = ""
     @State private var isConnecting = false
     @State private var result: AudiobookshelfAPI.LoginResult?
+    /// The ways in the address offers, read as it's typed.
+    @State private var methods: AudiobookshelfAPI.SignInMethods?
 
     private enum Field { case address, username, password }
     @FocusState private var focused: Field?
@@ -100,6 +107,24 @@ struct AudiobookshelfManagementView: View {
                         Text("Your login is kept once the server accepts it.")
                     }
                 }
+
+                // The server's single sign-on, once its status says it has
+                // one.
+                if methods?.singleSignOn == true, !showsSignOut {
+                    Section {
+                        Button {
+                            Task { await connectWithSingleSignOn() }
+                        } label: {
+                            Text(methods?.singleSignOnTitle ?? "Sign In with Single Sign-On")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isConnecting || serverAddress.isEmpty)
+                        .listRowBackground(Color.clear)
+                    } footer: {
+                        Text("Signs in through the server's own sign-in page, as its apps do.")
+                    }
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -124,6 +149,19 @@ struct AudiobookshelfManagementView: View {
                 guard shelf.serverAddress.isEmpty else { return }
                 try? await Task.sleep(for: .milliseconds(350))
                 focused = .address
+            }
+            // Which ways in the address offers, once typing pauses.
+            .task(id: serverAddress) {
+                let address = serverAddress
+                guard !address.isEmpty else {
+                    methods = nil
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(600))
+                guard !Task.isCancelled else { return }
+                let found = await shelf.signInMethods(address: address)
+                guard !Task.isCancelled else { return }
+                withAnimation { methods = found }
             }
         }
     }
@@ -157,6 +195,33 @@ struct AudiobookshelfManagementView: View {
         isConnecting = false
         result = check.result
         guard check.result == .success, let address = check.address else { return }
+        signedIn(at: address)
+    }
+
+    /// Signs in through the server's single sign-on: its provider's page in
+    /// a web sign-in session, which hands back the address it ends on.
+    private func connectWithSingleSignOn() async {
+        focused = nil
+        tidyAddress()
+        isConnecting = true
+        let session = webAuthenticationSession
+        let check = await shelf.signInWithSingleSignOn(address: serverAddress) { page in
+            try? await session.authenticate(
+                using: page,
+                callbackURLScheme: AudiobookshelfAPI.singleSignOnCallbackScheme,
+                preferredBrowserSession: .shared
+            )
+        }
+        isConnecting = false
+        result = check.result
+        guard check.result == .success, let address = check.address else { return }
+        username = shelf.username
+        signedIn(at: address)
+    }
+
+    /// The login kept: the books are read, and the banner is the way to
+    /// them.
+    private func signedIn(at address: String) {
         serverAddress = address
         password = ""
         CoreFeatures.shared.enabledServices(.audiobookshelf).wrappedValue = true

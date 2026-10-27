@@ -21,7 +21,6 @@ extension View {
 
 private struct FeatureGateModifier: ViewModifier {
     @Environment(FeatureGate.self) private var gate
-    @Environment(Router.self) private var router: Router?
 
     let feature: GatedFeature
 
@@ -34,7 +33,7 @@ private struct FeatureGateModifier: ViewModifier {
                     Rectangle()
                         .fill(.clear)
                         .contentShape(Rectangle())
-                        .onTapGesture { gate.presentPaywall(via: router ?? .main) }
+                        .onTapGesture { gate.presentPaywall(PaywallReason(feature: feature)) }
                         .accessibilityLabel("\(feature.title), requires Cue Super")
                         .accessibilityHint("Opens the Cue Super paywall")
                 }
@@ -88,6 +87,15 @@ struct FeatureGateDebugView: View {
 
     var body: some View {
         List {
+            Section {
+                Toggle("Act as Free Tier", isOn: Binding {
+                    gate.actsAsFreeTier
+                } set: {
+                    gate.setActsAsFreeTier($0)
+                })
+            } footer: {
+                Text("Reads as not subscribed on this device, whatever the subscription says: the gates, the download limit and the Settings card. Debug builds on a device have Super, so this is how to see the free tier there. While it's on, an override below that turns a Super feature on is ignored. Shortcuts actions still read the real answer.")
+            }
             Section {
                 ForEach(GatedFeature.allCases) { feature in
                     Picker(selection: binding(for: feature)) {

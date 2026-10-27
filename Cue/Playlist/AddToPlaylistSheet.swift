@@ -4,27 +4,22 @@ import MusicSearchKit
 import NukeUI
 import Defaults
 
-/// A share-sheet–style sheet for adding a track to playlists. Segments between the track's own
-/// streaming service (Apple Music / Spotify / Plex) and Sonos library playlists, remembering the
-/// last-used segment. Supports selecting several playlists at once and adding them all on Done.
+/// A share-sheet–style sheet for adding a track to playlists on its own service (Apple Music,
+/// Spotify, Plex, Subsonic, Files). Supports selecting several playlists at once and adding them
+/// all on Done. No Sonos library playlists: they play only on a speaker, and a playlist in Cue
+/// has to play on this device too (CLAUDE.md, Product Priorities).
 struct AddToPlaylistSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(SonosService.self) private var sonosService
     @Environment(AlertService.self) private var alertService
 
     let content: PlayableContent
 
     private let musicService = MusicSearchService.shared
 
-    @AppStorage(AppStorageKeys.addToPlaylistSegment) private var storedSegment: String = ""
-
-    @State private var segment: Segment = .service
     @State private var servicePlaylists: [PlayableContent] = []
-    @State private var sonosPlaylists: [PlayableContent] = []
     @State private var selected: [String: PlayableContent] = [:]
     @State private var query: String = ""
     @State private var isLoadingService = true
-    @State private var isLoadingSonos = true
     @State private var showNewPlaylistAlert = false
     @State private var newPlaylistName: String = ""
     @State private var recentKeys: [String] = []
@@ -34,24 +29,10 @@ struct AddToPlaylistSheet: View {
     // sheet's environment doesn't provide. Supply a throwaway one (the header is non-interactive).
     @State private var headerGroupService = SelectedGroupService(group: nil)
 
-    enum Segment: String { case service, sonos }
-
     private var service: MusicService { content.content.service }
 
-    /// Whether the track's own service can take this item into one of its playlists. Tracks are
-    /// always fine; Spotify also accepts albums (expanded into their tracks on add).
-    private var hasServiceSegment: Bool {
-        Self.hasServicePlaylists(for: content)
-    }
-
-    /// Whether a Sonos playlist can take this item at all. A file on this
-    /// device has no URI a speaker could play, so there is nothing to offer,
-    /// and there are no Sonos playlists while Sonos is switched off.
-    private var hasSonosSegment: Bool {
-        Self.hasSonosPlaylists(for: content)
-    }
-
-    /// Whether the item's own service has playlists it can go in.
+    /// Whether the item's own service has playlists it can go in. Tracks are always fine;
+    /// Spotify also accepts albums (expanded into their tracks on add).
     static func hasServicePlaylists(for content: PlayableContent) -> Bool {
         let service = content.content.service
         guard [.apple, .spotify, .plex, .deezer, .subsonic, .files].contains(service) else { return false }
@@ -59,34 +40,26 @@ struct AddToPlaylistSheet: View {
         return service == .spotify && [.album, .libraryAlbum].contains(content.content.type)
     }
 
-    static func hasSonosPlaylists(for content: PlayableContent) -> Bool {
-        SonosService.shared.isAvailable && !content.content.service.playsOnDeviceOnly
-    }
-
     /// Whether the sheet has anything to offer. Menus check this before
     /// offering "Add to Playlist…", so it never opens on an empty list.
     static func canAdd(_ content: PlayableContent) -> Bool {
-        hasServicePlaylists(for: content) || hasSonosPlaylists(for: content)
+        hasServicePlaylists(for: content)
     }
 
     /// The playlists to display, split into the "Recently Added" quick-pick (top 3, hidden while
     /// searching) and everything else. Computed once per render — `playlistList` reads it in several
     /// places, so folding it into one value avoids rebuilding the lookup dictionary each time.
     private var displayedSections: (recent: [PlayableContent], other: [PlayableContent]) {
-        let list = segment == .service ? servicePlaylists : sonosPlaylists
+        let list = servicePlaylists
         guard query.isEmpty else {
             return ([], list.filter { $0.title.localizedCaseInsensitiveContains(query) })
         }
         // Match on the service-namespaced key so a recent id from one service can't surface a
-        // same-id playlist in the other segment.
+        // same-id playlist of another.
         let byKey = Dictionary(list.map { (key(for: $0), $0) }, uniquingKeysWith: { first, _ in first })
         let recent = recentKeys.compactMap { byKey[$0] }.prefix(3).map { $0 }
         let recentIDs = Set(recent.map(\.id))
         return (recent, list.filter { !recentIDs.contains($0.id) })
-    }
-
-    private var isLoading: Bool {
-        segment == .service ? isLoadingService : isLoadingSonos
     }
 
     var body: some View {
@@ -97,15 +70,6 @@ struct AddToPlaylistSheet: View {
                     .allowsHitTesting(false)
                     .padding(.horizontal)
                     .padding(.vertical, 8)
-                if hasServiceSegment, hasSonosSegment {
-                    Picker("Destination", selection: $segment) {
-                        Text(service.title).tag(Segment.service)
-                        Text("Sonos").tag(Segment.sonos)
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
-                }
                 playlistList
             }
             .navigationTitle("Add to Playlist")
@@ -138,23 +102,14 @@ struct AddToPlaylistSheet: View {
                 Button("Cancel", role: .cancel) {}
                 Button("Create") { createPlaylist() }
             } message: {
-                Text("Create a new \(segment == .service ? service.title : "Sonos") playlist with “\(content.title)”.")
+                Text("Create a new \(service.title) playlist with “\(content.title)”.")
             }
         }
         .presentationDetents([.medium, .large], selection: $detent)
         .task {
             recentKeys = LastPlaylist.recentKeys
-            if hasServiceSegment, hasSonosSegment, let saved = Segment(rawValue: storedSegment) {
-                segment = saved
-            } else {
-                segment = hasServiceSegment ? .service : .sonos
-            }
-            await loadPlaylists()
-        }
-        // onChange (not task(id:)) so persistence only fires on a real change — task(id:) also runs
-        // on first appearance and would clobber the saved segment before the load restores it.
-        .onChange(of: segment) { _, newValue in
-            storedSegment = newValue.rawValue
+            servicePlaylists = await musicService.userPlaylists(for: service)
+            isLoadingService = false
         }
     }
 
@@ -185,7 +140,7 @@ struct AddToPlaylistSheet: View {
                     .fontWeight(.semibold)
             }
 
-            if isLoading {
+            if isLoadingService {
                 HStack { Spacer(); ProgressView(); Spacer() }
                     .listRowSeparator(.hidden)
             } else if sections.recent.isEmpty && sections.other.isEmpty {
@@ -205,7 +160,6 @@ struct AddToPlaylistSheet: View {
             }
         }
         .listStyle(.plain)
-        .animation(.default, value: segment)
     }
 
     @ViewBuilder
@@ -218,8 +172,8 @@ struct AddToPlaylistSheet: View {
         .tint(.primary)
     }
 
-    /// Selection key namespaced by service, so a Sonos playlist and a streaming playlist that
-    /// happen to share a raw id (e.g. both numeric) can't collide across segments.
+    /// Selection key namespaced by service, so two services' playlists that happen to share a
+    /// raw id (e.g. both numeric) can't collide in the recent picks.
     private func key(for playlist: PlayableContent) -> String {
         "\(playlist.content.service.sonosRawValue):\(playlist.id)"
     }
@@ -251,21 +205,6 @@ struct AddToPlaylistSheet: View {
         } else {
             selected[key] = playlist
         }
-    }
-
-    private func loadPlaylists() async {
-        async let sonos = loadSonosPlaylists()
-        if hasServiceSegment {
-            servicePlaylists = await musicService.userPlaylists(for: service)
-        }
-        isLoadingService = false
-        sonosPlaylists = await sonos
-        isLoadingSonos = false
-    }
-
-    private func loadSonosPlaylists() async -> [PlayableContent] {
-        guard hasSonosSegment else { return [] }
-        return await sonosService.sonosPlaylists()
     }
 
     private func addSelectedAndDismiss() {
@@ -301,29 +240,14 @@ struct AddToPlaylistSheet: View {
 
     /// Adds `track` to `playlist`; returns whether it succeeded.
     private func add(_ track: PlayableContent, to playlist: PlayableContent) async -> Bool {
-        if playlist.content.service == .library {
-            await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: track)
-            return true
-        } else {
-            return await musicService.addToServicePlaylist(track: track, playlist: playlist)
-        }
+        await musicService.addToServicePlaylist(track: track, playlist: playlist)
     }
 
     private func createPlaylist() {
         let name = newPlaylistName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
         Task {
-            let created: PlayableContent?
-            if segment == .service {
-                created = await musicService.createServicePlaylist(name: name, seededWith: content, for: service)
-            } else {
-                await sonosService.createPlaylist(title: name)
-                let playlists = await sonosService.sonosPlaylists()
-                let match = playlists.first(where: { $0.title == name })
-                if let match { await sonosService.addToPlaylist(playlistID: match.id, playableContent: content) }
-                created = match
-            }
-
+            let created = await musicService.createServicePlaylist(name: name, seededWith: content, for: service)
             if let created {
                 LastPlaylist.save(created)
                 alertService.showAlertContent(with: content, subtitle: "Created \(created.title)", symbolName: "plus")

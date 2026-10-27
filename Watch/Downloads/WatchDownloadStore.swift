@@ -110,6 +110,12 @@ final class WatchDownloadStore {
     private(set) var items: [String: Item]
     private(set) var quality: WatchDownloadQuality
     private(set) var hasChosenQuality: Bool
+    /// The free tier's share, as the iPhone last said (`WatchAllowance`),
+    /// kept for a launch before it's heard from again.
+    private(set) var allowance: WatchAllowance
+    /// Songs and books' files picked but held back by the share: they
+    /// come down once there's room, or with Cue Super.
+    private(set) var heldBack: Set<String> = []
 
     // MARK: Fast Download
 
@@ -139,6 +145,8 @@ final class WatchDownloadStore {
     /// attempt that got somewhere from one that didn't.
     @ObservationIgnored private var attemptStart: [String: Int64] = [:]
     @ObservationIgnored private var lookedUpAt: Date?
+    /// What the iPhone was last told the watch holds.
+    @ObservationIgnored private var sentHeld: WatchHeldDownloads?
     @ObservationIgnored private var resumesFastOnReturn = false
     @ObservationIgnored private var fastBytes: Int64 = 0
     @ObservationIgnored private var meter = TransferRateMeter()
@@ -198,6 +206,7 @@ final class WatchDownloadStore {
     static let lookUpInterval: TimeInterval = 6 * 60 * 60
 
     private static let qualityKey = "downloadQuality"
+    private static let allowanceKey = "downloadAllowance"
 
     private init() {
         Self.prepareDirectory()
@@ -209,6 +218,8 @@ final class WatchDownloadStore {
         let stored = UserDefaults.standard.string(forKey: Self.qualityKey).flatMap(WatchDownloadQuality.init(rawValue:))
         quality = stored ?? .recommended
         hasChosenQuality = stored != nil
+        allowance = UserDefaults.standard.data(forKey: Self.allowanceKey)
+            .flatMap { try? JSONDecoder().decode(WatchAllowance.self, from: $0) } ?? .unlimited
         backgroundRelay.store = self
         fastRelay.store = self
         reconcileWithDisk()
@@ -433,8 +444,51 @@ final class WatchDownloadStore {
         ArtworkStore.shared.prefetch(picks.items.compactMap(\.artworkURL))
         WatchBookStore.shared.picksDidChange()
         if tellPhone {
+            sentHeld = heldDownloads
             PhoneConnection.shared.send()
+        } else {
+            noteHeld()
         }
+    }
+
+    // MARK: - The free tier's share
+
+    /// The iPhone's word on the share. What it newly holds back waits,
+    /// picked; what it makes room for comes down.
+    func apply(_ newAllowance: WatchAllowance) {
+        guard newAllowance != allowance else { return }
+        allowance = newAllowance
+        UserDefaults.standard.set(try? JSONEncoder().encode(newAllowance), forKey: Self.allowanceKey)
+        matchItems()
+        pump()
+        scheduleSave()
+        noteHeld()
+    }
+
+    /// What the watch holds against the free songs, for the iPhone to
+    /// count: its songs here or on their way, and its books, one each.
+    var heldDownloads: WatchHeldDownloads {
+        let bookFiles = bookFileKeys
+        let bookCount = books.filter { pick in (songsByPick[pick.key] ?? []).contains { items[$0.key] != nil } }.count
+        return WatchHeldDownloads(songs: items.keys.filter { !bookFiles.contains($0) }.count, books: bookCount)
+    }
+
+    /// Songs held back by the share, books' files left out.
+    var heldBackSongCount: Int {
+        heldBack.subtracting(bookFileKeys).count
+    }
+
+    /// Whether a book's files wait for Cue Super.
+    func isHeldBack(book key: String) -> Bool {
+        (songsByPick[key] ?? []).contains { heldBack.contains($0.key) }
+    }
+
+    /// Tells the iPhone when what's held changed.
+    private func noteHeld() {
+        let held = heldDownloads
+        guard held != sentHeld else { return }
+        sentHeld = held
+        PhoneConnection.shared.send()
     }
 
     /// New sign-ins: what was looked up with the old ones (Plex streams
@@ -514,6 +568,7 @@ final class WatchDownloadStore {
                 matchItems()
                 pump()
                 scheduleSave()
+                noteHeld()
             }
         }
     }
@@ -528,9 +583,21 @@ final class WatchDownloadStore {
     /// corrected title), queues what's new.
     private func matchItems() {
         var wanted: [String: WatchSong] = [:]
-        for song in songs(in: picks.items.map(\.key)) {
+        // Oldest pick first: the order the free tier's share is given in.
+        let ordered = songs(in: picks.items.reversed().map(\.key))
+        for song in ordered {
             wanted[song.key] = song
         }
+        // What's here, or on its way, stays whatever the share; the rest
+        // waits for room in it.
+        let bookFiles = bookFileKeys
+        let kept = Set(items.filter { $0.value.state == .completed || $0.value.state == .downloading || $0.value.previousFileExtension != nil }.keys)
+        let admitted = allowance.admitted(ordered.map(\.key), kept: kept, bookFiles: bookFiles)
+        let waiting = Set(wanted.keys).subtracting(admitted)
+        if waiting != heldBack {
+            heldBack = waiting
+        }
+        wanted = wanted.filter { admitted.contains($0.key) }
         if fastPhase == .running {
             let unwanted = items.filter { wanted[$0.key] == nil && $0.value.state != .completed }.count
             let new = wanted.keys.filter { items[$0] == nil }.count
@@ -539,7 +606,6 @@ final class WatchDownloadStore {
         for key in items.keys where wanted[key] == nil {
             delete(key: key)
         }
-        let bookFiles = bookFileKeys
         for (key, song) in wanted {
             if let item = items[key] {
                 if item.song != song {
