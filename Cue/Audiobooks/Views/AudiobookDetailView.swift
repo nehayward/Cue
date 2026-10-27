@@ -19,6 +19,7 @@ struct AudiobookDetailView: View {
     /// than its chapters.
     @State private var showsHistory = false
     @State private var history = AudiobookPlaceHistory.shared
+    @State private var lookups = BookWordLookups.shared
     @State private var player = AudiobookPlayer.shared
     @State private var store = AudiobookProgressStore.shared
 
@@ -96,12 +97,13 @@ struct AudiobookDetailView: View {
                             .padding(.top, 20)
                     }
 
-                    // Chapters, or where the listener has been. One chapter
-                    // is the whole book, with nothing to choose between: its
-                    // history alone, once it has one.
+                    // Chapters, or where the listener has been and the words
+                    // looked up on the way. One chapter is the whole book,
+                    // with nothing to choose between: its history alone, once
+                    // it has one.
                     if let audiobook {
                         let hasChapters = audiobook.chapters.count > 1
-                        if hasChapters || !history.places(for: shown).isEmpty {
+                        if hasChapters || !history.places(for: shown).isEmpty || !lookups.lookups(for: shown).isEmpty {
                             VStack(alignment: .leading) {
                                 if hasChapters {
                                     Picker("Show", selection: $showsHistory) {
