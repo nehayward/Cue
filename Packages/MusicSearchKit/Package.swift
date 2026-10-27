@@ -19,6 +19,9 @@ let package = Package(
         .target(
             name: "MusicSearchKit",
             dependencies: ["SWXMLHash"],
+            resources: [
+                .copy("PrivacyInfo.xcprivacy")
+            ],
             swiftSettings: [
 //                .define("MUSICSEARCHKIT_VERBOSE_LOGGING")
             ]),

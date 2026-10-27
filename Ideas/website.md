@@ -5,11 +5,11 @@ is in `Website/README.md`; this note is the to-do list.
 
 ## Before going live
 
-- [ ] **Deploy.** `cd Website && make install && make deploy`. `wrangler.toml`
+- [x] **Deploy.** `cd Website && make install && make deploy`. `wrangler.toml`
   makes cue.dance a Workers custom domain, so Cloudflare creates the DNS
   record and certificate on the first deploy (the apex had no record, so a
   plain route would never have answered). Afterwards check `/`, `/help`,
-  `/api/releases/2026.1.json`, and Help and What's New inside the app.
+  `/api/releases/2026.8.json`, and Help and What's New inside the app.
 - [ ] **Review the legal pages** in `Website/src/pages/legal.js`. They were
   drafted from the code: Mixpanel (anonymous ID, no songs or searches),
   RevenueCat, Cloudflare logs, no cookies on the site.
@@ -28,10 +28,11 @@ is in `Website/README.md`; this note is the to-do list.
 - [ ] Set `appStoreId` in `Website/src/config.js`. "Coming soon to the App
   Store" becomes a download button everywhere, the header gets one, and the
   Smart App Banner turns on.
-- [ ] Add the release date to 2026.1 in `Website/src/content/releases.js`.
-- [ ] Ship the app as **2026.1**. `Configuration/Version.xcconfig` says
-  2026.8; the What's New banner asks the site for the app's own version and
-  stays hidden when the site doesn't have it.
+- [ ] Add the release date to 2026.8 in `Website/src/content/releases.js`.
+- [x] Ship the app as **2026.8**, the version in both
+  `Configuration/Version.xcconfig` and `releases.js`; the What's New banner
+  asks the site for the app's own version and stays hidden when the site
+  doesn't have it.
 
 ## Screenshots wanted
 
