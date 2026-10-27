@@ -10,7 +10,11 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
     public let albumID: String?
     public let albumYear: Date?
     public let isrc: String?
+    /// A library song's track number on its album (its place in the
+    /// speaker's queue for a queue row).
     public var position: Int?
+    /// Which disc of its album a library song is on, where the service says.
+    public let discNumber: Int?
     public let audioCodec: String?
     public let URIMetadata: String?
     public var radioStation: Bool?
@@ -34,6 +38,7 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         albumYear: Date? = nil,
         isrc: String? = nil,
         position: Int? = nil,
+        discNumber: Int? = nil,
         audioCodec: String? = nil,
         URIMetadata: String? = nil,
         radioStation: Bool? = nil,
@@ -54,6 +59,7 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         self.albumYear = albumYear
         self.isrc = isrc
         self.position = position
+        self.discNumber = discNumber
         self.audioCodec = audioCodec
         self.URIMetadata = URIMetadata
         self.radioStation = radioStation
@@ -80,6 +86,7 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
             albumYear: albumYear,
             isrc: isrc,
             position: position,
+            discNumber: discNumber,
             audioCodec: audioCodec,
             URIMetadata: URIMetadata,
             radioStation: radioStation,
@@ -104,6 +111,7 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         lhs.albumYear == rhs.albumYear &&
         lhs.isrc == rhs.isrc &&
         lhs.position == rhs.position &&
+        lhs.discNumber == rhs.discNumber &&
         lhs.audioCodec == rhs.audioCodec &&
         lhs.URIMetadata == rhs.URIMetadata &&
         lhs.radioStation == rhs.radioStation &&
@@ -126,6 +134,7 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         hasher.combine(albumYear)
         hasher.combine(isrc)
         hasher.combine(position)
+        hasher.combine(discNumber)
         hasher.combine(audioCodec)
         hasher.combine(URIMetadata)
         hasher.combine(radioStation)

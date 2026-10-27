@@ -146,9 +146,34 @@ enum OnDeviceLibrary {
 
     private static var songs: [Song] {
         let apple = AppleDownloadsIndex.shared
-        return DownloadManager.shared.completedSongs.map { Song(track: $0.playableContent, added: $0.createdAt) }
+        let places = albumPlaces
+        return DownloadManager.shared.completedSongs.map { Song(track: numbered($0, places: places), added: $0.createdAt) }
             + appleSongs.map { Song(track: $0, added: apple.addedDate(for: $0) ?? .distantPast) }
             + fileSongs.map { Song(track: $0, added: .distantPast) }
+    }
+
+    /// Where each song of an album downloaded whole sits on it, by download
+    /// key: the album as the server listed it, in track order.
+    private static var albumPlaces: [String: Int] {
+        var places: [String: Int] = [:]
+        for album in DownloadManager.shared.containers.values where album.type == .album {
+            for (place, key) in album.trackKeys.enumerated() {
+                places[key] = place + 1
+            }
+        }
+        return places
+    }
+
+    /// A download as its song, numbered by its album's order when it has
+    /// no track number of its own: Plex and Subsonic songs downloaded
+    /// before the number was kept, which would otherwise sort by title.
+    private static func numbered(_ item: DownloadManager.Item, places: [String: Int]) -> PlayableContent {
+        var track = item.playableContent
+        guard track.metadata?.position == nil, let place = places[item.key] else { return track }
+        var metadata = track.metadata ?? PlayableContentMetadata()
+        metadata.position = place
+        track.metadata = metadata
+        return track
     }
 
     /// The songs of one provider, or every song for nil.
@@ -442,14 +467,16 @@ enum OnDeviceLibrary {
         a.localizedStandardCompare(b) == .orderedAscending
     }
 
-    /// Song order within an album: position, then title.
+    /// Song order within an album: disc, then track number, then title.
     private static func positionOrder(_ a: PlayableContent, _ b: PlayableContent) -> Bool {
+        let da = a.metadata?.discNumber ?? 1, db = b.metadata?.discNumber ?? 1
+        if da != db { return da < db }
         let pa = a.metadata?.position ?? Int.max, pb = b.metadata?.position ?? Int.max
         if pa != pb { return pa < pb }
         return compare(a.title, b.title)
     }
 
-    /// Song order across albums: album, then position.
+    /// Song order across albums: album, then disc and track number.
     private static func albumOrder(_ a: PlayableContent, _ b: PlayableContent) -> Bool {
         let aa = a.metadata?.album ?? "", ab = b.metadata?.album ?? ""
         if aa.caseInsensitiveCompare(ab) != .orderedSame { return compare(aa, ab) }
