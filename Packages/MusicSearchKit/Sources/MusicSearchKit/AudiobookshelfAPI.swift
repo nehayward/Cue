@@ -206,11 +206,156 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
             // password login to answer.
             if let status = await status(base: base), status.app == "audiobookshelf" {
                 if let methods = status.authMethods, !methods.contains("local") {
-                    return .refused("This server only signs in through single sign-on, which Cue doesn't support yet. Ask its admin to turn on password login.")
+                    return .refused("This server only signs in through single sign-on. Use Sign In with Single Sign-On.")
                 }
                 return .refused("The server turned down the sign-in (\(http.statusCode)).")
             }
             return .unreachable("That address answered, but not as an Audiobookshelf server. Check the port, and the path if it's behind a proxy.")
+        }
+    }
+
+    // MARK: - Single sign-on
+
+    /// How a server lets listeners in, from its status page.
+    public struct SignInMethods: Equatable, Sendable {
+        /// A username and password.
+        public let password: Bool
+        /// Single sign-on (OpenID Connect).
+        public let singleSignOn: Bool
+        /// What the server's own sign-in page calls single sign-on.
+        public let singleSignOnTitle: String?
+    }
+
+    /// The scheme single sign-on comes back to Cue on, for the web sign-in
+    /// session to catch (`signInWithSingleSignOn`).
+    public static let singleSignOnCallbackScheme = AudiobookshelfPKCE.callbackScheme
+
+    /// The ways in `address` offers; nil when it doesn't answer as an
+    /// Audiobookshelf server.
+    public func signInMethods(address: String) async -> SignInMethods? {
+        for candidate in Self.candidateAddresses(for: address) {
+            guard let base = URL(string: candidate), let status = await status(base: base), status.app == "audiobookshelf" else { continue }
+            let methods = status.authMethods ?? ["local"]
+            return SignInMethods(
+                password: methods.contains("local"),
+                singleSignOn: methods.contains("openid"),
+                singleSignOnTitle: status.authFormData?.authOpenIDButtonText.flatMap { $0.isEmpty ? nil : $0 }
+            )
+        }
+        return nil
+    }
+
+    /// Signs in through the server's single sign-on, the way its own apps
+    /// do (OpenID Connect with PKCE, the server's "mobile" flow), and keeps
+    /// the login as a password sign-in's is kept.
+    ///
+    /// The first step and the last are Cue's own requests, not the
+    /// browser's: the server keeps the sign-in's state in a session cookie,
+    /// set on the first and needed on the last, and only this app's
+    /// requests share it. In between, `authorize` shows the identity
+    /// provider's page at the URL it's given and returns the address the
+    /// sign-in comes back on (`audiobookshelf://oauth?code=…`), or nil if
+    /// the listener closed it.
+    @MainActor
+    public func signInWithSingleSignOn(address: String, authorize: @MainActor (URL) async -> URL?) async -> LoginCheck {
+        var check = LoginCheck(result: .failure("Enter a server address."), address: nil)
+        for candidate in Self.candidateAddresses(for: address) {
+            guard let base = URL(string: candidate) else { continue }
+            switch await singleSignOn(base: base, authorize: authorize) {
+            case let .signedIn(tokens, defaultLibrary, username):
+                store(address: candidate, username: username, tokens: tokens, defaultLibrary: defaultLibrary)
+                return LoginCheck(result: .success, address: candidate)
+            case let .refused(message):
+                return LoginCheck(result: .failure(message), address: candidate)
+            case let .unreachable(message):
+                check = LoginCheck(result: .failure(message), address: candidate)
+            }
+        }
+        return check
+    }
+
+    private enum SingleSignOnOutcome {
+        case signedIn(Tokens, defaultLibrary: String?, username: String)
+        case refused(String)
+        case unreachable(String)
+    }
+
+    @MainActor
+    private func singleSignOn(base: URL, authorize: @MainActor (URL) async -> URL?) async -> SingleSignOnOutcome {
+        let proof = AudiobookshelfPKCE()
+        guard var start = URLComponents(url: base.appending(path: "/auth/openid"), resolvingAgainstBaseURL: false) else {
+            return .unreachable("Enter a server address.")
+        }
+        start.queryItems = [
+            URLQueryItem(name: "code_challenge", value: proof.challenge),
+            URLQueryItem(name: "code_challenge_method", value: "S256"),
+            URLQueryItem(name: "redirect_uri", value: AudiobookshelfPKCE.redirectURI),
+            URLQueryItem(name: "client_id", value: Self.clientName),
+            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "state", value: proof.state)
+        ]
+        guard let startURL = start.url else { return .unreachable("Enter a server address.") }
+        var request = URLRequest(url: startURL)
+        request.timeoutInterval = 15
+        // The server answers with the identity provider's page to go to,
+        // which goes to the browser rather than being followed here.
+        let answer: HTTPURLResponse
+        do {
+            let (_, response) = try await session.data(for: request, delegate: RedirectRefusal())
+            guard let response = response as? HTTPURLResponse else { return .unreachable("The server didn't answer.") }
+            answer = response
+        } catch {
+            return .unreachable(SubsonicAPI.message(forConnectionError: error))
+        }
+        guard (300...399).contains(answer.statusCode),
+              let location = answer.value(forHTTPHeaderField: "Location"),
+              let page = URL(string: location, relativeTo: base)?.absoluteURL else {
+            guard let status = await status(base: base), status.app == "audiobookshelf" else {
+                return .unreachable("That address answered, but not as an Audiobookshelf server. Check the port, and the path if it's behind a proxy.")
+            }
+            if status.authMethods?.contains("openid") != true {
+                return .refused("This server doesn't offer single sign-on. Sign in with your username and password.")
+            }
+            // Turned away before the provider: the sign-in address isn't one
+            // the server allows.
+            return .refused("The server turned down Cue's sign-in (\(answer.statusCode)). Its admin may need to add \(AudiobookshelfPKCE.redirectURI) to the allowed mobile redirect URIs in its authentication settings.")
+        }
+        guard let callback = await authorize(page) else {
+            return .refused("Sign-in was cancelled.")
+        }
+        let items = URLComponents(url: callback, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        if let error = items.first(where: { $0.name == "error" })?.value {
+            return .refused("The sign-in didn't go through (\(error)).")
+        }
+        guard items.first(where: { $0.name == "state" })?.value == proof.state,
+              let code = items.first(where: { $0.name == "code" })?.value, !code.isEmpty else {
+            return .refused("The sign-in didn't come back as expected. Try again.")
+        }
+        guard var finish = URLComponents(url: base.appending(path: "/auth/openid/callback"), resolvingAgainstBaseURL: false) else {
+            return .unreachable("Enter a server address.")
+        }
+        finish.queryItems = [
+            URLQueryItem(name: "state", value: proof.state),
+            URLQueryItem(name: "code", value: code),
+            URLQueryItem(name: "code_verifier", value: proof.verifier)
+        ]
+        guard let finishURL = finish.url else { return .unreachable("Enter a server address.") }
+        var exchange = URLRequest(url: finishURL)
+        exchange.timeoutInterval = 30
+        // The refresh token in the body, as for a password sign-in.
+        exchange.addValue("true", forHTTPHeaderField: "x-return-tokens")
+        do {
+            let (data, response) = try await session.data(for: exchange)
+            guard let http = response as? HTTPURLResponse else { return .unreachable("The server didn't answer.") }
+            guard http.statusCode == 200,
+                  let login = try? decoder.decode(AudiobookshelfLoginResponse.self, from: data),
+                  let access = login.user.accessToken ?? login.user.token else {
+                Self.log.error("single sign-on: the server turned the code down (\(http.statusCode))")
+                return .refused("The server turned down the sign-in (\(http.statusCode)). Try again.")
+            }
+            return .signedIn(Tokens(access: access, refresh: login.user.refreshToken), defaultLibrary: login.userDefaultLibraryId, username: login.user.username ?? "")
+        } catch {
+            return .unreachable(SubsonicAPI.message(forConnectionError: error))
         }
     }
 
@@ -1113,5 +1258,13 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         // the phone is locked.
         attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
+    }
+}
+
+/// Hands a redirect back rather than following it: single sign-on's first
+/// step answers with the provider's page, for the browser to open.
+private final class RedirectRefusal: NSObject, URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest) async -> URLRequest? {
+        nil
     }
 }

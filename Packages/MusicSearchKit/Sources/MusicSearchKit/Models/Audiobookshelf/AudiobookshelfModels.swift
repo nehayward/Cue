@@ -43,6 +43,13 @@ public struct AudiobookshelfStatus: Decodable, Sendable {
     public let serverVersion: String?
     /// `local` for a username and password; `openid` for single sign-on.
     public let authMethods: [String]?
+    public let authFormData: AuthFormData?
+
+    /// What the server's own sign-in page says.
+    public struct AuthFormData: Decodable, Sendable {
+        /// The single sign-on button's title ("Login with Authentik").
+        public let authOpenIDButtonText: String?
+    }
 }
 
 public struct AudiobookshelfLibrariesResponse: Decodable, Sendable {
