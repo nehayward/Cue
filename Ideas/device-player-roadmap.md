@@ -2,11 +2,16 @@
 
 What the on-device player (`LocalPlaybackService`, the "This Device" route)
 still needs to stand next to Apple Music and Plexamp. Today it plays Apple
-Music, Plex, Subsonic, TuneIn and Apple stations, and a Files folder, with
-route hand-off to Sonos, a rolling offline cache, downloads, a queue that
-survives relaunch, a lossless readout, and a sleep timer. The list below is
-what a Plexamp or Navidrome user tests in their first ten minutes and does
-not find.
+Music, Plex, Subsonic, TuneIn and Apple stations, a Files folder, books
+(Plex, Audiobookshelf, Files) and podcasts (Audiobookshelf's, and any feed
+followed in Cue), with route hand-off to Sonos, a rolling offline cache,
+downloads, an editable queue that survives relaunch, sticky shuffle, a
+lossless readout, a sleep timer, lyrics, CarPlay and the AirPlay picker. The
+list below is what a Plexamp or Navidrome user tests in their first ten
+minutes and does not find.
+
+Checked against the code on 2026-10-27: the boxes below are what's built,
+not what was planned.
 
 One item per branch. Branch names follow `claude/<slug>`; each item names
 the files it touches and what "done" looks like, so a branch can be opened
@@ -15,7 +20,9 @@ branch lands.
 
 ## Tier 1 — table stakes
 
-- [ ] **Local queue reorder and remove** — `claude/local-queue-edit`
+- [x] **Local queue reorder and remove** — `claude/local-queue-edit`
+  Built: Next Up edits the device's queue as a speaker's, played rows
+  included (`LocalPlaybackService.rearrangeQueue`; CLAUDE.md, Queue editing).
   The Sonos queue drags and swipes; the device queue in
   `Cue/Views/QueueNextUpView.swift` is tap-to-jump only.
   Files: `QueueNextUpView.swift`, `Cue/Views/QueuePanel.swift`,
@@ -25,7 +32,9 @@ branch lands.
   full player, the armed run follows the edit without a gap, and the saved
   queue on disk reflects it.
 
-- [ ] **Sticky shuffle mode** — `claude/local-shuffle-mode`
+- [x] **Sticky shuffle mode** — `claude/local-shuffle-mode`
+  Built: `isShuffled` stays on and is saved with the queue, the order
+  before it kept (`unshuffledUpNext`).
   `shuffleUpNext()` is a one-shot reshuffle of the tail. Users expect a
   toggle that stays on, applies to the next album or playlist queued, and
   restores the original order when turned off.
@@ -47,6 +56,9 @@ branch lands.
   a Navidrome server forwards it to Last.fm.
 
 - [ ] **Streaming quality tiers** — `claude/stream-quality-settings`
+  Partly built: one Streaming Quality (original, or MP3 / Opus at a
+  bitrate) for Plex and Subsonic, in Settings ▸ Services
+  (`StreamTranscoding`). Left: a setting per network (Wi-Fi, cellular).
   Plex and Subsonic stream the raw file, so a FLAC library burns cellular
   data. Add Wi-Fi and cellular quality settings.
   Files: `SubsonicAPI.streamURL` (`maxBitRate`, `format`), `PlexAPI`
@@ -58,7 +70,9 @@ branch lands.
   readout shows what is actually playing, and the cache does not serve a
   data-saver copy on Wi-Fi.
 
-- [ ] **CarPlay** — `claude/carplay`
+- [x] **CarPlay** — `claude/carplay`
+  Built (`CarPlay/`): Home, Audiobooks, Downloads and Radio, always on this
+  device. No "Play on" list: a speaker has no place in a car (CLAUDE.md).
   No CarPlay scene exists; `Cue/Services/AudioOutputRoute.swift` only
   detects the route. Needs the CarPlay audio entitlement.
   Files: new `CarPlay/` with a `CPTemplateApplicationSceneDelegate`,
@@ -69,6 +83,7 @@ branch lands.
   device route, and Sonos groups appear as a "Play on" list.
 
 - [ ] **Siri and App Shortcuts for the device** — `claude/local-app-intents`
+  On hold (2026-10-27).
   `Cue/CueAppShortcutProvider.swift` is fully commented out and every
   intent in `Widgets/Intents/` targets a Sonos device.
   Files: new intents `PlayLocalIntent` (search phrase or entity),
@@ -78,7 +93,10 @@ branch lands.
   Done when: "Play <playlist> in Cue" starts the device route from Siri and
   the intents show up in Shortcuts.
 
-- [ ] **AirPlay route picker** — `claude/airplay-picker`
+- [x] **AirPlay route picker** — `claude/airplay-picker`
+  Built: with Sonos off the Play On button is the system's AirPlay picker,
+  and on This Device the player names the AirPods, car or receiver it plays
+  to (`AudioOutputName`).
   `PlaybackRouteButton` picks device vs Sonos group only; there is no
   `AVRoutePickerView`, so the phone cannot bridge to HomePods or AirPlay
   speakers.
@@ -118,6 +136,8 @@ branch lands.
   - [ ] **Crossfade for the device route** — `claude/local-crossfade`
     (the Sonos setting already exists; mirror it)
   - [ ] **Playback speed** — `claude/playback-speed`
+    (books and podcasts have it already, each its own, on this device:
+    `AudiobookPlayer.rate`)
 
 - [ ] **Autoplay and similar songs** — `claude/local-autoplay`
   When the queue ends, continue with Subsonic `getSimilarSongs2` or Plex
@@ -154,6 +174,11 @@ branch lands.
   Done when: two Navidrome servers coexist, each with its own library
   cache and downloads, and the active one is switchable from Services.
 
+- [x] **Podcasts by their feeds** — `claude/funny-newton-hpqrrt`
+  Followed by name (Apple's podcast directory) or feed address, no account
+  (`PodcastFeeds`, `MusicService.podcasts`); each episode a book of one file
+  that plays here or on a speaker from where it was left.
+
 - [ ] **Jellyfin and Emby provider** — `claude/jellyfin`
   The checklist at the end of `Docs/AddingMusicService.md` via
   `DirectStreamProvider`.
@@ -171,7 +196,9 @@ Mini, or visionOS presence. Everything in `Widgets/`, `Watch/`, `TV/`, and
   Sonos card with the device as the "room")
 - [ ] **Now Playing widget and control widget for the device** —
   `claude/local-widgets` (`Widgets/NowPlayingWidget/`, `Widgets/ControlWidgets/PlaybackControlWidget.swift`)
-- [ ] **Apple Watch remote for the phone's playback** — `claude/watch-local-remote`
+- [x] **Apple Watch remote for the phone's playback** — `claude/watch-local-remote`
+  Built: the watch's Now Playing card and `PhoneNowPlayingScreen`, with Up
+  Next (CLAUDE.md, watchOS).
   (`Watch/`, WatchConnectivity to `LocalPlaybackService`)
 - [ ] **Cue Mini shows device playback** — `claude/mini-local-playback`
   (`CueMini/`, the menu bar card follows `PlaybackRoute`)
@@ -184,10 +211,10 @@ Pair these with a related branch above rather than opening their own.
 
 - [ ] **Sleep-timer fade-out** — with `claude/audio-engine` or as a volume
   ramp on `streamVolume` today
-- [ ] **Offline mode toggle** — filter the library to downloads and the
+- [x] **Offline mode toggle** — filter the library to downloads and the
   playback cache when there is no network (`DownloadManager`,
   `PlaybackCache`, `PlayableListView.swift`)
-- [ ] **Go to album / artist from the device player** — `PlayerView.swift`
+- [x] **Go to album / artist from the device player** — `PlayerView.swift`
   ellipsis menu
 - [ ] **Release notes for the Files provider, Downloads, and the playback
   cache** — none of the three is in `ReleaseNotes.md` or `Changelog.md`

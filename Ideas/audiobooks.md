@@ -6,11 +6,17 @@ Music library kept for books, or albums tagged with an audiobook genre) and
 (`device-first-services.md`): the phone plays the files straight from the
 server, and so does a speaker.
 
-**Status:** on `claude/audiobooks`, built in Xcode and on the phone
+**Status:** shipped on `main`; built in Xcode and on the phone
 (2026-10-19). The pure-Foundation parts (timeline, chapters, Plex resume,
-Audiobookshelf JSON, URLs, Audible's catalog) have unit tests. The package's
-test target doesn't build as a whole for stale tests elsewhere
+Audiobookshelf JSON, URLs, Audible's catalog, podcast feeds) have unit tests.
+The package's test target doesn't build as a whole for stale tests elsewhere
 (`MockTokenRefreshHandler`, `PlexTests`' `externalURIs`).
+
+**2026-10-27, `claude/funny-newton-hpqrrt`:** the rest of the list below
+(but Lock Screen chapters, left for now), podcasts, bookmarks and
+collections. Written without Xcode: the Audiobookshelf and podcast code in
+MusicSearchKit was built and tested on Linux, the rest only parsed, so it
+wants a build and a pass on the phone.
 
 ## Where this came from
 
@@ -43,7 +49,10 @@ test target doesn't build as a whole for stale tests elsewhere
 | Player menu | Previous / Next Chapter, the chapters (device and speaker) and Speed (device) — `AudiobookPlayerMenuItems` |
 | Chapter line | The player's origin line reads the chapter playing and opens the chapters (`AudiobookChapterLine`) |
 | Sleep timer | End of Chapter in place of End of Song: the player's own timer, kept on the chapter's end at the speed playing (`AudiobookPlayer.sleepAtEndOfChapter`) |
-| Audiobooks tab | `AudiobooksScreen`: the book listened to last with Resume (`AudiobookResumeCard`), Continue Listening, Audiobookshelf's Recently Added, Recently Played, then All Books per server. Shown while Audiobookshelf is signed in or Plex had books when last asked (`AppStorageKeys.hasPlexAudiobooks`); Settings ▸ Appearance can hide it |
+| Audiobooks tab | `AudiobooksScreen`: Continue Listening (`AudiobookContinueCard`), Downloads, Series, Collections, a section per server (Plex, Audiobookshelf, Files), Podcasts, Finished. Shown while Audiobookshelf is signed in, Plex had books when last asked (`AppStorageKeys.hasPlexAudiobooks`), the Files folder has books, or a podcast is followed; Settings ▸ Appearance can hide it |
+| Bookmarks | `AudiobookBookmarks`: Add Bookmark in the player's menu and the Chapters sheet's Bookmarks page; listed there and on the book's page. Audiobookshelf's sync both ways (`/api/me/item/<id>/bookmark`); Plex's and episodes' stay here |
+| Scrubber | Spans the chapter playing, not the file (`AudiobookPlayer.chapterSpan`) |
+| Podcasts | An episode is a book of one file: Audiobookshelf's under an `AudiobookshelfMediaKey` (`<item>~<episode>`), a feed's under `MusicService.podcasts` (`PodcastFeeds`) |
 
 ### Plex
 
@@ -146,21 +155,24 @@ One item per branch, as in the roadmap.
   - Audiobookshelf session URLs with the `ext=.m4a` hint (Sonos has no
     `.m4b` in its list);
   - the device → speaker → device hand-off of a book.
-- [ ] **Plex search finds books as books** — a Plex search result from a
-  book library is still an `.album`. Map albums whose `librarySectionID`
-  is a book library to `.audiobook` (`PlexAlbum.toPlayable`).
-- [ ] **Keep genre-tagged books out of the music lists** — they show under
-  both Albums and Audiobooks today.
+- [x] **Plex search finds books as books** — an album found in a book
+  library is an `.audiobook` (`PlexAlbum.toAudiobookPlayable`), its files
+  leave the song results, the Albums list's search leaves it out, and an
+  artist found there opens as an author. The book libraries' keys are kept
+  per server (`PlexAPI.knownAudiobookLibraryKeys`).
+- [x] **Keep genre-tagged books out of the music lists** — the Albums list
+  (every sort) asks Plex for `genre!=` each audiobook genre
+  (`audiobookGenreExclusions`). Their files still show under Songs: a
+  track filter on the album's genre wasn't tried.
 - [x] **Download a book** — whole, from the book page, on Plex and
   Audiobookshelf; plays offline from a copy of the book kept beside its
   files (`AudiobookDownloads`). Checked in the Simulator: both copies of
   The Two Towers (598 MB each) in under 10 s, played with Offline Mode on.
-- [ ] **Report offline listening** — Audiobookshelf's `/api/session/local`
-  for what was heard offline. Opening a book sends this device's place
-  when it's newer than the server's (`AudiobookLibrary.sendNewerPlace`),
-  so a place or a finish from offline gets there, but the server's stats
-  miss the time. CarPlay's Audiobooks tab offline (it lists the servers'
-  shelves).
+- [x] **Report offline listening** — what the server couldn't be told
+  (Offline Mode, no network, no session) is kept as a local session a book
+  and day and sent through `/api/session/local` when it answers
+  (`AudiobookshelfAPI.noteUnsentListening`). CarPlay's Audiobooks tab lists
+  only downloaded books offline.
 - [x] **CarPlay** — an Audiobooks tab (Recents folded into a Home tab to
   make room: an audio app gets four): Continue Listening as rows with a
   progress bar, then each server's books; a book plays from where it was
@@ -175,23 +187,35 @@ One item per branch, as in the roadmap.
   ±15/30 s skips, chapters and each book's speed. Places cross with the
   picks both ways (newer wins), and Audiobookshelf's token is lent, the
   iPhone keeping the refresh token. Not yet built or tried on a watch.
-  Left: a sleep timer, and the watch telling the server itself (the iPhone
-  does when it next opens the book).
+  Since: a sleep timer (End of Chapter or 5–60 minutes), and the watch
+  tells the server the places listening there reached
+  (`WatchBookStore.tellServers`).
 - [x] **Sleep timer: end of chapter** — End of Chapter, on this device and
   a speaker.
 - [x] **Chapter navigation** — Previous / Next Chapter and the chapter line
   in the player.
 - [x] **Audiobooks tab** — the last book one tap from Resume.
-- [ ] **Chapter scrubber** — the scrubber across the chapter playing rather
+- [x] **Chapter scrubber** — the scrubber across the chapter playing rather
   than the file, for a 20 h `.m4b`.
 - [ ] **Lock Screen chapters** — Previous / Next Chapter in place of the
-  skips, as a setting.
+  skips, as a setting. Not for now (2026-10-27).
 - [x] **Speed per book** — each book keeps its own speed; one never
   changed plays at 1×.
-- [ ] **Audiobookshelf single sign-on** — OpenID-only servers are refused
-  with a message. The mobile PKCE flow is in the research notes below.
-- [ ] **`.m4b` in Files** — the Files provider already takes the extension;
-  a folder of books could use the same `AudiobookPlayer`.
+- [x] **Audiobookshelf single sign-on** — the server's mobile OpenID flow
+  with PKCE, `audiobookshelf://oauth` as the redirect (allowed by default),
+  offered once the server's status lists `openid`.
+- [x] **`.m4b` in Files** — an album in the Files folder with an `.m4b`, or
+  an audiobook genre, is a book (`FilesIndex`), played here whatever the
+  route.
+- [x] **Smart Resume on a speaker** — `SonosService.play(ip:)` asks
+  `AudiobookPlayer.smartResumeOnSpeaker` first (`beforePlay`).
+- [x] **Podcasts** — Audiobookshelf's podcast libraries, and any feed
+  followed in Cue; episodes play as books of one file.
+- [x] **Bookmarks** and **Audiobookshelf collections**.
+- [ ] **Check the new work on the phone and a speaker**: an Audiobookshelf
+  episode and a feed's episode on a speaker (read back off its queue),
+  single sign-on against Authentik or Keycloak, a Files `.m4b`, the watch's
+  sleep timer.
 
 ## Research notes (2026-10-19)
 
