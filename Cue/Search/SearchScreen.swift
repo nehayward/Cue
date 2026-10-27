@@ -466,7 +466,8 @@ struct SearchScreen: View {
         return HStack {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-            TextField("Search", text: $musicSearchService.query)
+            // Offline it searches only what's here, and says so.
+            TextField(offline.isActive ? "Search Downloads" : "Search", text: $musicSearchService.query)
                 .textFieldStyle(.plain)
                 .focused($focusedField, equals: .search)
                 .onSubmit {

@@ -1,10 +1,13 @@
 import SonosKit
 import SwiftUI
 
-/// The Search tab's rows while `OfflineMode` is active: the on-device
-/// library searched in place of the services — artists and albums by name,
-/// songs by title, artist or album — so the field keeps answering with no
-/// network at all. Sections for the `List` the search screen already owns.
+/// The Search tab's rows while offline: the on-device library searched in
+/// place of the services — artists and albums by name, songs by title,
+/// artist or album — so the field keeps answering with no network at all.
+/// With nothing typed, the songs downloaded last, to play. The field's
+/// prompt says what it searches (`SearchScreen`), so there's no banner, and
+/// no way into Artists or Albums: the Downloads tab beside it has those.
+/// Sections for the `List` the search screen already owns.
 struct OfflineSearchView: View {
     let query: String
 
@@ -21,10 +24,20 @@ struct OfflineSearchView: View {
         let changeToken: Int
     }
 
+    /// How many of the songs downloaded last show with nothing typed.
+    private static let recentCount = 25
+
     var body: some View {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        statusRow
+        Color.clear
+            .frame(height: 0)
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+            .onAppear {
+                apple.refreshIfNeeded()
+            }
             // Searched here rather than in the body: the body runs again on
             // every keystroke and every tick of a download's progress, and
             // each run rebuilt and sorted the whole on-device library. This
@@ -43,7 +56,7 @@ struct OfflineSearchView: View {
             if OnDeviceLibrary.isEmpty {
                 emptyLibrary
             } else {
-                librarySection
+                recentSection
             }
         } else if searchedQuery == trimmed, results.artists.isEmpty, results.albums.isEmpty, results.songs.isEmpty {
             ContentUnavailableView.search(text: trimmed)
@@ -90,37 +103,17 @@ struct OfflineSearchView: View {
         }
     }
 
-    /// One line on what's being searched, and why it isn't the services.
-    private var statusRow: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "wifi.slash")
-                .foregroundStyle(.secondary)
-            Text("No connection — searching what's on this device")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 0)
-        }
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
-        .onAppear {
-            apple.refreshIfNeeded()
-        }
-    }
-
-    /// With nothing typed yet, the library's grouped pages, so the tab is
-    /// still a way in rather than a blank field; typing searches the songs.
-    private var librarySection: some View {
-        Section {
-            NavigationLink(value: RouterDestination.onDeviceCollection(.artists)) {
-                Label("Artists", systemImage: OnDeviceCollection.artists.systemImage)
-            }
-            NavigationLink(value: RouterDestination.onDeviceCollection(.albums)) {
-                Label("Albums", systemImage: OnDeviceCollection.albums.systemImage)
+    /// With nothing typed, the songs downloaded last, a tap playing one:
+    /// the tab is a way in before it's a field.
+    private var recentSection: some View {
+        let _ = downloads.musicSummary
+        let songs = Array(OnDeviceLibrary.songs(sortedBy: .added, descending: true).prefix(Self.recentCount))
+        return Section {
+            ForEach(songs) { song in
+                PlayableContentView(item: song, hideContentType: true)
             }
         } header: {
-            Text("On This Device")
-        } footer: {
-            Text("Type to search the songs, albums and artists on this device.")
+            Text("Recently Downloaded")
         }
     }
 
