@@ -58,14 +58,23 @@ struct MusicPlaybackView: View {
             // toolbar and the View menu.
 #if !targetEnvironment(macCatalyst)
             if UIDevice.current.userInterfaceIdiom == .pad, horizontalSizeClass == .regular {
+                // A book's chapters take the panel (`QueueNextUpView`).
+                let isBook = AudiobookPlayer.shared.isPlayingBook(on: route.presented)
                 Button {
                     withAnimation(.snappy) {
                         showQueue.toggle()
                     }
                 } label: {
                     // The player's queue gauge: how far through the queue
-                    // playback is, for what's on screen.
-                    PresentedQueueIconView()
+                    // playback is, for what's on screen. For a book, the
+                    // player's bookmark with the chapter's number.
+                    Group {
+                        if isBook {
+                            AudiobookChapterIconView()
+                        } else {
+                            PresentedQueueIconView()
+                        }
+                    }
                         .font(.title3)
                         // Shown: a soft accent disc behind the gauge rather
                         // than the gauge itself in accent, so its number stays
@@ -76,7 +85,7 @@ struct MusicPlaybackView: View {
                 }
                 .buttonStyle(.plain)
                 .animation(.snappy, value: showQueue)
-                .accessibilityLabel(showQueue ? "Hide Queue" : "Show Queue")
+                .accessibilityLabel(isBook ? (showQueue ? "Hide Chapters" : "Show Chapters") : (showQueue ? "Hide Queue" : "Show Queue"))
                 .accessibilityAddTraits(showQueue ? .isSelected : [])
             }
 #endif
@@ -85,7 +94,7 @@ struct MusicPlaybackView: View {
         // Lifts the row a little so the line below has room of its own
         // rather than crowding the subtitle.
         .padding(.bottom, showsBottomProgressLine ? 6 : 0)
-        .frame(maxWidth: 500, maxHeight: 120)
+        .frame(maxWidth: maxWidth, maxHeight: 120)
         // On iPhone the line runs the whole width of the accessory, along
         // its bottom edge; the wider iPad and Mac bars keep it under the
         // track text. Inset by the row's own 12pt, so it starts under the
@@ -98,6 +107,15 @@ struct MusicPlaybackView: View {
                     .allowsHitTesting(false)
             }
         }
+    }
+
+    /// iPad's bar has the room for a longer title before it scrolls.
+    private var maxWidth: CGFloat {
+#if targetEnvironment(macCatalyst)
+        500
+#else
+        UIDevice.current.userInterfaceIdiom == .pad ? 720 : 500
+#endif
     }
 
     private var progressSpansFullWidth: Bool {
