@@ -59,7 +59,7 @@ struct NowPlayingScreen: View {
             options
         }
         .sheet(isPresented: $isChoosingPlace) {
-            PlayOnSheet(current: .watch, offersWatch: true) { choice in
+            PlayOnSheet(current: .watch, offersWatch: true, offersOutputs: true) { choice in
                 if case let .phone(id) = choice {
                     playOnPhone(WatchPhoneTarget(routeID: id))
                 }
@@ -97,7 +97,7 @@ struct NowPlayingScreen: View {
             isBook: book != nil,
             canGoBack: true,
             hasNext: book != nil || player.index + 1 < player.queue.count,
-            place: .watch,
+            place: .watch(output: player.output),
             hasSleepTimer: player.sleepTimer != nil,
             volume: .local,
             previous: {

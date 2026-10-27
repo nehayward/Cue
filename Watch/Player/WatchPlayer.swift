@@ -66,6 +66,21 @@ final class WatchPlayer {
     /// The lengths offered, in minutes.
     static let sleepChoices = [5, 10, 15, 30, 45, 60]
 
+    /// Where the sound goes, as the audio session last said: headphones,
+    /// the watch's speaker, or nothing known yet. watchOS picks it — the
+    /// headphones connected, else its own picker as the session starts —
+    /// and only the system's Now Playing offers to change it.
+    struct Output: Equatable {
+        enum Kind: Equatable {
+            case headphones, speaker, other
+        }
+
+        let name: String
+        let kind: Kind
+    }
+
+    private(set) var output: Output?
+
     var current: WatchSong? {
         queue.indices.contains(index) ? queue[index] : nil
     }
@@ -87,6 +102,7 @@ final class WatchPlayer {
     @ObservationIgnored private var itemObservation: NSKeyValueObservation?
     @ObservationIgnored private var endObserver: NSObjectProtocol?
     @ObservationIgnored private var interruptionObserver: NSObjectProtocol?
+    @ObservationIgnored private var routeObserver: NSObjectProtocol?
     @ObservationIgnored private var timeObserver: Any?
     @ObservationIgnored private var commandsConfigured = false
     /// The book's files laid end to end.
@@ -159,6 +175,12 @@ final class WatchPlayer {
             guard type == .ended, options.contains(.shouldResume) else { return }
             Task { @MainActor in
                 self?.resume()
+            }
+        }
+        // Headphones connected or gone, or another output picked.
+        routeObserver = NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                self?.readOutput()
             }
         }
         // A book's place, every few seconds of listening.
@@ -572,10 +594,30 @@ final class WatchPlayer {
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playback, mode: .default, policy: .longFormAudio, options: [])
-            return try await session.activate(options: [])
+            let isActive = try await session.activate(options: [])
+            readOutput()
+            return isActive
         } catch {
             logger.error("Couldn't start the audio session: \(error.localizedDescription, privacy: .public)")
             return false
+        }
+    }
+
+    /// Reads where the sound goes now.
+    private func readOutput() {
+        guard let port = AVAudioSession.sharedInstance().currentRoute.outputs.first else {
+            output = nil
+            return
+        }
+        let kind: Output.Kind = switch port.portType {
+        case .bluetoothA2DP, .bluetoothLE, .bluetoothHFP, .headphones: .headphones
+        case .builtInSpeaker: .speaker
+        default: .other
+        }
+        let found = Output(name: port.portName, kind: kind)
+        if found != output {
+            logger.info("Output: \(port.portName, privacy: .public) (\(port.portType.rawValue, privacy: .public))")
+            output = found
         }
     }
 

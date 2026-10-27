@@ -216,16 +216,25 @@ struct PlayerProgressBar: View {
     }
 }
 
-/// Where a player plays, as a glyph: this watch, the iPhone, or a Sonos
-/// group the iPhone plays to.
+/// Where a player plays, as a glyph: this watch (or the headphones it
+/// plays to), the iPhone, or a Sonos group the iPhone plays to.
 enum PlaybackPlace: Equatable {
     case watch
+    /// Headphones the watch plays to, by name.
+    case headphones(String)
     case iPhone
     case speaker(String)
+
+    /// The watch's own player: on its headphones while it plays to them.
+    static func watch(output: WatchPlayer.Output?) -> PlaybackPlace {
+        guard let output, output.kind == .headphones else { return .watch }
+        return .headphones(output.name)
+    }
 
     var symbol: String {
         switch self {
         case .watch: "applewatch"
+        case let .headphones(name): Self.headphoneSymbol(name)
         case .iPhone: "iphone"
         case .speaker: "hifispeaker.fill"
         }
@@ -234,9 +243,18 @@ enum PlaybackPlace: Equatable {
     var name: String {
         switch self {
         case .watch: "Apple Watch"
+        case let .headphones(name): name
         case .iPhone: "iPhone"
         case let .speaker(name): name
         }
+    }
+
+    /// AirPods drawn as themselves, other headphones as headphones.
+    static func headphoneSymbol(_ name: String) -> String {
+        if name.localizedCaseInsensitiveContains("AirPods Max") { return "airpodsmax" }
+        if name.localizedCaseInsensitiveContains("AirPods Pro") { return "airpodspro" }
+        if name.localizedCaseInsensitiveContains("AirPods") { return "airpods" }
+        return "headphones"
     }
 }
 
