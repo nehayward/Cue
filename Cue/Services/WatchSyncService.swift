@@ -95,6 +95,14 @@ final class WatchSyncService {
     /// What the watch last heard plays here.
     @ObservationIgnored private var sentNowPlaying: NowPlayingState?
     @ObservationIgnored private var nowPlayingTask: Task<Void, Never>?
+    /// What plays here as the application context carries it, for the watch
+    /// app to show the moment it opens, before it asks: without its cover,
+    /// as the context also carries the picks and has a size limit. Nil
+    /// until first read.
+    @ObservationIgnored private var contextNowPlaying: Data?
+    /// What `contextNowPlaying` was made from, short of the clock.
+    @ObservationIgnored private var contextState: NowPlayingState?
+    @ObservationIgnored private var contextTask: Task<Void, Never>?
     #endif
 
     private init() {
@@ -400,7 +408,7 @@ final class WatchSyncService {
         let places = currentPlaces()
         let allowance = currentAllowance()
         do {
-            try WCSession.default.updateApplicationContext(WatchSyncMessage.context(picks: picks, places: places, credentials: credentials, allowance: allowance))
+            try WCSession.default.updateApplicationContext(WatchSyncMessage.context(picks: picks, places: places, credentials: credentials, allowance: allowance, nowPlaying: contextNowPlaying))
             sentCredentials = credentials
             sentPlaces = places
             sentAllowance = allowance
@@ -415,6 +423,9 @@ final class WatchSyncService {
         self.isWatchAppInstalled = isWatchAppInstalled
         // A watch newly paired or with Cue newly on it hasn't heard yet.
         send()
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        trackNowPlaying()
+        #endif
     }
 
     /// The watch's picks and places, merged in. When the watch was missing
@@ -575,10 +586,11 @@ final class WatchSyncService {
         }
     }
 
-    /// Sends what plays when it changes, while the watch app is open. One
-    /// observation at a time: each change arms the next.
+    /// Sends what plays when it changes: at once while the watch app is open,
+    /// and into the context whatever the watch is doing, for the app to find
+    /// as it opens. One observation at a time: each change arms the next.
     private func trackNowPlaying() {
-        guard isWatchReachable, !isTrackingNowPlaying else { return }
+        guard isAvailable || isWatchReachable, !isTrackingNowPlaying else { return }
         isTrackingNowPlaying = true
         let now = withObservationTracking {
             currentNowPlaying()
@@ -589,7 +601,10 @@ final class WatchSyncService {
                 self.trackNowPlaying()
             }
         }
-        guard now?.state != sentNowPlaying || now.map({ clockMoved($0.clock) }) == true else { return }
+        if now?.state != contextState {
+            updateContext()
+        }
+        guard isWatchReachable, now?.state != sentNowPlaying || now.map({ clockMoved($0.clock) }) == true else { return }
         sentNowPlaying = now?.state
         sentClock = now?.clock
         nowPlayingTask?.cancel()
@@ -604,6 +619,21 @@ final class WatchSyncService {
             WCSession.default.sendMessage(message, replyHandler: nil) { [logger] error in
                 logger.error("Couldn't tell the watch what's playing: \(error.localizedDescription, privacy: .public)")
             }
+        }
+    }
+
+    /// Puts what plays into the context once it has settled (a skip, a load
+    /// and its buffering are a burst of changes): a song, a pause or a
+    /// chapter, not the clock, which the watch runs on from when it was read.
+    private func updateContext() {
+        contextState = currentNowPlaying()?.state
+        contextTask?.cancel()
+        contextTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard let self, !Task.isCancelled else { return }
+            let card = self.currentNowPlaying().map { self.watchNowPlaying($0, artwork: nil) }
+            self.contextNowPlaying = try? WatchSyncMessage.nowPlayingCard(card)
+            self.send()
         }
     }
 
@@ -998,32 +1028,37 @@ final class WatchSyncService {
     private func nowPlayingMessage(_ now: NowPlaying?) async -> [String: Any] {
         var nowPlaying: WatchPhoneNowPlaying?
         if let now {
-            nowPlaying = WatchPhoneNowPlaying(
-                title: now.state.title,
-                artist: now.state.artist,
-                destination: now.state.destination,
-                isOnSpeaker: now.state.isOnSpeaker,
-                isPlaying: now.state.isPlaying,
-                isBook: now.state.isBook,
-                canGoBack: now.state.canGoBack,
-                hasNext: now.state.hasNext,
-                queuePosition: now.state.queuePosition,
-                queueCount: now.state.queueCount,
-                artwork: await Self.watchArtwork(for: now.item, url: now.state.artworkURL),
-                // Read as it goes, after the cover: the clock has run on.
-                elapsed: now.clock.elapsed(at: .now),
-                duration: now.state.duration,
-                clockAt: .now,
-                rate: now.clock.rate,
-                chapter: now.state.chapter,
-                chapterID: now.state.chapterID,
-                chapterStart: now.state.chapterStart,
-                bookKey: now.state.bookKey,
-                sleepsAt: now.state.sleepsAt,
-                sleepsAtEnd: now.state.sleepsAtEnd
-            )
+            nowPlaying = watchNowPlaying(now, artwork: await Self.watchArtwork(for: now.item, url: now.state.artworkURL))
         }
         return (try? WatchSyncMessage.nowPlayingMessage(nowPlaying)) ?? [:]
+    }
+
+    /// What plays, as the watch reads it, with the clock read now.
+    private func watchNowPlaying(_ now: NowPlaying, artwork: Data?) -> WatchPhoneNowPlaying {
+        WatchPhoneNowPlaying(
+            title: now.state.title,
+            artist: now.state.artist,
+            destination: now.state.destination,
+            isOnSpeaker: now.state.isOnSpeaker,
+            isPlaying: now.state.isPlaying,
+            isBook: now.state.isBook,
+            canGoBack: now.state.canGoBack,
+            hasNext: now.state.hasNext,
+            queuePosition: now.state.queuePosition,
+            queueCount: now.state.queueCount,
+            artwork: artwork,
+            // Read as it goes, after the cover: the clock has run on.
+            elapsed: now.clock.elapsed(at: .now),
+            duration: now.state.duration,
+            clockAt: .now,
+            rate: now.clock.rate,
+            chapter: now.state.chapter,
+            chapterID: now.state.chapterID,
+            chapterStart: now.state.chapterStart,
+            bookKey: now.state.bookKey,
+            sleepsAt: now.state.sleepsAt,
+            sleepsAtEnd: now.state.sleepsAtEnd
+        )
     }
 
     /// The cover, 160 px square as a JPEG of a few KB: from the player's

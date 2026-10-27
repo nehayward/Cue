@@ -176,6 +176,28 @@ final class PhoneNowPlaying {
         self.routes = routes
     }
 
+    /// What the iPhone left in its context, so the card is there the moment
+    /// the app opens, before the iPhone answers: not over anything it has
+    /// said since, nor when it's old — a playing card past 2 hours, a paused
+    /// one past 10 minutes — as Cue on the iPhone may have quit since without
+    /// a word. It comes without its cover (the shown one stays for the same
+    /// song), and doesn't count as heard: what opens the player waits for
+    /// the iPhone's own answer.
+    func apply(contextCard card: WatchPhoneNowPlaying?, sentAt: Date) {
+        guard sentAt > (heardAt ?? .distantPast) else { return }
+        if let card, Date.now.timeIntervalSince(sentAt) > (card.isPlaying ? 2 * 60 * 60 : 10 * 60) { return }
+        var card = card
+        if let shown = current, card?.title == shown.title, card?.bookKey == shown.bookKey {
+            card?.artwork = shown.artwork
+        } else {
+            artwork = nil
+        }
+        if card?.bookKey != chapters?.bookKey || card?.isBook != true {
+            chapters = nil
+        }
+        current = card
+    }
+
     func apply(_ nowPlaying: WatchPhoneNowPlaying?) {
         if nowPlaying?.artwork != current?.artwork {
             artwork = nowPlaying?.artwork.flatMap(UIImage.init(data:))
