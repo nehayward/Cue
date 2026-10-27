@@ -1,4 +1,3 @@
-import Analytics
 import Defaults
 import Nuke
 import CloudStorage
@@ -205,7 +204,10 @@ struct MusicPlaybackView: View {
                         }
                     }
                 }
-                Spacer(minLength: 0)
+                // The text takes the rest of the row itself, so a scrolling
+                // title runs up to Pause. A spacer after it took a second
+                // 12pt of the row's spacing and stopped the title 24pt short.
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .contentShape(.rect)
         }
@@ -539,6 +541,10 @@ struct CueApp: App {
     /// with a tap on the already-selected tab reported as a reselection.
     /// SwiftUI has no reselection callback and reports the tap as a set to
     /// the same value, which is why the setter compares before writing.
+    ///
+    /// Switching to Search asks for its field, so the keyboard is up on
+    /// the tap: the tab is for typing, and it starts empty each time. Only
+    /// a switch made here, from the tab bar, not a launch onto Search.
     private var tabSelection: Binding<AppTab> {
         Binding {
             resolvedTab(router.selectedTab)
@@ -548,6 +554,9 @@ struct CueApp: App {
                 return
             }
             router.selectedTab = newValue
+            if newValue == .search {
+                SearchActivator.shared.requestFocus()
+            }
         }
     }
 
@@ -593,6 +602,12 @@ struct CueApp: App {
             // Customization only with the library sections: it holds the
             // sidebar's edits, and with three fixed tabs there's no Edit.
             .tabViewCustomization(showsLibrarySections ? $tabCustomization : nil)
+            // UIKit's animations back on once the tab bar has drawn on the
+            // tab the app opened on (held off at launch, `AppDelegate`).
+            .task {
+                try? await Task.sleep(for: .milliseconds(300))
+                UIView.setAnimationsEnabled(true)
+            }
             .onChange(of: availableTabs) { _, tabs in
                 // A tab that left takes its selection with it. The binding
                 // already shows the fallback in that case; this keeps the
@@ -1284,7 +1299,7 @@ struct CueApp: App {
                 // A Shortcuts action that ran before this device had its
                 // answer still opens this; opening Cue is all someone with
                 // Super needs.
-                if !subscriptionService.subscription.isActive {
+                if !FeatureGate.shared.hasSuper {
                     router.presentedFullScreenCover = .paywall
                 }
                 return
@@ -1685,6 +1700,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         WatchSyncService.shared.activate()
         // Lyrics for downloads that don't have them yet, slowly.
         DownloadLyrics.shared.start()
+        // The Audiobooks tab's shelves as last read, their covers decoded a
+        // moment after launch, so the tab opens with them drawn.
+        if UserDefaults.standard.bool(forKey: AppStorageKeys.hasPlexAudiobooks) || AudiobookshelfAPI.shared.isConfigured {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(2))
+                let shelf = AudiobookshelfBrowseService.shared
+                let listened = AudiobookLibrary.listenedBooks(plex: true, audiobookshelf: true)
+                ContentArtworkView.prefetch(Array(listened.prefix(3)), preferredSize: 200)
+                ContentArtworkView.prefetch(AudiobookDownloads.downloadedBooks(completeOnly: false) + PlexBookShelf.shared.newest + shelf.recentlyAdded, preferredSize: 300)
+            }
+        }
         #if DEBUG
         // `-LyricsAudit <count>`: checks lyrics lookups across the Plex library.
         LyricsAudit.startIfRequested()
@@ -1742,6 +1768,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
              return carPlay
          }
 #endif
+         // The tab bar is made on its first tab, Browse, and then moved to
+         // the tab the app was left on (`Router.selectedTab`), which slid
+         // its selection across the bar as the window opened. With UIKit's
+         // animations off until the tab view is up (it turns them back on,
+         // or this does after a few seconds whatever happens), it's simply
+         // there. Only as the app's own window connects: not for the car's
+         // screen, nor a launch in the background with no window at all.
+         if connectingSceneSession.role == .windowApplication,
+            Router.main.selectedTab != .home, Router.main.selectedTab != .browse {
+             UIView.setAnimationsEnabled(false)
+             Task { @MainActor in
+                 try? await Task.sleep(for: .seconds(3))
+                 UIView.setAnimationsEnabled(true)
+             }
+         }
          if let shortcutItem = options.shortcutItem {
              if shortcutItem.type == "com.cue.search" {
                  Task { @MainActor in
@@ -2111,8 +2152,8 @@ extension ToolbarDelegate: NSToolbarDelegate {
         if itemIdentifier == .preferences {
             let barItem = UIBarButtonItem(image: UIImage(systemName: "switch.2"), style: .plain, target: self, action: #selector(prefs(_:)))
             let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-            item.accessibilityLabel = NSLocalizedString("Preferences", comment: "")
-            item.toolTip = NSLocalizedString("Preferences", comment: "")
+            item.accessibilityLabel = NSLocalizedString("Settings", comment: "")
+            item.toolTip = NSLocalizedString("Settings", comment: "")
             return item
         }
 //        else if itemIdentifier == .search {
@@ -2146,8 +2187,8 @@ extension ToolbarDelegate: NSToolbarDelegate {
         if itemIdentifier == .sorting {
             let barItem = UIBarButtonItem(image: UIImage(systemName: "switch.2"), style: .plain, target: self, action: #selector(prefs(_:)))
             let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
-            item.accessibilityLabel = NSLocalizedString("Preferences", comment: "")
-            item.toolTip = NSLocalizedString("Preferences", comment: "")
+            item.accessibilityLabel = NSLocalizedString("Settings", comment: "")
+            item.toolTip = NSLocalizedString("Settings", comment: "")
             return item
         }
         return NSToolbarItem(itemIdentifier: itemIdentifier)

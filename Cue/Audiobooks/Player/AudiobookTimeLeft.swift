@@ -32,9 +32,10 @@ struct AudiobookTimeLeft: View {
                 showsBook.toggle()
             } label: {
                 line
-                    // A caption is a small target: take a little more
-                    // around it, short of the scrubber above.
-                    .contentShape(Rectangle().inset(by: -6))
+                    // A caption is a small target: a little more either
+                    // side, but none above, where the scrubber is.
+                    .padding(.horizontal, 6)
+                    .contentShape(.rect)
             }
             .buttonStyle(.plain)
             .accessibilityHint(showsBook ? "Shows the time left in the chapter" : "Shows the time left in the book")

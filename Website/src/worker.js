@@ -1,4 +1,6 @@
 import { site } from './config.js';
+import { audiobooksPage } from './pages/audiobooks.js';
+import { betaPage } from './pages/beta.js';
 import { helpPage } from './pages/help.js';
 import { homePage } from './pages/home.js';
 import { privacyPage, termsPage } from './pages/legal.js';
@@ -44,12 +46,17 @@ const REDIRECTS = {
 	'/plex': () => '/self-hosted',
 	'/navidrome': () => '/self-hosted',
 	'/subsonic': () => '/self-hosted',
+	'/testflight': () => '/beta',
+	'/books': () => '/audiobooks',
+	'/audiobookshelf': () => '/audiobooks',
 };
 
 // Exact paths → page. `query` is the request's URLSearchParams.
 const PAGES = {
 	'/': () => homePage(),
 	'/help': (query) => helpPage({ embed: query.has('embed') }),
+	'/audiobooks': () => audiobooksPage(),
+	'/beta': () => betaPage(),
 	'/self-hosted': () => selfHostedPage(),
 	'/releases': () => releasesIndexPage(),
 	'/press': () => pressPage(),
@@ -57,8 +64,13 @@ const PAGES = {
 	'/terms': () => termsPage(),
 };
 
+// Pages that work for anyone with the link but aren't listed anywhere: no
+// link on the site, not in the sitemap, and noindex on the page itself.
+// Not in robots.txt either, which would only advertise them.
+const UNLISTED = new Set(['/beta']);
+
 const sitemap = () => {
-	const paths = [...Object.keys(PAGES), ...releases.map((r) => `/releases/${r.version}`)];
+	const paths = [...Object.keys(PAGES).filter((p) => !UNLISTED.has(p)), ...releases.map((r) => `/releases/${r.version}`)];
 	return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${paths
 		.map((p) => `\t<url><loc>${site.origin}${p === '/' ? '' : p}</loc></url>`)
 		.join('\n')}\n</urlset>\n`;
@@ -66,6 +78,10 @@ const sitemap = () => {
 
 export const route = async (request) => {
 	const url = new URL(request.url);
+	// testflight.cue.dance is this Worker's too, and every path on it goes to
+	// the beta's invite. A 302, so a new invite link isn't cached as the old.
+	if (url.hostname === site.testFlightHost) return Response.redirect(site.testFlight, 302);
+
 	// One canonical form per page: /help/ → /help.
 	const path = url.pathname.replace(/\/+$/, '') || '/';
 	if (path !== url.pathname) return Response.redirect(`${url.origin}${path}${url.search}`, 301);

@@ -4,7 +4,7 @@ import SwiftUI
 
 /// The listener's Audiobookshelf books: what they're partway through, the
 /// chosen library's books, and what was added lately. Laid out like the
-/// Subsonic screen beside it.
+/// Apple and Plex libraries: one group of rows, then the shelves.
 struct AudiobookshelfBrowseScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
@@ -19,8 +19,6 @@ struct AudiobookshelfBrowseScreen: View {
                 if browse.isAuthenticated {
                     if browse.libraries.count > 1 {
                         libraryPicker
-                            .listRowInsets(.default)
-                            .listRowSeparator(.hidden)
                     }
 
                     if let library = browse.selectedLibrary {
@@ -30,55 +28,51 @@ struct AudiobookshelfBrowseScreen: View {
                             allowsGrid: true,
                             sortOptions: sortOptions,
                             sortKey: "audiobookshelf.books",
+                            // A pull has the server scan for books added on it.
+                            refreshAction: { await browse.scanAndRefresh() },
                             searchAction: { query, offset in
                                 // The server answers a search in one go.
                                 guard offset == 0 else { return [] }
                                 return await browse.search(query)
-                            }
+                            },
+                            loadingStatus: { browse.isScanning ? "Scanning…" : nil }
                         )) {
                             Label("All Books", systemImage: "books.vertical")
                         }
-                        .listRowInsets(.default)
-                        .listRowSeparator(.hidden)
-                    }
-
-                    if !browse.continueListening.isEmpty {
-                        Section {
-                            Text("Continue Listening")
-                                .fontDesign(.rounded)
-                                .fontWeight(.semibold)
-                            ForEach(browse.continueListening) { book in
-                                AudiobookRow(book: book)
-                            }
-                        }
-                        .listRowInsets(.default)
-                        .listRowSeparator(.hidden)
-                        .listSectionSeparator(.hidden)
-                    }
-
-                    if !browse.recentlyAdded.isEmpty {
-                        Section {
-                            Text("Recently Added")
-                                .fontDesign(.rounded)
-                                .fontWeight(.semibold)
-
-                            LazyVGrid(columns: [.init(), .init()]) {
-                                ForEach(browse.recentlyAdded) { item in
-                                    PlayableContentRowView(item: item)
-                                        .buttonStyle(.plain)
-                                        .geometryGroup()
-                                }
-                            }
-                        }
-                        .listRowInsets(.default)
-                        .listRowSeparator(.hidden)
-                        .listSectionSeparator(.hidden)
                     }
 
                     if browse.isLoading, browse.libraries.isEmpty {
                         ProgressView()
                             .frame(maxWidth: .infinity)
-                            .listRowSeparator(.hidden)
+                    }
+
+                    if !browse.continueListening.isEmpty {
+                        Section {
+                            ForEach(browse.continueListening) { book in
+                                AudiobookRow(book: book)
+                            }
+                        } header: {
+                            Text("Continue Listening")
+                        }
+                    }
+
+                    if browse.selectedLibrary != nil {
+                        // As the Apple library shows it: the title opens every
+                        // book by when it was added, the newest under it out
+                        // of the group.
+                        Section {
+                            NavigationLink(value: recentlyAddedDestination) {
+                                Text("Recently Added")
+                                    .fontDesign(.rounded)
+                                    .fontWeight(.semibold)
+                            }
+
+                            PlayableContentGridView(items: browse.recentlyAdded, limit: 6)
+                        }
+                        .listSectionSpacing(0)
+                        .listRowInsets(.default)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                     }
                 }
             }
@@ -93,13 +87,12 @@ struct AudiobookshelfBrowseScreen: View {
                     }
                 }
             }
-            .listSectionSpacing(4)
-            .listStyle(.plain)
-            .listRowSeparator(.hidden)
-            .listSectionSeparator(.hidden)
             .animation(hasLoadedOnce ? .default : nil, value: browse.continueListening)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .miniPlayerOnScrollHandler()
+            // Default placement, as on Plex's: `.scrollContent` insets the
+            // rows but leaves the group's background running to the edge.
+            .contentMargins(.horizontal, 16)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Audiobookshelf")
@@ -109,7 +102,7 @@ struct AudiobookshelfBrowseScreen: View {
                 hasLoadedOnce = true
             }
             .refreshable {
-                await browse.refresh()
+                await browse.scanAndRefresh()
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -153,6 +146,18 @@ struct AudiobookshelfBrowseScreen: View {
         } label: {
             Label(browse.selectedLibrary?.name ?? "Library", systemImage: "books.vertical.fill")
         }
+    }
+
+    /// Every book in the library by when it was added, newest first.
+    private var recentlyAddedDestination: RouterDestination {
+        .playableList(
+            title: "Recently Added",
+            showSectionIndex: false,
+            allowsGrid: true,
+            action: { offset in
+                await browse.books(offset: offset, sort: "addedAt", descending: true)
+            }
+        )
     }
 
     private var sortOptions: [PlayableListSort] {

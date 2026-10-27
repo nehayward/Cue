@@ -49,9 +49,9 @@ struct MiniPlayerView: View {
     private func groupInfoButton(for group: GroupRoom) -> some View {
         Button {
             HapticManager.shared.fireHaptic(.buttonPress)
-            // The same rule as the speaker list: the first room is free.
-            guard featureGate.isRoomUnlocked(group, in: sonosService.sorted) else {
-                featureGate.presentPaywall()
+            // The free tier's one group, as in Play On.
+            guard featureGate.isGroupUnlocked(group.coordinatorID) else {
+                featureGate.presentPaywall(PaywallReason(feature: .allRooms))
                 return
             }
             Router.main.inspectorSheet = nil

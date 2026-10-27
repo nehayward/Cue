@@ -10,7 +10,7 @@ import { route } from '../src/worker.js';
 const get = (path, init) => route(new Request(`https://cue.dance${path}`, init));
 
 test('every page renders with the shared header and a title', async () => {
-	for (const path of ['/', '/help', '/releases', '/privacy', '/terms', '/self-hosted', '/press', `/releases/${releases[0].version}`]) {
+	for (const path of ['/', '/help', '/releases', '/privacy', '/terms', '/self-hosted', '/audiobooks', '/press', '/beta', `/releases/${releases[0].version}`]) {
 		const response = await get(path);
 		assert.equal(response.status, 200, path);
 		const body = await response.text();
@@ -54,6 +54,37 @@ test('redirects: trailing slash, then known aliases', async () => {
 
 	const latest = await get('/latest');
 	assert.equal(latest.headers.get('location'), `https://cue.dance/releases/${releases[0].version}`);
+});
+
+test('testflight.cue.dance sends every path to the beta invite', async () => {
+	for (const path of ['/', '/help', '/anything/else?x=1']) {
+		const response = await route(new Request(`https://testflight.cue.dance${path}`));
+		assert.equal(response.status, 302, path);
+		assert.equal(response.headers.get('location'), 'https://testflight.apple.com/join/6B7QHpsd', path);
+	}
+	assert.equal((await get('/')).status, 200);
+});
+
+test('until the App Store, the calls to action say coming soon, and only the unlisted /beta mentions the beta', async () => {
+	const home = await (await get('/')).text();
+	assert.match(home, /Coming soon to the App Store/);
+
+	for (const path of ['/', '/help', '/releases', '/privacy', '/terms', '/self-hosted', '/audiobooks', '/press', `/releases/${releases[0].version}`]) {
+		const body = await (await get(path)).text();
+		assert.doesNotMatch(body, /testflight|\bbeta\b|href="\/beta"/i, path);
+	}
+
+	const beta = await (await get('/beta')).text();
+	assert.ok(beta.includes('href="https://testflight.apple.com/join/6B7QHpsd"'));
+	assert.match(beta, /<meta name="robots" content="noindex/);
+
+	const sitemap = await (await get('/sitemap.xml')).text();
+	assert.doesNotMatch(sitemap, /\/beta/);
+	assert.doesNotMatch(await (await get('/robots.txt')).text(), /beta/);
+
+	const alias = await get('/testflight');
+	assert.equal(alias.status, 301);
+	assert.equal(alias.headers.get('location'), 'https://cue.dance/beta');
 });
 
 test('unknown paths and versions are 404 pages', async () => {

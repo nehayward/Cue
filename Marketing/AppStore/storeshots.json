@@ -1,0 +1,333 @@
+{
+  "app": "Cue",
+  "bundleID": "dance.cue",
+  "launch": [
+    "-dance.cue.blurArtwork",
+    "YES"
+  ],
+  "icon": "../../build/app-store/icon.png",
+  "raw": "../../build/app-store/raw",
+  "clips": "../../build/app-store/clips",
+  "output": "../../build/app-store/output",
+  "theme": {
+    "base": "#06090A",
+    "palette": [
+      "#2F9E6E",
+      "#1E8C8C",
+      "#2F62A8",
+      "#4A49A6",
+      "#B27628",
+      "#A3456C",
+      "#6A45A8",
+      "#2F8F86",
+      "#3A6FB0",
+      "#2F9E6E"
+    ],
+    "accent": "#6FE0A6",
+    "titleWeight": "bold",
+    "design": "rounded",
+    "finish": "graphite"
+  },
+  "devices": {
+    "iphone": {
+      "model": "iphone-6.3",
+      "simulator": "iPhone 18 Pro"
+    },
+    "duo": {
+      "model": "iphone-duo",
+      "simulator": "iPhone Duo",
+      "display": "primary-1",
+      "landscape": true
+    },
+    "ipad": {
+      "model": "ipad-13",
+      "simulator": "iPad Pro 13-inch (M5)",
+      "deviceWidth": 0.88
+    },
+    "watch": {
+      "model": "watch-46",
+      "simulator": "Apple Watch Series 12 (46mm)",
+      "bare": true,
+      "statusBar": false
+    }
+  },
+  "shots": [
+    {
+      "name": "player",
+      "layout": "hero",
+      "title": "All your music. *One player.*",
+      "subtitle": "Apple Music, Plex, Subsonic, radio and your own files, on this iPhone or on Sonos.",
+      "overrides": {
+        "ipad": {
+          "subtitle": "Apple Music, Plex, Subsonic, radio and your own files, on this iPad or on Sonos.",
+          "screen": "queue"
+        }
+      }
+    },
+    {
+      "name": "library",
+      "devices": [
+        "iphone",
+        "ipad"
+      ],
+      "title": "Every library, *side by side*",
+      "subtitle": "Apple Music, Plex, Subsonic and Audiobookshelf, a tap apart.",
+      "launch": [
+        "-dance.cue.selectedTab",
+        "<7b2262726f777365223a7b7d7d>"
+      ],
+      "wait": 9,
+      "overrides": {
+        "iphone": {
+          "screen": "services"
+        },
+        "ipad": {
+          "screen": "services",
+          "subtitle": "Apple Music, Plex, Subsonic and your own files, a tap apart."
+        }
+      }
+    },
+    {
+      "name": "playon",
+      "title": "Play here *or on Sonos*",
+      "subtitle": "Hand your queue to any room without missing a beat."
+    },
+    {
+      "name": "queue",
+      "title": "Your queue, *your way*",
+      "subtitle": "Drag, swipe and play next, right from Up Next.",
+      "devices": [
+        "iphone",
+        "duo"
+      ]
+    },
+    {
+      "name": "audiobooks",
+      "title": "Books, *right where you left off*",
+      "subtitle": "Plex and Audiobookshelf audiobooks, with chapters and Smart Resume.",
+      "launch": [
+        "-dance.cue.selectedTab",
+        "<7b22617564696f626f6f6b73223a7b7d7d>"
+      ],
+      "wait": 9,
+      "overrides": {
+        "ipad": {
+          "screen": "book",
+          "subtitle": "Plex and Audiobookshelf audiobooks, with their chapters and Smart Resume."
+        },
+        "duo": {
+          "screen": "book",
+          "subtitle": "Plex and Audiobookshelf audiobooks, with their chapters and Smart Resume."
+        }
+      }
+    },
+    {
+      "name": "transcript",
+      "title": "Read along *as you listen*",
+      "subtitle": "The book's words on screen, lit up as they're read."
+    },
+    {
+      "name": "radio",
+      "title": "Radio from *everywhere*",
+      "subtitle": "Local and world stations, live in one tap.",
+      "launch": [
+        "-dance.cue.selectedTab",
+        "<7b22726164696f223a7b7d7d>"
+      ],
+      "wait": 9,
+      "overrides": {
+        "ipad": {
+          "bleed": true
+        }
+      }
+    },
+    {
+      "name": "watch",
+      "layout": "pair",
+      "devices": [
+        "iphone"
+      ],
+      "companion": {
+        "device": "watch",
+        "screen": "now-playing"
+      },
+      "title": "On your wrist, *no iPhone needed*",
+      "subtitle": "Plex and Subsonic songs and books, downloaded to Apple Watch.",
+      "overrides": {
+        "iphone": {
+          "screen": "book"
+        }
+      }
+    },
+    {
+      "name": "album",
+      "devices": [
+        "iphone",
+        "ipad"
+      ],
+      "title": "Your own server, *in lossless*",
+      "subtitle": "FLAC and ALAC straight from Plex and Subsonic."
+    },
+    {
+      "name": "search",
+      "title": "Search *everything* at once",
+      "subtitle": "One search across every service you use.",
+      "launch": [
+        "-dance.cue.selectedTab",
+        "<7b22736561726368223a7b7d7d>"
+      ],
+      "wait": 9,
+      "overrides": {
+        "ipad": {
+          "bleed": true
+        }
+      }
+    },
+    {
+      "name": "home",
+      "devices": [
+        "watch"
+      ],
+      "title": "Cue on Apple Watch"
+    },
+    {
+      "name": "now-playing",
+      "devices": [
+        "watch"
+      ],
+      "title": "Now Playing"
+    },
+    {
+      "name": "books",
+      "devices": [
+        "watch"
+      ],
+      "title": "Books"
+    },
+    {
+      "name": "lists",
+      "devices": [
+        "watch"
+      ],
+      "title": "Library",
+      "overrides": {
+        "watch": {
+          "screen": "library"
+        }
+      }
+    },
+    {
+      "name": "downloads",
+      "devices": [
+        "watch"
+      ],
+      "title": "Downloads"
+    }
+  ],
+  "previews": [
+    {
+      "name": "cue-iphone-preview",
+      "device": "iphone",
+      "transition": 0.6,
+      "tiltIn": true,
+      "scenes": [
+        {
+          "clip": "player",
+          "from": 1.0,
+          "duration": 4.0,
+          "title": "All your music. *One player.*"
+        },
+        {
+          "clip": "player",
+          "from": 11.0,
+          "duration": 4.5,
+          "title": "Your queue, *your way*"
+        },
+        {
+          "clip": "playon",
+          "from": 3.0,
+          "duration": 5.0,
+          "title": "Play here *or on Sonos*"
+        },
+        {
+          "clip": "books",
+          "from": 1.5,
+          "duration": 5.0,
+          "title": "Books, *right where you left off*"
+        },
+        {
+          "clip": "books",
+          "from": 8.2,
+          "duration": 3.5,
+          "title": "Read along *as you listen*"
+        },
+        {
+          "clip": "radio",
+          "from": 1.5,
+          "duration": 4.5,
+          "title": "Radio from *everywhere*"
+        },
+        {
+          "still": "search",
+          "duration": 2.5,
+          "title": "Search *everything* at once"
+        }
+      ]
+    },
+    {
+      "name": "cue-promo",
+      "device": "iphone",
+      "size": [
+        1080,
+        1920
+      ],
+      "transition": 0.7,
+      "tiltIn": true,
+      "frame": true,
+      "float": true,
+      "scenes": [
+        {
+          "clip": "player",
+          "from": 1.0,
+          "duration": 4.0,
+          "title": "All your music. *One player.*"
+        },
+        {
+          "clip": "player",
+          "from": 11.0,
+          "duration": 4.5,
+          "title": "Your queue, *your way*"
+        },
+        {
+          "clip": "playon",
+          "from": 3.0,
+          "duration": 5.0,
+          "title": "Play here *or on Sonos*"
+        },
+        {
+          "clip": "books",
+          "from": 1.5,
+          "duration": 5.0,
+          "title": "Books, *right where you left off*"
+        },
+        {
+          "clip": "books",
+          "from": 8.2,
+          "duration": 3.5,
+          "title": "Read along *as you listen*"
+        },
+        {
+          "clip": "radio",
+          "from": 1.5,
+          "duration": 4.5,
+          "title": "Radio from *everywhere*"
+        },
+        {
+          "still": "search",
+          "duration": 2.5,
+          "title": "Search *everything* at once"
+        }
+      ]
+    }
+  ]
+}

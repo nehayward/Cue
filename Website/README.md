@@ -20,6 +20,7 @@ make deploy    # tests, then publishes to cue.dance
 | Home page copy: hero, features, services, FAQ | `src/content/home.js` |
 | Help questions | `src/content/help.js` |
 | Plex & Subsonic page | `src/content/self-hosted.js` |
+| Audiobooks page | `src/content/audiobooks.js` (its two drawn pictures are in `src/pages/audiobooks.js`) |
 | Press kit (copy, facts, screenshots) | `src/content/press.js`, files in `public/press/` |
 | Hero phones, hand-off picture, spotlights | `src/content/home.js` (`screens`, `handoff`, `spotlights`) |
 | Social preview card | `scripts/og-card.html`, then `make og` → `public/og.jpg` |

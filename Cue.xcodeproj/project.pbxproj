@@ -12,19 +12,13 @@
 		011179802C934C9B007FFA13 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797F2C934C9B007FFA13 /* Defaults */; };
 		013161802FC54BF500249DC4 /* NewsletterKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0131617F2FC54BF500249DC4 /* NewsletterKit */; };
 		014F5FEA2EC7A9B80021A334 /* Cue Mini.app in Add Cue Mini */ = {isa = PBXBuildFile; fileRef = 01C1296F2D0CB4E9009F9E90 /* Cue Mini.app */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		017297652DD3C708003E7FFB /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 017297642DD3C708003E7FFB /* Kingfisher */; };
-		0186C9672DD82EC2009F8A66 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 0186C9662DD82EC2009F8A66 /* Kingfisher */; };
+		0186C9672DD82EC2009F8A66 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = 0186C9662DD82EC2009F8A66 /* NukeUI */; };
 		0186D94A2E674B47001387F1 /* FocusOnAppear in Frameworks */ = {isa = PBXBuildFile; productRef = 0186D9492E674B47001387F1 /* FocusOnAppear */; };
 		0186D94C2E674B4F001387F1 /* FocusOnAppear in Frameworks */ = {isa = PBXBuildFile; productRef = 0186D94B2E674B4F001387F1 /* FocusOnAppear */; };
-		01A1F8882F61075600C0D52B /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = 01A1F8872F61075600C0D52B /* Glur */; };
-		01A662742F27240E00C7524D /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = 01A662732F27240E00C7524D /* Glur */; };
-		01A662762F27241E00C7524D /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = 01A662752F27241E00C7524D /* Glur */; };
-		01AB21442DD0F9B1004BFEE4 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 01AB21432DD0F9B1004BFEE4 /* Kingfisher */; };
 		01CB34052DC4F851006406B6 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
 		01CB34072DC4F851006406B6 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33F62DC4F851006406B6 /* SubscriptionKit */; };
 		01CB34082DC4F851006406B6 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33F72DC4F851006406B6 /* OrderedCollections */; };
 		01CB34092DC4F851006406B6 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33FE2DC4F851006406B6 /* Defaults */; };
-		01CB340B2DC4F851006406B6 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33FF2DC4F851006406B6 /* Analytics */; };
 		01CB340C2DC4F851006406B6 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33F92DC4F851006406B6 /* RevenueCatUI */; settings = {ATTRIBUTES = (Required, ); }; };
 		01CB340E2DC4F851006406B6 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33F22DC4F851006406B6 /* SonosKit */; };
 		01CB340F2DC4F851006406B6 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33F32DC4F851006406B6 /* CloudStorage */; };
@@ -50,8 +44,6 @@
 		CA7C00010000000000000016 /* MusicSearchKit in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000006 /* MusicSearchKit */; };
 		CA7C00010000000000000020 /* MusicSearchKit in Embed Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000006 /* MusicSearchKit */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		CA7C00010000000000000030 /* WatchSync in Frameworks */ = {isa = PBXBuildFile; productRef = CA7C00010000000000000031 /* WatchSync */; };
-		E90F315E2BC4829500884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315D2BC4829500884EA5 /* Analytics */; };
-		E90F31602BC48ADD00884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315F2BC48ADD00884EA5 /* Analytics */; };
 		E91976DD2C0A1B1E000FA449 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E91976DC2C0A1B1E000FA449 /* CloudStorage */; };
 		E91976DF2C0A1B26000FA449 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E91976DE2C0A1B26000FA449 /* NukeUI */; };
 		E91976E12C0A1B45000FA449 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = E91976E02C0A1B45000FA449 /* Defaults */; };
@@ -96,7 +88,6 @@
 		E9B12B602A5F317B0008868C /* Widgets Watch.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E9B12B532A5F31790008868C /* Widgets Watch.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E9BDE57F29E33B0700D230A8 /* SonosKit */; };
 		E9C03B092A586F6100FB9118 /* Cue Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = E9C03AFC2A586F5E00FB9118 /* Cue Watch.app */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		E9D49E4E2BC9D21B0084185E /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E9D49E4D2BC9D21B0084185E /* Analytics */; };
 		E9D637772CEBF06D00434339 /* QueueAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E92E47432B360C5C00DE6647 /* QueueAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E9F600C22B4E5E470039AAA6 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C12B4E5E470039AAA6 /* Nuke */; };
 		E9F600C42B4E5E470039AAA6 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C32B4E5E470039AAA6 /* NukeUI */; };
@@ -575,7 +566,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0186C9672DD82EC2009F8A66 /* Kingfisher in Frameworks */,
+				0186C9672DD82EC2009F8A66 /* NukeUI in Frameworks */,
 				010855CE2D15FE0D00DD9B84 /* SonosKitMini in Frameworks */,
 				01F0AD6F2D238DDB00885D20 /* KeyboardShortcuts in Frameworks */,
 			);
@@ -590,8 +581,6 @@
 				01CB34072DC4F851006406B6 /* SubscriptionKit in Frameworks */,
 				01CB34082DC4F851006406B6 /* OrderedCollections in Frameworks */,
 				01CB34092DC4F851006406B6 /* Defaults in Frameworks */,
-				01AB21442DD0F9B1004BFEE4 /* Kingfisher in Frameworks */,
-				01CB340B2DC4F851006406B6 /* Analytics in Frameworks */,
 				01CB340C2DC4F851006406B6 /* RevenueCatUI in Frameworks */,
 				01CB340E2DC4F851006406B6 /* SonosKit in Frameworks */,
 				01CB340F2DC4F851006406B6 /* CloudStorage in Frameworks */,
@@ -630,12 +619,9 @@
 				E92B3EE82B60249B00724FA1 /* OrderedCollections in Frameworks */,
 				E92B3EE92B60249B00724FA1 /* Defaults in Frameworks */,
 				E92B3EEA2B60249B00724FA1 /* NukeUI in Frameworks */,
-				E9D49E4E2BC9D21B0084185E /* Analytics in Frameworks */,
-				017297652DD3C708003E7FFB /* Kingfisher in Frameworks */,
 				ED069F212F58A2B600869F64 /* DropKit in Frameworks */,
 				E92B3EEB2B60249B00724FA1 /* RevenueCatUI in Frameworks */,
 				E92B3EEC2B60249B00724FA1 /* VibesDS in Frameworks */,
-				01A1F8882F61075600C0D52B /* Glur in Frameworks */,
 				E92B3EED2B60249B00724FA1 /* SonosKit in Frameworks */,
 				E92B3EEE2B60249B00724FA1 /* CloudStorage in Frameworks */,
 				0186D94C2E674B4F001387F1 /* FocusOnAppear in Frameworks */,
@@ -667,7 +653,6 @@
 				E97563302B699B2400787E14 /* OrderedCollections in Frameworks */,
 				E97563312B699B2400787E14 /* Defaults in Frameworks */,
 				E97563322B699B2400787E14 /* NukeUI in Frameworks */,
-				E90F31602BC48ADD00884EA5 /* Analytics in Frameworks */,
 				E97563332B699B2400787E14 /* RevenueCatUI in Frameworks */,
 				ED069F1F2F58A2B000869F64 /* DropKit in Frameworks */,
 				E97563342B699B2400787E14 /* VibesDS in Frameworks */,
@@ -675,7 +660,6 @@
 				0186D94A2E674B47001387F1 /* FocusOnAppear in Frameworks */,
 				E97563362B699B2400787E14 /* CloudStorage in Frameworks */,
 				013161802FC54BF500249DC4 /* NewsletterKit in Frameworks */,
-				01A662762F27241E00C7524D /* Glur in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -711,7 +695,6 @@
 				E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */,
 				E93AFA772B587F1800B20AC4 /* Defaults in Frameworks */,
 				E9F600C42B4E5E470039AAA6 /* NukeUI in Frameworks */,
-				E90F315E2BC4829500884EA5 /* Analytics in Frameworks */,
 				E96385FC2AD8E346005411BF /* RevenueCatUI in Frameworks */,
 				ED069F1D2F58A2AA00869F64 /* DropKit in Frameworks */,
 				E959B9212AB6B12D000D596E /* VibesDS in Frameworks */,
@@ -719,7 +702,6 @@
 				01E3D31D2E6FD74F005E769A /* FocusOnAppear in Frameworks */,
 				E959B9182AB50684000D596E /* CloudStorage in Frameworks */,
 				01FA14672FC546A800B95FA3 /* NewsletterKit in Frameworks */,
-				01A662742F27240E00C7524D /* Glur in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -808,7 +790,7 @@
 			packageProductDependencies = (
 				010855CD2D15FE0D00DD9B84 /* SonosKitMini */,
 				01F0AD6E2D238DDB00885D20 /* KeyboardShortcuts */,
-				0186C9662DD82EC2009F8A66 /* Kingfisher */,
+				0186C9662DD82EC2009F8A66 /* NukeUI */,
 			);
 			productName = CueMenuApp;
 			productReference = 01C1296F2D0CB4E9009F9E90 /* Cue Mini.app */;
@@ -834,9 +816,7 @@
 				01CB33F72DC4F851006406B6 /* OrderedCollections */,
 				01CB33F92DC4F851006406B6 /* RevenueCatUI */,
 				01CB33FE2DC4F851006406B6 /* Defaults */,
-				01CB33FF2DC4F851006406B6 /* Analytics */,
 				01CB34282DC4FE57006406B6 /* VibesDS */,
-				01AB21432DD0F9B1004BFEE4 /* Kingfisher */,
 			);
 			productName = Sonos;
 			productReference = 01CB341C2DC4F851006406B6 /* Cue TV.app */;
@@ -916,11 +896,8 @@
 				E92B3E982B60249B00724FA1 /* Nuke */,
 				E92B3E9A2B60249B00724FA1 /* NukeUI */,
 				E92B3E9B2B60249B00724FA1 /* Defaults */,
-				E9D49E4D2BC9D21B0084185E /* Analytics */,
-				017297642DD3C708003E7FFB /* Kingfisher */,
 				0186D94B2E674B4F001387F1 /* FocusOnAppear */,
 				ED069F202F58A2B600869F64 /* DropKit */,
-				01A1F8872F61075600C0D52B /* Glur */,
 				CA7C00010000000000000004 /* WatchSync */,
 			);
 			productName = Sonos;
@@ -987,9 +964,7 @@
 				E97562DA2B699B2400787E14 /* Nuke */,
 				E97562DC2B699B2400787E14 /* NukeUI */,
 				E97562DD2B699B2400787E14 /* Defaults */,
-				E90F315F2BC48ADD00884EA5 /* Analytics */,
 				0186D9492E674B47001387F1 /* FocusOnAppear */,
-				01A662752F27241E00C7524D /* Glur */,
 				ED069F1E2F58A2B000869F64 /* DropKit */,
 				0131617F2FC54BF500249DC4 /* NewsletterKit */,
 				CA7C00010000000000000003 /* WatchSync */,
@@ -1081,9 +1056,7 @@
 				E9F600C12B4E5E470039AAA6 /* Nuke */,
 				E9F600C32B4E5E470039AAA6 /* NukeUI */,
 				E93AFA762B587F1800B20AC4 /* Defaults */,
-				E90F315D2BC4829500884EA5 /* Analytics */,
 				01E3D31C2E6FD74F005E769A /* FocusOnAppear */,
-				01A662732F27240E00C7524D /* Glur */,
 				ED069F1C2F58A2AA00869F64 /* DropKit */,
 				01FA14662FC546A800B95FA3 /* NewsletterKit */,
 				CA7C00010000000000000002 /* WatchSync */,
@@ -1171,10 +1144,8 @@
 				E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */,
 				018567D72D12152D00AF14EB /* XCLocalSwiftPackageReference "Packages/SonosKit" */,
 				018567DC2D12155600AF14EB /* XCLocalSwiftPackageReference "Packages/VibesDS" */,
-				01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				01F0AD6D2D238DDB00885D20 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 				0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */,
-				01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */,
 				01FA14652FC546A800B95FA3 /* XCLocalSwiftPackageReference "Packages/NewsletterKit" */,
 				CA7C00010000000000000001 /* XCLocalSwiftPackageReference "Packages/WatchSync" */,
 			);
@@ -1430,7 +1401,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSBackgroundOnly = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1472,7 +1443,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSBackgroundOnly = YES;
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1516,8 +1487,8 @@
 				INFOPLIST_FILE = TV/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Cue;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue finds your Sonos speakers, and reaches Plex, Subsonic and Audiobookshelf servers on this network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1571,8 +1542,8 @@
 				INFOPLIST_FILE = TV/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Cue;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue finds your Sonos speakers, and reaches Plex, Subsonic and Audiobookshelf servers on this network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1663,14 +1634,14 @@
 				CODE_SIGN_ENTITLEMENTS = CueAction/CueAction.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CueAction/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Listen with Cue";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1679,7 +1650,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).CueAction";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = NO;
@@ -1703,14 +1674,14 @@
 				CODE_SIGN_ENTITLEMENTS = CueAction/CueAction.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CueAction/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Listen with Cue";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1719,7 +1690,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).CueAction";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = NO;
@@ -1754,9 +1725,9 @@
 				INFOPLIST_FILE = Cue/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Live Transcription writes out what is said in the music and radio playing on this device, on the device itself.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue finds your Sonos speakers, and reaches Plex, Subsonic and Audiobookshelf servers on this network.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Read Along and Live Transcription write out what is said in the books and radio playing, on this device itself.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1808,9 +1779,9 @@
 				INFOPLIST_FILE = Cue/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Live Transcription writes out what is said in the music and radio playing on this device, on the device itself.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue finds your Sonos speakers, and reaches Plex, Subsonic and Audiobookshelf servers on this network.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Read Along and Live Transcription write out what is said in the books and radio playing, on this device itself.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1850,14 +1821,14 @@
 				CODE_SIGN_ENTITLEMENTS = PlayAction/PlayAction.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PlayAction/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Play on Cue";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1866,7 +1837,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).QueueAction";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = NO;
@@ -1890,14 +1861,14 @@
 				CODE_SIGN_ENTITLEMENTS = PlayAction/PlayAction.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PlayAction/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Play on Cue";
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1906,7 +1877,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).QueueAction";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = NO;
@@ -1957,9 +1928,9 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Live Transcription writes out what is said in the music and radio playing on this device, on the device itself.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue finds your Sonos speakers, and reaches Plex, Subsonic and Audiobookshelf servers on this network.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Read Along and Live Transcription write out what is said in the books and radio playing, on this device itself.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -2027,9 +1998,9 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Live Transcription writes out what is said in the music and radio playing on this device, on the device itself.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue finds your Sonos speakers, and reaches Plex, Subsonic and Audiobookshelf servers on this network.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Read Along and Live Transcription write out what is said in the books and radio playing, on this device itself.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -2384,9 +2355,9 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Live Transcription writes out what is said in the music and radio playing on this device, on the device itself.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue finds your Sonos speakers, and reaches Plex, Subsonic and Audiobookshelf servers on this network.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Read Along and Live Transcription write out what is said in the books and radio playing, on this device itself.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -2438,9 +2409,9 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Live Transcription writes out what is said in the music and radio playing on this device, on the device itself.";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Cue plays your Apple Music library, the catalog and Apple Music radio, on this device and on your Sonos speakers.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Cue finds your Sonos speakers, and reaches Plex, Subsonic and Audiobookshelf servers on this network.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Read Along and Live Transcription write out what is said in the books and radio playing, on this device itself.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -2687,28 +2658,12 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/onevcat/Kingfisher";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 8.1.3;
-			};
-		};
 		0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/naan/FocusOnAppear";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 1.2.0;
-			};
-		};
-		01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/joogps/Glur";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.1.0;
 			};
 		};
 		01CB33F42DC4F851006406B6 /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
@@ -2859,15 +2814,10 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = NewsletterKit;
 		};
-		017297642DD3C708003E7FFB /* Kingfisher */ = {
+		0186C9662DD82EC2009F8A66 /* NukeUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */;
-			productName = Kingfisher;
-		};
-		0186C9662DD82EC2009F8A66 /* Kingfisher */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */;
-			productName = Kingfisher;
+			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
 		};
 		0186D9492E674B47001387F1 /* FocusOnAppear */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -2878,26 +2828,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */;
 			productName = FocusOnAppear;
-		};
-		01A1F8872F61075600C0D52B /* Glur */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */;
-			productName = Glur;
-		};
-		01A662732F27240E00C7524D /* Glur */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */;
-			productName = Glur;
-		};
-		01A662752F27241E00C7524D /* Glur */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */;
-			productName = Glur;
-		};
-		01AB21432DD0F9B1004BFEE4 /* Kingfisher */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */;
-			productName = Kingfisher;
 		};
 		01CB33F22DC4F851006406B6 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -2925,10 +2855,6 @@
 		01CB33FE2DC4F851006406B6 /* Defaults */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Defaults;
-		};
-		01CB33FF2DC4F851006406B6 /* Analytics */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Analytics;
 		};
 		01CB34282DC4FE57006406B6 /* VibesDS */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -2998,14 +2924,6 @@
 		CA7C00010000000000000031 /* WatchSync */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WatchSync;
-		};
-		E90F315D2BC4829500884EA5 /* Analytics */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Analytics;
-		};
-		E90F315F2BC48ADD00884EA5 /* Analytics */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Analytics;
 		};
 		E91976DC2C0A1B1E000FA449 /* CloudStorage */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -3149,10 +3067,6 @@
 		E9BDE57F29E33B0700D230A8 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
-		};
-		E9D49E4D2BC9D21B0084185E /* Analytics */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Analytics;
 		};
 		E9F600C12B4E5E470039AAA6 /* Nuke */ = {
 			isa = XCSwiftPackageProductDependency;

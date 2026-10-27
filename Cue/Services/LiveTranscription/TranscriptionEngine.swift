@@ -114,7 +114,7 @@ enum TranscriptionEngine {
 /// Resamples the player's audio into the analyzer's format. The source format
 /// can change between songs — a 44.1 kHz file after a 48 kHz one — so the
 /// converter is rebuilt whenever it does.
-private final class BufferConverter {
+final class BufferConverter {
     private let target: AVAudioFormat
     private var converter: AVAudioConverter?
 
@@ -128,6 +128,9 @@ private final class BufferConverter {
             converter = AVAudioConverter(from: buffer.format, to: target)
             // Chunks arrive back to back; priming would put a gap between each.
             converter?.primeMethod = .none
+            // Stereo to the model's mono: both channels mixed, not the left
+            // kept. A book's stereo MP3 came out garbled with one dropped.
+            converter?.downmix = true
         }
         guard let converter else { return nil }
 

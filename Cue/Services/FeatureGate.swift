@@ -1,4 +1,3 @@
-import Analytics
 import Foundation
 import Observation
 import SonosKit
@@ -26,11 +25,23 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
     case onDevicePlayback
     /// Keeping Plex, Subsonic and iCloud Drive tracks on this device.
     case downloads
+    /// Keeping more than `DownloadManager.freeSongLimit` songs at once,
+    /// on this device and the watch together.
+    case unlimitedDownloads
+    /// Keeping a book on this device or the watch.
+    case bookDownloads
+    /// A book's words on screen as it plays, transcribed on the device.
+    case bookTranscript
     /// Cue on a car's screen: browsing and playing from CarPlay.
     case carPlay
     case lastFM
 
     var id: String { rawValue }
+
+    /// What keeping `item` needs: a book's own gate, else downloads.
+    static func download(of item: PlayableContent) -> GatedFeature {
+        item.content.type == .audiobook ? .bookDownloads : .downloads
+    }
 
     var title: String {
         switch self {
@@ -42,6 +53,9 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
         case .files: "Files"
         case .onDevicePlayback: "Play on This Device"
         case .downloads: "Downloads"
+        case .unlimitedDownloads: "Unlimited Downloads"
+        case .bookDownloads: "Book Downloads"
+        case .bookTranscript: "Book Transcripts"
         case .carPlay: "CarPlay"
         case .lastFM: "Last.fm"
         }
@@ -49,7 +63,7 @@ enum GatedFeature: String, CaseIterable, Identifiable, Sendable {
 
     var requirement: FeatureGate.Requirement {
         switch self {
-        case .allRooms, .scenes, .liveActivities, .lockScreenNowPlaying, .hardwareVolumeButtons:
+        case .allRooms, .scenes, .liveActivities, .lockScreenNowPlaying, .hardwareVolumeButtons, .unlimitedDownloads, .bookDownloads, .bookTranscript:
             .superTier
         case .files, .onDevicePlayback, .downloads, .carPlay:
             .free
@@ -94,24 +108,55 @@ final class FeatureGate {
     private(set) var overrides: [GatedFeature: Bool] = [:]
     private static let overridesKey = "dance.cue.featureOverrides"
 
+    /// Debug-only: read as the free tier whatever the subscription says.
+    /// A Debug build on a device is granted Super (its receipt reads as
+    /// TestFlight's), so without this the free tier can't be seen on the
+    /// phone. Also on at launch with `-dance.cue.actsAsFreeTier YES`, or the
+    /// `Cue [Free]` scheme's `SUBSCRIBED=false`. The Shortcuts actions read
+    /// the App Group's answer, not this.
+    private(set) var actsAsFreeTier = false
+    private static let actsAsFreeTierKey = "dance.cue.actsAsFreeTier"
+
     init(subscription: SubscriptionService = .shared, flags: RemoteFeatureFlags = .shared) {
         self.subscription = subscription
         self.flags = flags
         #if DEBUG
         overrides = Self.loadOverrides()
+        actsAsFreeTier = UserDefaults.standard.bool(forKey: Self.actsAsFreeTierKey)
+            || ProcessInfo.processInfo.environment["SUBSCRIBED"] == "false"
         #endif
     }
 
     // MARK: - Reading
 
+    /// Whether this device has Cue Super. Anything that asks about Super
+    /// rather than about a feature (the Settings card, `cue://subscribe`)
+    /// reads this, so the debug free tier reaches it too.
+    var hasSuper: Bool {
+        #if DEBUG
+        if actsAsFreeTier { return false }
+        #endif
+        return subscription.subscription.isActive
+    }
+
     func availability(of feature: GatedFeature) -> Availability {
         #if DEBUG
-        if let forced = overrides[feature] {
+        if let forced = overrides[feature], !yieldsToFreeTier(feature, forced: forced) {
             return forced ? .available : .needsSuper
         }
         #endif
         return availability(of: feature.requirement)
     }
+
+    #if DEBUG
+    /// Act as Free Tier is the free tier: an override that turns a Super
+    /// feature on gives way to it, so one left from an earlier test can't
+    /// hide the free tier's locks (Every Room on kept every room open).
+    private func yieldsToFreeTier(_ feature: GatedFeature, forced: Bool) -> Bool {
+        guard forced, actsAsFreeTier, case .superTier = feature.requirement else { return false }
+        return true
+    }
+    #endif
 
     func isAvailable(_ feature: GatedFeature) -> Bool {
         availability(of: feature) == .available
@@ -123,14 +168,39 @@ final class FeatureGate {
         availability(of: feature) == .needsSuper
     }
 
-    /// The free tier's one room: the first group in the speaker list.
-    /// Kept here so the speaker list and the mini player agree on it.
-    func isRoomUnlocked(_ group: GroupRoom, in sorted: [GroupRoom]) -> Bool {
+    /// The free tier's room: the first active one by name, which is the
+    /// top speaker row in Play On. The free tier plays there and nowhere
+    /// else: its group is the one group it plays on, and bringing another
+    /// room into it is Super's (`isRoomUnlocked`). A room grouped with it
+    /// elsewhere (the Sonos app) stays, and can leave.
+    /// Read from the rooms rather than the groups' sort, which can put
+    /// whatever is playing first and would move the free group with it.
+    /// `nil` with no rooms known yet.
+    @MainActor
+    var freeRoomID: String? {
+        SonosService.shared.sortedRooms.first { $0.state == .active }?.id
+    }
+
+    /// Whether the free tier may play on and control this group: Super, or
+    /// the group holding `freeRoomID`. With no rooms known there is nothing
+    /// to hold back yet. By coordinator: a group is equal only to itself,
+    /// and a caller may hold an instance a topology refresh has replaced.
+    @MainActor
+    func isGroupUnlocked(_ coordinatorID: String) -> Bool {
         if isAvailable(.allRooms) { return true }
-        // By coordinator: a group is equal only to itself, and a caller
-        // may hold an instance a topology refresh has since replaced.
-        guard let index = sorted.firstIndex(where: { $0.coordinatorID == group.coordinatorID }) else { return false }
-        return index < 1
+        guard let freeRoomID else { return true }
+        let free = SonosService.shared.groups.first { group in group.rooms.contains { $0.id == freeRoomID } }
+        return free?.coordinatorID == coordinatorID
+    }
+
+    /// Whether the free tier may bring this room into the group it plays
+    /// on: Super, or the free room itself. With no rooms known there is
+    /// nothing to hold back yet.
+    @MainActor
+    func isRoomUnlocked(_ roomID: String) -> Bool {
+        if isAvailable(.allRooms) { return true }
+        guard let freeRoomID else { return true }
+        return roomID == freeRoomID
     }
 
     private func availability(of requirement: Requirement) -> Availability {
@@ -138,7 +208,7 @@ final class FeatureGate {
         case .free:
             return .available
         case .superTier:
-            return subscription.subscription.isActive ? .available : .needsSuper
+            return hasSuper ? .available : .needsSuper
         case let .remoteFlag(flag):
             return flags.isEnabled(flag) ? .available : .disabledRemotely
         case let .all(requirements):
@@ -157,23 +227,24 @@ final class FeatureGate {
     /// back; a remotely disabled feature just returns false.
     @MainActor
     @discardableResult
-    func unlock(_ feature: GatedFeature, via router: Router? = nil) -> Bool {
+    func unlock(_ feature: GatedFeature) -> Bool {
         switch availability(of: feature) {
         case .available:
             return true
         case .needsSuper:
-            presentPaywall(via: router ?? Router.main)
+            presentPaywall(PaywallReason(feature: feature))
             return false
         case .disabledRemotely:
             return false
         }
     }
 
+    /// Over whatever is on screen, sheets and the player included
+    /// (`PaywallPresenter`), opening on `reason` when a gate brought it up.
     @MainActor
-    func presentPaywall(via router: Router = .main) {
+    func presentPaywall(_ reason: PaywallReason? = nil) {
         HapticManager.shared.fireHaptic(.buttonPress)
-        Analytics.shared.track(.viewedPaywall)
-        router.fullScreenCover(to: .paywall)
+        PaywallPresenter.present(reason)
     }
 
     // MARK: - Debug overrides
@@ -187,6 +258,11 @@ final class FeatureGate {
     func clearOverrides() {
         overrides = [:]
         Self.saveOverrides(overrides)
+    }
+
+    func setActsAsFreeTier(_ value: Bool) {
+        actsAsFreeTier = value
+        UserDefaults.standard.set(value, forKey: Self.actsAsFreeTierKey)
     }
 
     private static func loadOverrides() -> [GatedFeature: Bool] {

@@ -1,4 +1,3 @@
-import Analytics
 import CloudStorage
 import MusicSearchKit
 import Defaults
@@ -99,6 +98,7 @@ struct LibraryBrowseScreen: View {
                     }
                 }
             }
+            .musicLeftOffRoom()
             .miniPlayerOnScrollHandler()
             .foregroundStyle(.primary)
             .navigationTitle("Music Library")

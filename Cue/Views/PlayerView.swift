@@ -119,10 +119,17 @@ struct PlayerView: View {
         LiveTranscriptionService.shared.isEnabled && canTranscribe
     }
 
+    /// A book is playing: the lyrics button opens its transcript.
+    private var isBookPresented: Bool {
+        AudiobookPlayer.shared.isPlayingBook(on: controller)
+    }
+
     /// Lyrics are on and the song has some, or may: they show while they
-    /// load, and the cover comes back for a song with none.
+    /// load, and the cover comes back for a song with none. For a book, its
+    /// transcript, where the device can transcribe.
     private var showsLyrics: Bool {
         guard showLyrics, !showsTranscription else { return false }
+        if isBookPresented { return true }
         switch LyricsService.shared.state {
         case .loaded, .loading, .failed: return true
         case .none, .unavailable: return false
@@ -239,6 +246,18 @@ struct PlayerView: View {
     /// "Not Playing", the transport greyed out — so the route picker, the
     /// volume and the queue are where they always are, rather than a blank
     /// "Nothing Playing" screen with no way to do anything.
+    /// The song's lyrics, or a book's transcript in their place.
+    @ViewBuilder
+    private func lyricsOrTranscript(fullScreen: Bool) -> some View {
+        if isBookPresented {
+            BookTranscriptView(isFullScreen: fullScreen, onInteraction: fullScreen ? noteLyricsTouch : {})
+        } else if fullScreen {
+            LyricsView(style: .fullScreen, onInteraction: noteLyricsTouch)
+        } else {
+            LyricsView()
+        }
+    }
+
     @ViewBuilder
     private var playerContent: some View {
         if isPhoneLayout {
@@ -258,8 +277,9 @@ struct PlayerView: View {
     /// them: the cover shrinks into the header's thumbnail as the title
     /// lines fade for the header's, the lyrics take the space the cover and
     /// the title lines had, and the controls slide down under them. In lyrics the controls
-    /// go away a few seconds into the song (`lyricsChromeTask`) or with the
-    /// header's Full Screen, and a touch on the lyrics brings them back.
+    /// go away a few seconds into the song (`lyricsChromeTask`; not a book's
+    /// transcript's) or with the header's Full Screen, and a touch on the
+    /// lyrics brings them back.
     @ViewBuilder
     private var phoneContent: some View {
         let isLyrics = isFullScreenLyrics
@@ -292,7 +312,8 @@ struct PlayerView: View {
                     item: controller.nowPlayingDisplay,
                     isFullScreen: lyricsControlsHidden,
                     onToggleFullScreen: toggleLyricsControls,
-                    onShowCover: { showLyrics = false }
+                    onShowCover: { showLyrics = false },
+                    showsTextSettings: isBookPresented
                 )
                 .padding(.top, 4)
                 .transition(.lyricsSwitch)
@@ -305,7 +326,7 @@ struct PlayerView: View {
         .layoutPriority(isLyrics ? 0 : 1)
 
         if isLyrics {
-            LyricsView(style: .fullScreen, onInteraction: noteLyricsTouch)
+            lyricsOrTranscript(fullScreen: true)
                 .frame(maxWidth: 500, maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .onTapGesture { noteLyricsTouch() }
@@ -364,7 +385,7 @@ struct PlayerView: View {
 
     /// When the full-screen lyrics' controls next go away: four seconds
     /// after the last touch while the song plays; never while it's paused,
-    /// or outside full-screen lyrics.
+    /// for a book's transcript, or outside full-screen lyrics.
     private struct LyricsChrome: Equatable {
         let isActive: Bool
         let touchedAt: Date
@@ -377,6 +398,9 @@ struct PlayerView: View {
             }
             return
         }
+        // A book's transcript goes full screen only from the header's Full
+        // Screen: it's read for long stretches, with the controls to hand.
+        guard !isBookPresented else { return }
         try? await Task.sleep(for: .seconds(4))
         guard !Task.isCancelled else { return }
         lyricsControlsHidden = true
@@ -432,7 +456,7 @@ struct PlayerView: View {
         } else if showsLyrics && !isPhoneLayout {
             // A phone's lyrics fill the screen instead (`phoneContent`),
             // with this cover as their thumbnail.
-            LyricsView()
+            lyricsOrTranscript(fullScreen: false)
                 .transition(.opacity)
         } else if let group {
             ArtworkView(group: group, isDraggable: isArtworkDraggable, showBadge: !isFullScreenLyrics, shouldFade: artworkShouldFade)
@@ -1075,6 +1099,10 @@ private struct PlayerScrubber: View {
                 // the player on its source.
                 .disabled(!controller.canScrub)
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { barWidth = $0 }
+                // Its whole height takes a touch first: drawn after it, the
+                // time line's tap (a book's time left) reached into it and
+                // took touches meant for the scrubber.
+                .zIndex(1)
 
                 HStack {
                     let elapsed = Duration.seconds(position)
@@ -1535,15 +1563,28 @@ private struct PlayerBottomToolbarView: View {
     /// The queue toggle with its gauge — the device's or the group's — and
     /// the play mode badge over it. A drop on it plays next wherever the
     /// route points.
+    /// A book's files aren't a queue: for one, it's the chapters sheet the
+    /// chapter line opens, under a bookmark with the chapter's number.
     @ViewBuilder
     private var queueButton: some View {
+        let isBook = AudiobookPlayer.shared.isPlayingBook(on: route.presented)
         let button = Button {
             HapticManager.shared.fireHaptic(.selection)
+            if isBook {
+                router.sheet(to: .audiobookChapters)
+                return
+            }
             withAnimation {
                 showQueue.toggle()
             }
         } label: {
-            PresentedQueueIconView()
+            Group {
+                if isBook {
+                    AudiobookChapterIconView()
+                } else {
+                    PresentedQueueIconView()
+                }
+            }
                 .fontDesign(.rounded)
                 .font(.title3)
                 .foregroundStyle(isHoveringOnQueueList || showQueue ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.primary))
@@ -1556,10 +1597,12 @@ private struct PlayerBottomToolbarView: View {
                     }
                 }
         }
-        .accessibilityLabel("Up Next")
-        .accessibilityAddTraits(showQueue ? .isSelected : [])
+        .accessibilityLabel(isBook ? "Chapters" : "Up Next")
+        .accessibilityAddTraits(showQueue && !isBook ? .isSelected : [])
         .overlay(alignment: .topTrailing) {
-            playModeBadge
+            if !isBook {
+                playModeBadge
+            }
         }
 
         // One button whichever way the route points, so it keeps its place
@@ -1610,6 +1653,29 @@ struct PresentedQueueIconView: View {
     var body: some View {
         let controller = route.presented
         QueueIconView(position: controller.queuePosition, total: controller.queueCount)
+    }
+}
+
+/// A book's in place of the queue gauge: a bookmark, as the chapter rows
+/// have, with the number of the chapter playing in it. Its own view, read
+/// only when the chapter changes.
+struct AudiobookChapterIconView: View {
+    @State private var player = AudiobookPlayer.shared
+
+    var body: some View {
+        Image(systemName: "bookmark")
+            .overlay {
+                if let chapter = player.currentChapter {
+                    // In the bookmark's top, above its notch.
+                    Text("\(chapter.id + 1)")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
+                        .padding(.horizontal, 3)
+                        .offset(y: -2)
+                }
+            }
     }
 }
 

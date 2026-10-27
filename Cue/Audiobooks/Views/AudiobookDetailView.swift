@@ -130,7 +130,9 @@ struct AudiobookDetailView: View {
                                         isDone: isFinished || here.map { chapter.start < $0.start } == true
                                     )
                                         .id(chapter.id)
-                                    if chapter.id != audiobook.chapters.last?.id {
+                                    // None against the listener's chapter,
+                                    // which its fill sets apart.
+                                    if chapter.id != audiobook.chapters.last?.id, chapter.id != here?.id, audiobook.chapters.after(chapter)?.id != here?.id {
                                         Divider()
                                             .padding(.leading, 32)
                                     }
@@ -166,6 +168,8 @@ struct AudiobookDetailView: View {
         // No pull to refresh: it's read afresh each time it opens, and in a
         // sheet (from the player) the pull is the sheet's, to dismiss it.
         .task { await load() }
+        // Who reads a Plex book, from Audible, if it isn't known yet.
+        .onAppear { AudiobookDetails.shared.request([book]) }
     }
 
     // MARK: - Header
@@ -205,7 +209,8 @@ struct AudiobookDetailView: View {
                     .buttonStyle(.plain)
                     .accessibilityHint("Shows their books")
                 }
-                if let narrator = audiobook?.narrator {
+                // Audiobookshelf's, else Audible's for a Plex book.
+                if let narrator = audiobook?.narrator ?? AudiobookDetails.shared.narrator(for: shown) {
                     Text("Narrated by \(narrator)")
                         .font(.footnote)
                         .fontDesign(.rounded)
@@ -345,15 +350,9 @@ struct AudiobookDetailView: View {
     private func chapterRow(_ chapter: AudiobookChapter, in audiobook: Audiobook, isHere: Bool, isDone: Bool) -> some View {
         Button {
             HapticManager.shared.fireHaptic(.selection)
-            Task {
-                if isCurrent {
-                    await player.play(chapter: chapter)
-                } else {
-                    await player.play(audiobook.book, from: chapter.start)
-                }
-            }
+            Task { await player.pick(audiobook.book, at: chapter.start, in: audiobook) }
         } label: {
-            AudiobookChapterRowLabel(chapter: chapter, isHere: isHere, isDone: isDone)
+            AudiobookChapterRowLabel(chapter: chapter, isHere: isHere, isDone: isDone, book: audiobook.book)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isHere ? .isSelected : [])

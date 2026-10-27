@@ -27,8 +27,6 @@ import VibesDS
 /// sheet's pull to dismiss. A tap that lands while the list is still moving
 /// only stops it; it never regroups.
 struct PlayOnSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
     /// Singletons, not the environment: the button that presents this sits in
     /// the tab bar accessory, outside what `withEnvironments()` installs.
     private var sonosService: SonosService { .shared }
@@ -320,15 +318,15 @@ struct PlayOnSheet: View {
     private func select(_ target: PlayDestination) {
         guard target != route.destination else { return }
         if target == .device, !FeatureGate.shared.isAvailable(.onDevicePlayback) {
-            // The paywall is a full-screen cover off the root, and can't go
-            // up over this one: close it first.
             if FeatureGate.shared.needsSuper(.onDevicePlayback) {
-                dismiss()
-                Task {
-                    try? await Task.sleep(for: .milliseconds(400))
-                    FeatureGate.shared.presentPaywall()
-                }
+                FeatureGate.shared.presentPaywall(PaywallReason(feature: .onDevicePlayback))
             }
+            return
+        }
+        // The free tier plays on one group, the top row's (see
+        // `FeatureGate.isGroupUnlocked`); the others are Super's.
+        if let id = target.groupID, !FeatureGate.shared.isGroupUnlocked(id) {
+            FeatureGate.shared.presentPaywall(PaywallReason(feature: .allRooms))
             return
         }
         HapticManager.shared.fireHaptic(.selection)
@@ -548,14 +546,20 @@ private struct GroupRow: View {
     let listIsSettled: Bool
     let onSelect: (PlayDestination) -> Void
 
+    /// Super's, not the free tier's one group: no volume, and a tap opens
+    /// the paywall.
+    private var isLocked: Bool {
+        !FeatureGate.shared.isGroupUnlocked(group.coordinatorID)
+    }
+
     var body: some View {
         VolumeRouteRow(
             title: group.nameWithCount,
             subtitle: GroupNote.text(for: group) ?? Text(rooms.map(\.name).formatted(.list(type: .and))),
             icon: .speakers(rooms.count),
-            mark: isCurrent ? .checkmark : .empty,
+            mark: isLocked ? .locked : isCurrent ? .checkmark : .empty,
             // A fixed-output coordinator ignores volume: nothing to drag.
-            level: group.coordinatorRoom.isOutputFixed ? nil : level / 100,
+            level: isLocked || group.coordinatorRoom.isOutputFixed ? nil : level / 100,
             isMuted: group.isMuted || rooms.allSatisfy(\.isMuted),
             listIsSettled: listIsSettled,
             onTap: { onSelect(.group(group.coordinatorID)) },
@@ -602,22 +606,25 @@ private struct RoomRow: View {
             subtitle: note,
             icon: .symbol(room.isSoundbar ? "tv.and.hifispeaker.fill" : "hifispeaker.fill"),
             mark: mark,
-            level: room.volume / 100,
+            level: isLocked ? nil : room.volume / 100,
             isMuted: room.isMuted,
             listIsSettled: listIsSettled,
             onTap: tap,
             onLevel: { volumes.set(room, to: $0 * 100) }
         )
         .contextMenu {
-            Button {
-                HapticManager.shared.fireHaptic(.selection)
-                let mute = !room.isMuted
-                Task { await sonosService.setRoomMute(room: room, mute: mute) }
-            } label: {
-                Label(
-                    room.isMuted ? "Unmute" : "Mute",
-                    systemImage: room.isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill"
-                )
+            // A locked room's controls are Super's, its mute with its volume.
+            if !isLocked {
+                Button {
+                    HapticManager.shared.fireHaptic(.selection)
+                    let mute = !room.isMuted
+                    Task { await sonosService.setRoomMute(room: room, mute: mute) }
+                } label: {
+                    Label(
+                        room.isMuted ? "Unmute" : "Mute",
+                        systemImage: room.isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill"
+                    )
+                }
             }
             if let membership, membership.isMember(room), membership.group.rooms.count > 1 {
                 Button {
@@ -630,8 +637,21 @@ private struct RoomRow: View {
     }
 
     private var mark: VolumeRouteRow.Mark {
+        if isLocked { return .locked }
         guard let membership else { return .empty }
         return membership.isMember(room) ? .checkedCircle : .circle
+    }
+
+    /// Without Super: on this device, a room whose group isn't the free
+    /// tier's one; on a speaker, a room outside the group that isn't the
+    /// free room, since joining it is Super's. No volume, and a tap opens
+    /// the paywall. A room already in the group isn't locked: it can leave.
+    private var isLocked: Bool {
+        if let membership {
+            return membership.needsSuper(toJoin: room)
+        }
+        guard let group = ownGroup else { return false }
+        return !FeatureGate.shared.isGroupUnlocked(group.coordinatorID)
     }
 
     /// The group the room is in now, which may not be the one playback is on.
@@ -790,6 +810,8 @@ struct VolumeRouteRow: View {
         case checkmark
         /// A room that can join the group, and one that's in it.
         case circle, checkedCircle
+        /// A route Cue Super unlocks.
+        case locked
     }
 
     let title: String
@@ -978,6 +1000,10 @@ struct VolumeRouteRow: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.title3)
                     .foregroundStyle(.tint)
+            case .locked:
+                Image(systemName: "lock.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -989,6 +1015,9 @@ struct VolumeRouteRow: View {
         }
         if isMuted {
             parts.append(String(localized: "Muted"))
+        }
+        if mark == .locked {
+            parts.append(String(localized: "Requires Cue Super"))
         }
         return parts.joined(separator: ", ")
     }

@@ -47,6 +47,11 @@ protocol PlaybackController: AnyObject {
     /// Seconds into the song at `date`, on the running clock (see
     /// `Docs/PlaybackProgress.md`).
     func position(at date: Date) -> TimeInterval
+    /// Seconds into the song at `date`, read off the player where it can be:
+    /// for what keeps time with the words heard (a book's transcript), which
+    /// the running clock, corrected only once it's half a second out, isn't
+    /// close enough for. The running clock where there's nothing closer.
+    func exactPosition(at date: Date) -> TimeInterval
     var audioQuality: SonosTrackQuality? { get }
 
     // MARK: Transport
@@ -95,6 +100,10 @@ extension PlaybackController {
     func position() -> TimeInterval {
         position(at: .now)
     }
+
+    func exactPosition(at date: Date) -> TimeInterval {
+        position(at: date)
+    }
 }
 
 // MARK: - This device
@@ -109,6 +118,10 @@ extension LocalPlaybackService: PlaybackController {
 
     func position(at date: Date) -> TimeInterval {
         estimatedProgress(at: date)
+    }
+
+    func exactPosition(at date: Date) -> TimeInterval {
+        exactProgress(at: date)
     }
 
     var showsPrevious: Bool { !isPlayingStation }

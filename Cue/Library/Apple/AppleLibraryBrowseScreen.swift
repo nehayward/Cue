@@ -1,4 +1,3 @@
-import Analytics
 import CloudStorage
 import MusicSearchKit
 import NukeUI
@@ -33,6 +32,7 @@ struct AppleLibraryBrowseScreen: View {
                     sectionView(for: section)
                 }
             }
+            .musicLeftOffRoom()
 #if targetEnvironment(macCatalyst)
             .listStyle(.plain)
 #endif

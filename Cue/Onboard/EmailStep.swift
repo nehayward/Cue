@@ -1,4 +1,3 @@
-import Analytics
 import NewsletterKit
 import SwiftUI
 
@@ -112,7 +111,6 @@ struct EmailStep: View {
                 )
 
                 Button {
-                    Analytics.shared.track(OnboardingEvent.emailSkipped)
                     advance()
                 } label: {
                     Text("Skip")
@@ -162,15 +160,6 @@ struct EmailStep: View {
                     case .subscribed:        state = .subscribed
                     case .alreadySubscribed: state = .alreadySubscribed
                     }
-                    // Track both new and existing-subscriber returns — both
-                    // are successful submissions from the user's perspective
-                    // (they typed an email, the server accepted it). The
-                    // `source` property lets us split onboarding vs.
-                    // preferences signups in the dashboard.
-                    Analytics.shared.track(
-                        OnboardingEvent.emailSubscribed,
-                        with: ["source": source]
-                    )
                 }
                 // Hold the confirmation pill a beat so the user reads it,
                 // then advance to the next step (or dismiss if we're in the

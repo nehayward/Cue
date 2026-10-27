@@ -9,7 +9,7 @@ import Security
 public final class SubscriptionService {
     public static var shared = SubscriptionService()
 
-    private static let apiKey = "appl_ukLcssJkMdgCvraYWRsnWlqegvP"
+    private static let apiKey = "appl_TSLqKDWEbyorETQwHuhHGoaYhCS"
 
     private var subscriptionTask: Task<Void, Never>?
     public var subscription: Subscription = .notActive

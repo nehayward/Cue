@@ -15,6 +15,8 @@ public enum RouterDestination: Hashable, Identifiable {
     case artistDetail(content: PlayableContent, group: GroupRoom?)
     /// A book's page: where it was left, its chapters, Resume.
     case audiobookDetail(content: PlayableContent)
+    /// A series' page: its books in order, split by who reads them.
+    case audiobookSeries(name: String, books: [PlayableContent])
     case alarms
     case addAlarm(group: GroupRoom? = nil)
     case editAlarm(alarm: Alarm)
@@ -46,10 +48,13 @@ public enum RouterDestination: Hashable, Identifiable {
     /// reached from the Radio tab's links. Pages link on to more pages, so
     /// this pushes itself.
     case tuneInBrowse(title: String, url: URL)
-    /// The Radio tab's stations on a map, full screen. `zoomSource` is the
-    /// tile it was opened from, when it was, as for `mediaDetail`.
-    case radioMap(zoomSource: ZoomTransitionSource? = nil)
+    case plexCollections
     case connectByIP
+    /// One of Settings' own pages. Pushed by value like everything else on
+    /// Settings' stack: pushed as a view, its value links (Downloaded in
+    /// Music, Sonos ▸ Connectivity) changed the path and SwiftUI dropped
+    /// the page, jumping back past it.
+    case settingsPage(SettingsPage)
 
     public var id: String {
         switch self {
@@ -65,6 +70,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return content.id
         case let .audiobookDetail(content):
             return "audiobook.\(content.id)"
+        case let .audiobookSeries(name, _):
+            return "audiobookSeries.\(name)"
         case .createScene:
             return "scene"
         case .alarms:
@@ -107,10 +114,12 @@ public enum RouterDestination: Hashable, Identifiable {
             return item.id
         case let .tuneInBrowse(_, url):
             return "tuneInBrowse:\(url.absoluteString)"
-        case .radioMap:
-            return "radioMap"
+        case .plexCollections:
+            return "plexCollections"
         case .connectByIP:
             return "connectByIP"
+        case let .settingsPage(page):
+            return "settings.\(page)"
         }
     }
 
@@ -130,6 +139,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return content1 == content2 && group1 == group2
         case let (.audiobookDetail(content1), .audiobookDetail(content2)):
             return content1 == content2
+        case let (.audiobookSeries(name1, books1), .audiobookSeries(name2, books2)):
+            return name1 == name2 && books1 == books2
         case (.alarms, .alarms):
             return true
         case let (.addAlarm(group1), .addAlarm(group2)):
@@ -150,8 +161,6 @@ public enum RouterDestination: Hashable, Identifiable {
             return folderID1 == folderID2 && title1 == title2
         case let (.tuneInBrowse(_, url1), .tuneInBrowse(_, url2)):
             return url1 == url2
-        case (.radioMap, .radioMap):
-            return true
         case let (.playableGridScreen(_, items1, _, _), .playableGridScreen(_, items2, _, _)):
             return items1.wrappedValue == items2.wrappedValue
         case (.fullPlayHistoryList, .fullPlayHistoryList):
@@ -168,6 +177,10 @@ public enum RouterDestination: Hashable, Identifiable {
             return true
         case (.genreList, .genreList):
             return true
+        case (.plexCollections, .plexCollections):
+            return true
+        case let (.settingsPage(page1), .settingsPage(page2)):
+            return page1 == page2
         default:
             return false
         }
@@ -191,6 +204,10 @@ public enum RouterDestination: Hashable, Identifiable {
         case let .audiobookDetail(content):
             hasher.combine("audiobookDetail")
             hasher.combine(content)
+        case let .audiobookSeries(name, books):
+            hasher.combine("audiobookSeries")
+            hasher.combine(name)
+            hasher.combine(books)
         case .createScene:
             hasher.combine("scene")
         case .alarms:
@@ -238,10 +255,20 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine(title)
         case let .tuneInBrowse(_, url):
             hasher.combine(url)
-        case .radioMap:
-            hasher.combine("radioMap")
+        case .plexCollections:
+            hasher.combine("plexCollections")
         case .connectByIP:
             hasher.combine("connectByIP")
+        case let .settingsPage(page):
+            hasher.combine("settingsPage")
+            hasher.combine(page)
         }
     }
+}
+
+/// Settings' own pages (`RouterDestination.settingsPage`).
+public enum SettingsPage: Hashable, Sendable {
+    case playback, sonos, appearance, about
+    /// The download manager, titled Storage as Settings opens it.
+    case storage
 }

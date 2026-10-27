@@ -5,7 +5,7 @@ export const site = {
 	name: 'Cue',
 	origin: 'https://cue.dance',
 	description:
-		'A music player for iPhone that plays Apple Music, Plex, Subsonic, radio and your own files — on your device, or on any Sonos speaker.',
+		'A music and audiobook player for iPhone that plays Apple Music, Plex, Subsonic, Audiobookshelf, radio and your own files, and hands your music to any Sonos speaker.',
 	email: 'hi@cue.dance',
 	author: 'Nick Hayward',
 
@@ -16,6 +16,12 @@ export const site = {
 	// call to action reads "Coming soon to the App Store" instead of linking.
 	appStoreId: null,
 
+	// The public beta's TestFlight invite (the "Beta (Public)" group), where
+	// testflight.cue.dance sends everyone. The beta's page, /beta, is
+	// unlisted: nothing else on the site links to it or names the beta.
+	testFlight: 'https://testflight.apple.com/join/6B7QHpsd',
+	testFlightHost: 'testflight.cue.dance',
+
 };
 
 export const appStoreUrl = site.appStoreId ? `https://apps.apple.com/app/id${site.appStoreId}` : null;
@@ -23,6 +29,7 @@ export const appStoreUrl = site.appStoreId ? `https://apps.apple.com/app/id${sit
 // Header and footer links, in order.
 export const nav = [
 	{ href: '/#features', label: 'Features' },
+	{ href: '/audiobooks', label: 'Audiobooks' },
 	{ href: '/self-hosted', label: 'Plex & Navidrome' },
 	{ href: '/releases', label: "What's New" },
 	{ href: '/help', label: 'Help' },
@@ -31,6 +38,7 @@ export const nav = [
 export const footerLinks = [
 	{ href: '/help', label: 'Help' },
 	{ href: '/releases', label: 'Release Notes' },
+	{ href: '/audiobooks', label: 'Audiobooks' },
 	{ href: '/self-hosted', label: 'Plex & Navidrome' },
 	{ href: '/press', label: 'Press' },
 	{ href: '/privacy', label: 'Privacy' },
