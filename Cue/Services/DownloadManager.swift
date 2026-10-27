@@ -300,15 +300,20 @@ final class DownloadManager {
 
     // MARK: - Music here
 
-    /// The songs here and coming down at a glance, for what shows only
-    /// that: the Downloads tab, its badge and the on-device library's
-    /// lists. `items` changes several times a second while songs come
-    /// down; this changes only when one is queued, lands, stops or goes.
+    /// The songs and books here and coming down at a glance, for what
+    /// shows only that: the Downloads tab, its badge and the on-device
+    /// library's lists. `items` changes several times a second while songs
+    /// come down; this changes only when one is queued, lands, stops or
+    /// goes.
     struct MusicSummary: Equatable {
         /// Songs on the device.
         var downloaded = 0
         /// Songs queued, coming down, or waiting for a network they may use.
         var remaining = 0
+        /// Books downloaded or on their way.
+        var books = 0
+        /// Books with a file queued, coming down, or waiting for a network.
+        var booksRemaining = 0
         /// Every song in the run coming down now, landed or not: a run
         /// starts when a song is queued with none coming down and ends
         /// when the last lands. Zero between runs.
@@ -317,7 +322,10 @@ final class DownloadManager {
         /// them reads them again even when their count doesn't.
         var revision = 0
 
-        var hasSongs: Bool { downloaded + remaining > 0 }
+        var hasDownloads: Bool { downloaded + remaining + books > 0 }
+        /// Songs and books still to come, a book counting once: the tab's
+        /// badge.
+        var remainingDownloads: Int { remaining + booksRemaining }
         /// How many of the run have landed (or stopped, or gone).
         var runSettled: Int { runTotal - remaining }
     }
@@ -347,6 +355,11 @@ final class DownloadManager {
             summary.runTotal = max(musicSummary.runTotal, musicSummary.runSettled + remaining)
         }
         summary.remaining = remaining
+        let books = containers.values.filter { $0.type == .audiobook }
+        summary.books = books.count
+        summary.booksRemaining = books.filter { book in
+            book.trackKeys.contains { items[$0]?.isActive == true }
+        }.count
         if summary != musicSummary {
             musicSummary = summary
         }

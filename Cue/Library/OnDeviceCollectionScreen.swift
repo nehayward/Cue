@@ -3,11 +3,12 @@ import NukeUI
 import SonosKit
 import SwiftUI
 
-/// The on-device library's Albums or Artists page: what's here, grouped,
-/// with a local search and sort. A row opens the songs of that album or
-/// artist that are on the device — no server is asked — with a Play All
-/// that queues just those. Narrowed to one provider's songs from its
-/// Downloaded page; everything for Offline Mode.
+/// The on-device library's Albums, Artists or Playlists page: what's
+/// here, grouped, with a local search and sort. A row opens the songs of
+/// that album, artist or playlist that are on the device — no server is
+/// asked — with a Play All that queues just those. Everything in the
+/// Downloads tab and Offline Mode; one provider's songs from Settings ▸
+/// Storage.
 struct OnDeviceCollectionScreen: View {
     let collection: OnDeviceCollection
     var service: MusicService? = nil
@@ -16,8 +17,17 @@ struct OnDeviceCollectionScreen: View {
     @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
     @State private var searchText = ""
-    @State private var sort: OnDeviceLibrary.GroupSort = .title
-    @State private var isDescending = false
+    /// Kept per page, as the library's other lists keep theirs.
+    @AppStorage private var sort: OnDeviceLibrary.GroupSort
+    @AppStorage private var isDescending: Bool
+
+    init(collection: OnDeviceCollection, service: MusicService? = nil) {
+        self.collection = collection
+        self.service = service
+        let key = "onDevice.\(collection.title.lowercased()).\(service?.sonosRawValue ?? "all")"
+        _sort = AppStorage(wrappedValue: .title, "\(key).sort")
+        _isDescending = AppStorage(wrappedValue: false, "\(key).descending")
+    }
 
     var body: some View {
         // Read here so a download finishing or an index rebuilding re-runs
@@ -35,6 +45,9 @@ struct OnDeviceCollectionScreen: View {
                 }
             }
         }
+        // A list of its own for each order, so a new sort lays the rows
+        // out afresh rather than relying on the list to move them.
+        .id("\(sort.rawValue).\(isDescending)")
         .listStyle(.plain)
         .overlay {
             if groups.isEmpty {
@@ -62,9 +75,7 @@ struct OnDeviceCollectionScreen: View {
                     VStack(spacing: 0) {
                         Text(collection.title)
                             .font(.headline)
-                        Text(groups.count == 1
-                             ? (collection == .albums ? "1 album" : "1 artist")
-                             : "\(groups.count.formatted()) \(collection.title.lowercased())")
+                        Text(collection.count(groups.count))
                             .font(.caption2)
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
@@ -137,7 +148,7 @@ struct OnDeviceGroupRow: View {
 
             Spacer(minLength: 0)
 
-            if collection == .albums {
+            if collection != .artists {
                 Text(group.trackCount == 1 ? "1 song" : "\(group.trackCount) songs")
                     .font(.caption)
                     .foregroundStyle(.secondary)

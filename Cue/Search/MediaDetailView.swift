@@ -76,11 +76,11 @@ struct MediaDetailView: View {
         playableContent.isReorderablePlaylist && serviceEditable
     }
 
-    /// A downloaded album from the on-device library (`OnDeviceLibrary`):
-    /// its songs are the ones here, read from the device, so the page opens
-    /// with no network and keeps up as downloads come and go. It has no
-    /// server's album behind it to download, open a menu on, or go to the
-    /// artist of.
+    /// A downloaded album or playlist from the on-device library
+    /// (`OnDeviceLibrary`): its songs are the ones here, read from the
+    /// device, so the page opens with no network and keeps up as downloads
+    /// come and go. It has no server's album or playlist behind it to
+    /// download, open a menu on, edit, or go to the artist of.
     private var isOnDevice: Bool {
         OnDeviceLibrary.isContainer(playableContent)
     }
@@ -89,7 +89,7 @@ struct MediaDetailView: View {
     /// says how many there are, so every page can be loaded and the songs
     /// sorted here.
     private var sortsSongs: Bool {
-        playableContent.content.service == .plex && playableContent.content.type == .playlist
+        playableContent.content.service == .plex && playableContent.content.type == .playlist && !isOnDevice
     }
 
     /// One row of the song list: the song, where it sits in the playlist
@@ -144,7 +144,7 @@ struct MediaDetailView: View {
                                         index: row.number,
                                         // Only some of a downloaded album may be
                                         // here: each shows its place on the album.
-                                        number: isOnDevice ? item.metadata?.position : nil,
+                                        number: isOnDevice && playableContent.content.type == .album ? item.metadata?.position : nil,
                                         dismissOnComplete: true,
                                         total: totalSongs ?? tracks.count,
                                         onRemoveFromPlaylist: isEditablePlaylist ? { removeTrack(at: index) } : nil,
@@ -241,7 +241,7 @@ struct MediaDetailView: View {
             PlaylistUndoMenuBridge.shared.editor = editor
             // Resolve edit permission independently so the Edit affordance isn't gated on track
             // loading (instant for Sonos, an ownership lookup for streaming).
-            Task { serviceEditable = await confirmServiceEditable() }
+            Task { serviceEditable = isOnDevice ? false : await confirmServiceEditable() }
             await updateTracks(offset: loadedItemCount)
             restoreSongSort()
             if songSort != .playlistOrder {

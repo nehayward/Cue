@@ -27,7 +27,8 @@ struct DownloadedScreen: View {
         let _ = downloads.musicSummary
         let _ = apple.version
         let _ = files.indexVersion
-        let isEmpty = OnDeviceLibrary.isEmpty(in: service)
+        // The tab lists the books downloaded too.
+        let isEmpty = OnDeviceLibrary.isEmpty(in: service) && (service != nil || downloads.musicSummary.books == 0)
 
         List {
             // In the tab, what's coming down leads.
@@ -74,7 +75,7 @@ struct DownloadedScreen: View {
         Section {
             NavigationLink(value: RouterDestination.downloads) {
                 Label {
-                    if downloads.musicSummary.remaining > 0 {
+                    if downloads.musicSummary.remainingDownloads > 0 {
                         DownloadingProgress(summary: downloads.musicSummary)
                     } else {
                         VStack(alignment: .leading, spacing: 2) {
@@ -86,15 +87,17 @@ struct DownloadedScreen: View {
                     }
                 } icon: {
                     Image(systemName: "arrow.down.circle.fill")
+                        .foregroundStyle(.primary)
                 }
             }
         }
     }
 }
 
-/// How far the songs coming down have got: the run's count, and a bar
-/// that moves with the bytes. Its own view, the one that reads every byte
-/// of progress, so only this row redraws as they arrive.
+/// How far the songs and books coming down have got: the run's songs and
+/// the books, and a bar that moves with the bytes. Its own view, the one
+/// that reads every byte of progress, so only this row redraws as they
+/// arrive.
 private struct DownloadingProgress: View {
     let summary: DownloadManager.MusicSummary
 
@@ -105,21 +108,48 @@ private struct DownloadingProgress: View {
             Text("Downloading")
             ProgressView(value: fraction)
                 .progressViewStyle(.linear)
-            Text("\(summary.runSettled) of \(summary.runTotal == 1 ? "1 song" : "\(summary.runTotal) songs")")
+            Text(detail)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
     }
 
-    /// The songs landed, and the part of each still coming that has.
+    /// "9 of 12 songs", and the books, each counting once.
+    private var detail: String {
+        var parts: [String] = []
+        if summary.runTotal > 0 {
+            parts.append("\(summary.runSettled) of \(summary.runTotal == 1 ? "1 song" : "\(summary.runTotal) songs")")
+        }
+        if summary.booksRemaining > 0 {
+            parts.append(summary.booksRemaining == 1 ? "1 book" : "\(summary.booksRemaining) books")
+        }
+        return parts.joined(separator: " • ")
+    }
+
+    /// The songs landed and the part of each still coming that has, and
+    /// each book coming down by the share of its files here, a book
+    /// weighing as one song.
     private var fraction: Double {
-        guard summary.runTotal > 0 else { return 0 }
-        let partial = downloads.items.values.reduce(0.0) { sum, item in
+        let items = downloads.items
+        let songsPartial = items.values.reduce(0.0) { sum, item in
             guard item.isBookFile != true, item.state == .downloading else { return sum }
             return sum + item.progress
         }
-        return min(1, (Double(summary.runSettled) + partial) / Double(summary.runTotal))
+        var books = 0
+        var booksDone = 0.0
+        for book in downloads.containers.values where book.type == .audiobook {
+            let files = book.trackKeys.compactMap { items[$0] }
+            guard !files.isEmpty, files.contains(where: \.isActive) else { continue }
+            books += 1
+            let here = files.reduce(0.0) { sum, file in
+                sum + (file.state == .completed ? 1 : file.state == .downloading ? file.progress : 0)
+            }
+            booksDone += here / Double(files.count)
+        }
+        let total = summary.runTotal + books
+        guard total > 0 else { return 0 }
+        return min(1, (Double(summary.runSettled) + songsPartial + booksDone) / Double(total))
     }
 }
 

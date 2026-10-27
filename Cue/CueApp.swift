@@ -395,13 +395,13 @@ struct CueApp: App {
             || hasFilesBooks
     }
 
-    /// Whether the Downloads tab has anything to show: songs Cue downloaded
-    /// or is downloading, or Apple Music songs the Music app keeps
-    /// downloaded. Read through the download manager's summary, which
+    /// Whether the Downloads tab has anything to show: songs or books Cue
+    /// downloaded or is downloading, or Apple Music songs the Music app
+    /// keeps downloaded. Read through the download manager's summary, which
     /// moves as songs land rather than with every byte of progress, so the
     /// tab bar isn't redrawn while they come down.
     private var showsDownloadsTab: Bool {
-        DownloadManager.shared.musicSummary.hasSongs
+        DownloadManager.shared.musicSummary.hasDownloads
             || (coreFeatures.isEnabled(.apple) && !AppleDownloadsIndex.shared.songs.isEmpty)
     }
 
@@ -439,16 +439,16 @@ struct CueApp: App {
         }
     }
 
-    /// Downloads, last, while there's music here (`showsDownloadsTab`),
-    /// badged with the songs still coming down: the badge goes when the
-    /// last lands.
+    /// Downloads, last, while there's music or a book here
+    /// (`showsDownloadsTab`), badged with the songs and books still coming
+    /// down, a book counting once: the badge goes when the last lands.
     @TabContentBuilder<AppTab>
     private var downloadsTab: some TabContent<AppTab> {
         if showsDownloadsTab {
             Tab("Downloads", systemImage: "arrow.down.circle", value: AppTab.downloads) {
                 Screens.downloads
             }
-            .badge(DownloadManager.shared.musicSummary.remaining)
+            .badge(DownloadManager.shared.musicSummary.remainingDownloads)
         }
     }
 
