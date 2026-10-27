@@ -16,6 +16,16 @@ struct AudiobookAuthor: Hashable {
     /// author are a book's files. Nil for anything else.
     @MainActor
     init?(for content: PlayableContent) {
+        // An artist found in a library kept for books (search) is an author.
+        if content.content.type == .artist, content.content.service == .plex,
+           let section = content.metadata?.librarySectionID,
+           PlexAPI.shared.knownAudiobookLibraryKeys.contains(section) {
+            let name = content.title.trimmingCharacters(in: .whitespaces)
+            guard !name.isEmpty else { return nil }
+            self.name = name
+            plexArtistID = content.plexRatingKey
+            return
+        }
         guard let book = AudiobookPlayer.shared.book(containing: content) else { return nil }
         var name = (book.metadata?.artist ?? book.subtitle).trimmingCharacters(in: .whitespaces)
         // Audiobookshelf joins a book's authors with commas ("Terry

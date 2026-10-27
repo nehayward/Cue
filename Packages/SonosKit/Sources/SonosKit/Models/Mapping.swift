@@ -736,6 +736,27 @@ extension PlexAlbum {
             )
         )
     }
+
+    /// The album as a book, for one found in a library kept for books:
+    /// the author under the title, as `PlexAudiobookItem` maps a shelf's.
+    public var toAudiobookPlayable: PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: artist,
+            thumbnail: imageURL,
+            artwork: imageURL,
+            content: .init(service: .plex, id: id, type: .audiobook, location: nil),
+            metadata: .init(
+                popularity: nil,
+                artist: artist,
+                artistID: parentRatingKey,
+                album: title,
+                albumID: ratingKey,
+                albumYear: bookYear(Int(year)),
+                librarySectionID: librarySectionID.map(String.init)
+            )
+        )
+    }
 }
 
 extension PlexAlbumItem {

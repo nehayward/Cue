@@ -1375,13 +1375,20 @@ public final class MusicSearchService {
     // MARK: - PLex
     private func searchPlex(query: String) async -> [PlayableContent] {
         var playableContent: [PlayableContent] = []
+        async let bookLibraries = plex.audiobookLibraryKeys()
         guard let results = await plex.search(for: query) else { return playableContent }
+
+        // An album in a library kept for books is a book, and its tracks are
+        // the book's files, which the book stands for: a file played as a
+        // song had no place, speed or chapters.
+        let books = await bookLibraries
+        let isInBookLibrary = { (section: Int?) in section.map { books.contains(String($0)) } ?? false }
 
         // Some servers omit detail from hub-search responses — a track's
         // Media element (codec/bitrate) and an album's leafCount — which is
         // exactly what tells duplicate editions apart. Fill the gaps with one
         // batch metadata lookup covering every item that came back without.
-        var tracks = results.tracks
+        var tracks = results.tracks.filter { !isInBookLibrary($0.librarySectionID) }
         var albums = results.album
         let tracksMissingMedia = tracks.filter { $0.audioCodec == nil && $0.bitrate == nil }.map(\.ratingKey)
         let albumsMissingCount = albums.filter { $0.leafCount == nil }.map(\.ratingKey)
@@ -1400,7 +1407,7 @@ public final class MusicSearchService {
         }
 
         playableContent.append(contentsOf: tracks.map(\.toPlayable))
-        playableContent.append(contentsOf: albums.map(\.toPlayable))
+        playableContent.append(contentsOf: albums.map { isInBookLibrary($0.librarySectionID) ? $0.toAudiobookPlayable : $0.toPlayable })
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
         playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
 
@@ -1420,8 +1427,15 @@ public final class MusicSearchService {
     /// "Adele" finds "21"; it answers in one ranked page, so there is no
     /// second one to fetch.
     public func searchPlexAlbums(query: String, offset: Int = 0) async -> [PlayableContent] {
-        guard offset == 0, let results = await plex.search(for: query, limit: 100) else { return [] }
-        return results.album.map(\.toPlayable)
+        guard offset == 0 else { return [] }
+        async let bookLibraries = plex.audiobookLibraryKeys()
+        guard let results = await plex.search(for: query, limit: 100) else { return [] }
+        // The search spans every library; a book library's albums are books,
+        // which the music's Albums list leaves out.
+        let books = await bookLibraries
+        return results.album
+            .filter { album in album.librarySectionID.map { !books.contains(String($0)) } ?? true }
+            .map(\.toPlayable)
     }
 
     public func lookupPlexAlbum(id: String) async -> PlayableContent? {

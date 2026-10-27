@@ -75,6 +75,35 @@ extension PlexAPI {
         await audiobookLibraryChoices().filter(\.isBooks).map(\.section)
     }
 
+    private static func knownAudiobookLibrariesKey(serverID: String) -> String {
+        "com.cue.plexServer.knownAudiobookLibraries.\(serverID)"
+    }
+
+    /// The keys of the libraries whose albums are books, read from the
+    /// server, or as last read when it doesn't answer: search sorts what it
+    /// finds by them, and a server that's slow to list its libraries
+    /// shouldn't turn books back into albums.
+    public func audiobookLibraryKeys() async -> Set<String> {
+        guard let sections = await musicLibraries() else { return knownAudiobookLibraryKeys }
+        let keys = Set(audiobookLibraryChoices(from: sections).filter(\.isBooks).map(\.section.key))
+        knownAudiobookLibraryKeys = keys
+        return keys
+    }
+
+    /// The book libraries' keys as `audiobookLibraryKeys()` last read them,
+    /// for a check that can't wait on the server (an artist page deciding
+    /// whether it's an author's). Kept per server.
+    public internal(set) var knownAudiobookLibraryKeys: Set<String> {
+        get {
+            guard let serverID else { return [] }
+            return Set(UserDefaults.standard.stringArray(forKey: Self.knownAudiobookLibrariesKey(serverID: serverID)) ?? [])
+        }
+        set {
+            guard let serverID else { return }
+            UserDefaults.standard.set(newValue.sorted(), forKey: Self.knownAudiobookLibrariesKey(serverID: serverID))
+        }
+    }
+
     /// Whether the selected server has any books to show: a library kept
     /// for them, or an audiobook genre in the music library.
     public func hasAudiobooks() async -> Bool {
