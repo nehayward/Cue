@@ -14,7 +14,11 @@ routes = [
 ]
 
 # public/ is served straight from Cloudflare's edge (styles, icons);
-# any path without a file there runs the Worker.
+# any path without a file there runs the Worker. Films (/video/*) go through
+# the Worker first, which answers byte ranges: Safari won't play a video from
+# a server that sends the whole file to a Range request, and the edge does.
 [assets]
 directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/video/*"]
 

@@ -14,6 +14,17 @@ export const hero = {
 	],
 };
 
+// The promo film under the hero: Cue's screens on an iPhone in 3D, made by
+// Tools/StoreShots (`preview` with `frame`) and shrunk for the web into
+// public/video/ (720 × 1280, no sound).
+export const promo = {
+	title: 'Cue in 25 seconds.',
+	lede: 'Your music, your rooms, your books and every station, in one player.',
+	video: 'video/cue-promo.mp4',
+	poster: 'video/cue-promo.jpg',
+	label: 'A short film of Cue on iPhone: Now Playing, Up Next, Play On with Sonos rooms, Audiobooks, Radio and Search',
+};
+
 // "One queue, two places" — the idea that makes Cue different.
 export const handoff = {
 	title: 'One queue. Wherever you are.',
@@ -90,6 +101,11 @@ export const beyondPhone = {
 			name: 'Apple Watch',
 			body: 'Put Plex and Subsonic music, and your audiobooks, on your watch and leave your iPhone at home. Browse and search your server right from your wrist.',
 			points: ['Add to Apple Watch from any Plex or Subsonic album, playlist or song, or any book', 'Plays from the watch, with your book’s place synced back', 'Controls your iPhone’s music too, Up Next included'],
+			// Drawn on a watch under the points.
+			screens: [
+				{ file: 'shots/watch-home.jpg', alt: 'Cue on Apple Watch: the song playing on the watch above the book playing on the iPhone' },
+				{ file: 'shots/watch-now-playing.jpg', alt: 'Cue’s Now Playing on Apple Watch, with the playback controls' },
+			],
 		},
 	],
 };
