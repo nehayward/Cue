@@ -238,9 +238,9 @@ struct DownloadsScreen: View {
         let hasBooks = containers.contains { $0.type == .audiobook }
         let isDownloading = !manager.active.isEmpty
         let parts = [
-            StorageUsageBar.Part(name: "Songs", bytes: songs.reduce(0) { $0 + ($1.fileSize ?? 0) }, color: .accent),
-            StorageUsageBar.Part(name: "Books", bytes: books.reduce(0) { $0 + bookBytes($1) }, color: .orange),
-            StorageUsageBar.Part(name: "Playback Cache", bytes: cache.totalBytes, color: .gray),
+            StorageUsageBar.Part(name: "Songs", bytes: songs.reduce(0) { $0 + ($1.fileSize ?? 0) }, color: StorageTile.songs.colors[0]),
+            StorageUsageBar.Part(name: "Books", bytes: books.reduce(0) { $0 + bookBytes($1) }, color: StorageTile.books.colors[0]),
+            StorageUsageBar.Part(name: "Playback Cache", bytes: cache.totalBytes, color: StorageTile.cache.colors[0]),
         ].filter { $0.bytes > 0 }
 
         if !parts.isEmpty || freeBytes != nil {
@@ -259,16 +259,16 @@ struct DownloadsScreen: View {
                     }
                 }
                 if !songs.isEmpty {
-                    pageRow(.songs, systemImage: "music.note", count: songs.count)
+                    pageRow(.songs, tile: .songs, count: songs.count)
                 }
                 if albums > 0 {
-                    pageRow(.albums, systemImage: "square.stack", count: albums)
+                    pageRow(.albums, tile: .albums, count: albums)
                 }
                 if playlists > 0 {
-                    pageRow(.playlists, systemImage: "music.note.list", count: playlists)
+                    pageRow(.playlists, tile: .playlists, count: playlists)
                 }
                 if hasBooks {
-                    pageRow(.books, systemImage: "book", count: books.count)
+                    pageRow(.books, tile: .books, count: books.count)
                 }
                 if !apple.songs.isEmpty {
                     // The Music app's downloads, counted rather than kept:
@@ -279,7 +279,11 @@ struct DownloadsScreen: View {
                             Text(apple.songs.count.formatted())
                                 .monospacedDigit()
                         } label: {
-                            Label("Downloaded in Music", systemImage: "applelogo")
+                            Label {
+                                Text("Downloaded in Music")
+                            } icon: {
+                                StorageTile.appleMusic.icon
+                            }
                         }
                     }
                 }
@@ -356,13 +360,17 @@ struct DownloadsScreen: View {
     }
 
     /// A row opening one of Storage's pages, with how many it holds.
-    private func pageRow(_ page: StoragePage, systemImage: String, count: Int) -> some View {
+    private func pageRow(_ page: StoragePage, tile: StorageTile, count: Int) -> some View {
         NavigationLink(value: RouterDestination.storagePage(page)) {
             LabeledContent {
                 Text(count.formatted())
                     .monospacedDigit()
             } label: {
-                Label(page.title, systemImage: systemImage)
+                Label {
+                    Text(page.title)
+                } icon: {
+                    tile.icon
+                }
             }
         }
     }
@@ -382,7 +390,7 @@ struct DownloadsScreen: View {
                 }
             }
         } icon: {
-            Image(systemName: "arrow.down.circle")
+            StorageTile.downloading.icon
         }
     }
 
@@ -648,7 +656,11 @@ struct DownloadsScreen: View {
 
         Section {
             Toggle(isOn: $manager.allowsCellular) {
-                Label("Use Cellular Data", systemImage: "antenna.radiowaves.left.and.right")
+                Label {
+                    Text("Use Cellular Data")
+                } icon: {
+                    StorageTile.cellular.icon
+                }
             }
         } header: {
             Text("Downloads")
@@ -665,8 +677,14 @@ struct DownloadsScreen: View {
                 Text("250 songs").tag(250)
                 Text("500 songs").tag(500)
             } label: {
-                Label("Keep Recent Songs", systemImage: "clock.arrow.circlepath")
+                Label {
+                    Text("Keep Recent Songs")
+                } icon: {
+                    StorageTile.recent.icon
+                }
             }
+            // Its value grey, as Settings' are, not in the accent.
+            .tint(.secondary)
             if cache.isEnabled {
                 Picker(selection: $cache.prefetchCount) {
                     Text("Next song").tag(1)
@@ -674,17 +692,30 @@ struct DownloadsScreen: View {
                     Text("Next 5 songs").tag(5)
                     Text("Next 10 songs").tag(10)
                 } label: {
-                    Label("Fetch Ahead", systemImage: "arrow.down.circle.dotted")
+                    Label {
+                        Text("Fetch Ahead")
+                    } icon: {
+                        StorageTile.fetchAhead.icon
+                    }
                 }
+                .tint(.secondary)
                 Toggle(isOn: $cache.allowsCellular) {
-                    Label("Fill Over Cellular", systemImage: "antenna.radiowaves.left.and.right")
+                    Label {
+                        Text("Fill Over Cellular")
+                    } icon: {
+                        StorageTile.cellular.icon
+                    }
                 }
                 LabeledContent {
                     Text(cache.entries.isEmpty
                          ? "Nothing yet"
                          : "\(cache.entries.count == 1 ? "1 song" : "\(cache.entries.count) songs") • \(ByteCountFormatter.string(fromByteCount: cache.totalBytes, countStyle: .file))")
                 } label: {
-                    Label("Cached", systemImage: "internaldrive")
+                    Label {
+                        Text("Cached")
+                    } icon: {
+                        StorageTile.cache.icon
+                    }
                 }
                 if !cache.inFlight.isEmpty {
                     Label {
@@ -700,8 +731,14 @@ struct DownloadsScreen: View {
                     Button {
                         isConfirmingClearCache = true
                     } label: {
-                        Label("Clear Cache", systemImage: "trash")
+                        Label {
+                            Text("Clear Cache")
+                        } icon: {
+                            StorageTile.clear.icon
+                        }
                     }
+                    // In the text's colour, as Settings' rows are.
+                    .tint(.primary)
                     .confirmationDialog("Clear the playback cache?", isPresented: $isConfirmingClearCache, titleVisibility: .visible) {
                         Button(role: .destructive) {
                             cache.clear()
@@ -739,7 +776,11 @@ struct DownloadsScreen: View {
         return Section {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Label("Free Downloads", systemImage: "arrow.down.circle")
+                    Label {
+                        Text("Free Downloads")
+                    } icon: {
+                        StorageTile.downloading.icon
+                    }
                     Spacer()
                     Text("\(held) of \(limit) songs")
                         .foregroundStyle(.secondary)
@@ -954,20 +995,32 @@ struct DownloadsScreen: View {
         @Bindable var cache = cache
         return Section {
             Toggle(isOn: $cache.streamsFromCloud) {
-                Label("Stream from iCloud", systemImage: "icloud.and.arrow.down")
+                Label {
+                    Text("Stream from iCloud")
+                } icon: {
+                    StorageTile.iCloud.icon
+                }
             }
             if cache.streamsFromCloud, !cache.streamedCloudIDs.isEmpty {
                 LabeledContent {
                     Text(cache.streamedCloudIDs.count == 1 ? "1 song" : "\(cache.streamedCloudIDs.count.formatted()) songs")
                 } label: {
-                    Label("Fetched to Play", systemImage: "play.circle")
+                    Label {
+                        Text("Fetched to Play")
+                    } icon: {
+                        StorageTile.fetchAhead.icon
+                    }
                 }
             }
             if let cloudSummary {
                 LabeledContent {
                     Text("\(cloudSummary.local.formatted()) of \((cloudSummary.local + cloudSummary.remote).formatted()) songs")
                 } label: {
-                    Label("On This Device", systemImage: "internaldrive")
+                    Label {
+                        Text("On This Device")
+                    } icon: {
+                        StorageTile.cache.icon
+                    }
                 }
             } else {
                 Label {
@@ -996,7 +1049,11 @@ struct DownloadsScreen: View {
                     let ids = files.downloadAllFromCloud()
                     ContinuedDownloadTask.shared.track(cloudTrackIDs: ids, title: "Downloading \(files.folderName ?? "your music")")
                 } label: {
-                    Label("Download Everything", systemImage: "icloud.and.arrow.down")
+                    Label {
+                        Text("Download Everything")
+                    } icon: {
+                        StorageTile.iCloud.icon
+                    }
                 }
             }
             if let cloudSummary, cloudSummary.local > 0 {
@@ -1004,7 +1061,11 @@ struct DownloadsScreen: View {
                     files.removeAllFromDevice()
                     Task { await refreshCloudSummary() }
                 } label: {
-                    Label("Remove Downloads from This Device", systemImage: "icloud.slash")
+                    Label {
+                        Text("Remove Downloads from This Device")
+                    } icon: {
+                        StorageTile.remove.icon
+                    }
                 }
             }
         } header: {
@@ -1020,6 +1081,53 @@ struct DownloadsScreen: View {
             return
         }
         cloudSummary = await files.cloudSummary()
+    }
+}
+
+/// The tile beside each of Storage's rows, as Settings draws its own
+/// (`SettingsIcon`): a white symbol on a colour of its own, never the
+/// accent. Songs, books and the cache are the usage bar's colours too.
+enum StorageTile {
+    case downloading, songs, albums, playlists, books, appleMusic
+    case cellular, recent, fetchAhead, cache, clear, iCloud, remove, images, library
+
+    var symbol: String {
+        switch self {
+        case .downloading: "arrow.down"
+        case .songs: "music.note"
+        case .albums: "square.stack.fill"
+        case .playlists: "music.note.list"
+        case .books: "book.fill"
+        case .appleMusic: "applelogo"
+        case .cellular: "antenna.radiowaves.left.and.right"
+        case .recent: "clock.arrow.circlepath"
+        case .fetchAhead: "forward.fill"
+        case .cache: "internaldrive.fill"
+        case .clear: "trash.fill"
+        case .iCloud: "icloud.fill"
+        case .remove: "icloud.slash.fill"
+        case .images: "photo.stack.fill"
+        case .library: "externaldrive.fill"
+        }
+    }
+
+    var colors: [Color] {
+        switch self {
+        case .downloading: [Color(red: 0.3, green: 0.8, blue: 0.55), Color(red: 0.1, green: 0.6, blue: 0.4)]
+        case .songs: [Color(red: 0.35, green: 0.6, blue: 0.95), Color(red: 0.2, green: 0.45, blue: 0.85)]
+        case .albums: [Color(red: 0.45, green: 0.45, blue: 0.95), Color(red: 0.3, green: 0.3, blue: 0.8)]
+        case .playlists: [Color(red: 0.7, green: 0.5, blue: 0.95), Color(red: 0.55, green: 0.35, blue: 0.85)]
+        case .books: [Color(red: 1.0, green: 0.62, blue: 0.25), Color(red: 0.95, green: 0.45, blue: 0.15)]
+        case .appleMusic: [Color(red: 0.98, green: 0.35, blue: 0.45), Color(red: 0.9, green: 0.18, blue: 0.3)]
+        case .cellular: [Color(red: 0.35, green: 0.85, blue: 0.45), Color(red: 0.2, green: 0.7, blue: 0.3)]
+        case .recent, .cache, .images, .library: [Color(red: 0.55, green: 0.55, blue: 0.6), Color(red: 0.4, green: 0.4, blue: 0.45)]
+        case .fetchAhead, .iCloud: [Color(red: 0.4, green: 0.75, blue: 0.95), Color(red: 0.25, green: 0.6, blue: 0.9)]
+        case .clear, .remove: [Color(red: 1.0, green: 0.4, blue: 0.4), Color(red: 0.9, green: 0.25, blue: 0.25)]
+        }
+    }
+
+    var icon: SettingsIcon {
+        SettingsIcon(symbol: symbol, colors: colors, padding: self == .appleMusic ? 7 : 8)
     }
 }
 
