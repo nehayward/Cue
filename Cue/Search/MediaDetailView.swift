@@ -142,6 +142,9 @@ struct MediaDetailView: View {
                                         hideArtwork: content?.content.type == .album,
                                         hideContentType: true,
                                         index: row.number,
+                                        // Only some of a downloaded album may be
+                                        // here: each shows its place on the album.
+                                        number: isOnDevice ? item.metadata?.position : nil,
                                         dismissOnComplete: true,
                                         total: totalSongs ?? tracks.count,
                                         onRemoveFromPlaylist: isEditablePlaylist ? { removeTrack(at: index) } : nil,
