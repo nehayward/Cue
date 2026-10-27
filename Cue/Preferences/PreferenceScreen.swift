@@ -47,7 +47,6 @@ struct PreferenceScreen: View {
     
     @State private var isUploading = false
     @State private var uploadSuccess = false
-    @State private var offline = OfflineMode.shared
 
     
 #if DEBUG
@@ -249,8 +248,6 @@ struct PreferenceScreen: View {
                 }
 
                 Section {
-                    offlineModeRow
-
                     NavigationLink(value: RouterDestination.settingsPage(.appearance)) {
                         LabeledContent {
                             Text(colorScheme.rawValue.capitalized)
@@ -514,29 +511,6 @@ struct PreferenceScreen: View {
         if id.contains("annual") || id.contains("yearly") { return "Annual" }
         if id.contains("month") { return "Monthly" }
         return nil
-    }
-
-    /// Offline Mode stays a switch here rather than a page: it's turned on
-    /// and off on the way out of the door.
-    private var offlineModeRow: some View {
-        @Bindable var offline = offline
-        return Toggle(isOn: $offline.isOn) {
-            Label {
-                VStack(alignment: .leading) {
-                    Text("Offline Mode")
-                    Text(offline.hasNetwork
-                         ? "Home shows only what's on this device, and everything plays here"
-                         : "No network — on until the connection is back")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } icon: {
-                SettingsIcon(symbol: "airplane", colors: [Color(red: 1.0, green: 0.6, blue: 0.3), Color(red: 0.95, green: 0.45, blue: 0.2)])
-            }
-        }
-        // With no network the app is offline whatever the switch says;
-        // flipping it would promise a change that can't happen.
-        .disabled(!offline.hasNetwork)
     }
 
     private func formattedSize(_ bytes: Int) -> String {

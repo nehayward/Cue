@@ -6,7 +6,7 @@ import SwiftUI
 /// with no network, and on a speaker when there is one.
 ///
 /// With nil for the provider it's the Downloads tab (`DownloadsTabScreen`):
-/// the whole on-device library, the same one Offline Mode shows, led by
+/// the whole on-device library, the same one Search reads offline, led by
 /// what's still coming down, with Storage in the toolbar. With a provider it's
 /// that provider's songs here (Apple Music's, from Settings ▸ Storage).
 ///

@@ -8,7 +8,6 @@ import SwiftUI
 struct OfflineSearchView: View {
     let query: String
 
-    @State private var offline = OfflineMode.shared
     @State private var downloads = DownloadManager.shared
     @State private var apple = AppleDownloadsIndex.shared
     @State private var files = FilesLibraryService.shared
@@ -94,11 +93,9 @@ struct OfflineSearchView: View {
     /// One line on what's being searched, and why it isn't the services.
     private var statusRow: some View {
         HStack(spacing: 10) {
-            Image(systemName: offline.hasNetwork ? "airplane" : "wifi.slash")
+            Image(systemName: "wifi.slash")
                 .foregroundStyle(.secondary)
-            Text(offline.hasNetwork
-                 ? "Offline Mode — searching what's on this device"
-                 : "No connection — searching what's on this device")
+            Text("No connection — searching what's on this device")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)

@@ -6,7 +6,7 @@ import SwiftUI
 /// provider's front page reads, each filtered to what's on the device and
 /// searchable without a network, the books downloaded, and a shelf of the
 /// albums and playlists downloaded last. Everything, whatever the
-/// provider, in the Downloads tab and for Offline Mode; narrowed to one
+/// provider, in the Downloads tab and offline; narrowed to one
 /// provider's songs from Settings ▸ Storage.
 ///
 /// Shows nothing when the library is empty — the screen around it says

@@ -332,6 +332,9 @@ struct CueApp: App {
     /// Settings › Appearance › Show Radio Tab.
     @AppStorage(AppStorageKeys.showRadioTab) private var showRadioTab: Bool = true
     @AppStorage(AppStorageKeys.showAudiobooksTab) private var showAudiobooksTab: Bool = true
+    /// Settings › Appearance › Downloads: whether the tab shows while
+    /// there's a network. Offline it shows whatever this says.
+    @AppStorage(AppStorageKeys.showDownloadsTab) private var showDownloadsTab: Bool = true
     @AppStorage(AppStorageKeys.hasPlexAudiobooks) private var hasPlexAudiobooks: Bool = false
     /// The sidebar's edits — which of the provider tabs show, and the order
     /// of their sections — kept across launches. This is the whole of tab
@@ -369,7 +372,7 @@ struct CueApp: App {
     /// this device as well as on a speaker, which is the tab's rule — Sonos
     /// Radio and Sonos favorites are speaker-only and stay on Browse and
     /// Search. The user can hide it in Settings › Appearance, and it goes
-    /// on its own while Offline Mode is active: every station streams, so
+    /// on its own while offline: every station streams, so
     /// there is nothing there to play.
     private var showsRadioTab: Bool {
         showRadioTab
@@ -381,7 +384,7 @@ struct CueApp: App {
     /// sign-in, a Plex server that had books when last asked
     /// (`AudiobookLibrary.checkPlexBooks`), or books in the Files folder.
     /// Hidden in Settings › Appearance.
-    /// While Offline Mode is active only books downloaded whole can play,
+    /// While offline only books downloaded whole can play,
     /// so it stays while there are any.
     private var showsAudiobooksTab: Bool {
         guard showAudiobooksTab else { return false }
@@ -395,14 +398,24 @@ struct CueApp: App {
             || hasFilesBooks
     }
 
-    /// Whether the Downloads tab has anything to show: songs or books Cue
-    /// downloaded or is downloading, or Apple Music songs the Music app
-    /// keeps downloaded. Read through the download manager's summary, which
-    /// moves as songs land rather than with every byte of progress, so the
-    /// tab bar isn't redrawn while they come down.
+    /// Whether the Downloads tab shows: always offline, in Browse's place
+    /// (what's here is all there is to play); otherwise while it's switched
+    /// on in Settings › Appearance and has something to show, songs or
+    /// books Cue downloaded or is downloading, or Apple Music songs the
+    /// Music app keeps downloaded. Read through the download manager's
+    /// summary, which moves as songs land rather than with every byte of
+    /// progress, so the tab bar isn't redrawn while they come down.
     private var showsDownloadsTab: Bool {
-        DownloadManager.shared.musicSummary.hasDownloads
-            || (coreFeatures.isEnabled(.apple) && !AppleDownloadsIndex.shared.songs.isEmpty)
+        if offline.isActive { return true }
+        return showDownloadsTab
+            && (DownloadManager.shared.musicSummary.hasDownloads
+                || (coreFeatures.isEnabled(.apple) && !AppleDownloadsIndex.shared.songs.isEmpty))
+    }
+
+    /// Whether Browse shows: not offline, where its providers have nothing
+    /// to show and Downloads takes its place.
+    private var showsBrowseTab: Bool {
+        !offline.isActive
     }
 
     /// Search. The search role only on the phone, where it draws the tab as
@@ -551,9 +564,11 @@ struct CueApp: App {
     private var showsLibrarySections: Bool { false }
 
     /// The tab the selection falls back to: Home where the sidebar has
-    /// one, Browse on the tab bar, which has none.
+    /// one, Browse on the tab bar, which has none, and Downloads offline,
+    /// in Browse's place.
     private var fallbackTab: AppTab {
-        showsLibrarySections ? .home : .browse
+        if offline.isActive, !showsLibrarySections { return .downloads }
+        return showsLibrarySections ? .home : .browse
     }
 
     /// Every tab the view builds right now. The selection is checked
@@ -564,7 +579,10 @@ struct CueApp: App {
     /// view controller matches the UITabBarItem"), and it asserts during
     /// layout, before any `onChange` gets a chance to move the selection.
     private var availableTabs: Set<AppTab> {
-        var tabs: Set<AppTab> = [.search, .browse]
+        var tabs: Set<AppTab> = [.search]
+        if showsBrowseTab || showsLibrarySections {
+            tabs.insert(.browse)
+        }
         if showsRadioTab {
             tabs.insert(.radio)
         }
@@ -624,9 +642,12 @@ struct CueApp: App {
                     // Home's place: providers are browsed from Browse's menu
                     // and set up in Settings › Services. No provider tabs, so
                     // the bar never overflows into More. The house is
-                    // Browse's here, since it is the home.
-                    Tab("Browse", image: "home.fill", value: AppTab.browse) {
-                        Screens.browse
+                    // Browse's here, since it is the home. Offline it goes,
+                    // and Downloads leads in its place.
+                    if showsBrowseTab {
+                        Tab("Browse", image: "home.fill", value: AppTab.browse) {
+                            Screens.browse
+                        }
                     }
                     searchTab
                     radioTab

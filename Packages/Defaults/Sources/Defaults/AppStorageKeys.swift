@@ -52,10 +52,10 @@ public enum AppStorageKeys {
     /// The iCloud songs the cache fetched to play, oldest first, so a
     /// relaunch still knows which ones are its to evict.
     public static let playbackCacheCloudIDs = "\(Prefix.id).playbackCacheCloudIDs"
-    /// The user's Offline Mode switch: only what's on this device shows on
-    /// Home, and everything plays here. Off when unset; no network at all
-    /// puts the app in the same state on its own.
-    public static let offlineMode = "\(Prefix.id).offlineMode"
+    /// Whether the Downloads tab shows while there's a network. On when
+    /// unset; the tab also needs something downloaded, and shows offline
+    /// whatever this says, in Browse's place.
+    public static let showDownloadsTab = "\(Prefix.id).showDownloadsTab"
     /// Whether the Radio tab shows at all. On when unset; the tab also
     /// needs a radio provider switched on, and hides itself offline.
     public static let showRadioTab = "\(Prefix.id).showRadioTab"

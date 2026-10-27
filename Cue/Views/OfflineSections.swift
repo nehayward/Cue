@@ -7,7 +7,7 @@ import SwiftUI
 /// on-device library (`OnDeviceLibrarySections`) — Play and Shuffle across
 /// everything on this device, and Artists, Albums and Songs over it, from
 /// every provider at once. Home hosts these on iPad and Mac; on the phone,
-/// whose home is Browse, `OfflineBrowseScreen` does.
+/// whose home is Browse, the Downloads tab takes Browse's place instead.
 struct OfflineSections: View {
     @State private var offline = OfflineMode.shared
     @State private var downloads = DownloadManager.shared
@@ -29,40 +29,22 @@ struct OfflineSections: View {
         }
     }
 
-    /// Why the providers aren't showing, in a line: the network is gone,
-    /// or the user asked. The switch is the one thing worth offering here,
-    /// and it sits on the trailing side rather than taking a row of its own.
+    /// Why the providers aren't showing, in a line: the network is gone.
     private var statusSection: some View {
         Section {
             HStack(spacing: 12) {
-                Image(systemName: offline.hasNetwork ? "airplane" : "wifi.slash")
+                Image(systemName: "wifi.slash")
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .frame(width: 28)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(offline.hasNetwork ? "Offline Mode" : "No Connection")
+                    Text("No Connection")
                         .font(.headline)
-                    Text(offline.hasNetwork
-                         ? "Plays on this device"
-                         : "Plays on this device until the network is back")
+                    Text("Plays on this device until the network is back")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
-                if offline.isOn {
-                    Button {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        withAnimation(.spring(response: 0.3)) {
-                            offline.isOn = false
-                        }
-                    } label: {
-                        Text("Turn Off")
-                            .fontWeight(.medium)
-                    }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.capsule)
-                    .controlSize(.small)
-                }
             }
             .padding(.vertical, 2)
         }

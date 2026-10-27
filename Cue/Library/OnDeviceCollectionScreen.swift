@@ -8,7 +8,7 @@ import SwiftUI
 /// here, grouped, with a local search and sort. A row opens the songs of
 /// that album, artist or playlist that are on the device — no server is
 /// asked — with a Play All that queues just those. Everything in the
-/// Downloads tab and Offline Mode; one provider's songs from Settings ▸
+/// Downloads tab and offline; one provider's songs from Settings ▸
 /// Storage. Rows are drawn as a server's album list draws them, and
 /// Albums can be a grid of covers, by the same List / Grid choice every
 /// album list shares (`AppStorageKeys.albumsLayout`).

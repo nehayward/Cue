@@ -42,7 +42,7 @@ public enum RouterDestination: Hashable, Identifiable {
     /// Songs. Settings ▸ Storage opens Apple Music's.
     case downloaded(service: MusicService?)
     /// One grouped page of the on-device library: what's here by album or
-    /// by artist, from one provider or — for Offline Mode — all of them.
+    /// by artist, from one provider or — offline — all of them.
     case onDeviceCollection(OnDeviceCollection, service: MusicService? = nil)
     case houseHold
     case spotifyUserPlaylist
