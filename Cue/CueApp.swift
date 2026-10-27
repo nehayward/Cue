@@ -43,7 +43,9 @@ struct MusicPlaybackView: View {
     private var sonosService: SonosService { .shared }
 
     var body: some View {
-        HStack(spacing: 12) {
+        // On iPhone the buttons sit in cells of their own width, which
+        // space them, so the row's own spacing is small there.
+        HStack(spacing: isPhone ? 4 : 12) {
             nowPlayingContent
 
             // Always present, playing or not: the route is set ahead of Play,
@@ -51,6 +53,7 @@ struct MusicPlaybackView: View {
             PlaybackRouteButton()
                 .buttonStyle(.plain)
                 .font(.title3)
+                .frame(width: isPhone ? Self.phoneButtonSide : nil)
 
             // The queue panel's show/hide on iPad, where there is no sidebar
             // header to hold it. Only at a regular width: a compact window
@@ -100,6 +103,10 @@ struct MusicPlaybackView: View {
         isPhone ? 32 : 40
     }
 
+    /// Each button's cell on iPhone, all of it taking the tap: wider than
+    /// the glyphs, so they stand apart and a tap between two still lands.
+    static let phoneButtonSide: CGFloat = 40
+
     /// The progress line for what's on screen, in seconds whichever it is.
     @ViewBuilder
     private var progressLine: some View {
@@ -130,31 +137,6 @@ struct MusicPlaybackView: View {
     private func idleSymbol(for group: GroupRoom?) -> String {
         guard let group else { return "iphone.radiowaves.left.and.right" }
         return group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill"
-    }
-
-    /// Play or Pause; on iPhone in the ring of how far the song has got.
-    @ViewBuilder
-    private func playPauseLabel(isPlaying: Bool, controller: any PlaybackController, showsProgress: Bool) -> some View {
-        let glyph = Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-            .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
-            .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && controller.isLoading)
-        if isPhone {
-            glyph
-                .font(.body.weight(.semibold))
-                .frame(width: 32, height: 32)
-                .background {
-                    if showsProgress {
-                        MiniPlayerProgressRing(
-                            duration: controller.duration,
-                            isRunning: controller.isClockRunning,
-                            position: { controller.position() }
-                        )
-                    }
-                }
-                .contentShape(.circle)
-        } else {
-            glyph
-        }
     }
 
     // MARK: - Now playing
@@ -236,7 +218,7 @@ struct MusicPlaybackView: View {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 Task { await controller.togglePlayback() }
             } label: {
-                playPauseLabel(isPlaying: isPlaying, controller: controller, showsProgress: item != nil)
+                MiniPlayerPlayPauseLabel(controller: controller, isRinged: isPhone, showsProgress: item != nil)
             }
             .buttonStyle(.plain)
             .font(.title3)
@@ -261,6 +243,8 @@ struct MusicPlaybackView: View {
                     }
                 } label: {
                     Image(systemName: isBook ? "goforward.\(Int(AudiobookPlayer.skipForwardInterval))" : "forward.fill")
+                        .frame(width: isPhone ? Self.phoneButtonSide : nil, height: isPhone ? Self.phoneButtonSide : nil)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .font(.title3)
@@ -1591,6 +1575,40 @@ private struct MiniPlayerProgressLine: View {
         .padding(.top, 2)
         .opacity(hasDuration ? 1 : 0)
         .accessibilityHidden(true)
+    }
+}
+
+/// The mini player's Play or Pause. On iPhone it sits in the ring of how
+/// far the song has got (`MiniPlayerProgressRing`), in a cell that takes
+/// the tap all over; the wider iPad and Mac bars have the bare glyph.
+fileprivate struct MiniPlayerPlayPauseLabel: View {
+    let controller: any PlaybackController
+    let isRinged: Bool
+    /// Whether there's a song to show the progress of.
+    let showsProgress: Bool
+
+    var body: some View {
+        let glyph = Image(systemName: controller.isPlaying ? "pause.fill" : "play.fill")
+            .contentTransition(GroupMediaControlsView.animatesPlayPause ? .symbolEffect(.replace) : .identity)
+            .sustainedPulse(isActive: GroupMediaControlsView.animatesPlayPause && controller.isLoading)
+        if isRinged {
+            glyph
+                .font(.body.weight(.semibold))
+                .frame(width: 32, height: 32)
+                .background {
+                    if showsProgress {
+                        MiniPlayerProgressRing(
+                            duration: controller.duration,
+                            isRunning: controller.isClockRunning,
+                            position: { controller.position() }
+                        )
+                    }
+                }
+                .frame(width: MusicPlaybackView.phoneButtonSide, height: MusicPlaybackView.phoneButtonSide)
+                .contentShape(.rect)
+        } else {
+            glyph
+        }
     }
 }
 
