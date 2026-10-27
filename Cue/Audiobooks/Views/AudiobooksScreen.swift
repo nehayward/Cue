@@ -6,7 +6,8 @@ import SwiftUI
 /// The Audiobooks tab: Continue Listening, the books not yet finished with
 /// the one listened to last on top, each one tap from where it was left;
 /// the books on this device; a section for each server, its newest books
-/// with the way to every one; and what was finished lately.
+/// with the way to every one; what was finished lately; and the words
+/// looked up in the books' transcripts.
 ///
 /// What's been listened to comes from two places: this device's history
 /// (`PlayHistoryService`, which `AudiobookPlayer` writes the book to when
@@ -83,6 +84,8 @@ struct AudiobooksScreen: View {
                         }
                         .fontDesign(.rounded)
                     }
+
+                    AudiobookWordsSection()
                 }
             }
             // Rounded is set on each part rather than here: the outermost
@@ -324,6 +327,46 @@ private struct AudiobookFinishedRow: View {
         .buttonStyle(.plain)
         .contextMenu {
             AudiobookMenuItems(book: book)
+        }
+    }
+}
+
+// MARK: - Words
+
+/// The words looked up last in any book, marked as Read Along marks them: a
+/// tap shows a word's meaning again, held it offers Play from Here, and the
+/// title opens every one (`BookWordsScreen`). A view of its own, so only it
+/// redraws as words come and go.
+private struct AudiobookWordsSection: View {
+    @State private var lookups = BookWordLookups.shared
+
+    var body: some View {
+        let recent = lookups.recent(20)
+        if !recent.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                AudiobookSectionTitle(title: "Words", destination: .bookWords)
+                ScrollView(.horizontal) {
+                    HStack(spacing: 8) {
+                        ForEach(recent) { item in
+                            LookUpButton(term: item.lookup.term) {
+                                Text(item.lookup.term)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 7)
+                                    .background(BookWordLabel.highlight, in: .capsule)
+                                    .contentShape(.capsule)
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                BookWordMenuItems(lookup: item.lookup, book: item.book)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
+                }
+                .scrollIndicators(.hidden)
+            }
+            .fontDesign(.rounded)
         }
     }
 }

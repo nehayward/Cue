@@ -1137,6 +1137,7 @@ final class AudiobookPlayer {
         keepUnrecorded()
         AudiobookProgressStore.shared.save()
         AudiobookPlaceHistory.shared.save()
+        BookWordLookups.shared.save()
     }
 
     /// Steps aside for a mark that sets `book`'s place (Mark as Finished,

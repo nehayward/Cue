@@ -331,9 +331,21 @@ private struct BookTranscriptLines: View, Equatable {
                 closeLookup()
             } else {
                 withAnimation(.easeOut(duration: 0.15)) { lookup = word }
+                remember(word)
             }
             return .handled
         })
+    }
+
+    /// Keeps a word looked up with the words around it and its line's
+    /// place in the book (`BookWordLookups`), for the book's history to
+    /// show again.
+    private func remember(_ word: LookupWord) {
+        guard let index = transcript.lineIndex(at: word.line), transcript.lines[index].id == word.line else { return }
+        let line = transcript.lines[index]
+        guard line.words.indices.contains(word.index), let place = BookTranscriptLineRow.bookTime(of: line.start) else { return }
+        let context = BookTranscriptLineRow.context(of: line, at: word.index)
+        BookWordLookups.shared.record(word.term, before: context.before, after: context.after, at: place.time, in: place.book)
     }
 
     /// Puts the definition away: its page gives way to a still picture in
@@ -490,6 +502,24 @@ private struct BookTranscriptLineRow: View, Equatable {
     /// an opening quote), the word itself as a link to look it up from this
     /// line, highlighted when `marked`, and what follows (its punctuation).
     private static func parts(of line: BookTranscript.Line, at index: Int, marked: Bool) -> (leading: String, word: AttributedString, trailing: String) {
+        let pieces = Self.split(line, at: index)
+        var word = AttributedString(pieces.core)
+        if !pieces.core.isEmpty {
+            var components = URLComponents()
+            components.scheme = scheme
+            components.host = "word"
+            components.queryItems = [URLQueryItem(name: "term", value: pieces.core), URLQueryItem(name: "line", value: String(line.id)), URLQueryItem(name: "word", value: String(index))]
+            word.link = components.url
+            if marked {
+                word.backgroundColor = Color.yellow.opacity(0.4)
+            }
+        }
+        return (pieces.leading, word, pieces.trailing)
+    }
+
+    /// Word `index` of the line as text in three: what comes before it, the
+    /// word, and what follows.
+    private static func split(_ line: BookTranscript.Line, at index: Int) -> (leading: String, core: String, trailing: String) {
         var raw = line.words[index].text
         if index == 0 {
             raw = String(raw.drop { $0.isWhitespace })
@@ -498,18 +528,21 @@ private struct BookTranscriptLineRow: View, Equatable {
         let rest = raw.dropFirst(leading.count)
         let core = rest.prefix { $0.isLetter || $0.isNumber || $0 == "'" || $0 == "’" || $0 == "-" }
         let trailing = rest.dropFirst(core.count)
-        var word = AttributedString(String(core))
-        if !core.isEmpty {
-            var components = URLComponents()
-            components.scheme = scheme
-            components.host = "word"
-            components.queryItems = [URLQueryItem(name: "term", value: String(core)), URLQueryItem(name: "line", value: String(line.id)), URLQueryItem(name: "word", value: String(index))]
-            word.link = components.url
-            if marked {
-                word.backgroundColor = Color.yellow.opacity(0.4)
-            }
-        }
-        return (String(leading), word, String(trailing))
+        return (String(leading), String(core), String(trailing))
+    }
+
+    /// The words either side of word `index` in its line, as a lookup keeps
+    /// them: `reach` each way, with "…" where the line goes on.
+    static func context(of line: BookTranscript.Line, at index: Int, reach: Int = 6) -> (before: String, after: String) {
+        let pieces = Self.split(line, at: index)
+        let first = max(0, index - reach)
+        let last = min(line.words.count, index + 1 + reach)
+        var before = String((line.words[first ..< index].map(\.text).joined() + pieces.leading).drop { $0.isWhitespace })
+        if first > 0 { before = "…" + before }
+        var after = pieces.trailing + line.words[(index + 1) ..< last].map(\.text).joined()
+        while after.last?.isWhitespace == true { after.removeLast() }
+        if last < line.words.count { after += "…" }
+        return (before, after)
     }
 
     /// The word a tapped link stands for, and its line.
@@ -525,10 +558,16 @@ private struct BookTranscriptLineRow: View, Equatable {
     /// so the place left joins the book's history.
     @MainActor
     static func play(from fileTime: TimeInterval) async {
+        guard let place = bookTime(of: max(fileTime - 0.3, 0)) else { return }
+        await AudiobookPlayer.shared.jump(to: place.time)
+    }
+
+    /// The loaded book, and where `fileTime` in the file playing is in it.
+    @MainActor
+    static func bookTime(of fileTime: TimeInterval) -> (book: PlayableContent, time: TimeInterval)? {
         let controller = PlaybackRoute.shared.presented
-        let player = AudiobookPlayer.shared
-        guard let book = player.current, let part = book.partIndex(of: controller.nowPlayingDisplay) else { return }
-        await player.jump(to: book.time(part: part, offset: max(fileTime - 0.3, 0)))
+        guard let book = AudiobookPlayer.shared.current, let part = book.partIndex(of: controller.nowPlayingDisplay) else { return nil }
+        return (book.book, book.time(part: part, offset: fileTime))
     }
 }
 
@@ -613,7 +652,12 @@ private struct BookTranscriptDefinitionCard: View {
                 .accessibilityAddTraits(.isButton)
                 .accessibilityLabel("Close Definition")
                 .accessibilityAction { onClose() }
+#if targetEnvironment(macCatalyst)
+            // The page only opens Dictionary on the Mac: the entry, set by Cue.
+            DictionaryDefinitionView(term: word.term, onClose: onClose)
+#else
             DictionaryLookup(term: word.term, isClosing: isClosing, onClose: onClose)
+#endif
         }
         .background(.regularMaterial)
         .clipShape(.rect(cornerRadius: 24, style: .continuous))

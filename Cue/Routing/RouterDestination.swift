@@ -17,6 +17,8 @@ public enum RouterDestination: Hashable, Identifiable {
     case audiobookDetail(content: PlayableContent)
     /// A series' page: its books in order, split by who reads them.
     case audiobookSeries(name: String, books: [PlayableContent])
+    /// Every word looked up in a book's transcript, by book.
+    case bookWords
     case alarms
     case addAlarm(group: GroupRoom? = nil)
     case editAlarm(alarm: Alarm)
@@ -100,6 +102,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "downloads"
         case .bookDownloads:
             return "bookDownloads"
+        case .bookWords:
+            return "bookWords"
         case let .downloaded(service):
             return "downloaded.\(service?.sonosRawValue ?? "all")"
         case let .onDeviceCollection(collection, service):
@@ -169,6 +173,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return true
         case (.bookDownloads, .bookDownloads):
             return true
+        case (.bookWords, .bookWords):
+            return true
         case let (.downloaded(service1), .downloaded(service2)):
             return service1 == service2
         case let (.onDeviceCollection(collection1, service1), .onDeviceCollection(collection2, service2)):
@@ -237,6 +243,8 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("downloads")
         case .bookDownloads:
             hasher.combine("bookDownloads")
+        case .bookWords:
+            hasher.combine("bookWords")
         case let .downloaded(service):
             hasher.combine("downloaded")
             hasher.combine(service)
