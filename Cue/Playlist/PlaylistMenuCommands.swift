@@ -1,7 +1,6 @@
 import Defaults
 import MusicSearchKit
 import SonosKit
-import SwiftUI
 import UIKit
 
 /// What the menu bar's Playlist menu acts on (`AppDelegate.buildMenu`, on
@@ -58,11 +57,15 @@ enum PlaylistMenuCommands {
         }
     }
 
-    /// Opens New Playlist over whatever is on screen. The command can be
-    /// chosen with the player, a sheet or any tab up, and `Router.main`'s
-    /// sheet, which it used to set, has no host in the window (each tab
-    /// presents from a router of its own), so it opened nothing. Presented
-    /// from the top controller instead, as `PaywallPresenter` does.
+    /// Asks for the new playlist's name in an alert over whatever is on
+    /// screen. The command can be chosen with the player, a sheet or any tab
+    /// up, and `Router.main`'s sheet, which it used to set, has no host in
+    /// the window (each tab presents from a router of its own), so it opened
+    /// nothing. Presented from the top controller instead, as
+    /// `PaywallPresenter` does. An alert rather than `NewPlaylistView`: a
+    /// SwiftUI view presented from UIKit doesn't read its own sheet
+    /// modifiers, and came out on iPad as a small glass card with an empty
+    /// bar over it. Return creates, Escape cancels.
     static func presentNewPlaylist() {
         guard let service = newPlaylistService else {
             AlertService.shared.showAlert(with: "No Library for a Playlist", imageName: "exclamationmark.triangle")
@@ -70,21 +73,37 @@ enum PlaylistMenuCommands {
         }
         guard let top = topController() else { return }
         // One at a time.
-        if top is NewPlaylistHost { return }
+        if top is UIAlertController { return }
         // A sheet on its way down can't be presented over: wait for it.
         if let coordinator = top.transitionCoordinator {
             coordinator.animate(alongsideTransition: nil) { _ in presentNewPlaylist() }
             return
         }
-        let host = NewPlaylistHost(rootView: AnyView(NewPlaylistView(service: service).withEnvironments()))
-        // SwiftUI's presentation modifiers aren't read by a controller
-        // presented from UIKit, so the size is set here: the phone's detent,
-        // and the card on iPad and the Mac.
-        let height = NewPlaylistView.sheetHeight
-        host.modalPresentationStyle = .formSheet
-        host.preferredContentSize = CGSize(width: 440, height: height)
-        host.sheetPresentationController?.detents = [.custom { _ in height }]
-        top.present(host, animated: true)
+        let alert = UIAlertController(title: NewPlaylistView.title(for: service), message: nil, preferredStyle: .alert)
+        alert.addTextField { field in
+            field.placeholder = "Playlist Title"
+            field.autocapitalizationType = .words
+            field.returnKeyType = .done
+        }
+        let enteredName: () -> String = { [weak alert] in
+            alert?.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }
+        let create = UIAlertAction(title: "Create", style: .default) { _ in
+            let name = enteredName()
+            guard !name.isEmpty else { return }
+            Task { @MainActor in
+                await NewPlaylistView.create(named: name, on: service)
+            }
+        }
+        // Off until there's a name, as the sheet's Create is.
+        create.isEnabled = false
+        alert.textFields?.first?.addAction(UIAction { [weak create] _ in
+            create?.isEnabled = !enteredName().isEmpty
+        }, for: .editingChanged)
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(create)
+        alert.preferredAction = create
+        top.present(alert, animated: true)
     }
 
     /// The controller presented last in the active window, past any on its
@@ -99,5 +118,3 @@ enum PlaylistMenuCommands {
         return top
     }
 }
-
-private final class NewPlaylistHost: UIHostingController<AnyView> {}
