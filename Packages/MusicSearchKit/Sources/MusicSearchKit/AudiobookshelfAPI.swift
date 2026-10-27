@@ -789,8 +789,9 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
             }
         }
         guard !unsent.isEmpty else { return }
+        let kept = unsent
         Self.unsentListening.withLock { cached in
-            let sessions = unsent + (cached ?? [])
+            let sessions = kept + (cached ?? [])
             cached = sessions
             Self.writeUnsentListening(sessions)
         }

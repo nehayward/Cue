@@ -6,8 +6,10 @@ import SonosKit
 /// it. Its episodes are books of one file (`PlayableContent.isPodcastEpisode`),
 /// so they play, keep their place and download as books do; the podcast
 /// itself only opens its page.
-struct AudiobookshelfPodcast: Hashable, Identifiable, Sendable {
-    let id: String
+///
+/// Public, as `RouterDestination` (public) carries it.
+public struct AudiobookshelfPodcast: Hashable, Identifiable, Sendable {
+    public let id: String
     let title: String
     var author: String?
     var episodeCount: Int?

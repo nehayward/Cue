@@ -256,7 +256,8 @@ public final class PodcastFeeds: DirectStreamProvider {
                 byURL[decoded] = episode.partID
             }
         }
-        addresses.withLock { $0 = (byID, byURL) }
+        let built = (byID: byID, byURL: byURL)
+        addresses.withLock { $0 = built }
     }
 
     /// An episode's audio: the feed's own address for it, which needs no
