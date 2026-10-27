@@ -105,6 +105,8 @@ struct RouterDestinationView: View {
                 DownloadsScreen()
             case .bookDownloads:
                 DownloadsScreen(opensOnBooks: true)
+            case .bookWords:
+                BookWordsScreen()
             case let .downloaded(service):
                 DownloadedScreen(service: service)
             case let .onDeviceCollection(collection, service):

@@ -85,6 +85,8 @@ struct AudiobookHistoryList: View {
                     }
                 }
             }
+            // Words kept before their book was show in Words once it's known.
+            .onAppear { lookups.keep(book) }
         }
     }
 
@@ -119,52 +121,26 @@ struct AudiobookHistoryList: View {
     }
 
     /// A word looked up: the word, marked as it was in its line, over the
-    /// words around it. A tap shows its meaning again; held, it offers to
-    /// play from its line, to copy it, or to take it off the list.
+    /// words around it. A tap shows its meaning again (`LookUpButton`);
+    /// held, it offers to play from its line, to copy it, or to take it off
+    /// the list.
     private func wordRow(_ lookup: BookWordLookups.Lookup, now: Date, isFirst: Bool, isLast: Bool) -> some View {
-        Button {
-            HapticManager.shared.fireHaptic(.selection)
-            DictionaryPresenter.present(lookup.term)
-        } label: {
+        LookUpButton(term: lookup.term) {
             HStack(spacing: 14) {
                 marker(symbol: "character.book.closed", tint: Self.wordTint)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(lookup.term)
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 3)
-                        .background(Self.highlight, in: .rect(cornerRadius: 3))
-                    Text("\(Text(verbatim: lookup.before))\(Text(verbatim: lookup.term).foregroundStyle(.primary))\(Text(verbatim: lookup.after))")
-                        .font(.caption)
-                        .foregroundStyle(.primary.opacity(0.6))
-                        .lineLimit(2)
-                }
+                BookWordLabel(lookup: lookup)
                 Spacer(minLength: 8)
                 when(lookup.position, lookup.date, now: now)
             }
             .padding(.vertical, 10)
             .background(alignment: .leading) { rail(isFirst: isFirst, isLast: isLast) }
             .contentShape(.rect)
+            .accessibilityElement(children: .combine)
         }
         .buttonStyle(.plain)
         .contextMenu {
-            Button("Look Up", systemImage: "character.book.closed") {
-                DictionaryPresenter.present(lookup.term)
-            }
-            Button("Play from Here", systemImage: "play") {
-                onPick()
-                Task { await AudiobookPlayer.shared.pick(book, at: lookup.position, in: audiobook) }
-            }
-            Button("Copy", systemImage: "doc.on.doc") {
-                UIPasteboard.general.string = lookup.term
-            }
-            Button(role: .destructive) {
-                withAnimation { lookups.remove(lookup, from: book) }
-            } label: {
-                Label("Remove from History", systemImage: "trash")
-            }
+            BookWordMenuItems(lookup: lookup, book: book, audiobook: audiobook, onPlay: onPick)
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityHint("Shows its meaning")
     }
 
     /// The trailing edge of a row: the place in the book over how long ago.
@@ -202,8 +178,6 @@ struct AudiobookHistoryList: View {
     private static let ringSize: CGFloat = 32
     private static let railColor = Color.primary.opacity(0.2)
     private static let wordTint = Color.pink
-    /// A looked-up word's mark, as Read Along marks it in its line.
-    private static let highlight = Color.yellow.opacity(0.4)
 
     /// The kind's symbol on a disc of its tint, the tint kept soft so the
     /// list reads as a timeline rather than a row of buttons; a play's

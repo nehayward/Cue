@@ -652,7 +652,12 @@ private struct BookTranscriptDefinitionCard: View {
                 .accessibilityAddTraits(.isButton)
                 .accessibilityLabel("Close Definition")
                 .accessibilityAction { onClose() }
+#if targetEnvironment(macCatalyst)
+            // The page only opens Dictionary on the Mac: the entry, set by Cue.
+            DictionaryDefinitionView(term: word.term, onClose: onClose)
+#else
             DictionaryLookup(term: word.term, isClosing: isClosing, onClose: onClose)
+#endif
         }
         .background(.regularMaterial)
         .clipShape(.rect(cornerRadius: 24, style: .continuous))

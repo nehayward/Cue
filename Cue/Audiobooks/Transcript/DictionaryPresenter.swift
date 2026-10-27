@@ -1,10 +1,12 @@
 import UIKit
 
 /// Opens the system dictionary's page for a word over whatever is on
-/// screen: a word looked up before, from a book's history. Presented from
-/// the top controller, as the page expects, so its Done takes away the page
-/// alone and leaves the sheet or player under it. Read Along's own lookups
-/// show the page in a card instead (`BookTranscriptDefinitionCard`).
+/// screen: a word looked up before, from a book's history or Words
+/// (`LookUpButton`). Presented from the top controller, as the page expects,
+/// so its Done takes away the page alone and leaves the sheet or player
+/// under it. Read Along's own lookups show the page in a card instead
+/// (`BookTranscriptDefinitionCard`). Not on the Mac, where the page only
+/// opens Dictionary (`DictionaryDefinitionView`).
 @MainActor
 enum DictionaryPresenter {
     static func present(_ term: String) {
