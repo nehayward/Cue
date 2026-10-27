@@ -65,6 +65,7 @@ struct AudiobooksScreen: View {
                             plexBooks: showsPlex ? plex.all : [],
                             shelfSeries: showsAudiobookshelf ? shelf.series : []
                         )
+                        AudiobookCollectionsSection(collections: showsAudiobookshelf ? shelf.collections : [])
                         libraries
                             .fontDesign(.rounded)
                     }
@@ -420,18 +421,7 @@ private struct AudiobookSeriesSection: View {
         let count = narrations.map(\.books.count).max() ?? series.books.count
         let size = AudiobookCoverRow.coverSize
         return VStack(alignment: .leading, spacing: 4) {
-            // The first book in front, the next two behind it, as Apple
-            // Books stacks a series.
-            ZStack(alignment: .bottomLeading) {
-                ForEach(Array(lead.prefix(3).enumerated().reversed()), id: \.element.id) { index, book in
-                    ContentArtworkView(content: book, showMusicSource: false, preferredSize: 300, cornerRadius: 6)
-                        .frame(width: size - 16, height: size - 16)
-                        .brightness(index == 0 ? 0 : -0.2)
-                        .shadow(color: .black.opacity(0.3), radius: 4, x: -2)
-                        .offset(x: CGFloat(index) * 8, y: CGFloat(-index) * 8)
-                }
-            }
-            .frame(width: size, height: size, alignment: .bottomLeading)
+            AudiobookCoverStack(books: lead, size: size)
             Text(series.name)
                 .font(.footnote)
                 .lineLimit(1)
@@ -443,5 +433,55 @@ private struct AudiobookSeriesSection: View {
         .frame(width: size)
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Collections
+
+/// Audiobookshelf's collections, each a stack of its first covers with its
+/// name, opening its books in the order they were put in it.
+private struct AudiobookCollectionsSection: View {
+    let collections: [AudiobookCollection]
+
+    @Environment(Router.self) private var router
+
+    var body: some View {
+        if !collections.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                AudiobookSectionTitle(title: "Collections")
+                ScrollView(.horizontal) {
+                    LazyHStack(alignment: .top, spacing: 12) {
+                        ForEach(collections) { collection in
+                            Button {
+                                HapticManager.shared.fireHaptic(.buttonPress)
+                                router.navigate(to: collection.destination)
+                            } label: {
+                                tile(collection)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .scrollTargetLayout()
+                    .padding(.horizontal, 16)
+                }
+                .scrollIndicators(.hidden)
+                .scrollTargetBehavior(.viewAligned)
+            }
+            .fontDesign(.rounded)
+        }
+    }
+
+    private func tile(_ collection: AudiobookCollection) -> some View {
+        let size = AudiobookCoverRow.coverSize
+        return VStack(alignment: .leading, spacing: 4) {
+            AudiobookCoverStack(books: collection.books, size: size)
+            Text(collection.name)
+                .font(.footnote)
+                .lineLimit(1)
+            Text("^[\(collection.books.count) book](inflect: true)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(width: size)
     }
 }

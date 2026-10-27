@@ -386,3 +386,17 @@ public struct AudiobookshelfSeries: Decodable, Sendable, Identifiable {
     public let name: String
     public let books: [AudiobookshelfItem]?
 }
+
+/// `GET /api/libraries/<id>/collections`.
+struct AudiobookshelfCollectionsPage: Decodable, Sendable {
+    let results: [AudiobookshelfCollection]
+}
+
+/// A collection someone on the server made: books in the order they put
+/// them, from one library.
+public struct AudiobookshelfCollection: Decodable, Sendable, Identifiable {
+    public let id: String
+    public let name: String
+    public let description: String?
+    public let books: [AudiobookshelfItem]?
+}

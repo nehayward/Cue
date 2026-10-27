@@ -45,6 +45,7 @@ final class AudiobookshelfBrowseService {
         // Optional, so a snapshot kept before podcasts still reads.
         let podcastLibraries: [AudiobookshelfLibrary]?
         let latestEpisodes: [PlayableContent]?
+        let collections: [AudiobookCollection]?
     }
 
     private static let cacheName = "Audiobookshelf"
@@ -57,6 +58,7 @@ final class AudiobookshelfBrowseService {
         series = kept.series
         podcastLibraries = kept.podcastLibraries ?? []
         latestEpisodes = kept.latestEpisodes ?? []
+        collections = kept.collections ?? []
     }
 
     private func keep() {
@@ -66,7 +68,8 @@ final class AudiobookshelfBrowseService {
             recentlyAdded: recentlyAdded,
             series: series,
             podcastLibraries: podcastLibraries,
-            latestEpisodes: latestEpisodes
+            latestEpisodes: latestEpisodes,
+            collections: collections
         ), named: Self.cacheName)
     }
 
@@ -133,6 +136,7 @@ final class AudiobookshelfBrowseService {
         libraries = []
         podcastLibraries = []
         latestEpisodes = []
+        collections = []
         continueListening = []
         recentlyAdded = []
         series = []
@@ -167,11 +171,21 @@ final class AudiobookshelfBrowseService {
                 return books.isEmpty ? nil : AudiobookSeries(id: "audiobookshelf|\(entry.id)", name: entry.name, books: books)
             }
         }
+        if let library = selectedLibrary, let found = await api.collections(libraryID: library.id) {
+            collections = found.compactMap { entry in
+                let books = rows(from: entry.books ?? [])
+                return books.isEmpty ? nil : AudiobookCollection(id: "audiobookshelf|\(entry.id)", name: entry.name, books: books)
+            }
+        }
         keep()
     }
 
     /// The library's series with books to listen to, each in its order.
     private(set) var series: [AudiobookSeries] = []
+
+    /// The library's collections with books to listen to, each in the order
+    /// it was made in.
+    private(set) var collections: [AudiobookCollection] = []
 
     // MARK: - Podcasts
 

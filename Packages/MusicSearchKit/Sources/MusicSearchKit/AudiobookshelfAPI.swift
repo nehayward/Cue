@@ -289,6 +289,16 @@ public final class AudiobookshelfAPI: DirectStreamProvider {
         return page?.results
     }
 
+    /// A library's collections, each with its books in its order. Nil when
+    /// they couldn't be read.
+    public func collections(libraryID: String, limit: Int = 100) async -> [AudiobookshelfCollection]? {
+        let page: AudiobookshelfCollectionsPage? = await get("/api/libraries/\(libraryID)/collections", query: [
+            URLQueryItem(name: "limit", value: "\(limit)"),
+            URLQueryItem(name: "page", value: "0")
+        ])
+        return page?.results
+    }
+
     /// Books started and not finished, across libraries, newest first;
     /// with `includingEpisodes`, the episode each podcast in progress names
     /// among them, made into an item (`episodeItem`).

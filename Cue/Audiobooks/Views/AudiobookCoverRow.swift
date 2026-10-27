@@ -52,3 +52,23 @@ struct AudiobookCoverRow: View {
         .frame(width: size)
     }
 }
+
+/// The first book's cover in front, the next two behind it, as Apple Books
+/// stacks a series: a collection's or a series' tile.
+struct AudiobookCoverStack: View {
+    let books: [PlayableContent]
+    let size: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            ForEach(Array(books.prefix(3).enumerated().reversed()), id: \.element.id) { index, book in
+                ContentArtworkView(content: book, showMusicSource: false, preferredSize: 300, cornerRadius: 6)
+                    .frame(width: size - 16, height: size - 16)
+                    .brightness(index == 0 ? 0 : -0.2)
+                    .shadow(color: .black.opacity(0.3), radius: 4, x: -2)
+                    .offset(x: CGFloat(index) * 8, y: CGFloat(-index) * 8)
+            }
+        }
+        .frame(width: size, height: size, alignment: .bottomLeading)
+    }
+}
