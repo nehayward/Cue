@@ -238,7 +238,7 @@ enum AudiobookLibrary {
     /// shown (`plex`, `audiobookshelf`). Ordered by when each book's place
     /// last moved; history's order breaks ties, so a book with no reading
     /// yet stays where the history has it.
-    static func listenedBooks(plex: Bool, audiobookshelf: Bool) -> [PlayableContent] {
+    static func listenedBooks(plex: Bool, audiobookshelf: Bool, files: Bool = true) -> [PlayableContent] {
         let store = AudiobookProgressStore.shared
         let history = Array(PlayHistoryService.shared.history).filter { $0.content.type == .audiobook }
         let candidates = history + (audiobookshelf ? AudiobookshelfBrowseService.shared.continueListening : [])
@@ -247,6 +247,7 @@ enum AudiobookLibrary {
             let isShown = switch book.content.service {
             case .plex: plex
             case .audiobookshelf: audiobookshelf
+            case .files: files
             default: false
             }
             if isShown { books.append(book) }
@@ -264,6 +265,13 @@ enum AudiobookLibrary {
     /// the server out of reach — the copy kept with its download
     /// (`AudiobookDownloads`). Nil when neither has it, or it has no files.
     static func load(_ book: PlayableContent) async -> Audiobook? {
+        // A book in the Files folder is on this device already: no server,
+        // nothing to download, its place this device's alone.
+        if book.content.service == .files {
+            guard let loaded = await loadFiles(book) else { return nil }
+            AudiobookReadCache.keep(loaded)
+            return loaded
+        }
         // Offline, asking the server would only wait out its timeout.
         if OfflineMode.shared.isActive, let copy = AudiobookDownloads.copy(of: book) {
             return copy
@@ -384,6 +392,42 @@ enum AudiobookLibrary {
         default:
             return nil
         }
+    }
+
+    /// A book in the Files folder: its album's files in order
+    /// (`FilesIndex`), its chapters the files' own marks, read here.
+    private static func loadFiles(_ book: PlayableContent) async -> Audiobook? {
+        let files = FilesLibraryService.shared
+        await files.scanIfNeeded()
+        let parts = files.albumTracks(albumID: book.content.id)
+        let durations = parts.map { part in part.metadata?.duration.map { TimeInterval($0.components.seconds) + TimeInterval($0.components.attoseconds) / 1e18 } ?? 0 }
+        // A file whose length isn't known yet (still in iCloud) would put
+        // every place after it in the wrong file.
+        guard !parts.isEmpty, durations.allSatisfy({ $0 > 0 }) else {
+            log.error("files book \(book.title, privacy: .public): \(parts.count) files, lengths for \(durations.filter { $0 > 0 }.count)")
+            return nil
+        }
+        let timeline = AudiobookTimeline(partDurations: durations)
+        let keys = parts.map { "files:\($0.content.id)" }
+        let marks = await AudiobookChapterReader.marks(in: zip(keys, parts).map { key, part in (key: key, url: part.previewURL) })
+        let chapters: [AudiobookChapter]
+        if !marks.isEmpty {
+            chapters = .from(files: zip(keys, parts).map { key, part in (title: part.title, marks: marks[key] ?? []) }, timeline: timeline)
+        } else if parts.count > 1 {
+            chapters = .perPart(titles: parts.map(\.title), timeline: timeline)
+        } else {
+            chapters = []
+        }
+        return Audiobook(
+            book: files.book(id: book.content.id) ?? book,
+            parts: parts,
+            timeline: timeline,
+            chapters: chapters,
+            narrator: nil,
+            summary: nil,
+            serverProgress: nil,
+            filesMissing: nil
+        )
     }
 
     private static func loadPlex(_ book: PlayableContent) async -> Audiobook? {

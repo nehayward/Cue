@@ -710,10 +710,19 @@ final class AudiobookPlayer {
         graceUntil = .now.addingTimeInterval(15)
         misses = 0
 
-        let group: GroupRoom? = switch target {
+        var group: GroupRoom? = switch target {
         case .route: PlaybackRoute.shared.group
         case .device: nil
         case let .group(group): group
+        }
+        // A book in the Files folder plays here alone, since no speaker can
+        // reach it. The route comes to this device, so the player shows the
+        // book and is what this follows; a speaker keeps its own queue.
+        if audiobook.book.content.service.playsOnDeviceOnly {
+            if group != nil || PlaybackRoute.shared.destination != .device {
+                PlaybackRoute.shared.switchTo(.device, carrying: false)
+            }
+            group = nil
         }
         if !OfflineMode.shared.isActive, let group {
             guard await playOnSpeaker(audiobook, part: location.part, offset: location.offset, group: group) else {

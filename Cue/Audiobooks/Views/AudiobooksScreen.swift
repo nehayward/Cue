@@ -30,6 +30,8 @@ struct AudiobooksScreen: View {
 
     private var showsPlex: Bool { coreFeatures.isEnabled(.plex) && hasPlexBooks }
     private var showsAudiobookshelf: Bool { coreFeatures.isEnabled(.audiobookshelf) && shelf.isAuthenticated }
+    /// The Files folder's books (`FilesIndex`), on this device already.
+    private var filesBooks: [PlayableContent] { coreFeatures.isEnabled(.files) ? FilesLibraryService.shared.books : [] }
 
     var body: some View {
         // Offline, only what's whole on this device plays.
@@ -130,13 +132,14 @@ struct AudiobooksScreen: View {
         switch book?.content.service {
         case .plex: coreFeatures.isEnabled(.plex) ? book : nil
         case .audiobookshelf: showsAudiobookshelf ? book : nil
+        case .files: coreFeatures.isEnabled(.files) ? book : nil
         default: nil
         }
     }
 
     /// Every book listened to, once each, newest first.
     private var listenedBooks: [PlayableContent] {
-        AudiobookLibrary.listenedBooks(plex: coreFeatures.isEnabled(.plex), audiobookshelf: showsAudiobookshelf)
+        AudiobookLibrary.listenedBooks(plex: coreFeatures.isEnabled(.plex), audiobookshelf: showsAudiobookshelf, files: coreFeatures.isEnabled(.files))
     }
 
     // MARK: - Libraries
@@ -167,6 +170,21 @@ struct AudiobooksScreen: View {
                 if !shelf.recentlyAdded.isEmpty {
                     AudiobookCoverRow(books: shelf.recentlyAdded)
                 }
+            }
+            // The Files folder's books: an album with an .m4b in it, or
+            // tagged as a book.
+            let files = filesBooks
+            if !files.isEmpty {
+                AudiobookSectionTitle(title: "Files", destination: .playableList(
+                    title: "Files",
+                    showSectionIndex: false,
+                    allowsGrid: true,
+                    action: { offset in
+                        guard offset == 0 else { return [] }
+                        return files.map { $0.withAudiobookProgress(store.progress(for: $0)) }
+                    }
+                ))
+                AudiobookCoverRow(books: files)
             }
             // Audiobookshelf's podcasts: their newest episodes, the title
             // opening every podcast.

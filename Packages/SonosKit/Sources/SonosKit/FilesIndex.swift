@@ -1,9 +1,16 @@
 import Foundation
+import MusicSearchKit
 
 /// Everything the Files provider serves — songs, albums, artists and
 /// playlists, their lookups, and every sort order the lists offer — built
 /// from the tracks in one pass off the main actor and swapped in whole.
 /// Immutable once built, so the main actor's only work is the swap.
+///
+/// An album that's a book — one with an `.m4b` in it, or tagged with an
+/// audiobook genre — is listed as a book (`books`, an `.audiobook` the book
+/// player plays from where it was left) and kept out of the music: its
+/// files aren't songs, nor its author an artist. Its files are still found
+/// by id and by album, which is how the book plays.
 struct FilesIndex: Sendable {
     /// One array per sort and direction, as positions into `songs` or
     /// `albums`. Paging a sort is then a slice.
@@ -15,6 +22,9 @@ struct FilesIndex: Sendable {
     /// In title order.
     var songs: [PlayableContent] = []
     var albums: [PlayableContent] = []
+    /// The albums that are books, by title.
+    var books: [PlayableContent] = []
+    var booksByID: [String: PlayableContent] = [:]
     var artists: [PlayableContent] = []
     var playlists: [PlayableContent] = []
     var tracksByID: [String: FileTrack] = [:]
@@ -71,11 +81,18 @@ struct FilesIndex: Sendable {
         var index = FilesIndex()
         let tracks = unordered.sorted { NaturalSortKey.key(for: $0.relativePath) < NaturalSortKey.key(for: $1.relativePath) }
 
-        // Pass one: what each album is called, dated and pictured.
+        // Pass one: what each album is called, dated and pictured, and
+        // which are books.
         var albumArtwork: [String: URL] = [:]
+        var bookIDs = Set<String>()
+        var bookLength: [String: Double] = [:]
         for track in tracks {
             let artistName = track.groupingArtist
             let albumID = FilesLibraryService.hash("album|\(artistName.lowercased())|\(track.albumTitle.lowercased())")
+            if isBookFile(track) {
+                bookIDs.insert(albumID)
+            }
+            bookLength[albumID, default: 0] += FilesLibraryService.playableDuration(track.duration) ?? 0
             if let added = track.modificationDate, (index.albumAdded[albumID] ?? .distantPast) < added {
                 index.albumAdded[albumID] = added
             }
@@ -129,6 +146,35 @@ struct FilesIndex: Sendable {
                     isPlayable: track.isDownloaded
                 )
             )
+            if index.songsByID[songID] == nil {
+                index.songsByID[songID] = song
+            }
+            index.tracksByID[songID] = track
+            index.songIDByPath[track.relativePath] = songID
+            index.songIDsByAlbum[albumID, default: []].append(songID)
+
+            // A book's file plays as the book, not a song.
+            if bookIDs.contains(albumID) {
+                if index.booksByID[albumID] == nil {
+                    index.booksByID[albumID] = PlayableContent(
+                        title: track.albumTitle,
+                        subtitle: artistName,
+                        thumbnail: artwork,
+                        artwork: artwork,
+                        content: .init(service: .files, id: albumID, type: .audiobook, location: nil),
+                        metadata: .init(
+                            duration: bookLength[albumID].map { Duration.seconds($0) },
+                            artist: artistName,
+                            artistID: artistID,
+                            album: track.albumTitle,
+                            albumID: albumID,
+                            albumYear: year.flatMap { date(year: $0) }
+                        )
+                    )
+                }
+                continue
+            }
+
             songs.append(song)
             songKeys.append(SongKeys(
                 title: NaturalSortKey.key(for: track.title),
@@ -139,9 +185,6 @@ struct FilesIndex: Sendable {
                 duration: duration ?? 0,
                 path: track.relativePath
             ))
-            index.tracksByID[songID] = track
-            index.songIDByPath[track.relativePath] = songID
-            index.songIDsByAlbum[albumID, default: []].append(songID)
 
             if index.albumsByID[albumID] == nil {
                 index.albumsByID[albumID] = PlayableContent(
@@ -180,7 +223,10 @@ struct FilesIndex: Sendable {
         songs = titleOrder.map { songs[$0] }
         songKeys = titleOrder.map { songKeys[$0] }
         index.songs = songs
-        index.songsByID = Dictionary(songs.map { ($0.content.id, $0) }, uniquingKeysWith: { first, _ in first })
+        index.books = index.booksByID.values
+            .map { ($0, NaturalSortKey.key(for: $0.title)) }
+            .sorted { $0.1 < $1.1 }
+            .map(\.0)
 
         for sort in FilesLibraryService.SongSort.allCases {
             let ascending: (SongKeys, SongKeys) -> Bool
@@ -260,6 +306,13 @@ struct FilesIndex: Sendable {
             .map(\.0)
 
         return index
+    }
+
+    /// A file that makes its album a book: an `.m4b`, or tagged with an
+    /// audiobook genre (as Plex's books are found in a music library).
+    static func isBookFile(_ track: FileTrack) -> Bool {
+        if track.fileExtension.lowercased() == "m4b" { return true }
+        return track.genre.map(PlexAudiobookRules.isAudiobookGenre) ?? false
     }
 
     private static func date(year: Int) -> Date? {
